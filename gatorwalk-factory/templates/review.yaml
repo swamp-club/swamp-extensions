@@ -1,0 +1,81 @@
+# A starter stage template: an adversarial code review of a committed change
+# against its plan. It leaves through accepted (a fresh review with no open
+# blocking finding) or rework (a fresh review with one). Its reviewer skills
+# and blocking severities are parameters. Approvals belong to the lifecycle:
+# put them on the placeholder's accepted transition.
+schemaVersion: 1
+name: review
+description: Adversarial code review of the change against the plan.
+contract:
+  inputs:
+    - { kind: artifact, name: plan }
+    - { kind: artifact, name: change-summary }
+  outputs:
+    - { kind: artifact, name: code-review }
+  exits:
+    - {
+        name: accepted,
+        description: A fresh review with no open blocking finding.,
+      }
+    - { name: rework, description: The change needs another pass. }
+  parameters:
+    type: object
+    additionalProperties: false
+    properties:
+      skills:
+        description: Skills the reviewing subagents load.
+        type: array
+        items: { type: string, minLength: 1 }
+        minItems: 1
+        default: [code-review]
+      blocking:
+        description: Severities that block acceptance and send the change back.
+        type: array
+        items: { enum: [critical, high, medium, low] }
+        minItems: 1
+        default: [critical, high]
+stages:
+  - id: code-review
+    initial: true
+    projection: { status: in_progress }
+    description: >-
+      Adversarial review of the change. Open blocking findings send it back;
+      none lets it through.
+    work:
+      mode: dispatch
+      skills: { $param: skills }
+      systemPrompt: |
+        You are an adversarial reviewer. Review commit {{commit}}:
+        {{changeSummary}}
+        Check it against the plan. Record findings with severities; do not
+        soften them.
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+        changeSummary: artifacts["change-summary"].payload.summary
+      context:
+        inject: [plan, change-summary]
+    artifacts:
+      - name: code-review
+        kind: findings
+        reviews: change-summary
+    transitions:
+      - name: accept
+        exit: accepted
+        gates:
+          - type: artifact-fresh
+            config: { artifact: code-review, recordedThisCycle: true }
+          - type: findings-clear
+            config: { artifact: code-review, blocking: { $param: blocking } }
+      - name: rework
+        exit: rework
+        gates:
+          - type: artifact-fresh
+            config: { artifact: code-review, recordedThisCycle: true }
+          - type: findings-open
+            config: { artifact: code-review, blocking: { $param: blocking } }
+      - name: revise
+        exit: rework
+        manual: true
+        description: >-
+          A person sent the change back without a blocking finding. Manual, so
+          it never fires on its own.

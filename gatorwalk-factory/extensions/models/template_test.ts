@@ -24,7 +24,7 @@ import { fakeSwamp } from "./_lib/fake_swamp.ts";
 import { HOLDER_TYPE, STAGE_TEMPLATE_TYPE } from "./_lib/work_item_ops.ts";
 
 const REVIEW_PLAN = new URL(
-  "../../testdata/templates/review-plan.yaml",
+  "../../templates/review-plan.yaml",
   import.meta.url,
 );
 
@@ -51,7 +51,7 @@ Deno.test("template holder: validate fills in defaults and reports a valid stage
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "stage template 'review-plan' in 'review' is valid: 1 stages (review), exits approved, rework",
+      "stage template 'review-plan' in 'review' is valid: 1 stages (plan-review), exits approved, rework",
     ),
     summary,
   );

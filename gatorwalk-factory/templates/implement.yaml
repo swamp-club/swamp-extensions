@@ -1,0 +1,53 @@
+# A starter stage template: implement a plan and commit it. It stops at a
+# committed change and never opens a pull request; releasing is the
+# lifecycle's. Approvals belong to the lifecycle: put them on the
+# placeholder's transitions.
+schemaVersion: 1
+name: implement
+description: Implement the plan and commit it.
+contract:
+  inputs:
+    - { kind: artifact, name: plan }
+  outputs:
+    - { kind: artifact, name: change-summary }
+  exits:
+    - { name: submitted, description: A committed change is recorded. }
+  parameters:
+    type: object
+    additionalProperties: false
+    properties:
+      skills:
+        description: Skills the implementing agent loads.
+        type: array
+        items: { type: string, minLength: 1 }
+        default: []
+stages:
+  - id: implement
+    initial: true
+    projection: { status: in_progress }
+    description: Implement the plan and commit it.
+    work:
+      mode: interactive
+      skills: { $param: skills }
+      systemPrompt: |
+        Implement the plan. Commit the work, then record change-summary with
+        the full 40-character SHA of the commit to check and review. Do not
+        open a pull request. After a check or review sends the work back, fix
+        it, commit, and record change-summary again for the new commit.
+      context:
+        inject: [plan]
+    artifacts:
+      - name: change-summary
+        schema:
+          type: object
+          required: [summary, commit, files]
+          properties:
+            summary: { type: string, minLength: 1 }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            files: { type: array, minItems: 1, items: { type: string } }
+    transitions:
+      - name: submit
+        exit: submitted
+        gates:
+          - type: artifact-exists
+            config: { artifact: change-summary }

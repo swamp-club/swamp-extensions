@@ -97,6 +97,17 @@ function gateLifecycle(): Lifecycle {
             }],
           },
           {
+            name: "open",
+            to: "done",
+            gates: [{
+              type: "findings-open",
+              config: {
+                artifact: "plan-review",
+                blocking: ["critical", "high"],
+              },
+            }],
+          },
+          {
             name: "approved",
             to: "done",
             gates: [{ type: "human-approval", config: { id: "ship" } }],
@@ -386,6 +397,39 @@ Deno.test("findings-clear: unresolved blocking findings are listed; resolved or 
       resolutionNote: "fixed",
     }],
   });
+  assert((await gate(store, env, "clear")).pass);
+});
+
+Deno.test("findings-open: passes only while a blocking finding is unresolved, the mirror of findings-clear", async () => {
+  const { store, env } = await setup();
+  const none = await gate(store, env, "open");
+  assert(
+    !none.pass &&
+      none.reason === "findings artifact 'plan-review' has not been recorded",
+    none.reason,
+  );
+  await record(store, env, "artifact", "plan", { text: "x" });
+  await record(store, env, "artifact", "plan-review", {
+    findings: [
+      { id: "F1", severity: "high", description: "d" },
+      { id: "F2", severity: "low", description: "d" },
+    ],
+  });
+  assert((await gate(store, env, "open")).pass);
+  assert(!(await gate(store, env, "clear")).pass);
+  await record(store, env, "artifact", "plan-review", {
+    findings: [
+      { id: "F1", severity: "high", description: "d", resolved: true },
+      { id: "F2", severity: "low", description: "d" },
+    ],
+  });
+  const clear = await gate(store, env, "open");
+  assert(
+    !clear.pass &&
+      clear.reason ===
+        "'plan-review' has no unresolved finding at a blocking severity (critical, high)",
+    clear.reason,
+  );
   assert((await gate(store, env, "clear")).pass);
 });
 

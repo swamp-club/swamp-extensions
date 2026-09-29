@@ -173,6 +173,12 @@ export function describeGate(gate: GateSpec): GateView {
           gate.config.blocking.join("/")
         } findings`,
       );
+    case "findings-open":
+      return view(
+        `artifact '${gate.config.artifact}' has an open ${
+          gate.config.blocking.join("/")
+        } finding`,
+      );
     case "human-approval": {
       const n = gate.config.minApprovals ?? 1;
       const result = view(

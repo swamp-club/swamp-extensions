@@ -1,7 +1,8 @@
 # A lifecycle sketched with a placeholder stage, review, where the
 # review-plan stage template is applied (apply_test.ts,
 # integration/cli_test.ts). The placeholder's transitions name where each of
-# the stage template's exits goes.
+# the stage template's exits goes; the approval on approved is the
+# lifecycle's, added to the stage template's approve transition.
 schemaVersion: 1
 name: plan-then-build
 description: Plan, have the plan reviewed, build it.
@@ -27,7 +28,11 @@ stages:
   - id: review
     description: Placeholder for the review-plan stage template.
     transitions:
-      - { name: approved, to: implement }
+      - name: approved
+        to: implement
+        gates:
+          - type: human-approval
+            config: { id: plan-approval }
       - { name: rework, to: plan }
   - id: implement
     work:

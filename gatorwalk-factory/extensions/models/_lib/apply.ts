@@ -41,7 +41,9 @@ import {
 // stage template goes. Apply replaces it: transitions into the placeholder
 // enter the stage template's initial stage, and each contract exit leaves to
 // the stage the placeholder's transition of the same name targets (or `exits`
-// names).
+// names). Gates on that placeholder transition are the lifecycle's own (an
+// approval, say): they are added to each of the stage template's non-manual
+// transitions through the exit, unrenamed.
 //
 // Names are chosen at the use site, never derived by prefixing: `names` renames
 // the stage template's stages, artifacts and evidence, and `inputs` maps each
@@ -138,12 +140,48 @@ export function applyStageTemplate(
           `matches no exit of ${from} (${exitNames.join(", ")})`,
       );
     }
-    if ((t.gates ?? []).length > 0 || t.manual !== undefined) {
+    if (t.manual !== undefined) {
       errors.push(
         `replace: transition '${t.name}' of placeholder stage '${replace}' ` +
-          "has gates or manual; a placeholder only names where each exit " +
-          "goes, and the stage template's own transitions carry the gates",
+          "has manual; a placeholder names where each exit goes and may add " +
+          "gates, and the stage template's own transitions say which are manual",
       );
+    }
+  }
+
+  // --- where the placeholder's gates go -------------------------------------
+  // They follow the exit by name, whatever `exits` says about its target.
+  for (const t of placeholder.transitions ?? []) {
+    const gates = t.gates ?? [];
+    if (gates.length === 0 || !exitNames.includes(t.name)) continue;
+    const through = template.stages.flatMap((s) =>
+      (s.transitions ?? []).filter((x) =>
+        x.exit === t.name && x.manual !== true
+      )
+        .map((x) => ({ stage: s.id, transition: x }))
+    );
+    if (through.length === 0) {
+      errors.push(
+        `replace: transition '${t.name}' of placeholder stage '${replace}' ` +
+          `has gates, but every transition of ${from} through exit ` +
+          `'${t.name}' is manual, so they would go nowhere; a person already ` +
+          "decides a manual transition, or gate it by editing the result",
+      );
+    }
+    const ids = gates.flatMap((g) =>
+      g.type === "human-approval" ? [g.config.id] : []
+    );
+    for (const { stage, transition } of through) {
+      for (const g of transition.gates ?? []) {
+        if (g.type === "human-approval" && ids.includes(g.config.id)) {
+          errors.push(
+            `replace: transition '${t.name}' of placeholder stage '${replace}' ` +
+              `adds approval '${g.config.id}', which transition ` +
+              `'${transition.name}' of stage '${stage}' of ${from} already ` +
+              "has; give it another id, or leave it to the stage template",
+          );
+        }
+      }
     }
   }
 
@@ -330,6 +368,7 @@ export function applyStageTemplate(
   for (const stage of baseStages) {
     checkBase(stage.transitions ?? [], `stage '${stage.id}' of ${into}`);
   }
+  checkBase(placeholder.transitions ?? [], `placeholder stage '${replace}'`);
   checkBase(base.globalTransitions ?? [], `global transitions of ${into}`);
 
   if (errors.length > 0) return fail();
@@ -385,6 +424,7 @@ export function applyStageTemplate(
       case "artifact-exists":
       case "artifact-fresh":
       case "findings-clear":
+      case "findings-open":
         return {
           ...gate,
           config: {
@@ -481,6 +521,15 @@ export function applyStageTemplate(
             renameGate(g, `${where}, transition '${t.name}'`)
           );
         }
+        // The placeholder's gates for this exit follow the stage template's
+        // own, as the lifecycle wrote them. A manual transition is left alone:
+        // a person already decides it.
+        const added = exit !== undefined && t.manual !== true
+          ? placeholder.transitions?.find((p) => p.name === exit)?.gates ?? []
+          : [];
+        if (added.length > 0) {
+          renamed.gates = [...renamed.gates ?? [], ...structuredClone(added)];
+        }
         return renamed;
       });
     }
@@ -511,6 +560,11 @@ export function applyStageTemplate(
   for (const t of base.globalTransitions ?? []) {
     for (const expr of gateCel(t.gates)) {
       baseCel(expr, `global transition '${t.name}' of ${into}`);
+    }
+  }
+  for (const t of placeholder.transitions ?? []) {
+    for (const expr of gateCel(t.gates)) {
+      baseCel(expr, `placeholder stage '${replace}', transition '${t.name}'`);
     }
   }
   const composed: Lifecycle = {

@@ -246,6 +246,25 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
       );
     }
 
+    case "findings-open": {
+      const ctx = needContext();
+      if ("pass" in ctx) return ctx;
+      const name = gate.config.artifact;
+      const view = ctx.artifacts[name];
+      if (view === undefined) {
+        return fail(`findings artifact '${name}' has not been recorded`);
+      }
+      const blocking = new Set<string>(gate.config.blocking);
+      const open = findingsOf(view.payload).some((f) =>
+        f.resolved !== true && blocking.has(f.severity)
+      );
+      return open ? pass : fail(
+        `'${name}' has no unresolved finding at a blocking severity (${
+          gate.config.blocking.join(", ")
+        })`,
+      );
+    }
+
     case "human-approval": {
       const id = gate.config.id;
       const when = gate.config.when;

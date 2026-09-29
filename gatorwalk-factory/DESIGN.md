@@ -443,6 +443,13 @@ or has a `human-approval` gate without `when`. Anywhere else, two exits that can
 pass together leave the driver to guess, and the analysis warns. A conditional
 approval does not count, since while its `when` is false no one is asked.
 
+Two exits are exclusive, so never both satisfied, when `evidence-recorded` gates
+on the same evidence require values that conflict, when `max-cycles` gates on
+the same stage and limit point opposite ways, or when one has `findings-clear`
+and the other `findings-open` on the same findings artifact and every severity
+`findings-open` counts is one `findings-clear` blocks on. An open finding at
+such a severity fails `findings-clear`.
+
 ### What the analysis assumes
 
 It explores abstract run states breadth-first, so every finding comes with the
@@ -466,10 +473,11 @@ In both passes a gate is judged like this:
   evidence from the current stage and cycle.
 - **`artifact-fresh` with `recordedThisCycle`** likewise needs the current stage
   to declare the artifact.
-- **`artifact-exists`, `findings-clear`, `artifact-fresh` and `cooldown`** pass
-  only once a stage that produces what they read has been entered on the path.
-  For `artifact-fresh` that means both the artifact and the subject it reviews.
-  In a stage template, contract inputs are present from the start.
+- **`artifact-exists`, `findings-clear`, `findings-open`, `artifact-fresh` and
+  `cooldown`** pass only once a stage that produces what they read has been
+  entered on the path. For `artifact-fresh` that means both the artifact and the
+  subject it reviews. In a stage template, contract inputs are present from the
+  start.
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
   is a `human-approval` gate with `when`: it may apply or not.
 
@@ -684,8 +692,8 @@ may still have a property of that name.
 
 The author sketches the lifecycle with a bare **placeholder stage** where the
 stage template goes. It may declare only an `id`, a `description`, `initial` and
-`transitions` (no work, no products, no gates on its transitions). Apply
-replaces the placeholder:
+`transitions` (no work, no products). Its transitions may have gates but not
+`manual`. Apply replaces the placeholder:
 
 - **Transitions into it**, including global transitions, enter the stage
   template's initial stage. If the placeholder was the initial stage, the stage
@@ -694,8 +702,26 @@ replaces the placeholder:
   target of the placeholder's transition of the same name. An exit wired to the
   placeholder itself re-enters the stage template. An unwired exit is an error,
   and so is a placeholder transition that matches no exit.
+- **Gates on a placeholder transition** belong to the lifecycle. Apply adds
+  them, as written and after the stage template's own gates, to each of the
+  stage template's transitions that leaves through that exit and is not manual.
+  A person already decides a manual transition (a `revise`, say), so it is left
+  alone; to gate one as well, edit the result. Gates on an exit whose every
+  transition is manual would go nowhere, so they are an error, and so is an
+  approval id the stage template's transition already has. The gates follow the
+  exit by name, so they still apply when `exits` sends it elsewhere.
 - **Other references to the placeholder** cannot be carried over, and are
-  errors. A `max-cycles` gate on it is one example.
+  errors. A `max-cycles` gate on it is one example, wherever it is, including on
+  the placeholder's own transitions.
+
+Gates on the placeholder are how a lifecycle puts its approvals on a stage
+template's exits. Approvals are the lifecycle's decision, not the stage
+template's: who signs off, and where, differs from team to team, and a stage
+template that carried them would have to be edited on every use. So the starter
+stage templates carry none, and a lifecycle writes
+`approved: { to: implement, gates: [{ type: human-approval, config: { id: plan-approval } }] }`
+on the placeholder. The gates are not renamed: they are written in the
+lifecycle's names, and may read the lifecycle's products.
 
 ### Names are chosen at the use site
 
@@ -753,6 +779,54 @@ YAML. It never edits the holder's definition: a method cannot safely rewrite its
 own definition, and the author should read what they adopt. The author saves the
 lifecycle as the holder's `globalArguments` and runs `validate`, and the
 lifecycle is then theirs.
+
+## The starter stage templates
+
+`templates/` holds five stage templates a team starts from: `plan`,
+`review-plan`, `implement`, `verify` and `review`. Their stages are taken from
+`lifecycles/build-swamp-extension.yaml` and `lifecycles/swamp-extensions.yaml`,
+which already work. Applied in flow order they give
+`lifecycles/build-swamp-extension.yaml`'s core, made generic. The test is
+`testdata/lifecycles/starter-core.yaml`, the same lifecycle written by hand:
+applying the five to `testdata/lifecycles/starter-sketch.yaml` gives it exactly.
+
+| Stage template | Stage (mode)              | Inputs                   | Outputs                  | Exits                | Parameters           |
+| -------------- | ------------------------- | ------------------------ | ------------------------ | -------------------- | -------------------- |
+| `plan`         | `plan` (interactive)      |                          | `plan`                   | `submitted`          | `skills`             |
+| `review-plan`  | `plan-review` (dispatch)  | `plan`                   | `plan-review` (findings) | `approved`, `rework` | `skills`, `blocking` |
+| `implement`    | `implement` (interactive) | `plan`                   | `change-summary`         | `submitted`          | `skills`             |
+| `verify`       | `verify` (interactive)    | `change-summary`         | `checks` (evidence)      | `passed`, `failed`   | `command`            |
+| `review`       | `code-review` (dispatch)  | `plan`, `change-summary` | `code-review` (findings) | `accepted`, `rework` | `skills`, `blocking` |
+
+The choices:
+
+- **No approvals.** Every approval is the lifecycle's, on the placeholder's
+  transitions (see "How apply wires a stage template in"). The stage templates
+  are still safe on their own: a review's exits are exclusive, and `revise` is
+  manual.
+- **One `blocking` drives both review exits.** `approved` needs a fresh review
+  and `findings-clear`; `rework` needs a fresh review and `findings-open`, with
+  the same severities. CEL cannot read a parameter (placeholders are replaced
+  whole, never spliced into a string), so the rework gate could not be a `cel`
+  expression over `blocking`. `findings-open`, the mirror of `findings-clear`,
+  was added for this.
+- **`verify` is an agent stage.** The agent runs the stage's `command` and
+  records `checks` with one result per check, as build-swamp-extension's `check`
+  does. The default command is swamp-extension checks; a team replaces it. A
+  `workflow` stage (swamp-extensions' `verify`) is the other design; a launch
+  template may add one.
+- **`implement` stops at a committed change.** It never opens a pull request:
+  releasing differs by team and is the lifecycle's.
+- **What build-swamp-extension has that the starters do not.** No quality score
+  or waiver in `verify`, no `versionBump` in the plan and no `manifestVersion`
+  in `change-summary`: they are swamp-extension specific. Nor does `implement`
+  refuse to resubmit the commit already checked: that reads `verify`'s evidence,
+  which `implement` cannot take as a contract input, since it is not produced on
+  the first way in. `verify`'s `passed` exit is bound to the change-summary
+  commit instead.
+
+Apply them in flow order: a contract input must be produced on every path into a
+stage template, so `review-plan` can only be applied once `plan` has been.
 
 ## The model types: a lifecycle holder and work items
 

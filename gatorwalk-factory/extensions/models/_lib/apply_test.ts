@@ -24,6 +24,7 @@ import {
   rewriteCel,
 } from "./apply.ts";
 import {
+  type GateSpec,
   type Lifecycle,
   parseLifecycle,
   parseStageTemplate,
@@ -66,7 +67,7 @@ async function reviewPlan(
   params?: Record<string, unknown>,
 ): Promise<StageTemplate> {
   const result = instantiateStageTemplate(
-    await raw("templates/review-plan.yaml"),
+    await raw("../templates/review-plan.yaml"),
     params,
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
@@ -116,12 +117,16 @@ Deno.test("apply: the stage template's stages replace the placeholder, wired by 
   );
   assertEquals(out.stages.map((s) => s.id), [
     "plan",
-    "review",
+    "plan-review",
     "implement",
     "done",
   ]);
-  const review = stage(out, "review");
-  assertEquals(edges(review), ["approve->implement", "rework->plan"]);
+  const review = stage(out, "plan-review");
+  assertEquals(edges(review), [
+    "approve->implement",
+    "rework->plan",
+    "revise->plan",
+  ]);
   assert(review.transitions?.every((t) => t.exit === undefined));
   assertEquals(review.initial, undefined);
   assertEquals(review.work?.skills, ["adversarial-review"]);
@@ -129,7 +134,7 @@ Deno.test("apply: the stage template's stages replace the placeholder, wired by 
     type: "findings-clear",
     config: { artifact: "plan-review", blocking: ["critical", "high"] },
   });
-  assertEquals(edges(stage(out, "plan")), ["submit->review"]);
+  assertEquals(edges(stage(out, "plan")), ["submit->plan-review"]);
   assertEquals(warnings, []);
 });
 
@@ -143,9 +148,15 @@ Deno.test("apply: parameters reach the copied stages", async () => {
       },
     ),
   );
-  const gate = stage(out, "review").transitions?.[0].gates?.[1];
+  const [approve, rework] = stage(out, "plan-review").transitions ?? [];
+  const clear = approve.gates?.[1];
+  const open = rework.gates?.[1];
   assertEquals(
-    gate?.type === "findings-clear" && gate.config.blocking,
+    clear?.type === "findings-clear" && clear.config.blocking,
+    ["critical"],
+  );
+  assertEquals(
+    open?.type === "findings-open" && open.config.blocking,
     ["critical"],
   );
 });
@@ -157,9 +168,10 @@ Deno.test("apply: exits overrides the placeholder's wiring", async () => {
       exits: { rework: "implement" },
     }),
   );
-  assertEquals(edges(stage(out, "review")), [
+  assertEquals(edges(stage(out, "plan-review")), [
     "approve->implement",
     "rework->implement",
+    "revise->implement",
   ]);
 });
 
@@ -170,14 +182,15 @@ Deno.test("apply: an exit back to the placeholder re-enters the stage template",
   const { lifecycle: out } = ok(
     applyStageTemplate(asLifecycle(base), await reviewPlan(), {
       replace: "review",
-      names: { stages: { review: "plan-review" } },
+      names: { stages: { "plan-review": "critique" } },
     }),
   );
-  assertEquals(edges(stage(out, "plan-review")), [
+  assertEquals(edges(stage(out, "critique")), [
     "approve->implement",
-    "rework->plan-review",
+    "rework->critique",
+    "revise->critique",
   ]);
-  assertEquals(edges(stage(out, "plan")), ["submit->plan-review"]);
+  assertEquals(edges(stage(out, "plan")), ["submit->critique"]);
 });
 
 Deno.test("apply: an initial placeholder makes the stage template's entry initial", () => {
@@ -217,10 +230,157 @@ Deno.test("apply: global transitions into the placeholder enter the stage templa
   const { lifecycle: out } = ok(
     applyStageTemplate(asLifecycle(base), await reviewPlan(), {
       replace: "review",
-      names: { stages: { review: "critique" } },
+      names: { stages: { "plan-review": "critique" } },
     }),
   );
   assertEquals(out.globalTransitions?.[0].to, "critique");
+});
+
+Deno.test("apply: a placeholder transition's gates follow the stage template's own on each non-manual transition through that exit", async () => {
+  const { lifecycle: out } = ok(
+    applyStageTemplate(await target(), await reviewPlan(), {
+      replace: "review",
+    }),
+  );
+  const gates = (name: string) =>
+    stage(out, "plan-review").transitions?.find((t) => t.name === name)
+      ?.gates?.map((g) => g.type);
+  assertEquals(gates("approve"), [
+    "artifact-fresh",
+    "findings-clear",
+    "human-approval",
+  ]);
+  assertEquals(gates("rework"), ["artifact-fresh", "findings-open"]);
+  // revise is manual, and leaves through rework, whose placeholder transition
+  // has no gates anyway; see below for a gated exit with a manual transition.
+  assertEquals(gates("revise"), undefined);
+
+  const helper = template(`
+contract:
+  exits: [{ name: out }]
+  outputs: [{ kind: artifact, name: note }]
+stages:
+  - id: write
+    initial: true
+    artifacts: [{ name: note, schema: { type: object } }]
+    transitions:
+      - name: quick
+        exit: out
+        gates: [{ type: artifact-exists, config: { artifact: note } }]
+      - { name: slow, exit: out }
+      - { name: skip, exit: out, manual: true }
+`);
+  const base = lifecycle(`
+stages:
+  - id: start
+    initial: true
+    artifacts: [{ name: ticket, schema: { type: object } }]
+    transitions: [{ name: go, to: slot }]
+  - id: slot
+    transitions:
+      - name: out
+        to: end
+        gates:
+          - type: cel
+            config: { expr: 'has(artifacts.ticket)' }
+          - type: human-approval
+            config: { id: sign-off }
+  - id: end
+    terminal: true
+`);
+  const { lifecycle: composed } = ok(
+    applyStageTemplate(base, helper, {
+      replace: "slot",
+      names: { artifacts: { note: "ticket-note" } },
+    }),
+  );
+  const write = stage(composed, "write");
+  const added: GateSpec[] = [
+    { type: "cel", config: { expr: "has(artifacts.ticket)" } },
+    { type: "human-approval", config: { id: "sign-off" } },
+  ];
+  assertEquals(write.transitions?.map((t) => [t.name, t.gates]), [
+    ["quick", [
+      { type: "artifact-exists", config: { artifact: "ticket-note" } },
+      ...added,
+    ]],
+    ["slow", added],
+    ["skip", undefined],
+  ]);
+});
+
+Deno.test("apply: a placeholder's gates follow the exit by name, even when exits sends it elsewhere", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
+  const placeholder = (base.stages as { transitions: object[] }[])[1];
+  placeholder.transitions[1] = {
+    name: "rework",
+    to: "plan",
+    gates: [{ type: "human-approval", config: { id: "redo" } }],
+  };
+  const { lifecycle: out } = ok(
+    applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+      replace: "review",
+      exits: { rework: "implement" },
+    }),
+  );
+  const rework = stage(out, "plan-review").transitions?.[1];
+  assertEquals(rework?.to, "implement");
+  assertEquals(rework?.gates?.at(-1), {
+    type: "human-approval",
+    config: { id: "redo" },
+  });
+});
+
+Deno.test("apply: placeholder gates that would go nowhere, or repeat the stage template's approval, are refused", () => {
+  const helper = template(`
+contract:
+  exits: [{ name: out }, { name: back }]
+stages:
+  - id: look
+    initial: true
+    transitions:
+      - name: ok
+        exit: out
+        gates: [{ type: human-approval, config: { id: sign-off } }]
+      - { name: undo, exit: back, manual: true }
+`);
+  const base = lifecycle(`
+stages:
+  - id: start
+    initial: true
+    transitions: [{ name: go, to: slot }]
+  - id: slot
+    transitions:
+      - name: out
+        to: end
+        gates: [{ type: human-approval, config: { id: sign-off } }]
+      - name: back
+        to: start
+        gates: [{ type: human-approval, config: { id: go-back } }]
+  - id: end
+    terminal: true
+`);
+  assertMentions(
+    errorsOf(applyStageTemplate(base, helper, { replace: "slot" })),
+    "replace: transition 'back' of placeholder stage 'slot' has gates, but every transition of stage template 'helper' through exit 'back' is manual, so they would go nowhere",
+    "replace: transition 'out' of placeholder stage 'slot' adds approval 'sign-off', which transition 'ok' of stage 'look' of stage template 'helper' already has",
+  );
+});
+
+Deno.test("apply: a findings-open gate's artifact is renamed like findings-clear's", async () => {
+  const { lifecycle: out } = ok(
+    applyStageTemplate(await target(), await reviewPlan(), {
+      replace: "review",
+      names: { artifacts: { "plan-review": "critique" } },
+    }),
+  );
+  const rework = stage(out, "plan-review").transitions?.find((t) =>
+    t.name === "rework"
+  );
+  assertEquals(rework?.gates?.[1], {
+    type: "findings-open",
+    config: { artifact: "critique", blocking: ["critical", "high"] },
+  });
 });
 
 // --- what apply refuses ------------------------------------------------------
@@ -242,7 +402,17 @@ Deno.test("apply: the placeholder must exist and be bare", async () => {
     ),
     "replace: stage 'plan' is not a bare placeholder (it declares maxCycles, work, artifacts)",
     "replace: transition 'submit' of placeholder stage 'plan' matches no exit of stage template 'review-plan' (approved, rework)",
-    "replace: transition 'submit' of placeholder stage 'plan' has gates or manual",
+  );
+  const base = await raw("lifecycles/apply-target.yaml");
+  const placeholder = (base.stages as { transitions: object[] }[])[1];
+  placeholder.transitions[1] = { name: "rework", to: "plan", manual: true };
+  assertMentions(
+    errorsOf(
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
+    ),
+    "replace: transition 'rework' of placeholder stage 'review' has manual",
   );
 });
 
@@ -269,7 +439,7 @@ Deno.test("apply: options may only name what the stage template has, with valid 
         exits: { escalate: "done" },
         inputs: { spec: "plan" },
         names: {
-          stages: { critique: "x", review: "Bad Name" },
+          stages: { critique: "x", "plan-review": "Bad Name" },
           artifacts: { plan: "p" },
           evidence: { ci: "c" },
         },
@@ -277,8 +447,8 @@ Deno.test("apply: options may only name what the stage template has, with valid 
     ),
     "exits.escalate: 'escalate' is not an exit of stage template 'review-plan' (approved, rework)",
     "inputs.spec: 'spec' is not a contract input of stage template 'review-plan' (plan)",
-    "names.stages.critique: 'critique' is not a stage of stage template 'review-plan' (review)",
-    "names.stages.review: 'Bad Name' is not a valid name",
+    "names.stages.critique: 'critique' is not a stage of stage template 'review-plan' (plan-review)",
+    "names.stages.plan-review: 'Bad Name' is not a valid name",
     "names.artifacts.plan: 'plan' is not an artifact stage template 'review-plan' declares (plan-review)",
     "names.evidence.ci: 'ci' is not evidence stage template 'review-plan' declares (none)",
   );
@@ -303,6 +473,22 @@ Deno.test("apply: a max-cycles gate on the placeholder is refused", async () => 
     ),
     "stage 'implement' of lifecycle 'plan-then-build', transition 'again': a max-cycles gate names placeholder stage 'review'",
   );
+  // Nor on the placeholder's own transitions, whose gates apply carries over.
+  const gated = await raw("lifecycles/apply-target.yaml");
+  const placeholder = (gated.stages as { transitions: object[] }[])[1];
+  placeholder.transitions[1] = {
+    name: "rework",
+    to: "plan",
+    gates: [{ type: "max-cycles", config: { stage: "review", limit: 2 } }],
+  };
+  assertMentions(
+    errorsOf(
+      applyStageTemplate(asLifecycle(gated), await reviewPlan(), {
+        replace: "review",
+      }),
+    ),
+    "placeholder stage 'review', transition 'rework': a max-cycles gate names placeholder stage 'review'",
+  );
 });
 
 Deno.test("apply: a stage template transition may not share a global transition's name", async () => {
@@ -314,7 +500,7 @@ Deno.test("apply: a stage template transition may not share a global transition'
         replace: "review",
       }),
     ),
-    "transition 'approve' of stage 'review' of stage template 'review-plan' has the same name as a global transition of lifecycle 'plan-then-build'",
+    "transition 'approve' of stage 'plan-review' of stage template 'review-plan' has the same name as a global transition of lifecycle 'plan-then-build'",
   );
 });
 
@@ -342,7 +528,7 @@ Deno.test("apply: a contract input maps to the lifecycle's product, by name or i
       inputs: { plan: "design" },
     }),
   );
-  const review = stage(out, "review");
+  const review = stage(out, "plan-review");
   assertEquals(review.work?.context?.inject, ["design"]);
   assertEquals(review.artifacts?.[0].reviews, "design");
 });
@@ -365,7 +551,7 @@ Deno.test("apply: a contract input missing on a path into the stage template is 
         replace: "review",
       }),
     ),
-    "input artifact 'plan' of stage template 'review-plan' is not produced on every path into stage 'review': intake -> review",
+    "input artifact 'plan' of stage template 'review-plan' is not produced on every path into stage 'plan-review': intake -> plan-review",
   );
 });
 
@@ -532,7 +718,11 @@ Deno.test("apply: the same stage template twice, kept apart by the names given a
   }, {
     id: "check-design",
     transitions: [
-      { name: "approved", to: "implement" },
+      {
+        name: "approved",
+        to: "implement",
+        gates: [{ type: "human-approval", config: { id: "plan-approval" } }],
+      },
       { name: "rework", to: "design" },
     ],
   });
@@ -548,7 +738,7 @@ Deno.test("apply: the same stage template twice, kept apart by the names given a
         inputs: { plan: "design" },
       }),
     ),
-    "stage 'review' of stage template 'review-plan' clashes with stage 'review' of lifecycle 'plan-then-build'; name it with names.stages.review",
+    "stage 'plan-review' of stage template 'review-plan' clashes with stage 'plan-review' of lifecycle 'plan-then-build'; name it with names.stages.plan-review",
     "artifact 'plan-review' of stage template 'review-plan' clashes with artifact 'plan-review' of lifecycle 'plan-then-build'; name it with names.artifacts.plan-review",
   );
   const { lifecycle: twice } = ok(
@@ -556,20 +746,20 @@ Deno.test("apply: the same stage template twice, kept apart by the names given a
       replace: "check-design",
       inputs: { plan: "design" },
       names: {
-        stages: { review: "design-review" },
+        stages: { "plan-review": "design-review" },
         artifacts: { "plan-review": "design-findings" },
       },
     }),
   );
   assertEquals(twice.stages.map((s) => s.id), [
     "plan",
-    "review",
+    "plan-review",
     "design",
     "design-review",
     "implement",
     "done",
   ]);
-  const first = stage(twice, "review");
+  const first = stage(twice, "plan-review");
   const second = stage(twice, "design-review");
   assertEquals(first.artifacts?.map((a) => [a.name, a.reviews]), [
     ["plan-review", "plan"],
@@ -577,8 +767,13 @@ Deno.test("apply: the same stage template twice, kept apart by the names given a
   assertEquals(second.artifacts?.map((a) => [a.name, a.reviews]), [
     ["design-findings", "design"],
   ]);
-  assertEquals(edges(second), ["approve->implement", "rework->design"]);
-  // The approval gate keeps its id in both: approvals are counted per stage.
+  assertEquals(edges(second), [
+    "approve->implement",
+    "rework->design",
+    "revise->design",
+  ]);
+  // Each placeholder's approval, added to its use of the stage template,
+  // keeps its id: approvals are counted per stage.
   const approvalIds = [first, second].map((s) =>
     s.transitions?.[0].gates?.find((g) => g.type === "human-approval")
   );
@@ -632,9 +827,10 @@ Deno.test("apply: a CEL string naming a renamed product, or the placeholder in a
       },
     ],
   }];
-  const doc = await raw("templates/review-plan.yaml");
+  const doc = await raw("../templates/review-plan.yaml");
   const review = (doc.stages as { work: Record<string, unknown> }[])[0];
   review.work.bindings = {
+    ...review.work.bindings as Record<string, string>,
     open: 'artifacts.exists(k, k == "plan-review")',
     failed: 'validations["artifacts"]["plan-review"]',
   };
@@ -646,13 +842,14 @@ Deno.test("apply: a CEL string naming a renamed product, or the placeholder in a
       names: { artifacts: { "plan-review": "critique" } },
     }),
   );
-  assertEquals(stage(out, "review").work?.bindings, {
+  assertEquals(stage(out, "plan-review").work?.bindings, {
+    planSummary: 'artifacts["plan"].payload.summary',
     open: 'artifacts.exists(k, k == "plan-review")',
     failed: 'validations["artifacts"]["critique"]',
   });
   assertMentions(
     warnings,
-    "stage 'review' of stage template 'review-plan', binding 'open': the CEL string \"plan-review\" matches a product of stage template 'review-plan' that is now artifact 'critique'",
+    "stage 'plan-review' of stage template 'review-plan', binding 'open': the CEL string \"plan-review\" matches a product of stage template 'review-plan' that is now artifact 'critique'",
     "global transition 'second-look' of lifecycle 'plan-then-build': the CEL string \"review\" matches the placeholder stage",
   );
   assert(
@@ -784,9 +981,9 @@ Deno.test("rewriteCel: other maps and dynamic keys are left alone; string litera
 // --- projection hints -------------------------------------------------------------
 
 Deno.test("apply: a projection hint on a stage template's stage is carried into the lifecycle", async () => {
-  const doc = await raw("templates/review-plan.yaml");
+  const doc = await raw("../templates/review-plan.yaml");
   (doc.stages as Record<string, unknown>[])[0].projection = {
-    status: "triaged",
+    status: "in_progress",
   };
   const instantiated = instantiateStageTemplate(doc, undefined);
   if (!instantiated.ok) throw new Error(instantiated.errors.join("\n"));
@@ -795,7 +992,9 @@ Deno.test("apply: a projection hint on a stage template's stage is carried into 
       replace: "review",
     }),
   );
-  assertEquals(stage(out, "review").projection, { status: "triaged" });
+  assertEquals(stage(out, "plan-review").projection, {
+    status: "in_progress",
+  });
 });
 
 Deno.test("apply: a placeholder may not declare a projection hint; the stage template's stages carry their own", async () => {

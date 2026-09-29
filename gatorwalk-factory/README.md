@@ -59,13 +59,15 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
   skill_commands.ts       the skill's commands, pulled out to check and run
 lifecycles/               lifecycles gatorwalk-factory ships, and the
                           swamp-extensions mapping (a .md)
+templates/                the starter stage templates: plan, review-plan,
+                          implement, verify, review
 .claude/skills/gatorwalk-factory/
   SKILL.md                the skill: how an agent drives a work item
   references/             driving in full, and a worked example
 testdata/
-  lifecycles/             software-factory's examples, ported, and a
-                          lifecycle to apply a stage template to
-  templates/              stage templates
+  lifecycles/             software-factory's examples, ported, lifecycles
+                          to apply stage templates to, and the starter
+                          lifecycle written by hand
 ```
 
 ## The lifecycle format
@@ -123,7 +125,7 @@ A **stage template** has the same shape plus a `contract`: `inputs` it consumes,
 transitions leave through `exit:` rather than `to:`. A value anywhere in its
 stages may be a parameter placeholder, `{ $param: <name> }`, which is replaced
 whole by the parameter's value (or its schema `default`). See
-`testdata/templates/review-plan.yaml`.
+`templates/review-plan.yaml`.
 
 ## Loops
 
@@ -166,20 +168,27 @@ Sketch the lifecycle first, with a **placeholder stage** where the stage
 template goes. It is bare (only `id`, `description`, `initial` and
 `transitions`; no `projection`, since the stage template's stages carry their
 own status keys), and its transitions are named after the stage template's
-exits:
+exits. They may carry your gates, such as an approval:
 
 ```yaml
 - id: review
   description: Placeholder for the review-plan stage template.
   transitions:
-    - { name: approved, to: implement }
+    - name: approved
+      to: implement
+      gates:
+        - type: human-approval
+          config: { id: plan-approval }
     - { name: rework, to: plan }
 ```
 
 `apply` replaces it. Transitions into the placeholder now enter the stage
 template's first stage, and each exit leaves to the stage the placeholder's
-transition of the same name targets. An exit that targets the placeholder itself
-re-enters the stage template. The inputs are:
+transition of the same name targets. That transition's gates are added to each
+of the stage template's transitions through the exit, except manual ones (even
+when `exits` sends the exit elsewhere); gates that would land on no transition
+are an error. An exit that targets the placeholder itself re-enters the stage
+template. The inputs are:
 
 - `template`, `replace`: the template holder, and the placeholder stage.
 - `exits`: where exits go, overriding the placeholder's transitions.
@@ -198,6 +207,13 @@ template. `apply` never changes the holder: it logs the lifecycle (as JSON,
 which is YAML) and writes it to the holder's `applied-lifecycle` record. Save it
 as the holder's `globalArguments` and run `validate`. See
 [DESIGN.md](DESIGN.md), "Stage templates: apply only".
+
+`templates/` has five starter stage templates to begin from: `plan`,
+`review-plan`, `implement`, `verify` and `review`. They carry no approvals; put
+yours on the placeholders. Apply them in flow order, since each needs its inputs
+produced before it, saving the result as the holder's lifecycle before the next
+`apply`. `testdata/lifecycles/starter-sketch.yaml` is a lifecycle sketched for
+all five. See [DESIGN.md](DESIGN.md), "The starter stage templates".
 
 ## Bundled lifecycles
 

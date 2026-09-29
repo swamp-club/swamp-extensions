@@ -19,6 +19,7 @@ import { parse as parseYaml } from "@std/yaml";
 import { digestOf } from "./canonical.ts";
 import {
   ANY_STAGE_NODE,
+  describeGate,
   type DesignView,
   designView,
   DIAGRAM_LAYERS,
@@ -162,6 +163,21 @@ Deno.test("design page: every shipped lifecycle renders its stages, transitions,
       })
     );
   }
+});
+
+Deno.test("design page: findings-clear and findings-open read as opposites", () => {
+  const config = {
+    artifact: "plan-review",
+    blocking: ["critical", "high"] as ("critical" | "high")[],
+  };
+  assertEquals(
+    describeGate({ type: "findings-clear", config }).text,
+    "artifact 'plan-review' has no critical/high findings",
+  );
+  assertEquals(
+    describeGate({ type: "findings-open", config }).text,
+    "artifact 'plan-review' has an open critical/high finding",
+  );
 });
 
 Deno.test("design page: the swamp-extensions lifecycle shows its handoffs", async () => {

@@ -1,0 +1,57 @@
+# A starter stage template: write the plan for a change. Apply it to a
+# lifecycle, then edit it freely; nothing refers back to this file. Approvals
+# belong to the lifecycle: put them on the placeholder's transitions.
+schemaVersion: 1
+name: plan
+description: Plan the change, naming the files each step touches and how it is tested.
+contract:
+  outputs:
+    - { kind: artifact, name: plan }
+  exits:
+    - { name: submitted, description: A plan is recorded. }
+  parameters:
+    type: object
+    additionalProperties: false
+    properties:
+      skills:
+        description: Skills the planning agent loads.
+        type: array
+        items: { type: string, minLength: 1 }
+        default: []
+stages:
+  - id: plan
+    initial: true
+    projection: { status: triaged }
+    description: Plan the change.
+    work:
+      mode: interactive
+      skills: { $param: skills }
+      systemPrompt: |
+        Plan the change with the person. Read the code it touches first.
+        Record plan with a summary, the steps in order (each naming the files
+        it touches) and the testing strategy. After a review sends the plan
+        back, read the findings and record the plan again.
+    artifacts:
+      - name: plan
+        schema:
+          type: object
+          required: [summary, steps, testingStrategy]
+          properties:
+            summary: { type: string, minLength: 1 }
+            steps:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [description, files]
+                additionalProperties: false
+                properties:
+                  description: { type: string, minLength: 1 }
+                  files: { type: array, items: { type: string, minLength: 1 } }
+            testingStrategy: { type: string, minLength: 1 }
+    transitions:
+      - name: submit
+        exit: submitted
+        gates:
+          - type: artifact-exists
+            config: { artifact: plan }

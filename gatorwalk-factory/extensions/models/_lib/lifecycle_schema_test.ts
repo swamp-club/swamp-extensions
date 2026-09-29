@@ -132,7 +132,7 @@ for (
 
 Deno.test("fixture: the review-plan stage template is valid with its default parameters", async () => {
   const result = instantiateStageTemplate(
-    await fixture("templates/review-plan.yaml"),
+    await fixture("../templates/review-plan.yaml"),
   );
   assertEquals(result.ok ? [] : result.errors, []);
 });
@@ -565,6 +565,10 @@ Deno.test("gates: references resolve to declared things of the right kind", () =
     { type: "evidence-recorded", config: { name: "pr" } },
     { type: "cooldown", config: { afterEvidence: "pr", seconds: 5 } },
     { type: "max-cycles", config: { stage: "review", limit: 2 } },
+    {
+      type: "findings-open",
+      config: { artifact: "summary", blocking: ["high"] },
+    },
   ]);
   assertRejects(
     doc,
@@ -574,6 +578,7 @@ Deno.test("gates: references resolve to declared things of the right kind", () =
     "gates.3.config.name: evidence-recorded references undeclared evidence 'pr'",
     "gates.4.config.afterEvidence: cooldown references undeclared evidence 'pr'",
     "gates.5.config.stage: max-cycles references unknown stage 'review'",
+    "gates.6.config.artifact: findings-open on 'summary' requires that artifact to be kind: findings",
   );
 });
 
@@ -591,7 +596,7 @@ Deno.test("gates: workflow-succeeded is not in the launch library", () => {
 async function templateErrors(
   mutate: (doc: unknown) => void,
 ): Promise<string[]> {
-  const doc = await fixture("templates/review-plan.yaml");
+  const doc = await fixture("../templates/review-plan.yaml");
   mutate(doc);
   // Filled in with its defaults: the fixture's $param placeholders are only
   // valid values once instantiated.
@@ -613,7 +618,9 @@ function assertMentions(errors: string[], ...needles: string[]) {
 Deno.test("stage template: exits must exist and each must be used", async () => {
   assertMentions(
     await templateErrors((doc) => {
+      // rework and the manual revise both leave through rework.
       set(doc, "stages.0.transitions.1.exit", "escalate");
+      set(doc, "stages.0.transitions.2.exit", "escalate");
     }),
     "stages.0.transitions.1.exit: targets 'escalate', which is not a contract exit",
     "contract.exits.1: exit 'rework' is not the target of any transition",
@@ -662,7 +669,7 @@ Deno.test("stage template: an evidence input may not share an artifact's name", 
 });
 
 Deno.test("stage template: a lifecycle is not a stage template", async () => {
-  const doc = await fixture("templates/review-plan.yaml");
+  const doc = await fixture("../templates/review-plan.yaml");
   assert(!parseLifecycle(doc).ok);
 });
 

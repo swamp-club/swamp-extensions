@@ -421,7 +421,7 @@ Deno.test("cli: apply a stage template to a lifecycle, save it, and run a work i
     // as written, or validate could not fill them in.
     await repo.templateHolder(
       "review-plan",
-      await testdata("templates/review-plan.yaml"),
+      await testdata("../templates/review-plan.yaml"),
     );
     const valid = await repo.holderMethod("review-plan", "validate", {
       inputs: { params: JSON.stringify({ blocking: ["critical"] }) },
@@ -438,7 +438,7 @@ Deno.test("cli: apply a stage template to a lifecycle, save it, and run a work i
       inputs: {
         template: "review-plan",
         replace: "review",
-        names: JSON.stringify({ stages: { review: "plan-review" } }),
+        names: JSON.stringify({ stages: { "plan-review": "critique" } }),
       },
     });
     assert(
@@ -465,12 +465,113 @@ Deno.test("cli: apply a stage template to a lifecycle, save it, and run a work i
     const { record: put, go, approve } = driver(repo, key);
     await put("artifact", "plan", { summary: "Add list" });
     await go("submit");
-    assertEquals((await repo.run(key)).stage, "plan-review");
+    assertEquals((await repo.run(key)).stage, "critique");
     await put("artifact", "plan-review", { findings: [] });
     await approve("plan-approval");
     await go("approve");
     await put("evidence", "change", { url: "https://example.com/pr/1" });
     await go("finish");
+    const run = await repo.run(key);
+    assertEquals(run.stage, "done");
+    assertEquals(run.status, "terminal");
+  });
+});
+
+Deno.test("cli: the starter stage templates, applied in flow order through the holders, give a lifecycle a work item runs to done", async () => {
+  await withRepo(async (repo) => {
+    const starters: [template: string, placeholder: string][] = [
+      ["plan", "plan"],
+      ["review-plan", "plan-review"],
+      ["implement", "implement"],
+      ["verify", "verify"],
+      ["review", "code-review"],
+    ];
+    for (const [template] of starters) {
+      await repo.templateHolder(
+        template,
+        await testdata(`../templates/${template}.yaml`),
+      );
+      const valid = await repo.holderMethod(template, "validate");
+      assert(
+        valid.output.includes(
+          `stage template '${template}' in '${template}' is valid`,
+        ),
+        valid.output,
+      );
+    }
+
+    // Each apply reads the holder's lifecycle, so each result is saved
+    // before the next, as an author would.
+    await repo.holder("team", await testdata("lifecycles/starter-sketch.yaml"));
+    for (const [template, placeholder] of starters) {
+      await repo.holderMethod("team", "apply", {
+        inputs: { template, replace: placeholder },
+      });
+      const record = await repo.data("team", "applied-lifecycle");
+      await repo.editHolder("team", record.lifecycle);
+    }
+    const saved = await repo.holderMethod("team", "validate");
+    assert(
+      saved.output.includes("lifecycle 'starter' in 'team' is valid"),
+      saved.output,
+    );
+    const core = parseLifecycle(
+      await testdata("lifecycles/starter-core.yaml"),
+    );
+    assert(core.ok);
+    const record = await repo.data("team", "applied-lifecycle");
+    assertEquals(record.digest, await digestOf(core.value));
+
+    const key = await repo.newKey("team");
+    await repo.workItem(key, "start", { lifecycle: "team" });
+    const { record: put, go, approve } = driver(repo, key);
+    const stage = async () => (await repo.run(key)).stage;
+    await put("artifact", "plan", {
+      summary: "Add list",
+      steps: [{ description: "Add list", files: ["x.ts"] }],
+      testingStrategy: "Unit tests",
+    });
+    await go("submit");
+    assertEquals(await stage(), "plan-review");
+    await put("artifact", "plan-review", { findings: [] });
+    await approve("plan-approval");
+    await go("approve");
+    assertEquals(await stage(), "implement");
+    await put("artifact", "change-summary", {
+      summary: "Added list",
+      commit: SHA,
+      files: ["x.ts"],
+    });
+    await go("submit");
+    assertEquals(await stage(), "verify");
+    await put("evidence", "checks", {
+      commit: SHA,
+      status: "passed",
+      results: [{ name: "test", status: "passed" }],
+    });
+    await go("passed");
+    assertEquals(await stage(), "code-review");
+    await put("artifact", "code-review", {
+      findings: [{ id: "C1", severity: "critical", description: "Leak" }],
+    });
+    await go("rework");
+    assertEquals(await stage(), "implement");
+    await go("submit");
+    await put("evidence", "checks", {
+      commit: SHA,
+      status: "passed",
+      results: [{ name: "test", status: "passed" }],
+    });
+    await go("passed");
+    await put("artifact", "code-review", { findings: [] });
+    await approve("release-approval");
+    await go("accept");
+    assertEquals(await stage(), "release");
+    await put("evidence", "release", {
+      commit: SHA,
+      url: "https://example.com/pr/1",
+    });
+    await go("released");
     const run = await repo.run(key);
     assertEquals(run.stage, "done");
     assertEquals(run.status, "terminal");

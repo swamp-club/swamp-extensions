@@ -229,6 +229,20 @@ export const FindingsClearGateSchema = z.strictObject({
 });
 
 /**
+ * The mirror of findings-clear: passes while the findings artifact has an
+ * unresolved finding at one of the blocking severities. A rework exit gated on
+ * it and an approve exit gated on findings-clear, with the same `blocking`,
+ * never pass together.
+ */
+export const FindingsOpenGateSchema = z.strictObject({
+  type: z.literal("findings-open"),
+  config: z.strictObject({
+    artifact: NameSchema,
+    blocking: z.array(SeveritySchema).min(1),
+  }),
+});
+
+/**
  * A person's decision. With `when`, the gate applies only while that CEL
  * expression over run data is true; while it is false the gate passes and no
  * one is asked.
@@ -336,6 +350,7 @@ export const GateSchema = z.discriminatedUnion("type", [
   ArtifactExistsGateSchema,
   ArtifactFreshGateSchema,
   FindingsClearGateSchema,
+  FindingsOpenGateSchema,
   HumanApprovalGateSchema,
   EvidenceRecordedGateSchema,
   CooldownGateSchema,
@@ -858,12 +873,13 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         }
         return;
       }
-      case "findings-clear": {
+      case "findings-clear":
+      case "findings-open": {
         const spec = needArtifact(gate.config.artifact, "artifact");
         if (spec !== undefined && spec !== null && spec.kind !== "findings") {
           fail(
             [...configPath, "artifact"],
-            `findings-clear on '${gate.config.artifact}' requires that artifact to be kind: findings`,
+            `${gate.type} on '${gate.config.artifact}' requires that artifact to be kind: findings`,
           );
         }
         return;

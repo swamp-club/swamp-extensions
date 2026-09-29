@@ -22,7 +22,7 @@ import {
 } from "./stage_template.ts";
 
 const REVIEW_PLAN = new URL(
-  "../../../testdata/templates/review-plan.yaml",
+  "../../../templates/review-plan.yaml",
   import.meta.url,
 );
 
@@ -134,6 +134,7 @@ Deno.test("instantiate: values for a stage template without parameters are refus
   }[];
   stages[0].work.skills = ["adversarial-review"];
   stages[0].transitions[0].gates[1].config.blocking = ["critical"];
+  stages[0].transitions[1].gates[1].config.blocking = ["critical"];
   assert(instantiateStageTemplate(doc).ok);
   assertMentions(
     errorsOf(instantiateStageTemplate(doc, { skills: ["x"] })),

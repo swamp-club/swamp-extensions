@@ -307,7 +307,7 @@ async function applySwamp() {
     type: HOLDER_TYPE,
   });
   swamp.definitions.set("review-plan", {
-    globalArguments: await testdata("templates/review-plan.yaml"),
+    globalArguments: await testdata("../templates/review-plan.yaml"),
     type: STAGE_TEMPLATE_TYPE,
   });
   return swamp;
@@ -321,7 +321,7 @@ Deno.test("holder: apply writes the composed lifecycle as a record and logs it, 
       template: "review-plan",
       replace: "review",
       params: '{"blocking":["critical"]}',
-      names: { stages: { review: "plan-review" } },
+      names: { stages: { "plan-review": "critique" } },
     },
     swamp.context("team"),
   );
@@ -336,7 +336,7 @@ Deno.test("holder: apply writes the composed lifecycle as a record and logs it, 
   assertEquals(record.digest, await digestOf(parsed.value));
   assertEquals(parsed.value.stages.map((s) => s.id), [
     "plan",
-    "plan-review",
+    "critique",
     "implement",
     "done",
   ]);

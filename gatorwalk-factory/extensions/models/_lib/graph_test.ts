@@ -29,7 +29,6 @@ import {
   parseStageTemplate,
   type StageTemplate,
 } from "./lifecycle_schema.ts";
-import { instantiateStageTemplate } from "./stage_template.ts";
 
 function lifecycle(yaml: string): Lifecycle {
   const result = parseLifecycle(
@@ -442,6 +441,57 @@ stages:
   assertEquals(codes(siblings("").warnings), []);
 });
 
+Deno.test("graph: findings-clear and findings-open on the same findings are exclusive when open's severities all block clear", () => {
+  const siblings = (clear: string, open: string, artifact = "review") =>
+    analyzeLifecycle(lifecycle(`
+stages:
+  - id: write
+    initial: true
+    maxCycles: 3
+    artifacts: [{ name: draft, schema: ${OBJECT} }]
+    transitions: [{ name: submit, to: check }]
+  - id: check
+    maxCycles: 3
+    artifacts:
+      - { name: review, kind: findings, reviews: draft }
+      - { name: other, kind: findings, reviews: draft }
+    transitions:
+      - name: approve
+        to: done
+        gates:
+          - type: findings-clear
+            config: { artifact: review, blocking: [${clear}] }
+      - name: rework
+        to: write
+        gates:
+          - type: findings-open
+            config: { artifact: ${artifact}, blocking: [${open}] }
+  - id: done
+    terminal: true
+`));
+  assertEquals(
+    codes(siblings("critical, high", "critical, high").warnings),
+    [],
+  );
+  assertEquals(codes(siblings("critical, high", "high").warnings), []);
+  // A low finding opens rework but does not block approve, and the warning
+  // says so.
+  const mismatch = siblings("critical, high", "high, low");
+  assertEquals(codes(mismatch.warnings), [
+    "ambiguous-exit stages.1.transitions.0 [check]",
+  ]);
+  assert(
+    mismatch.warnings[0].message.includes(
+      "findings-open on 'review' counts severities its findings-clear does not block on",
+    ),
+    mismatch.warnings[0].message,
+  );
+  assertEquals(
+    codes(siblings("critical, high", "critical, high", "other").warnings),
+    ["ambiguous-exit stages.1.transitions.0 [check]"],
+  );
+});
+
 Deno.test("graph: requireField values that differ make siblings exclusive", () => {
   const report = analyzeLifecycle(lifecycle(`
 stages:
@@ -795,11 +845,9 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   // implement <-> test without maxCycles, as the originals did: they rely on
   // the default cycle limit, which is the warning, not a defect.
   const expected: Record<string, string[]> = {
-    // The placeholder's two ungated transitions only sketch where the stage
-    // template's exits go; apply replaces them with the stage template's own.
-    "lifecycles/apply-target.yaml": [
-      "ambiguous-exit stages.1.transitions.0 [review]",
-    ],
+    // The placeholder's transitions only sketch where the stage template's
+    // exits go; its approval on approved means a person chooses between them.
+    "lifecycles/apply-target.yaml": [],
     "lifecycles/feature-factory.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
@@ -810,25 +858,30 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
-    "templates/review-plan.yaml": [],
+    // The starter lifecycle's rework loops rely on the default cycle limit,
+    // as build-swamp-extension's do. In the sketch, verify's placeholder
+    // transitions are ungated: they only say where verify's exits go.
+    "lifecycles/starter-core.yaml": [
+      "default-cycle-bound stages.0 [plan]",
+      "default-cycle-bound stages.2 [implement]",
+    ],
+    "lifecycles/starter-sketch.yaml": [
+      "default-cycle-bound stages.0 [plan]",
+      "default-cycle-bound stages.2 [implement]",
+      "ambiguous-exit stages.3.transitions.0 [verify]",
+    ],
   };
   const seen: string[] = [];
-  for (const dir of ["lifecycles/", "templates/"]) {
-    for (const file of await fixtures(dir)) {
-      const name = `${dir}${file}`;
-      seen.push(name);
-      const raw = parseYaml(await Deno.readTextFile(new URL(name, TESTDATA)));
-      // A stage template is analysed with its parameters' defaults filled in.
-      const parsed = dir === "templates/"
-        ? instantiateStageTemplate(raw)
-        : parseLifecycle(raw);
-      if (!parsed.ok) throw new Error(`${name}: ${parsed.errors.join("\n")}`);
-      const report = analyzeLifecycle(
-        "template" in parsed ? parsed.template : parsed.value,
-      );
-      assertEquals(codes(report.errors), [], name);
-      assertEquals(codes(report.warnings), expected[name], name);
-    }
+  // The shipped stage templates are analysed in templates_test.ts.
+  for (const file of await fixtures("lifecycles/")) {
+    const name = `lifecycles/${file}`;
+    seen.push(name);
+    const raw = parseYaml(await Deno.readTextFile(new URL(name, TESTDATA)));
+    const parsed = parseLifecycle(raw);
+    if (!parsed.ok) throw new Error(`${name}: ${parsed.errors.join("\n")}`);
+    const report = analyzeLifecycle(parsed.value);
+    assertEquals(codes(report.errors), [], name);
+    assertEquals(codes(report.warnings), expected[name], name);
   }
   assertEquals(seen, Object.keys(expected));
 });

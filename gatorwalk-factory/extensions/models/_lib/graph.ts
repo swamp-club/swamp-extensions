@@ -238,6 +238,7 @@ function pathProducts(g: Graph, gate: GateSpec): [ProductKind, string][] {
   switch (gate.type) {
     case "artifact-exists":
     case "findings-clear":
+    case "findings-open":
       return [["artifact", gate.config.artifact]];
     case "artifact-fresh": {
       const subject = g.reviews.get(gate.config.artifact);
@@ -675,6 +676,17 @@ function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
         );
         if (conflict !== null) return true;
       }
+      // An open finding at a severity findings-clear also blocks on fails
+      // findings-clear.
+      for (const [clear, open] of [[x, y], [y, x]]) {
+        if (
+          clear.type === "findings-clear" && open.type === "findings-open" &&
+          clear.config.artifact === open.config.artifact &&
+          open.config.blocking.every((s) => clear.config.blocking.includes(s))
+        ) {
+          return true;
+        }
+      }
       if (
         x.type === "max-cycles" && y.type === "max-cycles" &&
         x.config.stage === y.config.stage &&
@@ -686,6 +698,29 @@ function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
     }
   }
   return false;
+}
+
+/** The findings artifact that one sibling gates with findings-clear and the
+ * other with findings-open on severities findings-clear does not block on. */
+function findingsMismatch(
+  a: TransitionSpec,
+  b: TransitionSpec,
+): string | undefined {
+  for (const [x, y] of [[a, b], [b, a]]) {
+    for (const clear of x.gates ?? []) {
+      if (clear.type !== "findings-clear") continue;
+      for (const open of y.gates ?? []) {
+        if (
+          open.type === "findings-open" &&
+          open.config.artifact === clear.config.artifact &&
+          !open.config.blocking.every((s) => clear.config.blocking.includes(s))
+        ) {
+          return clear.config.artifact;
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 /** Strongly connected components (Tarjan), over the given adjacency. */
@@ -914,6 +949,7 @@ export function analyzeLifecycle(
         const cel = [a, b].some((e) =>
           (e.transition.gates ?? []).some((gate) => gate.type === "cel")
         );
+        const severities = findingsMismatch(a.transition, b.transition);
         report(
           warnings,
           "ambiguous-exit",
@@ -922,6 +958,10 @@ export function analyzeLifecycle(
             describe(b)
           } from stage '${id}' can both pass with no person choosing between them` +
             (cel ? "; their cel gates could not be compared" : "") +
+            (severities !== undefined
+              ? `; findings-open on '${severities}' counts severities its ` +
+                "findings-clear does not block on, so both can pass"
+              : "") +
             "; make one manual, give it a human-approval gate without when, or make their gates exclusive",
           { stage: id, trace: reachedTrace(id) },
         );
