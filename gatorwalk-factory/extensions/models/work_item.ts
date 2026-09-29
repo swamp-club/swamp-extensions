@@ -28,12 +28,15 @@ import {
   grantOverrideMethod,
   LIFECYCLE_SPEC,
   type MethodContextLike,
+  METRICS_SPEC,
   PayloadInput,
+  rebuildMetrics,
   recordProductMethod,
   recordUsageMethod,
   resetMethod,
   startWorkItem,
   status,
+  summary,
 } from "./_lib/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
@@ -58,6 +61,9 @@ export const model = {
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/gatorwalk-factory/work-item",
   version: "2026.09.28.1",
+  // A string literal, for the same reason as the type; the report's test
+  // checks it names the report.
+  reports: ["@swamp/gatorwalk-factory/work-item-summary"],
   resources: {
     [RUN_SPEC]: {
       description:
@@ -98,6 +104,15 @@ export const model = {
       // a repinning reset.
       garbageCollection: "10y",
     },
+    [METRICS_SPEC]: {
+      description:
+        "Metrics derived from the run record, written after every commit: " +
+        "stage times, rework, waits at human stops, dispatches, overrides " +
+        "and attested token usage. Always rebuildable from the run.",
+      schema: z.record(z.string(), z.unknown()),
+      lifetime: "infinite" as const,
+      garbageCollection: 5,
+    },
   },
   methods: {
     start: {
@@ -124,6 +139,21 @@ export const model = {
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         status(context, systemEnv),
+    },
+    summary: {
+      description:
+        "The work item's timeline and metrics as markdown; the summary report persists it",
+      kind: "read" as const,
+      arguments: z.object({}),
+      execute: (_args: Record<string, never>, context: MethodContextLike) =>
+        summary(context, systemEnv),
+    },
+    rebuild_metrics: {
+      description:
+        "Rewrite the derived metrics record from the run when it is missing or behind",
+      arguments: z.object({}),
+      execute: (_args: Record<string, never>, context: MethodContextLike) =>
+        rebuildMetrics(context, systemEnv),
     },
     record_artifact: {
       description:

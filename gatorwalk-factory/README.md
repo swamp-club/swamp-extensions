@@ -31,6 +31,9 @@ extensions/models/
     run_ops.ts            pure operations: start, record, dispatch, approve,
                           advance, reset
     run_store.ts          storage and the commit protocol
+    awaiting.ts           which exits only a person can open, journaled
+    metrics.ts            per-work-item metrics from the run and journal
+    summary.ts            the summary: timeline and metrics as markdown
     cel_context.ts        the CEL vocabulary for bindings and cel gates
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
@@ -48,6 +51,8 @@ extensions/models/
     swamp_club_fake.ts    a local fake of the Lab API, for tests
     test_support.ts       shared test fixtures
     fake_swamp.ts         a fake swamp method context for tests
+extensions/reports/
+  work_item_summary_report.ts  the summary report, run after `summary`
 integration/              the real-engine suite: gatorwalk through the swamp CLI
   skill_commands.ts       the skill's commands, pulled out to check and run
 lifecycles/               lifecycles gatorwalk-factory ships, and the
@@ -268,6 +273,37 @@ prints the whole dispatch packet. Writes are `record_artifact`,
 `grant_override`, `advance` and `reset`. A refused write fails with its reason
 and writes nothing. A payload that breaks its schema also fails, but is kept on
 the work item as retry feedback. Method output goes to the log, so pass `--log`.
+
+## Summary and metrics
+
+`summary` is a read that prints the work item's timeline, per era, and its
+metrics as markdown. The `@swamp/gatorwalk-factory/work-item-summary` report
+runs after it and stores the same markdown, with the metrics and timeline as
+JSON:
+
+```bash
+swamp model @swamp/gatorwalk-factory/work-item method run summary <key> --log
+swamp report get @swamp/gatorwalk-factory/work-item-summary --model <key>
+```
+
+Every write also stores a `metrics` record on the work item: time in each stage
+and cycle, rework (re-entries, review rounds, declines, rejected payloads),
+waits at human stops, dispatches and retries, overrides, and token usage, marked
+attested. It is computed from the run record alone and names the journal version
+it was computed from. A dashboard reads every work item's metrics in one query:
+
+```bash
+swamp data query 'modelType == "@swamp/gatorwalk-factory/work-item" && name == "metrics"' --json
+```
+
+If a metrics write failed, or the work item has not committed since metrics
+were introduced, `rebuild_metrics` rewrites the record from the run:
+
+```bash
+swamp model @swamp/gatorwalk-factory/work-item method run rebuild_metrics <key> --log
+```
+
+See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
 
 ## Linear
 

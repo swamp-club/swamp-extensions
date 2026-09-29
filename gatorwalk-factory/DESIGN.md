@@ -144,6 +144,10 @@ record indexes each one's version and digest. Code: `_lib/run_record.ts`,
   product in the era: version and SHA-256 digest over canonical JSON. What a
   person approves is usually declared on an earlier stage (plan-approval is
   decided on plan-review, about the plan).
+- When the exits that only a person can open change, the commit adds an
+  `awaiting` event listing them. It is derived from the gates, not something
+  anyone did, so its actor is the write that caused the change. See "Summary and
+  metrics".
 - Token usage is attached to a dispatch by id, after the work, because it is
   only known then. It is marked attested until a driver measures it.
 - Every event records its actor: the platform's caller
@@ -545,6 +549,89 @@ check each equals the constant the code compares against.
 (swamp only locks an instance once its definition exists), so two concurrent
 first starts can race. That is accepted for solo use until swamp fixes it.
 
+## Summary and metrics
+
+**Decision.** Metrics are a pure function of the run record and its journal
+(`_lib/metrics.ts`), stored as a `metrics` record after every commit. The
+`summary` method and the `@swamp/gatorwalk-factory/work-item-summary` report
+render the same data as markdown (`_lib/summary.ts`,
+`extensions/reports/work_item_summary_report.ts`). One thing is newly recorded:
+the `awaiting` journal event (`_lib/awaiting.ts`).
+
+### Why a stored record, not only the report
+
+swamp keeps a report's output for 30 days and five versions, and a report only
+exists once something runs it. A team measuring its process needs every work
+item, finished or not, over months. The `metrics` record has infinite lifetime,
+is written on every commit with no trigger, and one `swamp data query` over
+`name == "metrics"` returns it for every work item. It is derived, so it keeps
+five versions and can always be rebuilt from the run.
+
+It is written after the run record, in `committingStore` (`_lib/run_store.ts`).
+A crash in between leaves it one commit behind, never ahead of the run; it names
+the `journalVersion` it was computed from, and the next commit brings it level.
+A failed metrics write is logged, not thrown, because the change it follows is
+already committed. A terminal work item has no next commit, and one that has
+not committed since metrics were introduced has no record at all, so the
+`rebuild_metrics` method rewrites the record from the run whenever it is
+missing or behind, and writes nothing when it is level.
+Nothing in it reads the clock: a stage or wait still running has a start and a
+null end, so the same run always gives the same metrics.
+
+### Why `awaiting` is journaled
+
+A wait at a human stop starts when an exit becomes held only by a person, and
+the journal did not record that moment. It could be replayed from the journal by
+evaluating the gates at each step, but only with the gate code as it is at
+replay time and only while every payload version it reads is still stored.
+Neither is guaranteed, so every commit evaluates the exits instead and records a
+change as it happens.
+
+An exit is **held by a person** when it is not a global transition, its cycle
+limit allows entry, every gate that is not a human approval passes, and either
+one of its human-approval gates is pending, or it is manual and has gates, all
+passing. Excluded, on purpose:
+
+- **A manual exit with no gates** (`revise`, `recheck`) is a way back a person
+  may always take. Counting it would make every stage a stop from the moment it
+  is entered.
+- **A global transition** (`abandon`) is an escape hatch, open everywhere.
+- **A freshly declined gate** waits on rework, not on a person, until a product
+  is recorded after the decline.
+
+A cooldown gate counts as passing from when it lifts; the event carries that
+time as `readyAt`. Recording the product it counts from again restarts it, and
+the new `readyAt` is a change: the wait so far ends (`cleared`) and a new one
+starts when the cooldown lifts again. A commit whose run data cannot be read (a payload failing its digest check)
+notes nothing, since the journal cannot take a wrong event back; the next
+readable commit notes any change. Runs started before the event existed
+have no waits rather than guessed ones.
+
+The event is a new journal variant, so a run that holds one cannot be read by
+an earlier gatorwalk-factory. Before go-live that is accepted: the upgrade is
+one-way.
+
+### The metrics
+
+Per era, and summed over every era:
+
+| Metric       | Meaning                                                                                                                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                            |
+| Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
+| Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the lifecycle declares with `reviews`, using the currently pinned lifecycle's links), declines, and rejected payloads.                                    |
+| Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. |
+| Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
+| Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
+| Usage        | Input and output tokens, in total and by model, and how many dispatches reported usage. Always `attested: true`: whoever did the work reported it.                                                                                                                        |
+
+A wait that would end before its cooldown lifted is not counted: the person
+decided before the exit was ready. With `minApprovals` above 1, one wait stays
+open until the gate passes.
+
+The summary shows product versions and digests, never payload contents. Team
+roll-ups are out of scope: they are a query over these records.
+
 ## Trackers
 
 **Decision.** A tracker (Linear, and the swamp-club Lab) is reached only through
@@ -795,4 +882,4 @@ login is not read either.
 **Out of scope.** Remote workers and `swamp serve` are not covered. A holder
 read on a remote worker arrives as a plain object with `_globalArguments`, and
 that shape is still unconfirmed against the real engine. The driving skill is
-GW-8. Neither dispatch nor usage is run through the CLI yet.
+GW-8. Dispatch and usage run through the CLI in the summary test.

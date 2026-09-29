@@ -47,8 +47,11 @@ import {
   recordUsage,
   reset,
 } from "./run_ops.ts";
+import { computeMetrics } from "./metrics.ts";
+import { buildSummary } from "./summary.ts";
 import { currentCycle, type RunRecord } from "./run_record.ts";
 import {
+  committingStore,
   contextStore,
   loadRun,
   recordProduct,
@@ -88,6 +91,10 @@ export const KEY_NAME = "key";
 /** The resource spec and fixed name of a holder's last ejected lifecycle. */
 export const EJECTED_SPEC = "ejected-lifecycle";
 export const EJECTED_NAME = "ejected-lifecycle";
+
+/** The resource spec and fixed name of a work item's derived metrics. */
+export const METRICS_SPEC = "metrics";
+export const METRICS_NAME = "metrics";
 
 export interface Logger {
   info(message: string, props?: Record<string, unknown>): void;
@@ -214,7 +221,8 @@ function actorOf(ctx: MethodContextLike, onBehalfOf?: string): Actor {
 
 // --- the lifecycle holder -----------------------------------------------------
 
-function typeNameOf(type: unknown): string {
+/** A model type as swamp passes it (a string, or raw and normalized). */
+export function typeNameOf(type: unknown): string {
   if (typeof type === "string") return type.toLowerCase();
   if (type !== null && typeof type === "object") {
     const t = type as { normalized?: unknown; raw?: unknown };
@@ -554,7 +562,7 @@ export async function ejectMethod(
 
 // --- the pinned lifecycle ------------------------------------------------------
 
-interface Pinned {
+export interface Pinned {
   holder: string;
   digest: string;
   lifecycle: Lifecycle;
@@ -594,11 +602,22 @@ async function readPinned(
     // latest copy instead could pick up an unused one.
     throw new Error("the run names no pinned lifecycle version to read");
   }
-  const record = await ctx.readResource?.(
-    LIFECYCLE_NAME,
-    run.lifecycle.version,
+  return checkPinned(
+    await ctx.readResource?.(LIFECYCLE_NAME, run.lifecycle.version) ?? null,
+    run,
   );
-  if (record === null || record === undefined) {
+}
+
+/**
+ * A pinned lifecycle record, parsed and checked against the digest the run
+ * recorded. Shared with the summary report, which reads the record through
+ * swamp's data repository rather than a method context.
+ */
+export async function checkPinned(
+  record: Record<string, unknown> | null,
+  run: RunRecord,
+): Promise<Pinned> {
+  if (record === null) {
     throw new Error("the work item's pinned lifecycle is missing");
   }
   const parsed = parseLifecycle(record.lifecycle);
@@ -620,22 +639,77 @@ async function readPinned(
 }
 
 interface Session {
+  /** Commits through committingStore: awaiting events and metrics. */
   store: RunStore;
+  /** The plain store, for a commit under a different lifecycle. */
+  base: RunStore;
   handles: unknown[];
   run: RunRecord;
   pinned: Pinned;
 }
 
-async function open(ctx: MethodContextLike): Promise<Session> {
+/** Write the derived metrics record for a committed run. */
+async function writeMetrics(
+  ctx: MethodContextLike,
+  handles: unknown[],
+  run: RunRecord,
+  lifecycle: Lifecycle,
+): Promise<void> {
+  if (ctx.writeResource === undefined) {
+    throw new Error("this method context cannot write resources");
+  }
+  handles.push(
+    await ctx.writeResource(
+      METRICS_SPEC,
+      METRICS_NAME,
+      computeMetrics(run, lifecycle) as unknown as Record<string, unknown>,
+    ),
+  );
+}
+
+/**
+ * The store every work-item write commits through: it notes changes in the
+ * exits a person holds, then writes the derived metrics record after the run.
+ * The run is committed by then, so a failed metrics write is logged, not
+ * thrown: the write took effect, and rebuild_metrics brings the record level.
+ */
+function committing(
+  ctx: MethodContextLike,
+  base: RunStore,
+  handles: unknown[],
+  lifecycle: Lifecycle,
+  env: Env,
+): RunStore {
+  return committingStore(base, lifecycle, env, async (run) => {
+    try {
+      await writeMetrics(ctx, handles, run, lifecycle);
+    } catch (error) {
+      ctx.logger.info("{warning}", {
+        warning: `the metrics record was not written (${
+          error instanceof Error ? error.message : String(error)
+        }); the change itself is committed. Run rebuild_metrics to write it.`,
+      });
+    }
+  });
+}
+
+async function open(ctx: MethodContextLike, env: Env): Promise<Session> {
   const handles: unknown[] = [];
-  const store = contextStore(ctx, handles);
-  const run = await loadRun(store);
+  const base = contextStore(ctx, handles);
+  const run = await loadRun(base);
   if (run === null) {
     throw new Error(
       "the work item has not started; run start with --input lifecycle=<holder>",
     );
   }
-  return { store, handles, run, pinned: await readPinned(ctx, run) };
+  const pinned = await readPinned(ctx, run);
+  return {
+    store: committing(ctx, base, handles, pinned.lifecycle, env),
+    base,
+    handles,
+    run,
+    pinned,
+  };
 }
 
 function unwrap<T>(result: OpResult<T>): { run: RunRecord; value: T } {
@@ -658,8 +732,8 @@ export async function startWorkItem(
   // Parsed before anything is read or written, so bad input changes nothing.
   const externalRefs = externalRefsFrom(args.externalRefs);
   const handles: unknown[] = [];
-  const store = contextStore(ctx, handles);
-  const existing = await loadRun(store);
+  const base = contextStore(ctx, handles);
+  const existing = await loadRun(base);
   if (existing !== null) {
     throw new Error(
       `work item '${key}' has already started; run status to see where it is`,
@@ -670,7 +744,7 @@ export async function startWorkItem(
   const pinned = await pin(ctx, handles, args.lifecycle, lifecycle);
   const started = unwrap(
     await startRun(
-      store,
+      committing(ctx, base, handles, lifecycle, env),
       lifecycle,
       {
         key,
@@ -726,7 +800,7 @@ export async function describeStatus(
   ctx: MethodContextLike,
   env: Env,
 ) {
-  const { store, run, pinned } = await open(ctx);
+  const { store, run, pinned } = await open(ctx, env);
   const lifecycle = pinned.lifecycle;
   const context = await buildCelContext(run, store);
   const active = run.status === "active";
@@ -816,7 +890,7 @@ export async function recordProductMethod(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles, pinned } = await open(ctx);
+  const { store, handles, pinned } = await open(ctx, env);
   const result = await recordProduct(
     store,
     pinned.lifecycle,
@@ -853,7 +927,7 @@ export async function dispatch(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles, run, pinned } = await open(ctx);
+  const { store, handles, run, pinned } = await open(ctx, env);
   const packet = buildDispatch(
     pinned.lifecycle,
     run,
@@ -905,7 +979,7 @@ export async function recordUsageMethod(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles } = await open(ctx);
+  const { store, handles } = await open(ctx, env);
   unwrap(
     await update(store, (run) =>
       recordUsage(
@@ -939,7 +1013,7 @@ export async function decide(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles, pinned } = await open(ctx);
+  const { store, handles, pinned } = await open(ctx, env);
   const recorded = unwrap(
     await update(store, (run) =>
       recordApproval(
@@ -981,7 +1055,7 @@ export async function grantOverrideMethod(
       "a cycle override names the stage it is for: --input stage=<id>",
     );
   }
-  const { store, handles, pinned } = await open(ctx);
+  const { store, handles, pinned } = await open(ctx, env);
   const input = args.kind === "cycle"
     ? { kind: "cycle" as const, stage: args.stage as string, note: args.note }
     : { kind: "dispatch" as const, note: args.note };
@@ -1014,7 +1088,7 @@ export async function advanceMethod(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles, pinned } = await open(ctx);
+  const { store, handles, pinned } = await open(ctx, env);
   const gates = makeGateEvaluator(pinned.lifecycle, store, env);
   const moved = unwrap(
     await update(store, (run) =>
@@ -1055,7 +1129,7 @@ export async function resetMethod(
       "reset starts the work item over in a new era; pass --input confirm=reset",
     );
   }
-  const { store, handles, run, pinned } = await open(ctx);
+  const { store, base, handles, run, pinned } = await open(ctx, env);
   // Check the expectation before writing a new pin.
   const current = expectedOf(run);
   const expected = expectedFrom(args);
@@ -1075,13 +1149,16 @@ export async function resetMethod(
   }
   let lifecycle = pinned.lifecycle;
   let repinned: { digest: string; version: number } | undefined;
+  let commitStore = store;
   if (args.repin === true) {
     lifecycle = await loadHolderLifecycle(ctx, pinned.holder);
     repinned = await pin(ctx, handles, pinned.holder, lifecycle);
+    // The reset commits under the newly pinned lifecycle.
+    commitStore = committing(ctx, base, handles, lifecycle, env);
   }
   const result = unwrap(
     await update(
-      store,
+      commitStore,
       (latest) =>
         reset(
           latest,
@@ -1097,6 +1174,56 @@ export async function resetMethod(
     summary: `reset: new era ${result.value} at stage '${result.run.stage}'` +
       (repinned !== undefined ? ` with lifecycle ${repinned.digest}` : ""),
     ...expectationProps(result.run),
+  });
+  return { dataHandles: handles };
+}
+
+/**
+ * The summary method: the work item's timeline and metrics as markdown,
+ * rendered from the run and its pinned lifecycle. A read; the summary report
+ * persists the same rendering after it.
+ */
+export async function summary(
+  ctx: MethodContextLike,
+  env: Env,
+): Promise<MethodOutput> {
+  const { run, pinned } = await open(ctx, env);
+  const built = buildSummary(run, pinned.lifecycle);
+  ctx.logger.info("{summary}", {
+    summary: built.markdown,
+    metrics: built.metrics,
+  });
+  return { dataHandles: [] };
+}
+
+/**
+ * Rewrite the derived metrics record from the run when it is missing or
+ * behind: after a failed metrics write, or for a work item that has not
+ * committed since metrics were introduced. Writes nothing when it is level.
+ */
+export async function rebuildMetrics(
+  ctx: MethodContextLike,
+  env: Env,
+): Promise<MethodOutput> {
+  const { handles, run, pinned } = await open(ctx, env);
+  const stored = await ctx.readResource?.(METRICS_NAME) ?? null;
+  const current = computeMetrics(run, pinned.lifecycle);
+  if (
+    stored !== null && stored.schemaVersion === current.schemaVersion &&
+    stored.journalVersion === current.journalVersion
+  ) {
+    ctx.logger.info("{summary}", {
+      summary:
+        `metrics are up to date at journal version ${current.journalVersion}`,
+    });
+    return { dataHandles: [] };
+  }
+  await writeMetrics(ctx, handles, run, pinned.lifecycle);
+  ctx.logger.info("{summary}", {
+    summary: `rebuilt metrics at journal version ${current.journalVersion}` +
+      (stored === null
+        ? " (there were none)"
+        : ` (they were at ${String(stored.journalVersion)})`),
   });
   return { dataHandles: handles };
 }

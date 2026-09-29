@@ -128,3 +128,117 @@ export function smallLifecycle(): Lifecycle {
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
+
+/** A clock the test sets, so durations are exact; eras are numbered. */
+export function settableEnv(start: string): Env & { at(iso: string): void } {
+  let now = start;
+  let era = 0;
+  return {
+    now: () => now,
+    newEra: () => `era-${++era}`,
+    at: (iso) => {
+      now = iso;
+    },
+  };
+}
+
+export const BOB: Actor = { principal: "user:bob", source: "platform" };
+
+const TEXT_SCHEMA = {
+  type: "object",
+  required: ["text"],
+  properties: { text: { type: "string", minLength: 1 } },
+};
+
+/**
+ * Every kind of human stop, as a raw holder definition:
+ * draft -> review -> ship -> done, a global abandon behind an approval.
+ * review: `approve` needs the `go` approval (minApprovals as given); `revise`
+ * is a manual way back with no gates, which is never a stop. ship: `release`
+ * needs a 60s cooldown after `pr` and the `release-ok` approval; `merged`
+ * passes on a successful pr; `new-pr` is manual and opens only on a failed
+ * pr. review records a `review` artifact that reviews `plan`.
+ */
+export function stopsDefinition(minApprovals = 1): Record<string, unknown> {
+  const work = { mode: "interactive", systemPrompt: "Do the work." };
+  return {
+    schemaVersion: 1,
+    name: "stops",
+    stages: [
+      {
+        id: "draft",
+        initial: true,
+        work,
+        artifacts: [{ name: "plan", schema: TEXT_SCHEMA }],
+        transitions: [{
+          name: "submit",
+          to: "review",
+          gates: [{ type: "artifact-exists", config: { artifact: "plan" } }],
+        }],
+      },
+      {
+        id: "review",
+        work,
+        artifacts: [{ name: "review", reviews: "plan", schema: TEXT_SCHEMA }],
+        transitions: [
+          {
+            name: "approve",
+            to: "ship",
+            gates: [{
+              type: "human-approval",
+              config: { id: "go", minApprovals },
+            }],
+          },
+          { name: "revise", to: "draft", manual: true },
+        ],
+      },
+      {
+        id: "ship",
+        work,
+        evidence: [{
+          name: "pr",
+          schema: {
+            type: "object",
+            required: ["status"],
+            properties: { status: { enum: ["ok", "failed"] } },
+          },
+        }],
+        transitions: [
+          {
+            name: "release",
+            to: "done",
+            gates: [
+              {
+                type: "cooldown",
+                config: { afterEvidence: "pr", seconds: 60 },
+              },
+              { type: "human-approval", config: { id: "release-ok" } },
+            ],
+          },
+          {
+            name: "new-pr",
+            to: "ship",
+            manual: true,
+            gates: [{
+              type: "evidence-recorded",
+              config: { name: "pr", requireField: { status: "failed" } },
+            }],
+          },
+        ],
+      },
+      { id: "done", terminal: true },
+      { id: "abandoned", terminal: true },
+    ],
+    globalTransitions: [{
+      name: "abandon",
+      to: "abandoned",
+      gates: [{ type: "human-approval", config: { id: "abandon-ok" } }],
+    }],
+  };
+}
+
+export function stopsLifecycle(minApprovals = 1): Lifecycle {
+  const result = parseLifecycle(stopsDefinition(minApprovals));
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}

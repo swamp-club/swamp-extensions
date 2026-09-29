@@ -19,6 +19,7 @@ import { digestOf } from "./canonical.ts";
 import { expectedOf, recordDispatch } from "./run_ops.ts";
 import {
   ARTIFACT_SPEC,
+  committingStore,
   contextStore,
   EVIDENCE_SPEC,
   loadRun,
@@ -299,4 +300,64 @@ Deno.test("recordProduct: a payload with no JSON form is refused, not thrown", a
     !result.ok && !result.rejected && result.reason.includes("no JSON form"),
   );
   assertEquals(store.payloads.size, 0);
+});
+
+Deno.test("committingStore: the run is written first, then afterCommit sees exactly what was committed", async () => {
+  const inner = memoryStore();
+  const env = testEnv();
+  const order: string[] = [];
+  const store = committingStore(
+    { ...inner, writeRun: (run) => (order.push("run"), inner.writeRun(run)) },
+    LIFECYCLE,
+    env,
+    (run) => {
+      order.push("metrics");
+      assertEquals(run, inner.runVersions.at(-1));
+      return Promise.resolve();
+    },
+  );
+  const started = await startRun(store, LIFECYCLE, START, ALICE, env);
+  assert(started.ok);
+  assertEquals(order, ["run", "metrics"]);
+});
+
+Deno.test("committingStore: a crash after the run write leaves metrics one commit behind; the next commit brings them level", async () => {
+  const inner = memoryStore();
+  const env = testEnv();
+  const metrics: number[] = [];
+  let crash = false;
+  const store = committingStore(inner, LIFECYCLE, env, (run) => {
+    if (crash) return Promise.reject(new Error("process died"));
+    metrics.push(run.journal.length);
+    return Promise.resolve();
+  });
+  await startRun(store, LIFECYCLE, START, ALICE, env);
+  crash = true;
+  await assertRejects(() =>
+    recordProduct(
+      store,
+      LIFECYCLE,
+      expectedOf(inner.runVersions.at(-1)!),
+      "artifact",
+      "summary",
+      { text: "kept" },
+      ALICE,
+      env,
+    )
+  );
+  // The run committed; the metrics still name the older journal.
+  const committed = (await loadRun(inner))!;
+  assertEquals(committed.products.artifacts.summary?.version, 1);
+  assert(metrics.at(-1)! < committed.journal.length);
+  crash = false;
+  await update(store, (run) =>
+    recordDispatch(
+      run,
+      LIFECYCLE,
+      expectedOf(run),
+      { inputs: {} },
+      ALICE,
+      env,
+    ));
+  assertEquals(metrics.at(-1), (await loadRun(inner))!.journal.length);
 });

@@ -70,18 +70,18 @@ groups:
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
       - dir: gatorwalk-factory
         vars:
-          check: extensions/models/*.ts extensions/models/_lib/*.ts integration/*.ts
-          paths: extensions/models/ integration/
+          check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts integration/*.ts
+          paths: extensions/models/ extensions/reports/ integration/
         commands:
           # The skill's markdown is format-checked too. It has its own
           # command because {paths} also feeds lint, which has nothing to
           # lint in a directory of markdown.
-          fmt: deno fmt --check extensions/models/ integration/ .claude/skills/
+          fmt: deno fmt --check extensions/models/ extensions/reports/ integration/ .claude/skills/
           # The unit tests only read files and never reach integration/.
           # --allow-net=127.0.0.1 is for the local fakes of Linear's and
           # swamp-club's APIs the tracker tests serve; nothing reaches a live
           # service.
-          test: deno test --allow-read --allow-net=127.0.0.1 extensions/models/
+          test: deno test --allow-read --allow-net=127.0.0.1 extensions/models/ extensions/reports/
           # The real-engine suite (integration/) drives the installed swamp
           # CLI in a temp repo, so it needs more than the unit tests. These
           # flags are not a sandbox: --allow-run=swamp lets the spawned

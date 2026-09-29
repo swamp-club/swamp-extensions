@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
+import { noteAwaiting } from "./awaiting.ts";
 import { digestOf, jsonSafe } from "./canonical.ts";
 import type { Actor, ProductKind } from "./journal.ts";
 import type { Lifecycle } from "./lifecycle_schema.ts";
@@ -61,7 +62,8 @@ export function payloadName(kind: ProductKind, name: string): string {
 /** What the runtime needs from storage. */
 export interface RunStore {
   readRun(): Promise<unknown | null>;
-  writeRun(run: RunRecord): Promise<void>;
+  /** Commit a run record; returns the record as committed. */
+  writeRun(run: RunRecord): Promise<RunRecord>;
   /** Write a new payload version; returns its version number. */
   writePayload(
     kind: ProductKind,
@@ -112,6 +114,7 @@ export function contextStore(
     readRun: () => readResource(RUN_NAME),
     writeRun: async (run) => {
       handles.push(await writeResource(RUN_SPEC, RUN_NAME, run));
+      return run;
     },
     writePayload: async (kind, name, payload) => {
       const spec = kind === "artifact" ? ARTIFACT_SPEC : EVIDENCE_SPEC;
@@ -125,6 +128,31 @@ export function contextStore(
     },
     readPayload: (kind, name, version) =>
       readResource(payloadName(kind, name), version),
+  };
+}
+
+/**
+ * A store whose every commit first notes any change in the exits held by a
+ * person (awaiting.ts), writes the run record, then runs `afterCommit` with
+ * what was committed: the model types write the derived metrics record there.
+ * It runs after the run record, so a crash in between leaves the metrics one
+ * commit behind, never ahead of the run.
+ */
+export function committingStore(
+  base: RunStore,
+  lifecycle: Lifecycle,
+  env: Env,
+  afterCommit?: (run: RunRecord) => Promise<void>,
+): RunStore {
+  return {
+    ...base,
+    writeRun: async (run) => {
+      const committed = await base.writeRun(
+        await noteAwaiting(run, lifecycle, base, env),
+      );
+      await afterCommit?.(committed);
+      return committed;
+    },
   };
 }
 
@@ -146,7 +174,7 @@ export function memoryStore(): RunStore & {
       ),
     writeRun: (run) => {
       runVersions.push(structuredClone(run));
-      return Promise.resolve();
+      return Promise.resolve(run);
     },
     writePayload: (kind, name, payload) => {
       const key = payloadName(kind, name);
@@ -196,8 +224,7 @@ export async function startRun(
         "status to resume, or reset it",
     };
   }
-  const run = start(lifecycle, input, actor, env);
-  await store.writeRun(run);
+  const run = await store.writeRun(start(lifecycle, input, actor, env));
   return { ok: true, run, value: run.era };
 }
 
@@ -211,8 +238,8 @@ export async function update<T>(
     return { ok: false, reason: "the work item has not started" };
   }
   const result = await op(run);
-  if (result.ok) await store.writeRun(result.run);
-  return result;
+  if (!result.ok) return result;
+  return { ...result, run: await store.writeRun(result.run) };
 }
 
 export type RecordResult =
@@ -272,8 +299,8 @@ export async function recordProduct(
       actor,
       env,
     );
-    await store.writeRun(next);
-    return { ok: false, rejected: true, run: next, errors: check.errors };
+    const committed = await store.writeRun(next);
+    return { ok: false, rejected: true, run: committed, errors: check.errors };
   }
   // Store the JSON-safe form: the digest was taken over it, so the stored
   // version reads back with the same digest.
@@ -290,8 +317,7 @@ export async function recordProduct(
     actor,
     env,
   );
-  await store.writeRun(next);
-  return { ok: true, run: next, version, digest };
+  return { ok: true, run: await store.writeRun(next), version, digest };
 }
 
 /** For an artifact that reviews another, the subject's current version and

@@ -23,6 +23,8 @@ import {
 import { parse as parseYaml } from "@std/yaml";
 import { digestOf } from "../extensions/models/_lib/canonical.ts";
 import { parseLifecycle } from "../extensions/models/_lib/lifecycle_schema.ts";
+import type { Metrics } from "../extensions/models/_lib/metrics.ts";
+import { stopsDefinition } from "../extensions/models/_lib/test_support.ts";
 import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
@@ -430,5 +432,107 @@ Deno.test("cli: eject a plugin into a lifecycle, save it, and run a work item th
     const run = await repo.run(key);
     assertEquals(run.stage, "done");
     assertEquals(run.status, "terminal");
+  });
+});
+
+Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the report, the metrics record and a query across items", async () => {
+  await withRepo(async (repo) => {
+    // The stops lifecycle, with its cooldown cut to a second.
+    const lifecycle = stopsDefinition();
+    const ship = (lifecycle.stages as { id: string; transitions?: unknown[] }[])
+      .find((s) => s.id === "ship");
+    const release = ship?.transitions?.[0] as {
+      gates: { type: string; config: Record<string, unknown> }[];
+    };
+    release.gates[0].config.seconds = 1;
+    await repo.holder("team", lifecycle);
+    const key = await repo.newKey("team");
+    await repo.workItem(key, "start", { lifecycle: "team" });
+    const wi = driver(repo, key);
+
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+    await repo.workItem(key, "record_usage", {
+      dispatchId: "1",
+      inputTokens: "120",
+      outputTokens: "30",
+      model: "m1",
+    });
+    await wi.record("artifact", "plan", { text: "the plan" });
+    await wi.go("submit");
+    await repo.workItem(key, "decline", {
+      gateId: "go",
+      note: "needs tests",
+      ...await repo.expected(key),
+    });
+    await wi.record("artifact", "review", { text: "tests added" });
+    await wi.approve("go");
+    await wi.go("approve");
+    await wi.record("evidence", "pr", { status: "ok" });
+    // Past the cooldown, so the person is what the exit waits on.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await wi.approve("release-ok");
+    await wi.go("release");
+
+    const run = await repo.run(key);
+    assertEquals(run.status, "terminal");
+    const awaited = run.journal.flatMap((e) =>
+      e.type === "awaiting" ? [e.exits.map((x) => x.transition)] : []
+    );
+    assertEquals(awaited, [["approve"], [], ["approve"], [], ["release"], []]);
+
+    const summary = await repo.workItem(key, "summary");
+    assert(summary.output.includes(`# Work item ${key}`), summary.output);
+
+    // The report ran after summary and was stored by swamp.
+    const { stdout } = await repo.swamp([
+      "report",
+      "get",
+      "@swamp/gatorwalk-factory/work-item-summary",
+      "--model",
+      key,
+      "--json",
+    ]);
+    const stored = JSON.parse(stdout) as { markdown: string };
+    assert(stored.markdown.startsWith(`# Work item ${key}\n`));
+    assert(stored.markdown.includes("declined 'go': needs tests"));
+    const twin = await repo.data(
+      key,
+      "report-swamp-gatorwalk-factory-work-item-summary-json",
+    ) as { metrics: Metrics };
+
+    // The metrics record, at the same journal version as the report.
+    const metrics = await repo.data(key, "metrics") as unknown as Metrics;
+    assertEquals(metrics.journalVersion, run.journal.length);
+    assertEquals(twin.metrics, metrics);
+    assertEquals(metrics.status, "terminal");
+    assertEquals(
+      metrics.eras[0].waits.map((w) => [w.transition, w.endedBy]),
+      [["approve", "declined"], ["approve", "approved"], [
+        "release",
+        "approved",
+      ]],
+    );
+    assertEquals(metrics.summary.rework.declines, 1);
+    assertEquals(metrics.summary.dispatches, { count: 1, retries: 0 });
+    assertEquals(metrics.summary.usage.inputTokens, 120);
+    assertEquals(metrics.summary.usage.outputTokens, 30);
+
+    // Level with the run, so a rebuild writes nothing.
+    const rebuilt = await repo.workItem(key, "rebuild_metrics");
+    assert(rebuilt.output.includes("metrics are up to date"), rebuilt.output);
+
+    // The dashboard case: every work item's metrics in one query.
+    const other = await repo.newKey("team");
+    await repo.workItem(other, "start", { lifecycle: "team" });
+    const query = await repo.swamp([
+      "data",
+      "query",
+      `modelType == "${WORK_ITEM_TYPE}" && name == "metrics"`,
+      "--json",
+    ]);
+    const found = (JSON.parse(query.stdout) as {
+      results: { content: Metrics }[];
+    }).results.map((r) => [r.content.key, r.content.status]).sort();
+    assertEquals(found, [[key, "terminal"], [other, "active"]].sort());
   });
 });

@@ -53,6 +53,21 @@ export function actorFrom(
 export const ProductKindSchema = z.enum(["artifact", "evidence"]);
 export type ProductKind = z.infer<typeof ProductKindSchema>;
 
+/** An exit held only by a person: its approval gates are pending, or it is a
+ * manual exit whose gates all pass. */
+export const AwaitingExitSchema = z.strictObject({
+  transition: z.string().min(1),
+  to: z.string().min(1),
+  manual: z.boolean(),
+  /** Its human-approval gates that are pending. */
+  gateIds: z.array(z.string().min(1)),
+  /** When a cooldown gate lifts after the event was written, the time the
+   * exit is actually held by a person from. */
+  readyAt: z.string().min(1).optional(),
+});
+
+export type AwaitingExit = z.infer<typeof AwaitingExitSchema>;
+
 const EVENT_BASE = {
   at: z.string().min(1),
   era: z.string().min(1),
@@ -116,6 +131,14 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
     overrideId: z.number().int().positive(),
     kind: z.enum(["cycle", "dispatch"]),
     for: z.string().min(1),
+  }),
+  z.strictObject({
+    ...EVENT_BASE,
+    type: z.literal("awaiting"),
+    /** Every exit of the stage entry that only a person can open now. Written
+     * when the set changes, including to empty; derived from the gates, so
+     * its actor is the write that caused the change. */
+    exits: z.array(AwaitingExitSchema),
   }),
   z.strictObject({
     ...EVENT_BASE,

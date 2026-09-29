@@ -52,7 +52,7 @@ not covered yet.
 swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
-1. Read `status`. If the item is terminal, report and stop.
+1. Read `status`. If the item is terminal, run `summary`, report and stop.
 2. `dispatch`, then do the stage's work as its `mode` says: yourself
    (interactive), by subagents (dispatch), or by running the workflow or method
    the packet names.
@@ -75,6 +75,7 @@ Work-item methods run by type, with the key as the instance:
 | ----------------- | --------------------------------------------------------------- | ---------------- |
 | `start`           | `lifecycle=<holder>` (and `externalRefs`, a JSON object)        |                  |
 | `status`          | none (a read; no lock)                                          |                  |
+| `summary`         | none (a read; the timeline and metrics)                         |                  |
 | `dispatch`        | expect                                                          |                  |
 | `record_artifact` | `name`, `payload` (JSON), expect                                |                  |
 | `record_evidence` | `name`, `payload` (JSON), expect                                |                  |
