@@ -19,7 +19,7 @@ interface HetznerLib {
   ) => Promise<Record<string, unknown>>;
   listAll: (
     endpoint: string,
-    queryParams?: Record<string, string>,
+    queryParams?: Record<string, string | string[]>,
     token?: string,
   ) => Promise<Record<string, unknown>[]>;
   remove: (
@@ -424,6 +424,41 @@ Deno.test("listAll: sends label_selector and pagination as query params", async 
         assertEquals(url.searchParams.get("label_selector"), "env=prod");
         assertEquals(url.searchParams.get("per_page"), "50");
         assertEquals(url.searchParams.get("page"), "1");
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("listAll: sends an array query param as repeated keys on every page", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) => {
+        if (req.url.endsWith("/locations")) return okLocations();
+        const page = new URL(req.url).searchParams.get("page");
+        return jsonResponse(200, {
+          images: [{ id: Number(page), name: null }],
+          meta: { pagination: { next_page: page === "1" ? 2 : null } },
+        });
+      },
+      async (calls) => {
+        const items = await mod.listAll(
+          "/images",
+          { type: ["snapshot", "backup"], architecture: "x86" },
+          "t",
+        );
+        assertEquals(items.length, 2);
+        const listCalls = calls.filter((r) => r.url.includes("/images"));
+        assertEquals(listCalls.length, 2);
+        for (const call of listCalls) {
+          const url = new URL(call.url);
+          assertEquals(url.searchParams.getAll("type"), ["snapshot", "backup"]);
+          assertEquals(url.searchParams.get("architecture"), "x86");
+        }
       },
     );
   } finally {

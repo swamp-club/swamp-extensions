@@ -1,7 +1,11 @@
 // Generates individual Hetzner extension model .ts files
 // Each file exports `const model = { ... }` using the swamp extension model pattern.
 
-import type { HetznerProperty, HetznerResource } from "./pipeline.ts";
+import type {
+  HetznerListFilter,
+  HetznerProperty,
+  HetznerResource,
+} from "./pipeline.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
@@ -76,6 +80,23 @@ export function generateHetznerExtensionModel(
   const hasLookup = resource.handlers.read && resource.handlers.list &&
     !isSyntheticName && namingFieldInGlobalArgs;
   const hasAdopt = resource.handlers.read;
+
+  // Instance name for state taken from an API object (get, adopt, list and the
+  // id-targeted methods). When the naming field repeats across resources the
+  // id is appended so every instance is unique.
+  const nameUnique = resource.nameUnique !== false;
+  const apiInstanceName = (field: string, id: string): string =>
+    nameUnique
+      ? `${field}?.toString() ?? ${id}`
+      : `${field} == null ? ${id} : \`\${${field}}-\${${id}}\``;
+
+  // A resource whose naming field is not a global argument (images cannot be
+  // created, so `name` never reaches GlobalArgsSchema) has no key to find its
+  // stored state by. Its update, change_protection and delete take an id and
+  // name state from the API response, matching get/adopt/list.
+  const targetsById = !isSyntheticName && !namingFieldInGlobalArgs &&
+    resource.handlers.read;
+
   const availableOps = [
     resource.handlers.create ? "create" : "",
     resource.handlers.read ? "get" : "",
@@ -112,7 +133,10 @@ export function generateHetznerExtensionModel(
   const helperImports: string[] = [];
   if (resource.handlers.create) helperImports.push("create");
   if (resource.handlers.read) helperImports.push("read");
-  if (resource.handlers.create && resource.handlers.read) {
+  if (
+    (resource.handlers.create && resource.handlers.read) ||
+    (targetsById && resource.handlers.delete)
+  ) {
     helperImports.push("tryRead");
   }
   if (resource.handlers.delete) helperImports.push("remove");
@@ -276,7 +300,7 @@ export function generateHetznerExtensionModel(
       lines.push(
         `        const instanceName = ${
           wrapWithSanitize(
-            `result.${namingField}?.toString() ?? args.id.toString()`,
+            apiInstanceName(`result.${namingField}`, `args.id.toString()`),
           )
         };`,
       );
@@ -289,8 +313,45 @@ export function generateHetznerExtensionModel(
     lines.push(`    },`);
   }
 
+  // update method, id-targeted variant (see targetsById)
+  if (resource.handlers.update && targetsById) {
+    lines.push(`    update: {`);
+    lines.push(
+      `      description: "Update ${singularName} attributes",`,
+    );
+    lines.push(
+      `      arguments: z.object({ id: z.number().int().describe("The ID of the ${singularName}") }),`,
+    );
+    lines.push(
+      `      execute: async (args: { id: number }, context: any) => {`,
+    );
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const body: Record<string, unknown> = {};`);
+    for (const name of Object.keys(resource.updateProperties)) {
+      lines.push(
+        `        if (g.${name} !== undefined) body.${name} = g.${name};`,
+      );
+    }
+    lines.push(
+      `        const result = await update("${endpoint}", args.id, body, g.token) as ResourceData;`,
+    );
+    lines.push(
+      `        const instanceName = ${
+        wrapWithSanitize(
+          apiInstanceName(`result.${namingField}`, `args.id.toString()`),
+        )
+      };`,
+    );
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
+
   // update method — only if PUT handler exists
-  if (resource.handlers.update) {
+  if (resource.handlers.update && !targetsById) {
     lines.push(`    update: {`);
     lines.push(
       `      description: "Update ${singularName} attributes",`,
@@ -343,13 +404,22 @@ export function generateHetznerExtensionModel(
     lines.push(
       `      execute: async (args: { id: number }, context: any) => {`,
     );
+    if (targetsById) {
+      // Read first so the deletion record lands on the instance get/adopt/list
+      // wrote; the name is gone once the resource is.
+      lines.push(
+        `        const current = await tryRead("${endpoint}", args.id, context.globalArgs.token) as ResourceData | null;`,
+      );
+    }
     lines.push(
       `        const { existed } = await remove("${endpoint}", args.id, context.globalArgs.token);`,
     );
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `context.globalArgs.${namingField}?.toString() ?? args.id.toString()`,
+          targetsById
+            ? apiInstanceName(`current?.${namingField}`, `args.id.toString()`)
+            : `context.globalArgs.${namingField}?.toString() ?? args.id.toString()`,
         )
       };`,
     );
@@ -419,22 +489,62 @@ export function generateHetznerExtensionModel(
   if (resource.handlers.list) {
     const listNameExpr = isSyntheticName
       ? `item.id?.toString() ?? "unknown"`
-      : `item.${namingField}?.toString() ?? item.id?.toString() ?? "unknown"`;
+      : apiInstanceName(
+        `item.${namingField}`,
+        `item.id?.toString() ?? "unknown"`,
+      );
+    // Per-endpoint query filters from the spec, after label_selector
+    const filters = resource.listFilters ?? [];
+    const filterArgs = filters.map((f) => {
+      const desc = f.description
+        ? `.describe(${JSON.stringify(f.description)})`
+        : "";
+      return `${f.name}: ${listFilterZod(f)}${desc}.optional()`;
+    });
+    const filterTypes = filters.map((f) => {
+      const ts = f.kind === "boolean"
+        ? "boolean"
+        : f.kind === "string-array" || f.kind === "enum-array"
+        ? "string[]"
+        : "string";
+      return `${f.name}?: ${ts}`;
+    });
     lines.push(`    list: {`);
     lines.push(
-      `      description: "List ${singularName}s, optionally filtered by a Hetzner label selector",`,
+      `      description: "List ${singularName}s, optionally filtered by a Hetzner label selector${
+        filters.length > 0 ? ` or ${filters.map((f) => f.name).join(", ")}` : ""
+      }",`,
     );
     lines.push(
-      `      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),`,
+      `      arguments: z.object({ ${
+        [
+          `label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional()`,
+          ...filterArgs,
+        ].join(", ")
+      } }),`,
     );
     lines.push(
-      `      execute: async (args: { label_selector?: string }, context: any) => {`,
+      `      execute: async (args: { ${
+        ["label_selector?: string", ...filterTypes].join("; ")
+      } }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const queryParams: Record<string, string> = {};`);
+    lines.push(
+      `        const queryParams: Record<string, string${
+        filters.some((f) => f.kind.endsWith("array")) ? " | string[]" : ""
+      }> = {};`,
+    );
     lines.push(
       `        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;`,
     );
+    for (const f of filters) {
+      const value = f.kind === "boolean"
+        ? `String(args.${f.name})`
+        : `args.${f.name}`;
+      lines.push(
+        `        if (args.${f.name} !== undefined) queryParams.${f.name} = ${value};`,
+      );
+    }
     lines.push(
       `        const items = await listAll("${endpoint}", queryParams, g.token) as ResourceData[];`,
     );
@@ -550,7 +660,7 @@ export function generateHetznerExtensionModel(
       lines.push(
         `        const instanceName = ${
           wrapWithSanitize(
-            `result.${namingField}?.toString() ?? args.id.toString()`,
+            apiInstanceName(`result.${namingField}`, `args.id.toString()`),
           )
         };`,
       );
@@ -572,31 +682,41 @@ export function generateHetznerExtensionModel(
     const cpType = isServer
       ? "{ delete?: boolean; rebuild?: boolean }"
       : "{ delete: boolean }";
+    const idArg =
+      `id: z.number().int().describe("The ID of the ${singularName}")`;
     lines.push(`    change_protection: {`);
     lines.push(
       `      description: "Change delete/rebuild protection for the ${singularName}",`,
     );
     lines.push(
-      `      arguments: z.object(${cpArgs}),`,
+      `      arguments: z.object(${
+        targetsById ? cpArgs.replace(/^\{ /, `{ ${idArg}, `) : cpArgs
+      }),`,
     );
     lines.push(
-      `      execute: async (args: ${cpType}, context: any) => {`,
+      `      execute: async (args: ${
+        targetsById ? cpType.replace(/^\{ /, "{ id: number; ") : cpType
+      }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(...instanceNameLines("change_protection"));
-    lines.push(
-      `        const content = await context.dataRepository.getContent(`,
-    );
-    lines.push(
-      `          context.modelType, context.modelId, instanceName,`,
-    );
-    lines.push(`        );`);
-    lines.push(
-      `        if (!content) throw new Error("No data found - run create, lookup, or adopt first");`,
-    );
-    lines.push(
-      `        const existing = JSON.parse(new TextDecoder().decode(content));`,
-    );
+    if (targetsById) {
+      lines.push(`        const existing = { id: args.id };`);
+    } else {
+      lines.push(...instanceNameLines("change_protection"));
+      lines.push(
+        `        const content = await context.dataRepository.getContent(`,
+      );
+      lines.push(
+        `          context.modelType, context.modelId, instanceName,`,
+      );
+      lines.push(`        );`);
+      lines.push(
+        `        if (!content) throw new Error("No data found - run create, lookup, or adopt first");`,
+      );
+      lines.push(
+        `        const existing = JSON.parse(new TextDecoder().decode(content));`,
+      );
+    }
     lines.push(`        const body: Record<string, unknown> = {};`);
     lines.push(
       `        if (args.delete !== undefined) body.delete = args.delete;`,
@@ -612,6 +732,15 @@ export function generateHetznerExtensionModel(
     lines.push(
       `        const result = await read("${endpoint}", existing.id, g.token) as ResourceData;`,
     );
+    if (targetsById) {
+      lines.push(
+        `        const instanceName = ${
+          wrapWithSanitize(
+            apiInstanceName(`result.${namingField}`, `args.id.toString()`),
+          )
+        };`,
+      );
+    }
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
     );
@@ -791,6 +920,23 @@ export function generateHetznerExtensionModel(
   lines.push("");
 
   return lines.join("\n");
+}
+
+/** zod expression for a `list` query filter argument */
+function listFilterZod(filter: HetznerListFilter): string {
+  const values = JSON.stringify(filter.enumValues ?? []);
+  switch (filter.kind) {
+    case "boolean":
+      return "z.boolean()";
+    case "enum":
+      return `z.enum(${values})`;
+    case "string-array":
+      return "z.array(z.string())";
+    case "enum-array":
+      return `z.array(z.enum(${values}))`;
+    default:
+      return "z.string()";
+  }
 }
 
 /**

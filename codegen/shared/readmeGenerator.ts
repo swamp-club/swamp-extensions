@@ -139,7 +139,11 @@ Hetzner Cloud. Available methods:
 - **delete** — remove the resource from Hetzner Cloud
 - **sync** — refresh all resource properties from the API
 - **list** — discover existing resources (resources with a collection endpoint),
-  optionally filtered by a Hetzner label selector; writes one resource per match
+  optionally filtered by a Hetzner label selector and by the endpoint's own
+  query filters (e.g. images \`type\`, \`architecture\`; array filters take
+  several values); writes one resource per match. Images are named
+  \`<name>-<id>\` (or \`<id>\` when unnamed), since public image names repeat
+  across CPU architectures
 
 Use \`swamp model type describe @swamp/hetzner-cloud/<model>\` to see the full
 list of configurable properties and available methods for a model.

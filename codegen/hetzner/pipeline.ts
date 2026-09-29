@@ -68,6 +68,22 @@ export interface HetznerResource {
   identifyingField: string;
   /** Allowlisted action endpoints available on this resource */
   actions: string[];
+  /** Query filters the collection GET accepts, emitted as `list` arguments */
+  listFilters?: HetznerListFilter[];
+  /**
+   * False when the naming field repeats across distinct resources (see
+   * NON_UNIQUE_NAME_RESOURCES); instance names then carry the id. Default true.
+   */
+  nameUnique?: boolean;
+}
+
+/** One collection-GET query parameter exposed as a `list` argument */
+export interface HetznerListFilter {
+  name: string;
+  description?: string;
+  kind: "string" | "boolean" | "enum" | "string-array" | "enum-array";
+  /** Allowed values for `enum` and `enum-array` */
+  enumValues?: string[];
 }
 
 export interface HetznerGeneratedFile {
@@ -370,6 +386,7 @@ interface OApiSchema {
 interface OApiParameter {
   name: string;
   in?: string;
+  description?: string;
   required?: boolean;
   schema?: OApiSchema;
 }
@@ -397,6 +414,79 @@ const ALLOWED_ACTIONS = new Set([
   "apply_to_resources",
   "remove_from_resources",
 ]);
+
+// Resources whose naming field repeats across distinct resources, so the name
+// alone cannot key a state instance. Hetzner's public system images reuse a
+// name across CPU architectures (an x86 and an arm `ubuntu-24.04`). Add a
+// resource here only on evidence of real duplicates.
+const NON_UNIQUE_NAME_RESOURCES = new Set(["images"]);
+
+// Collection-GET query parameters that are not filters: pagination is driven
+// by listAll, `sort` only orders results, and `label_selector` is emitted by
+// the list template itself.
+const NON_FILTER_QUERY_PARAMS = new Set([
+  "page",
+  "per_page",
+  "sort",
+  "label_selector",
+]);
+
+/**
+ * Extract the query filters a collection GET accepts, sorted by name. Only
+ * scalar string/boolean/enum parameters and arrays of strings/enums are
+ * supported; any other shape is skipped with a warning.
+ */
+export function extractListFilters(
+  operation: OApiOperation,
+  spec: OApiSpec,
+): HetznerListFilter[] {
+  const filters: HetznerListFilter[] = [];
+  for (const rawParam of operation.parameters ?? []) {
+    const param = resolveRef(
+      rawParam as unknown as OApiSchema,
+      spec,
+    ) as unknown as OApiParameter;
+    if (param.in !== "query" || NON_FILTER_QUERY_PARAMS.has(param.name)) {
+      continue;
+    }
+    const schema = resolveRef(param.schema ?? {}, spec);
+    const description = param.description?.split("\n\n")[0]
+      .replace(/\s+/g, " ").trim() || undefined;
+    let filter: HetznerListFilter | undefined;
+    if (schema.type === "boolean") {
+      filter = { name: param.name, description, kind: "boolean" };
+    } else if (schema.type === "string") {
+      filter = schema.enum
+        ? {
+          name: param.name,
+          description,
+          kind: "enum",
+          enumValues: schema.enum.map(String),
+        }
+        : { name: param.name, description, kind: "string" };
+    } else if (schema.type === "array") {
+      const items = resolveRef(schema.items ?? {}, spec);
+      if (items.type === "string") {
+        filter = items.enum
+          ? {
+            name: param.name,
+            description,
+            kind: "enum-array",
+            enumValues: items.enum.map(String),
+          }
+          : { name: param.name, description, kind: "string-array" };
+      }
+    }
+    if (filter) {
+      filters.push(filter);
+    } else {
+      console.warn(
+        `Skipping unsupported list query parameter "${param.name}"`,
+      );
+    }
+  }
+  return filters.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 /**
  * Parse the Hetzner OpenAPI spec, group endpoints by noun,
@@ -482,6 +572,7 @@ function mergeResourceOperations(
   let hasUpdate = false;
   let hasDelete = false;
   let hasList = false;
+  let listFilters: HetznerListFilter[] = [];
 
   // Sort paths so single-resource paths (with {id}) come last and overwrite list responses
   const sortedPaths = Object.entries(paths).sort(([a], [b]) => {
@@ -523,6 +614,7 @@ function mergeResourceOperations(
     if (methods.get && !isSingleResource) {
       // Collection GET (e.g. GET /servers) enables the `list` discovery method
       hasList = true;
+      listFilters = extractListFilters(methods.get, spec);
     }
 
     if (methods.delete) {
@@ -576,6 +668,8 @@ function mergeResourceOperations(
     },
     identifyingField,
     actions: [],
+    listFilters,
+    nameUnique: !NON_UNIQUE_NAME_RESOURCES.has(noun),
   };
 }
 

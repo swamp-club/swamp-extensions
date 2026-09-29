@@ -279,7 +279,28 @@ data.latest("servers", "web-1").attributes.id
 | `create` | `globalArgs.{namingField}` or `"current"`                                                              |
 | `get`    | For natural names: `result.{namingField}` from API response. For synthetic: `globalArgs.{namingField}` |
 | `update` | `globalArgs.{namingField}` or `"current"` (reads existing data by this key)                            |
-| `delete` | `args.id.toString()` (uses the numeric ID as the instance name for the deletion record)                |
+| `delete` | `globalArgs.{namingField}`, falling back to `args.id.toString()`                                       |
+
+### Non-unique names
+
+Hetzner's public system images reuse a name across CPU architectures (an x86 and
+an arm `ubuntu-24.04`), so the name alone cannot key a state instance. The
+pipeline's `NON_UNIQUE_NAME_RESOURCES` allowlist (currently only `images`) sets
+`nameUnique: false`, and every method that names state from an API response
+(`get`, `adopt`, `list`, and the id-targeted methods below) then uses
+`<name>-<id>`, or `<id>` when the name is null (snapshots, backups). Add a
+resource to the allowlist only on evidence of real duplicates. Image state
+written before this change under the bare name is left behind, not migrated.
+
+### Resources whose naming field is not a global argument
+
+A natural naming field that appears in neither the create nor the update body
+(images cannot be created, so `name` never reaches `GlobalArgsSchema`) gives
+`update`, `change_protection` and `delete` no key to find stored state by. For
+such resources those methods take a required `id` argument, call the API by id
+without reading stored state, and name state from the API response like
+`get`/`adopt`. `delete` reads the resource first (`tryRead`) so the deletion
+record lands on the same instance; a 404 falls back to `<id>`.
 
 ### Synthetic names
 
@@ -646,10 +667,21 @@ leaks for the recommended path.)
 
 A `list` method is generated for every resource whose collection path supports
 GET (detected as `handlers.list` in the pipeline — a GET on the non-`{id}`
-path). It takes an optional `label_selector` method argument, calls the
+path). It takes an optional `label_selector` method argument plus one optional
+argument per query filter the collection GET declares in the spec, calls the
 paginated `listAll()` lib helper, and writes **one `state` resource per item**
 using the factory naming field (sanitized, with an `id` fallback for
-synthetic-name resources). It returns `{ dataHandles, result: { count } }`.
+synthetic-name resources, and `<name>-<id>` for non-unique names). It returns
+`{ dataHandles, result: { count } }`.
+
+`extractListFilters()` in the pipeline reads the filters. It drops `page` and
+`per_page` (driven by `listAll`), `sort` (orders results, never narrows them)
+and `label_selector` (emitted by the template with its own description), and
+supports string, boolean and enum parameters and arrays of strings or enums; any
+other shape is skipped with a warning. Filters are sorted by name so output is
+deterministic. Array filters are sent as repeated query parameters
+(`type=snapshot&type=backup`), Hetzner's form-explode style, and booleans as
+`"true"`/`"false"`.
 
 `list` writes to the same `state` resource kind that `create`/`get`/`update`/
 `sync` manage — matching the GCP provider's list factory rather than a separate

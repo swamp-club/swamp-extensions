@@ -974,3 +974,146 @@ Deno.test("update sends only the fields set, without a live read", () => {
   assertStringIncludes(update, "if (g.name !== undefined) body.name = g.name;");
   assertFalse(update.includes("await read("));
 });
+
+// ---------------------------------------------------------------------------
+// List filters and non-unique names (swamp-club #2725, #2731)
+// ---------------------------------------------------------------------------
+
+// Shaped like /images: no create, so `name` is not a global argument, and
+// names repeat across architectures.
+function imagesResource(): HetznerResource {
+  return makeResource({
+    noun: "images",
+    modelSlug: "images",
+    fileName: "images.ts",
+    updateProperties: {
+      description: { type: "string", description: "New description" },
+    },
+    resourceProperties: { id: intProp, name: stringProp },
+    handlers: {
+      create: false,
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
+    identifyingField: "name",
+    actions: ["change_protection"],
+    listFilters: [
+      { name: "include_deprecated", kind: "boolean" },
+      {
+        name: "type",
+        description: "Filter by type.",
+        kind: "enum-array",
+        enumValues: ["system", "app", "snapshot", "backup"],
+      },
+    ],
+    nameUnique: false,
+  });
+}
+
+function generateImages() {
+  return generateHetznerExtensionModel({
+    resource: imagesResource(),
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+}
+
+function methodBlock(out: string, method: string): string {
+  const start = out.indexOf(`    ${method}: {`);
+  assert(start >= 0, `${method} method not emitted`);
+  const end = out.indexOf("\n    },\n", start);
+  return out.slice(start, end);
+}
+
+Deno.test("list emits typed filter arguments and forwards them as query params", () => {
+  const list = methodBlock(generateImages(), "list");
+  assertStringIncludes(
+    list,
+    'type: z.array(z.enum(["system","app","snapshot","backup"])).describe("Filter by type.").optional()',
+  );
+  assertStringIncludes(list, "include_deprecated: z.boolean().optional()");
+  assertStringIncludes(
+    list,
+    "queryParams.include_deprecated = String(args.include_deprecated)",
+  );
+  assertStringIncludes(list, "queryParams.type = args.type");
+  assertStringIncludes(list, "Record<string, string | string[]>");
+});
+
+Deno.test("non-unique names append the id in list, get and adopt", () => {
+  const out = generateImages();
+  for (
+    const [method, expr] of [
+      [
+        "list",
+        'item.name == null ? item.id?.toString() ?? "unknown" : `${item.name}-${item.id?.toString() ?? "unknown"}`',
+      ],
+      [
+        "get",
+        "result.name == null ? args.id.toString() : `${result.name}-${args.id.toString()}`",
+      ],
+      [
+        "adopt",
+        "result.name == null ? args.id.toString() : `${result.name}-${args.id.toString()}`",
+      ],
+    ]
+  ) {
+    assertStringIncludes(methodBlock(out, method), expr);
+  }
+});
+
+Deno.test("naming field outside global args: update, change_protection and delete target an id", () => {
+  const out = generateImages();
+  for (const method of ["update", "change_protection", "delete"]) {
+    const block = methodBlock(out, method);
+    assertStringIncludes(
+      block,
+      'id: z.number().int().describe("The ID of the image")',
+    );
+    assertFalse(
+      block.includes('"current"'),
+      `${method} must not read "current"`,
+    );
+    assertFalse(
+      block.includes("getContent"),
+      `${method} must not read stored state`,
+    );
+  }
+  assertStringIncludes(
+    methodBlock(out, "update"),
+    'update("/images", args.id, body, g.token)',
+  );
+  const del = methodBlock(out, "delete");
+  assertStringIncludes(
+    del,
+    'tryRead("/images", args.id, context.globalArgs.token)',
+  );
+  assertStringIncludes(del, "current?.name == null ? args.id.toString()");
+  assertStringIncludes(out, "tryRead,");
+});
+
+Deno.test("unique names and global-arg naming keep today's list/get/update shape", () => {
+  const out = generateHetznerExtensionModel({
+    resource: {
+      ...serversResource(),
+      listFilters: [{ name: "name", kind: "string" }],
+    },
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    methodBlock(out, "list"),
+    'item.name?.toString() ?? item.id?.toString() ?? "unknown"',
+  );
+  assertStringIncludes(methodBlock(out, "list"), "name: z.string().optional()");
+  assertStringIncludes(
+    methodBlock(out, "get"),
+    "result.name?.toString() ?? args.id.toString()",
+  );
+  const update = methodBlock(out, "update");
+  assertStringIncludes(update, "arguments: z.object({})");
+  assertStringIncludes(update, "getContent");
+  assertFalse(methodBlock(out, "delete").includes("tryRead"));
+});

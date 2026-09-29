@@ -74,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud placement group. Registered at `@swamp/hetzner-cloud/placement-groups`. */
 export const model = {
   type: "@swamp/hetzner-cloud/placement-groups",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -133,6 +133,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -308,18 +313,27 @@ export const model = {
     },
     list: {
       description:
-        "List placement groups, optionally filtered by a Hetzner label selector",
+        "List placement groups, optionally filtered by a Hetzner label selector or name, type",
       arguments: z.object({
         label_selector: z.string().describe(
           "Hetzner label selector to filter results, e.g. env=production,role!=db",
         ).optional(),
+        name: z.string().describe("Filter resources by their name.").optional(),
+        type: z.array(z.enum(["spread"])).describe(
+          "Filter resources by type. May be used multiple times.",
+        ).optional(),
       }),
-      execute: async (args: { label_selector?: string }, context: any) => {
+      execute: async (
+        args: { label_selector?: string; name?: string; type?: string[] },
+        context: any,
+      ) => {
         const g = context.globalArgs;
-        const queryParams: Record<string, string> = {};
+        const queryParams: Record<string, string | string[]> = {};
         if (args.label_selector !== undefined) {
           queryParams.label_selector = args.label_selector;
         }
+        if (args.name !== undefined) queryParams.name = args.name;
+        if (args.type !== undefined) queryParams.type = args.type;
         const items = await listAll(
           "/placement_groups",
           queryParams,

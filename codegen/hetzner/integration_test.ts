@@ -1,6 +1,6 @@
-// Integration test: create-only required fields are optional in the generated
-// GlobalArgsSchema and enforced by create before any API call. Runs the
-// generated servers model and lib against a mock Hetzner API server.
+// Integration tests: run generated models and the lib against a mock Hetzner
+// API server. Covers create-only required fields (servers) and list filters,
+// non-unique names and id-targeted methods (images).
 
 import { assertEquals, assertRejects } from "@std/assert";
 import { generateHetznerExtensionModel } from "./extensionModelGenerator.ts";
@@ -14,16 +14,27 @@ import type { HetznerResource } from "./pipeline.ts";
 function createMockHetznerServer(): {
   port: number;
   close: () => Promise<void>;
-  requests: { method: string; path: string; body: unknown }[];
+  requests: MockRequest[];
 } {
-  const requests: { method: string; path: string; body: unknown }[] = [];
+  const requests: MockRequest[] = [];
+  const ubuntuX86 = { id: 101, name: "ubuntu-24.04", architecture: "x86" };
+  const ubuntuArm = { id: 102, name: "ubuntu-24.04", architecture: "arm" };
+  const snapshot = { id: 103, name: null, type: "snapshot" };
 
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
     async (req) => {
-      const path = new URL(req.url).pathname;
-      const body = req.body ? await req.json() : undefined;
-      requests.push({ method: req.method, path, body });
+      const url = new URL(req.url);
+      const path = url.pathname;
+      // A bodyless DELETE still carries an (empty) stream.
+      const text = await req.text();
+      const body = text ? JSON.parse(text) : undefined;
+      requests.push({
+        method: req.method,
+        path,
+        query: url.searchParams,
+        body,
+      });
 
       if (req.method === "GET" && path === "/v1/locations") {
         return Response.json({ locations: [] });
@@ -37,6 +48,36 @@ function createMockHetznerServer(): {
       if (req.method === "GET" && path === "/v1/servers/1") {
         return Response.json({ server: { id: 1, name: "web-1" } });
       }
+      // Public images repeat a name across architectures; page 2 holds an
+      // unnamed snapshot.
+      if (req.method === "GET" && path === "/v1/images") {
+        return url.searchParams.get("page") === "2"
+          ? Response.json({
+            images: [snapshot],
+            meta: { pagination: { next_page: null } },
+          })
+          : Response.json({
+            images: [ubuntuX86, ubuntuArm],
+            meta: { pagination: { next_page: 2 } },
+          });
+      }
+      if (req.method === "GET" && path === "/v1/images/101") {
+        return Response.json({ image: ubuntuX86 });
+      }
+      if (req.method === "PUT" && path === "/v1/images/101") {
+        return Response.json({
+          image: { ...ubuntuX86, ...(body as Record<string, unknown>) },
+        });
+      }
+      if (
+        req.method === "POST" &&
+        path === "/v1/images/101/actions/change_protection"
+      ) {
+        return Response.json({ action: { id: 1, status: "running" } });
+      }
+      if (req.method === "DELETE" && path === "/v1/images/101") {
+        return new Response(null, { status: 204 });
+      }
       return Response.json({ error: { code: "not_found" } }, { status: 404 });
     },
   );
@@ -47,6 +88,13 @@ function createMockHetznerServer(): {
     close: () => server.shutdown(),
     requests,
   };
+}
+
+interface MockRequest {
+  method: string;
+  path: string;
+  query: URLSearchParams;
+  body: unknown;
 }
 
 function redirectFetchToMock(mockPort: number): { restore: () => void } {
@@ -93,7 +141,70 @@ interface GeneratedModel {
   >;
 }
 
-async function importGeneratedModel(): Promise<{
+const serversResource: HetznerResource = {
+  noun: "servers",
+  modelSlug: "servers",
+  fileName: "servers.ts",
+  createProperties: {
+    name: { type: "string", description: "Name of the server" },
+    server_type: { type: "string", description: "Server type" },
+    image: { type: "string", description: "Image" },
+    location: { type: "string", description: "Location" },
+  },
+  updateProperties: {
+    name: { type: "string", description: "New name for the server" },
+  },
+  resourceProperties: {
+    id: { type: "integer" },
+    name: { type: "string" },
+  },
+  createRequiredProperties: ["name", "server_type", "image"],
+  handlers: {
+    create: true,
+    read: true,
+    update: true,
+    delete: true,
+    list: true,
+  },
+  identifyingField: "name",
+  actions: [],
+};
+
+// Shaped like the real /images resource: no create, so `name` is not a global
+// argument, names repeat across architectures, and list takes filters.
+const imagesResource: HetznerResource = {
+  noun: "images",
+  modelSlug: "images",
+  fileName: "images.ts",
+  createProperties: {},
+  updateProperties: {
+    description: { type: "string", description: "New description" },
+  },
+  resourceProperties: {
+    id: { type: "integer" },
+    name: { type: "string" },
+  },
+  createRequiredProperties: [],
+  handlers: {
+    create: false,
+    read: true,
+    update: true,
+    delete: true,
+    list: true,
+  },
+  identifyingField: "name",
+  actions: ["change_protection"],
+  listFilters: [
+    {
+      name: "type",
+      kind: "enum-array",
+      enumValues: ["system", "app", "snapshot", "backup"],
+    },
+  ],
+  nameUnique: false,
+};
+
+async function importGeneratedModel(resource: HetznerResource): Promise<{
   model: GeneratedModel;
   cleanup: () => Promise<void>;
 }> {
@@ -102,42 +213,13 @@ async function importGeneratedModel(): Promise<{
   await Deno.mkdir(libDir, { recursive: true });
   await Deno.writeTextFile(`${libDir}/hetzner.ts`, generateHetznerLibFile());
 
-  const resource: HetznerResource = {
-    noun: "servers",
-    modelSlug: "servers",
-    fileName: "servers.ts",
-    createProperties: {
-      name: { type: "string", description: "Name of the server" },
-      server_type: { type: "string", description: "Server type" },
-      image: { type: "string", description: "Image" },
-      location: { type: "string", description: "Location" },
-    },
-    updateProperties: {
-      name: { type: "string", description: "New name for the server" },
-    },
-    resourceProperties: {
-      id: { type: "integer" },
-      name: { type: "string" },
-    },
-    createRequiredProperties: ["name", "server_type", "image"],
-    handlers: {
-      create: true,
-      read: true,
-      update: true,
-      delete: true,
-      list: true,
-    },
-    identifyingField: "name",
-    actions: [],
-  };
-
   const modelCode = generateHetznerExtensionModel({
     resource,
     extensionName: "@swamp/hetzner-cloud",
     version: "2026.01.01.1",
   }).replaceAll(`from "./_lib/hetzner.ts"`, `from "${libDir}/hetzner.ts"`);
 
-  const modelPath = `${tmpDir}/extensions/models/servers.ts`;
+  const modelPath = `${tmpDir}/extensions/models/${resource.fileName}`;
   await Deno.writeTextFile(modelPath, modelCode);
 
   const mod = await import(`file://${modelPath}?v=${crypto.randomUUID()}`);
@@ -180,7 +262,7 @@ Deno.test({
     try {
       redirect = redirectFetchToMock(mock.port);
       Deno.env.delete("HETZNER_API_TOKEN");
-      const generated = await importGeneratedModel();
+      const generated = await importGeneratedModel(serversResource);
       cleanup = generated.cleanup;
       const model = generated.model;
 
@@ -266,6 +348,108 @@ Deno.test({
           image: "ubuntu-24.04",
         });
       });
+    } finally {
+      // Restore globals first so a failing cleanup cannot leak them.
+      redirect?.restore();
+      if (origToken === undefined) Deno.env.delete("HETZNER_API_TOKEN");
+      else Deno.env.set("HETZNER_API_TOKEN", origToken);
+      try {
+        await cleanup?.();
+      } finally {
+        await mock.close();
+      }
+    }
+  },
+});
+
+Deno.test({
+  name: "images: filtered list, unique instance names, id-targeted methods",
+  // The generated lib is imported dynamically and its fetches outlive a single
+  // test step.
+  sanitizeResources: false,
+  async fn(t) {
+    const mock = createMockHetznerServer();
+    const origToken = Deno.env.get("HETZNER_API_TOKEN");
+    let redirect: { restore: () => void } | undefined;
+    let cleanup: (() => Promise<void>) | undefined;
+
+    try {
+      redirect = redirectFetchToMock(mock.port);
+      Deno.env.delete("HETZNER_API_TOKEN");
+      const generated = await importGeneratedModel(imagesResource);
+      cleanup = generated.cleanup;
+      const model = generated.model;
+
+      await t.step(
+        "list writes one instance per image despite a repeated name",
+        async () => {
+          const { context, written } = createMockContext({ token: "i1" });
+          const out = await model.methods.list.execute({}, context);
+          assertEquals(out.result, { count: 3 });
+          assertEquals([...written.keys()].sort(), [
+            "103",
+            "ubuntu-24.04-101",
+            "ubuntu-24.04-102",
+          ]);
+        },
+      );
+
+      await t.step("list sends type as a repeated query param", async () => {
+        const before = mock.requests.length;
+        const { context } = createMockContext({ token: "i2" });
+        await model.methods.list.execute(
+          { type: ["snapshot", "backup"] },
+          context,
+        );
+        const listCalls = mock.requests.slice(before).filter((r) =>
+          r.path === "/v1/images"
+        );
+        assertEquals(listCalls.length, 2);
+        for (const call of listCalls) {
+          assertEquals(call.query.getAll("type"), ["snapshot", "backup"]);
+        }
+      });
+
+      await t.step(
+        "adopt, update, change_protection and delete share one instance",
+        async () => {
+          const names: string[] = [];
+          for (
+            const [method, args] of [
+              ["adopt", { id: 101 }],
+              ["update", { id: 101 }],
+              ["change_protection", { id: 101, delete: true }],
+              ["delete", { id: 101 }],
+            ] as const
+          ) {
+            const { context, written } = createMockContext({
+              description: "golden",
+              token: "i3",
+            });
+            await model.methods[method].execute({ ...args }, context);
+            names.push(...written.keys());
+          }
+          assertEquals(names, Array(4).fill("ubuntu-24.04-101"));
+          const put = mock.requests.find((r) => r.method === "PUT");
+          assertEquals(put?.path, "/v1/images/101");
+          assertEquals(put?.body, { description: "golden" });
+        },
+      );
+
+      await t.step(
+        "delete of an image that is already gone records it by id",
+        async () => {
+          const { context, written } = createMockContext({ token: "i4" });
+          await model.methods.delete.execute({ id: 999 }, context);
+          assertEquals(written.get("999"), {
+            id: 999,
+            existed: false,
+            status: "not_found",
+            deletedAt: (written.get("999") as { deletedAt: string })
+              .deletedAt,
+          });
+        },
+      );
     } finally {
       // Restore globals first so a failing cleanup cannot leak them.
       redirect?.restore();

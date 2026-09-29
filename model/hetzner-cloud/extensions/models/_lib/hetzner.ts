@@ -66,7 +66,7 @@ async function request(
   body?: Record<string, unknown>,
   options?: {
     allowStatus?: number[];
-    queryParams?: Record<string, string>;
+    queryParams?: Record<string, string | string[]>;
     token?: string;
   },
 ): Promise<Response> {
@@ -75,7 +75,11 @@ async function request(
   if (options?.queryParams) {
     const u = new URL(url);
     for (const [key, value] of Object.entries(options.queryParams)) {
-      u.searchParams.set(key, value);
+      if (Array.isArray(value)) {
+        for (const v of value) u.searchParams.append(key, v);
+      } else {
+        u.searchParams.set(key, value);
+      }
     }
     url = u.toString();
   }
@@ -181,7 +185,8 @@ export async function tryRead(
 /**
  * Lists every resource at a collection endpoint, following Hetzner's
  * `meta.pagination.next_page` cursor until exhausted (per_page=50, the API max).
- * `queryParams` (e.g. `{ label_selector: "env=prod" }`) are sent on every page.
+ * `queryParams` (e.g. `{ label_selector: "env=prod" }`) are sent on every page;
+ * an array value is sent as a repeated parameter (`type=snapshot&type=backup`).
  *
  * A bounded page guard prevents an infinite loop on a malformed `next_page`; if
  * it trips, the partial result is returned and a warning is logged rather than
@@ -189,7 +194,7 @@ export async function tryRead(
  */
 export async function listAll(
   endpoint: string,
-  queryParams?: Record<string, string>,
+  queryParams?: Record<string, string | string[]>,
   token?: string,
 ): Promise<Record<string, unknown>[]> {
   const perPage = 50;
@@ -198,7 +203,7 @@ export async function listAll(
   let page = 1;
 
   for (let fetched = 0; fetched < maxPages; fetched++) {
-    const params: Record<string, string> = {
+    const params: Record<string, string | string[]> = {
       ...queryParams,
       page: String(page),
       per_page: String(perPage),

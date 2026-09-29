@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud volume. Registered at `@swamp/hetzner-cloud/volumes`. */
 export const model = {
   type: "@swamp/hetzner-cloud/volumes",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -170,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -343,18 +348,27 @@ export const model = {
     },
     list: {
       description:
-        "List volumes, optionally filtered by a Hetzner label selector",
+        "List volumes, optionally filtered by a Hetzner label selector or name, status",
       arguments: z.object({
         label_selector: z.string().describe(
           "Hetzner label selector to filter results, e.g. env=production,role!=db",
         ).optional(),
+        name: z.string().describe("Filter resources by their name.").optional(),
+        status: z.array(z.enum(["available", "creating"])).describe(
+          "Filter resources by status. May be used multiple times.",
+        ).optional(),
       }),
-      execute: async (args: { label_selector?: string }, context: any) => {
+      execute: async (
+        args: { label_selector?: string; name?: string; status?: string[] },
+        context: any,
+      ) => {
         const g = context.globalArgs;
-        const queryParams: Record<string, string> = {};
+        const queryParams: Record<string, string | string[]> = {};
         if (args.label_selector !== undefined) {
           queryParams.label_selector = args.label_selector;
         }
+        if (args.name !== undefined) queryParams.name = args.name;
+        if (args.status !== undefined) queryParams.status = args.status;
         const items = await listAll(
           "/volumes",
           queryParams,

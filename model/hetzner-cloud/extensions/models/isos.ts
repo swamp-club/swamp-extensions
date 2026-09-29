@@ -58,7 +58,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud iso. Registered at `@swamp/hetzner-cloud/isos`. */
 export const model = {
   type: "@swamp/hetzner-cloud/isos",
-  version: "2026.07.18.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.06.10.2",
@@ -77,6 +77,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.18.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -114,18 +119,43 @@ export const model = {
       },
     },
     list: {
-      description: "List isos, optionally filtered by a Hetzner label selector",
+      description:
+        "List isos, optionally filtered by a Hetzner label selector or architecture, include_architecture_wildcard, name",
       arguments: z.object({
         label_selector: z.string().describe(
           "Hetzner label selector to filter results, e.g. env=production,role!=db",
         ).optional(),
+        architecture: z.enum(["x86", "arm"]).describe(
+          "Filter resources by cpu architecture.",
+        ).optional(),
+        include_architecture_wildcard: z.boolean().describe(
+          "Include Images with wildcard architecture (architecture is null). Architecture filter must be specified.",
+        ).optional(),
+        name: z.string().describe("Filter resources by their name.").optional(),
       }),
-      execute: async (args: { label_selector?: string }, context: any) => {
+      execute: async (
+        args: {
+          label_selector?: string;
+          architecture?: string;
+          include_architecture_wildcard?: boolean;
+          name?: string;
+        },
+        context: any,
+      ) => {
         const g = context.globalArgs;
         const queryParams: Record<string, string> = {};
         if (args.label_selector !== undefined) {
           queryParams.label_selector = args.label_selector;
         }
+        if (args.architecture !== undefined) {
+          queryParams.architecture = args.architecture;
+        }
+        if (args.include_architecture_wildcard !== undefined) {
+          queryParams.include_architecture_wildcard = String(
+            args.include_architecture_wildcard,
+          );
+        }
+        if (args.name !== undefined) queryParams.name = args.name;
         const items = await listAll(
           "/isos",
           queryParams,
