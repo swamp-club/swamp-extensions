@@ -123,15 +123,21 @@ Deno.test("holder: validate reads the raw definition, so a platform expression g
   assert(text.includes("targets unknown stage 'missing'"), text);
 });
 
-Deno.test("holder: new_key logs an unused key for this lifecycle", async () => {
+Deno.test("holder: new_key logs and records an unused key for this lifecycle", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
     globalArguments: await buildLifecycle(),
     type: HOLDER_TYPE,
   });
-  await holder.methods.new_key.execute({}, swamp.context("team"));
+  const output = await holder.methods.new_key.execute(
+    {},
+    swamp.context("team"),
+  );
   const key = String(swamp.logs.at(-1)?.props?.key);
   assertMatch(key, /^build-swamp-extension-[a-z2-7]{8}$/);
+  // The key is also recorded, for programs that read --json output.
+  assertEquals(swamp.resources.get("team")?.get("key"), [{ key }]);
+  assertEquals(output.dataHandles, [{ version: 1 }]);
   assert(!swamp.definitions.has(key));
   assert(
     String(swamp.logs.at(-1)?.props?.next).includes(

@@ -32,7 +32,7 @@ import {
 // in a throwaway swamp repo per test. The fakes in _lib/fake_swamp.ts cannot
 // show how the real engine loads, stores and reports; this can.
 //
-// Every swamp call runs in the temp repo with --no-telemetry, so nothing is
+// Every swamp call runs in the temp repo with telemetry off, so nothing is
 // written into the source tree. It uses the caller's HOME: swamp's config,
 // stored login and deno's npm cache come from the host, which is what lets
 // the suite run without the network.
@@ -53,16 +53,36 @@ export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
 
 export { HOLDER_TYPE, LINEAR_TYPE, WORK_ITEM_TYPE };
 
-// Variables that would point swamp at another repo, server or workflow dir
-// than the temp repo. The verify-build workflow sets some of them.
-const REDIRECTING_ENV = [
-  "SWAMP_REPO_DIR",
-  "SWAMP_WORKFLOWS_DIR",
-  "SWAMP_SERVE_URL",
-  "SWAMP_SERVER_URL",
-  "SWAMP_SERVER_TOKEN",
-  "SWAMP_SERVER_TOKEN_FILE",
-];
+// The only inherited SWAMP_ variable kept. SWAMP_HOME relocates swamp's user
+// directory (config, stored login, and the runtime that loads extensions),
+// which the suite takes from the caller on purpose, as it does HOME. It does
+// not point swamp at another repo or server.
+const KEPT_SWAMP_ENV = new Set(["SWAMP_HOME"]);
+
+/**
+ * The environment for a swamp call. Every inherited SWAMP_ variable except
+ * those in KEPT_SWAMP_ENV is removed, so no variable (the verify-build
+ * workflow sets some, and swamp adds new ones) can point swamp at another
+ * repo, datastore or server than the temp repo.
+ */
+export function swampEnv(
+  host: Record<string, string>,
+): Record<string, string> {
+  const env = Object.fromEntries(
+    Object.entries(host).filter(([name]) =>
+      !name.startsWith("SWAMP_") || KEPT_SWAMP_ENV.has(name)
+    ),
+  );
+  env.NO_COLOR = "1";
+  // The variable, not the --no-telemetry flag: swamp reads it before parsing
+  // arguments, so it also covers --version, which refuses any other option.
+  // Set after the strip, so the caller cannot turn it back off.
+  env.SWAMP_NO_TELEMETRY = "1";
+  // An update check would reach the network and write under the caller's
+  // HOME (~/.swamp/last-update-check.json).
+  env.SWAMP_NO_UPDATE_CHECK = "1";
+  return env;
+}
 
 export interface SwampResult {
   code: number;
@@ -117,9 +137,7 @@ async function exec(
   cwd: string,
   args: string[],
 ): Promise<SwampResult> {
-  const env = Deno.env.toObject();
-  for (const name of REDIRECTING_ENV) delete env[name];
-  env.NO_COLOR = "1";
+  const env = swampEnv(Deno.env.toObject());
   let out: Deno.CommandOutput;
   try {
     out = await new Deno.Command("swamp", {
@@ -145,7 +163,10 @@ async function exec(
 }
 
 async function logVersion(cwd: string): Promise<void> {
-  const { stdout } = await exec(cwd, ["--version"]);
+  const { code, stdout, output } = await exec(cwd, ["--version"]);
+  if (code !== 0) {
+    throw new Error(`swamp --version in ${cwd} exited ${code}:\n${output}`);
+  }
   console.log(`integration suite: ${stdout.trim()}`);
 }
 
@@ -159,7 +180,12 @@ export async function withRepo(
 ): Promise<void> {
   const dir = await Deno.makeTempDir({ prefix: "gatorwalk-it-" });
   try {
-    versionLogged ??= logVersion(dir);
+    // Only a passing check is shared: after a failure the next test runs its
+    // own, so each failing test reports its own repo.
+    versionLogged ??= logVersion(dir).catch((error) => {
+      versionLogged = undefined;
+      throw error;
+    });
     await versionLogged;
     console.log(`integration suite: swamp repo ${dir}`);
     await fn(await openRepo(dir));
@@ -174,7 +200,7 @@ export async function withRepo(
 
 async function openRepo(dir: string): Promise<SwampRepo> {
   const swamp: SwampRepo["swamp"] = async (args, options = {}) => {
-    const result = await exec(dir, [...args, "--no-telemetry"]);
+    const result = await exec(dir, args);
     if (result.code !== 0 && options.allowFailure !== true) {
       throw new Error(
         `swamp ${args.join(" ")} exited ${result.code}:\n${result.output}`,
@@ -247,17 +273,24 @@ async function openRepo(dir: string): Promise<SwampRepo> {
         options,
       ),
     async newKey(holder) {
-      const { output } = await swamp([
+      // The key record new_key writes, as this call's --json output lists
+      // it, rather than the log text, whose format is swamp's to change.
+      const { stdout } = await swamp([
         "model",
         "method",
         "run",
         holder,
         "new_key",
-        "--log",
+        "--json",
       ]);
-      const match = output.match(/new_key: "([^"]+)"/);
-      if (match === null) throw new Error(`new_key logged no key:\n${output}`);
-      return match[1];
+      const { dataArtifacts = [] } = JSON.parse(stdout) as {
+        dataArtifacts?: { name: string; attributes?: { key?: unknown } }[];
+      };
+      const key = dataArtifacts.find((d) => d.name === "key")?.attributes?.key;
+      if (typeof key !== "string") {
+        throw new Error(`new_key recorded no key:\n${stdout}`);
+      }
+      return key;
     },
     data,
     async versions(instance) {

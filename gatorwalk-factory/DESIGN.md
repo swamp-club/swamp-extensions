@@ -359,7 +359,10 @@ with `_globalArguments`; both shapes are read.
 **Keys are gatorwalk's.** swamp cannot generate instance names, so the holder's
 `new_key` generates an unused `<lifecycle>-<8 base32 characters>` key, and the
 work item is created under it. Tracker ids are kept as data (`externalRefs`),
-never as the name.
+never as the name. `new_key` logs the key and also records it as the holder's
+`key` data, so a program reads it from `--json` output (`dataArtifacts`) instead
+of parsing log text; it is therefore not a `read` method, and the write takes
+the holder's lock.
 
 **Output and failure.** Methods report through the log, as
 `@swamp/issue-lifecycle` does. The CLI shows only a log message's text, never
@@ -520,7 +523,15 @@ What the suite depends on:
   can never pass by checking nothing.
 - **The caller's HOME.** swamp's config and stored login and deno's npm cache
   come from the host. That is what lets the suite run with no network. With a
-  fresh HOME, swamp needed the network to load the extension.
+  fresh HOME, swamp needed the network to load the extension. What the suite
+  writes there, measured by running it against a copy of HOME on swamp
+  `20260929.002922.0` with a warm cache: nothing under `~/.config/swamp` (config
+  and login are only read, and the harness turns telemetry and update checks
+  off, `SWAMP_NO_UPDATE_CHECK=1`, which would otherwise reach the network and
+  write `~/.swamp/last-update-check.json`). swamp's embedded deno opens its
+  caches in `~/.swamp/deno-cache` for writing while it loads the extension, and
+  adds to them when the extension's dependencies are not cached yet, as any
+  swamp run does. The deno test runner keeps its own cache under `DENO_DIR`.
 - **The swamp version on the host.** The suite logs `swamp --version` at the
   start of each run, and the path of each repo it creates. It last ran against
   swamp `20260929.002922.0`.
@@ -528,10 +539,23 @@ What the suite depends on:
   gatorwalk is caught by the next gatorwalk change, or by running
   `deno task test:integration` by hand.
 
-Each swamp call runs in the temp repo with `--no-telemetry`. Variables that
-would point swamp at another repo or server (`SWAMP_REPO_DIR`, `SWAMP_SERVE_URL`
-and the like) are removed from its environment, so nothing is written into the
-source tree or another repo.
+Each swamp call runs in the temp repo with telemetry off. The harness sets
+`SWAMP_NO_TELEMETRY=1` in the environment of every call rather than passing
+`--no-telemetry`: swamp reads the variable before it parses arguments, so it
+also covers `swamp --version`, which refuses any other option. `swamp --help`
+lists only the flag; the variable is read in swamp's CLI entry point
+(`isTelemetryDisabledByEnv`).
+
+Every inherited `SWAMP_` variable is removed from swamp's environment except
+`SWAMP_HOME`, so nothing is written into the source tree, another repo,
+datastore or server. The rule is by prefix, not a list of known variables: swamp
+reads dozens of them (`SWAMP_REPO_DIR`, `SWAMP_DATASTORE`, `SWAMP_MODELS_DIR`,
+`SWAMP_SERVE_URL` and more) and adds new ones, and a hand-kept list had already
+missed several. `SWAMP_HOME` is kept because it moves swamp's user directory
+(config, stored login, the runtime that loads extensions), which the suite takes
+from the caller like `HOME`. The cost: `SWAMP_DEBUG` and `SWAMP_LOG_LEVEL` are
+removed too, so to see more of swamp's logging, run swamp by hand in the repo
+the suite logs. Code: `swampEnv` in `integration/harness.ts`.
 
 **Out of scope.** Remote workers and `swamp serve` are not covered. A holder
 read on a remote worker arrives as a plain object with `_globalArguments`, and

@@ -16,6 +16,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  KEY_SPEC,
   type MethodContextLike,
   newKey,
   validateHolder,
@@ -51,6 +52,16 @@ export const model = {
   type: "@swamp/gatorwalk-factory/lifecycle",
   version: "2026.09.28.1",
   globalArguments: HolderArgumentsSchema,
+  resources: {
+    [KEY_SPEC]: {
+      description:
+        "The latest key new_key generated. A key is only needed until a " +
+        "work item starts under it, so few versions are kept.",
+      schema: z.object({ key: z.string() }),
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
+  },
   methods: {
     validate: {
       description:
@@ -63,7 +74,7 @@ export const model = {
     new_key: {
       description:
         "Generate an unused work-item key for this lifecycle, to start a work item under",
-      kind: "read" as const,
+      // Not a read method: it records the key, under the holder's lock.
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         newKey(context),

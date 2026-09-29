@@ -70,6 +70,13 @@ export const WORK_ITEM_TYPE = "@swamp/gatorwalk-factory/work-item";
 export const LIFECYCLE_SPEC = "lifecycle";
 export const LIFECYCLE_NAME = "lifecycle";
 
+/**
+ * The resource spec and fixed name of the holder's latest generated key, so a
+ * program reads the key from --json output rather than the log text.
+ */
+export const KEY_SPEC = "key";
+export const KEY_NAME = "key";
+
 export interface Logger {
   info(message: string, props?: Record<string, unknown>): void;
 }
@@ -304,6 +311,10 @@ export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const key = generateKey(lifecycle.name);
     if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
+      if (ctx.writeResource === undefined) {
+        throw new Error("this method context cannot write resources");
+      }
+      const handle = await ctx.writeResource(KEY_SPEC, KEY_NAME, { key });
       ctx.logger.info("{key}", {
         key,
         next:
@@ -311,7 +322,7 @@ export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
             selfName(ctx)
           }`,
       });
-      return { dataHandles: [] };
+      return { dataHandles: [handle] };
     }
   }
   throw new Error("could not find a free work-item key; try again");

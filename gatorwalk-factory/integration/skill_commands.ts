@@ -290,8 +290,8 @@ interface RepoLike {
 }
 
 /**
- * Run the example's commands in order, as written, filling <key> from
- * new_key's output, <era> from the first expectation status prints, and
+ * Run the example's commands in order, as written, filling <key> from the
+ * key record new_key writes, <era> from the first expectation status prints, and
  * <gatorwalk-factory> with the extension's directory. After `model create`
  * of a holder, write `lifecycle` into the definition file it names: the file
  * edit the example describes. A command runs with allowFailure only when it
@@ -342,8 +342,22 @@ export async function runExample(
     steps.push(step);
     onStep(step);
 
-    const key = result.output.match(/new_key: "([^"]+)"/);
-    if (ran.includes("new_key") && key !== null) values["<key>"] = key[1];
+    // The key new_key recorded on the holder (`model method run <holder>
+    // new_key`), rather than its log line, whose format is swamp's to change.
+    if (
+      result.code === 0 && ran[0] === "model" && ran[1] === "method" &&
+      ran[4] === "new_key"
+    ) {
+      const read = await repo.swamp(["data", "get", ran[3], "key", "--json"]);
+      const key = (JSON.parse(read.stdout) as { content?: { key?: unknown } })
+        .content?.key;
+      if (typeof key !== "string") {
+        throw new Error(
+          `${command.file}:${command.line}: new_key recorded no key:\n${read.stdout}`,
+        );
+      }
+      values["<key>"] = key;
+    }
     // The latest era status printed: a reset starts a new one.
     const era = result.output.match(/--input expectedEra=([0-9a-f-]+)/);
     if (era !== null) values["<era>"] = era[1];
