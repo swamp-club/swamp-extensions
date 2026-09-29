@@ -90,11 +90,11 @@ code's.
 
 issue-lifecycle has no limit on how often a plan is revised or a change is
 verified. gatorwalk always has one (5 entries per stage by default), after which
-a person grants a cycle override to go round again. Here `plan` and `implement`
-set `maxCycles: 3` (three plans, and three commits through verification), and
-`triage` and `pull-request` set 2 (one reclassification, one replacement pull
-request), before a person is asked. The lower limits are not a process choice;
-see gap 8.
+a person grants a cycle override to go round again. Here `triage`, `plan`,
+`implement` and `pull-request` set `maxCycles: 5`: five classifications, five
+plans, five commits through verification and five pull requests before a person
+is asked. That is the default, stated so that every loop has a limit someone
+chose. The graph analysis finishes at these limits (gap 8).
 
 ### Resolving findings
 
@@ -155,11 +155,14 @@ Candidates for issues. A resolved gap says so and keeps its number.
    to triaging and keeps what was recorded. gatorwalk's `reset` starts a new
    era, in which nothing recorded before is visible. Going back to triage with
    the plan and reviews still in view has no equivalent.
-8. **The graph analysis cannot finish a long loop at the default limit.** The
-   loop from `implement` through verification, the pull request and the merge
-   has six stages and three inner loops (`recheck`, `new-pr`, and
-   `attest.revise`), and `reclassify` loops back to the start. With the default
-   limit of 5 the count pass passes its 100,000-state cap and stops, so
-   transitions that need a cycle override go unchecked. The limits under "Cycle
-   limits" bring it to about 11,100 states. A lifecycle's limits should be
-   chosen for the process, not for the analyser.
+8. **The graph analysis cannot finish a long loop at the default limit.**
+   Resolved by swamp-club #2730. The loop from `implement` through verification,
+   the pull request and the merge has six stages and three inner loops
+   (`recheck`, `new-pr`, and `attest.revise`), and `reclassify` loops back to
+   the start. At the default limit of 5 the count pass needed 506,220 states,
+   past its 100,000-state cap, so the limits here had been lowered to 2 and 3,
+   for 11,132 states. The count pass now drops a state when another at the same
+   stage, with the same stages entered, has no more entries into any stage
+   (DESIGN.md, "What the analysis assumes"). It finishes this lifecycle at the
+   default limits in 119 states, with the same findings. Kept here so the
+   numbering the other gaps are cited by stays.

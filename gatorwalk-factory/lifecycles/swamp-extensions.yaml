@@ -33,8 +33,8 @@ description: >-
 stages:
   - id: triage
     initial: true
-    # One reclassification before a person grants another; see plan.
-    maxCycles: 2
+    # Five entries, the default, stated as the process's choice; see plan.
+    maxCycles: 5
     description: >-
       Classify the issue. A low-confidence classification carries the
       questions for the person and stops here until it is recorded again with
@@ -210,11 +210,10 @@ stages:
   - id: plan
     projection: { status: triaged }
     description: Plan the change, following the repository's planning conventions.
-    # Three plans before a person grants another round. The limits on triage,
-    # plan, implement and pull-request also keep the graph analysis complete:
-    # with the default of 5, its count pass stops at 100,000 states
-    # (swamp-extensions.md, gap 8).
-    maxCycles: 3
+    # Five plans before a person grants another round. triage, plan, implement
+    # and pull-request state the default of 5 as the process's choice, so each
+    # loop has a limit someone chose (swamp-extensions.md, "Cycle limits").
+    maxCycles: 5
     work:
       mode: interactive
       skills: [issue-lifecycle]
@@ -321,9 +320,9 @@ stages:
     description: >-
       Implement the approved plan and commit it. Each pass through
       verification needs a new commit; recheck re-runs it on the same one.
-    # Three commits through verification before a person grants another
+    # Five commits through verification before a person grants another
     # round; see plan.
-    maxCycles: 3
+    maxCycles: 5
     work:
       mode: interactive
       skills: [issue-lifecycle]
@@ -593,8 +592,8 @@ stages:
   - id: pull-request
     projection: { status: in_progress }
     description: Open the pull request for the attested commit.
-    # One replacement pull request before a person grants another; see plan.
-    maxCycles: 2
+    # Four replacement pull requests before a person grants another; see plan.
+    maxCycles: 5
     work:
       mode: interactive
       systemPrompt: |

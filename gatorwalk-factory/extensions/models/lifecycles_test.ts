@@ -176,13 +176,14 @@ Deno.test("every file under lifecycles/ passes graph analysis, with only the exp
 });
 
 Deno.test("build-swamp-extension: graph analysis stays small", async () => {
-  // Measured at 20 structural and 1345 count states. A jump means the
-  // lifecycle grew loops that multiply the count pass; see DESIGN.md.
+  // Measured at 20 structural and 20 count states (1345 before the count pass
+  // pruned dominated states). Without an inverted max-cycles gate the count
+  // pass is no bigger than the structural one; see DESIGN.md.
   const report = analyzeLifecycle(await load(BUILD));
   assert(!report.truncated);
   assert(
     report.statesExplored.structural <= 100 &&
-      report.statesExplored.counts <= 5000,
+      report.statesExplored.counts <= 50,
     JSON.stringify(report.statesExplored),
   );
 });
@@ -786,14 +787,14 @@ Deno.test("swamp-extensions: the stages, in order", async () => {
 });
 
 Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
-  // Measured at 119 structural and 11132 count states. With the default
-  // cycle limit the count pass stops at its cap; triage, plan, implement and
-  // pull-request set maxCycles for that reason (swamp-extensions.md, gap 8).
+  // Measured at 119 structural and 119 count states at the default cycle
+  // limit of 5. Before the count pass pruned dominated states it needed
+  // 506,220 there, past its cap (swamp-extensions.md, gap 8).
   const report = analyzeLifecycle(await load(SWX));
   assert(!report.truncated);
   assert(
     report.statesExplored.structural <= 200 &&
-      report.statesExplored.counts <= 25000,
+      report.statesExplored.counts <= 250,
     JSON.stringify(report.statesExplored),
   );
 });

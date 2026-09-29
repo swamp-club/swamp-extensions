@@ -320,9 +320,11 @@ of its warnings are about loops:
 - **`needs-cycle-override`:** a transition that only a cycle override opens,
   such as an inverted `max-cycles` above the stage's limit.
 
-Loops multiply the states the analysis explores. `validate` fails if either pass
-stops at the 100,000-state cap without finishing, because a partial exploration
-cannot show that the lifecycle is sound.
+Loops do not multiply the states the analysis explores, except where an
+inverted `max-cycles` gate counts a stage (see "What the analysis assumes").
+`validate` fails if either pass stops at the 100,000-state cap without
+finishing, because a partial exploration cannot show that the lifecycle is
+sound.
 
 ### Measurement
 
@@ -480,6 +482,24 @@ In both passes a gate is judged like this:
   start.
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
   is a `human-approval` gate with `when`: it may apply or not.
+
+The count pass keeps only the states that can show something new. Two states
+at the same stage with the same stages entered have passed the same structural
+checks, since those read only which stages were entered. If one has no more
+entries into any stage than the other, every transition open to the other is
+open to it too: an entry below a limit never closes a transition, and a
+`max-cycles` gate or a stage's cycle limit refuses only when a count is too
+high. So the state with more entries is dropped. An inverted `max-cycles` gate
+is the exception, since it passes only after enough entries; the stages such
+gates count are compared exactly, not by fewer-or-equal. Every transition adds
+one entry, so the breadth-first order always reaches the state with fewer
+entries first. This is exact, not an approximation: the findings are those of
+the full exploration, which the tests keep as the reference. It also bounds the
+count pass by the structural pass, times the counts an inverted gate's stage can
+take. `swamp-extensions.yaml` at the default limits takes 119 count states
+instead of 506,220. A `needs-cycle-override` finding gives the refusal seen in
+the state with the fewest entries, so its message does not depend on the order
+states are explored in.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration. The

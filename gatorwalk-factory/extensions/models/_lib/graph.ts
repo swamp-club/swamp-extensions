@@ -78,6 +78,11 @@ export interface GraphReport {
 export interface AnalyzeOptions {
   /** States each pass may explore before giving up (default 100000). */
   maxStates?: number;
+  /**
+   * Prune dominated states in the count pass (default true). Tests switch it
+   * off to compare with the full exploration; it is not a user setting.
+   */
+  pruneCounts?: boolean;
 }
 
 export const DEFAULT_MAX_STATES = 100_000;
@@ -547,27 +552,64 @@ interface CountResult {
   /** Stages entered without any cycle override. */
   reached: Set<string>;
   enabled: Set<number>;
-  /** Edge id -> why it was refused, from the first state that refused it. */
+  /**
+   * Edge id -> why it was refused, from the refusing state with the fewest
+   * entries (ties broken by state key), so pruning never changes it.
+   */
   refused: Map<number, string>;
 }
 
-function exploreCounts(g: Graph, maxStates: number): CountResult {
+/**
+ * The count pass. With `prune`, a state is dropped when a kept state has the
+ * same stage, the same stages entered, and no more entries into any stage: every
+ * transition open to the new state is open to the kept one (see countRefusal),
+ * so it can discover nothing new. Stages an inverted max-cycles gate counts are
+ * compared exactly instead, since more entries can open that gate. Every
+ * transition adds one entry, so the search always reaches a dominating state
+ * (fewer entries in total) before the states it dominates.
+ */
+function exploreCounts(
+  g: Graph,
+  maxStates: number,
+  prune: boolean,
+): CountResult {
   const order = [...g.stages.keys()];
   const index = new Map(order.map((s, i) => [s, i]));
+  const exact = new Set<number>();
+  for (const edge of g.edges) {
+    for (const gate of edge.transition.gates ?? []) {
+      if (gate.type === "max-cycles" && gate.config.invert === true) {
+        exact.add(index.get(gate.config.stage) as number);
+      }
+    }
+  }
   const queue: { stage: string; counts: number[] }[] = [];
   const seen = new Set<string>();
+  /** Class key -> the count vectors kept in it. */
+  const kept = new Map<string, number[][]>();
   const enabled = new Set<number>();
-  const refused = new Map<number, string>();
+  const refused = new Map<
+    number,
+    { total: number; key: string; reason: string }
+  >();
   const reached = new Set<string>();
   let truncated = false;
   const visit = (stage: string, counts: number[]) => {
     const key = `${stage}|${counts.join(",")}`;
     if (seen.has(key)) return;
+    const classKey = `${stage}|${
+      counts.map((c, k) => (exact.has(k) ? `=${c}` : c > 0 ? "1" : "0"))
+        .join(",")
+    }`;
+    const same = kept.get(classKey) ?? [];
+    if (prune && same.some((o) => o.every((c, k) => c <= counts[k]))) return;
     if (seen.size >= maxStates) {
       truncated = true;
       return;
     }
     seen.add(key);
+    same.push(counts);
+    kept.set(classKey, same);
     reached.add(stage);
     queue.push({ stage, counts });
   };
@@ -580,7 +622,15 @@ function exploreCounts(g: Graph, maxStates: number): CountResult {
       if (edgeBlockers(g, edge, entered).length > 0) continue;
       const refusal = countRefusal(g, edge, counts, index);
       if (refusal !== null) {
-        if (!refused.has(edge.id)) refused.set(edge.id, refusal);
+        const total = counts.reduce((a, b) => a + b, 0);
+        const key = `${stage}|${counts.join(",")}`;
+        const prior = refused.get(edge.id);
+        if (
+          prior === undefined || total < prior.total ||
+          (total === prior.total && key < prior.key)
+        ) {
+          refused.set(edge.id, { total, key, reason: refusal });
+        }
         continue;
       }
       enabled.add(edge.id);
@@ -591,10 +641,23 @@ function exploreCounts(g: Graph, maxStates: number): CountResult {
       }
     }
   }
-  return { states: seen.size, truncated, reached, enabled, refused };
+  return {
+    states: seen.size,
+    truncated,
+    reached,
+    enabled,
+    refused: new Map([...refused].map(([id, r]) => [id, r.reason])),
+  };
 }
 
-/** Why the counts refuse an edge: a max-cycles gate or the target's limit. */
+/**
+ * Why the counts refuse an edge: a max-cycles gate or the target's limit.
+ *
+ * Pruning in exploreCounts relies on this being monotone: fewer entries into a
+ * stage never refuse an edge that more entries allow, except for stages an
+ * inverted max-cycles gate counts, which are tracked exactly. A new rule that
+ * reads the counts another way must keep that, or change the pruning.
+ */
 function countRefusal(
   g: Graph,
   edge: Edge,
@@ -812,7 +875,7 @@ export function analyzeLifecycle(
   const maxStates = options.maxStates ?? DEFAULT_MAX_STATES;
   const g = buildGraph(doc);
   const structure = exploreStructure(g, maxStates);
-  const counts = exploreCounts(g, maxStates);
+  const counts = exploreCounts(g, maxStates, options.pruneCounts !== false);
   const errors: { finding: GraphFinding; path: Path }[] = [];
   const warnings: { finding: GraphFinding; path: Path }[] = [];
   const incomplete = structure.truncated

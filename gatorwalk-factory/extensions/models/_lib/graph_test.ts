@@ -29,6 +29,7 @@ import {
   parseStageTemplate,
   type StageTemplate,
 } from "./lifecycle_schema.ts";
+import { instantiateStageTemplate } from "./stage_template.ts";
 
 function lifecycle(yaml: string): Lifecycle {
   const result = parseLifecycle(
@@ -1026,4 +1027,260 @@ Deno.test("graph: match that no payload can satisfy never passes", () => {
   ) {
     assertEquals(guarded(gates).errors, [], gates);
   }
+});
+
+// --- count-pass pruning ------------------------------------------------------
+
+/** The full count exploration, the reference pruning must agree with. */
+const FULL = { pruneCounts: false, maxStates: 2_000_000 };
+
+/**
+ * Pruned and full count passes give the same report, apart from the size.
+ * Returns both, so callers do not explore again.
+ */
+function assertPruningExact(
+  doc: Lifecycle | StageTemplate,
+  label: string,
+): { pruned: GraphReport; full: GraphReport } {
+  const pruned = analyzeLifecycle(doc);
+  const full = analyzeLifecycle(doc, FULL);
+  assert(!full.truncated, `${label}: the reference exploration stopped`);
+  assert(!pruned.truncated, `${label}: the pruned exploration stopped`);
+  assertEquals(pruned.errors, full.errors, label);
+  assertEquals(pruned.warnings, full.warnings, label);
+  assertEquals(
+    pruned.statesExplored.structural,
+    full.statesExplored.structural,
+    label,
+  );
+  assert(
+    pruned.statesExplored.counts <= full.statesExplored.counts,
+    `${label}: ${JSON.stringify([pruned.statesExplored, full.statesExplored])}`,
+  );
+  return { pruned, full };
+}
+
+async function yamlFiles(dir: URL): Promise<URL[]> {
+  const files: URL[] = [];
+  for await (const entry of Deno.readDir(dir)) {
+    if (entry.isFile && entry.name.endsWith(".yaml")) {
+      files.push(new URL(entry.name, dir));
+    }
+  }
+  return files.sort((a, b) => a.href.localeCompare(b.href));
+}
+
+function parsed(raw: unknown, label: string): Lifecycle | StageTemplate {
+  if (typeof raw === "object" && raw !== null && "contract" in raw) {
+    // Starter templates have parameters; analyse them with their defaults.
+    const result = instantiateStageTemplate(raw);
+    if (!result.ok) throw new Error(`${label}: ${result.errors.join("\n")}`);
+    return result.template;
+  }
+  const result = parseLifecycle(raw);
+  if (!result.ok) throw new Error(`${label}: ${result.errors.join("\n")}`);
+  return result.value;
+}
+
+const ROOT = new URL("../../../", import.meta.url);
+
+Deno.test("graph: pruning the count pass agrees with the full exploration on every shipped document", async () => {
+  const dirs = ["lifecycles/", "testdata/lifecycles/", "templates/"];
+  let checked = 0;
+  for (const dir of dirs) {
+    for (const file of await yamlFiles(new URL(dir, ROOT))) {
+      const label = file.href.slice(ROOT.href.length);
+      const raw = parseYaml(await Deno.readTextFile(file));
+      assertPruningExact(parsed(raw, label), label);
+      checked++;
+    }
+  }
+  assert(checked >= 10, `only ${checked} documents found`);
+});
+
+Deno.test("graph: swamp-extensions at the default cycle limits finishes under the cap", async () => {
+  // Without pruning this is 506,220 count states, past the 100,000 cap.
+  const raw = parseYaml(
+    await Deno.readTextFile(new URL("lifecycles/swamp-extensions.yaml", ROOT)),
+  ) as { stages: { maxCycles?: number }[] };
+  for (const stage of raw.stages) delete stage.maxCycles;
+  const doc = parsed(raw, "swamp-extensions without maxCycles");
+  const { pruned, full } = assertPruningExact(
+    doc,
+    "swamp-extensions without maxCycles",
+  );
+  assert(
+    full.statesExplored.counts > 100_000,
+    JSON.stringify(full.statesExplored),
+  );
+  assert(
+    pruned.statesExplored.counts < 1_000,
+    JSON.stringify(pruned.statesExplored),
+  );
+});
+
+/** mulberry32: a small seeded PRNG, so generated cases are reproducible. */
+function prng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * A small random lifecycle: forward and back transitions, cycle limits,
+ * max-cycles gates (some inverted), artifact gates that make the stages entered
+ * matter, and global transitions to the terminal stage. Globals never lead back
+ * into the loop, since globals are exempt from the cycle limit and the full
+ * exploration would never finish.
+ */
+function generated(seed: number): Lifecycle {
+  const rand = prng(seed);
+  const int = (lo: number, hi: number) =>
+    lo + Math.floor(rand() * (hi - lo + 1));
+  const pick = <T>(xs: T[]): T => xs[Math.floor(rand() * xs.length)];
+  const n = int(3, 6);
+  const ids = Array.from({ length: n }, (_, i) => `s${i}`);
+  const stages: Record<string, unknown>[] = ids.map((id, i) => {
+    const transitions: Record<string, unknown>[] = [];
+    const count = int(1, 3);
+    for (let t = 0; t < count; t++) {
+      const to = rand() < 0.3 ? "done" : pick(ids);
+      const gates: Record<string, unknown>[] = [];
+      if (rand() < 0.4) {
+        gates.push({
+          type: "max-cycles",
+          config: { stage: pick(ids), limit: int(1, 5), invert: rand() < 0.4 },
+        });
+      }
+      if (rand() < 0.3) {
+        gates.push({
+          type: "artifact-exists",
+          config: { artifact: `a${int(0, n - 1)}` },
+        });
+      }
+      transitions.push({
+        name: `t${t}`,
+        to,
+        ...(rand() < 0.5 ? { manual: true } : {}),
+        ...(gates.length > 0 ? { gates } : {}),
+      });
+    }
+    // Always a way on, so most stages can finish.
+    transitions.push({ name: "next", to: i + 1 < n ? ids[i + 1] : "done" });
+    return {
+      id,
+      ...(i === 0 ? { initial: true } : {}),
+      ...(rand() < 0.5 ? { maxCycles: int(1, 4) } : {}),
+      artifacts: [{ name: `a${i}`, schema: { type: "object" } }],
+      transitions,
+    };
+  });
+  stages.push({ id: "done", terminal: true });
+  const doc: Record<string, unknown> = {
+    schemaVersion: 1,
+    name: `generated-${seed}`,
+    stages,
+  };
+  if (rand() < 0.3) {
+    doc.globalTransitions = [{
+      name: "stop",
+      to: "done",
+      ...(rand() < 0.5
+        ? {
+          gates: [{
+            type: "max-cycles",
+            config: {
+              stage: pick(ids),
+              limit: int(1, 4),
+              invert: rand() < 0.5,
+            },
+          }],
+        }
+        : {}),
+    }];
+  }
+  return parsed(doc, `seed ${seed}`) as Lifecycle;
+}
+
+Deno.test("graph: pruning the count pass agrees with the full exploration on generated lifecycles", () => {
+  let overrides = 0;
+  let inverted = 0;
+  let pruned = 0;
+  for (let seed = 1; seed <= 400; seed++) {
+    const doc = generated(seed);
+    const { pruned: report, full } = assertPruningExact(doc, `seed ${seed}`);
+    if (report.warnings.some((w) => w.code === "needs-cycle-override")) {
+      overrides++;
+    }
+    if (JSON.stringify(doc).includes('"invert":true')) inverted++;
+    if (report.statesExplored.counts < full.statesExplored.counts) pruned++;
+  }
+  // The generator must exercise what pruning has to get right.
+  assert(overrides >= 20, `${overrides} lifecycles need a cycle override`);
+  assert(inverted >= 50, `${inverted} lifecycles have an inverted gate`);
+  assert(pruned >= 100, `${pruned} lifecycles were pruned`);
+});
+
+Deno.test("graph: a stage an inverted max-cycles gate counts is tracked exactly", () => {
+  // escalate opens only on the third entry into work. More entries are better
+  // for it, so pruning must not drop a state for having more of them.
+  const doc = lifecycle(`
+stages:
+  - id: work
+    initial: true
+    maxCycles: 4
+    transitions:
+      - name: finish
+        to: done
+        manual: true
+      - name: retry
+        to: work
+        manual: true
+      - name: escalate
+        to: escalated
+        gates:
+          - type: max-cycles
+            config: { stage: work, limit: 3, invert: true }
+  - id: escalated
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`);
+  const { pruned: report } = assertPruningExact(doc, "inverted");
+  // Compared by dominance, the second to fourth entries into work would be
+  // dropped, escalate would never open, and it would be reported as needing
+  // an override.
+  assertEquals(report.warnings, []);
+  assertEquals(report.statesExplored.counts, 12);
+});
+
+Deno.test("graph: a global transition back into the loop no longer runs the count pass to its cap", () => {
+  // Globals are exempt from the cycle limit, so without pruning every restart
+  // is a new state and the count pass never finishes.
+  const doc = lifecycle(`
+stages:
+  - id: a
+    initial: true
+    transitions: [{ name: next, to: b }]
+  - id: b
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+globalTransitions:
+  - name: restart
+    to: a
+    manual: true
+`);
+  const report = analyzeLifecycle(doc);
+  assert(!report.truncated);
+  // a, b and done, then a again once b has been entered.
+  assertEquals(report.statesExplored.counts, 4);
+  assert(
+    analyzeLifecycle(doc, { pruneCounts: false, maxStates: 1000 }).truncated,
+  );
 });
