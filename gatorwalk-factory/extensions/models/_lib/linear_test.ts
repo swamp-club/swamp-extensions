@@ -191,3 +191,42 @@ Deno.test("linear: an unreachable endpoint is an upstream error", async () => {
     "could not reach",
   );
 });
+
+Deno.test("linear: a body that stalls past the timeout is an upstream error", async () => {
+  await withFake(async (fake) => {
+    fake.queue.push({ status: 200, body: '{"data":', stall: true });
+    await failsWith(
+      "upstream",
+      () =>
+        linearAdapter({
+          apiToken: FAKE_TOKEN,
+          apiUrl: fake.url,
+          timeoutMs: 100,
+        })
+          .fetchIssue(ISSUE_UUID),
+      "timed out after 100 ms",
+    );
+  });
+});
+
+Deno.test("linear: a body dropped mid-stream is an upstream error", async () => {
+  await withFake(async (fake) => {
+    fake.queue.push({ status: 200, body: '{"data":', reset: true });
+    await failsWith(
+      "upstream",
+      () => adapterFor(fake).fetchIssue(ISSUE_UUID),
+      "could not read the response",
+    );
+  });
+});
+
+Deno.test("linear: a body that fails after an error status keeps that status's kind", async () => {
+  await withFake(async (fake) => {
+    fake.queue.push({ status: 401, body: "Unauth", reset: true });
+    await failsWith(
+      "auth",
+      () => adapterFor(fake).fetchIssue(ISSUE_UUID),
+      "HTTP 401: could not read the response",
+    );
+  });
+});

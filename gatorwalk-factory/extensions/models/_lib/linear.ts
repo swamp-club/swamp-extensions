@@ -122,7 +122,25 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
         }`,
       );
     }
-    const text = await response.text();
+    // The timeout also covers reading the body, so a stall after the
+    // headers lands here, not in the catch above.
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        return fail(
+          kindOf(response.status, []),
+          `HTTP ${response.status}: timed out after ${timeoutMs} ms reading the response from ${apiUrl}`,
+        );
+      }
+      return fail(
+        kindOf(response.status, []),
+        `HTTP ${response.status}: could not read the response from ${apiUrl}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
     let body: { data?: T | null; errors?: GraphQLError[] };
     try {
       body = JSON.parse(text);

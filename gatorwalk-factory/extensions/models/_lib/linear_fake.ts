@@ -20,7 +20,8 @@
 // with the response and error shapes Linear documents: GraphQL errors with
 // extensions.code (AUTHENTICATION_ERROR, RATELIMITED, INVALID_INPUT and
 // "Entity not found"). A test can queue raw responses to exercise malformed
-// ones. Never the live service.
+// ones, including a body that stalls or drops mid-stream. Never the live
+// service.
 // ---------------------------------------------------------------------------
 
 export interface FakeState {
@@ -45,6 +46,10 @@ export interface RawResponse {
   status: number;
   body: string;
   contentType?: string;
+  /** Send the headers and body, then never finish the body. */
+  stall?: boolean;
+  /** Send the headers and body, then drop the connection mid-body. */
+  reset?: boolean;
 }
 
 export interface LinearFake {
@@ -81,6 +86,22 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
   const comments: LinearFake["comments"] = [];
   const requests: FakeRequest[] = [];
   const queue: RawResponse[] = [];
+  const stalled = new Set<ReadableStreamDefaultController<Uint8Array>>();
+
+  const streamOf = (queued: RawResponse) =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(queued.body));
+        if (queued.reset) {
+          setTimeout(
+            () => controller.error(new Error("linear_fake: reset")),
+            10,
+          );
+        } else {
+          stalled.add(controller);
+        }
+      },
+    });
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -112,7 +133,8 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
       });
       const queued = queue.shift();
       if (queued !== undefined) {
-        return new Response(queued.body, {
+        const partial = queued.stall === true || queued.reset === true;
+        return new Response(partial ? streamOf(queued) : queued.body, {
           status: queued.status,
           headers: { "Content-Type": queued.contentType ?? "text/plain" },
         });
@@ -175,6 +197,16 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     comments,
     requests,
     queue,
-    close: () => server.shutdown(),
+    close: () => {
+      for (const controller of stalled) {
+        try {
+          controller.close();
+        } catch {
+          // Already cancelled when the client gave up.
+        }
+      }
+      stalled.clear();
+      return server.shutdown();
+    },
   };
 }
