@@ -26,54 +26,55 @@ import {
   type Lifecycle,
   NameSchema,
   parseLifecycle,
-  type Plugin,
   type StageSpec,
+  type StageTemplate,
   type TransitionSpec,
 } from "./lifecycle_schema.ts";
 
 // ---------------------------------------------------------------------------
-// Eject: copy a stage plugin's stages into a lifecycle as ordinary stages,
+// Apply: copy a stage template's stages into a lifecycle as ordinary stages,
 // which the author then saves and edits freely. Nothing refers back to the
-// plugin afterwards, so the runtime and the pinned lifecycle need nothing
-// new.
+// stage template afterwards, so the runtime and the pinned lifecycle need
+// nothing new.
 //
 // The author sketches the lifecycle with a bare placeholder stage where the
-// plugin goes. Eject replaces it: transitions into the placeholder enter the
-// plugin's initial stage, and each contract exit leaves to the stage the
-// placeholder's transition of the same name targets (or `exits` names).
+// stage template goes. Apply replaces it: transitions into the placeholder
+// enter the stage template's initial stage, and each contract exit leaves to
+// the stage the placeholder's transition of the same name targets (or `exits`
+// names).
 //
-// Names are chosen at the use site, never derived by prefixing: `names`
-// renames the plugin's stages, artifacts and evidence, and `inputs` maps each
-// contract input to a product of the lifecycle. A clash is an error naming
-// the entry to add, so two uses of one plugin are separate by the names the
-// author gave them. Renames follow identity through every reference,
-// including CEL, which is edited in place by source range. Approval gate ids
-// need no rename: approvals are counted per stage (gates.ts). An approval's
-// `when` is CEL, so it is renamed like a cel gate's expression.
+// Names are chosen at the use site, never derived by prefixing: `names` renames
+// the stage template's stages, artifacts and evidence, and `inputs` maps each
+// contract input to a product of the lifecycle. A clash is an error naming the
+// entry to add, so two uses of one stage template are separate by the names the
+// author gave them. Renames follow identity through every reference, including
+// CEL, which is edited in place by source range. Approval gate ids need no
+// rename: approvals are counted per stage (gates.ts). An approval's `when` is
+// CEL, so it is renamed like a cel gate's expression.
 //
 // The composed lifecycle must pass the lifecycle schema and the graph
 // analysis, and every contract input must be produced on every path into the
-// plugin. See DESIGN.md, "Stage plugins: eject only".
+// stage template. See DESIGN.md, "Stage templates: apply only".
 // ---------------------------------------------------------------------------
 
-export interface EjectNames {
+export interface ApplyNames {
   stages?: Record<string, string>;
   artifacts?: Record<string, string>;
   evidence?: Record<string, string>;
 }
 
-export interface EjectOptions {
-  /** The placeholder stage of the lifecycle that the plugin replaces. */
+export interface ApplyOptions {
+  /** The lifecycle's placeholder stage that the stage template replaces. */
   replace: string;
   /** Contract exit -> lifecycle stage; defaults to the placeholder's wiring. */
   exits?: Record<string, string>;
   /** Contract input -> the lifecycle's product; defaults to the same name. */
   inputs?: Record<string, string>;
-  /** Renames of the plugin's own stages and products. */
-  names?: EjectNames;
+  /** Renames of the stage template's own stages and products. */
+  names?: ApplyNames;
 }
 
-export type EjectResult =
+export type ApplyResult =
   | { ok: true; lifecycle: Lifecycle; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] };
 
@@ -84,15 +85,15 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 type Kind = "artifact" | "evidence";
 
-export function ejectPlugin(
+export function applyStageTemplate(
   base: Lifecycle,
-  plugin: Plugin,
-  options: EjectOptions,
-): EjectResult {
+  template: StageTemplate,
+  options: ApplyOptions,
+): ApplyResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const fail = (): EjectResult => ({ ok: false, errors, warnings });
-  const from = `plugin '${plugin.name}'`;
+  const fail = (): ApplyResult => ({ ok: false, errors, warnings });
+  const from = `stage template '${template.name}'`;
   const into = `lifecycle '${base.name}'`;
   const replace = options.replace;
 
@@ -103,8 +104,8 @@ export function ejectPlugin(
   }
   const placeholder = base.stages[placeholderIndex];
 
-  // --- what the plugin declares --------------------------------------------
-  const contract = plugin.contract;
+  // --- what the stage template declares --------------------------------------
+  const contract = template.contract;
   const exitNames = contract.exits.map((e) => e.name);
   const inputPorts = contract.inputs ?? [];
   const inputArtifacts = new Set(
@@ -113,12 +114,12 @@ export function ejectPlugin(
   const inputEvidence = new Set(
     inputPorts.filter((p) => p.kind === "evidence").map((p) => p.name),
   );
-  const pluginStageIds = plugin.stages.map((s) => s.id);
-  const pluginArtifacts = plugin.stages.flatMap((s) =>
+  const templateStageIds = template.stages.map((s) => s.id);
+  const templateArtifacts = template.stages.flatMap((s) =>
     (s.artifacts ?? []).map((a) => a.name)
   );
-  const pluginEvidence = [
-    ...new Set(plugin.stages.flatMap(evidenceDeclaredBy)),
+  const templateEvidence = [
+    ...new Set(template.stages.flatMap(evidenceDeclaredBy)),
   ];
 
   // --- the placeholder is bare, and its transitions sketch the exits --------
@@ -141,12 +142,12 @@ export function ejectPlugin(
       errors.push(
         `replace: transition '${t.name}' of placeholder stage '${replace}' ` +
           "has gates or manual; a placeholder only names where each exit " +
-          "goes, and the plugin's own transitions carry the gates",
+          "goes, and the stage template's own transitions carry the gates",
       );
     }
   }
 
-  // --- the options name only what the plugin has ----------------------------
+  // --- the options name only what the stage template has ---------------------
   const names = options.names ?? {};
   checkKeys(errors, "exits", options.exits, exitNames, `an exit of ${from}`);
   checkKeys(
@@ -160,21 +161,21 @@ export function ejectPlugin(
     errors,
     "names.stages",
     names.stages,
-    pluginStageIds,
+    templateStageIds,
     `a stage of ${from}`,
   );
   checkKeys(
     errors,
     "names.artifacts",
     names.artifacts,
-    pluginArtifacts,
+    templateArtifacts,
     `an artifact ${from} declares`,
   );
   checkKeys(
     errors,
     "names.evidence",
     names.evidence,
-    pluginEvidence,
+    templateEvidence,
     `evidence ${from} declares`,
   );
 
@@ -189,11 +190,13 @@ export function ejectPlugin(
       : lookup(names.evidence, name) ?? name;
   const productName = (kind: Kind, name: string) =>
     kind === "artifact" ? artifactName(name) : evidenceName(name);
-  const pluginInitial = plugin.stages.find((s) => s.initial === true);
-  if (pluginInitial === undefined) {
-    throw new Error("the plugin has no initial stage (it was not parsed)");
+  const templateInitial = template.stages.find((s) => s.initial === true);
+  if (templateInitial === undefined) {
+    throw new Error(
+      "the stage template has no initial stage (it was not parsed)",
+    );
   }
-  const entry = stageName(pluginInitial.id);
+  const entry = stageName(templateInitial.id);
 
   // --- clashes with the lifecycle's names ----------------------------------
   const baseStages = base.stages.filter((s) => s.id !== replace);
@@ -236,11 +239,11 @@ export function ejectPlugin(
       seen.set(as, name);
     }
   };
-  clashes("stage", "names.stages", pluginStageIds, stageName, baseStageIds);
+  clashes("stage", "names.stages", templateStageIds, stageName, baseStageIds);
   clashes(
     "artifact",
     "names.artifacts",
-    pluginArtifacts,
+    templateArtifacts,
     artifactName,
     baseArtifacts,
     { kind: "evidence", taken: baseEvidence },
@@ -248,15 +251,15 @@ export function ejectPlugin(
   clashes(
     "evidence",
     "names.evidence",
-    pluginEvidence,
+    templateEvidence,
     evidenceName,
     baseEvidence,
     { kind: "artifact", taken: baseArtifacts },
   );
-  const pluginEvidenceNames = new Set(pluginEvidence.map(evidenceName));
-  for (const name of pluginArtifacts) {
+  const templateEvidenceNames = new Set(templateEvidence.map(evidenceName));
+  for (const name of templateArtifacts) {
     const as = artifactName(name);
-    if (pluginEvidenceNames.has(as)) {
+    if (templateEvidenceNames.has(as)) {
       errors.push(
         `artifact '${name}' and evidence of ${from} are both named '${as}'; ` +
           `name one of them with names.artifacts.${name} or names.evidence`,
@@ -276,7 +279,7 @@ export function ejectPlugin(
   const globalNames = new Set(
     (base.globalTransitions ?? []).map((t) => t.name),
   );
-  for (const stage of plugin.stages) {
+  for (const stage of template.stages) {
     for (const t of stage.transitions ?? []) {
       if (globalNames.has(t.name)) {
         errors.push(
@@ -298,7 +301,7 @@ export function ejectPlugin(
           `transition named '${exit}' on placeholder stage '${replace}'`,
       );
     } else if (target === replace) {
-      // Back through the placeholder is back into the plugin.
+      // Back through the placeholder is back into the stage template.
       wiring.set(exit, entry);
     } else if (!baseStageIds.has(target)) {
       errors.push(
@@ -309,7 +312,7 @@ export function ejectPlugin(
     }
   }
 
-  // --- references to the placeholder that eject cannot carry over ----------
+  // --- references to the placeholder that apply cannot carry over ------------
   const retarget = (t: TransitionSpec): TransitionSpec =>
     t.to === replace ? { ...t, to: entry } : t;
   const checkBase = (transitions: TransitionSpec[], where: string) =>
@@ -318,8 +321,8 @@ export function ejectPlugin(
         if (gate.type === "max-cycles" && gate.config.stage === replace) {
           errors.push(
             `${where}, transition '${t.name}': a max-cycles gate names ` +
-              `placeholder stage '${replace}', which eject replaces; point it ` +
-              "at one of the plugin's stages",
+              `placeholder stage '${replace}', which apply replaces; point it ` +
+              "at one of the stage template's stages",
           );
         }
       })
@@ -331,26 +334,26 @@ export function ejectPlugin(
 
   if (errors.length > 0) return fail();
 
-  // --- the plugin's stages, renamed -----------------------------------------
+  // --- the stage template's stages, renamed ----------------------------------
   const kindOf = (name: string): Kind =>
-    pluginArtifacts.includes(name) || inputArtifacts.has(name)
+    templateArtifacts.includes(name) || inputArtifacts.has(name)
       ? "artifact"
       : "evidence";
   const renamedStages = new Map<string, string>(
-    pluginStageIds.filter((id) => stageName(id) !== id).map((id) => [
+    templateStageIds.filter((id) => stageName(id) !== id).map((id) => [
       id,
       stageName(id),
     ]),
   );
   // Products whose name changes, as a CEL string could still spell them in a
-  // lookup eject cannot see (artifacts[k] with k compared to "name").
+  // lookup apply cannot see (artifacts[k] with k compared to "name").
   const renamedProducts = new Map<string, string>();
-  for (const name of [...pluginArtifacts, ...inputArtifacts]) {
+  for (const name of [...templateArtifacts, ...inputArtifacts]) {
     if (artifactName(name) !== name) {
       renamedProducts.set(name, `artifact '${artifactName(name)}'`);
     }
   }
-  for (const name of [...pluginEvidence, ...inputEvidence]) {
+  for (const name of [...templateEvidence, ...inputEvidence]) {
     if (evidenceName(name) !== name) {
       renamedProducts.set(name, `evidence '${evidenceName(name)}'`);
     }
@@ -362,7 +365,7 @@ export function ejectPlugin(
       if (stageNow !== undefined) {
         warnings.push(
           `${where}: the CEL string "${literal}" matches a stage of ${from} ` +
-            `that is now '${stageNow}'; eject cannot tell whether it names ` +
+            `that is now '${stageNow}'; apply cannot tell whether it names ` +
             "that stage, so it was left as it is",
         );
       }
@@ -370,7 +373,7 @@ export function ejectPlugin(
       if (productNow !== undefined) {
         warnings.push(
           `${where}: the CEL string "${literal}" matches a product of ${from} ` +
-            `that is now ${productNow}; eject renames only fixed references ` +
+            `that is now ${productNow}; apply renames only fixed references ` +
             '(artifacts.x, artifacts["x"]), so it was left as it is',
         );
       }
@@ -421,7 +424,7 @@ export function ejectPlugin(
         };
     }
   };
-  const ejected: StageSpec[] = plugin.stages.map((stage) => {
+  const applied: StageSpec[] = template.stages.map((stage) => {
     const where = `stage '${stage.id}' of ${from}`;
     const out: StageSpec = structuredClone(stage);
     out.id = stageName(stage.id);
@@ -489,7 +492,7 @@ export function ejectPlugin(
     if (rewriteCel(expr, (n) => n, (n) => n).literals.includes(replace)) {
       warnings.push(
         `${where}: the CEL string "${replace}" matches the placeholder stage, ` +
-          `which is now the plugin's stages from '${entry}'`,
+          `which is now the stage template's stages from '${entry}'`,
       );
     }
   };
@@ -514,7 +517,7 @@ export function ejectPlugin(
     ...base,
     stages: [
       ...base.stages.slice(0, placeholderIndex).map(around),
-      ...ejected,
+      ...applied,
       ...base.stages.slice(placeholderIndex + 1).map(around),
     ],
     ...(base.globalTransitions !== undefined
@@ -526,7 +529,7 @@ export function ejectPlugin(
   const origin = new Map<string, string>(
     composed.stages.map((s) => [
       s.id,
-      ejected.includes(s) ? `from ${from}` : `from ${into}`,
+      applied.includes(s) ? `from ${from}` : `from ${into}`,
     ]),
   );
   const label = (line: string) => {

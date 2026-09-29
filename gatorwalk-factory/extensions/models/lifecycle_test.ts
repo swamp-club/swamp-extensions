@@ -19,10 +19,10 @@ import { parse as parseYaml } from "@std/yaml";
 import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
 import {
-  EJECTED_NAME,
+  APPLIED_NAME,
   generateKey,
   HOLDER_TYPE,
-  PLUGIN_TYPE,
+  STAGE_TEMPLATE_TYPE,
 } from "./_lib/work_item_ops.ts";
 import { digestOf } from "./_lib/canonical.ts";
 import { parseLifecycle } from "./_lib/lifecycle_schema.ts";
@@ -224,27 +224,27 @@ Deno.test("holder: the model's literal type is HOLDER_TYPE", () => {
   assert(holder.type === HOLDER_TYPE);
 });
 
-// --- eject ------------------------------------------------------------------------
+// --- apply -------------------------------------------------------------------
 
-async function ejectSwamp() {
+async function applySwamp() {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await testdata("lifecycles/eject-target.yaml"),
+    globalArguments: await testdata("lifecycles/apply-target.yaml"),
     type: HOLDER_TYPE,
   });
   swamp.definitions.set("review-plan", {
-    globalArguments: await testdata("plugins/review-plan.yaml"),
-    type: PLUGIN_TYPE,
+    globalArguments: await testdata("templates/review-plan.yaml"),
+    type: STAGE_TEMPLATE_TYPE,
   });
   return swamp;
 }
 
-Deno.test("holder: eject writes the composed lifecycle as a record and logs it, leaving the holder alone", async () => {
-  const swamp = await ejectSwamp();
+Deno.test("holder: apply writes the composed lifecycle as a record and logs it, leaving the holder alone", async () => {
+  const swamp = await applySwamp();
   const before = structuredClone(swamp.definitions.get("team"));
-  const out = await holder.methods.eject.execute(
+  const out = await holder.methods.apply.execute(
     {
-      plugin: "review-plan",
+      template: "review-plan",
       replace: "review",
       params: '{"blocking":["critical"]}',
       names: { stages: { review: "plan-review" } },
@@ -253,10 +253,10 @@ Deno.test("holder: eject writes the composed lifecycle as a record and logs it, 
   );
   assertEquals(out.dataHandles.length, 1);
   assertEquals(swamp.definitions.get("team"), before);
-  const record = swamp.resources.get("team")?.get(EJECTED_NAME)?.[0];
+  const record = swamp.resources.get("team")?.get(APPLIED_NAME)?.[0];
   assert(record !== undefined);
   assertEquals(record.holder, "team");
-  assertEquals(record.plugin, "review-plan");
+  assertEquals(record.template, "review-plan");
   const parsed = parseLifecycle(record.lifecycle);
   assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
   assertEquals(record.digest, await digestOf(parsed.value));
@@ -269,7 +269,7 @@ Deno.test("holder: eject writes the composed lifecycle as a record and logs it, 
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "ejected plugin 'review-plan' from 'review-plan' into lifecycle 'plan-then-build' in place of stage 'review': 4 stages, 0 warning(s).",
+      "applied stage template 'review-plan' from 'review-plan' to lifecycle 'plan-then-build' in place of stage 'review': 4 stages, 0 warning(s).",
     ),
     summary,
   );
@@ -278,12 +278,12 @@ Deno.test("holder: eject writes the composed lifecycle as a record and logs it, 
   assertEquals(logged, record.lifecycle);
 });
 
-Deno.test("holder: eject reports every error and writes nothing", async () => {
-  const swamp = await ejectSwamp();
+Deno.test("holder: apply reports every error and writes nothing", async () => {
+  const swamp = await applySwamp();
   const error = await assertRejects(() =>
-    holder.methods.eject.execute(
+    holder.methods.apply.execute(
       {
-        plugin: "review-plan",
+        template: "review-plan",
         replace: "review",
         exits: { rework: "nowhere" },
         names: '{"stages":{"nope":"x"}}',
@@ -294,7 +294,7 @@ Deno.test("holder: eject reports every error and writes nothing", async () => {
   const text = (error as Error).message;
   assert(
     text.includes(
-      "cannot eject plugin holder 'review-plan' into lifecycle holder 'team':",
+      "cannot apply template holder 'review-plan' to lifecycle holder 'team':",
     ),
     text,
   );
@@ -303,12 +303,12 @@ Deno.test("holder: eject reports every error and writes nothing", async () => {
   assertEquals(swamp.versionsWritten("team"), 0);
 });
 
-Deno.test("holder: eject checks its inputs' shape and the plugin holder's type", async () => {
-  const swamp = await ejectSwamp();
+Deno.test("holder: apply checks its inputs' shape and the template holder's type", async () => {
+  const swamp = await applySwamp();
   await assertRejects(
     () =>
-      holder.methods.eject.execute(
-        { plugin: "review-plan", replace: "review", exits: { rework: 3 } },
+      holder.methods.apply.execute(
+        { template: "review-plan", replace: "review", exits: { rework: 3 } },
         swamp.context("team"),
       ),
     Error,
@@ -316,11 +316,11 @@ Deno.test("holder: eject checks its inputs' shape and the plugin holder's type",
   );
   await assertRejects(
     () =>
-      holder.methods.eject.execute(
-        { plugin: "team", replace: "review" },
+      holder.methods.apply.execute(
+        { template: "team", replace: "review" },
         swamp.context("team"),
       ),
     Error,
-    "not a plugin holder",
+    "not a template holder",
   );
 });

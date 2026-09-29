@@ -1,6 +1,6 @@
-# An adversarial plan review as a plugin: consumes a plan, produces
+# An adversarial plan review as a stage template: consumes a plan, produces
 # findings, and leaves through approved or rework. Its reviewer skills and
-# blocking severities are parameters, filled in when it is ejected.
+# blocking severities are parameters, filled in when it is applied.
 schemaVersion: 1
 name: review-plan
 description: Adversarial review of a plan, with a human sign-off.

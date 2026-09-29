@@ -188,7 +188,7 @@ These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...) or
 `evidence` or `validations`; the lifecycle schema rejects it. CEL allows it, and
 the variable would hide the context's value for the rest of the expression,
 which is almost always a mistake. The rule also lets tools that read CEL
-(eject's renames) take these names to mean the context's. The list is
+(apply's renames) take these names to mean the context's. The list is
 `CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when it
 compiles. Putting the vocabulary under a single prefix would also do this, at
 the cost of changing every lifecycle; that is left for later.
@@ -469,7 +469,7 @@ In both passes a gate is judged like this:
 - **`artifact-exists`, `findings-clear`, `artifact-fresh` and `cooldown`** pass
   only once a stage that produces what they read has been entered on the path.
   For `artifact-fresh` that means both the artifact and the subject it reviews.
-  In a plugin, contract inputs are present from the start.
+  In a stage template, contract inputs are present from the start.
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
   is a `human-approval` gate with `when`: it may apply or not.
 
@@ -485,9 +485,9 @@ Errors:
 
 - **`unreachable-stage`:** no path from the initial stage enters the stage.
 - **`dead-end`:** a reachable non-terminal stage from which no transition that
-  can pass leads to a terminal stage (in a plugin, a contract exit). Global
-  transitions count as a way out only if the stage they lead to can itself
-  finish.
+  can pass leads to a terminal stage (in a stage template, a contract exit).
+  Global transitions count as a way out only if the stage they lead to can
+  itself finish.
 - **`gate-never-passes`:** a transition from a reachable stage that no path can
   satisfy, with the gate and the reason. A global transition is judged from each
   stage separately, and the finding names the stage. This includes a transition
@@ -495,8 +495,8 @@ Errors:
   payload can hold, such as `a: { b: 1 }` with `a.b: 2`, or `s: a` with a
   `match` of `{ not: { const: a } }`, since every gate of a transition reads the
   same payload.
-- **`exit-unreachable`:** a plugin contract exit that no transition that can
-  pass takes.
+- **`exit-unreachable`:** a stage template contract exit that no transition that
+  can pass takes.
 
 Warnings:
 
@@ -527,8 +527,8 @@ Warnings:
 - **`exploration-truncated`:** a pass hit the state cap. `validate` fails on it,
   although it is a warning in the report.
 
-The analysis looks at one document at a time. A plugin's inputs are checked once
-it is ejected into a lifecycle, on the composed lifecycle (below).
+The analysis looks at one document at a time. A stage template's inputs are
+checked once it is applied to a lifecycle, on the composed lifecycle (below).
 
 ## Parallel work inside one stage
 
@@ -607,41 +607,47 @@ Checked on swamp 20260929.151817.0 and in its source at c48ef142
 with stub children. It checks that the children overlap and are runs of their
 own, that the wrapper waits for both, and that it fails when either does.
 
-## Stage plugins: eject only
+## Stage templates: apply only
 
-**Decision.** A stage plugin is a working starting point that a lifecycle
-copies, never a dependency it keeps. A lifecycle holder's `eject` method copies
-a plugin's stages into the lifecycle as ordinary stages, and the author saves
-the result and edits it freely. There is no reference to a plugin in a
-lifecycle, so nothing is resolved at `validate` or `start`. Code:
-`_lib/plugin_instance.ts`, `_lib/eject.ts`, `extensions/models/plugin.ts`, and
-`ejectMethod` in `_lib/work_item_ops.ts`.
+**Decision.** A stage template is a working starting point that a lifecycle
+copies, never a dependency it keeps. A lifecycle holder's `apply` method copies
+a stage template's stages into the lifecycle as ordinary stages, and the author
+saves the result and edits it freely. There is no reference to a stage template
+in a lifecycle, so nothing is resolved at `validate` or `start`. Code:
+`_lib/stage_template.ts`, `_lib/apply.ts`, `extensions/models/template.ts`, and
+`applyMethod` in `_lib/work_item_ops.ts`.
 
-### Why eject and not references
+These were first called stage plugins and `eject` (GW-12), and renamed in GW-20
+(#2717): "eject" means leaving a managed dependency by copying its config out,
+and "plugin" suggests a live dependency, but here there is none. From the
+lifecycle's side it is using a template. In code the name is `StageTemplate`,
+because `_lib/template.ts` already means the `{{name}}` placeholders in prompts.
 
-The point of plugins is that a team starts from stages that already work (plan,
-review-plan, implement, review, verify) and is encouraged to change them.
-Ejected stages are ordinary stages, which gives three things for free:
+### Why apply and not references
 
-- **Customising is editing.** Nothing tracks the plugin, and no upstream change
-  needs merging.
+The point of stage templates is that a team starts from stages that already work
+(plan, review-plan, implement, review, verify) and is encouraged to change them.
+Applied stages are ordinary stages, which gives three things for free:
+
+- **Customising is editing.** Nothing tracks the stage template, and no upstream
+  change needs merging.
 - **Nothing new at run time.** The run record, journal, pinning and approvals
-  are unchanged. The pinned copy's digest covers the ejected stages because they
+  are unchanged. The pinned copy's digest covers the applied stages because they
   are part of the lifecycle.
-- **Separate records by construction.** Two uses of one plugin are different
-  stages with different names, chosen by the author.
+- **Separate records by construction.** Two uses of one stage template are
+  different stages with different names, chosen by the author.
 
-A plugin that a lifecycle refers to, with its content resolved and pinned at
-`start`, was the other design. It would need a use-site identity in the run
-record for every stage, product and approval, and a policy for moving in-flight
-work to a new plugin version. It may come later if teams want updates to flow
-from a shared plugin; nothing here rules it out.
+A stage template that a lifecycle refers to, with its content resolved and
+pinned at `start`, was the other design. It would need a use-site identity in
+the run record for every stage, product and approval, and a policy for moving
+in-flight work to a new stage template version. It may come later if teams want
+updates to flow from a shared stage template; nothing here rules it out.
 
-### Where a plugin lives: a plugin holder
+### Where a stage template lives: a template holder
 
-A plugin is the `globalArguments` of a **plugin holder**
-(`@swamp/gatorwalk-factory/plugin`), exactly as a lifecycle is held by a
-lifecycle holder. `eject` and the plugin holder's `validate` read it raw,
+A stage template is the `globalArguments` of a **template holder**
+(`@swamp/gatorwalk-factory/template`), exactly as a lifecycle is held by a
+lifecycle holder. `apply` and the template holder's `validate` read it raw,
 through the definition repository, with the same code as the lifecycle holder
 (`readHolderArguments`), so it works on remote workers too. Its
 `globalArguments` schema only names the top-level fields, for the lifecycle
@@ -649,20 +655,21 @@ holder's reason (`.partial()`) and because placeholders are not valid values
 until they are filled in.
 
 Files shipped in an extension were the alternative. A model has no way to read
-another extension's files, so that would need a change in swamp. A plugin can
-still be shipped as a file and pasted into a holder, as lifecycles are today.
+another extension's files, so that would need a change in swamp. A stage
+template can still be shipped as a file and pasted into a holder, as lifecycles
+are today.
 
 ### Parameters: whole-value placeholders
 
-A plugin may put `{ $param: <name> }` wherever a value goes. Before a plugin is
-used, `instantiatePlugin`:
+A stage template may put `{ $param: <name> }` wherever a value goes. Before a
+stage template is used, `instantiateStageTemplate`:
 
 1. checks that each placeholder names a property of `contract.parameters`, and
    none is inside the contract;
 2. takes the given values, then each top-level property's `default` (the
    validator does not apply defaults);
 3. checks the values against the parameters schema;
-4. replaces each placeholder, whole, and parses the result as a plugin.
+4. replaces each placeholder, whole, and parses the result as a stage template.
 
 Every error carries its path. There is no substitution inside strings: a
 parameter that shapes a prompt is a value the prompt refers to, not text spliced
@@ -673,37 +680,38 @@ it is: a `$param` whose value is not a name (`{ $param: 3 }`), or a name beside
 other keys. A `$param` key holding an object is left alone, so a payload schema
 may still have a property of that name.
 
-### How eject wires a plugin in
+### How apply wires a stage template in
 
 The author sketches the lifecycle with a bare **placeholder stage** where the
-plugin goes. It may declare only an `id`, a `description`, `initial` and
-`transitions` (no work, no products, no gates on its transitions). Eject
+stage template goes. It may declare only an `id`, a `description`, `initial` and
+`transitions` (no work, no products, no gates on its transitions). Apply
 replaces the placeholder:
 
-- **Transitions into it**, including global transitions, enter the plugin's
-  initial stage. If the placeholder was the initial stage, the plugin's initial
-  stage becomes the initial stage.
+- **Transitions into it**, including global transitions, enter the stage
+  template's initial stage. If the placeholder was the initial stage, the stage
+  template's initial stage becomes the initial stage.
 - **Each contract exit** leaves to the stage that `exits` names, or else to the
   target of the placeholder's transition of the same name. An exit wired to the
-  placeholder itself re-enters the plugin. An unwired exit is an error, and so
-  is a placeholder transition that matches no exit.
+  placeholder itself re-enters the stage template. An unwired exit is an error,
+  and so is a placeholder transition that matches no exit.
 - **Other references to the placeholder** cannot be carried over, and are
   errors. A `max-cycles` gate on it is one example.
 
 ### Names are chosen at the use site
 
-`names` renames the plugin's stages, artifacts and evidence, and `inputs` maps
-each contract input to one of the lifecycle's products. So an output takes the
-name the lifecycle gives it. A name that clashes with the lifecycle's is an
-error naming the `names` entry to add, and eject never makes a name by adding a
-prefix, so the defect family this rebuild exists to remove (records told apart
-by name conventions) cannot come back through plugins.
+`names` renames the stage template's stages, artifacts and evidence, and
+`inputs` maps each contract input to one of the lifecycle's products. So an
+output takes the name the lifecycle gives it. A name that clashes with the
+lifecycle's is an error naming the `names` entry to add, and apply never makes a
+name by adding a prefix, so the defect family this rebuild exists to remove
+(records told apart by name conventions) cannot come back through stage
+templates.
 
-Within one lifecycle or plugin, a name is also one kind: an artifact and
-evidence may not share it (the schema rejects it, and eject reports such a clash
+Within one lifecycle or stage template, a name is also one kind: an artifact and
+evidence may not share it (the schema rejects it, and apply reports such a clash
 with the `names` entry to add). `context.inject` lists products by name alone,
 so a shared name was ambiguous to the dispatch packet, to the graph analysis,
-and to eject's renames.
+and to apply's renames.
 
 Renames follow identity through every reference: stage ids, `max-cycles` gates,
 gate products, `reviews`, `context.inject`, `resultEvidence`, and CEL. In CEL,
@@ -726,21 +734,21 @@ current stage (`gates.ts`), so distinct stage ids already keep two uses apart.
 ### What is checked
 
 The composed lifecycle must pass the lifecycle schema and the graph analysis,
-and eject reports every error at once. Each error names the stage and whether it
-came from the plugin or the lifecycle, because indexes into the composed
-document mean nothing to the author. Plugin wiring is checked as errors, not
-left to warnings:
+and apply reports every error at once. Each error names the stage and whether it
+came from the stage template or the lifecycle, because indexes into the composed
+document mean nothing to the author. Stage template wiring is checked as errors,
+not left to warnings:
 
 - every exit is wired to a stage of the lifecycle;
-- every contract input is produced on every path into the plugin's entry stage.
-  This uses `productsMissingOnEntry` in `graph.ts`, a query over the structural
-  pass. It also covers an input that only a CEL binding reads, which
+- every contract input is produced on every path into the stage template's entry
+  stage. This uses `productsMissingOnEntry` in `graph.ts`, a query over the
+  structural pass. It also covers an input that only a CEL binding reads, which
   `product-missing-on-path` cannot see.
 
 ### The result is handed back, not saved
 
-`eject` writes the composed lifecycle, with its digest, to the lifecycle
-holder's `ejected-lifecycle` record. It also logs it as JSON, which is valid
+`apply` writes the composed lifecycle, with its digest, to the lifecycle
+holder's `applied-lifecycle` record. It also logs it as JSON, which is valid
 YAML. It never edits the holder's definition: a method cannot safely rewrite its
 own definition, and the author should read what they adopt. The author saves the
 lifecycle as the holder's `globalArguments` and runs `validate`, and the
@@ -759,8 +767,8 @@ logic in `_lib/work_item_ops.ts`):
   work item. `reset` keeps the pinned copy unless `repin=true` adopts the
   holder's current one.
 
-The plugin holder, another model type, only serves `eject`; see "Stage plugins:
-eject only".
+The template holder, another model type, only serves `apply`; see "Stage
+templates: apply only".
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
@@ -1049,7 +1057,8 @@ runs the workspace, and differ per team. The bundled lifecycles use the Lab's
 own status names as keys (`triaged`, `in_progress`, `shipped`, `closed`), so the
 Lab adapter's default map needs no configuration and Linear maps the same keys
 to its team's names. A stage without a key leaves the status alone. Stages a
-plugin brings in by eject carry the plugin's keys; the placeholder stays bare.
+stage template brings in by apply carry the stage template's keys; the
+placeholder stays bare.
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different

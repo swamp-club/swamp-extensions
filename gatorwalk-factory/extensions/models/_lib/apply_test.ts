@@ -18,19 +18,19 @@ import { assert, assertEquals } from "@std/assert";
 import { evaluate } from "npm:@marcbachmann/cel-js@7.6.1";
 import { parse as parseYaml } from "@std/yaml";
 import {
-  type EjectOptions,
-  ejectPlugin,
-  type EjectResult,
+  type ApplyOptions,
+  type ApplyResult,
+  applyStageTemplate,
   rewriteCel,
-} from "./eject.ts";
+} from "./apply.ts";
 import {
   type Lifecycle,
   parseLifecycle,
-  parsePlugin,
-  type Plugin,
+  parseStageTemplate,
   type StageSpec,
+  type StageTemplate,
 } from "./lifecycle_schema.ts";
-import { instantiatePlugin } from "./plugin_instance.ts";
+import { instantiateStageTemplate } from "./stage_template.ts";
 
 const TESTDATA = new URL("../../../testdata/", import.meta.url);
 
@@ -50,8 +50,8 @@ function lifecycle(yaml: string): Lifecycle {
   return asLifecycle(parseYaml(`schemaVersion: 1\nname: test\n${yaml}`));
 }
 
-function plugin(yaml: string): Plugin {
-  const result = parsePlugin(
+function template(yaml: string): StageTemplate {
+  const result = parseStageTemplate(
     parseYaml(`schemaVersion: 1\nname: helper\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
@@ -59,27 +59,29 @@ function plugin(yaml: string): Plugin {
 }
 
 async function target(): Promise<Lifecycle> {
-  return asLifecycle(await raw("lifecycles/eject-target.yaml"));
+  return asLifecycle(await raw("lifecycles/apply-target.yaml"));
 }
 
-async function reviewPlan(params?: Record<string, unknown>): Promise<Plugin> {
-  const result = instantiatePlugin(
-    await raw("plugins/review-plan.yaml"),
+async function reviewPlan(
+  params?: Record<string, unknown>,
+): Promise<StageTemplate> {
+  const result = instantiateStageTemplate(
+    await raw("templates/review-plan.yaml"),
     params,
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
-  return result.plugin;
+  return result.template;
 }
 
-function ok(result: EjectResult): { lifecycle: Lifecycle; warnings: string[] } {
+function ok(result: ApplyResult): { lifecycle: Lifecycle; warnings: string[] } {
   if (!result.ok) {
-    throw new Error(`eject failed:\n${result.errors.join("\n")}`);
+    throw new Error(`apply failed:\n${result.errors.join("\n")}`);
   }
   return result;
 }
 
-function errorsOf(result: EjectResult): string[] {
-  assert(!result.ok, "eject succeeded");
+function errorsOf(result: ApplyResult): string[] {
+  assert(!result.ok, "apply succeeded");
   return result.ok ? [] : result.errors;
 }
 
@@ -106,9 +108,11 @@ function edges(s: StageSpec): string[] {
 
 // --- replacing the placeholder --------------------------------------------------
 
-Deno.test("eject: the plugin's stages replace the placeholder, wired by its transitions", async () => {
+Deno.test("apply: the stage template's stages replace the placeholder, wired by its transitions", async () => {
   const { lifecycle: out, warnings } = ok(
-    ejectPlugin(await target(), await reviewPlan(), { replace: "review" }),
+    applyStageTemplate(await target(), await reviewPlan(), {
+      replace: "review",
+    }),
   );
   assertEquals(out.stages.map((s) => s.id), [
     "plan",
@@ -129,11 +133,15 @@ Deno.test("eject: the plugin's stages replace the placeholder, wired by its tran
   assertEquals(warnings, []);
 });
 
-Deno.test("eject: parameters reach the copied stages", async () => {
+Deno.test("apply: parameters reach the copied stages", async () => {
   const { lifecycle: out } = ok(
-    ejectPlugin(await target(), await reviewPlan({ blocking: ["critical"] }), {
-      replace: "review",
-    }),
+    applyStageTemplate(
+      await target(),
+      await reviewPlan({ blocking: ["critical"] }),
+      {
+        replace: "review",
+      },
+    ),
   );
   const gate = stage(out, "review").transitions?.[0].gates?.[1];
   assertEquals(
@@ -142,9 +150,9 @@ Deno.test("eject: parameters reach the copied stages", async () => {
   );
 });
 
-Deno.test("eject: exits overrides the placeholder's wiring", async () => {
+Deno.test("apply: exits overrides the placeholder's wiring", async () => {
   const { lifecycle: out } = ok(
-    ejectPlugin(await target(), await reviewPlan(), {
+    applyStageTemplate(await target(), await reviewPlan(), {
       replace: "review",
       exits: { rework: "implement" },
     }),
@@ -155,12 +163,12 @@ Deno.test("eject: exits overrides the placeholder's wiring", async () => {
   ]);
 });
 
-Deno.test("eject: an exit back to the placeholder re-enters the plugin", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: an exit back to the placeholder re-enters the stage template", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   const stages = base.stages as { transitions: { to: string }[] }[];
   stages[1].transitions[1].to = "review";
   const { lifecycle: out } = ok(
-    ejectPlugin(asLifecycle(base), await reviewPlan(), {
+    applyStageTemplate(asLifecycle(base), await reviewPlan(), {
       replace: "review",
       names: { stages: { review: "plan-review" } },
     }),
@@ -172,7 +180,7 @@ Deno.test("eject: an exit back to the placeholder re-enters the plugin", async (
   assertEquals(edges(stage(out, "plan")), ["submit->plan-review"]);
 });
 
-Deno.test("eject: an initial placeholder makes the plugin's entry initial", () => {
+Deno.test("apply: an initial placeholder makes the stage template's entry initial", () => {
   const base = lifecycle(`
 stages:
   - id: review
@@ -183,7 +191,7 @@ stages:
   - id: done
     terminal: true
 `);
-  const helper = plugin(`
+  const helper = template(`
 contract:
   exits: [{ name: approved }, { name: rework }]
 stages:
@@ -194,20 +202,20 @@ stages:
       - { name: no, exit: rework, manual: true }
 `);
   const { lifecycle: out } = ok(
-    ejectPlugin(base, helper, { replace: "review" }),
+    applyStageTemplate(base, helper, { replace: "review" }),
   );
   assertEquals(stage(out, "look").initial, true);
 });
 
-Deno.test("eject: global transitions into the placeholder enter the plugin", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: global transitions into the placeholder enter the stage template", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   base.globalTransitions = [{
     name: "second-look",
     to: "review",
     manual: true,
   }];
   const { lifecycle: out } = ok(
-    ejectPlugin(asLifecycle(base), await reviewPlan(), {
+    applyStageTemplate(asLifecycle(base), await reviewPlan(), {
       replace: "review",
       names: { stages: { review: "critique" } },
     }),
@@ -215,44 +223,48 @@ Deno.test("eject: global transitions into the placeholder enter the plugin", asy
   assertEquals(out.globalTransitions?.[0].to, "critique");
 });
 
-// --- what eject refuses -----------------------------------------------------------
+// --- what apply refuses ------------------------------------------------------
 
-Deno.test("eject: the placeholder must exist and be bare", async () => {
+Deno.test("apply: the placeholder must exist and be bare", async () => {
   assertMentions(
     errorsOf(
-      ejectPlugin(await target(), await reviewPlan(), { replace: "nope" }),
+      applyStageTemplate(await target(), await reviewPlan(), {
+        replace: "nope",
+      }),
     ),
     "replace: lifecycle 'plan-then-build' has no stage 'nope'",
   );
   assertMentions(
     errorsOf(
-      ejectPlugin(await target(), await reviewPlan(), { replace: "plan" }),
+      applyStageTemplate(await target(), await reviewPlan(), {
+        replace: "plan",
+      }),
     ),
     "replace: stage 'plan' is not a bare placeholder (it declares maxCycles, work, artifacts)",
-    "replace: transition 'submit' of placeholder stage 'plan' matches no exit of plugin 'review-plan' (approved, rework)",
+    "replace: transition 'submit' of placeholder stage 'plan' matches no exit of stage template 'review-plan' (approved, rework)",
     "replace: transition 'submit' of placeholder stage 'plan' has gates or manual",
   );
 });
 
-Deno.test("eject: every exit must be wired to a stage of the lifecycle", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: every exit must be wired to a stage of the lifecycle", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   (base.stages as { transitions: unknown[] }[])[1].transitions.pop();
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), {
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
         replace: "review",
         exits: { approved: "nowhere" },
       }),
     ),
-    "exit 'rework' of plugin 'review-plan' is not wired: add exits.rework, or a transition named 'rework' on placeholder stage 'review'",
-    "exit 'approved' of plugin 'review-plan' goes to 'nowhere', which is not a stage of lifecycle 'plan-then-build'",
+    "exit 'rework' of stage template 'review-plan' is not wired: add exits.rework, or a transition named 'rework' on placeholder stage 'review'",
+    "exit 'approved' of stage template 'review-plan' goes to 'nowhere', which is not a stage of lifecycle 'plan-then-build'",
   );
 });
 
-Deno.test("eject: options may only name what the plugin has, with valid names", async () => {
+Deno.test("apply: options may only name what the stage template has, with valid names", async () => {
   assertMentions(
     errorsOf(
-      ejectPlugin(await target(), await reviewPlan(), {
+      applyStageTemplate(await target(), await reviewPlan(), {
         replace: "review",
         exits: { escalate: "done" },
         inputs: { spec: "plan" },
@@ -263,17 +275,17 @@ Deno.test("eject: options may only name what the plugin has, with valid names", 
         },
       }),
     ),
-    "exits.escalate: 'escalate' is not an exit of plugin 'review-plan' (approved, rework)",
-    "inputs.spec: 'spec' is not a contract input of plugin 'review-plan' (plan)",
-    "names.stages.critique: 'critique' is not a stage of plugin 'review-plan' (review)",
+    "exits.escalate: 'escalate' is not an exit of stage template 'review-plan' (approved, rework)",
+    "inputs.spec: 'spec' is not a contract input of stage template 'review-plan' (plan)",
+    "names.stages.critique: 'critique' is not a stage of stage template 'review-plan' (review)",
     "names.stages.review: 'Bad Name' is not a valid name",
-    "names.artifacts.plan: 'plan' is not an artifact plugin 'review-plan' declares (plan-review)",
-    "names.evidence.ci: 'ci' is not evidence plugin 'review-plan' declares (none)",
+    "names.artifacts.plan: 'plan' is not an artifact stage template 'review-plan' declares (plan-review)",
+    "names.evidence.ci: 'ci' is not evidence stage template 'review-plan' declares (none)",
   );
 });
 
-Deno.test("eject: a max-cycles gate on the placeholder is refused", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a max-cycles gate on the placeholder is refused", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   const implement = (base.stages as { transitions: unknown[] }[])[2];
   implement.transitions.push({
     name: "again",
@@ -285,27 +297,31 @@ Deno.test("eject: a max-cycles gate on the placeholder is refused", async () => 
   });
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
     ),
     "stage 'implement' of lifecycle 'plan-then-build', transition 'again': a max-cycles gate names placeholder stage 'review'",
   );
 });
 
-Deno.test("eject: a plugin transition may not share a global transition's name", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a stage template transition may not share a global transition's name", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   base.globalTransitions = [{ name: "approve", to: "plan", manual: true }];
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
     ),
-    "transition 'approve' of stage 'review' of plugin 'review-plan' has the same name as a global transition of lifecycle 'plan-then-build'",
+    "transition 'approve' of stage 'review' of stage template 'review-plan' has the same name as a global transition of lifecycle 'plan-then-build'",
   );
 });
 
 // --- contract inputs ----------------------------------------------------------------
 
-Deno.test("eject: a contract input maps to the lifecycle's product, by name or inputs", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a contract input maps to the lifecycle's product, by name or inputs", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   const plan = (base.stages as {
     artifacts: { name: string }[];
     transitions: { gates: { config: { artifact: string } }[] }[];
@@ -314,12 +330,14 @@ Deno.test("eject: a contract input maps to the lifecycle's product, by name or i
   plan.transitions[0].gates[0].config.artifact = "design";
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
     ),
-    "input artifact 'plan' of plugin 'review-plan' is 'plan' in lifecycle 'plan-then-build', which no stage of it declares; map it with inputs.plan",
+    "input artifact 'plan' of stage template 'review-plan' is 'plan' in lifecycle 'plan-then-build', which no stage of it declares; map it with inputs.plan",
   );
   const { lifecycle: out } = ok(
-    ejectPlugin(asLifecycle(base), await reviewPlan(), {
+    applyStageTemplate(asLifecycle(base), await reviewPlan(), {
       replace: "review",
       inputs: { plan: "design" },
     }),
@@ -329,8 +347,8 @@ Deno.test("eject: a contract input maps to the lifecycle's product, by name or i
   assertEquals(review.artifacts?.[0].reviews, "design");
 });
 
-Deno.test("eject: a contract input missing on a path into the plugin is an error", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a contract input missing on a path into the stage template is an error", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   const stages = base.stages as Record<string, unknown>[];
   delete stages[0].initial;
   stages.unshift({
@@ -343,14 +361,16 @@ Deno.test("eject: a contract input missing on a path into the plugin is an error
   });
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
     ),
-    "input artifact 'plan' of plugin 'review-plan' is not produced on every path into stage 'review': intake -> review",
+    "input artifact 'plan' of stage template 'review-plan' is not produced on every path into stage 'review': intake -> review",
   );
 });
 
-Deno.test("eject: an input only a CEL binding reads is checked too", () => {
-  const helper = plugin(`
+Deno.test("apply: an input only a CEL binding reads is checked too", () => {
+  const helper = template(`
 contract:
   inputs: [{ kind: evidence, name: ci }]
   exits: [{ name: done }]
@@ -379,15 +399,15 @@ stages:
     terminal: true
 `);
   assertMentions(
-    errorsOf(ejectPlugin(base, helper, { replace: "sum" })),
-    "input evidence 'ci' of plugin 'helper' is not produced on every path into stage 'summarise': start -> summarise",
+    errorsOf(applyStageTemplate(base, helper, { replace: "sum" })),
+    "input evidence 'ci' of stage template 'helper' is not produced on every path into stage 'summarise': start -> summarise",
   );
 });
 
 // --- names chosen at the use site ---------------------------------------------------
 
-Deno.test("eject: renames follow every reference, CEL included", () => {
-  const helper = plugin(`
+Deno.test("apply: renames follow every reference, CEL included", () => {
+  const helper = template(`
 contract:
   exits: [{ name: done }]
 stages:
@@ -435,7 +455,7 @@ stages:
     terminal: true
 `);
   const { lifecycle: out, warnings } = ok(
-    ejectPlugin(base, helper, {
+    applyStageTemplate(base, helper, {
       replace: "slot",
       names: {
         stages: { step: "draft" },
@@ -492,12 +512,12 @@ stages:
   ]);
   assertMentions(
     warnings,
-    "stage 'step' of plugin 'helper', binding 'here': the CEL string \"step\" matches a stage of plugin 'helper' that is now 'draft'",
+    "stage 'step' of stage template 'helper', binding 'here': the CEL string \"step\" matches a stage of stage template 'helper' that is now 'draft'",
   );
 });
 
-Deno.test("eject: the same plugin twice, kept apart by the names given at the use site", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: the same stage template twice, kept apart by the names given at the use site", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   const stages = base.stages as Record<string, unknown>[];
   // plan -> review -> design -> check-design -> implement
   (stages[1].transitions as { name: string; to: string }[])[0].to = "design";
@@ -517,20 +537,22 @@ Deno.test("eject: the same plugin twice, kept apart by the names given at the us
     ],
   });
   const once = ok(
-    ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+    applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+      replace: "review",
+    }),
   ).lifecycle;
   assertMentions(
     errorsOf(
-      ejectPlugin(once, await reviewPlan(), {
+      applyStageTemplate(once, await reviewPlan(), {
         replace: "check-design",
         inputs: { plan: "design" },
       }),
     ),
-    "stage 'review' of plugin 'review-plan' clashes with stage 'review' of lifecycle 'plan-then-build'; name it with names.stages.review",
-    "artifact 'plan-review' of plugin 'review-plan' clashes with artifact 'plan-review' of lifecycle 'plan-then-build'; name it with names.artifacts.plan-review",
+    "stage 'review' of stage template 'review-plan' clashes with stage 'review' of lifecycle 'plan-then-build'; name it with names.stages.review",
+    "artifact 'plan-review' of stage template 'review-plan' clashes with artifact 'plan-review' of lifecycle 'plan-then-build'; name it with names.artifacts.plan-review",
   );
   const { lifecycle: twice } = ok(
-    ejectPlugin(once, await reviewPlan(), {
+    applyStageTemplate(once, await reviewPlan(), {
       replace: "check-design",
       inputs: { plan: "design" },
       names: {
@@ -566,8 +588,8 @@ Deno.test("eject: the same plugin twice, kept apart by the names given at the us
   ]);
 });
 
-Deno.test("eject: two plugin stages renamed alike are refused", () => {
-  const helper = plugin(`
+Deno.test("apply: two stage-template stages renamed alike are refused", () => {
+  const helper = template(`
 contract:
   exits: [{ name: done }]
 stages:
@@ -587,17 +609,17 @@ stages:
 `);
   assertMentions(
     errorsOf(
-      ejectPlugin(base, helper, {
+      applyStageTemplate(base, helper, {
         replace: "slot",
         names: { stages: { a: "same", b: "same" } },
       }),
     ),
-    "stages 'a' and 'b' of plugin 'helper' are both named 'same'",
+    "stages 'a' and 'b' of stage template 'helper' are both named 'same'",
   );
 });
 
-Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a global transition, is warned about", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a CEL string naming a renamed product, or the placeholder in a global transition, is warned about", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   base.globalTransitions = [{
     name: "second-look",
     to: "plan",
@@ -610,16 +632,16 @@ Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a
       },
     ],
   }];
-  const doc = await raw("plugins/review-plan.yaml");
+  const doc = await raw("templates/review-plan.yaml");
   const review = (doc.stages as { work: Record<string, unknown> }[])[0];
   review.work.bindings = {
     open: 'artifacts.exists(k, k == "plan-review")',
     failed: 'validations["artifacts"]["plan-review"]',
   };
-  const instance = instantiatePlugin(doc);
+  const instance = instantiateStageTemplate(doc);
   if (!instance.ok) throw new Error(instance.errors.join("\n"));
   const { lifecycle: out, warnings } = ok(
-    ejectPlugin(asLifecycle(base), instance.plugin, {
+    applyStageTemplate(asLifecycle(base), instance.template, {
       replace: "review",
       names: { artifacts: { "plan-review": "critique" } },
     }),
@@ -630,7 +652,7 @@ Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a
   });
   assertMentions(
     warnings,
-    "stage 'review' of plugin 'review-plan', binding 'open': the CEL string \"plan-review\" matches a product of plugin 'review-plan' that is now artifact 'critique'",
+    "stage 'review' of stage template 'review-plan', binding 'open': the CEL string \"plan-review\" matches a product of stage template 'review-plan' that is now artifact 'critique'",
     "global transition 'second-look' of lifecycle 'plan-then-build': the CEL string \"review\" matches the placeholder stage",
   );
   assert(
@@ -647,20 +669,20 @@ Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a
   );
 });
 
-Deno.test("eject: a product may not take a name the lifecycle uses for the other kind", async () => {
+Deno.test("apply: a product may not take a name the lifecycle uses for the other kind", async () => {
   assertMentions(
     errorsOf(
-      ejectPlugin(await target(), await reviewPlan(), {
+      applyStageTemplate(await target(), await reviewPlan(), {
         replace: "review",
         names: { artifacts: { "plan-review": "change" } },
       }),
     ),
-    "artifact 'plan-review' of plugin 'review-plan' (named 'change') clashes with evidence 'change' of lifecycle 'plan-then-build'; name it with names.artifacts.plan-review",
+    "artifact 'plan-review' of stage template 'review-plan' (named 'change') clashes with evidence 'change' of lifecycle 'plan-then-build'; name it with names.artifacts.plan-review",
   );
 });
 
-Deno.test("eject: names that are also JavaScript object properties are ordinary names", () => {
-  const helper = plugin(`
+Deno.test("apply: names that are also JavaScript object properties are ordinary names", () => {
+  const helper = template(`
 contract:
   exits: [{ name: constructor }]
 stages:
@@ -678,7 +700,7 @@ stages:
     terminal: true
 `);
   const { lifecycle: out } = ok(
-    ejectPlugin(base, helper, {
+    applyStageTemplate(base, helper, {
       replace: "slot",
       exits: {},
       inputs: {},
@@ -690,15 +712,15 @@ stages:
 
 // --- the composed lifecycle is checked -----------------------------------------------
 
-Deno.test("eject: graph errors on the result name the stage and where it came from", async () => {
+Deno.test("apply: graph errors on the result name the stage and where it came from", async () => {
   const errors = errorsOf(
-    ejectPlugin(
+    applyStageTemplate(
       await target(),
       await reviewPlan(),
       {
         replace: "review",
         exits: { approved: "plan" },
-      } satisfies EjectOptions,
+      } satisfies ApplyOptions,
     ),
   );
   assertMentions(
@@ -761,27 +783,31 @@ Deno.test("rewriteCel: other maps and dynamic keys are left alone; string litera
 
 // --- projection hints -------------------------------------------------------------
 
-Deno.test("eject: a plugin stage's projection hint is carried into the lifecycle", async () => {
-  const doc = await raw("plugins/review-plan.yaml");
+Deno.test("apply: a projection hint on a stage template's stage is carried into the lifecycle", async () => {
+  const doc = await raw("templates/review-plan.yaml");
   (doc.stages as Record<string, unknown>[])[0].projection = {
     status: "triaged",
   };
-  const instantiated = instantiatePlugin(doc, undefined);
+  const instantiated = instantiateStageTemplate(doc, undefined);
   if (!instantiated.ok) throw new Error(instantiated.errors.join("\n"));
   const { lifecycle: out } = ok(
-    ejectPlugin(await target(), instantiated.plugin, { replace: "review" }),
+    applyStageTemplate(await target(), instantiated.template, {
+      replace: "review",
+    }),
   );
   assertEquals(stage(out, "review").projection, { status: "triaged" });
 });
 
-Deno.test("eject: a placeholder may not declare a projection hint; the plugin's stages carry their own", async () => {
-  const base = await raw("lifecycles/eject-target.yaml");
+Deno.test("apply: a placeholder may not declare a projection hint; the stage template's stages carry their own", async () => {
+  const base = await raw("lifecycles/apply-target.yaml");
   (base.stages as Record<string, unknown>[])[1].projection = {
     status: "triaged",
   };
   assertMentions(
     errorsOf(
-      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+      applyStageTemplate(asLifecycle(base), await reviewPlan(), {
+        replace: "review",
+      }),
     ),
     "replace: stage 'review' is not a bare placeholder (it declares projection)",
   );

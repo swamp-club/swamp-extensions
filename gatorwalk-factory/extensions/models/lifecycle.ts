@@ -16,9 +16,9 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  type EjectArgs,
-  EJECTED_SPEC,
-  ejectMethod,
+  APPLIED_SPEC,
+  type ApplyArgs,
+  applyMethod,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
@@ -37,7 +37,7 @@ import {
 // the validate method (schema, then graph analysis), and its schema check runs
 // again whenever a work item starts.
 //
-// eject copies a plugin holder's stages into this lifecycle in place of a
+// apply copies a template holder's stages into this lifecycle in place of a
 // placeholder stage, and hands the result back to be saved; it never edits
 // the holder's definition.
 // ---------------------------------------------------------------------------
@@ -69,13 +69,13 @@ export const model = {
       lifetime: "infinite" as const,
       garbageCollection: 10,
     },
-    [EJECTED_SPEC]: {
+    [APPLIED_SPEC]: {
       description:
-        "The lifecycle the last eject composed, to be saved as this holder's " +
+        "The lifecycle the last apply composed, to be saved as this holder's " +
         "globalArguments",
       schema: z.object({
         holder: z.string(),
-        plugin: z.string(),
+        template: z.string(),
         replace: z.string(),
         digest: z.string(),
         lifecycle: z.record(z.string(), z.unknown()),
@@ -101,13 +101,13 @@ export const model = {
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         newKey(context),
     },
-    eject: {
+    apply: {
       description:
-        "Compose a plugin holder's stages into this lifecycle in place of a placeholder stage, check the result, and hand it back to be saved",
+        "Compose a template holder's stages into this lifecycle in place of a placeholder stage, check the result, and hand it back to be saved",
       arguments: z.object({
-        plugin: z.string().min(1).describe("The plugin holder's name"),
+        template: z.string().min(1).describe("The template holder's name"),
         replace: z.string().min(1).describe(
-          "The placeholder stage the plugin's stages replace",
+          "The placeholder stage the stage template's stages replace",
         ),
         exits: ObjectInput.optional().describe(
           "Contract exit -> stage (JSON object); defaults to the " +
@@ -118,15 +118,15 @@ export const model = {
             "defaults to the same name",
         ),
         names: ObjectInput.optional().describe(
-          "Renames of the plugin's stages, artifacts and evidence (JSON " +
+          "Renames of the stage template's stages, artifacts and evidence (JSON " +
             "object with stages, artifacts, evidence maps)",
         ),
         params: ObjectInput.optional().describe(
-          "The plugin's parameter values (JSON object); defaults fill the rest",
+          "The stage template's parameter values (JSON object); defaults fill the rest",
         ),
       }),
-      execute: (args: EjectArgs, context: MethodContextLike) =>
-        ejectMethod(context, args),
+      execute: (args: ApplyArgs, context: MethodContextLike) =>
+        applyMethod(context, args),
     },
   },
 };

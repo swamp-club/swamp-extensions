@@ -19,15 +19,15 @@ import {
   type GateSpec,
   type Lifecycle,
   maxCyclesFor,
-  type Plugin,
   type StageSpec,
+  type StageTemplate,
   type TransitionSpec,
 } from "./lifecycle_schema.ts";
 
 // ---------------------------------------------------------------------------
-// Graph analysis of a parsed lifecycle or plugin: the design problems a work
-// item would otherwise hit at run time. The schema (lifecycle_schema.ts) has
-// already checked shape and references, so every name here resolves.
+// Graph analysis of a parsed lifecycle or stage template: the design problems a
+// work item would otherwise hit at run time. The schema (lifecycle_schema.ts)
+// has already checked shape and references, so every name here resolves.
 //
 // Two explorations of abstract run states, both breadth-first so each state
 // keeps its shortest trace from the initial stage:
@@ -99,7 +99,7 @@ interface Edge {
   transition: TransitionSpec;
   path: Path;
   global: boolean;
-  /** Target stage, or undefined for a plugin exit. */
+  /** Target stage, or undefined for a stage template exit. */
   to?: string;
   exit?: string;
   /** Why the transition's own requirements can never all hold, or null. */
@@ -107,7 +107,7 @@ interface Edge {
 }
 
 interface Graph {
-  plugin: boolean;
+  template: boolean;
   stages: Map<string, StageSpec>;
   stageIndex: Map<string, number>;
   initial: string;
@@ -115,15 +115,15 @@ interface Graph {
   outgoing: Map<string, Edge[]>;
   artifactProducers: Map<string, Set<string>>;
   evidenceProducers: Map<string, Set<string>>;
-  /** Plugin contract inputs, present from the start. */
+  /** Stage template contract inputs, present from the start. */
   inputArtifacts: Set<string>;
   inputEvidence: Set<string>;
   /** Artifact name -> the artifact it reviews. */
   reviews: Map<string, string>;
 }
 
-function buildGraph(doc: Lifecycle | Plugin): Graph {
-  const plugin = "contract" in doc;
+function buildGraph(doc: Lifecycle | StageTemplate): Graph {
+  const template = "contract" in doc;
   const stages = new Map<string, StageSpec>();
   const stageIndex = new Map<string, number>();
   const artifactProducers = new Map<string, Set<string>>();
@@ -145,8 +145,8 @@ function buildGraph(doc: Lifecycle | Plugin): Graph {
       add(evidenceProducers, stage.work.resultEvidence, stage.id);
     }
   });
-  const inputs = plugin ? doc.contract.inputs ?? [] : [];
-  const globals = plugin ? [] : doc.globalTransitions ?? [];
+  const inputs = template ? doc.contract.inputs ?? [] : [];
+  const globals = template ? [] : doc.globalTransitions ?? [];
   const edges: Edge[] = [];
   const outgoing = new Map<string, Edge[]>();
   doc.stages.forEach((stage, i) => {
@@ -182,7 +182,7 @@ function buildGraph(doc: Lifecycle | Plugin): Graph {
     throw new Error("the document has no initial stage (it was not parsed)");
   }
   return {
-    plugin,
+    template,
     stages,
     stageIndex,
     initial: initial.id,
@@ -738,11 +738,11 @@ export interface MissingOnEntry {
 /**
  * Products that some path into `stage` enters it without, by the structural
  * pass: a product is there once a stage that produces it has been entered.
- * Eject uses it to check a plugin's contract inputs on the composed
+ * Apply uses it to check a stage template's contract inputs on the composed
  * lifecycle, including inputs only a CEL binding reads.
  */
 export function productsMissingOnEntry(
-  doc: Lifecycle | Plugin,
+  doc: Lifecycle | StageTemplate,
   stage: string,
   products: { kind: ProductKind; name: string }[],
   options: AnalyzeOptions = {},
@@ -767,11 +767,11 @@ export function productsMissingOnEntry(
 }
 
 /**
- * Analyse a parsed lifecycle or plugin. Errors are problems a work item will
- * hit; warnings are designs worth a second look.
+ * Analyse a parsed lifecycle or stage template. Errors are problems a work item
+ * will hit; warnings are designs worth a second look.
  */
 export function analyzeLifecycle(
-  doc: Lifecycle | Plugin,
+  doc: Lifecycle | StageTemplate,
   options: AnalyzeOptions = {},
 ): GraphReport {
   const maxStates = options.maxStates ?? DEFAULT_MAX_STATES;
@@ -812,8 +812,8 @@ export function analyzeLifecycle(
       e.from === stage && e.to !== undefined && (withGlobals || !e.global)
     ).map((e) => e.to as string);
 
-  // Stages that can finish: reach a terminal stage (or, in a plugin, take a
-  // contract exit) over live edges.
+  // Stages that can finish: reach a terminal stage (or, in a stage template,
+  // take a contract exit) over live edges.
   const finishers = (withGlobals: boolean): Set<string> => {
     const done = new Set<string>();
     for (const [id, stage] of g.stages) {
@@ -838,7 +838,7 @@ export function analyzeLifecycle(
   };
   const canFinish = finishers(true);
   const canFinishAlone = finishers(false);
-  const goal = g.plugin ? "a contract exit" : "a terminal stage";
+  const goal = g.template ? "a contract exit" : "a terminal stage";
 
   for (const [id, stage] of g.stages) {
     if (!structure.reached.has(id)) {

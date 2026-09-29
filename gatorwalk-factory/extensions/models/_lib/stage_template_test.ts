@@ -16,10 +16,13 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
-import { findPlaceholders, instantiatePlugin } from "./plugin_instance.ts";
+import {
+  findPlaceholders,
+  instantiateStageTemplate,
+} from "./stage_template.ts";
 
 const REVIEW_PLAN = new URL(
-  "../../../testdata/plugins/review-plan.yaml",
+  "../../../testdata/templates/review-plan.yaml",
   import.meta.url,
 );
 
@@ -30,7 +33,9 @@ async function reviewPlan(): Promise<Record<string, unknown>> {
   >;
 }
 
-function errorsOf(result: ReturnType<typeof instantiatePlugin>): string[] {
+function errorsOf(
+  result: ReturnType<typeof instantiateStageTemplate>,
+): string[] {
   return result.ok ? [] : result.errors;
 }
 
@@ -58,9 +63,9 @@ Deno.test("placeholders: found with their paths; an object with other keys is no
 });
 
 Deno.test("instantiate: defaults fill every placeholder", async () => {
-  const result = instantiatePlugin(await reviewPlan());
+  const result = instantiateStageTemplate(await reviewPlan());
   assert(result.ok, errorsOf(result).join("\n"));
-  const stage = result.plugin.stages[0];
+  const stage = result.template.stages[0];
   assertEquals(stage.work?.skills, ["adversarial-review"]);
   assertEquals(stage.transitions?.[0].gates?.[1], {
     type: "findings-clear",
@@ -73,20 +78,20 @@ Deno.test("instantiate: defaults fill every placeholder", async () => {
 });
 
 Deno.test("instantiate: given values replace defaults, whole", async () => {
-  const result = instantiatePlugin(await reviewPlan(), {
+  const result = instantiateStageTemplate(await reviewPlan(), {
     blocking: ["critical"],
   });
   assert(result.ok, errorsOf(result).join("\n"));
-  const gate = result.plugin.stages[0].transitions?.[0].gates?.[1];
+  const gate = result.template.stages[0].transitions?.[0].gates?.[1];
   assertEquals(gate?.type === "findings-clear" && gate.config.blocking, [
     "critical",
   ]);
-  assertEquals(result.plugin.stages[0].work?.skills, ["adversarial-review"]);
+  assertEquals(result.template.stages[0].work?.skills, ["adversarial-review"]);
 });
 
 Deno.test("instantiate: values are checked against the parameters schema", async () => {
   const errors = errorsOf(
-    instantiatePlugin(await reviewPlan(), {
+    instantiateStageTemplate(await reviewPlan(), {
       blocking: ["urgent"],
       reviewer: "bob",
     }),
@@ -102,7 +107,7 @@ Deno.test("instantiate: a placeholder must name a declared parameter, outside th
   const contract = doc.contract as { exits: unknown[] };
   contract.exits.push({ name: { $param: "skills" } });
   assertMentions(
-    errorsOf(instantiatePlugin(doc)),
+    errorsOf(instantiateStageTemplate(doc)),
     "stages.0.work.constraints: $param 'tone' is not a parameter the contract declares (skills, blocking)",
     "contract.exits.2.name: a parameter cannot be used in the contract",
   );
@@ -115,12 +120,12 @@ Deno.test("instantiate: a used parameter with no value and no default is an erro
   delete (parameters.properties as { skills: { default?: unknown } }).skills
     .default;
   assertMentions(
-    errorsOf(instantiatePlugin(doc)),
+    errorsOf(instantiateStageTemplate(doc)),
     "stages.0.work.skills: parameter 'skills' has no value and no default",
   );
 });
 
-Deno.test("instantiate: values for a plugin without parameters are refused", async () => {
+Deno.test("instantiate: values for a stage template without parameters are refused", async () => {
   const doc = await reviewPlan();
   delete (doc.contract as Record<string, unknown>).parameters;
   const stages = doc.stages as {
@@ -129,17 +134,17 @@ Deno.test("instantiate: values for a plugin without parameters are refused", asy
   }[];
   stages[0].work.skills = ["adversarial-review"];
   stages[0].transitions[0].gates[1].config.blocking = ["critical"];
-  assert(instantiatePlugin(doc).ok);
+  assert(instantiateStageTemplate(doc).ok);
   assertMentions(
-    errorsOf(instantiatePlugin(doc, { skills: ["x"] })),
-    "params: the plugin declares no parameters",
+    errorsOf(instantiateStageTemplate(doc, { skills: ["x"] })),
+    "params: the stage template declares no parameters",
   );
 });
 
 Deno.test("instantiate: an invalid parameters schema reports only its own errors", async () => {
   const doc = await reviewPlan();
   (doc.contract as Record<string, unknown>).parameters = { type: "array" };
-  const errors = errorsOf(instantiatePlugin(doc));
+  const errors = errorsOf(instantiateStageTemplate(doc));
   assert(errors.length > 0);
   assert(
     errors.every((e) => e.startsWith("contract.parameters")),
@@ -147,18 +152,21 @@ Deno.test("instantiate: an invalid parameters schema reports only its own errors
   );
 });
 
-Deno.test("instantiate: the filled-in document must be a valid plugin", async () => {
+Deno.test("instantiate: the filled-in document must be a valid stage template", async () => {
   const errors = errorsOf(
-    instantiatePlugin(await reviewPlan(), { skills: [] }),
+    instantiateStageTemplate(await reviewPlan(), { skills: [] }),
   );
   assertMentions(errors, "params.skills");
   const doc = await reviewPlan();
   const properties = (doc.contract as {
     parameters: { properties: Record<string, Record<string, unknown>> };
   }).parameters.properties;
-  // The parameter schema allows a value the plugin schema does not.
+  // The parameter schema allows a value the stage template schema does not.
   properties.skills = { type: "string", default: "one" };
-  assertMentions(errorsOf(instantiatePlugin(doc)), "stages.0.work.skills");
+  assertMentions(
+    errorsOf(instantiateStageTemplate(doc)),
+    "stages.0.work.skills",
+  );
 });
 
 Deno.test("instantiate: an object that looks like a placeholder but is not one is an error", async () => {
@@ -175,7 +183,7 @@ Deno.test("instantiate: an object that looks like a placeholder but is not one i
     },
   };
   delete stages[0].work.skills;
-  const errors = errorsOf(instantiatePlugin(doc));
+  const errors = errorsOf(instantiateStageTemplate(doc));
   assertMentions(
     errors,
     "stages.0.work.workflow.inputs.depth: a parameter placeholder is { $param: <name> }",

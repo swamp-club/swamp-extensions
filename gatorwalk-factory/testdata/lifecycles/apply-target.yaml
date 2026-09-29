@@ -1,6 +1,7 @@
 # A lifecycle sketched with a placeholder stage, review, where the
-# review-plan plugin is ejected (eject_test.ts, integration/cli_test.ts). The
-# placeholder's transitions name where each of the plugin's exits goes.
+# review-plan stage template is applied (apply_test.ts,
+# integration/cli_test.ts). The placeholder's transitions name where each of
+# the stage template's exits goes.
 schemaVersion: 1
 name: plan-then-build
 description: Plan, have the plan reviewed, build it.
@@ -24,7 +25,7 @@ stages:
           - type: artifact-exists
             config: { artifact: plan }
   - id: review
-    description: Placeholder for the review-plan plugin.
+    description: Placeholder for the review-plan stage template.
     transitions:
       - { name: approved, to: implement }
       - { name: rework, to: plan }

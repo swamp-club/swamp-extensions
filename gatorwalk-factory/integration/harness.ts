@@ -25,7 +25,7 @@ import { LINEAR_TYPE } from "../extensions/models/_lib/linear.ts";
 import { SWAMP_CLUB_TYPE } from "../extensions/models/_lib/swamp_club.ts";
 import {
   HOLDER_TYPE,
-  PLUGIN_TYPE,
+  STAGE_TEMPLATE_TYPE,
   WORK_ITEM_TYPE,
 } from "../extensions/models/_lib/work_item_ops.ts";
 
@@ -62,7 +62,7 @@ export const VERIFY_WORKFLOW = new URL(
 export {
   HOLDER_TYPE,
   LINEAR_TYPE,
-  PLUGIN_TYPE,
+  STAGE_TEMPLATE_TYPE,
   SWAMP_CLUB_TYPE,
   WORK_ITEM_TYPE,
 };
@@ -114,11 +114,11 @@ export interface SwampRepo {
   >;
   /** Create a lifecycle holder whose globalArguments are `lifecycle`. */
   holder(name: string, lifecycle: unknown): Promise<void>;
-  /** Create a plugin holder whose globalArguments are `plugin`. */
-  pluginHolder(name: string, plugin: unknown): Promise<void>;
+  /** Create a template holder whose globalArguments are `template`. */
+  templateHolder(name: string, template: unknown): Promise<void>;
   /** Replace a holder's lifecycle, as `swamp model edit` would. */
   editHolder(name: string, lifecycle: unknown): Promise<void>;
-  /** Run a holder (or plugin holder) method by name. */
+  /** Run a holder (or template holder) method by name. */
   holderMethod(
     name: string,
     method: string,
@@ -267,7 +267,8 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     dir,
     swamp,
     holder: (name, lifecycle) => createHolder(HOLDER_TYPE, name, lifecycle),
-    pluginHolder: (name, plugin) => createHolder(PLUGIN_TYPE, name, plugin),
+    templateHolder: (name, template) =>
+      createHolder(STAGE_TEMPLATE_TYPE, name, template),
     editHolder: writeHolder,
     holderMethod: (name, method, options = {}) =>
       swamp(

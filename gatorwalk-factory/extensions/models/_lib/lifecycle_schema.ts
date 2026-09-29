@@ -26,7 +26,7 @@ import type { CelContext } from "./cel_context.ts";
 import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 
 // ---------------------------------------------------------------------------
-// The lifecycle meta-schema: what a gatorwalk lifecycle (and a stage plugin)
+// The lifecycle meta-schema: what a gatorwalk lifecycle (and a stage template)
 // looks like as data. Ported from @swamp/software-factory's definition
 // schema, with three changes:
 //
@@ -43,8 +43,8 @@ import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 //   exits) is in graph.ts.
 //
 // Structure is by identity, never by name convention: a transition leaves a
-// plugin through `exit`, not a specially spelt `to`; the resultEvidence of a
-// stage and an evidence entry of the same name on that stage are one
+// stage template through `exit`, not a specially spelt `to`; the resultEvidence
+// of a stage and an evidence entry of the same name on that stage are one
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
@@ -95,7 +95,7 @@ const TEMPLATE_OPEN = "${{";
 /**
  * The names CEL reads from its context (cel_context.ts). A macro or cel.bind
  * variable may not reuse one: it would hide the context's value for the rest
- * of the expression, and eject renames products on the assumption that these
+ * of the expression, and apply renames products on the assumption that these
  * names always mean the context's.
  */
 export const CEL_VOCABULARY = [
@@ -519,7 +519,7 @@ export const TransitionSchema = z.strictObject({
   name: NameSchema,
   /** Target stage. */
   to: NameSchema.optional(),
-  /** Target contract exit; only inside a plugin. */
+  /** Target contract exit; only inside a stage template. */
   exit: NameSchema.optional(),
   description: z.string().optional(),
   /** Require an explicit human "go" even when every gate passes. */
@@ -527,7 +527,7 @@ export const TransitionSchema = z.strictObject({
   gates: z.array(GateSchema).optional(),
 }).refine(
   (t) => (t.to === undefined) !== (t.exit === undefined),
-  "a transition has exactly one of 'to' (a stage) or 'exit' (a plugin exit)",
+  "a transition has exactly one of 'to' (a stage) or 'exit' (a stage template exit)",
 );
 
 export type TransitionSpec = z.infer<typeof TransitionSchema>;
@@ -556,7 +556,7 @@ export const StageSchema = z.strictObject({
 export type StageSpec = z.infer<typeof StageSchema>;
 
 // ---------------------------------------------------------------------------
-// Plugin contract
+// Stage template contract
 // ---------------------------------------------------------------------------
 
 export const ContractPortSchema = z.strictObject({
@@ -573,9 +573,9 @@ export const ContractExitSchema = z.strictObject({
 });
 
 export const ContractSchema = z.strictObject({
-  /** Products the plugin consumes, declared by whatever precedes it. */
+  /** Products the stage template consumes, declared by whatever precedes it. */
   inputs: z.array(ContractPortSchema).optional(),
-  /** Products the plugin's own stages declare and hand on. */
+  /** Products the stage template's own stages declare and hand on. */
   outputs: z.array(ContractPortSchema).optional(),
   /** Named ways out; the using lifecycle wires each to a stage. */
   exits: z.array(ContractExitSchema).min(1),
@@ -609,15 +609,15 @@ export const LifecycleSchema = z.strictObject({
 export type Lifecycle = z.infer<typeof LifecycleSchema>;
 
 /**
- * A stage plugin: a stage or group of stages with a contract. It is entered
+ * A stage template: a stage or group of stages with a contract. It is entered
  * at its initial stage and left only through its contract exits.
  */
-export const PluginSchema = z.strictObject({
+export const StageTemplateSchema = z.strictObject({
   ...DOCUMENT_FIELDS,
   contract: ContractSchema,
 }).superRefine((doc, ctx) => checkDocument(doc, ctx));
 
-export type Plugin = z.infer<typeof PluginSchema>;
+export type StageTemplate = z.infer<typeof StageTemplateSchema>;
 
 type Doc = {
   stages: StageSpec[];
@@ -627,12 +627,12 @@ type Doc = {
 
 type Path = (string | number)[];
 
-/** Cross-reference checks over a whole lifecycle or plugin. */
+/** Cross-reference checks over a whole lifecycle or stage template. */
 function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
   const fail = (path: Path, message: string) =>
     ctx.addIssue({ code: "custom", path, message });
-  const plugin = doc.contract !== undefined;
-  const kindName = plugin ? "plugin" : "lifecycle";
+  const template = doc.contract !== undefined;
+  const kindName = template ? "stage template" : "lifecycle";
 
   // Stages: unique ids, one initial, terminals only in a lifecycle.
   const stageIds = new Set<string>();
@@ -647,10 +647,10 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         `stage '${stage.id}' cannot be both initial and terminal`,
       );
     }
-    if (plugin && stage.terminal === true) {
+    if (template && stage.terminal === true) {
       fail(
         ["stages", i, "terminal"],
-        "a plugin has no terminal stages; it is left through its contract exits",
+        "a stage template has no terminal stages; it is left through its contract exits",
       );
     }
   });
@@ -661,7 +661,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       `exactly one stage must declare initial: true (found ${initials})`,
     );
   }
-  if (!plugin && !doc.stages.some((s) => s.terminal === true)) {
+  if (!template && !doc.stages.some((s) => s.terminal === true)) {
     fail(["stages"], "at least one stage must declare terminal: true");
   }
 
@@ -712,7 +712,8 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     for (const name of own) evidence.add(name);
   });
 
-  // Plugin ports: inputs come from outside, outputs from the plugin's stages.
+  // Stage template ports: inputs come from outside, outputs from the stage
+  // template's stages.
   const contract = doc.contract;
   if (contract !== undefined) {
     const seen = new Set<string>();
@@ -735,7 +736,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (declared) {
         fail(
           path,
-          `input ${port.kind} '${port.name}' is declared by the plugin's own stages; list it as an output instead`,
+          `input ${port.kind} '${port.name}' is declared by the stage template's own stages; list it as an output instead`,
         );
       }
     });
@@ -748,7 +749,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (!declared) {
         fail(
           path,
-          `output ${port.kind} '${port.name}' is not declared by any of the plugin's stages`,
+          `output ${port.kind} '${port.name}' is not declared by any of the stage template's stages`,
         );
       }
     });
@@ -924,10 +925,10 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         fail([...path, "to"], `targets unknown stage '${t.to}'`);
       }
       if (t.exit !== undefined) {
-        if (!plugin) {
+        if (!template) {
           fail(
             [...path, "exit"],
-            "'exit' is only valid inside a plugin; use 'to'",
+            "'exit' is only valid inside a stage template; use 'to'",
           );
         } else if (!exits.has(t.exit)) {
           fail(
@@ -1049,8 +1050,8 @@ export function parseLifecycle(raw: unknown): ParseResult<Lifecycle> {
     : { ok: false, errors: formatIssues(result.error) };
 }
 
-export function parsePlugin(raw: unknown): ParseResult<Plugin> {
-  const result = PluginSchema.safeParse(raw);
+export function parseStageTemplate(raw: unknown): ParseResult<StageTemplate> {
+  const result = StageTemplateSchema.safeParse(raw);
   return result.success
     ? { ok: true, value: result.data }
     : { ok: false, errors: formatIssues(result.error) };

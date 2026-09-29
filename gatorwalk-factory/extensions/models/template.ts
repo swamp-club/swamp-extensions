@@ -18,24 +18,25 @@ import { z } from "npm:zod@4.3.6";
 import {
   type MethodContextLike,
   ObjectInput,
-  validatePluginHolder,
+  validateStageTemplateHolder,
 } from "./_lib/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
-// The plugin holder: a model instance whose globalArguments are a stage
-// plugin, a stage or small group of stages with a contract. A lifecycle
-// holder's eject method copies its stages into a lifecycle; nothing refers to
-// the plugin after that.
+// The template holder: a model instance whose globalArguments are a stage
+// template, a stage or small group of stages with a contract. A lifecycle
+// holder's apply method copies its stages into a lifecycle; nothing refers to
+// the stage template after that. Not to be confused with _lib/template.ts,
+// the {{name}} placeholders in prompts.
 //
 // The globalArguments schema is plain for the same reason as the lifecycle
-// holder's (swamp's .partial() and zod refinements), and because a plugin's
-// $param placeholders only become valid values once its parameters are
-// filled in. The full check is the validate method.
+// holder's (swamp's .partial() and zod refinements), and because a stage
+// template's $param placeholders only become valid values once its parameters
+// are filled in. The full check is the validate method.
 // ---------------------------------------------------------------------------
 
-export const PluginArgumentsSchema = z.object({
+export const StageTemplateArgumentsSchema = z.object({
   schemaVersion: z.number().describe("The lifecycle format version (1)"),
-  name: z.string().describe("The plugin's name"),
+  name: z.string().describe("The stage template's name"),
   description: z.string().optional(),
   contract: z.record(z.string(), z.unknown()).describe(
     "Inputs, outputs, exits and parameters; checked in full by validate",
@@ -47,14 +48,14 @@ export const PluginArgumentsSchema = z.object({
 
 export const model = {
   // A string literal: swamp reads the type from the source without running
-  // it. plugin_test checks it equals PLUGIN_TYPE.
-  type: "@swamp/gatorwalk-factory/plugin",
+  // it. template_test checks it equals STAGE_TEMPLATE_TYPE.
+  type: "@swamp/gatorwalk-factory/template",
   version: "2026.09.28.1",
-  globalArguments: PluginArgumentsSchema,
+  globalArguments: StageTemplateArgumentsSchema,
   methods: {
     validate: {
       description:
-        "Fill in the plugin's parameters, check it in full, analyse it as a graph, and report every problem with its path",
+        "Fill in the stage template's parameters, check it in full, analyse it as a graph, and report every problem with its path",
       kind: "read" as const,
       arguments: z.object({
         params: ObjectInput.optional().describe(
@@ -64,7 +65,7 @@ export const model = {
       execute: (
         args: { params?: Record<string, unknown> | string },
         context: MethodContextLike,
-      ) => validatePluginHolder(context, args),
+      ) => validateStageTemplateHolder(context, args),
     },
   },
 };

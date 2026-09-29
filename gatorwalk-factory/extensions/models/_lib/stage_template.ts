@@ -16,21 +16,21 @@
 
 import {
   ObjectPayloadSchemaSchema,
-  parsePlugin,
-  type Plugin,
+  parseStageTemplate,
+  type StageTemplate,
 } from "./lifecycle_schema.ts";
 import { type PayloadSchema, validatePayload } from "./payload_schema.ts";
 
 // ---------------------------------------------------------------------------
-// Parameters of a stage plugin. A plugin document may hold a placeholder,
-// `{ $param: <name> }`, wherever a value goes; instantiating the plugin
-// replaces each with the parameter's value, whole. There is no substitution
-// inside strings. The values are checked against the contract's `parameters`
-// schema, and a parameter left out takes its schema `default` (top-level
-// properties only: the validator does not apply defaults). An object that
-// looks like a placeholder but is not one is an error, never kept silently.
-// The result must then be a valid plugin. See DESIGN.md, "Stage plugins:
-// eject only".
+// Parameters of a stage template. A stage template document may hold a
+// placeholder, `{ $param: <name> }`, wherever a value goes; instantiating the
+// stage template replaces each with the parameter's value, whole. There is no
+// substitution inside strings. The values are checked against the contract's
+// `parameters` schema, and a parameter left out takes its schema `default`
+// (top-level properties only: the validator does not apply defaults). An object
+// that looks like a placeholder but is not one is an error, never kept
+// silently. The result must then be a valid stage template. See DESIGN.md,
+// "Stage templates: apply only".
 // ---------------------------------------------------------------------------
 
 /** The key of a parameter placeholder, the only key of its object. */
@@ -119,19 +119,19 @@ function substitute(node: unknown, values: Record<string, unknown>): unknown {
 }
 
 export type InstanceResult =
-  | { ok: true; plugin: Plugin; params: Record<string, unknown> }
+  | { ok: true; template: StageTemplate; params: Record<string, unknown> }
   | { ok: false; errors: string[] };
 
 /**
- * A plugin with its parameters filled in: the given values, then schema
+ * A stage template with its parameters filled in: the given values, then schema
  * defaults. Returns every error, each with its document path.
  */
-export function instantiatePlugin(
+export function instantiateStageTemplate(
   raw: unknown,
   params: Record<string, unknown> = {},
 ): InstanceResult {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    return { ok: false, errors: ["(root): a plugin is an object"] };
+    return { ok: false, errors: ["(root): a stage template is an object"] };
   }
   const doc = raw as Record<string, unknown>;
   const errors: string[] = [];
@@ -144,8 +144,8 @@ export function instantiatePlugin(
   if (rawSchema !== undefined) {
     const parsed = ObjectPayloadSchemaSchema.safeParse(rawSchema);
     if (!parsed.success) {
-      // parsePlugin reports these with their paths.
-      return parsePluginErrors(doc);
+      // parseStageTemplate reports these with their paths.
+      return parseStageTemplateErrors(doc);
     }
     schema = parsed.data;
   }
@@ -180,7 +180,7 @@ export function instantiatePlugin(
   }
 
   if (schema === undefined && Object.keys(params).length > 0) {
-    errors.push("params: the plugin declares no parameters");
+    errors.push("params: the stage template declares no parameters");
   }
   const values: Record<string, unknown> = {};
   for (const [name, property] of Object.entries(properties)) {
@@ -217,16 +217,18 @@ export function instantiatePlugin(
   }
   if (errors.length > 0) return { ok: false, errors };
 
-  const parsed = parsePlugin(substitute(doc, values));
+  const parsed = parseStageTemplate(substitute(doc, values));
   return parsed.ok
-    ? { ok: true, plugin: parsed.value, params: values }
+    ? { ok: true, template: parsed.value, params: values }
     : { ok: false, errors: parsed.errors };
 }
 
-function parsePluginErrors(doc: Record<string, unknown>): InstanceResult {
+function parseStageTemplateErrors(
+  doc: Record<string, unknown>,
+): InstanceResult {
   // Only the parameters schema's own errors: placeholders elsewhere would
   // add noise until it is fixed.
-  const parsed = parsePlugin(doc);
+  const parsed = parseStageTemplate(doc);
   const errors = parsed.ok
     ? []
     : parsed.errors.filter((e) => e.startsWith("contract.parameters"));

@@ -21,7 +21,7 @@ import {
   parseLifecycle,
   transitionsFrom,
 } from "./lifecycle_schema.ts";
-import { instantiatePlugin } from "./plugin_instance.ts";
+import { instantiateStageTemplate } from "./stage_template.ts";
 
 const TESTDATA = new URL("../../../testdata/", import.meta.url);
 
@@ -130,8 +130,10 @@ for (
   });
 }
 
-Deno.test("fixture: the review-plan plugin is valid with its default parameters", async () => {
-  const result = instantiatePlugin(await fixture("plugins/review-plan.yaml"));
+Deno.test("fixture: the review-plan stage template is valid with its default parameters", async () => {
+  const result = instantiateStageTemplate(
+    await fixture("templates/review-plan.yaml"),
+  );
   assertEquals(result.ok ? [] : result.errors, []);
 });
 
@@ -541,12 +543,12 @@ Deno.test("transitions: unique per stage, and distinct from global names", () =>
   );
 });
 
-Deno.test("transitions: exactly one of to and exit; exit only in plugins", () => {
+Deno.test("transitions: exactly one of to and exit; exit only in stage templates", () => {
   const doc = base();
   set(doc, "stages.0.transitions.0.exit", "approved");
   assertRejects(doc, "exactly one of 'to' (a stage) or 'exit'");
   del(doc, "stages.0.transitions.0.to");
-  assertRejects(doc, "'exit' is only valid inside a plugin");
+  assertRejects(doc, "'exit' is only valid inside a stage template");
 });
 
 // --- gates -------------------------------------------------------------------
@@ -584,16 +586,16 @@ Deno.test("gates: workflow-succeeded is not in the launch library", () => {
   assertRejects(doc, "stages.0.transitions.0.gates.0.type:");
 });
 
-// --- plugins -----------------------------------------------------------------
+// --- stage templates ---------------------------------------------------------
 
-async function pluginErrors(
+async function templateErrors(
   mutate: (doc: unknown) => void,
 ): Promise<string[]> {
-  const doc = await fixture("plugins/review-plan.yaml");
+  const doc = await fixture("templates/review-plan.yaml");
   mutate(doc);
   // Filled in with its defaults: the fixture's $param placeholders are only
   // valid values once instantiated.
-  const result = instantiatePlugin(doc);
+  const result = instantiateStageTemplate(doc);
   return result.ok ? [] : result.errors;
 }
 
@@ -608,9 +610,9 @@ function assertMentions(errors: string[], ...needles: string[]) {
   }
 }
 
-Deno.test("plugin: exits must exist and each must be used", async () => {
+Deno.test("stage template: exits must exist and each must be used", async () => {
   assertMentions(
-    await pluginErrors((doc) => {
+    await templateErrors((doc) => {
       set(doc, "stages.0.transitions.1.exit", "escalate");
     }),
     "stages.0.transitions.1.exit: targets 'escalate', which is not a contract exit",
@@ -618,29 +620,29 @@ Deno.test("plugin: exits must exist and each must be used", async () => {
   );
 });
 
-Deno.test("plugin: no terminal stages", async () => {
+Deno.test("stage template: no terminal stages", async () => {
   assertMentions(
-    await pluginErrors((doc) => {
+    await templateErrors((doc) => {
       push(doc, "stages", { id: "end", terminal: true });
     }),
-    "stages.1.terminal: a plugin has no terminal stages",
+    "stages.1.terminal: a stage template has no terminal stages",
   );
 });
 
-Deno.test("plugin: outputs are declared by its stages, inputs are not", async () => {
+Deno.test("stage template: outputs are declared by its stages, inputs are not", async () => {
   assertMentions(
-    await pluginErrors((doc) => {
+    await templateErrors((doc) => {
       push(doc, "contract.outputs", { kind: "evidence", name: "sign-off" });
       push(doc, "contract.inputs", { kind: "artifact", name: "plan-review" });
     }),
     "contract.outputs.1: output evidence 'sign-off' is not declared",
-    "contract.inputs.1: input artifact 'plan-review' is declared by the plugin's own stages",
+    "contract.inputs.1: input artifact 'plan-review' is declared by the stage template's own stages",
   );
 });
 
-Deno.test("plugin: gates may reference inputs, which are declared elsewhere", async () => {
+Deno.test("stage template: gates may reference inputs, which are declared elsewhere", async () => {
   assertEquals(
-    await pluginErrors((doc) => {
+    await templateErrors((doc) => {
       push(doc, "stages.0.transitions.0.gates", {
         type: "artifact-exists",
         config: { artifact: "plan" },
@@ -650,17 +652,17 @@ Deno.test("plugin: gates may reference inputs, which are declared elsewhere", as
   );
 });
 
-Deno.test("plugin: an evidence input may not share an artifact's name", async () => {
+Deno.test("stage template: an evidence input may not share an artifact's name", async () => {
   assertMentions(
-    await pluginErrors((doc) => {
+    await templateErrors((doc) => {
       push(doc, "contract.inputs", { kind: "evidence", name: "plan" });
     }),
     "contract.inputs.1.name: 'plan' names both an artifact and evidence",
   );
 });
 
-Deno.test("plugin: a lifecycle is not a plugin", async () => {
-  const doc = await fixture("plugins/review-plan.yaml");
+Deno.test("stage template: a lifecycle is not a stage template", async () => {
+  const doc = await fixture("templates/review-plan.yaml");
   assert(!parseLifecycle(doc).ok);
 });
 

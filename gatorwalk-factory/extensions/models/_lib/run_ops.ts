@@ -716,7 +716,7 @@ export async function advance(
   }
   if (transition.to === undefined) {
     return refuse(
-      `transition '${transition.name}' leaves through a plugin exit, which ` +
+      `transition '${transition.name}' leaves through a stage template exit, which ` +
         "needs a composed lifecycle",
     );
   }

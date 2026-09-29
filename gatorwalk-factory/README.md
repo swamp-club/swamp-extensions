@@ -17,12 +17,12 @@ adds the manifest and deletes that test.
 ```
 extensions/models/
   lifecycle.ts            the lifecycle holder model type
-  plugin.ts               the plugin holder model type
+  template.ts             the template holder model type
   work_item.ts            the work-item model type
   linear.ts               the Linear tracker adapter model type
   swamp_club.ts           the swamp-club Lab tracker adapter model type
   _lib/
-    lifecycle_schema.ts   the lifecycle and plugin meta-schema
+    lifecycle_schema.ts   the lifecycle and stage template meta-schema
     payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
     template.ts           {{name}} placeholders in prompts
     canonical.ts          JSON safety (CEL integers) and content digests
@@ -37,10 +37,10 @@ extensions/models/
     cel_context.ts        the CEL vocabulary for bindings, cel gates and when
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
-    graph.ts              graph analysis of a lifecycle or plugin
-    plugin_instance.ts    a plugin's $param placeholders, filled in
-    eject.ts              a plugin's stages, copied into a lifecycle
-    work_item_ops.ts      the methods of the holder, plugin holder and
+    graph.ts              graph analysis of a lifecycle or stage template
+    stage_template.ts     a stage template's $param placeholders, filled in
+    apply.ts              a stage template's stages, copied into a lifecycle
+    work_item_ops.ts      the methods of the holder, template holder and
                           work-item types
     tracker.ts            the tracker adapter contract
     tracker_methods.ts    the methods every tracker model has, and its ledger
@@ -63,8 +63,8 @@ lifecycles/               lifecycles gatorwalk-factory ships, and the
   references/             driving in full, and a worked example
 testdata/
   lifecycles/             software-factory's examples, ported, and a
-                          lifecycle to eject a plugin into
-  plugins/                stage plugins
+                          lifecycle to apply a stage template to
+  templates/              stage templates
 ```
 
 ## The lifecycle format
@@ -104,7 +104,7 @@ artifacts, evidence, transitions and gates. Three things change:
 - **The lifecycle is analysed as a graph** by `validate`. Errors are stages that
   cannot be reached, stages with no way to a terminal stage, transitions whose
   gates can never pass (such as `evidence-recorded` on evidence another stage
-  records), and plugin exits that nothing reaches. They fail `validate`.
+  records), and stage template exits that nothing reaches. They fail `validate`.
   Warnings are logged: exits that can pass together with no person choosing,
   loops whose only way out is a global transition such as `abandon`, loops
   bounded only by the default cycle limit, products that some path to a stage
@@ -117,12 +117,12 @@ artifacts, evidence, transitions and gates. Three things change:
   that key to. A stage without one leaves the ticket's status alone. See
   [DESIGN.md](DESIGN.md), "The projection publisher".
 
-A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
+A **stage template** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
 transitions leave through `exit:` rather than `to:`. A value anywhere in its
 stages may be a parameter placeholder, `{ $param: <name> }`, which is replaced
 whole by the parameter's value (or its schema `default`). See
-`testdata/plugins/review-plan.yaml`.
+`testdata/templates/review-plan.yaml`.
 
 ## Loops
 
@@ -153,47 +153,50 @@ cycle of it. The controls:
 See [DESIGN.md](DESIGN.md), "Loops and their controls", for each control with an
 example.
 
-## Stage plugins: eject
+## Stage templates: apply
 
-A plugin is a working starting point, not a dependency. It lives in a **plugin
-holder** (`@swamp/gatorwalk-factory/plugin`), and a lifecycle holder's `eject`
-method copies its stages into the lifecycle as ordinary stages, which you then
-save and edit freely. Nothing refers back to the plugin afterwards.
+A stage template is a working starting point, not a dependency. It lives in a
+**template holder** (`@swamp/gatorwalk-factory/template`), and a lifecycle
+holder's `apply` method copies its stages into the lifecycle as ordinary stages,
+which you then save and edit freely. Nothing refers back to the stage template
+afterwards.
 
-Sketch the lifecycle first, with a **placeholder stage** where the plugin goes.
-It is bare (only `id`, `description`, `initial` and `transitions`; no
-`projection`, since the plugin's stages carry their own status keys), and its
-transitions are named after the plugin's exits:
+Sketch the lifecycle first, with a **placeholder stage** where the stage
+template goes. It is bare (only `id`, `description`, `initial` and
+`transitions`; no `projection`, since the stage template's stages carry their
+own status keys), and its transitions are named after the stage template's
+exits:
 
 ```yaml
 - id: review
-  description: Placeholder for the review-plan plugin.
+  description: Placeholder for the review-plan stage template.
   transitions:
     - { name: approved, to: implement }
     - { name: rework, to: plan }
 ```
 
-`eject` replaces it. Transitions into the placeholder now enter the plugin's
-first stage, and each exit leaves to the stage the placeholder's transition of
-the same name targets. An exit that targets the placeholder itself re-enters the
-plugin. The inputs are:
+`apply` replaces it. Transitions into the placeholder now enter the stage
+template's first stage, and each exit leaves to the stage the placeholder's
+transition of the same name targets. An exit that targets the placeholder itself
+re-enters the stage template. The inputs are:
 
-- `plugin`, `replace`: the plugin holder, and the placeholder stage.
+- `template`, `replace`: the template holder, and the placeholder stage.
 - `exits`: where exits go, overriding the placeholder's transitions.
 - `inputs`: which of your products each contract input is, when the names differ
   (`{"plan": "design"}`).
-- `names`: new names for the plugin's `stages`, `artifacts` and `evidence`
-  (`{"stages": {"review": "design-review"}}`). A name that clashes with one of
-  yours is an error that says which entry to add; nothing is prefixed, so two
-  uses of one plugin are told apart by the names you give them.
-- `params`: the plugin's parameter values.
+- `names`: new names for the stage template's `stages`, `artifacts` and
+  `evidence` (`{"stages": {"review": "design-review"}}`). A name that clashes
+  with one of yours is an error that says which entry to add; nothing is
+  prefixed, so two uses of one stage template are told apart by the names you
+  give them.
+- `params`: the stage template's parameter values.
 
 The result must pass the schema and the graph analysis, every exit must be
-wired, and every contract input must be produced on every path into the plugin.
-`eject` never changes the holder: it logs the lifecycle (as JSON, which is YAML)
-and writes it to the holder's `ejected-lifecycle` record. Save it as the
-holder's `globalArguments` and run `validate`. See [DESIGN.md](DESIGN.md),
-"Stage plugins: eject only".
+wired, and every contract input must be produced on every path into the stage
+template. `apply` never changes the holder: it logs the lifecycle (as JSON,
+which is YAML) and writes it to the holder's `applied-lifecycle` record. Save it
+as the holder's `globalArguments` and run `validate`. See
+[DESIGN.md](DESIGN.md), "Stage templates: apply only".
 
 ## Bundled lifecycles
 
@@ -221,7 +224,7 @@ plan → plan-review → implement → check → code-review → release → don
   own commit is recorded separately, as `mergeCommit`.
 
 This is the tier 1 lifecycle and gatorwalk-factory's own process. Later it will
-be recomposed from stage plugins; it lives under `lifecycles/` because it is a
+be recomposed from stage templates; it lives under `lifecycles/` because it is a
 lifecycle either way.
 
 `lifecycles/swamp-extensions.yaml` is the process this repository runs with
@@ -298,12 +301,12 @@ swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
 swamp model method run team new_key --log        # prints a work-item key
 
-# A plugin holder, and its stages ejected into team's placeholder stage.
-swamp model create @swamp/gatorwalk-factory/plugin review-plan --json
+# A template holder, applied in place of team's placeholder stage.
+swamp model create @swamp/gatorwalk-factory/template review-plan --json
 swamp model method run review-plan validate --log
-swamp model method run team eject --input plugin=review-plan \
+swamp model method run team apply --input template=review-plan \
   --input replace=review --log
-swamp data get team ejected-lifecycle --json     # save .content.lifecycle
+swamp data get team applied-lifecycle --json     # save .content.lifecycle
 
 # A work item, named by that key.
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \

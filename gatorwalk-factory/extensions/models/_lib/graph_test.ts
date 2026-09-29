@@ -26,10 +26,10 @@ import {
 import {
   type Lifecycle,
   parseLifecycle,
-  parsePlugin,
-  type Plugin,
+  parseStageTemplate,
+  type StageTemplate,
 } from "./lifecycle_schema.ts";
-import { instantiatePlugin } from "./plugin_instance.ts";
+import { instantiateStageTemplate } from "./stage_template.ts";
 
 function lifecycle(yaml: string): Lifecycle {
   const result = parseLifecycle(
@@ -39,8 +39,8 @@ function lifecycle(yaml: string): Lifecycle {
   return result.value;
 }
 
-function plugin(yaml: string): Plugin {
-  const result = parsePlugin(
+function template(yaml: string): StageTemplate {
+  const result = parseStageTemplate(
     parseYaml(`schemaVersion: 1\nname: test\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
@@ -667,10 +667,10 @@ globalTransitions:
   );
 });
 
-// --- plugins --------------------------------------------------------------------
+// --- stage templates ---------------------------------------------------------
 
-Deno.test("graph: a plugin exit no passable transition takes is an error", () => {
-  const report = analyzeLifecycle(plugin(`
+Deno.test("graph: a stage template exit no passable transition takes is an error", () => {
+  const report = analyzeLifecycle(template(`
 contract:
   inputs: [{ kind: artifact, name: plan }]
   exits: [{ name: approved }, { name: rework }]
@@ -795,9 +795,9 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   // implement <-> test without maxCycles, as the originals did: they rely on
   // the default cycle limit, which is the warning, not a defect.
   const expected: Record<string, string[]> = {
-    // The placeholder's two ungated transitions only sketch where the
-    // plugin's exits go; eject replaces them with the plugin's own.
-    "lifecycles/eject-target.yaml": [
+    // The placeholder's two ungated transitions only sketch where the stage
+    // template's exits go; apply replaces them with the stage template's own.
+    "lifecycles/apply-target.yaml": [
       "ambiguous-exit stages.1.transitions.0 [review]",
     ],
     "lifecycles/feature-factory.yaml": [
@@ -810,21 +810,21 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
-    "plugins/review-plan.yaml": [],
+    "templates/review-plan.yaml": [],
   };
   const seen: string[] = [];
-  for (const dir of ["lifecycles/", "plugins/"]) {
+  for (const dir of ["lifecycles/", "templates/"]) {
     for (const file of await fixtures(dir)) {
       const name = `${dir}${file}`;
       seen.push(name);
       const raw = parseYaml(await Deno.readTextFile(new URL(name, TESTDATA)));
-      // A plugin is analysed with its parameters' defaults filled in.
-      const parsed = dir === "plugins/"
-        ? instantiatePlugin(raw)
+      // A stage template is analysed with its parameters' defaults filled in.
+      const parsed = dir === "templates/"
+        ? instantiateStageTemplate(raw)
         : parseLifecycle(raw);
       if (!parsed.ok) throw new Error(`${name}: ${parsed.errors.join("\n")}`);
       const report = analyzeLifecycle(
-        "plugin" in parsed ? parsed.plugin : parsed.value,
+        "template" in parsed ? parsed.template : parsed.value,
       );
       assertEquals(codes(report.errors), [], name);
       assertEquals(codes(report.warnings), expected[name], name);

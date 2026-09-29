@@ -23,7 +23,7 @@ import {
   type GateCheck,
   makeGateEvaluator,
 } from "./gates.ts";
-import { ejectPlugin } from "./eject.ts";
+import { applyStageTemplate } from "./apply.ts";
 import {
   analyzeLifecycle,
   DEFAULT_MAX_STATES,
@@ -33,9 +33,9 @@ import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   type Lifecycle,
   parseLifecycle,
-  type Plugin,
+  type StageTemplate,
 } from "./lifecycle_schema.ts";
-import { instantiatePlugin } from "./plugin_instance.ts";
+import { instantiateStageTemplate } from "./stage_template.ts";
 import {
   advance,
   dispatchCap,
@@ -77,7 +77,7 @@ import {
 
 export const HOLDER_TYPE = "@swamp/gatorwalk-factory/lifecycle";
 export const WORK_ITEM_TYPE = "@swamp/gatorwalk-factory/work-item";
-export const PLUGIN_TYPE = "@swamp/gatorwalk-factory/plugin";
+export const STAGE_TEMPLATE_TYPE = "@swamp/gatorwalk-factory/template";
 
 /** The resource spec and fixed name of a work item's pinned lifecycle. */
 export const LIFECYCLE_SPEC = "lifecycle";
@@ -90,9 +90,9 @@ export const LIFECYCLE_NAME = "lifecycle";
 export const KEY_SPEC = "key";
 export const KEY_NAME = "key";
 
-/** The resource spec and fixed name of a holder's last ejected lifecycle. */
-export const EJECTED_SPEC = "ejected-lifecycle";
-export const EJECTED_NAME = "ejected-lifecycle";
+/** The resource spec and fixed name of a holder's last applied lifecycle. */
+export const APPLIED_SPEC = "applied-lifecycle";
+export const APPLIED_NAME = "applied-lifecycle";
 
 /** The resource spec and fixed name of a work item's derived metrics. */
 export const METRICS_SPEC = "metrics";
@@ -236,12 +236,12 @@ export function typeNameOf(type: unknown): string {
 
 const HOLDER_KINDS: Record<string, string> = {
   [HOLDER_TYPE]: "lifecycle holder",
-  [PLUGIN_TYPE]: "plugin holder",
+  [STAGE_TEMPLATE_TYPE]: "template holder",
 };
 
 /**
  * The raw, unevaluated globalArguments of a lifecycle holder (or, given its
- * type, a plugin holder). Read through the definition repository, never the
+ * type, a template holder). Read through the definition repository, never the
  * evaluated context.globalArgs, so a ${{ }} reaches the lifecycle schema's
  * own error. On a remote worker the definition arrives as a plain object
  * with _globalArguments.
@@ -389,7 +389,7 @@ function selfName(ctx: MethodContextLike): string {
   return name;
 }
 
-// --- plugin holders and eject ------------------------------------------------
+// --- template holders and apply ----------------------------------------------
 
 /** An object, from --input-file, or as a JSON string from --input. */
 export const ObjectInput = z.union([
@@ -398,7 +398,7 @@ export const ObjectInput = z.union([
 ]);
 
 const NameMapSchema = z.record(z.string(), z.string());
-const EjectNamesSchema = z.strictObject({
+const ApplyNamesSchema = z.strictObject({
   stages: NameMapSchema.optional(),
   artifacts: NameMapSchema.optional(),
   evidence: NameMapSchema.optional(),
@@ -436,44 +436,44 @@ function objectInput<T>(
   return parsed.data;
 }
 
-async function loadPlugin(
+async function loadStageTemplate(
   ctx: MethodContextLike,
   name: string,
   params: Record<string, unknown> | undefined,
-): Promise<Plugin> {
-  const result = instantiatePlugin(
-    await readHolderArguments(ctx, name, PLUGIN_TYPE),
+): Promise<StageTemplate> {
+  const result = instantiateStageTemplate(
+    await readHolderArguments(ctx, name, STAGE_TEMPLATE_TYPE),
     params,
   );
   if (!result.ok) {
     throw new Error(
-      `plugin holder '${name}' is not a valid plugin with these parameters:\n${
+      `template holder '${name}' is not a valid stage template with these parameters:\n${
         result.errors.join("\n")
       }`,
     );
   }
-  return result.plugin;
+  return result.template;
 }
 
 /**
- * The plugin holder's validate method: parameters filled in (the given
- * values, then defaults), the plugin schema, then graph analysis, reported
- * like the lifecycle holder's validate.
+ * The template holder's validate method: parameters filled in (the given
+ * values, then defaults), the stage template schema, then graph analysis,
+ * reported like the lifecycle holder's validate.
  */
-export async function validatePluginHolder(
+export async function validateStageTemplateHolder(
   ctx: MethodContextLike,
   args: { params?: Record<string, unknown> | string },
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
-  const plugin = await loadPlugin(
+  const template = await loadStageTemplate(
     ctx,
     name,
     objectInput(args.params, "params", z.record(z.string(), z.unknown())),
   );
-  const graph = analyzeLifecycle(plugin);
+  const graph = analyzeLifecycle(template);
   if (graph.errors.length > 0) {
     throw new Error(
-      `plugin holder '${name}' has design errors:\n${
+      `template holder '${name}' has design errors:\n${
         graph.errors.map(formatFinding).join("\n")
       }` +
         (graph.warnings.length > 0
@@ -488,19 +488,19 @@ export async function validatePluginHolder(
     });
   }
   ctx.logger.info("{summary}", {
-    summary: `plugin '${plugin.name}' in '${name}' is valid: ` +
-      `${plugin.stages.length} stages (${
-        plugin.stages.map((s) => s.id).join(", ")
-      }), exits ${plugin.contract.exits.map((e) => e.name).join(", ")}, ` +
+    summary: `stage template '${template.name}' in '${name}' is valid: ` +
+      `${template.stages.length} stages (${
+        template.stages.map((s) => s.id).join(", ")
+      }), exits ${template.contract.exits.map((e) => e.name).join(", ")}, ` +
       `${graph.warnings.length} warning(s)`,
-    plugin: plugin.name,
-    digest: await digestOf(plugin),
+    template: template.name,
+    digest: await digestOf(template),
   });
   return { dataHandles: [] };
 }
 
-export interface EjectArgs {
-  plugin: string;
+export interface ApplyArgs {
+  template: string;
   replace: string;
   exits?: Record<string, unknown> | string;
   inputs?: Record<string, unknown> | string;
@@ -509,14 +509,14 @@ export interface EjectArgs {
 }
 
 /**
- * The lifecycle holder's eject method: a plugin holder's stages composed into
- * this holder's lifecycle in place of a placeholder stage (eject.ts). The
+ * The lifecycle holder's apply method: a template holder's stages composed into
+ * this holder's lifecycle in place of a placeholder stage (apply.ts). The
  * result is written as a record and logged, never saved into the holder: the
  * author copies it into the holder's definition and edits it from there.
  */
-export async function ejectMethod(
+export async function applyMethod(
   ctx: MethodContextLike,
-  args: EjectArgs,
+  args: ApplyArgs,
 ): Promise<MethodOutput> {
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
@@ -528,16 +528,16 @@ export async function ejectMethod(
     "params",
     z.record(z.string(), z.unknown()),
   );
-  const plugin = await loadPlugin(ctx, args.plugin, params);
-  const result = ejectPlugin(base, plugin, {
+  const template = await loadStageTemplate(ctx, args.template, params);
+  const result = applyStageTemplate(base, template, {
     replace: args.replace,
     exits: objectInput(args.exits, "exits", NameMapSchema),
     inputs: objectInput(args.inputs, "inputs", NameMapSchema),
-    names: objectInput(args.names, "names", EjectNamesSchema),
+    names: objectInput(args.names, "names", ApplyNamesSchema),
   });
   if (!result.ok) {
     throw new Error(
-      `cannot eject plugin holder '${args.plugin}' into lifecycle holder '${holder}':\n${
+      `cannot apply template holder '${args.template}' to lifecycle holder '${holder}':\n${
         result.errors.join("\n")
       }` +
         (result.warnings.length > 0
@@ -550,9 +550,9 @@ export async function ejectMethod(
   }
   const lifecycle = jsonSafe(result.lifecycle);
   const digest = await digestOf(result.lifecycle);
-  const handle = await ctx.writeResource(EJECTED_SPEC, EJECTED_NAME, {
+  const handle = await ctx.writeResource(APPLIED_SPEC, APPLIED_NAME, {
     holder,
-    plugin: args.plugin,
+    template: args.template,
     replace: args.replace,
     digest,
     lifecycle,
@@ -560,11 +560,12 @@ export async function ejectMethod(
   // JSON is YAML, so the text can go into the holder's globalArguments as it
   // is; the record holds the same lifecycle for a caller that reads data.
   ctx.logger.info("{summary}", {
-    summary: `ejected plugin '${plugin.name}' from '${args.plugin}' into ` +
+    summary:
+      `applied stage template '${template.name}' from '${args.template}' to ` +
       `lifecycle '${result.lifecycle.name}' in place of stage ` +
       `'${args.replace}': ${result.lifecycle.stages.length} stages, ` +
       `${result.warnings.length} warning(s). Save it as the globalArguments ` +
-      `of '${holder}' (also in its ${EJECTED_NAME} record), then run ` +
+      `of '${holder}' (also in its ${APPLIED_NAME} record), then run ` +
       `validate:\n${JSON.stringify(lifecycle, null, 2)}`,
     digest,
   });

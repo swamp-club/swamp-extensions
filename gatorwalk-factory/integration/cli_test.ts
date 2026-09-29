@@ -29,7 +29,7 @@ import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
   LINEAR_TYPE,
-  PLUGIN_TYPE,
+  STAGE_TEMPLATE_TYPE,
   SWAMP_CLUB_TYPE,
   SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
@@ -111,7 +111,13 @@ Deno.test("cli: every model type registers from the extension source", async () 
       .results.map((r) => r.raw).sort();
     assertEquals(
       types,
-      [HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, SWAMP_CLUB_TYPE, WORK_ITEM_TYPE]
+      [
+        HOLDER_TYPE,
+        LINEAR_TYPE,
+        STAGE_TEMPLATE_TYPE,
+        SWAMP_CLUB_TYPE,
+        WORK_ITEM_TYPE,
+      ]
         .sort(),
     );
   });
@@ -375,37 +381,39 @@ Deno.test("cli: build-swamp-extension from start to release, with every stored v
   });
 });
 
-Deno.test("cli: eject a plugin into a lifecycle, save it, and run a work item through the ejected stages", async () => {
+Deno.test("cli: apply a stage template to a lifecycle, save it, and run a work item through the applied stages", async () => {
   await withRepo(async (repo) => {
-    // The plugin's $param placeholders come back from swamp's storage as
-    // written, or validate could not fill them in.
-    await repo.pluginHolder(
+    // The stage template's $param placeholders come back from swamp's storage
+    // as written, or validate could not fill them in.
+    await repo.templateHolder(
       "review-plan",
-      await testdata("plugins/review-plan.yaml"),
+      await testdata("templates/review-plan.yaml"),
     );
     const valid = await repo.holderMethod("review-plan", "validate", {
       inputs: { params: JSON.stringify({ blocking: ["critical"] }) },
     });
     assert(
-      valid.output.includes("plugin 'review-plan' in 'review-plan' is valid"),
+      valid.output.includes(
+        "stage template 'review-plan' in 'review-plan' is valid",
+      ),
       valid.output,
     );
 
-    await repo.holder("team", await testdata("lifecycles/eject-target.yaml"));
-    const ejected = await repo.holderMethod("team", "eject", {
+    await repo.holder("team", await testdata("lifecycles/apply-target.yaml"));
+    const applied = await repo.holderMethod("team", "apply", {
       inputs: {
-        plugin: "review-plan",
+        template: "review-plan",
         replace: "review",
         names: JSON.stringify({ stages: { review: "plan-review" } }),
       },
     });
     assert(
-      ejected.output.includes(
-        "ejected plugin 'review-plan' from 'review-plan' into lifecycle 'plan-then-build'",
+      applied.output.includes(
+        "applied stage template 'review-plan' from 'review-plan' to lifecycle 'plan-then-build'",
       ),
-      ejected.output,
+      applied.output,
     );
-    const record = await repo.data("team", "ejected-lifecycle");
+    const record = await repo.data("team", "applied-lifecycle");
     const parsed = parseLifecycle(record.lifecycle);
     assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
     assertEquals(await digestOf(parsed.value), record.digest);
