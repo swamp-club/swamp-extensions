@@ -122,7 +122,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database logsink. Registered at `@swamp/digitalocean/database-logsink`. */
 export const model = {
   type: "@swamp/digitalocean/database-logsink",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -131,6 +131,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -222,6 +227,18 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.config !== undefined) body.config = g.config;
+        const unset = ["config"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            endpoint,
+            existing.sink_id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           endpoint,
           existing.sink_id ?? existing.id,

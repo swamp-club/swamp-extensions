@@ -332,7 +332,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Settings.SendAs. Registered at `@swamp/gcp/gmail/users-settings-sendas`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-sendas",
-  version: "2026.08.13.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -486,6 +486,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -645,12 +650,33 @@ export const model = {
         if (g["verificationStatus"] !== undefined) {
           body["verificationStatus"] = g["verificationStatus"];
         }
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "displayName",
+          "isDefault",
+          "replyToAddress",
+          "signature",
+          "smtpMsa",
+          "treatAsAlias",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

@@ -482,9 +482,10 @@ async function generateGcpProvider(options: {
     // aren't in the manifest's models: list any more (typically because the
     // CF schema dropped the resource or it lost its read handler). Without
     // this, stale files sit in the repo with outdated codegen output.
-    const generatedFileNames = new Set(
-      serviceResult.models.map((m) => m.filePath.split("/").pop()!),
-    );
+    const generatedFileNames = new Set([
+      ...serviceResult.models.map((m) => m.filePath.split("/").pop()!),
+      ...serviceResult.keptModelFileNames,
+    ]);
     const modelsDir = `${serviceOutputDir}/extensions/models`;
     try {
       for await (const entry of Deno.readDir(modelsDir)) {
@@ -583,6 +584,11 @@ async function generateGcpProvider(options: {
     for (const err of errors) {
       console.log(`    ${err}`);
     }
+    // Everything that generated is written above; exit non-zero so the
+    // nightly regeneration reports the errors instead of passing silently.
+    // Exit code 2 (not 1, which an uncaught exception also gives) tells the
+    // workflow the run finished, so its output is complete and can be kept.
+    Deno.exitCode = 2;
   }
   console.log(`  Date prefix: ${datePrefix}`);
   console.log(`  Output directory: ${options.outputDir}`);

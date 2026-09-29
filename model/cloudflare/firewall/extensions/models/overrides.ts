@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Overrides. Registered at `@swamp/cloudflare/firewall/overrides`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/overrides",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -139,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -323,14 +328,16 @@ export const model = {
         }
         if (g.rules !== undefined) body.rules = g.rules;
         if (g.urls !== undefined) body.urls = g.urls;
-        const unset = ["urls"].filter((k) => body[k] === undefined);
+        const unset = ["id", "urls"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["urls"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {

@@ -214,6 +214,32 @@ because:
   intend to change
 - The DigitalOcean API generally supports PATCH where available
 
+### PUT updates keep unset fields
+
+For resources with only a PUT update (firewalls, load balancers, Kubernetes
+clusters and node pools, and others), whatever the body leaves out is cleared or
+reset to its default. So when any update-body field is unset in globalArgs, the
+generated `update` reads the live resource once with `GET` and copies those
+fields from it, so an unset field keeps its current value. The `GET` is skipped
+when globalArgs set every such field. Stored state is not used: it can be stale,
+and sending it would silently revert changes made outside swamp since the last
+`get`/`sync`. PATCH updates send only the fields set in globalArgs.
+
+Which fields are copied is decided at generation time by `liveFillFields` in
+`codegen/shared/liveFill.ts`: a field is filled only when the `GET` response
+describes it with the same shape as the request body (same type, with integer
+and number treated alike, recursively for array items and shared object
+properties). A field the response shapes differently, such as a nested object
+where the request takes a slug, or one the response lacks, is never echoed back
+and is sent only when set. A field whose own description marks it output-only or
+read-only is not filled either, and neither is a field named like a secret
+(`secret`, `password`, `token`, `api_key`, `private_key`, `credential` and
+similar), even when it is create-required: an API that returns it masked would
+have the mask written over the real value. Such fields, and write-only fields
+that never come back from `GET`, must be set explicitly. A `null` live value is
+not copied. For example, a load balancer's `region` is a slug in the request but
+an object in the response, so it is not filled.
+
 ### Schema flattening for composed schemas
 
 OpenAPI uses `allOf`, `anyOf`, and `oneOf` to compose schemas. The pipeline

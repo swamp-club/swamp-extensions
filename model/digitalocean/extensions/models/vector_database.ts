@@ -143,10 +143,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean vector database. Registered at `@swamp/digitalocean/vector-database`. */
 export const model = {
   type: "@swamp/digitalocean/vector-database",
-  version: "2026.06.24.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.06.24.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -250,6 +255,20 @@ export const model = {
         if (g.config !== undefined) body.config = g.config;
         if (g.id !== undefined) body.id = g.id;
         if (g.project_id !== undefined) body.project_id = g.project_id;
+        const unset = ["config", "id", "project_id"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/vector-databases",
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           "/v2/vector-databases",
           existing.id ?? existing.id,

@@ -1026,7 +1026,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Routers. Registered at `@swamp/gcp/compute/routers`. */
 export const model = {
   type: "@swamp/gcp/compute/routers",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1198,6 +1198,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1362,16 +1367,35 @@ export const model = {
           body["md5AuthenticationKeys"] = g["md5AuthenticationKeys"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        else if (existing["name"] !== undefined) {
-          body["name"] = existing["name"];
-        }
         if (g["nats"] !== undefined) body["nats"] = g["nats"];
         if (g["nccGateway"] !== undefined) body["nccGateway"] = g["nccGateway"];
         if (g["network"] !== undefined) body["network"] = g["network"];
-        else if (existing["network"] !== undefined) {
-          body["network"] = existing["network"];
-        }
         if (g["params"] !== undefined) body["params"] = g["params"];
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "bgp",
+          "bgpPeers",
+          "description",
+          "encryptedInterconnectRouter",
+          "interfaces",
+          "md5AuthenticationKeys",
+          "name",
+          "nats",
+          "nccGateway",
+          "network",
+          "params",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = ["name", "network"].filter((k) =>
           body[k] === undefined
         );
@@ -1380,12 +1404,13 @@ export const model = {
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

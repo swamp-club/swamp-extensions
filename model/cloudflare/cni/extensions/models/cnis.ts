@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Cnis. Registered at `@swamp/cloudflare/cni/cnis`. */
 export const model = {
   type: "@swamp/cloudflare/cni/cnis",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -160,6 +160,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -361,16 +366,25 @@ export const model = {
         if (g.interconnect !== undefined) body.interconnect = g.interconnect;
         if (g.magic !== undefined) body.magic = g.magic;
         if (g.p2p_ip !== undefined) body.p2p_ip = g.p2p_ip;
-        const unset = ["account", "interconnect", "magic"].filter((k) =>
-          body[k] === undefined
-        );
+        const unset = [
+          "account",
+          "bgp",
+          "bgp_mode",
+          "cust_ip",
+          "id",
+          "interconnect",
+          "magic",
+          "p2p_ip",
+        ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["account", "interconnect", "magic"].filter((
           k,

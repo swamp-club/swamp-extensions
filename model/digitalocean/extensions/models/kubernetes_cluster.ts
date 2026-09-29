@@ -452,7 +452,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.09.24.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -537,6 +537,11 @@ export const model = {
     {
       toVersion: "2026.09.24.1",
       description: "Added: nfs_csi_plugin",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -761,6 +766,38 @@ export const model = {
         }
         if (g.coredns_autoscaler !== undefined) {
           body.coredns_autoscaler = g.coredns_autoscaler;
+        }
+        const unset = [
+          "amd_gpu_device_metrics_exporter_plugin",
+          "amd_gpu_device_plugin",
+          "amd_gpu_dra_driver",
+          "auto_upgrade",
+          "cluster_autoscaler_configuration",
+          "control_plane_firewall",
+          "coredns_autoscaler",
+          "ha",
+          "maintenance_policy",
+          "name",
+          "nfs_csi_plugin",
+          "nvidia_gpu_device_plugin",
+          "nvidia_gpu_dra_driver",
+          "p2p_oci_registry_plugin",
+          "rdma_shared_dev_plugin",
+          "routing_agent",
+          "sso",
+          "surge_upgrade",
+          "tags",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/kubernetes/clusters",
+            existing.clusterid ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         let result = await update(
           "/v2/kubernetes/clusters",

@@ -302,7 +302,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Labels. Registered at `@swamp/gcp/gmail/users-labels`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-labels",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +469,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -618,13 +623,9 @@ export const model = {
         if (g["color"] !== undefined) body["color"] = g["color"];
         if (g["labelListVisibility"] !== undefined) {
           body["labelListVisibility"] = g["labelListVisibility"];
-        } else if (existing["labelListVisibility"] !== undefined) {
-          body["labelListVisibility"] = existing["labelListVisibility"];
         }
         if (g["messageListVisibility"] !== undefined) {
           body["messageListVisibility"] = g["messageListVisibility"];
-        } else if (existing["messageListVisibility"] !== undefined) {
-          body["messageListVisibility"] = existing["messageListVisibility"];
         }
         if (g["messagesTotal"] !== undefined) {
           body["messagesTotal"] = g["messagesTotal"];
@@ -633,9 +634,6 @@ export const model = {
           body["messagesUnread"] = g["messagesUnread"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        else if (existing["name"] !== undefined) {
-          body["name"] = existing["name"];
-        }
         if (g["threadsTotal"] !== undefined) {
           body["threadsTotal"] = g["threadsTotal"];
         }
@@ -643,6 +641,29 @@ export const model = {
           body["threadsUnread"] = g["threadsUnread"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "color",
+          "labelListVisibility",
+          "messageListVisibility",
+          "messagesTotal",
+          "messagesUnread",
+          "name",
+          "threadsTotal",
+          "threadsUnread",
+          "type",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = [
           "labelListVisibility",
           "messageListVisibility",
@@ -653,12 +674,13 @@ export const model = {
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

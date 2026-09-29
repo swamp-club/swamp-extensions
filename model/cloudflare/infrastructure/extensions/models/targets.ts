@@ -117,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Targets. Registered at `@swamp/cloudflare/infrastructure/targets`. */
 export const model = {
   type: "@swamp/cloudflare/infrastructure/targets",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -146,6 +146,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -333,14 +338,18 @@ export const model = {
         if (g.hostname !== undefined) body.hostname = g.hostname;
         if (g.ip !== undefined) body.ip = g.ip;
         if (g.tags !== undefined) body.tags = g.tags;
-        const unset = ["hostname", "ip"].filter((k) => body[k] === undefined);
+        const unset = ["hostname", "ip", "tags"].filter((k) =>
+          body[k] === undefined
+        );
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["hostname", "ip"].filter((k) =>
           body[k] === undefined

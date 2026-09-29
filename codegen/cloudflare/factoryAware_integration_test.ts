@@ -564,13 +564,14 @@ Deno.test({
   },
 });
 
-// A full-replacement PUT update must still send create-required fields. When
-// globalArgs leave one unset it is filled from the live resource, not stored
-// state, so changes made outside swamp since the last get/sync are kept.
+// A full-replacement PUT update clears whatever the body leaves out. Every
+// field globalArgs leave unset is filled from the live resource, not stored
+// state, so changes made outside swamp since the last get/sync are kept and
+// an unset optional field keeps its value. A create-required field missing
+// from both is rejected before the PUT.
 // sanitizeResources: false for the same reason as the tests above.
 Deno.test({
-  name:
-    "create-required fields: PUT update fills unset ones from the live resource",
+  name: "PUT update fills unset fields from the live resource",
   sanitizeResources: false,
   async fn() {
     const restoreToken = withTestToken();
@@ -618,11 +619,29 @@ Deno.test({
       );
       assertEquals(artifacts.size, 1);
 
-      // Every create-required field set in globalArgs: no extra GET.
+      // An unset optional field keeps its live value instead of being
+      // cleared by the PUT.
+      const { context: optCtx } = createMockContext({
+        zone_id: "test-zone-id",
+        content: "5.5.5.5",
+      });
+      optCtx.writeResource("state", "www.example.com", { id: recId });
+      await model.methods.update.execute(
+        { identifier: "www.example.com" },
+        optCtx,
+      );
+      assertEquals(
+        server.lastWrite?.body,
+        { name: "renamed.example.com", content: "5.5.5.5", ttl: 600 },
+        "unset optional ttl is kept from the live resource",
+      );
+
+      // Every update-body field set in globalArgs: no extra GET.
       const { context: fullCtx } = createMockContext({
         zone_id: "test-zone-id",
         name: "www.example.com",
         content: "1.2.3.4",
+        ttl: 300,
       });
       fullCtx.writeResource("state", "www.example.com", { id: recId });
       const before = server.requests.length;
@@ -630,7 +649,7 @@ Deno.test({
       assertEquals(
         server.requests.slice(before).filter((r) => r === `GET ${itemPath}`),
         [],
-        "no live read when globalArgs supply every create-required field",
+        "no live read when globalArgs supply every update-body field",
       );
 
       // Live resource lacks a create-required field: reject before the PUT.

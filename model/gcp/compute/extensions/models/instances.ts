@@ -2102,7 +2102,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Instances. Registered at `@swamp/gcp/compute/instances`. */
 export const model = {
   type: "@swamp/gcp/compute/instances",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -2365,6 +2365,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2651,9 +2656,6 @@ export const model = {
           body["minCpuPlatform"] = g["minCpuPlatform"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        else if (existing["name"] !== undefined) {
-          body["name"] = existing["name"];
-        }
         if (g["networkInterfaces"] !== undefined) {
           body["networkInterfaces"] = g["networkInterfaces"];
         }
@@ -2711,18 +2713,66 @@ export const model = {
             existing["mostDisruptiveAllowedAction"],
           );
         }
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "advancedMachineFeatures",
+          "canIpForward",
+          "confidentialInstanceConfig",
+          "deletionProtection",
+          "description",
+          "disks",
+          "displayDevice",
+          "fingerprint",
+          "guestAccelerators",
+          "hostname",
+          "instanceEncryptionKey",
+          "keyRevocationActionType",
+          "labelFingerprint",
+          "labels",
+          "localSsdEncryptionMode",
+          "machineType",
+          "metadata",
+          "minCpuPlatform",
+          "name",
+          "networkInterfaces",
+          "networkPerformanceConfig",
+          "params",
+          "privateIpv6GoogleAccess",
+          "reservationAffinity",
+          "resourcePolicies",
+          "scheduling",
+          "serviceAccounts",
+          "shieldedInstanceConfig",
+          "shieldedInstanceIntegrityPolicy",
+          "sourceMachineImage",
+          "sourceMachineImageEncryptionKey",
+          "tags",
+          "workloadIdentityConfig",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {
           throw new Error(
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

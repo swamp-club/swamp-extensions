@@ -158,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean custom image. Registered at `@swamp/digitalocean/custom-image`. */
 export const model = {
   type: "@swamp/digitalocean/custom-image",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -212,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -322,6 +327,20 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.distribution !== undefined) body.distribution = g.distribution;
         if (g.description !== undefined) body.description = g.description;
+        const unset = ["description", "distribution", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/images",
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           "/v2/images",
           existing.id ?? existing.id,

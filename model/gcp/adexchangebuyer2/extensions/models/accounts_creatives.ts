@@ -576,7 +576,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Creatives. Registered at `@swamp/gcp/adexchangebuyer2/accounts-creatives`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-creatives",
-  version: "2026.08.13.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -703,6 +703,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -878,12 +883,39 @@ export const model = {
         }
         if (g["vendorIds"] !== undefined) body["vendorIds"] = g["vendorIds"];
         if (g["video"] !== undefined) body["video"] = g["video"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "adChoicesDestinationUrl",
+          "advertiserName",
+          "agencyId",
+          "attributes",
+          "clickThroughUrls",
+          "declaredClickThroughUrls",
+          "html",
+          "impressionTrackingUrls",
+          "native",
+          "restrictedCategories",
+          "vendorIds",
+          "video",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

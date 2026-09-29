@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database user. Registered at `@swamp/digitalocean/database-user`. */
 export const model = {
   type: "@swamp/digitalocean/database-user",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -133,6 +133,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -232,6 +237,18 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.settings !== undefined) body.settings = g.settings;
+        const unset = ["settings"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            endpoint,
+            existing.name ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           endpoint,
           existing.name ?? existing.id,

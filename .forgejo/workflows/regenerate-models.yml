@@ -47,88 +47,194 @@ jobs:
           deno-version: v2.8.x
 
       - name: Fetch and generate AWS models
+        id: aws
+        # One provider failing must not stop the others or the PR; the last
+        # step fails the run afterwards. A provider that crashed or failed to
+        # fetch has its partial model/ output discarded; generate exiting 2
+        # (finished, errors reported) keeps its complete output.
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'aws'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch AWS schema"
-          deno task fetch-schema:aws
+          deno task fetch-schema:aws || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate AWS models"
-          deno task generate:aws
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate AWS models"
+            deno task generate:aws || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::AWS generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::AWS failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/aws
+            git clean -fdq -- ../model/aws
+            exit 1
+          fi
 
       - name: Fetch and generate GCP models
+        id: gcp
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'gcp'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch GCP schema"
-          deno task fetch-schema:gcp
+          deno task fetch-schema:gcp || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate GCP models"
-          deno task generate:gcp
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate GCP models"
+            deno task generate:gcp || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::GCP generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::GCP failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/gcp
+            git clean -fdq -- ../model/gcp
+            exit 1
+          fi
 
       - name: Fetch and generate Cloudflare models
+        id: cloudflare
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'cloudflare'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch Cloudflare schema"
-          deno task fetch-schema:cloudflare
+          deno task fetch-schema:cloudflare || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate Cloudflare models"
-          deno task generate:cloudflare
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate Cloudflare models"
+            deno task generate:cloudflare || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::Cloudflare generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::Cloudflare failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/cloudflare
+            git clean -fdq -- ../model/cloudflare
+            exit 1
+          fi
 
       - name: Fetch and generate Hetzner models
+        id: hetzner
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'hetzner'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch Hetzner schema"
-          deno task fetch-schema:hetzner
+          deno task fetch-schema:hetzner || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate Hetzner models"
-          deno task generate:hetzner
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate Hetzner models"
+            deno task generate:hetzner || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::Hetzner generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::Hetzner failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/hetzner-cloud
+            git clean -fdq -- ../model/hetzner-cloud
+            exit 1
+          fi
 
       - name: Fetch and generate DigitalOcean models
+        id: digitalocean
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'digitalocean'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch DigitalOcean schema"
-          deno task fetch-schema:digitalocean
+          deno task fetch-schema:digitalocean || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate DigitalOcean models"
-          deno task generate:digitalocean
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate DigitalOcean models"
+            deno task generate:digitalocean || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::DigitalOcean generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::DigitalOcean failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/digitalocean
+            git clean -fdq -- ../model/digitalocean
+            exit 1
+          fi
 
       - name: Fetch and generate Vercel models
+        id: vercel
+        continue-on-error: true
         if: >-
           github.event_name == 'schedule' ||
           inputs.provider == 'all' ||
           inputs.provider == 'vercel'
         working-directory: codegen
         run: |
+          rc=0
           echo "::group::Fetch Vercel schema"
-          deno task fetch-schema:vercel
+          deno task fetch-schema:vercel || rc=$?
           echo "::endgroup::"
-          echo "::group::Generate Vercel models"
-          deno task generate:vercel
-          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate Vercel models"
+            deno task generate:vercel || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::Vercel generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::Vercel failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/vercel
+            git clean -fdq -- ../model/vercel
+            exit 1
+          fi
 
       - name: Update lockfiles for changed directories
         run: |
@@ -257,4 +363,25 @@ jobs:
               "$API/repos/$REPO/pulls"
 
             echo "Created new PR"
+          fi
+
+      - name: Fail if any provider failed
+        if: always()
+        env:
+          AWS: ${{ steps.aws.outcome }}
+          GCP: ${{ steps.gcp.outcome }}
+          CLOUDFLARE: ${{ steps.cloudflare.outcome }}
+          HETZNER: ${{ steps.hetzner.outcome }}
+          DIGITALOCEAN: ${{ steps.digitalocean.outcome }}
+          VERCEL: ${{ steps.vercel.outcome }}
+        run: |
+          failed=""
+          for provider in AWS GCP CLOUDFLARE HETZNER DIGITALOCEAN VERCEL; do
+            if [ "${!provider}" = "failure" ]; then
+              failed="$failed $provider"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::Regeneration failed for:$failed (see that step's log)"
+            exit 1
           fi

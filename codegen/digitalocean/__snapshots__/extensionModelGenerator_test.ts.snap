@@ -1883,6 +1883,11 @@ export const model = {
         if (g.db !== undefined) body.db = g.db;
         if (g.size !== undefined) body.size = g.size;
         if (g.mode !== undefined) body.mode = g.mode;
+        const unset = ["db","mode","size"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.name ?? existing.id, undefined, g.token);
+          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+        }
         const result = await update(endpoint, existing.name ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };

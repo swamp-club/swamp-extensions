@@ -258,7 +258,6 @@ const GlobalArgsSchema = z.object({
     "CUSTOM_MIRRORING",
     "CUSTOM_INTERCEPT",
     "URL_FILTERING",
-    "WILDFIRE_ANALYSIS",
   ]).describe(
     "Immutable. The single ProfileType that the SecurityProfile resource configures.",
   ).optional(),
@@ -280,179 +279,6 @@ const GlobalArgsSchema = z.object({
       "Optional. The list of filtering configs in which each config defines an action to take for some URL match.",
     ).optional(),
   }).describe("The URL filtering configuration for the SecurityProfile.")
-    .optional(),
-  wildfireAnalysisProfile: z.object({
-    wildfireInlineCloudAnalysisRules: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_INLINE_CLOUD_ANALYSIS_ACTION_UNSPECIFIED",
-        "ALLOW",
-        "DENY",
-        "ALERT",
-      ]).describe(
-        "Required. Action to take when a threat is detected using WildFire Inline Cloud Analysis. The default Value is DENY.",
-      ).optional(),
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()).describe(
-          "Required. File types to be submitted for WildFire inline cloud analysis.",
-        ).optional(),
-      }).describe("Submit a custom list of file types for WildFire analysis.")
-        .optional(),
-      direction: z.enum(["DIRECTION_UNSPECIFIED", "UPLOAD", "DOWNLOAD", "BOTH"])
-        .describe(
-          "Required. Direction for the file to be analyzed by WildFire Inline Cloud Analysis.",
-        ).optional(),
-      fileSelectionMode: z.enum([
-        "FILE_SELECTION_MODE_UNSPECIFIED",
-        "ALL_FILE_TYPES",
-        "CUSTOM_FILE_TYPES",
-      ]).describe(
-        "Required. File selection mode for WildFire inline cloud analysis.",
-      ).optional(),
-    })).describe("Optional. Configuration for WildFire inline cloud analysis.")
-      .optional(),
-    wildfireInlineMlOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe(
-        "Required. The action to take for WildFire Inline ML override.",
-      ).optional(),
-      protocol: z.enum([
-        "WILDFIRE_PROTOCOL_UNSPECIFIED",
-        "WILDFIRE_SMTP",
-        "WILDFIRE_SMB",
-        "WILDFIRE_POP3",
-        "WILDFIRE_IMAP",
-        "WILDFIRE_HTTP2",
-        "WILDFIRE_HTTP",
-        "WILDFIRE_FTP",
-      ]).describe(
-        "Required. Protocol to match for WildFire Inline ML override.",
-      ).optional(),
-    })).describe(
-      "Optional. Configuration for overriding inline ML WildFire actions per protocol.",
-    ).optional(),
-    wildfireInlineMlSetting: z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.string().describe(
-          "Optional. Name of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-        partialHash: z.string().describe(
-          "Required. Machine learning partial hash of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-      })).describe(
-        "Optional. List of files to exclude from WildFire Inline ML analysis.",
-      ).optional(),
-      inlineMlConfigs: z.array(z.object({
-        action: z.enum([
-          "INLINE_ML_ACTION_UNSPECIFIED",
-          "DISABLE",
-          "ALERT",
-          "ENABLE",
-        ]).describe(
-          "Required. Action to take when a threat is detected using Inline ML.",
-        ).optional(),
-        fileType: z.enum([
-          "INLINE_ML_CONFIG_UNSPECIFIED",
-          "WINDOWS_EXECUTABLE",
-          "POWERSHELL_SCRIPT1",
-          "POWERSHELL_SCRIPT2",
-          "ELF",
-          "MS_OFFICE",
-          "SHELL",
-          "OOXML",
-          "MACHO",
-        ]).describe("Required. File type to configure Inline ML for.")
-          .optional(),
-      })).describe(
-        "Optional. List of Inline ML configs to enable in WildFire Inline ML analysis.",
-      ).optional(),
-    }).describe("Optional. Settings for WildFire Inline ML analysis.")
-      .optional(),
-    wildfireInlineMlSettings: z.array(z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.unknown().describe(
-          "Optional. Name of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-        partialHash: z.unknown().describe(
-          "Required. Machine learning partial hash of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-      })).describe(
-        "Optional. List of files to exclude from WildFire Inline ML analysis.",
-      ).optional(),
-      inlineMlConfigs: z.array(z.object({
-        action: z.unknown().describe(
-          "Required. Action to take when a threat is detected using Inline ML.",
-        ).optional(),
-        fileType: z.unknown().describe(
-          "Required. File type to configure Inline ML for.",
-        ).optional(),
-      })).describe(
-        "Optional. List of Inline ML configs to enable in WildFire Inline ML analysis.",
-      ).optional(),
-    })).describe("Optional. Settings for WildFire Inline ML analysis.")
-      .optional(),
-    wildfireOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe(
-        "Required. Threat action override. For some threat types, only a subset of actions applies.",
-      ).optional(),
-      protocol: z.enum([
-        "WILDFIRE_PROTOCOL_UNSPECIFIED",
-        "WILDFIRE_SMTP",
-        "WILDFIRE_SMB",
-        "WILDFIRE_POP3",
-        "WILDFIRE_IMAP",
-        "WILDFIRE_HTTP2",
-        "WILDFIRE_HTTP",
-        "WILDFIRE_FTP",
-      ]).describe("Required. Protocol to match.").optional(),
-    })).describe(
-      "Optional. Configuration for overriding WildFire actions per protocol.",
-    ).optional(),
-    wildfireRealtimeLookup: z.boolean().describe(
-      "Optional. Whether to hold the transfer of a file while the WildFire real-time signature cloud performs a signature lookup. Default value is false.",
-    ).optional(),
-    wildfireSubmissionRules: z.array(z.object({
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()).describe(
-          "Required. File types to be submitted for WildFire analysis.",
-        ).optional(),
-      }).describe("Submit a custom list of file types for WildFire analysis.")
-        .optional(),
-      direction: z.enum(["DIRECTION_UNSPECIFIED", "UPLOAD", "DOWNLOAD", "BOTH"])
-        .describe(
-          "Required. Direction for the files to be analyzed by WildFire.",
-        ).optional(),
-      fileSelectionMode: z.enum([
-        "FILE_SELECTION_MODE_UNSPECIFIED",
-        "ALL_FILE_TYPES",
-        "CUSTOM_FILE_TYPES",
-      ]).describe("Required. File selection mode for WildFire analysis.")
-        .optional(),
-    })).describe("Optional. Configurations for WildFire file submissions.")
-      .optional(),
-    wildfireThreatOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe("Required. Threat action override.").optional(),
-      threatId: z.string().describe("Required. Threat ID to match.").optional(),
-    })).describe(
-      "Optional. Configuration for overriding WildFire threats action by threat_id match.",
-    ).optional(),
-  }).describe("The WildFire Analysis configurations for SecurityProfile.")
     .optional(),
   securityProfileId: z.string().describe(
     'Required. Short name of the SecurityProfile resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile1".',
@@ -496,56 +322,6 @@ const StateSchema = z.object({
       filteringAction: z.string(),
       priority: z.number(),
       urls: z.array(z.string()),
-    })),
-  }).optional(),
-  wildfireAnalysisProfile: z.object({
-    wildfireInlineCloudAnalysisRules: z.array(z.object({
-      action: z.string(),
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()),
-      }),
-      direction: z.string(),
-      fileSelectionMode: z.string(),
-    })),
-    wildfireInlineMlOverrides: z.array(z.object({
-      action: z.string(),
-      protocol: z.string(),
-    })),
-    wildfireInlineMlSetting: z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.string(),
-        partialHash: z.string(),
-      })),
-      inlineMlConfigs: z.array(z.object({
-        action: z.string(),
-        fileType: z.string(),
-      })),
-    }),
-    wildfireInlineMlSettings: z.array(z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.unknown(),
-        partialHash: z.unknown(),
-      })),
-      inlineMlConfigs: z.array(z.object({
-        action: z.unknown(),
-        fileType: z.unknown(),
-      })),
-    })),
-    wildfireOverrides: z.array(z.object({
-      action: z.string(),
-      protocol: z.string(),
-    })),
-    wildfireRealtimeLookup: z.boolean(),
-    wildfireSubmissionRules: z.array(z.object({
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()),
-      }),
-      direction: z.string(),
-      fileSelectionMode: z.string(),
-    })),
-    wildfireThreatOverrides: z.array(z.object({
-      action: z.string(),
-      threatId: z.string(),
     })),
   }).optional(),
 }).passthrough();
@@ -656,7 +432,6 @@ const InputsSchema = z.object({
     "CUSTOM_MIRRORING",
     "CUSTOM_INTERCEPT",
     "URL_FILTERING",
-    "WILDFIRE_ANALYSIS",
   ]).describe(
     "Immutable. The single ProfileType that the SecurityProfile resource configures.",
   ).optional(),
@@ -678,179 +453,6 @@ const InputsSchema = z.object({
       "Optional. The list of filtering configs in which each config defines an action to take for some URL match.",
     ).optional(),
   }).describe("The URL filtering configuration for the SecurityProfile.")
-    .optional(),
-  wildfireAnalysisProfile: z.object({
-    wildfireInlineCloudAnalysisRules: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_INLINE_CLOUD_ANALYSIS_ACTION_UNSPECIFIED",
-        "ALLOW",
-        "DENY",
-        "ALERT",
-      ]).describe(
-        "Required. Action to take when a threat is detected using WildFire Inline Cloud Analysis. The default Value is DENY.",
-      ).optional(),
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()).describe(
-          "Required. File types to be submitted for WildFire inline cloud analysis.",
-        ).optional(),
-      }).describe("Submit a custom list of file types for WildFire analysis.")
-        .optional(),
-      direction: z.enum(["DIRECTION_UNSPECIFIED", "UPLOAD", "DOWNLOAD", "BOTH"])
-        .describe(
-          "Required. Direction for the file to be analyzed by WildFire Inline Cloud Analysis.",
-        ).optional(),
-      fileSelectionMode: z.enum([
-        "FILE_SELECTION_MODE_UNSPECIFIED",
-        "ALL_FILE_TYPES",
-        "CUSTOM_FILE_TYPES",
-      ]).describe(
-        "Required. File selection mode for WildFire inline cloud analysis.",
-      ).optional(),
-    })).describe("Optional. Configuration for WildFire inline cloud analysis.")
-      .optional(),
-    wildfireInlineMlOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe(
-        "Required. The action to take for WildFire Inline ML override.",
-      ).optional(),
-      protocol: z.enum([
-        "WILDFIRE_PROTOCOL_UNSPECIFIED",
-        "WILDFIRE_SMTP",
-        "WILDFIRE_SMB",
-        "WILDFIRE_POP3",
-        "WILDFIRE_IMAP",
-        "WILDFIRE_HTTP2",
-        "WILDFIRE_HTTP",
-        "WILDFIRE_FTP",
-      ]).describe(
-        "Required. Protocol to match for WildFire Inline ML override.",
-      ).optional(),
-    })).describe(
-      "Optional. Configuration for overriding inline ML WildFire actions per protocol.",
-    ).optional(),
-    wildfireInlineMlSetting: z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.string().describe(
-          "Optional. Name of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-        partialHash: z.string().describe(
-          "Required. Machine learning partial hash of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-      })).describe(
-        "Optional. List of files to exclude from WildFire Inline ML analysis.",
-      ).optional(),
-      inlineMlConfigs: z.array(z.object({
-        action: z.enum([
-          "INLINE_ML_ACTION_UNSPECIFIED",
-          "DISABLE",
-          "ALERT",
-          "ENABLE",
-        ]).describe(
-          "Required. Action to take when a threat is detected using Inline ML.",
-        ).optional(),
-        fileType: z.enum([
-          "INLINE_ML_CONFIG_UNSPECIFIED",
-          "WINDOWS_EXECUTABLE",
-          "POWERSHELL_SCRIPT1",
-          "POWERSHELL_SCRIPT2",
-          "ELF",
-          "MS_OFFICE",
-          "SHELL",
-          "OOXML",
-          "MACHO",
-        ]).describe("Required. File type to configure Inline ML for.")
-          .optional(),
-      })).describe(
-        "Optional. List of Inline ML configs to enable in WildFire Inline ML analysis.",
-      ).optional(),
-    }).describe("Optional. Settings for WildFire Inline ML analysis.")
-      .optional(),
-    wildfireInlineMlSettings: z.array(z.object({
-      fileExceptions: z.array(z.object({
-        filename: z.unknown().describe(
-          "Optional. Name of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-        partialHash: z.unknown().describe(
-          "Required. Machine learning partial hash of the file to exclude from WildFire Inline ML analysis.",
-        ).optional(),
-      })).describe(
-        "Optional. List of files to exclude from WildFire Inline ML analysis.",
-      ).optional(),
-      inlineMlConfigs: z.array(z.object({
-        action: z.unknown().describe(
-          "Required. Action to take when a threat is detected using Inline ML.",
-        ).optional(),
-        fileType: z.unknown().describe(
-          "Required. File type to configure Inline ML for.",
-        ).optional(),
-      })).describe(
-        "Optional. List of Inline ML configs to enable in WildFire Inline ML analysis.",
-      ).optional(),
-    })).describe("Optional. Settings for WildFire Inline ML analysis.")
-      .optional(),
-    wildfireOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe(
-        "Required. Threat action override. For some threat types, only a subset of actions applies.",
-      ).optional(),
-      protocol: z.enum([
-        "WILDFIRE_PROTOCOL_UNSPECIFIED",
-        "WILDFIRE_SMTP",
-        "WILDFIRE_SMB",
-        "WILDFIRE_POP3",
-        "WILDFIRE_IMAP",
-        "WILDFIRE_HTTP2",
-        "WILDFIRE_HTTP",
-        "WILDFIRE_FTP",
-      ]).describe("Required. Protocol to match.").optional(),
-    })).describe(
-      "Optional. Configuration for overriding WildFire actions per protocol.",
-    ).optional(),
-    wildfireRealtimeLookup: z.boolean().describe(
-      "Optional. Whether to hold the transfer of a file while the WildFire real-time signature cloud performs a signature lookup. Default value is false.",
-    ).optional(),
-    wildfireSubmissionRules: z.array(z.object({
-      customFileTypes: z.object({
-        fileTypes: z.array(z.unknown()).describe(
-          "Required. File types to be submitted for WildFire analysis.",
-        ).optional(),
-      }).describe("Submit a custom list of file types for WildFire analysis.")
-        .optional(),
-      direction: z.enum(["DIRECTION_UNSPECIFIED", "UPLOAD", "DOWNLOAD", "BOTH"])
-        .describe(
-          "Required. Direction for the files to be analyzed by WildFire.",
-        ).optional(),
-      fileSelectionMode: z.enum([
-        "FILE_SELECTION_MODE_UNSPECIFIED",
-        "ALL_FILE_TYPES",
-        "CUSTOM_FILE_TYPES",
-      ]).describe("Required. File selection mode for WildFire analysis.")
-        .optional(),
-    })).describe("Optional. Configurations for WildFire file submissions.")
-      .optional(),
-    wildfireThreatOverrides: z.array(z.object({
-      action: z.enum([
-        "WILDFIRE_THREAT_ACTION_UNSPECIFIED",
-        "WILDFIRE_DEFAULT_ACTION",
-        "WILDFIRE_ALLOW",
-        "WILDFIRE_ALERT",
-        "WILDFIRE_DENY",
-      ]).describe("Required. Threat action override.").optional(),
-      threatId: z.string().describe("Required. Threat ID to match.").optional(),
-    })).describe(
-      "Optional. Configuration for overriding WildFire threats action by threat_id match.",
-    ).optional(),
-  }).describe("The WildFire Analysis configurations for SecurityProfile.")
     .optional(),
   securityProfileId: z.string().describe(
     'Required. Short name of the SecurityProfile resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile1".',
@@ -886,7 +488,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security SecurityProfiles. Registered at `@swamp/gcp/networksecurity/securityprofiles`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/securityprofiles",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1018,6 +620,15 @@ export const model = {
       description: "Added: wildfireAnalysisProfile",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "Removed: wildfireAnalysisProfile",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { wildfireAnalysisProfile: _wildfireAnalysisProfile, ...rest } =
+          old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1060,9 +671,6 @@ export const model = {
         if (g["type"] !== undefined) body["type"] = g["type"];
         if (g["urlFilteringProfile"] !== undefined) {
           body["urlFilteringProfile"] = g["urlFilteringProfile"];
-        }
-        if (g["wildfireAnalysisProfile"] !== undefined) {
-          body["wildfireAnalysisProfile"] = g["wildfireAnalysisProfile"];
         }
         if (g["securityProfileId"] !== undefined) {
           params["securityProfileId"] = String(g["securityProfileId"]);
@@ -1190,9 +798,6 @@ export const model = {
         }
         if (g["urlFilteringProfile"] !== undefined) {
           body["urlFilteringProfile"] = g["urlFilteringProfile"];
-        }
-        if (g["wildfireAnalysisProfile"] !== undefined) {
-          body["wildfireAnalysisProfile"] = g["wildfireAnalysisProfile"];
         }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

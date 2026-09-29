@@ -9,6 +9,7 @@ import type {
 } from "./pipeline.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { liveFillFields } from "../shared/liveFill.ts";
 
 // DigitalOcean regions for z.enum generation
 const DO_REGIONS = [
@@ -432,6 +433,33 @@ export function generateDigitalOceanExtensionModel(
       lines.push(
         `        if (g.${name} !== undefined) body.${name} = g.${name};`,
       );
+    }
+    // A PUT body replaces the resource, so every field left unset in
+    // globalArgs would be cleared or reset to its default. Fill unset fields
+    // from the live resource, not stored state (which can be stale), so an
+    // unset field keeps its current value. See liveFillFields for which
+    // fields qualify.
+    const liveFill = resource.updateMethod === "PUT"
+      ? liveFillFields(
+        Object.keys(resource.updateProperties),
+        resource.updateProperties,
+        resource.resourceProperties,
+      )
+      : [];
+    if (liveFill.length > 0) {
+      lines.push(
+        `        const unset = ${
+          JSON.stringify(liveFill)
+        }.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(`        if (unset.length > 0) {`);
+      lines.push(
+        `          const live = await read(${ep()}, existing.${identifyingField} ?? existing.id, undefined, g.token);`,
+      );
+      lines.push(
+        `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
+      );
+      lines.push(`        }`);
     }
     if (hasReadiness) {
       lines.push(

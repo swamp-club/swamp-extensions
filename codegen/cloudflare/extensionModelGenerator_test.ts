@@ -714,11 +714,20 @@ Deno.test("generateCloudflareExtensionModel - a required email property stays gu
   );
 });
 
-Deno.test("generateCloudflareExtensionModel - PUT update fills create-required fields from the live resource and guards them", () => {
+Deno.test("generateCloudflareExtensionModel - PUT update fills every unset field from the live resource and guards create-required ones", () => {
   const code = generateCloudflareExtensionModel({
     resource: createRequiredResource({
       updateMethod: "PUT",
-      updateProperties: { name: stringProp, enabled: { type: "boolean" } },
+      updateProperties: {
+        name: stringProp,
+        enabled: { type: "boolean" },
+        comment: stringProp,
+      },
+      resourceProperties: {
+        id: stringProp,
+        name: stringProp,
+        comment: stringProp,
+      },
     }),
     extensionName: "@swamp/cloudflare",
     version: "2026.01.01.1",
@@ -727,15 +736,17 @@ Deno.test("generateCloudflareExtensionModel - PUT update fills create-required f
     code.indexOf("    update: {"),
     code.indexOf("    delete: {"),
   );
-  // `type` is create-only (not in the update body), so only enabled/name.
+  // Every update-body field is filled, including the optional comment.
   assertStringIncludes(
     update,
-    `const unset = ["enabled","name"].filter((k) => body[k] === undefined);`,
+    `const unset = ["comment","enabled","name"].filter((k) => body[k] === undefined);`,
   );
   assertStringIncludes(
     update,
     `const live = await read(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });`,
   );
+  // Only create-required fields are guarded; `type` is create-only (not in
+  // the update body).
   assertStringIncludes(
     update,
     `const missingForUpdate = ["enabled","name"].filter((k) => body[k] === undefined);`,
@@ -753,7 +764,7 @@ Deno.test("generateCloudflareExtensionModel - PUT update fills create-required f
   );
 });
 
-Deno.test("generateCloudflareExtensionModel - PATCH update does not fill or guard create-required fields", () => {
+Deno.test("generateCloudflareExtensionModel - PATCH update does not fill or guard fields", () => {
   const code = generateCloudflareExtensionModel({
     resource: createRequiredResource({
       updateMethod: "PATCH",

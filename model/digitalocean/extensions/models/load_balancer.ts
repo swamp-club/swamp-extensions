@@ -347,7 +347,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -412,6 +412,11 @@ export const model = {
     {
       toVersion: "2026.09.22.1",
       description: "Added: subnet_uuid",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -622,6 +627,44 @@ export const model = {
           body.tls_cipher_policy = g.tls_cipher_policy;
         }
         if (g.tag !== undefined) body.tag = g.tag;
+        const unset = [
+          "algorithm",
+          "disable_lets_encrypt_dns_records",
+          "domains",
+          "droplet_ids",
+          "enable_backend_keepalive",
+          "enable_proxy_protocol",
+          "firewall",
+          "forwarding_rules",
+          "glb_settings",
+          "health_check",
+          "http_idle_timeout_seconds",
+          "name",
+          "network",
+          "network_stack",
+          "project_id",
+          "redirect_http_to_https",
+          "size",
+          "size_unit",
+          "sticky_sessions",
+          "subnet_uuid",
+          "tag",
+          "target_load_balancer_ids",
+          "tls_cipher_policy",
+          "type",
+          "vpc_uuid",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/load_balancers",
+            existing.lbid ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         let result = await update(
           "/v2/load_balancers",
           existing.lbid ?? existing.id,

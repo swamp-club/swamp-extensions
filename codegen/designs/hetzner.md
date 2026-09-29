@@ -150,6 +150,16 @@ This simplifies the update logic: the pipeline doesn't need PATCH-vs-PUT
 precedence or an `updateMethod` field. The generated `update()` helper always
 sends PUT.
 
+### Unset fields keep their current value
+
+Hetzner's PUT is a partial update: every body field is optional, and a field
+left out keeps its current value (labels that are sent replace the whole label
+set; labels left out are unchanged). So `update` sends only the fields set in
+globalArgs and does not read the live resource first, unlike the
+full-replacement PUT updates of the other providers (swamp-club #2656). A
+read-then-write would only add a round-trip, a new failure mode and a window in
+which a concurrent change is reverted.
+
 ### Path sorting for GET response extraction
 
 Paths are sorted so collection paths (without `{id}`) are processed before

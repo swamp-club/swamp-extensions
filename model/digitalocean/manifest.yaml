@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.09.24.1"
+version: "2026.09.29.1"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: action_gateway_connection, action_gateway_session, action_gateway_toolbelt
-  - Updated: kubernetes_cluster
+  - Updated: app_platform, cdn_endpoint, custom_image, database_logsink, database_pool, database_topic, database_user, droplet_autoscale, firewall, function_namespace_trigger, kubernetes_cluster, kubernetes_cluster_node_pool, load_balancer, monitoring_alert_policy, ssh_key, uptime_check, uptime_check_alert, vector_database, vpc_nat_gateway
 models:
   - action_gateway_connection.ts
   - action_gateway_session.ts

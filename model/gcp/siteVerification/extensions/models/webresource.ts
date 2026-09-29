@@ -225,7 +225,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Site Verification WebResource. Registered at `@swamp/gcp/siteverification/webresource`. */
 export const model = {
   type: "@swamp/gcp/siteverification/webresource",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -478,12 +483,26 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["owners"] !== undefined) body["owners"] = g["owners"];
         if (g["site"] !== undefined) body["site"] = g["site"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = ["owners", "site"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

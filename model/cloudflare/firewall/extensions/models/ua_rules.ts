@@ -113,7 +113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Ua Rules. Registered at `@swamp/cloudflare/firewall/ua-rules`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/ua-rules",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -137,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -329,7 +334,7 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.mode !== undefined) body.mode = g.mode;
         if (g.paused !== undefined) body.paused = g.paused;
-        const unset = ["configuration", "mode"].filter((k) =>
+        const unset = ["configuration", "id", "mode"].filter((k) =>
           body[k] === undefined
         );
         if (unset.length > 0) {
@@ -338,7 +343,9 @@ export const model = {
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["configuration", "mode"].filter((k) =>
           body[k] === undefined

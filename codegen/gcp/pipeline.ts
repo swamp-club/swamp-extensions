@@ -282,6 +282,8 @@ export interface GcpServiceGenerationResult {
   licenseFile: GcpGeneratedFile;
   denoConfigFile: GcpGeneratedFile;
   modelChanges: GcpModelChange[];
+  /** Existing models that failed to generate; left as they are on disk. */
+  keptModelFileNames: string[];
   hasChanges: boolean;
 }
 
@@ -434,9 +436,10 @@ export async function fetchGcpSchema(options?: {
       (skippedCount > 0 ? ` (${skippedCount} skipped)` : ""),
   );
 
-  // Fetch additional stable (non-alpha/beta) versions for every API that has
-  // more than one. Resources from these versions are merged during generation,
-  // with the preferred version winning for overlapping resource paths.
+  // Fetch additional stable (non-alpha/beta/preview) versions for every API
+  // that has more than one. Resources from these versions are merged during
+  // generation, with the preferred version winning for overlapping resource
+  // paths.
   let additionalFetched = 0;
   for (const [apiName, versions] of apisByName) {
     if (SKIP_APIS.has(apiName)) continue;
@@ -445,9 +448,7 @@ export async function fetchGcpSchema(options?: {
     if (!preferred) continue;
 
     const additionalStable = versions.filter((v) =>
-      v.version !== preferred.version &&
-      !v.version.includes("alpha") &&
-      !v.version.includes("beta")
+      v.version !== preferred.version && isStableGcpVersion(v.version)
     );
 
     for (const item of additionalStable) {
@@ -553,11 +554,22 @@ export async function generateGcpModels(options: {
 
   // Track seen resource keys for cross-version dedup (preferred wins).
   const seenResourceKeys = new Set<string>();
+  // Services where a resource failed to parse or generate. Their existing
+  // models are not pruned this run (see keptModelFileNames).
+  const servicesWithErrors = new Set<string>();
 
   let docCount = 0;
   for (const baseService of [...filesByService.keys()].sort()) {
     const group = filesByService.get(baseService)!;
     group.additional.sort((a, b) => a.localeCompare(b));
+
+    // Any failure in this service's documents marks the service, so its
+    // existing models that do not generate this run are kept rather than
+    // pruned (see keptModelFileNames).
+    const reportError = (message: string): void => {
+      errors.push(message);
+      servicesWithErrors.add(baseService);
+    };
 
     const readRaw = async (
       filename: string,
@@ -568,7 +580,7 @@ export async function generateGcpModels(options: {
           await Deno.readTextFile(`${schemasDir}/${filename}`),
         ) as RawGcpDiscoveryDocument;
         if (doc.name !== baseService) {
-          errors.push(
+          reportError(
             `${stem}: discovery document name "${doc.name}" does not match ` +
               `schema filename base "${baseService}"`,
           );
@@ -576,7 +588,7 @@ export async function generateGcpModels(options: {
         }
         return doc;
       } catch (e) {
-        errors.push(`${stem}: ${e}`);
+        reportError(`${stem}: ${e}`);
         return undefined;
       }
     };
@@ -598,19 +610,31 @@ export async function generateGcpModels(options: {
       ? { ...preferredSurface, methods: new Map(preferredSurface.methods) }
       : undefined;
     const separate: { filename: string; doc: RawGcpDiscoveryDocument }[] = [];
+    // Kept so a merge that breaks parsing can fall back to the unmerged
+    // documents instead of losing every resource of the API.
+    const unmergedPreferred = preferred
+      ? structuredClone(preferred)
+      : undefined;
+    const merged: { filename: string; doc: RawGcpDiscoveryDocument }[] = [];
     for (const filename of group.additional) {
       const doc = await readRaw(filename);
       if (!doc) continue;
-      const surface = gcpSurfaceOf(doc);
+      // Non-stable versions are not fetched any more; skip any left on disk.
       // Check the version part of the filename, not the API name.
       const { stem } = classifyGcpSchemaFile(filename);
-      const isPreview = doc.version?.includes("preview") ||
-        stem.slice(baseService.length + 1).includes("preview");
       if (
-        preferred && preferredSurface && mergedSurface && !isPreview &&
+        !isStableGcpVersion(doc.version ?? "") ||
+        !isStableGcpVersion(stem.slice(baseService.length + 1))
+      ) {
+        continue;
+      }
+      const surface = gcpSurfaceOf(doc);
+      if (
+        preferred && preferredSurface && mergedSurface &&
         sameGcpSurface(preferredSurface, surface) &&
         sameGcpSurface(mergedSurface, surface)
       ) {
+        merged.push({ filename, doc: structuredClone(doc) });
         mergeGcpDiscoveryDocument(preferred, doc);
         for (const [id, signature] of surface.methods) {
           if (!mergedSurface.methods.has(id)) {
@@ -624,29 +648,56 @@ export async function generateGcpModels(options: {
       }
     }
 
-    const ordered = [
-      ...(preferred && group.preferred
-        ? [{ filename: group.preferred, doc: preferred }]
-        : []),
-      ...separate,
-    ];
-    for (const { filename, doc: raw } of ordered) {
+    const parseDocument = (raw: RawGcpDiscoveryDocument): void => {
+      const doc = dereferenceGcpDiscoveryDocument(raw);
+      const resourceErrors: string[] = [];
+      const resources = parseGcpDiscoveryDocument(doc, resourceErrors);
+      for (const message of resourceErrors) reportError(message);
+
+      for (const resource of resources) {
+        const resourceKey = `${resource.service}.${
+          resource.resourcePath.join(".")
+        }`;
+        if (seenResourceKeys.has(resourceKey)) continue;
+        seenResourceKeys.add(resourceKey);
+        allResources.push(resource);
+      }
+
+      docCount++;
+    };
+
+    if (preferred && group.preferred) {
+      const { stem } = classifyGcpSchemaFile(group.preferred);
       try {
-        const doc = dereferenceGcpDiscoveryDocument(raw);
-        const resources = parseGcpDiscoveryDocument(doc);
-
-        for (const resource of resources) {
-          const resourceKey = `${resource.service}.${
-            resource.resourcePath.join(".")
-          }`;
-          if (seenResourceKeys.has(resourceKey)) continue;
-          seenResourceKeys.add(resourceKey);
-          allResources.push(resource);
-        }
-
-        docCount++;
+        parseDocument(preferred);
       } catch (e) {
-        errors.push(`${classifyGcpSchemaFile(filename).stem}: ${e}`);
+        if (merged.length === 0 || !unmergedPreferred) {
+          reportError(`${stem}: ${e}`);
+        } else {
+          // The merge broke parsing. Record it, then parse the preferred
+          // document as published and let each merged version contribute
+          // only the resources the preferred version lacks.
+          reportError(
+            `${stem}: merging ${
+              merged.map((m) => classifyGcpSchemaFile(m.filename).stem)
+                .join(", ")
+            } failed, falling back to unmerged versions: ${e}`,
+          );
+          docCount -= merged.length;
+          try {
+            parseDocument(unmergedPreferred);
+          } catch (e2) {
+            reportError(`${stem}: ${e2}`);
+          }
+          separate.unshift(...merged);
+        }
+      }
+    }
+    for (const { filename, doc: raw } of separate) {
+      try {
+        parseDocument(raw);
+      } catch (e) {
+        reportError(`${classifyGcpSchemaFile(filename).stem}: ${e}`);
       }
     }
   }
@@ -839,10 +890,38 @@ export async function generateGcpModels(options: {
         modelChanges.push({ fileName, status });
       } catch (error) {
         errors.push(`${resource.typeName}: ${error}`);
+        servicesWithErrors.add(serviceName);
       }
     }
 
     if (models.length === 0) continue;
+
+    // When a resource of this service failed to parse or generate, existing
+    // models that did not generate this run are kept on disk and in the
+    // manifest at their last good version, so a failure is reported instead
+    // of silently unpublishing a model. A model removed upstream in the same
+    // run is then removed by the next clean run.
+    const keptModelFileNames: string[] = [];
+    if (servicesWithErrors.has(serviceName)) {
+      const generated = new Set(
+        models.map((m) => m.filePath.replace("extensions/models/", "")),
+      );
+      try {
+        for await (
+          const entry of Deno.readDir(`${serviceOutputDir}/extensions/models`)
+        ) {
+          if (
+            entry.isFile && entry.name.endsWith(".ts") &&
+            !generated.has(entry.name)
+          ) {
+            keptModelFileNames.push(entry.name);
+          }
+        }
+      } catch {
+        // No models on disk yet, so there is nothing to keep.
+      }
+      keptModelFileNames.sort();
+    }
 
     // Reuse the lib source generated earlier for change detection
     const libFile: GcpGeneratedFile = {
@@ -922,9 +1001,10 @@ export async function generateGcpModels(options: {
 
     // Compute manifest version
     const additionalFiles = ["LICENSE.txt", "README.md"];
-    const modelFileNames = models.map((m) =>
-      m.filePath.replace("extensions/models/", "")
-    );
+    const modelFileNames = [
+      ...models.map((m) => m.filePath.replace("extensions/models/", "")),
+      ...keptModelFileNames,
+    ];
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
@@ -986,6 +1066,7 @@ export async function generateGcpModels(options: {
       licenseFile,
       denoConfigFile,
       modelChanges,
+      keptModelFileNames,
       hasChanges,
     });
   }
@@ -1078,6 +1159,7 @@ const CREATABLE_COLLECTION_KEYS = new Set([
 // Collections whose entries, when added to an existing definition, are added
 // as optional: a parameter or property only the additional version has must
 // not become required on a method or schema the preferred version defines.
+// This holds both when the collection exists and when the merge creates it.
 const OPTIONAL_WHEN_ADDED_KEYS = new Set(["parameters", "properties"]);
 // Nested schema definitions merged recursively when both sides have them.
 const NESTED_DEFINITION_KEYS = new Set(["items", "additionalProperties"]);
@@ -1140,7 +1222,9 @@ function mergeDefinition(
     if (NAMED_COLLECTION_KEYS.has(key)) {
       if (existing === undefined) {
         if (CREATABLE_COLLECTION_KEYS.has(key)) {
-          target[key] = structuredClone(value);
+          target[key] = OPTIONAL_WHEN_ADDED_KEYS.has(key)
+            ? withoutRequirements(value)
+            : structuredClone(value);
         }
       } else if (isPlainObject(existing)) {
         for (const [name, entry] of Object.entries(value)) {
@@ -1162,6 +1246,21 @@ function mergeDefinition(
       mergeDefinition(existing, value);
     }
   }
+}
+
+// A parameters or properties collection created on an existing definition
+// adds every entry to that definition, so each is added as optional.
+function withoutRequirements(
+  collection: Record<string, unknown>,
+): Record<string, unknown> {
+  const copy: Record<string, unknown> = {};
+  for (const [name, entry] of Object.entries(collection)) {
+    if (name === "__proto__") continue;
+    copy[name] = isPlainObject(entry)
+      ? withoutRequirement(entry)
+      : structuredClone(entry);
+  }
+  return copy;
 }
 
 function withoutRequirement(
@@ -1379,10 +1478,12 @@ const GLOBAL_ONLY_PATTERNS = [
 ];
 
 /**
- * Parses a GCP Discovery Document into resource definitions.
+ * Parses a GCP Discovery Document into resource definitions. A resource that
+ * fails to parse is left out and, when `errors` is given, reported there.
  */
 export function parseGcpDiscoveryDocument(
   doc: GcpDiscoveryDocument,
+  errors?: string[],
 ): GcpParsedResource[] {
   const resources: GcpParsedResource[] = [];
 
@@ -1404,8 +1505,9 @@ export function parseGcpDiscoveryDocument(
       if (parsed) {
         resources.push(parsed);
       }
-    } catch (_e) {
+    } catch (e) {
       // Continue processing other resources
+      errors?.push(`${doc.name}.${spec.resourcePath.join(".")}: ${e}`);
     }
   }
 
@@ -2680,13 +2782,21 @@ async function fetchWithRetry(
   }
 }
 
+/**
+ * Whether a discovery version id names a stable version. Alpha, beta and
+ * preview versions describe resources that are not generally available, so
+ * they are never fetched or generated.
+ */
+export function isStableGcpVersion(version: string): boolean {
+  return !version.includes("alpha") && !version.includes("beta") &&
+    !version.includes("preview");
+}
+
 function selectBestVersion(versions: DiscoveryItem[]): DiscoveryItem {
   const preferred = versions.find((v) => v.preferred);
   if (preferred) return preferred;
 
-  const stableVersions = versions.filter((v) =>
-    !v.version.includes("alpha") && !v.version.includes("beta")
-  );
+  const stableVersions = versions.filter((v) => isStableGcpVersion(v.version));
   const candidates = stableVersions.length > 0 ? stableVersions : versions;
   candidates.sort((a, b) => b.version.localeCompare(a.version));
   return candidates[0];

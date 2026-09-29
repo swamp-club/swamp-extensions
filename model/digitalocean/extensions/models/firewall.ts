@@ -155,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean firewall. Registered at `@swamp/digitalocean/firewall`. */
 export const model = {
   type: "@swamp/digitalocean/firewall",
-  version: "2026.09.16.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -209,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -317,6 +322,24 @@ export const model = {
         if (g.inbound_rules !== undefined) body.inbound_rules = g.inbound_rules;
         if (g.outbound_rules !== undefined) {
           body.outbound_rules = g.outbound_rules;
+        }
+        const unset = [
+          "droplet_ids",
+          "inbound_rules",
+          "name",
+          "outbound_rules",
+          "tags",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/firewalls",
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const result = await update(
           "/v2/firewalls",

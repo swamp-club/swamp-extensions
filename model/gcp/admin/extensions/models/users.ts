@@ -488,7 +488,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Users. Registered at `@swamp/gcp/admin/users`. */
 export const model = {
   type: "@swamp/gcp/admin/users",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -512,6 +512,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -757,17 +762,12 @@ export const model = {
           body["organizations"] = g["organizations"];
         }
         if (g["password"] !== undefined) body["password"] = g["password"];
-        else if (existing["password"] !== undefined) {
-          body["password"] = existing["password"];
-        }
         if (g["phones"] !== undefined) body["phones"] = g["phones"];
         if (g["posixAccounts"] !== undefined) {
           body["posixAccounts"] = g["posixAccounts"];
         }
         if (g["primaryEmail"] !== undefined) {
           body["primaryEmail"] = g["primaryEmail"];
-        } else if (existing["primaryEmail"] !== undefined) {
-          body["primaryEmail"] = existing["primaryEmail"];
         }
         if (g["recoveryEmail"] !== undefined) {
           body["recoveryEmail"] = g["recoveryEmail"];
@@ -781,6 +781,48 @@ export const model = {
         }
         if (g["suspended"] !== undefined) body["suspended"] = g["suspended"];
         if (g["websites"] !== undefined) body["websites"] = g["websites"];
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "addresses",
+          "archived",
+          "changePasswordAtNextLogin",
+          "customSchemas",
+          "deletionTime",
+          "emails",
+          "externalIds",
+          "gender",
+          "hashFunction",
+          "id",
+          "ims",
+          "includeInGlobalAddressList",
+          "ipWhitelisted",
+          "keywords",
+          "languages",
+          "locations",
+          "notes",
+          "orgUnitPath",
+          "organizations",
+          "phones",
+          "posixAccounts",
+          "primaryEmail",
+          "recoveryEmail",
+          "recoveryPhone",
+          "relations",
+          "sshPublicKeys",
+          "suspended",
+          "websites",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = ["password", "primaryEmail"].filter((k) =>
           body[k] === undefined
         );
@@ -789,12 +831,13 @@ export const model = {
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

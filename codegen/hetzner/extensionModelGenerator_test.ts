@@ -847,3 +847,15 @@ Deno.test("generateHetznerExtensionModel - properties with enums and constraints
     }),
   );
 });
+
+Deno.test("update sends only the fields set, without a live read", () => {
+  // Hetzner's PUT updates only the fields it is sent (omitted fields keep
+  // their value), so there is nothing to fill from the live resource.
+  const out = generateServers();
+  const update = out.slice(
+    out.indexOf("    update: {"),
+    out.indexOf("    delete: {"),
+  );
+  assertStringIncludes(update, "if (g.name !== undefined) body.name = g.name;");
+  assertFalse(update.includes("await read("));
+});

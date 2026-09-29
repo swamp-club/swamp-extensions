@@ -4,6 +4,7 @@ import {
   describesSameGcpSurface,
   type GcpDiscoveryDocument,
   generateGcpModels,
+  isStableGcpVersion,
   mergeGcpDiscoveryDocument,
   nonCreatePathParams,
   type NormalizedGcpSchema,
@@ -696,7 +697,7 @@ Deno.test("mergeGcpDiscoveryDocument - never adds constraints to an existing def
   assertEquals(props.state.enumDescriptions, ["on", ""]);
 });
 
-Deno.test("generateGcpModels - preview versions are not merged into stable resources", async () => {
+Deno.test("generateGcpModels - preview versions contribute nothing", async () => {
   const schemaPath = await Deno.makeTempDir();
   const outputDir = await Deno.makeTempDir();
   try {
@@ -715,8 +716,8 @@ Deno.test("generateGcpModels - preview versions are not merged into stable resou
     const models = result.services.get("widgetapi")!.models;
     const widgets = models.find((m) => m.filePath.endsWith("/widgets.ts"))!;
     assert(!widgets.sourceCode.includes("widgetapi.widgets.setName"));
-    // A preview-only resource is still contributed, as before.
-    assert(models.some((m) => m.filePath.endsWith("/gadgets.ts")));
+    // A preview-only resource is not generated either.
+    assert(!models.some((m) => m.filePath.endsWith("/gadgets.ts")));
   } finally {
     await Deno.remove(schemaPath, { recursive: true });
     await Deno.remove(outputDir, { recursive: true });
@@ -750,6 +751,74 @@ Deno.test("mergeGcpDiscoveryDocument - added parameters and properties are optio
   const props = target.schemas.Widget.properties!;
   assertEquals(Object.getPrototypeOf(props), Object.prototype);
   assert(!Object.hasOwn(props, "__proto__"));
+});
+
+Deno.test("mergeGcpDiscoveryDocument - parameters created on an existing method are optional", () => {
+  type Methods = Record<string, Record<string, unknown>>;
+  const methodsOf = (doc: Record<string, unknown>) =>
+    (doc.resources as Record<string, { methods: Methods }>).widgets.methods;
+  const target = widgetsDoc("v1", {});
+  const source = widgetsDoc("2026-09-01", {});
+  // The preferred get has no parameters key at all.
+  delete methodsOf(target).get.parameters;
+  (methodsOf(source).get.parameters as Record<string, unknown>).view = {
+    type: "string",
+    location: "query",
+    required: true,
+  };
+  // A method only the additional version has keeps its own required flags.
+  methodsOf(source).setName = {
+    id: "widgetapi.widgets.setName",
+    path: "v1/{+name}:setName",
+    httpMethod: "POST",
+    parameters: {
+      name: { type: "string", location: "path", required: true },
+    },
+  };
+
+  mergeGcpDiscoveryDocument(
+    target as unknown as RawDoc,
+    source as unknown as RawDoc,
+  );
+
+  const params = methodsOf(target).get.parameters as Methods;
+  assertEquals(params.name, { type: "string", location: "path" });
+  assertEquals(params.view, { type: "string", location: "query" });
+  const setName = methodsOf(target).setName.parameters as Methods;
+  assertEquals(setName.name.required, true);
+});
+
+Deno.test("generateGcpModels - a merge that breaks parsing falls back to unmerged versions", async () => {
+  const schemaPath = await Deno.makeTempDir();
+  const outputDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi.json`,
+      JSON.stringify(widgetsDoc("v1", {})),
+    );
+    // A null schema is copied in by the merge and makes dereferencing throw.
+    const dated = datedWithSetName();
+    (dated.schemas as Record<string, unknown>).Broken = null;
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi-2026-09-01.json`,
+      JSON.stringify(dated),
+    );
+
+    const result = await generateGcpModels({ schemaPath, outputDir });
+    const models = result.services.get("widgetapi")!.models;
+    const widgets = models.find((m) => m.filePath.endsWith("/widgets.ts"))!;
+    assert(widgets, "preferred resources are still generated");
+    assert(!widgets.sourceCode.includes("widgetapi.widgets.setName"));
+    assert(
+      result.errors.some((e) =>
+        e.startsWith("widgetapi: merging widgetapi-2026-09-01 failed")
+      ),
+      `merge failure recorded: ${result.errors.join("; ")}`,
+    );
+  } finally {
+    await Deno.remove(schemaPath, { recursive: true });
+    await Deno.remove(outputDir, { recursive: true });
+  }
 });
 
 Deno.test("generateGcpModels - a version conflicting with an earlier merge is not merged", async () => {
@@ -858,4 +927,109 @@ Deno.test("mergeGcpDiscoveryDocument - keeps the longer description and enum des
   };
   assertEquals(kind.enum, ["A", "B"]);
   assertEquals(kind.enumDescriptions, ["a, in detail", "b, in detail"]);
+});
+
+Deno.test("isStableGcpVersion - alpha, beta and preview versions are not stable", () => {
+  for (const v of ["v1", "v2", "stable", "2026-09-01"]) {
+    assert(isStableGcpVersion(v), v);
+  }
+  for (const v of ["alpha", "v1beta1", "preview", "2026-10-01-preview"]) {
+    assert(!isStableGcpVersion(v), v);
+  }
+});
+
+Deno.test("generateGcpModels - a resource that fails keeps its existing model instead of being pruned", async () => {
+  const schemaPath = await Deno.makeTempDir();
+  const outputDir = await Deno.makeTempDir();
+  try {
+    const doc = widgetsDoc("v1", {}, { gadgets: {} });
+    const resources = doc.resources as Record<
+      string,
+      { methods: Record<string, { response?: { $ref: string } }> }
+    >;
+    // gadgets gets its own schema with a malformed description, which makes
+    // only that resource fail to parse.
+    for (const m of Object.values(resources.gadgets.methods)) {
+      if (m.response?.$ref === "Widget") m.response = { $ref: "Gadget" };
+    }
+    (doc.schemas as Record<string, unknown>).Gadget = {
+      id: "Gadget",
+      type: "object",
+      properties: { name: { type: "string", description: 7 } },
+    };
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi.json`,
+      JSON.stringify(doc),
+    );
+    // gadgets was published by an earlier run.
+    const modelsDir = `${outputDir}/gcp/widgetapi/extensions/models`;
+    await Deno.mkdir(modelsDir, { recursive: true });
+    await Deno.writeTextFile(`${modelsDir}/gadgets.ts`, "// last good\n");
+
+    const result = await generateGcpModels({ schemaPath, outputDir });
+    assert(
+      result.errors.some((e) => e.startsWith("widgetapi.gadgets: ")),
+      `parse failure reported: ${result.errors.join("; ")}`,
+    );
+    const service = result.services.get("widgetapi")!;
+    assert(service.models.some((m) => m.filePath.endsWith("/widgets.ts")));
+    assertEquals(service.keptModelFileNames, ["gadgets.ts"]);
+    assert(
+      service.manifest.sourceCode.includes("gadgets.ts"),
+      "kept model stays in the manifest",
+    );
+
+    // Without errors nothing is kept, so a model removed upstream is pruned.
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi.json`,
+      JSON.stringify(widgetsDoc("v1", {})),
+    );
+    const clean = await generateGcpModels({ schemaPath, outputDir });
+    assertEquals(clean.services.get("widgetapi")!.keptModelFileNames, []);
+  } finally {
+    await Deno.remove(schemaPath, { recursive: true });
+    await Deno.remove(outputDir, { recursive: true });
+  }
+});
+
+Deno.test("generateGcpModels - a document that fails keeps the models it used to produce", async () => {
+  const schemaPath = await Deno.makeTempDir();
+  const outputDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi.json`,
+      JSON.stringify(widgetsDoc("v2", {})),
+    );
+    // A different-surface version that used to contribute gadgets now fails
+    // to dereference, while the preferred version still generates widgets.
+    const v1 = widgetsDoc("v1", {}, { gadgets: {} });
+    const resources = v1.resources as Record<
+      string,
+      { methods: Record<string, { path: string }> }
+    >;
+    for (const r of Object.values(resources)) {
+      for (const m of Object.values(r.methods)) m.path = `legacy/${m.path}`;
+    }
+    (v1.schemas as Record<string, unknown>).Broken = null;
+    await Deno.writeTextFile(
+      `${schemaPath}/widgetapi-v1.json`,
+      JSON.stringify(v1),
+    );
+    const modelsDir = `${outputDir}/gcp/widgetapi/extensions/models`;
+    await Deno.mkdir(modelsDir, { recursive: true });
+    await Deno.writeTextFile(`${modelsDir}/gadgets.ts`, "// last good\n");
+
+    const result = await generateGcpModels({ schemaPath, outputDir });
+    assert(
+      result.errors.some((e) => e.startsWith("widgetapi-v1: ")),
+      `document failure reported: ${result.errors.join("; ")}`,
+    );
+    const service = result.services.get("widgetapi")!;
+    assert(service.models.some((m) => m.filePath.endsWith("/widgets.ts")));
+    assertEquals(service.keptModelFileNames, ["gadgets.ts"]);
+    assert(service.manifest.sourceCode.includes("gadgets.ts"));
+  } finally {
+    await Deno.remove(schemaPath, { recursive: true });
+    await Deno.remove(outputDir, { recursive: true });
+  }
 });

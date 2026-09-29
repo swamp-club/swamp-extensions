@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean cdn endpoint. Registered at `@swamp/digitalocean/cdn-endpoint`. */
 export const model = {
   type: "@swamp/digitalocean/cdn-endpoint",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -135,6 +135,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -229,6 +234,20 @@ export const model = {
           body.certificate_id = g.certificate_id;
         }
         if (g.custom_domain !== undefined) body.custom_domain = g.custom_domain;
+        const unset = ["certificate_id", "custom_domain", "ttl"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/cdn/endpoints",
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           "/v2/cdn/endpoints",
           existing.id ?? existing.id,

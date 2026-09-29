@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Site Info. Registered at `@swamp/cloudflare/rum/site-info`. */
 export const model = {
   type: "@swamp/cloudflare/rum/site-info",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -135,6 +135,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -325,6 +330,17 @@ export const model = {
         if (g.host !== undefined) body.host = g.host;
         if (g.lite !== undefined) body.lite = g.lite;
         if (g.zone_tag !== undefined) body.zone_tag = g.zone_tag;
+        const unset = ["auto_install"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

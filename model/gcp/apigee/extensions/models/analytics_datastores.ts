@@ -251,7 +251,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Analytics.Datastores. Registered at `@swamp/gcp/apigee/analytics-datastores`. */
 export const model = {
   type: "@swamp/gcp/apigee/analytics-datastores",
-  version: "2026.08.12.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +365,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,12 +505,28 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["targetType"] !== undefined) body["targetType"] = g["targetType"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = ["datastoreConfig", "displayName", "targetType"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

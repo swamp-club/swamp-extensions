@@ -387,7 +387,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -446,6 +446,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -786,11 +791,30 @@ export const model = {
         }
         if (g.zdr !== undefined) body.zdr = g.zdr;
         const unset = [
+          "authentication",
+          "byok_only",
           "cache_invalidate_on_update",
           "cache_ttl",
           "collect_logs",
+          "dlp",
+          "guardrails",
+          "log_classification",
+          "log_management",
+          "log_management_strategy",
+          "logpush",
+          "logpush_public_key",
+          "otel",
           "rate_limiting_interval",
           "rate_limiting_limit",
+          "rate_limiting_technique",
+          "retry_backoff",
+          "retry_delay",
+          "retry_max_attempts",
+          "spend_limits",
+          "store_id",
+          "stripe",
+          "workers_ai_billing_mode",
+          "zdr",
         ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
@@ -798,7 +822,9 @@ export const model = {
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = [
           "cache_invalidate_on_update",

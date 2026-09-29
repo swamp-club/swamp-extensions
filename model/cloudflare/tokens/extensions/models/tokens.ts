@@ -173,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tokens. Registered at `@swamp/cloudflare/tokens/tokens`. */
 export const model = {
   type: "@swamp/cloudflare/tokens/tokens",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -208,6 +208,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -435,14 +440,30 @@ export const model = {
           body.provisioner_type = g.provisioner_type;
         }
         if (g.status !== undefined) body.status = g.status;
-        const unset = ["name", "policies"].filter((k) => body[k] === undefined);
+        const unset = [
+          "condition",
+          "creator_email_at_creation",
+          "expires_on",
+          "id",
+          "issued_on",
+          "last_used_on",
+          "modified_on",
+          "name",
+          "not_before",
+          "policies",
+          "provisioner_id",
+          "provisioner_type",
+          "status",
+        ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["name", "policies"].filter((k) =>
           body[k] === undefined

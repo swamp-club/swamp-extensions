@@ -442,7 +442,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Apiproducts.Rateplans. Registered at `@swamp/gcp/apigee/apiproducts-rateplans`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts-rateplans",
-  version: "2026.08.12.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -583,6 +583,12 @@ export const model = {
     {
       toVersion: "2026.08.12.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description:
+        "Added: consumptionPricingType, currencyCode, description, displayName, endTime, fixedFeeFrequency, fixedRecurringFee, revenueShareRates, revenueShareType, setupFee, startTime, state, parent",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -788,12 +794,42 @@ export const model = {
         if (g["setupFee"] !== undefined) body["setupFee"] = g["setupFee"];
         if (g["startTime"] !== undefined) body["startTime"] = g["startTime"];
         if (g["state"] !== undefined) body["state"] = g["state"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "apiproduct",
+          "billingPeriod",
+          "consumptionPricingRates",
+          "consumptionPricingType",
+          "currencyCode",
+          "description",
+          "displayName",
+          "endTime",
+          "fixedFeeFrequency",
+          "fixedRecurringFee",
+          "revenueShareRates",
+          "revenueShareType",
+          "setupFee",
+          "startTime",
+          "state",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

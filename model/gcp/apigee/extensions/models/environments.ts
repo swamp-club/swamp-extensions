@@ -331,7 +331,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments. Registered at `@swamp/gcp/apigee/environments`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments",
-  version: "2026.09.07.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -517,6 +517,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -701,12 +706,35 @@ export const model = {
         if (g["nodeConfig"] !== undefined) body["nodeConfig"] = g["nodeConfig"];
         if (g["properties"] !== undefined) body["properties"] = g["properties"];
         if (g["type"] !== undefined) body["type"] = g["type"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "clientIpResolutionConfig",
+          "description",
+          "displayName",
+          "forwardProxyUri",
+          "hasAttachedFlowHooks",
+          "nodeConfig",
+          "properties",
+          "type",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

@@ -89,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Indexes. Registered at `@swamp/cloudflare/vectorize/indexes`. */
 export const model = {
   type: "@swamp/cloudflare/vectorize/indexes",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -295,6 +300,17 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
+        const unset = ["description"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.name, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.name, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

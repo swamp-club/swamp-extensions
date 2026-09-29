@@ -457,6 +457,7 @@ const ResourceSchema = z.object({
         sha: z.string().optional(),
       }).optional(),
       statusCode: z.number().optional(),
+      threadId: z.string().optional(),
     }).optional(),
     blockHistory: z.array(z.object({
       action: z.string().optional(),
@@ -473,6 +474,7 @@ const ResourceSchema = z.object({
         sha: z.string().optional(),
       }).optional(),
       statusCode: z.number().optional(),
+      threadId: z.string().optional(),
     })).optional(),
     history: z.array(z.object({
       at: z.number().optional(),
@@ -489,6 +491,7 @@ const ResourceSchema = z.object({
       comment: z.string().optional(),
       createdAt: z.number().optional(),
       reason: z.string().optional(),
+      threadId: z.string().optional(),
     })).optional(),
     scanner: z.string().optional(),
     updatedAt: z.number().optional(),
@@ -1752,7 +1755,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1901,6 +1904,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

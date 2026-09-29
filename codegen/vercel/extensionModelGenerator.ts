@@ -4,6 +4,7 @@
 import type { VercelProperty, VercelResource } from "./pipeline.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { liveFillFields } from "../shared/liveFill.ts";
 
 const VALID_JS_IDENT = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 function quoteProp(name: string): string {
@@ -498,6 +499,44 @@ export function generateVercelExtensionModel(
       lines.push(
         `        if (g${access} !== undefined) body${access} = g${access};`,
       );
+    }
+    // A PUT body replaces the resource, so every field left unset in
+    // globalArgs would be cleared or reset to its default. Fill unset fields
+    // from the live resource, not stored state (which can be stale), so an
+    // unset field keeps its current value. See liveFillFields for which
+    // fields qualify. The read reuses the update endpoint, so it needs an
+    // individual read at the same path.
+    const liveFill = resource.updateMethod === "PUT" &&
+        resource.hasIndividualRead &&
+        resource.readBasePath === resource.updateBasePath
+      ? liveFillFields(
+        updateKeys.filter((k) => !injectedFields.has(k)),
+        Object.keys(resource.updateProperties).length > 0
+          ? resource.updateProperties
+          : resource.createProperties,
+        resource.resourceProperties,
+      )
+      : [];
+    if (liveFill.length > 0) {
+      lines.push(
+        `        const unset = ${
+          JSON.stringify(liveFill)
+        }.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(`        if (unset.length > 0) {`);
+      if (hasUnwrap) {
+        lines.push(
+          `          const live = unwrapResponse(await read(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as Record<string, unknown>) as Record<string, unknown>;`,
+        );
+      } else {
+        lines.push(
+          `          const live = await read(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as Record<string, unknown>;`,
+        );
+      }
+      lines.push(
+        `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
+      );
+      lines.push(`        }`);
     }
     lines.push(
       ...resultAssign(

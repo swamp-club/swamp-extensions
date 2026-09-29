@@ -408,7 +408,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -487,6 +487,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -859,6 +864,44 @@ export const model = {
           body.system_prompt_rewrite_query = g.system_prompt_rewrite_query;
         }
         if (g.token_id !== undefined) body.token_id = g.token_id;
+        const unset = [
+          "ai_gateway_id",
+          "ai_search_model",
+          "cache",
+          "cache_threshold",
+          "cache_ttl",
+          "chunk_overlap",
+          "chunk_size",
+          "custom_metadata",
+          "embedding_model",
+          "fusion_method",
+          "index_method",
+          "indexing_options",
+          "max_num_results",
+          "metadata",
+          "paused",
+          "public_endpoint_params",
+          "reranking",
+          "reranking_model",
+          "retrieval_options",
+          "rewrite_model",
+          "rewrite_query",
+          "score_threshold",
+          "source",
+          "source_params",
+          "sync_interval",
+          "token_id",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

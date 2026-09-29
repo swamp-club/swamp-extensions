@@ -405,7 +405,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar CalendarList. Registered at `@swamp/gcp/calendar/calendarlist`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendarlist",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -549,6 +549,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -729,7 +734,6 @@ export const model = {
         }
         if (g["hidden"] !== undefined) body["hidden"] = g["hidden"];
         if (g["id"] !== undefined) body["id"] = g["id"];
-        else if (existing["id"] !== undefined) body["id"] = existing["id"];
         if (g["location"] !== undefined) body["location"] = g["location"];
         if (g["notificationSettings"] !== undefined) {
           body["notificationSettings"] = g["notificationSettings"];
@@ -741,18 +745,43 @@ export const model = {
           body["summaryOverride"] = g["summaryOverride"];
         }
         if (g["timeZone"] !== undefined) body["timeZone"] = g["timeZone"];
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "backgroundColor",
+          "colorId",
+          "conferenceProperties",
+          "defaultReminders",
+          "foregroundColor",
+          "hidden",
+          "id",
+          "notificationSettings",
+          "selected",
+          "summaryOverride",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = ["id"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {
           throw new Error(
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

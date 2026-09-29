@@ -138,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster node pool. Registered at `@swamp/digitalocean/kubernetes-cluster-node-pool`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster-node-pool",
-  version: "2026.08.15.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -153,6 +153,11 @@ export const model = {
     {
       toVersion: "2026.08.15.1",
       description: "Added: gpu_partition_mode",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -271,6 +276,27 @@ export const model = {
         if (g.auto_scale !== undefined) body.auto_scale = g.auto_scale;
         if (g.min_nodes !== undefined) body.min_nodes = g.min_nodes;
         if (g.max_nodes !== undefined) body.max_nodes = g.max_nodes;
+        const unset = [
+          "auto_scale",
+          "count",
+          "labels",
+          "max_nodes",
+          "min_nodes",
+          "name",
+          "tags",
+          "taints",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            endpoint,
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           endpoint,
           existing.id ?? existing.id,

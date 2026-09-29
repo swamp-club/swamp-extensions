@@ -80,7 +80,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tags. Registered at `@swamp/cloudflare/access/tags`. */
 export const model = {
   type: "@swamp/cloudflare/access/tags",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -99,6 +99,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -277,6 +282,19 @@ export const model = {
         if (g.created_at !== undefined) body.created_at = g.created_at;
         if (g.name !== undefined) body.name = g.name;
         if (g.updated_at !== undefined) body.updated_at = g.updated_at;
+        const unset = ["created_at", "name", "updated_at"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

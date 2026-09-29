@@ -170,7 +170,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Payment-methods. Registered at `@swamp/cloudflare/payment-methods/payment-methods`. */
 export const model = {
   type: "@swamp/cloudflare/payment-methods/payment-methods",
-  version: "2026.08.26.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -483,6 +490,43 @@ export const model = {
         if (g.state !== undefined) body.state = g.state;
         if (g.type !== undefined) body.type = g.type;
         if (g.zipcode !== undefined) body.zipcode = g.zipcode;
+        const unset = [
+          "address",
+          "address2",
+          "bank_account_type",
+          "bank_code",
+          "bank_country",
+          "bank_name",
+          "bank_routing_number",
+          "cashapp_cash_tag",
+          "city",
+          "country",
+          "default",
+          "device_data",
+          "expiration_date",
+          "first_name",
+          "id",
+          "last_four",
+          "last_name",
+          "nick_name",
+          "payment_account_email",
+          "payment_email",
+          "payment_gateway",
+          "payment_nonce",
+          "state",
+          "type",
+          "zipcode",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

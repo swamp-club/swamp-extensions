@@ -98,10 +98,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Data Tag Categories. Registered at `@swamp/cloudflare/dlp/data-tag-categories`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/data-tag-categories",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -299,14 +304,18 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
         if (g.tags !== undefined) body.tags = g.tags;
-        const unset = ["name"].filter((k) => body[k] === undefined);
+        const unset = ["description", "name", "tags"].filter((k) =>
+          body[k] === undefined
+        );
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {

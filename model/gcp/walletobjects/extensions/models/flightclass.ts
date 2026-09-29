@@ -4864,7 +4864,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Wallet Flightclass. Registered at `@swamp/gcp/walletobjects/flightclass`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/flightclass",
-  version: "2026.08.12.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4988,6 +4988,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5311,12 +5316,65 @@ export const model = {
           body["viewUnlockRequirement"] = g["viewUnlockRequirement"];
         }
         if (g["wordMark"] !== undefined) body["wordMark"] = g["wordMark"];
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "appLinkData",
+          "boardingAndSeatingPolicy",
+          "callbackOptions",
+          "classTemplateInfo",
+          "countryCode",
+          "destination",
+          "enableSmartTap",
+          "flightHeader",
+          "flightStatus",
+          "heroImage",
+          "hexBackgroundColor",
+          "homepageUri",
+          "id",
+          "imageModulesData",
+          "infoModuleData",
+          "issuerName",
+          "languageOverride",
+          "linksModuleData",
+          "localBoardingDateTime",
+          "localEstimatedOrActualArrivalDateTime",
+          "localEstimatedOrActualDepartureDateTime",
+          "localGateClosingDateTime",
+          "localScheduledArrivalDateTime",
+          "localScheduledDepartureDateTime",
+          "localizedIssuerName",
+          "merchantLocations",
+          "messages",
+          "multipleDevicesAndHoldersAllowedStatus",
+          "notifyPreference",
+          "origin",
+          "redemptionIssuers",
+          "review",
+          "reviewStatus",
+          "securityAnimation",
+          "textModulesData",
+          "valueAddedModuleData",
+          "viewUnlockRequirement",
+          "wordMark",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

@@ -171,7 +171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean droplet autoscale. Registered at `@swamp/digitalocean/droplet-autoscale`. */
 export const model = {
   type: "@swamp/digitalocean/droplet-autoscale",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -225,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -329,6 +334,20 @@ export const model = {
         if (g.config !== undefined) body.config = g.config;
         if (g.droplet_template !== undefined) {
           body.droplet_template = g.droplet_template;
+        }
+        const unset = ["config", "droplet_template", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/droplets/autoscale",
+            existing.autoscalepoolid ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const result = await update(
           "/v2/droplets/autoscale",

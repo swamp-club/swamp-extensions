@@ -156,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean vpc nat gateway. Registered at `@swamp/digitalocean/vpc-nat-gateway`. */
 export const model = {
   type: "@swamp/digitalocean/vpc-nat-gateway",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -215,6 +215,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -336,6 +341,25 @@ export const model = {
         }
         if (g.tcp_timeout_seconds !== undefined) {
           body.tcp_timeout_seconds = g.tcp_timeout_seconds;
+        }
+        const unset = [
+          "icmp_timeout_seconds",
+          "name",
+          "size",
+          "tcp_timeout_seconds",
+          "udp_timeout_seconds",
+          "vpcs",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            "/v2/vpc_nat_gateways",
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const result = await update(
           "/v2/vpc_nat_gateways",

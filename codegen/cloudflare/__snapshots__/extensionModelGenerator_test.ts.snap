@@ -620,7 +620,7 @@ export const model = {
         const unset = ["name"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
         }
         const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));

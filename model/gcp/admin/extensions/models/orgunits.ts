@@ -251,7 +251,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Orgunits. Registered at `@swamp/gcp/admin/orgunits`. */
 export const model = {
   type: "@swamp/gcp/admin/orgunits",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -270,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -422,9 +427,6 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        else if (existing["name"] !== undefined) {
-          body["name"] = existing["name"];
-        }
         if (g["orgUnitId"] !== undefined) body["orgUnitId"] = g["orgUnitId"];
         if (g["parentOrgUnitId"] !== undefined) {
           body["parentOrgUnitId"] = g["parentOrgUnitId"];
@@ -432,18 +434,38 @@ export const model = {
         if (g["parentOrgUnitPath"] !== undefined) {
           body["parentOrgUnitPath"] = g["parentOrgUnitPath"];
         }
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "description",
+          "name",
+          "orgUnitId",
+          "parentOrgUnitId",
+          "parentOrgUnitPath",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {
           throw new Error(
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

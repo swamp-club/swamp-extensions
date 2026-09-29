@@ -46,17 +46,26 @@ separate document fetched from Google's Discovery API directory.
    `https://www.googleapis.com/discovery/v1/apis`
 2. Group APIs by name, selecting the best version per API:
    - Prefer versions marked with `preferred: true`
-   - Otherwise: stable versions over alpha/beta, highest version number wins
+   - Otherwise: stable versions over alpha/beta/preview, highest version number
+     wins
 3. For each selected API, fetch its discovery document via `discoveryRestUrl`
 4. Save each as `{name}.json` in `schemas/gcp/` with sorted keys for
    deterministic output
 5. Retry with exponential backoff (250ms base, 3 retries, 30s timeout)
 6. Auto-discover additional stable versions: for every API with more than one
-   stable (non-alpha/non-beta) version, fetch each non-preferred version and
-   save as `{name}-{version}.json` (e.g. `iam-v1.json`, `cloudbuild-v1.json`).
-   Version strings are not always `vN` — Google also publishes `v1.1`,
-   `directory_v1`, dated versions like `2026-09-01`, and `stable`, so they are
-   saved the same way (e.g. `compute-2026-09-01.json`, `compute-stable.json`)
+   stable version, fetch each non-preferred version and save as
+   `{name}-{version}.json` (e.g. `iam-v1.json`, `cloudbuild-v1.json`). Version
+   strings are not always `vN` — Google also publishes `v1.1`, `directory_v1`,
+   dated versions like `2026-09-01`, and `stable`, so they are saved the same
+   way (e.g. `compute-2026-09-01.json`, `compute-stable.json`)
+
+A version is stable when its id contains none of `alpha`, `beta` or `preview`
+(`isStableGcpVersion` in `pipeline.ts`). Non-stable versions describe resources
+that are not generally available: compute's `preview` and `2026-10-01-preview`
+documents once added preview-only models (`acceleratorinterconnects`,
+`acceleratorinterconnectmemberinstances`, `hacontrollers`) to
+`@swamp/gcp/compute` that called the `v1` endpoint. They are never fetched, and
+generation skips any non-stable additional version still on disk.
 
 ### Cross-version resource merging
 
@@ -90,9 +99,14 @@ versions are handled in one of two ways:
   offers. Descriptions are the one place the preferred version does not
   automatically win: where both define a `description` (or an `enumDescriptions`
   entry for the same value), the longer text is kept, so no documentation either
-  version publishes is lost. Versions whose id contains `preview` are not merged
-  this way, so preview-only methods do not reach resources that exist in the
-  stable API.
+  version publishes is lost. A parameters list the merge creates on a method the
+  preferred version defines without one is added the same way, every entry
+  optional; a whole method only the additional version has keeps its own
+  required flags. If the merged document fails to dereference or parse, the
+  merge failure is reported as an error and the pipeline falls back: it parses
+  the preferred document as published, and each merged version contributes only
+  the resources the preferred version lacks, as for a different surface. A bad
+  merge therefore loses only the merged additions, never the whole API.
 - **Different surface** — everything else (iam v1/v2, drive v2/v3, and so on). A
   cross-version deduplication step tracks seen resource keys
   (`service.resourcePath`), and the preferred version wins: resources from these
@@ -106,6 +120,21 @@ filename base and a mismatch is reported as an error. The service filter in
 `generate:gcp <service>` matches the base API name, so a filtered run loads the
 same files in the same order as a full run and produces identical output for
 that service.
+
+### Generation errors
+
+Every error (an unreadable or mismatched schema file, a failed merge, a document
+or a single resource that fails to parse, a model that fails to generate) is
+collected and printed at the end, and `generate:gcp` exits with code 2 after
+writing everything that did generate (an uncaught crash exits 1). When anything
+in a service fails (a schema file, a whole document, or a single resource), that
+service's existing models that did not generate this run are kept, file and
+manifest entry, at their last good version instead of being pruned as orphans,
+so a codegen failure never silently unpublishes a model. A model removed
+upstream in the same run is removed by the next clean run. The nightly
+`regenerate-models` workflow continues past a failed provider step and fails the
+run at the end. A provider that exits 2 keeps its complete output in the PR; one
+that crashed or failed to fetch has its partial `model/` output discarded first.
 
 Within-document scope deduplication (`deduplicateScopedResources`) still runs
 first, merging projects/organizations/folders variants into a single model
@@ -487,8 +516,12 @@ GCP uses `annotations.required` on properties to list which methods require
 them, plus a schema-level `required` array (rarely populated). Path-only
 parameters are also required.
 
-swamp validates `GlobalArgsSchema` for every method, not just `create`. So the
-pipeline splits the required set (`nonCreatePathParams` in `pipeline.ts`):
+Method runs validate `GlobalArgsSchema` with `.partial()`, but swamp checks the
+full schema in two places: `swamp model create` with any `--global-arg`, and
+`swamp workflow validate` for steps that name a model type rather than a
+definition. A create-only field marked required there would block a model
+configured for `list` or `get`. So the pipeline splits the required set
+(`nonCreatePathParams` in `pipeline.ts`):
 
 - **`requiredProperties`** — required fields that a non-create method reads from
   globalArgs: path parameters of get/update/patch/delete (excluding the last
@@ -499,16 +532,51 @@ pipeline splits the required set (`nonCreatePathParams` in `pipeline.ts`):
   fields, insert-only path parameters). These are `.optional()` in
   `GlobalArgsSchema`, so `list`, `get` and `delete` run without them, and the
   generated `create` method throws `create requires global arguments: <names>`
-  before any API call when one is unset. When the resource's update is a
-  full-replacement `PUT`, the generated `update` fills each create-required body
-  field from globalArgs, falling back to the stored state that `list`/`get`
-  wrote, and throws `update requires global arguments: <names>` when neither has
-  it, so a replacement body never silently drops a required field. `PATCH`
-  updates send only the fields set in globalArgs, as before.
+  before any API call when one is unset. A full-replacement `PUT` update throws
+  `update requires global arguments: <names>` before the `PUT` when one is unset
+  in both globalArgs and the live resource (see "PUT updates keep unset
+  fields").
 
 For example, `compute/routes` requires `destRange`, `name`, `network` and
 `priority` only at create, so a routes model configured with just `project` can
 run `list`.
+
+### PUT updates keep unset fields
+
+When a resource's update is a full-replacement `PUT` (compute instances and
+firewalls, storage buckets, and others; not a `PUT` that takes an `updateMask`),
+whatever the body leaves out is cleared or reset to its default. So when any
+update-body field is unset in globalArgs, the generated `update` reads the live
+resource once with the `GET` method (`readResource`, reusing the update's
+params) and copies those fields from it: an unset field keeps its current value.
+Stored state is never used for body fields: it is only what swamp last saw, so
+sending it would silently revert changes made outside swamp since the last
+`get`/`sync`. The `GET` is skipped when globalArgs set every such field. The
+concurrency fields (`fingerprint`, `*Fingerprint`, `etag`) also come from that
+read when there was one, and from stored state otherwise.
+
+Which fields are copied is decided at generation time by `liveFillFields` in
+`codegen/shared/liveFill.ts`: a field is filled only when the `GET` response
+describes it with the same shape as the request body (same type, with integer
+and number treated alike, recursively for array items and shared object
+properties). A field the response shapes differently, such as a nested object
+where the request takes a slug, or one the response lacks, is never echoed back
+and is sent only when set. A field whose own description marks it output-only or
+read-only is not filled either, and neither is a field named like a secret
+(`secret`, `password`, `token`, `api_key`, `private_key`, `credential` and
+similar), even when it is create-required: an API that returns it masked would
+have the mask written over the real value. Such fields, and write-only fields
+that never come back from `GET`, must be set explicitly. A `null` live value is
+not copied. Create-required fields are always filled.
+
+The live read needs a `GET` whose path parameters the update also has. A
+resource without one (compute autoscalers, whose update names the target in the
+body) falls back to stored state for create-required fields only, as before, and
+enforces the create-required check. A `PUT` that takes an `updateMask` query
+parameter (logging sinks, dataflow jobs, bigtable instances, and others) only
+changes the masked fields, so it is treated like `PATCH`: nothing is filled or
+guarded, and the mask lists only the fields set in globalArgs. `PATCH` updates
+send only the fields set in globalArgs.
 
 ---
 

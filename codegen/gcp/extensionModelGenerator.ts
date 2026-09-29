@@ -7,6 +7,7 @@ import type { GcpParsedResource } from "./pipeline.ts";
 import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { liveFillFields } from "../shared/liveFill.ts";
 
 /**
  * Sanitize a name to be a valid JS identifier.
@@ -1054,11 +1055,26 @@ export function generateGcpExtensionModel(
 
     const updatePathParams = new Set(updateConfig.parameterOrder);
     const updateParameters = updateConfig.parameters;
-    // Create-only required fields are optional in GlobalArgsSchema; a
-    // full-replacement PUT update must still send them.
-    const isFullReplacement = updateConfig.httpMethod === "PUT";
+    // A full-replacement PUT body replaces the resource, so every field left
+    // unset in globalArgs would be cleared or reset to its default. Unset
+    // fields are filled from a GET of the live resource, so an unset field
+    // keeps its current value. Stored state is not used: it can be stale,
+    // and sending it would silently revert changes made outside swamp since
+    // the last get/sync. Create-only required fields are optional in
+    // GlobalArgsSchema, so the update still throws if one is unset in both.
+    // A PUT that takes an updateMask only changes the masked fields, so it
+    // is a partial update like PATCH: nothing is filled or guarded.
+    const isFullReplacement = updateConfig.httpMethod === "PUT" &&
+      updateParameters?.["updateMask"]?.location !== "query";
+    const getConfig = resource.methodConfigs.get;
+    // The live read reuses the update's params, so it needs a GET whose path
+    // parameters the update also has.
+    const canReadLive = isFullReplacement && !resource.listOnly &&
+      getConfig !== undefined &&
+      getConfig.parameterOrder.every((p) => updatePathParams.has(p));
     const createRequired = new Set(resource.createRequiredProperties);
     const updateRequired: string[] = [];
+    const bodyFields: string[] = [];
     lines.push(`        const body: Record<string, unknown> = {};`);
     for (const propName of Object.keys(resource.domainProperties)) {
       if (updatePathParams.has(propName)) continue;
@@ -1088,10 +1104,12 @@ export function generateGcpExtensionModel(
             JSON.stringify(propName)
           }] = g[${JSON.stringify(propName)}];`,
         );
+        bodyFields.push(propName);
         if (isFullReplacement && createRequired.has(propName)) {
-          // A PUT body replaces the resource, so a create-required field left
-          // unset in globalArgs would be dropped. Carry it from stored state.
-          if (updateNeedsExisting) {
+          // Without a live read (e.g. compute autoscalers, whose update names
+          // the target in the body), a create-required field falls back to
+          // stored state, as before, rather than making update unusable.
+          if (!canReadLive && updateNeedsExisting) {
             lines.push(
               `        else if (existing[${
                 JSON.stringify(propName)
@@ -1102,6 +1120,32 @@ export function generateGcpExtensionModel(
           }
           updateRequired.push(propName);
         }
+      }
+    }
+    const liveFill = canReadLive
+      ? liveFillFields(
+        bodyFields,
+        resource.domainProperties,
+        resource.resourceValueProperties,
+        new Set(updateRequired),
+      )
+      : [];
+    if (liveFill.length > 0) {
+      lines.push(`        let live: Record<string, unknown> | undefined;`);
+      {
+        lines.push(
+          `        const unset = ${
+            JSON.stringify(liveFill)
+          }.filter((k) => body[k] === undefined);`,
+        );
+        lines.push(`        if (unset.length > 0) {`);
+        lines.push(
+          `          live = await readResource(baseUrl, GET_CONFIG, params, credentials) as Record<string, unknown>;`,
+        );
+        lines.push(
+          `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
+        );
+        lines.push(`        }`);
       }
     }
     if (updateRequired.length > 0) {
@@ -1125,17 +1169,34 @@ export function generateGcpExtensionModel(
       );
     }
 
-    // Carry forward concurrency control fields (fingerprint, etag) from existing state.
-    // GCP APIs use optimistic concurrency — updates must include the latest fingerprint/etag.
-    if (updateNeedsExisting) {
+    // Carry forward concurrency control fields (fingerprint, etag).
+    // GCP APIs use optimistic concurrency — updates must include the latest
+    // fingerprint/etag, so they come from the live read when there was one
+    // and from stored state otherwise.
+    const concurrencySource = liveFill.length > 0
+      ? updateNeedsExisting ? "live ?? existing" : "live ?? {}"
+      : updateNeedsExisting
+      ? "existing"
+      : undefined;
+    if (concurrencySource) {
+      // Stored state alone is read directly, so models without the live read
+      // generate exactly as before.
+      const source = concurrencySource === "existing"
+        ? "existing"
+        : "concurrency";
+      if (source === "concurrency") {
+        lines.push(
+          `        const concurrency: Record<string, unknown> = ${concurrencySource};`,
+        );
+      }
       lines.push(
-        `        for (const key of Object.keys(existing)) {`,
+        `        for (const key of Object.keys(${source})) {`,
       );
       lines.push(
         `          if (key === "fingerprint" || key === "labelFingerprint" || key === "etag" || key.endsWith("Fingerprint")) {`,
       );
       lines.push(
-        `            body[key] = existing[key];`,
+        `            body[key] = ${source}[key];`,
       );
       lines.push(`          }`);
       lines.push(`        }`);

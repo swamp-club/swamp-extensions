@@ -86,7 +86,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Detections. Registered at `@swamp/cloudflare/leaked-credential-checks/detections`. */
 export const model = {
   type: "@swamp/cloudflare/leaked-credential-checks/detections",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -105,6 +105,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -295,6 +300,17 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.password !== undefined) body.password = g.password;
         if (g.username !== undefined) body.username = g.username;
+        const unset = ["id", "username"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

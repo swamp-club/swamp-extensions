@@ -4,6 +4,7 @@
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import { liveFillFields } from "../shared/liveFill.ts";
 
 const VALID_JS_IDENT = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 function quoteProp(name: string): string {
@@ -434,8 +435,15 @@ export function generateCloudflareExtensionModel(
       : Object.keys(resource.createProperties).filter(
         (k) => !resource.createOnlyProperties.has(k),
       );
-    // Create-only required fields are optional in GlobalArgsSchema; a
-    // full-replacement PUT update must still send them.
+    // A PUT body replaces the resource, so every field left unset in
+    // globalArgs would be cleared or reset to its default. Fill unset fields
+    // from the live resource, so an unset field keeps its current value
+    // (see liveFillFields for which fields qualify).
+    // Stored state is not used: it can be stale, and sending it would
+    // silently revert changes made outside swamp since the last get/sync.
+    // Create-only required fields are optional in GlobalArgsSchema, so the
+    // update still throws if one is unset in both globalArgs and the live
+    // resource.
     const isFullReplacement = resource.updateMethod === "PUT";
     const createRequiredSet = new Set(resource.createRequiredProperties);
     const updateRequired: string[] = [];
@@ -450,25 +458,36 @@ export function generateCloudflareExtensionModel(
         updateRequired.push(name);
       }
     }
-    if (updateRequired.length > 0) {
-      // A PUT body replaces the resource, so a create-required field left
-      // unset in globalArgs would be dropped. Fill it from the live resource,
-      // not stored state: stored state can be stale, and sending it would
-      // silently revert changes made outside swamp since the last get/sync.
-      const sorted = JSON.stringify([...updateRequired].sort());
+    const liveFill = isFullReplacement
+      ? liveFillFields(
+        updateKeys,
+        Object.keys(resource.updateProperties).length > 0
+          ? resource.updateProperties
+          : resource.createProperties,
+        resource.resourceProperties,
+        new Set(updateRequired),
+      )
+      : [];
+    if (liveFill.length > 0) {
       lines.push(
-        `        const unset = ${sorted}.filter((k) => body[k] === undefined);`,
+        `        const unset = ${
+          JSON.stringify(liveFill)
+        }.filter((k) => body[k] === undefined);`,
       );
       lines.push(`        if (unset.length > 0) {`);
       lines.push(
         `          const live = await read(endpoint, existing.${resource.identifyingField}${authSuffix});`,
       );
       lines.push(
-        `          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];`,
+        `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
       );
       lines.push(`        }`);
+    }
+    if (updateRequired.length > 0) {
       lines.push(
-        `        const missingForUpdate = ${sorted}.filter((k) => body[k] === undefined);`,
+        `        const missingForUpdate = ${
+          JSON.stringify([...updateRequired].sort())
+        }.filter((k) => body[k] === undefined);`,
       );
       lines.push(
         `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));`,

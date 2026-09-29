@@ -1701,7 +1701,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine BackendServices. Registered at `@swamp/gcp/compute/backendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/backendservices",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1940,6 +1940,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2272,12 +2277,70 @@ export const model = {
         if (g["tlsSettings"] !== undefined) {
           body["tlsSettings"] = g["tlsSettings"];
         }
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "affinityCookieTtlSec",
+          "backends",
+          "cdnPolicy",
+          "circuitBreakers",
+          "compressionMode",
+          "connectionDraining",
+          "connectionTrackingPolicy",
+          "consistentHash",
+          "customMetrics",
+          "customRequestHeaders",
+          "customResponseHeaders",
+          "description",
+          "enableCDN",
+          "externalManagedMigrationState",
+          "externalManagedMigrationTestingPercentage",
+          "failoverPolicy",
+          "fingerprint",
+          "haPolicy",
+          "healthChecks",
+          "iap",
+          "ipAddressSelectionPolicy",
+          "loadBalancingScheme",
+          "localityLbPolicies",
+          "localityLbPolicy",
+          "logConfig",
+          "maxStreamDuration",
+          "metadatas",
+          "name",
+          "network",
+          "networkPassThroughLbTrafficPolicy",
+          "orchestrationInfo",
+          "outlierDetection",
+          "params",
+          "portName",
+          "protocol",
+          "securitySettings",
+          "serviceBindings",
+          "serviceLbPolicy",
+          "sessionAffinity",
+          "strongSessionAffinityCookie",
+          "subsetting",
+          "timeoutSec",
+          "tlsSettings",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

@@ -292,7 +292,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Acl. Registered at `@swamp/gcp/calendar/acl`. */
 export const model = {
   type: "@swamp/gcp/calendar/acl",
-  version: "2026.09.28.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -434,6 +434,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -568,12 +573,21 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["role"] !== undefined) body["role"] = g["role"];
-        else if (existing["role"] !== undefined) {
-          body["role"] = existing["role"];
-        }
         if (g["scope"] !== undefined) body["scope"] = g["scope"];
-        else if (existing["scope"] !== undefined) {
-          body["scope"] = existing["scope"];
+        let live: Record<string, unknown> | undefined;
+        const unset = ["id", "role", "scope"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["role", "scope"].filter((k) =>
           body[k] === undefined
@@ -583,12 +597,13 @@ export const model = {
             "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
-        for (const key of Object.keys(existing)) {
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

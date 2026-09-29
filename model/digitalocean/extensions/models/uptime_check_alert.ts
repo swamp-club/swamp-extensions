@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean uptime check alert. Registered at `@swamp/digitalocean/uptime-check-alert`. */
 export const model = {
   type: "@swamp/digitalocean/uptime-check-alert",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -115,6 +115,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -226,6 +231,25 @@ export const model = {
         if (g.comparison !== undefined) body.comparison = g.comparison;
         if (g.notifications !== undefined) body.notifications = g.notifications;
         if (g.period !== undefined) body.period = g.period;
+        const unset = [
+          "comparison",
+          "name",
+          "notifications",
+          "period",
+          "threshold",
+          "type",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(
+            endpoint,
+            existing.id ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(
           endpoint,
           existing.id ?? existing.id,

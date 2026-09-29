@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Templates. Registered at `@swamp/cloudflare/cloudforce-one/templates`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/templates",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -109,6 +109,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -308,7 +313,7 @@ export const model = {
         if (g.category !== undefined) body.category = g.category;
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
-        const unset = ["body", "category", "name"].filter((k) =>
+        const unset = ["body", "category", "description", "name"].filter((k) =>
           body[k] === undefined
         );
         if (unset.length > 0) {
@@ -317,7 +322,9 @@ export const model = {
             apiKey: g.apiKey,
             email: g.email,
           });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const missingForUpdate = ["body", "category", "name"].filter((k) =>
           body[k] === undefined

@@ -18,9 +18,10 @@ import type { GcpMethodConfig, GcpParsedResource } from "./pipeline.ts";
 interface MockInstance {
   name: string;
   zone: string;
-  machineType: string;
-  status: string;
-  fingerprint: string;
+  machineType?: string;
+  description?: string;
+  status?: string;
+  fingerprint?: string;
 }
 
 function createMockGcpServer(): {
@@ -183,19 +184,21 @@ async function importGeneratedModel(
       name: { type: "string", description: "Instance name" },
       zone: { type: "string", description: "Zone" },
       machineType: { type: "string", description: "Machine type" },
+      description: { type: "string", description: "Description" },
     },
     resourceValueProperties: {
       name: { type: "string" },
       zone: { type: "string" },
       machineType: { type: "string" },
+      description: { type: "string" },
       status: { type: "string" },
       fingerprint: { type: "string" },
     },
     requiredProperties: ["zone"],
     createRequiredProperties: ["name", "machineType"],
     createOnlyProperties: ["zone"],
-    insertProperties: new Set(["name", "zone", "machineType"]),
-    updateProperties: new Set(["machineType"]),
+    insertProperties: new Set(["name", "zone", "machineType", "description"]),
+    updateProperties: new Set(["machineType", "description"]),
     primaryIdentifier: ["name"],
     handlers: { create: true, read: true, update: true, delete: true },
     isGlobalOnly: false,
@@ -554,12 +557,14 @@ Deno.test({
   },
 });
 
-// A full-replacement PUT update must still send create-required fields, which
-// are optional in GlobalArgsSchema: they are carried from stored state, and
-// update fails before the API call when neither source has them.
+// A full-replacement PUT update clears whatever the body leaves out. Every
+// field globalArgs leave unset is filled from a GET of the live resource, not
+// stored state, so changes made outside swamp since the last get/sync are
+// kept, and fingerprints come from that read. A create-required field missing
+// from both globalArgs and the live resource is rejected before the PUT.
 // sanitizeResources: false for the same reason as the tests above.
 Deno.test({
-  name: "PUT update carries create-required fields from stored state",
+  name: "PUT update fills unset fields from the live resource",
   sanitizeResources: false,
   async fn() {
     const origToken = Deno.env.get("GCP_ACCESS_TOKEN");
@@ -572,6 +577,7 @@ Deno.test({
       name: "web-1",
       zone: "us-central1-a",
       machineType: "n1-standard-2",
+      description: "old",
       status: "RUNNING",
       fingerprint: "fp-1",
     });
@@ -586,26 +592,60 @@ Deno.test({
       await model.methods.list.execute({}, context);
       assertEquals(artifacts.has("web-1"), true);
 
+      // Changed outside swamp after the list: stored state is now stale.
+      server.instances.set("web-1", {
+        name: "web-1",
+        zone: "us-central1-a",
+        machineType: "n1-standard-4",
+        description: "changed outside swamp",
+        status: "RUNNING",
+        fingerprint: "fp-2",
+      });
       await model.methods.update.execute({ identifier: "web-1" }, context);
       assertEquals(server.lastWrite?.method, "PUT");
       assertEquals(
-        (server.lastWrite?.body as Record<string, unknown>).machineType,
-        "n1-standard-2",
-        "PUT body should carry machineType from stored state",
+        server.lastWrite?.body,
+        {
+          machineType: "n1-standard-4",
+          description: "changed outside swamp",
+          fingerprint: "fp-2",
+        },
+        "unset fields and the fingerprint come from the live resource",
       );
 
+      // Every update-body field set in globalArgs: only the PUT is sent.
+      const { context: fullCtx } = createMockContext({
+        ...globalArgs,
+        machineType: "e2-small",
+        description: "set",
+      });
+      fullCtx.writeResource("state", "web-1", {
+        name: "web-1",
+        fingerprint: "new-fp",
+      });
+      const beforeFull = server.requestCount;
+      await model.methods.update.execute({ identifier: "web-1" }, fullCtx);
+      assertEquals(server.requestCount - beforeFull, 1, "no live read");
+      assertEquals(server.lastWrite?.body, {
+        machineType: "e2-small",
+        description: "set",
+        fingerprint: "new-fp",
+      });
+
+      // The live resource lacks a create-required field: reject before PUT.
+      server.instances.set("web-2", { name: "web-2", zone: "us-central1-a" });
       const { context: bareCtx } = createMockContext(globalArgs);
       bareCtx.writeResource("state", "web-2", { name: "web-2" });
-      const requestsBefore = server.requestCount;
+      const lastWrite = server.lastWrite;
       await assertRejects(
         () => model.methods.update.execute({ identifier: "web-2" }, bareCtx),
         Error,
         "update requires global arguments: machineType",
       );
       assertEquals(
-        server.requestCount,
-        requestsBefore,
-        "update should fail before calling the API",
+        server.lastWrite,
+        lastWrite,
+        "update should fail before the PUT",
       );
     } finally {
       if (origToken === undefined) Deno.env.delete("GCP_ACCESS_TOKEN");

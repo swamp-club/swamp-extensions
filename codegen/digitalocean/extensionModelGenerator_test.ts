@@ -794,3 +794,71 @@ Deno.test("token arg - collision guard omits the injected arg when a real 'token
   );
   assertEquals(tokenLines.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// PUT update fills unset fields from the live resource
+// ---------------------------------------------------------------------------
+
+function loadBalancerResource(
+  updateMethod: "PUT" | "PATCH",
+): DigitalOceanResource {
+  return makeResource({
+    displayName: "Load Balancer",
+    modelSlug: "load-balancer",
+    endpoint: "/v2/load_balancers",
+    createProperties: { name: stringProp, region: stringProp },
+    updateProperties: {
+      name: stringProp,
+      region: stringProp,
+      size_unit: intProp,
+      tag: stringProp,
+    },
+    // The response nests region as an object and has no tag.
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      region: { type: "object", properties: { slug: stringProp } },
+      size_unit: { type: "number" },
+    },
+    updateMethod,
+  });
+}
+
+function updateBlock(code: string): string {
+  return code.slice(
+    code.indexOf("    update: {"),
+    code.indexOf("    delete: {"),
+  );
+}
+
+Deno.test("generateDigitalOceanExtensionModel - PUT update fills same-shaped unset fields from the live resource", () => {
+  const update = updateBlock(generateDigitalOceanExtensionModel({
+    resource: loadBalancerResource("PUT"),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  }));
+  // region (object in the response) and tag (not in the response) are not
+  // filled; echoing them would send the wrong shape or nothing useful.
+  assertStringIncludes(
+    update,
+    `const unset = ["name","size_unit"].filter((k) => body[k] === undefined);`,
+  );
+  assertStringIncludes(
+    update,
+    `const live = await read("/v2/load_balancers", existing.id ?? existing.id, undefined, g.token);`,
+  );
+  assertEquals(update.includes("= existing["), false);
+  assertEquals(
+    update.indexOf("const live") < update.indexOf("await update("),
+    true,
+  );
+});
+
+Deno.test("generateDigitalOceanExtensionModel - PATCH update does not read the live resource", () => {
+  const update = updateBlock(generateDigitalOceanExtensionModel({
+    resource: loadBalancerResource("PATCH"),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  }));
+  assertEquals(update.includes("const live"), false);
+});

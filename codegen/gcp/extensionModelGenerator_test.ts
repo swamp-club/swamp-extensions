@@ -1,5 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   detectSegmentIdField,
   type GcpExtensionModelInput,
@@ -1403,6 +1403,11 @@ function makeUpdatableResource(httpMethod: "PUT" | "PATCH"): GcpParsedResource {
       network: { type: "string" },
       description: { type: "string" },
     },
+    resourceValueProperties: {
+      name: { type: "string" },
+      network: { type: "string" },
+      description: { type: "string" },
+    },
     insertProperties: new Set(["name", "network", "description"]),
     updateProperties: new Set(["name", "network", "description"]),
     createRequiredProperties: ["network", "name"],
@@ -1428,31 +1433,83 @@ function makeUpdatableResource(httpMethod: "PUT" | "PATCH"): GcpParsedResource {
   });
 }
 
-Deno.test("generateGcpExtensionModel - PUT update carries create-required fields from state and guards them", () => {
-  const code = generateGcpExtensionModel(
+function updateBlock(code: string): string {
+  return code.slice(code.indexOf("    update: {"), code.indexOf("    sync: {"));
+}
+
+Deno.test("generateGcpExtensionModel - PUT update fills every unset field from the live resource and guards create-required ones", () => {
+  const update = updateBlock(generateGcpExtensionModel(
     makeInput({ resource: makeUpdatableResource("PUT") }),
+  ));
+  assertStringIncludes(
+    update,
+    `const unset = ["description","name","network"].filter((k) => body[k] === undefined);`,
   );
+  assertStringIncludes(
+    update,
+    `live = await readResource(baseUrl, GET_CONFIG, params, credentials) as Record<string, unknown>;`,
+  );
+  assertStringIncludes(
+    update,
+    `const missingForUpdate = ["name","network"].filter((k) => body[k] === undefined);`,
+  );
+  // Fingerprints come from the live read when there was one.
+  assertStringIncludes(
+    update,
+    `const concurrency: Record<string, unknown> = live ?? existing;`,
+  );
+  // Never fill body fields from stored state: it can be stale.
+  assertEquals(update.includes(`body["network"] = existing`), false);
   assert(
-    code.includes(
-      `else if (existing["network"] !== undefined) body["network"] = existing["network"];`,
-    ),
-  );
-  assert(
-    code.includes(
-      `const missingForUpdate = ["name","network"].filter((k) => body[k] === undefined);`,
-    ),
-  );
-  assertEquals(
-    code.includes(`else if (existing["description"] !== undefined)`),
-    false,
-    "optional fields are not carried from state",
+    update.indexOf("missingForUpdate.length") <
+      update.indexOf("await updateResource("),
+    "update guard must precede the PUT",
   );
 });
 
-Deno.test("generateGcpExtensionModel - PATCH update does not carry or guard create-required fields", () => {
+Deno.test("generateGcpExtensionModel - PUT update without a usable GET falls back to stored state for create-required fields", () => {
+  const resource = makeUpdatableResource("PUT");
+  delete resource.methodConfigs.get;
+  const update = updateBlock(
+    generateGcpExtensionModel(makeInput({ resource })),
+  );
+  assertEquals(update.includes("readResource("), false);
+  assertStringIncludes(
+    update,
+    `else if (existing["network"] !== undefined) body["network"] = existing["network"];`,
+  );
+  assertEquals(
+    update.includes(`else if (existing["description"] !== undefined)`),
+    false,
+    "optional fields are not carried from state",
+  );
+  assertStringIncludes(
+    update,
+    `const missingForUpdate = ["name","network"].filter((k) => body[k] === undefined);`,
+  );
+  assertStringIncludes(update, `body[key] = existing[key];`);
+});
+
+Deno.test("generateGcpExtensionModel - PUT update with an updateMask does not fill or guard fields", () => {
+  const resource = makeUpdatableResource("PUT");
+  resource.methodConfigs.update!.parameters = {
+    ...resource.methodConfigs.update!.parameters,
+    updateMask: { location: "query" },
+  };
+  const update = updateBlock(
+    generateGcpExtensionModel(makeInput({ resource })),
+  );
+  // The mask is built from the fields set in globalArgs only.
+  assertEquals(update.includes("readResource("), false);
+  assertEquals(update.includes("missingForUpdate"), false);
+  assertStringIncludes(update, `const updateMaskKeys = Object.keys(body);`);
+});
+
+Deno.test("generateGcpExtensionModel - PATCH update does not fill or guard fields", () => {
   const code = generateGcpExtensionModel(
     makeInput({ resource: makeUpdatableResource("PATCH") }),
   );
   assertEquals(code.includes("missingForUpdate"), false);
+  assertEquals(updateBlock(code).includes("readResource("), false);
   assertEquals(code.includes(`body["network"] = existing["network"]`), false);
 });

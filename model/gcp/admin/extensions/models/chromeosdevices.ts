@@ -895,7 +895,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Chromeosdevices. Registered at `@swamp/gcp/admin/chromeosdevices`. */
 export const model = {
   type: "@swamp/gcp/admin/chromeosdevices",
-  version: "2026.09.07.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -915,6 +915,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: projection",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1136,12 +1141,51 @@ export const model = {
         } else if (existing["projection"] !== undefined) {
           params["projection"] = String(existing["projection"]);
         }
-        for (const key of Object.keys(existing)) {
+        let live: Record<string, unknown> | undefined;
+        const unset = [
+          "annotatedAssetId",
+          "annotatedLocation",
+          "annotatedUser",
+          "bootMode",
+          "cpuInfo",
+          "diskVolumeReports",
+          "etag",
+          "ethernetMacAddress",
+          "firmwareVersion",
+          "firstEnrollmentTime",
+          "kind",
+          "macAddress",
+          "meid",
+          "model",
+          "notes",
+          "orderNumber",
+          "orgUnitId",
+          "orgUnitPath",
+          "osUpdateStatus",
+          "osVersion",
+          "platformVersion",
+          "recentUsers",
+          "serialNumber",
+          "status",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          live = await readResource(
+            baseUrl,
+            GET_CONFIG,
+            params,
+            credentials,
+          ) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const concurrency: Record<string, unknown> = live ?? existing;
+        for (const key of Object.keys(concurrency)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
             key === "etag" || key.endsWith("Fingerprint")
           ) {
-            body[key] = existing[key];
+            body[key] = concurrency[key];
           }
         }
         const result = await updateResource(

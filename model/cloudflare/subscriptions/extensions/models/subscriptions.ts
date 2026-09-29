@@ -201,10 +201,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Subscriptions. Registered at `@swamp/cloudflare/subscriptions/subscriptions`. */
 export const model = {
   type: "@swamp/cloudflare/subscriptions/subscriptions",
-  version: "2026.09.01.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.09.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -429,6 +434,29 @@ export const model = {
         if (g.rate_plan !== undefined) body.rate_plan = g.rate_plan;
         if (g.state !== undefined) body.state = g.state;
         if (g.zone !== undefined) body.zone = g.zone;
+        const unset = [
+          "app",
+          "component_values",
+          "currency",
+          "current_period_end",
+          "current_period_start",
+          "frequency",
+          "id",
+          "price",
+          "rate_plan",
+          "state",
+          "zone",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

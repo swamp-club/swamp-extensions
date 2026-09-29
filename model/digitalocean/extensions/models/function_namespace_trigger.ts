@@ -97,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean function namespace trigger. Registered at `@swamp/digitalocean/function-namespace-trigger`. */
 export const model = {
   type: "@swamp/digitalocean/function-namespace-trigger",
-  version: "2026.06.08.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -106,6 +106,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -208,6 +213,20 @@ export const model = {
         if (g.is_enabled !== undefined) body.is_enabled = g.is_enabled;
         if (g.scheduled_details !== undefined) {
           body.scheduled_details = g.scheduled_details;
+        }
+        const unset = ["is_enabled", "scheduled_details"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(
+            endpoint,
+            existing.name ?? existing.id,
+            undefined,
+            g.token,
+          );
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
         const result = await update(
           endpoint,
