@@ -45,7 +45,7 @@ import {
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Name of the Server to create (must be unique per Project and a valid hostname as per RFC 1123).",
-  ),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
@@ -54,13 +54,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   server_type: z.string().describe(
     "ID or name of the Server type this Server should be created with.",
-  ),
+  ).optional(),
   start_after_create: z.boolean().describe(
     "This automatically triggers a [Power on a Server-Server Action](#tag/server-actions/poweron_server) after the creation is finished and is returned in the `next_actions` response object.",
   ).optional(),
   image: z.string().describe(
     "ID or name of the Image the Server is created from.",
-  ),
+  ).optional(),
   placement_group: z.number().int().describe(
     "ID of the Placement Group the Server should be in.",
   ).optional(),
@@ -210,7 +210,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud server. Registered at `@swamp/hetzner-cloud/servers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/servers",
-  version: "2026.07.18.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.02.1",
@@ -285,6 +285,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -302,6 +307,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["image", "name", "server_type"].filter((k) =>
+          g[k] === undefined || g[k] === null || g[k] === ""
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.location !== undefined) body.location = g.location;
@@ -360,6 +373,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("update requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -418,6 +434,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("sync requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -567,6 +586,9 @@ export const model = {
         context: any,
       ) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("change_protection requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

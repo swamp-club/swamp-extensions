@@ -45,7 +45,7 @@ import {
 const GlobalArgsSchema = z.object({
   name: z.string().min(1).max(128).describe(
     "Name of the [Network](#tag/networks).",
-  ),
+  ).optional(),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ip_range: z.string().describe(
     "IP range of the [Network](#tag/networks).\n\nUses CIDR notation.\n\nMust span all included subnets. Must be one of the private IPv4 ranges of RFC1918.\n\nMinimum network size is /24. We highly recommend that you pick a larger [Network](#tag/networks) with a /16 netmask.\n",
-  ),
+  ).optional(),
   subnets: z.array(z.object({
     type: z.enum(["cloud", "server", "vswitch"]),
     ip_range: z.string().optional(),
@@ -119,7 +119,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud network. Registered at `@swamp/hetzner-cloud/networks`. */
 export const model = {
   type: "@swamp/hetzner-cloud/networks",
-  version: "2026.07.18.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -186,6 +186,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -203,6 +208,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ip_range", "name"].filter((k) =>
+          g[k] === undefined || g[k] === null || g[k] === ""
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.ip_range !== undefined) body.ip_range = g.ip_range;
@@ -251,6 +264,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("update requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -312,6 +328,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("sync requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -453,6 +472,9 @@ export const model = {
       }),
       execute: async (args: { delete: boolean }, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("change_protection requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

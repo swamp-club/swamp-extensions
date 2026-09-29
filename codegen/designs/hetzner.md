@@ -428,7 +428,46 @@ Used for create/update arguments. Preserves all OpenAPI constraints:
 - `integer` → `z.number().int()`
 - Nested objects with typed properties and per-field optionality
 
-Required fields are non-optional; everything else gets `.optional()`.
+Every resource field gets `.optional()`; only the synthetic `name` (see
+"Synthetic names") stays required. Fields the create request requires are
+enforced by the generated `create` instead — see "Create-required properties"
+below.
+
+### Create-required properties
+
+Method runs validate `GlobalArgsSchema` with `.partial()`, but swamp checks the
+full schema in two places: `swamp model create` with any `--global-arg`, and
+`swamp workflow validate` for steps that name a model type rather than a
+definition. A field marked required there therefore blocks a model configured
+for `get`, `lookup` or `list` — before this rule, `servers` with only `name` was
+rejected until callers passed placeholder `server_type` and `image` values
+(swamp-club #2642).
+
+So no resource property is required in `GlobalArgsSchema`. The POST body's
+required list becomes `createRequiredProperties` (limited to properties the body
+actually defines). Nothing stays required: no non-create method reads a resource
+property from globalArgs as required — they read only `token` and the naming
+field, which falls back when unset (see "How instance names flow through
+methods"), and `lookup` throws its own error when the naming field is unset.
+
+- **`create`** throws `create requires global arguments: <names>` before any API
+  call, including the token check, when one of them is unset, `null` or an empty
+  string.
+- **Trade-off:** `swamp model create` and type-based `swamp workflow validate`
+  no longer catch a definition meant for `create` that lacks one of these
+  fields. The error appears when `create` runs, still before any API call, so
+  nothing is partially created.
+- **Naming field:** a real naming field that create requires (`servers.name`,
+  `placement_groups`' `name`) is optional in `GlobalArgsSchema` too. Nothing is
+  ever stored under the `current` fallback for such a resource: `create`
+  requires the field, and `get`, `list`, `lookup` and `adopt` store under the
+  real name. So `update`, `sync` and the action methods throw
+  `<method> requires global argument: <field>` when it is unset, instead of
+  looking up `current` and failing with a misleading `No data found` error.
+  Resources whose naming field create does not require (`floating_ips`) keep the
+  `current` fallback, since `create` can store under it.
+- **`update`** needs no fill: Hetzner's PUT is partial (see "Unset fields keep
+  their current value"), so a field left out keeps its value.
 
 ### ResourceSchema — simplified response parsing
 
@@ -614,12 +653,9 @@ synthetic-name resources). It returns `{ dataHandles, result: { count } }`.
 
 `list` writes to the same `state` resource kind that `create`/`get`/`update`/
 `sync` manage — matching the GCP provider's list factory rather than a separate
-discovery kind. This is safe because a model can be instantiated for discovery
-without supplying create-required global arguments: swamp does not enforce
-required `globalArguments` at model-instantiation time (verified against
-`swamp model validate`), only the methods that consume them do. No
-"optional-everywhere" schema relaxation is needed, so the CRUD models' required
-markers are preserved unchanged.
+discovery kind. A model can be set up for discovery without create-required
+global arguments because those fields are optional in `GlobalArgsSchema` and
+enforced only by `create` (see "Create-required properties").
 
 ### Adoption methods: `lookup` and `adopt`
 
@@ -629,10 +665,11 @@ Two methods support importing existing resources into swamp management:
 a natural naming field (not synthetic). Takes no arguments; uses `globalArgs` to
 identify the resource. Calls `listAll()`, filters by matching the naming field
 against `globalArgs.name`, and validates exactly one match (throws on zero or
-multiple matches). This is the primary adoption path — users configure identity
-through globalArgs (same fields as `create`), then `lookup` finds the matching
-resource without needing the numeric ID. On multiple matches, the error message
-directs the user to `adopt` with a specific ID.
+multiple matches, or when the naming field is unset). This is the primary
+adoption path — users set the naming field in globalArgs (no other create fields
+are needed), then `lookup` finds the matching resource without needing the
+numeric ID. On multiple matches, the error message directs the user to `adopt`
+with a specific ID.
 
 **`adopt`** — generated for every resource with a `read` handler (17 of 18
 models). Takes an `id` (number) and, for resources with natural naming fields,

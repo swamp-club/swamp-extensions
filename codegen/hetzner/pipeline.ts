@@ -48,8 +48,13 @@ export interface HetznerResource {
   updateProperties: Record<string, HetznerProperty>;
   /** Properties from GET response (resource state) */
   resourceProperties: Record<string, HetznerProperty>;
-  /** Required properties for create */
-  requiredProperties: string[];
+  /**
+   * Property names required by create. Optional in GlobalArgsSchema; the
+   * generated create method rejects them when unset. No resource property
+   * stays required there: no non-create method reads one from globalArgs as
+   * required (the naming field falls back when unset, and lookup checks it).
+   */
+  createRequiredProperties: string[];
   /** Available CRUD handlers */
   handlers: {
     create: boolean;
@@ -545,6 +550,15 @@ function mergeResourceOperations(
 
   const modelSlug = noun.replace(/_/g, "-");
 
+  // swamp checks the full GlobalArgsSchema on `model create` and type-based
+  // `workflow validate`, so create-only required fields there would block
+  // definitions meant for get/lookup/list. Keep them out of the schema's
+  // required set and enforce them inside create instead. Limit them to real
+  // create properties.
+  const createRequiredProperties = postRequired.filter((name) =>
+    Object.hasOwn(postBody, name)
+  );
+
   return {
     noun,
     modelSlug,
@@ -552,7 +566,7 @@ function mergeResourceOperations(
     createProperties: postBody,
     updateProperties: putBody,
     resourceProperties: getResponse,
-    requiredProperties: postRequired,
+    createRequiredProperties,
     handlers: {
       create: hasCreate,
       read: hasRead,

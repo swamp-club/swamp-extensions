@@ -38,9 +38,9 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Name of the server"),
-  server_type: z.string().describe("ID or name of the server type"),
-  image: z.string().describe("ID or name of the image"),
+  name: z.string().describe("Name of the server").optional(),
+  server_type: z.string().describe("ID or name of the server type").optional(),
+  image: z.string().describe("ID or name of the image").optional(),
   token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -88,6 +88,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["image","name","server_type"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.server_type !== undefined) body.server_type = g.server_type;
@@ -113,6 +115,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("update requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -146,6 +149,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("sync requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -259,7 +263,7 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Zone name"),
+  name: z.string().describe("Zone name").optional(),
   ttl: z.number().int().describe("TTL").optional(),
   token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
@@ -299,6 +303,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.ttl !== undefined) body.ttl = g.ttl;
@@ -323,6 +329,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("sync requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -437,9 +444,9 @@ import { create, read, tryRead, remove, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
-  type: z.enum(["ipv4", "ipv6"]).describe("IP type (ipv4 or ipv6)"),
+  type: z.enum(["ipv4", "ipv6"]).describe("IP type (ipv4 or ipv6)").optional(),
   datacenter: z.string().describe("Datacenter name").optional(),
-  assignee_type: z.string().describe("Resource type (server)"),
+  assignee_type: z.string().describe("Resource type (server)").optional(),
   token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -483,6 +490,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["assignee_type","type"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.type !== undefined) body.type = g.type;
         if (g.datacenter !== undefined) body.datacenter = g.datacenter;
@@ -612,8 +621,8 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  label: z.string().describe("User-defined label"),
-  type: z.string().describe("Placement group type"),
+  label: z.string().describe("User-defined label").optional(),
+  type: z.string().describe("Placement group type").optional(),
   token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -651,6 +660,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["label","type"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.label !== undefined) body.label = g.label;
         if (g.type !== undefined) body.type = g.type;
@@ -675,6 +686,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.label === undefined || g.label === null || g.label === "") throw new Error("update requires global argument: label");
         const instanceName = (g.label?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -708,6 +720,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.label === undefined || g.label === null || g.label === "") throw new Error("sync requires global argument: label");
         const instanceName = (g.label?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -821,8 +834,8 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Name of the SSH key"),
-  public_key: z.string().describe("Public key"),
+  name: z.string().describe("Name of the SSH key").optional(),
+  public_key: z.string().describe("Public key").optional(),
   token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -871,6 +884,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name","public_key"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.public_key !== undefined) body.public_key = g.public_key;
@@ -895,6 +910,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("update requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -928,6 +944,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("sync requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -1255,7 +1272,7 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().max(128).describe("Firewall name"),
+  name: z.string().max(128).describe("Firewall name").optional(),
   rules: z.array(z.object({
     direction: z.enum(["in", "out"]),
     protocol: z.enum(["tcp", "udp", "icmp", "esp", "gre"]),
@@ -1305,6 +1322,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.rules !== undefined) body.rules = g.rules;
@@ -1329,6 +1348,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("update requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -1361,6 +1381,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") throw new Error("sync requires global argument: name");
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,

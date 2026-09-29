@@ -46,6 +46,29 @@ export function generateHetznerExtensionModel(
     resource,
   );
 
+  // A natural naming field that create requires is optional in
+  // GlobalArgsSchema, but nothing is ever stored under the "current" fallback
+  // for such a resource (create requires the field; get/list/lookup/adopt use
+  // the real name). Methods that look up stored state by instance name reject
+  // it when unset instead of failing with a misleading "No data found".
+  const requireNamingField = !isSyntheticName &&
+    resource.createRequiredProperties.includes(namingField);
+  const instanceNameLines = (method: string): string[] => {
+    const lines: string[] = [];
+    if (requireNamingField) {
+      const v = `g.${namingField}`;
+      lines.push(
+        `        if (${v} === undefined || ${v} === null || ${v} === "") throw new Error("${method} requires global argument: ${namingField}");`,
+      );
+    }
+    lines.push(
+      `        const instanceName = ${
+        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
+      };`,
+    );
+    return lines;
+  };
+
   // Module-level JSDoc
   const singular = singularize(resource.modelSlug).replace(/-/g, " ");
   const namingFieldInGlobalArgs = namingField in resource.createProperties ||
@@ -191,6 +214,21 @@ export function generateHetznerExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
+    // Create-only required fields are optional in GlobalArgsSchema so other
+    // methods can run without them; enforce them here before any API call.
+    // null and "" count as missing: the API would reject them with a less
+    // clear error.
+    const createRequired = [...resource.createRequiredProperties].sort();
+    if (createRequired.length > 0) {
+      lines.push(
+        `        const missing = ${
+          JSON.stringify(createRequired)
+        }.filter((k) => g[k] === undefined || g[k] === null || g[k] === "");`,
+      );
+      lines.push(
+        `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+      );
+    }
     lines.push(`        const body: Record<string, unknown> = {};`);
     for (const name of Object.keys(resource.createProperties)) {
       lines.push(
@@ -262,11 +300,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("update"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -345,11 +379,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("sync"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -553,11 +583,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (args: ${cpType}, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("change_protection"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -626,11 +652,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (args: { rules: Record<string, unknown>[] }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("set_rules"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -683,11 +705,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (args: { apply_to: Record<string, unknown>[] }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("apply_to_resources"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -740,11 +758,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (args: { remove_from: Record<string, unknown>[] }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-      };`,
-    );
+    lines.push(...instanceNameLines("remove_from_resources"));
     lines.push(
       `        const content = await context.dataRepository.getContent(`,
     );
@@ -824,10 +838,9 @@ function buildGlobalArgsProperties(
       line += `.describe(${JSON.stringify(prop.description)})`;
     }
 
-    const isRequired = resource.requiredProperties.includes(name);
-    if (!isRequired) {
-      line += `.optional()`;
-    }
+    // Every resource field is optional: create-required ones are enforced by
+    // the generated create method (see createRequiredProperties).
+    line += `.optional()`;
 
     result.push({ line, nameOnly: name, baseExpr });
   }

@@ -48,10 +48,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().max(255).describe(
     "Name of the [Zone](#tag/zones).\n\nAll names with [well-known public suffixes](https://publicsuffix.org/) (e.g. `.de`,\n`.com`, `.co.uk`) are supported. Subdomains are not supported.\n\nThe name must be in lower case and must not end with a dot.\n[Internationalized domain\nnames](https://en.wikipedia.org/wiki/Internationalized_domain_name) must be\ntranscribed to [Punycode](https://wikipedia.org/wiki/Punycode) representation with\nACE prefix, e.g. `xn--mnchen-3ya.de` (`münchen.de`).\n",
-  ),
+  ).optional(),
   mode: z.enum(["primary", "secondary"]).describe(
     "Mode of the [Zone](#tag/zones).\n\nFor more information, see [Zone Modes](#tag/zones/zone-modes).\n",
-  ),
+  ).optional(),
   ttl: z.number().int().min(60).max(2147483647).describe(
     "Default Time To Live (TTL) of the [Zone](#tag/zones).\n\nMust be in between 60s and 2147483647s.\n\nThis TTL is used for [RRSets](#tag/zone-rrsets) that do not explicitly define a TTL.\n",
   ).optional(),
@@ -177,7 +177,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud zone. Registered at `@swamp/hetzner-cloud/zones`. */
 export const model = {
   type: "@swamp/hetzner-cloud/zones",
-  version: "2026.07.18.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -239,6 +239,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -256,6 +261,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["mode", "name"].filter((k) =>
+          g[k] === undefined || g[k] === null || g[k] === ""
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.mode !== undefined) body.mode = g.mode;
@@ -305,6 +318,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("update requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -362,6 +378,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("sync requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -503,6 +522,9 @@ export const model = {
       }),
       execute: async (args: { delete: boolean }, context: any) => {
         const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("change_protection requires global argument: name");
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

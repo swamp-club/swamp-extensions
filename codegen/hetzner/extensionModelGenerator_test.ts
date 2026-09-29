@@ -14,7 +14,7 @@ function makeResource(
     createProperties: {},
     updateProperties: {},
     resourceProperties: {},
-    requiredProperties: [],
+    createRequiredProperties: [],
     handlers: {
       create: true,
       read: true,
@@ -66,7 +66,7 @@ Deno.test("generateHetznerExtensionModel - all handlers, natural name", async (t
         },
       },
     },
-    requiredProperties: ["name", "server_type", "image"],
+    createRequiredProperties: ["name", "server_type", "image"],
   });
 
   await assertSnapshot(
@@ -105,7 +105,7 @@ Deno.test("generateHetznerExtensionModel - read-only (no update, no delete)", as
       ttl: intProp,
       status: stringProp,
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
   });
 
   await assertSnapshot(
@@ -146,7 +146,7 @@ Deno.test("generateHetznerExtensionModel - synthetic name", async (t) => {
         properties: { id: intProp, name: stringProp },
       },
     },
-    requiredProperties: ["type", "assignee_type"],
+    createRequiredProperties: ["type", "assignee_type"],
     handlers: {
       create: true,
       read: true,
@@ -186,7 +186,7 @@ function serversResource(
       name: { type: "string", description: "New name for the server" },
     },
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: ["name", "server_type", "image"],
+    createRequiredProperties: ["name", "server_type", "image"],
     handlers: {
       create: true,
       read: true,
@@ -251,18 +251,133 @@ Deno.test("omits the list method when handlers.list is false", () => {
   assert(!out.includes("listAll"), "listAll should not be imported or called");
 });
 
-Deno.test("preserves create-required args as required (validation not weakened)", () => {
+Deno.test("create-required args are optional in GlobalArgsSchema", () => {
   const out = generateServers();
   const gas = out.slice(
     out.indexOf("const GlobalArgsSchema"),
     out.indexOf("const ResourceSchema"),
   );
-  // required create props keep no `.optional()` in GlobalArgsSchema
-  assertStringIncludes(gas, `name: z.string().describe("Name of the server"),`);
-  assertStringIncludes(gas, `server_type: z.string().describe("Server type"),`);
-  assertStringIncludes(gas, `image: z.string().describe("Image"),`);
-  // the only optional addition is the auth token
+  // swamp validates the whole schema on `model create` and type-based
+  // `workflow validate`, so create-only fields must not be required there.
+  assertStringIncludes(
+    gas,
+    `name: z.string().describe("Name of the server").optional(),`,
+  );
+  assertStringIncludes(
+    gas,
+    `server_type: z.string().describe("Server type").optional(),`,
+  );
+  assertStringIncludes(gas, `image: z.string().describe("Image").optional(),`);
   assertStringIncludes(gas, "token: z.string().meta({ sensitive: true })");
+});
+
+Deno.test("create checks create-required args, sorted, before any API call", () => {
+  const out = generateServers();
+  const create = out.slice(
+    out.indexOf("    create: {"),
+    out.indexOf("    get: {"),
+  );
+  const check =
+    `const missing = ["image","name","server_type"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");`;
+  assertStringIncludes(create, check);
+  assertStringIncludes(
+    create,
+    `if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+  );
+  assert(
+    create.indexOf(check) < create.indexOf("await create("),
+    "check must run before the create API call",
+  );
+});
+
+Deno.test("state-lookup methods require a create-required naming field", () => {
+  const out = generateServers();
+  const check = (method: string) =>
+    `if (g.name === undefined || g.name === null || g.name === "") throw new Error("${method} requires global argument: name");`;
+  for (
+    const [method, next] of [
+      ["update", "    delete: {"],
+      ["sync", "    list: {"],
+    ]
+  ) {
+    const body = out.slice(
+      out.indexOf(`    ${method}: {`),
+      out.indexOf(next, out.indexOf(`    ${method}: {`)),
+    );
+    assertStringIncludes(body, check(method));
+    assert(
+      body.indexOf(check(method)) < body.indexOf("const instanceName"),
+      `${method} must check before resolving the instance name`,
+    );
+  }
+});
+
+Deno.test("state-lookup methods keep the current fallback when the naming field is optional", () => {
+  const resource = makeResource({
+    noun: "floating_ips",
+    modelSlug: "floating-ips",
+    fileName: "floating_ips.ts",
+    createProperties: { name: stringProp, type: stringProp },
+    updateProperties: { name: stringProp },
+    resourceProperties: { id: intProp, name: stringProp },
+    createRequiredProperties: ["type"],
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertFalse(out.includes("requires global argument: name"));
+  assertStringIncludes(out, `g.name?.toString() ?? "current"`);
+});
+
+Deno.test("create emits no check when nothing is create-required", () => {
+  const resource = makeResource({
+    noun: "floating_ips",
+    modelSlug: "floating-ips",
+    fileName: "floating_ips.ts",
+    createProperties: { name: stringProp, description: stringProp },
+    resourceProperties: { id: intProp, name: stringProp },
+    createRequiredProperties: [],
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertFalse(out.includes("create requires global arguments"));
+  assertFalse(out.includes("const missing ="));
+});
+
+Deno.test("synthetic name stays required when every field is optional", () => {
+  const resource = makeResource({
+    noun: "primary_ips",
+    modelSlug: "primary-ips",
+    fileName: "primary_ips.ts",
+    createProperties: { type: stringProp, assignee_type: stringProp },
+    resourceProperties: { id: intProp, type: stringProp },
+    createRequiredProperties: ["type", "assignee_type"],
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  const gas = out.slice(
+    out.indexOf("const GlobalArgsSchema"),
+    out.indexOf("const ResourceSchema"),
+  );
+  assertStringIncludes(
+    gas,
+    `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
+  );
+  assertStringIncludes(gas, "  type: z.string().optional(),");
+  assertStringIncludes(gas, "  assignee_type: z.string().optional(),");
+  assertFalse(out.includes("requires global argument: name"));
+  assertStringIncludes(
+    out,
+    `const missing = ["assignee_type","type"].filter((k) => g[k] === undefined || g[k] === null || g[k] === "");`,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -286,7 +401,7 @@ Deno.test("generateHetznerExtensionModel - label-based naming", async (t) => {
       label: stringProp,
       type: stringProp,
     },
-    requiredProperties: ["label", "type"],
+    createRequiredProperties: ["label", "type"],
   });
 
   await assertSnapshot(
@@ -321,7 +436,7 @@ Deno.test("generateHetznerExtensionModel - with upgrades block", async (t) => {
       public_key: stringProp,
       fingerprint: stringProp,
     },
-    requiredProperties: ["name", "public_key"],
+    createRequiredProperties: ["name", "public_key"],
   });
 
   await assertSnapshot(
@@ -380,7 +495,7 @@ Deno.test("generateHetznerExtensionModel - GET-only resource (list + get)", asyn
         },
       },
     },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "name",
   });
 
@@ -415,7 +530,7 @@ Deno.test("generateHetznerExtensionModel - list-only resource (no single GET)", 
     resourceProperties: {
       id: intProp,
     },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "id",
   });
 
@@ -448,7 +563,7 @@ Deno.test("GET-only resource imports only read, tryRead, listAll — no create, 
     createProperties: {},
     updateProperties: {},
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "name",
   });
   const out = generateHetznerExtensionModel({
@@ -484,7 +599,7 @@ Deno.test("GET-only resource has no create, update, delete, or sync methods", ()
     createProperties: {},
     updateProperties: {},
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "name",
   });
   const out = generateHetznerExtensionModel({
@@ -519,7 +634,7 @@ Deno.test("GET-only resource GlobalArgsSchema has only token", () => {
     createProperties: {},
     updateProperties: {},
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "name",
   });
   const out = generateHetznerExtensionModel({
@@ -553,7 +668,7 @@ Deno.test("list-only resource imports only listAll — no read, tryRead, create"
     createProperties: {},
     updateProperties: {},
     resourceProperties: { id: intProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     identifyingField: "id",
   });
   const out = generateHetznerExtensionModel({
@@ -605,7 +720,7 @@ Deno.test("omits lookup method for resource with synthetic name", () => {
       type: { type: "string", enum: ["ipv4", "ipv6"] },
     },
     resourceProperties: { id: intProp, ip: stringProp },
-    requiredProperties: ["type"],
+    createRequiredProperties: ["type"],
     actions: [],
   });
   const out = generateHetznerExtensionModel({
@@ -649,7 +764,7 @@ Deno.test("emits adopt method without expected_name for synthetic name", () => {
       type: { type: "string", enum: ["ipv4", "ipv6"] },
     },
     resourceProperties: { id: intProp, ip: stringProp },
-    requiredProperties: ["type"],
+    createRequiredProperties: ["type"],
     actions: [],
   });
   const out = generateHetznerExtensionModel({
@@ -682,7 +797,7 @@ Deno.test("omits adopt method when read handler is false", () => {
     },
     createProperties: {},
     resourceProperties: { id: intProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     actions: [],
   });
   const out = generateHetznerExtensionModel({
@@ -726,7 +841,7 @@ Deno.test("emits change_protection with delete-only for non-servers", () => {
     fileName: "primary_ips.ts",
     createProperties: { type: { type: "string" } },
     resourceProperties: { id: intProp },
-    requiredProperties: ["type"],
+    createRequiredProperties: ["type"],
     actions: ["change_protection"],
   });
   const out = generateHetznerExtensionModel({
@@ -750,7 +865,7 @@ Deno.test("emits set_rules, apply_to_resources, remove_from_resources for firewa
     fileName: "firewalls.ts",
     createProperties: { name: { type: "string" } },
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     actions: ["apply_to_resources", "remove_from_resources", "set_rules"],
   });
   const out = generateHetznerExtensionModel({
@@ -835,7 +950,7 @@ Deno.test("generateHetznerExtensionModel - properties with enums and constraints
         },
       },
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
   });
 
   await assertSnapshot(
