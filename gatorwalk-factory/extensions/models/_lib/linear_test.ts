@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertRejects } from "@std/assert";
-import { linearAdapter } from "./linear.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
+import { apiUrlProblem, linearAdapter } from "./linear.ts";
 import {
   FAKE_TOKEN,
   ISSUE_UUID,
@@ -153,6 +153,41 @@ Deno.test("linear: malformed and error responses map to error kinds", async () =
   });
 });
 
+Deno.test("linear: apiUrl must be https, or plain http to a loopback address", () => {
+  const allowed = [
+    "https://api.linear.app/graphql",
+    "https://example.com/x",
+    "http://127.0.0.1:1/graphql",
+    "http://[::1]:1/graphql",
+    // Normalized to 127.0.0.1 by the URL parser.
+    "http://127.1/",
+  ];
+  const refused = [
+    "http://api.linear.app/graphql",
+    "http://localhost:1/",
+    "http://10.0.0.1/",
+    "not a url",
+  ];
+  for (const url of allowed) assertEquals(apiUrlProblem(url), undefined, url);
+  for (const url of refused) {
+    assert(apiUrlProblem(url)?.includes("must be https"), url);
+  }
+});
+
+Deno.test("linear: a refused apiUrl fails when the adapter is made, before any call", () => {
+  const error = assertThrows(
+    () =>
+      linearAdapter({
+        apiToken: FAKE_TOKEN,
+        apiUrl: "http://api.linear.app/graphql",
+      }),
+    TrackerError,
+    "must be https",
+  );
+  assertEquals(error.kind, "invalid");
+  assert(!error.message.includes(FAKE_TOKEN), "never the token");
+});
+
 Deno.test("linear: a long non-JSON body is cut short in the error", async () => {
   await withFake(async (fake) => {
     fake.queue.push({ status: 500, body: "x".repeat(5000) });
@@ -160,7 +195,8 @@ Deno.test("linear: a long non-JSON body is cut short in the error", async () => 
       "upstream",
       () => adapterFor(fake).fetchIssue(ISSUE_UUID),
     );
-    assert(error.message.length < 400, error.message);
+    assert(error.message.includes(`${"x".repeat(80)}...`), error.message);
+    assert(!error.message.includes("x".repeat(81)), error.message);
   });
 });
 

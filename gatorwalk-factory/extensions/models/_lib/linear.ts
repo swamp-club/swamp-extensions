@@ -36,6 +36,28 @@ export const LINEAR_API_URL = "https://api.linear.app/graphql";
 export const LINEAR = "linear";
 export const LINEAR_TYPE = "@swamp/gatorwalk-factory/linear";
 
+// Plain http is allowed only to loopback, where the tests run a local fake;
+// anywhere else the API key would cross the network in cleartext. These are
+// URL.hostname forms, which the parser normalizes (http://127.1 is 127.0.0.1).
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "[::1]"]);
+
+/** Why apiUrl is refused, or undefined when the API key may be sent to it. */
+export function apiUrlProblem(apiUrl: string): string | undefined {
+  const rule =
+    "apiUrl must be https (plain http is allowed only for 127.0.0.1 and [::1])";
+  let url: URL;
+  try {
+    url = new URL(apiUrl);
+  } catch {
+    return rule;
+  }
+  if (url.protocol === "https:") return undefined;
+  if (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)) {
+    return undefined;
+  }
+  return rule;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface LinearOptions {
@@ -91,12 +113,14 @@ function kindOf(status: number, errors: GraphQLError[]): TrackerErrorKind {
 
 function preview(text: string): string {
   const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > 200 ? `${flat.slice(0, 200)}...` : flat;
+  return flat.length > 80 ? `${flat.slice(0, 80)}...` : flat;
 }
 
 /** A Linear client that speaks the tracker adapter contract. */
 export function linearAdapter(options: LinearOptions): TrackerAdapter {
   const apiUrl = options.apiUrl ?? LINEAR_API_URL;
+  const problem = apiUrlProblem(apiUrl);
+  if (problem !== undefined) fail("invalid", problem);
   const timeoutMs = options.timeoutMs ?? 30_000;
 
   async function graphql<T>(

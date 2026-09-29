@@ -104,3 +104,24 @@ Deno.test("linear model: no apiToken fails before any call, naming the vault rou
     assertEquals(fake.requests.length, 0);
   });
 });
+
+Deno.test("linear model: a plain-http apiUrl off loopback fails before any call", async () => {
+  await withLinear(
+    (fake) => ({
+      apiToken: FAKE_TOKEN,
+      apiUrl: fake.url.replace("127.0.0.1", "localhost"),
+    }),
+    async (swamp, fake) => {
+      await assertRejects(
+        () => call(swamp, "fetch_issue", { issue: "GW-16" }),
+        Error,
+        "must be https",
+      );
+      assertEquals(fake.requests.length, 0);
+    },
+  );
+  const parsed = LinearArgumentsSchema.shape.apiUrl.safeParse(
+    "http://api.linear.app/graphql",
+  );
+  assert(!parsed.success && parsed.error.message.includes("must be https"));
+});

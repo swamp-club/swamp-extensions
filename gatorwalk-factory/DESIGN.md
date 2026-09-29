@@ -576,7 +576,8 @@ The contract:
   global argument wired with `${{ vault.get(<vault>, <key>) }}`, so swamp
   resolves it at run time and redacts it from logs. It is never read from
   lifecycle data, method inputs or the environment. (The Lab adapter may use
-  swamp auth instead.)
+  swamp auth instead.) Linear's `apiUrl` must be https; plain http is allowed
+  only for 127.0.0.1 and `[::1]`, where the tests run a local fake.
 - **Delivery is idempotent on (work item, journal version).** The journal
   version is the length of the run record's journal array. The journal only
   grows (`reset` carries it forward, and only `start` begins one), and its

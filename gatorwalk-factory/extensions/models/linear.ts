@@ -15,7 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { z } from "npm:zod@4.3.6";
-import { LINEAR, linearAdapter } from "./_lib/linear.ts";
+import { apiUrlProblem, LINEAR, linearAdapter } from "./_lib/linear.ts";
 import { trackerMethods, trackerResources } from "./_lib/tracker_methods.ts";
 import { stringMapFrom } from "./_lib/work_item_ops.ts";
 
@@ -32,8 +32,14 @@ export const LinearArgumentsSchema = z.object({
       "${{ vault.get(<vault>, <key>) }}. It is never read from lifecycle " +
       "data, method inputs or the environment.",
   ),
-  apiUrl: z.string().url().optional().describe(
-    "Linear's GraphQL endpoint; defaults to https://api.linear.app/graphql",
+  apiUrl: z.string().url().superRefine((url, ctx) => {
+    const problem = apiUrlProblem(url);
+    if (problem !== undefined) {
+      ctx.addIssue({ code: "custom", message: problem });
+    }
+  }).optional().describe(
+    "Linear's GraphQL endpoint; defaults to https://api.linear.app/graphql. " +
+      "Must be https; plain http is allowed only for 127.0.0.1 and [::1]",
   ),
   statuses: z.union([z.record(z.string(), z.string()), z.string()]).optional()
     .describe(
