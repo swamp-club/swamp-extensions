@@ -53,7 +53,10 @@ separate document fetched from Google's Discovery API directory.
 5. Retry with exponential backoff (250ms base, 3 retries, 30s timeout)
 6. Auto-discover additional stable versions: for every API with more than one
    stable (non-alpha/non-beta) version, fetch each non-preferred version and
-   save as `{name}-{version}.json` (e.g. `iam-v1.json`, `cloudbuild-v1.json`)
+   save as `{name}-{version}.json` (e.g. `iam-v1.json`, `cloudbuild-v1.json`).
+   Version strings are not always `vN` — Google also publishes `v1.1`,
+   `directory_v1`, dated versions like `2026-09-01`, and `stable`, so they are
+   saved the same way (e.g. `compute-2026-09-01.json`, `compute-stable.json`)
 
 ### Cross-version resource merging
 
@@ -63,12 +66,46 @@ keys, workforcePools, workloadIdentityPools, oauthClients, and ~14 total
 resources. The pipeline automatically discovers and merges resources from all
 stable versions of each API.
 
-**Merge semantics**: Schema files are processed in deterministic order —
-preferred versions (`{name}.json`) before additional versions
-(`{name}-{version}.json`), both sorted alphabetically. A cross-version
-deduplication step tracks seen resource keys (`service.resourcePath`). The
-preferred version always wins: resources from additional versions are only
-included when no resource with the same key exists from the preferred version.
+**Merge semantics**: Schema files are grouped by API and processed in
+deterministic order — each API's preferred version (`{name}.json`) before its
+additional versions (`{name}-{version}.json`), sorted alphabetically. Additional
+versions are handled in one of two ways:
+
+- **Same HTTP surface** — the additional version has the same `rootUrl` and
+  `servicePath` as the preferred version, shares at least one method id with it,
+  and every shared method has the same HTTP verb and path. It must also agree on
+  verb and path with every method already merged from an earlier additional
+  version; one that conflicts is handled as a different surface instead. It is a
+  different view of the same API rather than a different API version (compute's
+  `2026-09-01` and `stable` versions against `v1`), so it is merged into the
+  preferred document before parsing. The merge is additive: named entries
+  (schemas, resources, methods, parameters, schema properties) and enum values
+  that only the additional version has are added; a parameter or property added
+  to a method or schema the preferred version already defines is added as
+  optional. An existing definition never gains new constraints — no `enum` on a
+  field the preferred version leaves free-form, no `properties` on a free-form
+  object, and a `$ref` on one side and an inline shape on the other keeps the
+  preferred definition. Nothing the preferred version defines is removed or
+  tightened, so a model never loses a method or enum value that either document
+  offers. Descriptions are the one place the preferred version does not
+  automatically win: where both define a `description` (or an `enumDescriptions`
+  entry for the same value), the longer text is kept, so no documentation either
+  version publishes is lost. Versions whose id contains `preview` are not merged
+  this way, so preview-only methods do not reach resources that exist in the
+  stable API.
+- **Different surface** — everything else (iam v1/v2, drive v2/v3, and so on). A
+  cross-version deduplication step tracks seen resource keys
+  (`service.resourcePath`), and the preferred version wins: resources from these
+  versions are only included when no resource with the same key exists from the
+  preferred version.
+
+Files are classified by filename alone: a stem with no hyphen is a preferred
+version and anything after the first hyphen is the version string. Discovery API
+names never contain a hyphen; each document's `name` is checked against the
+filename base and a mismatch is reported as an error. The service filter in
+`generate:gcp <service>` matches the base API name, so a filtered run loads the
+same files in the same order as a full run and produces identical output for
+that service.
 
 Within-document scope deduplication (`deduplicateScopedResources`) still runs
 first, merging projects/organizations/folders variants into a single model

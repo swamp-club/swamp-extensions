@@ -40,11 +40,6 @@ const SKIP_APIS = new Set([
   "poly", // Shutdown — returns 502
 ]);
 
-// Regex to detect additional-version schema filenames (e.g. "iam-v1.json").
-// Group 1 = base API name, group 2 = version string. Only matches stable
-// version suffixes (v1, v2, v23) — alpha/beta versions are never fetched.
-const ADDITIONAL_VERSION_FILENAME_RE = /^(.+)-(v\d+)$/;
-
 // --- Public types ---
 
 /** A single GCP Discovery Document property (recursive). */
@@ -481,6 +476,31 @@ export async function fetchGcpSchema(options?: {
 }
 
 /**
+ * Classifies a schema filename written by fetchGcpSchema. The preferred
+ * version is saved as `{name}.json` and every additional version as
+ * `{name}-{version}.json`. The version string is not constrained — Google
+ * publishes `v1`, `v1.1`, `directory_v1`, `2026-09-01`, `stable`, and so on —
+ * so classification splits on the first hyphen. Discovery API names never
+ * contain a hyphen; generateGcpModels checks the document name to be sure.
+ */
+export function classifyGcpSchemaFile(filename: string): {
+  stem: string;
+  baseService: string;
+  isAdditionalVersion: boolean;
+} {
+  const stem = filename.replace(/\.json$/, "");
+  const hyphen = stem.indexOf("-");
+  if (hyphen === -1) {
+    return { stem, baseService: stem, isAdditionalVersion: false };
+  }
+  return {
+    stem,
+    baseService: stem.slice(0, hyphen),
+    isAdditionalVersion: true,
+  };
+}
+
+/**
  * Generates GCP extension models, grouped by service.
  */
 export async function generateGcpModels(options: {
@@ -498,63 +518,136 @@ export async function generateGcpModels(options: {
   const skipped: { service: string; resource: string; reason: string }[] = [];
   const errors: string[] = [];
 
-  // Collect and sort schema files: preferred versions ({name}.json) before
-  // additional versions ({name}-{version}.json) so cross-version dedup
-  // always lets the preferred version win.
-  const schemaFiles: string[] = [];
+  // Group schema files by base API: the preferred version ({name}.json) and
+  // its additional versions ({name}-{version}.json), each sorted so output
+  // does not depend on directory order.
+  const filesByService = new Map<
+    string,
+    { preferred?: string; additional: string[] }
+  >();
   for await (const entry of Deno.readDir(schemasDir)) {
-    if (entry.isFile && entry.name.endsWith(".json")) {
-      schemaFiles.push(entry.name);
+    if (!entry.isFile || !entry.name.endsWith(".json")) continue;
+    const { baseService, isAdditionalVersion } = classifyGcpSchemaFile(
+      entry.name,
+    );
+    // Apply service filter on the base API name so additional-version files
+    // are loaded exactly when their preferred file is.
+    if (options.services && !options.services.includes(baseService)) {
+      continue;
+    }
+    const group = filesByService.get(baseService) ??
+      { additional: [] };
+    if (isAdditionalVersion) group.additional.push(entry.name);
+    else group.preferred = entry.name;
+    filesByService.set(baseService, group);
+  }
+
+  for (const service of options.services ?? []) {
+    if (!filesByService.has(service)) {
+      console.warn(
+        `No GCP schema files for service filter "${service}" ` +
+          `(filters match the base API name, e.g. "iam", not "iam-v1")`,
+      );
     }
   }
-  schemaFiles.sort((a, b) => {
-    const aIsAdditional = ADDITIONAL_VERSION_FILENAME_RE.test(
-      a.replace(/\.json$/, ""),
-    );
-    const bIsAdditional = ADDITIONAL_VERSION_FILENAME_RE.test(
-      b.replace(/\.json$/, ""),
-    );
-    if (aIsAdditional !== bIsAdditional) return aIsAdditional ? 1 : -1;
-    return a.localeCompare(b);
-  });
 
   // Track seen resource keys for cross-version dedup (preferred wins).
   const seenResourceKeys = new Set<string>();
 
   let docCount = 0;
-  for (const filename of schemaFiles) {
-    const stem = filename.replace(/\.json$/, "");
-    const versionMatch = stem.match(ADDITIONAL_VERSION_FILENAME_RE);
-    const isAdditionalVersion = versionMatch !== null;
-    const baseService = isAdditionalVersion ? versionMatch[1] : stem;
+  for (const baseService of [...filesByService.keys()].sort()) {
+    const group = filesByService.get(baseService)!;
+    group.additional.sort((a, b) => a.localeCompare(b));
 
-    // Apply service filter — additional-version files pass when their
-    // base service is in the filter list.
-    if (options.services) {
+    const readRaw = async (
+      filename: string,
+    ): Promise<RawGcpDiscoveryDocument | undefined> => {
+      const { stem } = classifyGcpSchemaFile(filename);
+      try {
+        const doc = JSON.parse(
+          await Deno.readTextFile(`${schemasDir}/${filename}`),
+        ) as RawGcpDiscoveryDocument;
+        if (doc.name !== baseService) {
+          errors.push(
+            `${stem}: discovery document name "${doc.name}" does not match ` +
+              `schema filename base "${baseService}"`,
+          );
+          return undefined;
+        }
+        return doc;
+      } catch (e) {
+        errors.push(`${stem}: ${e}`);
+        return undefined;
+      }
+    };
+
+    const preferred = group.preferred
+      ? await readRaw(group.preferred)
+      : undefined;
+
+    // Additional versions that describe the same HTTP surface as the
+    // preferred version (e.g. compute's dated and "stable" versions) are
+    // views of one API, so they are merged into the preferred document
+    // before parsing. Everything else is a genuinely different API version
+    // and contributes only resources the preferred version lacks.
+    // Each additional version must share methods with the preferred
+    // document as it was before any merge, and must not conflict with any
+    // method signature already merged in from an earlier additional version.
+    const preferredSurface = preferred ? gcpSurfaceOf(preferred) : undefined;
+    const mergedSurface = preferredSurface
+      ? { ...preferredSurface, methods: new Map(preferredSurface.methods) }
+      : undefined;
+    const separate: { filename: string; doc: RawGcpDiscoveryDocument }[] = [];
+    for (const filename of group.additional) {
+      const doc = await readRaw(filename);
+      if (!doc) continue;
+      const surface = gcpSurfaceOf(doc);
+      // Check the version part of the filename, not the API name.
+      const { stem } = classifyGcpSchemaFile(filename);
+      const isPreview = doc.version?.includes("preview") ||
+        stem.slice(baseService.length + 1).includes("preview");
       if (
-        !options.services.includes(stem) &&
-        !options.services.includes(baseService)
+        preferred && preferredSurface && mergedSurface && !isPreview &&
+        sameGcpSurface(preferredSurface, surface) &&
+        sameGcpSurface(mergedSurface, surface)
       ) {
-        continue;
+        mergeGcpDiscoveryDocument(preferred, doc);
+        for (const [id, signature] of surface.methods) {
+          if (!mergedSurface.methods.has(id)) {
+            mergedSurface.methods.set(id, signature);
+          }
+        }
+        // Counts files consumed, so merged versions are counted too.
+        docCount++;
+      } else {
+        separate.push({ filename, doc });
       }
     }
 
-    try {
-      const doc = await readGcpDiscoveryDocument(`${schemasDir}/${filename}`);
-      const resources = parseGcpDiscoveryDocument(doc);
+    const ordered = [
+      ...(preferred && group.preferred
+        ? [{ filename: group.preferred, doc: preferred }]
+        : []),
+      ...separate,
+    ];
+    for (const { filename, doc: raw } of ordered) {
+      try {
+        const doc = dereferenceGcpDiscoveryDocument(raw);
+        const resources = parseGcpDiscoveryDocument(doc);
 
-      for (const resource of resources) {
-        const resourceKey = `${resource.service}.${
-          resource.resourcePath.join(".")
-        }`;
-        if (seenResourceKeys.has(resourceKey)) continue;
-        seenResourceKeys.add(resourceKey);
-        allResources.push(resource);
+        for (const resource of resources) {
+          const resourceKey = `${resource.service}.${
+            resource.resourcePath.join(".")
+          }`;
+          if (seenResourceKeys.has(resourceKey)) continue;
+          seenResourceKeys.add(resourceKey);
+          allResources.push(resource);
+        }
+
+        docCount++;
+      } catch (e) {
+        errors.push(`${classifyGcpSchemaFile(filename).stem}: ${e}`);
       }
-
-      docCount++;
-    } catch (e) {
-      errors.push(`${stem}: ${e}`);
     }
   }
 
@@ -911,6 +1004,219 @@ export async function readGcpDiscoveryDocument(
   const content = await Deno.readTextFile(filePath);
   const doc = JSON.parse(content) as RawGcpDiscoveryDocument;
   return dereferenceGcpDiscoveryDocument(doc);
+}
+
+interface GcpSurface {
+  /** rootUrl + servicePath, which every method path is relative to. */
+  base: string;
+  /** Method id -> "VERB path". */
+  methods: Map<string, string>;
+}
+
+function gcpSurfaceOf(doc: RawGcpDiscoveryDocument): GcpSurface {
+  const methods = new Map<string, string>();
+  const add = (defs?: Record<string, RawGcpMethod>) => {
+    for (const m of Object.values(defs ?? {})) {
+      methods.set(m.id, `${m.httpMethod} ${m.path}`);
+    }
+  };
+  const walk = (resources?: Record<string, RawGcpResource>) => {
+    for (const r of Object.values(resources ?? {})) {
+      add(r.methods);
+      walk(r.resources);
+    }
+  };
+  add(doc.methods);
+  walk(doc.resources);
+  return { base: `${doc.rootUrl}${doc.servicePath}`, methods };
+}
+
+function sameGcpSurface(a: GcpSurface, b: GcpSurface): boolean {
+  if (a.base !== b.base) return false;
+  let shared = 0;
+  for (const [id, signature] of b.methods) {
+    const other = a.methods.get(id);
+    if (other === undefined) continue;
+    if (other !== signature) return false;
+    shared++;
+  }
+  return shared > 0;
+}
+
+/**
+ * Whether two discovery documents describe the same HTTP surface: the same
+ * rootUrl and servicePath, at least one shared method id, and every shared
+ * method with the same HTTP verb and path. Compute's dated and "stable"
+ * versions pass this against v1; distinct API versions (iam v1/v2, drive
+ * v2/v3, ...) do not.
+ */
+export function describesSameGcpSurface(
+  a: RawGcpDiscoveryDocument,
+  b: RawGcpDiscoveryDocument,
+): boolean {
+  return sameGcpSurface(gcpSurfaceOf(a), gcpSurfaceOf(b));
+}
+
+// Maps of named entries. An entry only the source has is copied whole; an
+// entry both have is merged with mergeDefinition.
+const NAMED_COLLECTION_KEYS = new Set([
+  "schemas",
+  "resources",
+  "methods",
+  "parameters",
+  "properties",
+]);
+// Named collections that may be created on a definition that lacks them.
+// `properties` is excluded: adding it would give shape to a schema the
+// preferred version leaves free-form.
+const CREATABLE_COLLECTION_KEYS = new Set([
+  "schemas",
+  "resources",
+  "methods",
+  "parameters",
+]);
+// Collections whose entries, when added to an existing definition, are added
+// as optional: a parameter or property only the additional version has must
+// not become required on a method or schema the preferred version defines.
+const OPTIONAL_WHEN_ADDED_KEYS = new Set(["parameters", "properties"]);
+// Nested schema definitions merged recursively when both sides have them.
+const NESTED_DEFINITION_KEYS = new Set(["items", "additionalProperties"]);
+// Arrays that run parallel to `enum`, with the filler used when the source
+// has no entry for a value.
+const ENUM_PARALLEL_KEYS: [string, unknown][] = [
+  ["enumDescriptions", ""],
+  ["enumDeprecated", false],
+];
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Merges a same-surface `source` document into `target` without removing or
+ * tightening anything `target` defines. Named entries (schemas, resources,
+ * methods, parameters, properties) only `source` has are added; enum values
+ * only `source` has are appended to an existing enum, with enumDescriptions
+ * and enumDeprecated kept aligned. Everything else in an existing definition
+ * — type, format, $ref, required, an enum where `target` has none — stays as
+ * `target` has it, except that a longer description (or enumDescriptions
+ * entry) from `source` replaces a shorter one, so no documentation is lost.
+ */
+export function mergeGcpDiscoveryDocument(
+  target: RawGcpDiscoveryDocument,
+  source: RawGcpDiscoveryDocument,
+): void {
+  mergeDefinition(
+    target as unknown as Record<string, unknown>,
+    source as unknown as Record<string, unknown>,
+  );
+}
+
+function mergeDefinition(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): void {
+  // A reference on one side and an inline shape (or another reference) on
+  // the other are different definitions; keep target's.
+  if (target.$ref !== source.$ref) return;
+
+  // Descriptions are documentation, not constraints: keep whichever version
+  // says more, so merging never drops text either version publishes.
+  if (
+    typeof target.description === "string" &&
+    typeof source.description === "string" &&
+    source.description.length > target.description.length
+  ) {
+    target.description = source.description;
+  }
+
+  if (Array.isArray(target.enum) && Array.isArray(source.enum)) {
+    mergeEnum(target, source);
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    if (!isPlainObject(value)) continue;
+    const existing = target[key];
+    if (NAMED_COLLECTION_KEYS.has(key)) {
+      if (existing === undefined) {
+        if (CREATABLE_COLLECTION_KEYS.has(key)) {
+          target[key] = structuredClone(value);
+        }
+      } else if (isPlainObject(existing)) {
+        for (const [name, entry] of Object.entries(value)) {
+          if (name === "__proto__") continue;
+          if (!Object.hasOwn(existing, name)) {
+            existing[name] = OPTIONAL_WHEN_ADDED_KEYS.has(key) &&
+                isPlainObject(entry)
+              ? withoutRequirement(entry)
+              : structuredClone(entry);
+          } else if (isPlainObject(existing[name]) && isPlainObject(entry)) {
+            mergeDefinition(
+              existing[name] as Record<string, unknown>,
+              entry,
+            );
+          }
+        }
+      }
+    } else if (NESTED_DEFINITION_KEYS.has(key) && isPlainObject(existing)) {
+      mergeDefinition(existing, value);
+    }
+  }
+}
+
+function withoutRequirement(
+  entry: Record<string, unknown>,
+): Record<string, unknown> {
+  const copy = structuredClone(entry);
+  delete copy.required;
+  if (isPlainObject(copy.annotations)) {
+    delete copy.annotations.required;
+    if (Object.keys(copy.annotations).length === 0) delete copy.annotations;
+  }
+  return copy;
+}
+
+function mergeEnum(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): void {
+  const targetEnum = target.enum as unknown[];
+  const sourceEnum = source.enum as unknown[];
+  // Only extend a parallel array that is currently aligned with the enum.
+  const parallel = ENUM_PARALLEL_KEYS.filter(([key]) => {
+    const t = target[key];
+    return Array.isArray(t) && t.length === targetEnum.length;
+  });
+  // For values both enums share, keep the longer enumDescriptions entry.
+  const targetDescriptions = target.enumDescriptions;
+  const sourceDescriptions = source.enumDescriptions;
+  if (
+    Array.isArray(targetDescriptions) && Array.isArray(sourceDescriptions) &&
+    targetDescriptions.length === targetEnum.length &&
+    sourceDescriptions.length === sourceEnum.length
+  ) {
+    targetEnum.forEach((value, i) => {
+      const j = sourceEnum.indexOf(value);
+      const t = targetDescriptions[i];
+      const s = sourceDescriptions[j];
+      if (
+        j !== -1 && typeof t === "string" && typeof s === "string" &&
+        s.length > t.length
+      ) {
+        targetDescriptions[i] = s;
+      }
+    });
+  }
+  sourceEnum.forEach((value, i) => {
+    if (targetEnum.includes(value)) return;
+    targetEnum.push(value);
+    for (const [key, filler] of parallel) {
+      const s = source[key];
+      (target[key] as unknown[]).push(
+        Array.isArray(s) && i < s.length ? s[i] : filler,
+      );
+    }
+  });
 }
 
 function dereferenceGcpDiscoveryDocument(
