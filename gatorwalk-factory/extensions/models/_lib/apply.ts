@@ -507,6 +507,22 @@ export function applyStageTemplate(
         );
       }
     }
+    const entries = stage.projection?.entries;
+    if (out.projection !== undefined && entries !== undefined) {
+      // A record trigger names one of the stage's own products, renamed
+      // with it. Gate ids are not renamed, so approve triggers stay.
+      const artifacts = new Set((stage.artifacts ?? []).map((a) => a.name));
+      out.projection.entries = entries.map((e) =>
+        e.on === "enter" || !("record" in e.on) ? e : {
+          ...e,
+          on: {
+            record: artifacts.has(e.on.record)
+              ? artifactName(e.on.record)
+              : evidenceName(e.on.record),
+          },
+        }
+      );
+    }
     if (stage.transitions !== undefined) {
       out.transitions = stage.transitions.map((t) => {
         const { exit, ...rest } = t;

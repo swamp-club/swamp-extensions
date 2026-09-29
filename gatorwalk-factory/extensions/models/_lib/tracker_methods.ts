@@ -23,11 +23,20 @@ import {
   TICKET_SPEC,
   TicketClaimSchema,
 } from "./claim.ts";
-import { project } from "./projection.ts";
+import {
+  chooseEntry,
+  declaresEntries,
+  type EntryProduct,
+  project,
+  projectEntries,
+  renderEntry,
+} from "./projection.ts";
 import { parseRun, type RunRecord } from "./run_record.ts";
-import { RUN_NAME, RUN_SPEC } from "./run_store.ts";
+import { payloadName, RUN_NAME, RUN_SPEC } from "./run_store.ts";
 import {
   type DeliveryKey,
+  type LifecycleEntry,
+  type LifecycleEntryWriter,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
@@ -44,8 +53,9 @@ import {
 // contract: fetch_issue, comment, set_status and publish, and claim, which
 // starts from a ticket (claim.ts).
 //
-// Delivery ledger: a comment or status write that carries a delivery key
-// (workItem + journalVersion) records what the tracker returned under a name
+// Delivery ledger: a comment, status, type or lifecycle-entry write that
+// carries a delivery key (workItem + journalVersion) records what the
+// tracker returned under a name
 // built from the key. A second call with the same key finds the record and
 // writes nothing to the tracker. The ledger lives on the tracker instance
 // and relies on swamp running one method at a time per instance; a crash
@@ -57,17 +67,26 @@ export const ISSUE_SPEC = "issue";
 export const DELIVERY_SPEC = "delivery";
 export const CURSOR_SPEC = "cursor";
 
+export const DELIVERY_ACTIONS = [
+  "comment",
+  "set_status",
+  "set_type",
+  "lifecycle_entry",
+] as const;
+
 export const DeliverySchema = z.object({
-  action: z.enum(["comment", "set_status"]),
+  action: z.enum(DELIVERY_ACTIONS),
   issue: z.string(),
   workItem: z.string(),
   journalVersion: z.number(),
   /**
-   * A digest of what was asked (the comment body, or the status key), so a
-   * repeat of the key with a different request is refused, not skipped.
+   * A digest of what was asked (the comment body, the status key, the type
+   * or the entry), so a repeat of the key with a different request is
+   * refused, not skipped.
    */
   request: z.string(),
-  /** What the tracker returned: a comment's id and url, or the status. */
+  /** What the tracker returned: a comment's or entry's id, the status, or
+   * the type. */
   result: z.record(z.string(), z.unknown()),
   at: z.string(),
 });
@@ -81,6 +100,8 @@ export const IssueSchema = z.object({
   title: z.string(),
   url: z.string(),
   status: z.object({ id: z.string(), name: z.string() }),
+  /** What only this tracker reports (the Lab's body, type and author). */
+  details: z.record(z.string(), z.unknown()).optional(),
   fetchedAt: z.string(),
 });
 
@@ -133,7 +154,7 @@ export function deliveryName(
   }`;
 }
 
-const DeliveryInputs = {
+export const DeliveryInputs = {
   workItem: z.string().min(1).optional().describe(
     "The work item this write is for; with journalVersion, makes it idempotent",
   ),
@@ -142,7 +163,7 @@ const DeliveryInputs = {
   ),
 };
 
-function deliveryKeyOf(
+export function deliveryKeyOf(
   args: { workItem?: string; journalVersion?: number },
 ): DeliveryKey | null {
   if (args.workItem === undefined && args.journalVersion === undefined) {
@@ -219,26 +240,162 @@ export interface TrackerModelOptions {
   adapter(globalArgs: Record<string, unknown>): TrackerAdapter;
   /** Status keys to the tracker's status names (from globalArgs). */
   statuses(globalArgs: Record<string, unknown>): Record<string, string>;
+  /**
+   * A tracker's own reason to refuse a claim, checked once the ticket is
+   * fetched and before anything is written: throws to refuse.
+   */
+  beforeClaim?(ctx: TrackerContext, issue: TrackerIssue): Promise<void>;
   now?: () => Date;
 }
 
 /** One keyed or unkeyed write, as the comment and set_status paths take it. */
-interface Write {
+export interface Write {
   issue: string;
   key: DeliveryKey | null;
   /** Set by publish: its own ledger records, and see priorDelivery. */
   replay: boolean;
 }
 
-interface Delivered {
+export interface Delivered {
   handles: unknown[];
   /** False when the ledger already held the key and nothing was written. */
   wrote: boolean;
 }
 
-/** The ledger-guarded writes, shared by comment, set_status and publish. */
-function deliveries(options: TrackerModelOptions, now: () => Date) {
+/**
+ * The adapter's history capability, or an error naming the tracker: a
+ * method that needs it is only offered by an adapter that has it.
+ */
+function historyOf(adapter: TrackerAdapter): LifecycleEntryWriter {
+  if (adapter.history === undefined) {
+    throw new Error(
+      `${adapter.tracker} keeps no lifecycle entries or ticket type`,
+    );
+  }
+  return adapter.history;
+}
+
+/**
+ * The ledger-guarded writes, shared by comment, set_status, set_type,
+ * publish and a tracker's own methods.
+ */
+export function deliveries(options: TrackerModelOptions, now: () => Date) {
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+
+  /**
+   * One keyed write, or an unkeyed one: the ledger first, then the tracker,
+   * then the ledger record. The same shape as comment and set_status.
+   */
+  const guarded = async (
+    ctx: TrackerContext,
+    write: Write,
+    action: "set_type" | "lifecycle_entry",
+    request: Record<string, unknown>,
+    perform: () => Promise<Record<string, unknown>>,
+    done: (result: Record<string, unknown>) => string,
+  ): Promise<Delivered> => {
+    const { key } = write;
+    const name = key === null
+      ? null
+      : deliveryName(action, key, write.replay ? "publish" : "method");
+    const digest = await digestOf(request);
+    if (name !== null) {
+      const prior = await priorDelivery(
+        ctx,
+        name,
+        write.issue,
+        digest,
+        write.replay,
+      );
+      if (prior !== null) {
+        ctx.logger.info("{summary}", {
+          summary: `already delivered (${name}); wrote nothing`,
+          ...prior.result,
+        });
+        return { handles: [], wrote: false };
+      }
+    }
+    let result: Record<string, unknown>;
+    let skipped = false;
+    try {
+      result = await perform();
+    } catch (error) {
+      // publish only: a write the tracker refuses outright can never land
+      // (its request comes from a digest-pinned payload), so it is recorded
+      // as skipped and the replay moves past it rather than stalling there
+      // for good. Anything else (auth, upstream, rate limits) is retried.
+      if (
+        !write.replay || key === null || name === null ||
+        !(error instanceof TrackerError) || error.kind !== "invalid"
+      ) throw error;
+      result = { skipped: "invalid", detail: error.detail };
+      skipped = true;
+    }
+    const handles: unknown[] = [];
+    if (key !== null && name !== null) {
+      handles.push(
+        await recordDelivery(ctx, name, {
+          action,
+          issue: write.issue,
+          ...key,
+          request: digest,
+          result,
+          at: now().toISOString(),
+        }),
+      );
+    }
+    if (skipped) {
+      ctx.logger.info("{warning}", {
+        warning: `skipped ${action} on ${write.issue}, which the tracker ` +
+          `refused: ${String(result.detail)}`,
+      });
+      return { handles, wrote: false };
+    }
+    ctx.logger.info("{summary}", { summary: done(result) });
+    return { handles, wrote: true };
+  };
+
+  const setType = (
+    ctx: TrackerContext,
+    write: Write & { type: string },
+  ): Promise<Delivered> =>
+    guarded(
+      ctx,
+      write,
+      "set_type",
+      { type: write.type },
+      async () => ({
+        ...await historyOf(options.adapter(argsOf(ctx))).setType(
+          write.issue,
+          write.type,
+        ),
+      }),
+      (r) =>
+        r.changed === true
+          ? `set ${write.issue}'s type to '${write.type}'`
+          : `${write.issue} is already '${write.type}'; wrote nothing`,
+    );
+
+  const entry = (
+    ctx: TrackerContext,
+    write: Write & { entry: LifecycleEntry },
+  ): Promise<Delivered> =>
+    guarded(
+      ctx,
+      write,
+      "lifecycle_entry",
+      { ...write.entry },
+      async () => ({
+        ...await historyOf(options.adapter(argsOf(ctx))).postEntry(
+          write.issue,
+          write.entry,
+        ),
+      }),
+      (r) =>
+        `recorded '${write.entry.step}' on ${write.issue} (entry ${
+          String(r.id)
+        })`,
+    );
 
   const comment = async (
     ctx: TrackerContext,
@@ -367,7 +524,7 @@ function deliveries(options: TrackerModelOptions, now: () => Date) {
     return { handles, wrote: true };
   };
 
-  return { comment, setStatus };
+  return { comment, setStatus, setType, entry };
 }
 
 const publishArguments = z.object({
@@ -482,6 +639,58 @@ async function readWorkItem(ctx: TrackerContext, workItem: string) {
   }
   if (refusal !== null) throw refusal;
   return { run, lifecycle: (await checkPinned(null, run)).lifecycle };
+}
+
+/**
+ * A recorded product's payload at the version the journal names, from the
+ * work item's data: that exact version by query, else the latest copy. A
+ * copy counts only if its digest is the one the journal recorded, so the
+ * entry describes what was recorded then, never a later version.
+ */
+async function readRecordedPayload(
+  ctx: TrackerContext,
+  workItem: string,
+  product: EntryProduct,
+): Promise<Record<string, unknown>> {
+  const name = payloadName(product.kind, product.name);
+  const candidates: unknown[] = [];
+  if (ctx.queryData !== undefined) {
+    // workItem has passed safePart and product names are NameSchema, so
+    // neither can break out of the string.
+    try {
+      candidates.push(
+        ...await ctx.queryData(
+          `modelName == "${workItem}" && specName == "${product.kind}" && ` +
+            `name == "${name}" && version == ${product.version}`,
+        ),
+      );
+    } catch (error) {
+      ctx.logger.info("{summary}", {
+        summary: `could not query ${product.kind} '${product.name}' of ` +
+          `'${workItem}' by version (${
+            error instanceof Error ? error.message : String(error)
+          }); trying the latest copy`,
+      });
+    }
+  }
+  if (ctx.readModelData !== undefined) {
+    const latest = latestNamed(
+      await ctx.readModelData(workItem, product.kind),
+      name,
+    );
+    if (latest !== null) candidates.push(latest);
+  }
+  for (const candidate of candidates) {
+    const payload = recordObject(candidate);
+    if (payload !== null && await digestOf(payload) === product.digest) {
+      return payload;
+    }
+  }
+  throw new Error(
+    `cannot read ${product.kind} '${product.name}' version ` +
+      `${product.version} of '${workItem}' as it was recorded ` +
+      `(${product.digest}); nothing was published past it`,
+  );
 }
 
 const fetchIssueArguments = z.object({
@@ -606,6 +815,7 @@ export function trackerMethods(options: TrackerModelOptions) {
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
         const issue = await fetch(ctx, args.issue);
+        await options.beforeClaim?.(ctx, issue);
         const written = await claimTicket(ctx, {
           tracker: options.tracker,
           issue,
@@ -690,6 +900,11 @@ export function trackerMethods(options: TrackerModelOptions) {
               `past the run's ${journalVersion}; the journal only grows`,
           );
         }
+        const adapter = options.adapter(argsOf(ctx));
+        // Entry mode: the lifecycle says which events become which entries,
+        // and the tracker keeps them. They replace the comments.
+        const entryMode = adapter.history !== undefined &&
+          declaresEntries(lifecycle);
         const projection = project(run, lifecycle, since);
         const lastStatus = cursor?.status ?? null;
         const moveTo = projection.status !== null &&
@@ -705,7 +920,62 @@ export function trackerMethods(options: TrackerModelOptions) {
 
         const handles: unknown[] = [];
         let posted = 0;
-        for (const planned of projection.comments) {
+        let ticketStatus: string | undefined;
+        const statusNameOf = async (key: string | null): Promise<string> => {
+          if (key === null) {
+            // Nothing names a label yet (a first stage without a key): the
+            // status the ticket has, which is what the entry happened in.
+            ticketStatus ??= (await adapter.fetchIssue(issue)).status.name;
+            return ticketStatus;
+          }
+          const name = options.statuses(argsOf(ctx))[key];
+          if (name === undefined) {
+            throw new TrackerError(
+              "invalid",
+              options.tracker,
+              `status key '${key}' labels an entry but is not in the ` +
+                "statuses global argument",
+            );
+          }
+          return name;
+        };
+        for (
+          const event of entryMode ? projectEntries(run, lifecycle, since) : []
+        ) {
+          const payload = event.product === undefined
+            ? {}
+            : await readRecordedPayload(ctx, workItem, event.product);
+          const chosen = chooseEntry(event.candidates, payload);
+          if (chosen === null) continue;
+          const entry = renderEntry(chosen, event, payload);
+          const key = { workItem, journalVersion: event.journalVersion };
+          // issue-lifecycle's order: the type, then the entry saying so.
+          if (entry.type !== undefined) {
+            const done = await deliver.setType(ctx, {
+              issue,
+              type: entry.type,
+              key,
+              replay: true,
+            });
+            handles.push(...done.handles);
+          }
+          const done = await deliver.entry(ctx, {
+            issue,
+            key,
+            replay: true,
+            entry: {
+              step: entry.step,
+              targetStatus: await statusNameOf(entry.status),
+              summary: entry.summary,
+              emoji: entry.emoji,
+              payload: entry.payload,
+              isVerbose: entry.isVerbose,
+            },
+          });
+          handles.push(...done.handles);
+          if (done.wrote) posted++;
+        }
+        for (const planned of entryMode ? [] : projection.comments) {
           const done = await deliver.comment(ctx, {
             issue,
             body: planned.body,
@@ -738,7 +1008,8 @@ export function trackerMethods(options: TrackerModelOptions) {
         );
         ctx.logger.info("{summary}", {
           summary: `published ${workItem} to ${issue} through journal ` +
-            `version ${journalVersion}: ${posted} comment(s)` +
+            `version ${journalVersion}: ${posted} ` +
+            (entryMode ? "entry(ies)" : "comment(s)") +
             (moveTo === null ? "" : `, status '${moveTo}'`),
         });
         return { dataHandles: handles };

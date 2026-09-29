@@ -20,7 +20,10 @@
 // its source at ec005fc0): a Bearer key not starting with swamp_ is ignored,
 // so the caller is anonymous; anonymous callers may read an issue but not
 // write; only an admin may move a status past open or closed, assign, list
-// assignees or post attestations; a status moves one step forward at a time
+// assignees, post attestations or lifecycle entries, or change a type (an
+// author may too, within limits the fake leaves out); a lifecycle entry's
+// targetStatus is only a label, and a classified entry with isRegression
+// sets or clears the regression flag; a status moves one step forward at a time
 // and a refused move is a 422 with the aggregate's message; errors are
 // {"error": message}. A test can queue raw responses to exercise malformed
 // ones. Never the live service.
@@ -31,6 +34,22 @@ export interface FakeLabIssue {
   title: string;
   status: string;
   assignees: { userId: string; username: string }[];
+  body?: string;
+  type?: string;
+  authorId?: string;
+  authorUsername?: string;
+  isRegression?: boolean;
+}
+
+export interface FakeLabEntry {
+  id: string;
+  issue: number;
+  step: string;
+  targetStatus: string;
+  summary: string;
+  emoji: string;
+  payload: Record<string, unknown>;
+  isVerbose: boolean;
 }
 
 export interface FakeLabRequest {
@@ -56,7 +75,9 @@ export interface SwampClubFake {
   issues: FakeLabIssue[];
   /** The eligible assignees (swamp-club's team). */
   team: { userId: string; username: string }[];
-  comments: { id: string; issue: number; body: string }[];
+  comments: { id: string; issue: number; body: string; author: string }[];
+  /** Lifecycle entries, in the order they were posted. */
+  entries: FakeLabEntry[];
   attestations: Record<string, unknown>[];
   requests: FakeLabRequest[];
   /** Raw responses to send, in order, before answering normally again. */
@@ -82,16 +103,27 @@ const VERB: Record<string, string> = {
   shipped: "ship",
 };
 const STATUSES = ["open", "triaged", "in_progress", "shipped", "closed"];
+const TYPES = ["feature", "bug", "security", "platform"];
 
 export function swampClubFake(): SwampClubFake {
   const issues: FakeLabIssue[] = [
-    { number: LAB_ISSUE, title: "Lab adapter", status: "open", assignees: [] },
+    {
+      number: LAB_ISSUE,
+      title: "Lab adapter",
+      status: "open",
+      assignees: [],
+      body: "Adapt the Lab.",
+      type: "feature",
+      authorId: "user-outsider",
+      authorUsername: "outsider",
+    },
   ];
   const team = [
     { userId: "user-seth", username: "seth" },
     { userId: "user-ape", username: "skunk-ape" },
   ];
   const comments: SwampClubFake["comments"] = [];
+  const entries: FakeLabEntry[] = [];
   const attestations: Record<string, unknown>[] = [];
   const requests: FakeLabRequest[] = [];
   const queue: RawResponse[] = [];
@@ -129,6 +161,16 @@ export function swampClubFake(): SwampClubFake {
         return error("One or more assignee IDs are not eligible", 400);
       }
       issue.assignees = members.map((m) => ({ ...m! }));
+    }
+    if (body.type !== undefined) {
+      if (typeof body.type !== "string" || !TYPES.includes(body.type)) {
+        return error(
+          "Invalid type. Must be feature, bug, security, or platform.",
+          400,
+        );
+      }
+      if (!admin) return error("Forbidden", 403);
+      issue.type = body.type;
     }
     if (body.status !== undefined) {
       const status = body.status;
@@ -221,15 +263,78 @@ export function swampClubFake(): SwampClubFake {
         attestations.push(stored);
         return json(stored, 201);
       }
-      const match = /^\/api\/v1\/lab\/issues\/([^/]+)(\/comments)?$/.exec(
-        pathname,
-      );
+      const match = /^\/api\/v1\/lab\/issues\/([^/]+)(\/comments|\/lifecycle)?$/
+        .exec(
+          pathname,
+        );
       if (match === null) return error("Not found", 404);
       const number = Number(match[1]);
       if (!Number.isInteger(number) || number <= 0) {
         return error("Invalid issue number", 400);
       }
       const issue = issues.find((i) => i.number === number);
+      if (match[2] === "/lifecycle") {
+        if (request.method !== "POST") return error("Method not allowed", 405);
+        if (role === null) return error("Unauthorized", 401);
+        if (!admin) return error("Forbidden", 403);
+        const entry =
+          (typeof body === "object" && body !== null ? body : {}) as Record<
+            string,
+            unknown
+          >;
+        const text = (field: string, max: number) =>
+          typeof entry[field] === "string" &&
+          (entry[field] as string).trim() !== "" &&
+          (entry[field] as string).length <= max;
+        if (!text("step", 100)) {
+          return error("Missing required field: step", 400);
+        }
+        if (
+          typeof entry.targetStatus !== "string" ||
+          !STATUSES.includes(entry.targetStatus)
+        ) {
+          return error(
+            "Invalid targetStatus \u2014 must be a valid issue status",
+            400,
+          );
+        }
+        if (!text("summary", 2000)) {
+          return error("Missing required field: summary", 400);
+        }
+        if (!text("emoji", 32)) {
+          return error("Missing required field: emoji", 400);
+        }
+        const payload = entry.payload;
+        if (
+          typeof payload !== "object" || payload === null ||
+          Array.isArray(payload)
+        ) {
+          return error(
+            "Missing required field: payload (must be an object)",
+            400,
+          );
+        }
+        if (/"\$/.test(JSON.stringify(payload))) {
+          return error("payload keys must not start with $", 400);
+        }
+        if (issue === undefined) return error("Issue not found", 404);
+        const stored: FakeLabEntry = {
+          id: crypto.randomUUID(),
+          issue: number,
+          step: (entry.step as string).trim(),
+          targetStatus: entry.targetStatus,
+          summary: (entry.summary as string).trim(),
+          emoji: (entry.emoji as string).trim(),
+          payload: payload as Record<string, unknown>,
+          isVerbose: entry.isVerbose === true,
+        };
+        const flag = (payload as { isRegression?: unknown }).isRegression;
+        if (stored.step === "classified" && typeof flag === "boolean") {
+          issue.isRegression = flag;
+        }
+        entries.push(stored);
+        return json(stored, 201);
+      }
       if (match[2] === "/comments") {
         if (request.method !== "POST") return error("Method not allowed", 405);
         if (role === null) return error("Unauthorized", 401);
@@ -242,7 +347,8 @@ export function swampClubFake(): SwampClubFake {
         }
         if (issue === undefined) return error("Issue not found", 404);
         const id = crypto.randomUUID();
-        comments.push({ id, issue: number, body: comment.trim() });
+        const author = admin ? "seth" : "member";
+        comments.push({ id, issue: number, body: comment.trim(), author });
         return json({
           id,
           issueId: `issue-${number}`,
@@ -254,7 +360,16 @@ export function swampClubFake(): SwampClubFake {
       if (issue === undefined) return error("Issue not found", 404);
       if (request.method === "GET") {
         // Reads need no key, as on swamp-club.
-        return json({ issue, comments: [], lifecycleEntries: [] });
+        return json({
+          issue,
+          comments: comments.filter((c) => c.issue === number).map((c) => ({
+            id: c.id,
+            authorUsername: c.author,
+            body: c.body,
+            createdAt: "2026-09-29T00:00:00.000Z",
+          })),
+          lifecycleEntries: entries.filter((e) => e.issue === number),
+        });
       }
       if (request.method === "PATCH") {
         if (role === null) return error("Unauthorized", 401);
@@ -274,6 +389,7 @@ export function swampClubFake(): SwampClubFake {
     issues,
     team,
     comments,
+    entries,
     attestations,
     requests,
     queue,

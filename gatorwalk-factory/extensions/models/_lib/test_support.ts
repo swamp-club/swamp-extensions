@@ -24,8 +24,10 @@ import {
   advanceMethod,
   decide,
   HOLDER_TYPE,
+  recordProductMethod,
   startWorkItem,
 } from "./work_item_ops.ts";
+import type { ProductKind } from "./journal.ts";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures for the runtime's tests. Not used by production code.
@@ -292,6 +294,97 @@ export function projectedDefinition(): Record<string, unknown> {
 }
 
 /**
+ * projectedDefinition with products and projection entries: write records
+ * a note (noted the first cycle, note_revised after, setting the type from
+ * it), review records a result (passed or failed by its status) and its
+ * ship-approval is an entry; done says finished. write has no status key,
+ * so its enter entry names its own.
+ */
+export function entriesDefinition(): Record<string, unknown> {
+  const doc = projectedDefinition() as {
+    stages: Record<string, unknown>[];
+  };
+  const [write, review, done] = doc.stages;
+  delete write.projection;
+  write.artifacts = [{
+    name: "note",
+    schema: {
+      type: "object",
+      required: ["text"],
+      properties: { text: { type: "string" }, type: { type: "string" } },
+    },
+  }];
+  write.projection = {
+    entries: [
+      {
+        on: "enter",
+        step: "work_started",
+        emoji: "\u{1F50D}",
+        summary: "Work started",
+        status: "open",
+      },
+      {
+        on: { record: "note" },
+        cycle: "first",
+        step: "noted",
+        emoji: "\u{1F4DD}",
+        summary: "Noted: {{text}}",
+        status: "triaged",
+        verbose: true,
+        setsType: "type",
+      },
+      {
+        on: { record: "note" },
+        cycle: "later",
+        step: "note_revised",
+        emoji: "\u{1F504}",
+        summary: "Revised: {{text}}",
+      },
+    ],
+  };
+  review.evidence = [{
+    name: "result",
+    schema: {
+      type: "object",
+      required: ["status"],
+      properties: { status: { enum: ["passed", "failed"] } },
+    },
+  }];
+  review.projection = {
+    status: "in_review",
+    entries: [
+      { on: "enter", step: "review_started", emoji: "x", summary: "Review" },
+      {
+        on: { record: "result" },
+        match: { status: "passed" },
+        step: "passed",
+        emoji: "x",
+        summary: "Passed",
+      },
+      {
+        on: { record: "result" },
+        match: { status: "failed" },
+        step: "failed",
+        emoji: "x",
+        summary: "Failed",
+      },
+      {
+        on: { approve: "ship-approval" },
+        step: "ship_approved",
+        emoji: "x",
+        summary: "Ship approved",
+        status: "shipped",
+      },
+    ],
+  };
+  done.projection = {
+    status: "shipped",
+    entries: [{ on: "enter", step: "finished", emoji: "x", summary: "Done" }],
+  };
+  return doc;
+}
+
+/**
  * A work item started on projectedDefinition in the fake swamp, with the
  * given externalRefs, and a way to move it on as a person would.
  */
@@ -328,5 +421,18 @@ export async function projectedItem(
       ),
     approve: async (gateId: string) =>
       await decide(ctx(), "approve", { gateId, ...(await expected()) }, env),
+    decline: async (gateId: string) =>
+      await decide(ctx(), "decline", { gateId, ...(await expected()) }, env),
+    record: async (
+      kind: ProductKind,
+      name: string,
+      payload: Record<string, unknown>,
+    ) =>
+      await recordProductMethod(
+        ctx(),
+        kind,
+        { name, payload, ...(await expected()) },
+        env,
+      ),
   };
 }

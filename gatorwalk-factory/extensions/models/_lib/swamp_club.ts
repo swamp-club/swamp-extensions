@@ -16,6 +16,9 @@
 
 import { join } from "@std/path";
 import {
+  type LifecycleEntry,
+  type LifecycleEntryWriter,
+  type PostedEntry,
   type StatusChange,
   type TrackerAdapter,
   type TrackerComment,
@@ -55,6 +58,15 @@ export const LAB_STATUSES = [
 ] as const;
 export type LabStatus = typeof LAB_STATUSES[number];
 
+/** Every Lab issue type. */
+export const LAB_TYPES = ["bug", "feature", "platform", "security"] as const;
+export type LabType = typeof LAB_TYPES[number];
+
+/** swamp-club's limits on a lifecycle entry (its lifecycle route). */
+const STEP_MAX = 100;
+const SUMMARY_MAX = 2000;
+const EMOJI_MAX = 32;
+
 /** The forward order; swamp-club only accepts the next step along it. */
 const FORWARD: readonly LabStatus[] = [
   "open",
@@ -63,8 +75,9 @@ const FORWARD: readonly LabStatus[] = [
   "shipped",
 ];
 
-const ADMIN_HINT = "status moves past open or closed, assignment and " +
-  "attestations need a swamp-club admin key";
+const ADMIN_HINT = "status moves past open or closed, assignment, " +
+  "attestations, lifecycle entries, the issue type and the team roster need " +
+  "a swamp-club admin key";
 
 // The key goes out as a Bearer token, so the server must be https. Plain
 // http is allowed only to loopback, where the tests run a local fake; the
@@ -261,11 +274,30 @@ export interface AssignResult {
   changed: boolean;
   username: string;
   userId: string;
+  /** The issue's status when it was read. */
+  status: string;
   /**
    * Assignees taken off the issue because they are no longer on swamp-club's
    * team, which would otherwise refuse the whole write. Empty when none were.
    */
   dropped: LabAssignee[];
+}
+
+/** What only the Lab reports about an issue, beyond the contract's fields. */
+export interface LabIssueDetails {
+  body: string;
+  type: string;
+  /** The author's swamp-club username. */
+  author: string;
+  authorId: string;
+  comments: { author: string; body: string; createdAt: string }[];
+}
+
+/** Whether an issue's author is on swamp-club's team. */
+export interface TeamMembership {
+  author: string;
+  authorId: string;
+  member: boolean;
 }
 
 export interface PostedAttestation {
@@ -276,6 +308,13 @@ export interface PostedAttestation {
 
 /** The tracker contract plus what only the Lab has. */
 export interface SwampClubAdapter extends TrackerAdapter {
+  readonly history: LifecycleEntryWriter;
+  /**
+   * Whether the issue's author is on swamp-club's team, from a fresh read
+   * of the issue and the team roster. Fail-closed: a read that fails is an
+   * error, never taken as "not on the team".
+   */
+  teamMembership(issueId: string): Promise<TeamMembership>;
   /**
    * Add a user to the issue's assignees, keeping those already there that
    * are still on swamp-club's team.
@@ -298,7 +337,12 @@ interface LabIssueBody {
     title?: unknown;
     status?: unknown;
     assignees?: unknown;
+    body?: unknown;
+    type?: unknown;
+    authorId?: unknown;
+    authorUsername?: unknown;
   };
+  comments?: unknown;
 }
 
 function fail(
@@ -482,8 +526,136 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         ...(typeof a.username === "string" ? { username: a.username } : {}),
       });
     }
-    return { title: found.title, status: found.status, assignees };
+    // The Lab-only fields, as issue-lifecycle reads them: absent ones are
+    // empty, never an error, except where a caller depends on them.
+    const comments: LabIssueDetails["comments"] = [];
+    for (const c of Array.isArray(body?.comments) ? body.comments : []) {
+      const comment = c as {
+        authorUsername?: unknown;
+        body?: unknown;
+        createdAt?: unknown;
+      } | null;
+      if (typeof comment?.body !== "string") continue;
+      comments.push({
+        author: typeof comment.authorUsername === "string"
+          ? comment.authorUsername
+          : "",
+        body: comment.body,
+        createdAt: typeof comment.createdAt === "string"
+          ? comment.createdAt
+          : "",
+      });
+    }
+    const details: LabIssueDetails = {
+      body: typeof found.body === "string" ? found.body : "",
+      type: typeof found.type === "string" ? found.type : "",
+      author: typeof found.authorUsername === "string"
+        ? found.authorUsername
+        : "",
+      authorId: typeof found.authorId === "string" ? found.authorId : "",
+      comments,
+    };
+    return { title: found.title, status: found.status, assignees, details };
   }
+
+  /** The team roster: swamp-club's eligible assignees. */
+  async function roster(): Promise<LabAssignee[]> {
+    const eligible = await call("GET", "/api/v1/lab/assignees") as {
+      assignees?: { userId?: unknown; username?: unknown }[];
+    } | null;
+    if (!Array.isArray(eligible?.assignees)) {
+      return fail("upstream", "the eligible assignees are not a list");
+    }
+    return eligible.assignees.flatMap((a) =>
+      typeof a?.userId === "string"
+        ? [{
+          userId: a.userId,
+          ...(typeof a.username === "string" ? { username: a.username } : {}),
+        }]
+        : []
+    );
+  }
+
+  const history: LifecycleEntryWriter = {
+    async postEntry(
+      issueId: string,
+      entry: LifecycleEntry,
+    ): Promise<PostedEntry> {
+      const issue = numberFrom(issueId, false);
+      const step = entry.step.trim();
+      if (step === "" || step.length > STEP_MAX) {
+        return fail(
+          "invalid",
+          `a lifecycle entry's step must be 1 to ${STEP_MAX} characters`,
+        );
+      }
+      if (!isLabStatus(entry.targetStatus)) {
+        return fail(
+          "invalid",
+          `'${entry.targetStatus}' is not a Lab status (they are: ${
+            LAB_STATUSES.join(", ")
+          })`,
+        );
+      }
+      const emoji = entry.emoji.trim();
+      if (emoji === "" || emoji.length > EMOJI_MAX) {
+        return fail(
+          "invalid",
+          `a lifecycle entry's emoji must be 1 to ${EMOJI_MAX} characters`,
+        );
+      }
+      let summary = entry.summary.trim();
+      if (summary === "") {
+        return fail("invalid", "a lifecycle entry needs a summary");
+      }
+      // Cut as issue-lifecycle cuts it, rather than refused.
+      if (summary.length > SUMMARY_MAX) {
+        let cut = summary.slice(0, SUMMARY_MAX - 3);
+        // Never half an emoji: drop a high surrogate left without its pair.
+        const last = cut.charCodeAt(cut.length - 1);
+        if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+        summary = `${cut}...`;
+      }
+      const created = await call(
+        "POST",
+        `/api/v1/lab/issues/${issue}/lifecycle`,
+        {
+          step,
+          targetStatus: entry.targetStatus,
+          summary,
+          emoji,
+          payload: entry.payload,
+          isVerbose: entry.isVerbose,
+        },
+      ) as { id?: unknown } | null;
+      if (typeof created?.id !== "string") {
+        return fail(
+          "upstream",
+          `the lifecycle entry on #${issue} came back without an id`,
+        );
+      }
+      return { id: created.id };
+    },
+
+    async setType(
+      issueId: string,
+      type: string,
+    ): Promise<{ changed: boolean; type: string }> {
+      const issue = numberFrom(issueId, false);
+      if (!(LAB_TYPES as readonly string[]).includes(type)) {
+        return fail(
+          "invalid",
+          `'${type}' is not a Lab issue type (they are: ${
+            LAB_TYPES.join(", ")
+          })`,
+        );
+      }
+      const { details } = await getIssue(issue);
+      if (details.type === type) return { changed: false, type };
+      await call("PATCH", `/api/v1/lab/issues/${issue}`, { type });
+      return { changed: true, type };
+    },
+  };
 
   async function labUrl(issue: number): Promise<string> {
     return `${(await credentials()).url}/lab/${issue}`;
@@ -491,6 +663,7 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
 
   return {
     tracker: SWAMP_CLUB,
+    history,
 
     async fetchIssue(ref: string): Promise<TrackerIssue> {
       const issue = numberFrom(ref, true);
@@ -501,7 +674,23 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         title: found.title,
         url: await labUrl(issue),
         status: { id: found.status, name: found.status },
+        details: { ...found.details },
       };
+    },
+
+    async teamMembership(issueId: string): Promise<TeamMembership> {
+      const issue = numberFrom(issueId, false);
+      const { details } = await getIssue(issue);
+      if (details.author === "" && details.authorId === "") {
+        return fail("upstream", `GET #${issue} returned no author`);
+      }
+      const team = await roster();
+      // By id when the issue has one, as issue-lifecycle matches; both are
+      // swamp-club identities, so the username is a sound fallback.
+      const member = details.authorId !== ""
+        ? team.some((m) => m.userId === details.authorId)
+        : team.some((m) => m.username === details.author);
+      return { author: details.author, authorId: details.authorId, member };
     },
 
     async comment(issueId: string, body: string): Promise<TrackerComment> {
@@ -563,39 +752,28 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
 
     async assign(issueId: string, username: string): Promise<AssignResult> {
       const issue = numberFrom(issueId, false);
-      const eligible = await call("GET", "/api/v1/lab/assignees") as {
-        assignees?: { userId?: unknown; username?: unknown }[];
-      } | null;
-      if (!Array.isArray(eligible?.assignees)) {
-        return fail("upstream", "the eligible assignees are not a list");
-      }
-      const match = eligible.assignees.find((a) =>
-        a?.username === username && typeof a?.userId === "string"
-      );
+      const team = await roster();
+      const match = team.find((a) => a.username === username);
       if (match === undefined) {
         return fail(
           "invalid",
           `'${username}' is not an eligible assignee (swamp-club's team)`,
         );
       }
-      const userId = match.userId as string;
-      const { assignees } = await getIssue(issue);
+      const userId = match.userId;
+      const { assignees, status } = await getIssue(issue);
       if (assignees.some((a) => a.userId === userId)) {
-        return { changed: false, username, userId, dropped: [] };
+        return { changed: false, username, userId, status, dropped: [] };
       }
       // swamp-club refuses the whole list if any id on it has left the
       // team, so keep only those still eligible and say who was dropped.
-      const team = new Set(
-        eligible.assignees.flatMap((a) =>
-          typeof a?.userId === "string" ? [a.userId] : []
-        ),
-      );
-      const kept = assignees.filter((a) => team.has(a.userId));
-      const dropped = assignees.filter((a) => !team.has(a.userId));
+      const ids = new Set(team.map((a) => a.userId));
+      const kept = assignees.filter((a) => ids.has(a.userId));
+      const dropped = assignees.filter((a) => !ids.has(a.userId));
       await call("PATCH", `/api/v1/lab/issues/${issue}`, {
         assignees: [...kept.map((a) => a.userId), userId],
       });
-      return { changed: true, username, userId, dropped };
+      return { changed: true, username, userId, status, dropped };
     },
 
     async postAttestation(

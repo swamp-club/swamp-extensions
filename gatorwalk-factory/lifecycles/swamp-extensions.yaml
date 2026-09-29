@@ -1,18 +1,20 @@
 # The swamp-extensions process: a swamp-club Lab issue from triage to the
 # session summary.
 #
-# This is the process swamp-extensions runs today with @swamp/issue-lifecycle
-# and agent-constraints/verification-conventions.md, written as a gatorwalk
-# lifecycle. It describes that process; it does not replace issue-lifecycle,
-# which the repository keeps for now. gatorwalk has a swamp-club adapter
-# (@swamp/gatorwalk-factory/swamp-club), but this lifecycle does not use it
-# yet; wiring it in is a follow-up.
+# This is the process swamp-extensions runs with @swamp/issue-lifecycle and
+# agent-constraints/verification-conventions.md, written as a gatorwalk
+# lifecycle. A work item on it drives a Lab issue end to end through the
+# swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue reads
+# the same as one issue-lifecycle drives. issue-lifecycle stays, and drives
+# every other issue: the adapter's claim refuses an issue it already drives.
 # swamp-extensions.md maps every phase, gate and human stop onto this file and
 # lists what the format could not express.
 #
-# Nothing here talks to swamp-club. Where the process posts to it (the
-# attestation, the contributor's thank-you), a person does it and the stage
-# records the result as evidence.
+# The work item never talks to swamp-club itself. The adapter's publish
+# replays its journal to the issue: each stage's projection names the Lab
+# status and the lifecycle entries (issue-lifecycle's step names) its events
+# become, and the classification sets the issue type. attest and notify post
+# the attestation and the contributor's thank-you through the adapter.
 #
 # People decide at: a bug that cannot be reproduced, plan approval, the
 # verification checklist, opening the pull request, what to do after a
@@ -35,6 +37,19 @@ stages:
     initial: true
     # Five entries, the default, stated as the process's choice; see plan.
     maxCycles: 5
+    projection:
+      entries:
+        - on: enter
+          step: triage_started
+          emoji: "🔍"
+          summary: "Triage started"
+          status: open
+        - on: { record: classification }
+          step: classified
+          emoji: "📋"
+          summary: "Classified as {{type}} ({{confidence}})"
+          status: triaged
+          setsType: type
     description: >-
       Classify the issue. A low-confidence classification carries the
       questions for the person and stops here until it is recorded again with
@@ -208,7 +223,21 @@ stages:
           is not the bug it looked like. Manual, so it never fires on its own.
 
   - id: plan
-    projection: { status: triaged }
+    projection:
+      status: triaged
+      entries:
+        - on: { record: plan }
+          cycle: first
+          step: plan_generated
+          emoji: "📝"
+          summary: "Implementation plan generated (v1) — {{summary}}"
+          verbose: true
+        - on: { record: plan }
+          cycle: later
+          step: plan_revised
+          emoji: "🔄"
+          summary: "Plan revised — {{summary}}"
+          verbose: true
     description: Plan the change, following the repository's planning conventions.
     # Five plans before a person grants another round. triage, plan, implement
     # and pull-request state the default of 5 as the process's choice, so each
@@ -257,7 +286,20 @@ stages:
             config: { artifact: plan }
 
   - id: plan-review
-    projection: { status: triaged }
+    projection:
+      status: triaged
+      entries:
+        - on: { record: plan-review }
+          step: adversarial_review
+          emoji: "🔍"
+          summary: "Adversarial review of the plan"
+          verbose: true
+        - on: { approve: plan-approval }
+          step: plan_approved
+          emoji: "✅"
+          summary: "Plan approved — implementation starting"
+          status: in_progress
+          verbose: true
     description: >-
       Adversarial review of the current plan. Approval needs a fresh review
       with no open critical or high findings and a person's sign-off; open
@@ -316,7 +358,13 @@ stages:
           blocking finding. Manual, so it never fires on its own.
 
   - id: implement
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: enter
+          step: implementation_started
+          emoji: "🚀"
+          summary: "Implementation started"
     description: >-
       Implement the approved plan and commit it. Each pass through
       verification needs a new commit; recheck re-runs it on the same one.
@@ -381,7 +429,14 @@ stages:
                 new commit goes through submit
 
   - id: conformance-review
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: { record: conformance }
+          step: code_conformance_review
+          emoji: "🔍"
+          summary: "Code conformance review"
+          verbose: true
     description: >-
       Compare the committed code with the approved plan, step by step. Every
       step not implemented as planned needs a justification; recording the
@@ -443,7 +498,23 @@ stages:
           The code has to change to match the plan. A person decides.
 
   - id: verify
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: enter
+          step: verification_started
+          emoji: "🔍"
+          summary: "Verification started"
+        - on: { record: verification }
+          match: { status: succeeded }
+          step: verification_passed
+          emoji: "✅"
+          summary: "Verification passed for {{commit}}"
+        - on: { record: verification }
+          match: { status: failed }
+          step: verification_failed
+          emoji: "❌"
+          summary: "Verification failed for {{commit}}"
     description: >-
       The verify workflow at the change-summary commit: verify-build and
       verify-reviews run concurrently as nested runs of one wrapper, and are
@@ -534,19 +605,28 @@ stages:
           on its own.
 
   - id: attest
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: { record: attestation }
+          step: attestation_posted
+          emoji: "📜"
+          summary: "Verification attestation posted to swamp-club"
     description: >-
-      Build the attestation from the two child runs of verify and post it to swamp-club, then
-      record its id. Posting is done by hand until this lifecycle uses the
-      swamp-club adapter. The pull request opens only once a person says so.
+      Build the attestation from the two child runs of verify, post it through
+      the swamp-club adapter's post_attestation, and record the id it returns.
+      Interactive, not mode method: the attestation is built during the stage,
+      and a method call takes only inputs known before it. The pull request
+      opens only once a person says so.
     work:
       mode: interactive
       systemPrompt: |
         Build the attestation with deno task build-attestation from run
-        {{buildRun}} and run {{reviewsRun}} at commit {{commit}}. Post it to
-        swamp-club, then record its id. Never change the commit after this:
-        the attestation is bound to it. Ask the person before opening the
-        pull request.
+        {{buildRun}} and run {{reviewsRun}} at commit {{commit}}. Post it with
+        the swamp-club adapter's post_attestation (swamp model method run
+        <adapter> post_attestation --input attestation=<the JSON>) and record
+        the id it logs. Never change the commit after this: the attestation is
+        bound to it. Ask the person before opening the pull request.
       bindings:
         commit: artifacts["change-summary"].payload.commit
         buildRun: evidence["verification"].payload.buildRunId
@@ -590,7 +670,13 @@ stages:
           Manual, so it never fires on its own.
 
   - id: pull-request
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: { record: pull-request }
+          step: pr_linked
+          emoji: "🔗"
+          summary: "PR linked: {{url}}"
     description: Open the pull request for the attested commit.
     # Four replacement pull requests before a person grants another; see plan.
     maxCycles: 5
@@ -624,7 +710,19 @@ stages:
               message: the pull request must be for the attested commit
 
   - id: merge
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: { record: merge }
+          match: { status: merged }
+          step: pr_merged
+          emoji: "🎉"
+          summary: "PR merged — awaiting release"
+        - on: { record: merge }
+          match: { status: failed }
+          step: pr_failed
+          emoji: "❌"
+          summary: "PR failed: {{reason}}"
     description: >-
       Wait for CI and the merge. The outcome is reported no sooner than three
       minutes after the pull request was recorded, to give CI time to run. A
@@ -686,7 +784,21 @@ stages:
             config: { afterEvidence: pull-request, seconds: 180 }
 
   - id: release
-    projection: { status: in_progress }
+    projection:
+      status: in_progress
+      entries:
+        - on: { record: release }
+          match: { outcome: shipped }
+          step: shipped
+          emoji: "🚀"
+          summary: "Shipped"
+          status: shipped
+        - on: { record: release }
+          match: { outcome: completed }
+          step: complete
+          emoji: "✅"
+          summary: "Complete"
+          status: shipped
     description: >-
       Check that the change was released: CI publishes an extension whose
       manifest changed on main. completed is the fallback when there is no
@@ -719,17 +831,42 @@ stages:
             config: { name: release }
 
   - id: notify
-    projection: { status: shipped }
+    projection:
+      status: shipped
+      entries:
+        - on: { record: notification }
+          match: { action: posted }
+          step: contributor_notified
+          emoji: "🙏"
+          summary: "Thanked @{{author}}"
+        - on: { record: notification }
+          match: { action: skipped }
+          step: notification_skipped
+          emoji: "⏭️"
+          summary: "Contributor notification skipped: {{reason}}"
     description: >-
-      Thank the issue's author, unless they are on the swamp-club team. Done by
-      hand until this lifecycle uses the swamp-club adapter.
+      Thank the issue's author, unless they are on the swamp-club team, through
+      the swamp-club adapter's thank_author. Interactive, not mode method: when
+      the team lookup fails, a person chooses to re-run, force or skip, as
+      with issue-lifecycle.
     work:
       mode: interactive
       systemPrompt: |
-        Check the issue's author against the swamp-club team roster (never
-        against GitHub). Post a thank-you ripple to an author outside the
-        team; skip it for a team member. If the lookup fails, ask the person
-        whether to post anyway or skip. Record what you did and why.
+        Run the swamp-club adapter's thank_author with the issue, summary
+        and prUrl values you are given. The summary is free text, so never
+        paste it into a shell line: write the three as a JSON object to a
+        file with your file tool and run swamp model method run <adapter>
+        thank_author --input-file <that file> --log. It checks the author
+        against the team roster, never GitHub, and posts the thank-you only
+        to an author outside the team, and never twice: a re-run finds it
+        already posted. Record its action, author and reason. If the lookup
+        fails it posts nothing: ask the person whether to re-run it, run it
+        with force set to true, or skip, and record skipped with their
+        reason.
+      bindings:
+        issue: item.externalRefs["swamp-club"]
+        summary: artifacts["plan"].payload.summary
+        prUrl: evidence["pull-request"].payload.url
     evidence:
       - name: notification
         schema:
@@ -748,7 +885,19 @@ stages:
             config: { name: notification }
 
   - id: summary
-    projection: { status: shipped }
+    projection:
+      status: shipped
+      entries:
+        - on: { record: summary }
+          match: { outcomeMet: true }
+          step: session_summarized
+          emoji: "📝"
+          summary: "Outcome met: {{deliveredOutcome}}"
+        - on: { record: summary }
+          match: { outcomeMet: false }
+          step: session_summarized
+          emoji: "📝"
+          summary: "Outcome NOT met: {{deliveredOutcome}}"
     description: >-
       Restate the original problem and the delivered outcome, and say whether
       the outcome met the problem.
@@ -779,7 +928,13 @@ stages:
 
   - id: abandoned
     terminal: true
-    projection: { status: closed }
+    projection:
+      status: closed
+      entries:
+        - on: enter
+          step: abandoned
+          emoji: "🛑"
+          summary: "Abandoned"
 
 globalTransitions:
   - name: abandon

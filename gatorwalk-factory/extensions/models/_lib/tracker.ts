@@ -31,6 +31,12 @@ export interface TrackerIssue {
   title: string;
   url: string;
   status: TrackerStatus;
+  /**
+   * What only this tracker reports about the ticket (the Lab's body, type,
+   * author and comments). Recorded in the snapshot as it is; absent when the
+   * tracker has nothing beyond the fields above.
+   */
+  details?: Record<string, unknown>;
 }
 
 export interface TrackerStatus {
@@ -50,9 +56,44 @@ export interface StatusChange {
   status: TrackerStatus;
 }
 
+/**
+ * One structured entry in a ticket's history, the swamp-club Lab's
+ * lifecycle entry. targetStatus is the tracker's own status name and only
+ * labels the entry: posting one never moves the ticket.
+ */
+export interface LifecycleEntry {
+  step: string;
+  targetStatus: string;
+  summary: string;
+  emoji: string;
+  payload: Record<string, unknown>;
+  isVerbose: boolean;
+}
+
+export interface PostedEntry {
+  id: string;
+}
+
+/**
+ * An optional capability beside the contract: a tracker that keeps a
+ * structured history of each ticket, and a ticket type. An adapter that has
+ * it is published in entry mode when the lifecycle declares entries
+ * (projection.ts); one without it is never asked for it.
+ */
+export interface LifecycleEntryWriter {
+  postEntry(issueId: string, entry: LifecycleEntry): Promise<PostedEntry>;
+  /** Set the ticket's type; already that type writes nothing. */
+  setType(
+    issueId: string,
+    type: string,
+  ): Promise<{ changed: boolean; type: string }>;
+}
+
 export interface TrackerAdapter {
   /** The tracker's name, which is also its externalRefs key. */
   readonly tracker: string;
+  /** Lifecycle entries and the ticket type, where the tracker has them. */
+  readonly history?: LifecycleEntryWriter;
   /** Fetch by stable id or by display identifier. */
   fetchIssue(ref: string): Promise<TrackerIssue>;
   /** Comment on a ticket, by stable id. */

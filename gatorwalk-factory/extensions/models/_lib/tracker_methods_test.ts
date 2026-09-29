@@ -22,7 +22,12 @@ import {
   type TrackerContext,
   trackerMethods,
 } from "./tracker_methods.ts";
-import { PROJECTED_ITEM, projectedItem } from "./test_support.ts";
+import {
+  entriesDefinition,
+  PROJECTED_ITEM,
+  projectedDefinition,
+  projectedItem,
+} from "./test_support.ts";
 
 // The shared methods over a scripted in-memory adapter: what they do with the
 // ledger, snapshots and status keys, independent of any tracker.
@@ -533,8 +538,13 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
     },
   });
 
+  // Without a query, only the latest copy is there to read.
   await assertRejects(
-    () => publish(swamp, methods),
+    () =>
+      publish(swamp, methods, {
+        ...swamp.context(INSTANCE),
+        queryData: undefined,
+      }),
     Error,
     "does not match the digest the run recorded",
   );
@@ -598,4 +608,262 @@ Deno.test("publish: a failing version query falls back to the latest copy of the
       String(l.props?.summary).includes("catalog unavailable")
     ),
   );
+});
+
+// --- entry mode ------------------------------------------------------------------
+
+/** A tracker with the history capability, recording every write in order. */
+function historyTicket() {
+  const writes: string[] = [];
+  const state = {
+    status: "Todo",
+    type: "feature",
+    failEntry: "",
+    failKind: "upstream" as "upstream" | "invalid",
+  };
+  const adapter: TrackerAdapter = {
+    tracker: "test",
+    fetchIssue: () => {
+      writes.push("fetch");
+      return Promise.resolve({
+        id: "T1",
+        display: "T-1",
+        title: "A ticket",
+        url: "u",
+        status: { id: state.status, name: state.status },
+      });
+    },
+    comment: (_issueId, body) => {
+      writes.push(`comment ${body}`);
+      return Promise.resolve({ id: "c", url: "u" });
+    },
+    setStatus: (_issueId, name) => {
+      writes.push(`status ${name}`);
+      const changed = state.status !== name;
+      state.status = name;
+      return Promise.resolve({ changed, status: { id: name, name } });
+    },
+    history: {
+      postEntry: (_issueId, entry) => {
+        if (entry.step === state.failEntry) {
+          return Promise.reject(
+            new TrackerError(state.failKind, "test", "boom"),
+          );
+        }
+        writes.push(
+          `entry ${entry.step} [${entry.targetStatus}] ${entry.summary}` +
+            (entry.isVerbose ? " (verbose)" : "") +
+            (Object.keys(entry.payload).length === 0
+              ? ""
+              : ` ${JSON.stringify(entry.payload)}`),
+        );
+        return Promise.resolve({ id: `e${writes.length}` });
+      },
+      setType: (_issueId, type) => {
+        writes.push(`type ${type}`);
+        const changed = state.type !== type;
+        state.type = type;
+        return Promise.resolve({ changed, type });
+      },
+    },
+  };
+  const statuses = {
+    open: "Todo",
+    triaged: "Triaged",
+    in_progress: "In Progress",
+    in_review: "In Review",
+    shipped: "Done",
+  };
+  const methods = trackerMethods({
+    tracker: "test",
+    adapter: () => adapter,
+    statuses: () => statuses,
+    now: () => NOW,
+  });
+  return { writes, state, methods };
+}
+
+Deno.test("publish, entries: each answered event becomes one entry in place of comments, and a re-run writes nothing", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "first", type: "bug" });
+  await item.advance("submit");
+  await item.record("evidence", "result", { status: "failed" });
+  await item.record("evidence", "result", { status: "passed" });
+  await item.approve("ship-approval");
+  await item.advance("ship");
+  await publish(swamp, methods);
+  assertEquals(writes, [
+    "entry work_started [Todo] Work started",
+    // The type first, then the entry that says so (issue-lifecycle's order).
+    "type bug",
+    'entry noted [Triaged] Noted: first (verbose) {"text":"first","type":"bug"}',
+    "entry review_started [In Review] Review",
+    'entry failed [In Review] Failed {"status":"failed"}',
+    'entry passed [In Review] Passed {"status":"passed"}',
+    "entry ship_approved [Done] Ship approved",
+    "entry finished [Done] Done",
+    // The status, once, for the stage the work item is in now.
+    "status Done",
+  ]);
+  const count = writes.length;
+  await publish(swamp, methods);
+  assertEquals(writes.length, count, "a re-run writes nothing");
+  assert(
+    swamp.resources.get(INSTANCE)?.has(
+      `delivery-publish-lifecycle_entry-${PROJECTED_ITEM}-1`,
+    ),
+  );
+});
+
+Deno.test("publish, entries: a later cycle picks its own entry, and a stage without a key carries the last one", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "first" });
+  await item.advance("submit");
+  await item.advance("again");
+  await item.record("artifact", "note", { text: "second" });
+  await publish(swamp, methods);
+  assertEquals(writes.filter((w) => w.startsWith("entry note")), [
+    'entry noted [Triaged] Noted: first (verbose) {"text":"first"}',
+    // write has no status key: in_review, the last one entered, labels it.
+    'entry note_revised [In Review] Revised: second {"text":"second"}',
+  ]);
+  // No type field, no type write.
+  assert(!writes.some((w) => w.startsWith("type")));
+});
+
+Deno.test("publish, entries: a declined approval and an unanswered event write nothing", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "x" });
+  await item.advance("submit");
+  await publish(swamp, methods);
+  const before = writes.length;
+  await item.decline("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(writes.slice(before), []);
+});
+
+Deno.test("publish, entries: a failed entry leaves the cursor, and the re-run posts only what did not land", async () => {
+  const swamp = fakeSwamp();
+  const { writes, state, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "x" });
+  await item.advance("submit");
+  state.failEntry = "review_started";
+  await assertRejects(() => publish(swamp, methods), TrackerError, "boom");
+  assertEquals(cursorOf(swamp), undefined);
+  state.failEntry = "";
+  await publish(swamp, methods);
+  assertEquals(
+    writes.filter((w) => w.startsWith("entry")).map((w) => w.split(" ")[1]),
+    ["work_started", "noted", "review_started"],
+  );
+});
+
+Deno.test("publish, entries: the payload is the version the journal recorded, never a later one", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "as recorded" });
+  // A later version of the payload, written behind the journal's back.
+  swamp.resources.get(PROJECTED_ITEM)?.get("artifact-note")?.push({
+    text: "rewritten",
+  });
+  await publish(swamp, methods);
+  assert(
+    writes.includes(
+      'entry noted [Triaged] Noted: as recorded (verbose) {"text":"as recorded"}',
+    ),
+    writes.join("\n"),
+  );
+  // Without the query, only the latest copy is there, and its digest does
+  // not match: publish stops rather than describe the wrong version.
+  const fresh = fakeSwamp();
+  const other = historyTicket();
+  const again = await projectedItem(fresh, { test: "T1" }, entriesDefinition());
+  await again.record("artifact", "note", { text: "as recorded" });
+  fresh.resources.get(PROJECTED_ITEM)?.get("artifact-note")?.push({
+    text: "rewritten",
+  });
+  await assertRejects(
+    () =>
+      publish(fresh, other.methods, {
+        ...fresh.context(INSTANCE),
+        queryData: undefined,
+      }),
+    Error,
+    "as it was recorded",
+  );
+});
+
+Deno.test("publish, entries: an entry whose status key is not mapped is refused", async () => {
+  const swamp = fakeSwamp();
+  const { methods } = historyTicket();
+  const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
+  (doc.stages[0].projection as { entries: Record<string, unknown>[] })
+    .entries[0].status = "nowhere";
+  await projectedItem(swamp, { test: "T1" }, doc);
+  await assertRejects(
+    () => publish(swamp, methods),
+    TrackerError,
+    "status key 'nowhere' labels an entry",
+  );
+});
+
+Deno.test("publish, entries: without a label anywhere, an entry carries the ticket's own status", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
+  delete (doc.stages[0].projection as { entries: Record<string, unknown>[] })
+    .entries[0].status;
+  await projectedItem(swamp, { test: "T1" }, doc);
+  await publish(swamp, methods);
+  assertEquals(writes, ["fetch", "entry work_started [Todo] Work started"]);
+});
+
+Deno.test("publish, entries: a lifecycle without entries, or a tracker without history, still gets comments", async () => {
+  const plain = fakeSwamp();
+  const lab = historyTicket();
+  await projectedItem(plain, { test: "T1" }, projectedDefinition());
+  await publish(plain, lab.methods);
+  assert(lab.writes[0].startsWith("comment "), lab.writes.join("\n"));
+
+  const swamp = fakeSwamp();
+  const { posted, methods } = ticket();
+  await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await publish(swamp, methods);
+  assertEquals(posted.length, 1);
+});
+
+Deno.test("publish, entries: an entry the tracker refuses outright is skipped and recorded, so publish moves past it", async () => {
+  const swamp = fakeSwamp();
+  const { writes, state, methods } = historyTicket();
+  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "x" });
+  await item.advance("submit");
+  state.failEntry = "noted";
+  state.failKind = "invalid";
+  await publish(swamp, methods);
+  assertEquals(
+    writes.filter((w) => w.startsWith("entry")).map((w) => w.split(" ")[1]),
+    ["work_started", "review_started"],
+  );
+  assertEquals(writes.at(-1), "status In Review", "the status still moves");
+  const ledger = swamp.resources.get(INSTANCE)?.get(
+    `delivery-publish-lifecycle_entry-${PROJECTED_ITEM}-2`,
+  )?.[0];
+  assertEquals((ledger?.result as { skipped?: string }).skipped, "invalid");
+  assert(
+    swamp.logs.some((l) => String(l.props?.warning).includes("refused: boom")),
+  );
+  // Recorded as delivered: a re-run does not try it again.
+  state.failEntry = "";
+  const count = writes.length;
+  await publish(swamp, methods);
+  assertEquals(writes.length, count);
 });

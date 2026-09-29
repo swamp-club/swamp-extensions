@@ -30,6 +30,7 @@ import { projectedDefinition } from "../extensions/models/_lib/test_support.ts";
 import {
   LINEAR_TYPE,
   SWAMP_CLUB_TYPE,
+  SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
   withRepo,
 } from "./harness.ts";
@@ -398,6 +399,322 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       );
       assertEquals((await repo.data("lab", `ticket-${issue}`)).key, key);
       assertEquals(fake.comments.length, 0, "claim never writes the ticket");
+    });
+  } finally {
+    await fake.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Driving a Lab issue end to end (swamp-club #2734). A stand-in for
+// @swamp/issue-lifecycle, added as a second extension source, is run by
+// direct type execution as the real one is, so claim's guard is checked
+// against the auto-definition swamp writes. Then a work item on the bundled
+// swamp-extensions lifecycle goes from claim to notify against the Lab fake,
+// published after each move.
+// ---------------------------------------------------------------------------
+
+const ISSUE_LIFECYCLE_STUB = `import { z } from "npm:zod@4.3.6";
+
+export const model = {
+  type: "@swamp/issue-lifecycle",
+  version: "2026.09.29.1",
+  globalArguments: z.object({}),
+  resources: {
+    state: {
+      description: "The phase, as issue-lifecycle keeps it",
+      schema: z.object({ phase: z.string(), issueNumber: z.number() }),
+      lifetime: "infinite" as const,
+      garbageCollection: 5,
+    },
+  },
+  methods: {
+    start: {
+      description: "Start, as issue-lifecycle's start does",
+      arguments: z.object({ issueNumber: z.coerce.number() }),
+      execute: async (
+        args: { issueNumber: number },
+        ctx: {
+          writeResource(s: string, n: string, d: unknown): Promise<unknown>;
+        },
+      ) => ({
+        dataHandles: [
+          await ctx.writeResource("state", "state-main", {
+            phase: "triaging",
+            issueNumber: args.issueNumber,
+          }),
+        ],
+      }),
+    },
+  },
+};
+`;
+
+Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the repository", async () => {
+  const fake = swampClubFake();
+  const stub = await Deno.makeTempDir({ prefix: "gatorwalk-il-stub-" });
+  const issue = String(LAB_ISSUE);
+  try {
+    await Deno.mkdir(`${stub}/extensions/models`, { recursive: true });
+    await Deno.writeTextFile(
+      `${stub}/extensions/models/issue_lifecycle.ts`,
+      ISSUE_LIFECYCLE_STUB,
+    );
+    await withRepo(async (repo) => {
+      await repo.swamp(["extension", "source", "add", stub]);
+      await labAdapter(repo, fake.url);
+      await repo.holder(
+        "team",
+        parseYaml(await Deno.readTextFile(MINIMAL)),
+      );
+      await repo.swamp([
+        "model",
+        "@swamp/issue-lifecycle",
+        "method",
+        "run",
+        "start",
+        `issue-${issue}`,
+        "--input",
+        `issueNumber=${issue}`,
+      ]);
+      const refused = await repo.swamp([
+        "model",
+        "method",
+        "run",
+        "lab",
+        "claim",
+        "--input",
+        `issue=${issue}`,
+        "--input",
+        "lifecycle=team",
+        "--log",
+      ], { allowFailure: true });
+      assert(refused.code !== 0, refused.output);
+      assert(
+        refused.output.includes(
+          `driven by issue-lifecycle here (instance ` +
+            `'issue-${issue}')`,
+        ),
+        refused.output,
+      );
+      assertEquals(
+        await repo.versions("lab"),
+        {},
+        "a refused claim writes nothing",
+      );
+    });
+  } finally {
+    await Deno.remove(stub, { recursive: true });
+    await fake.close();
+  }
+});
+
+const COMMIT = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
+const PR = "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346";
+
+Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issue-lifecycle would", async () => {
+  const fake = swampClubFake();
+  const issue = String(LAB_ISSUE);
+  try {
+    await withRepo(async (repo) => {
+      await labAdapter(repo, fake.url);
+      // The bundled lifecycle, with merge's cooldown cut to a second.
+      const lifecycle = parseYaml(
+        await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+      ) as { stages: { id: string; transitions?: unknown[] }[] };
+      const merge = lifecycle.stages.find((s) => s.id === "merge");
+      for (const t of merge?.transitions ?? []) {
+        for (
+          const g of (t as {
+            gates?: { type: string; config: Record<string, unknown> }[];
+          }).gates ?? []
+        ) {
+          if (g.type === "cooldown") g.config.seconds = 1;
+        }
+      }
+      await repo.holder("process", lifecycle);
+
+      const lab = (method: string, inputs: Record<string, string>) =>
+        repo.swamp([
+          "model",
+          "method",
+          "run",
+          "lab",
+          method,
+          ...Object.entries(inputs).flatMap((
+            [k, v],
+          ) => ["--input", `${k}=${v}`]),
+          "--log",
+        ]);
+      const claimed = await lab("claim", {
+        issue: `#${issue}`,
+        lifecycle: "process",
+      });
+      const command = claimed.output.match(/Start it: (swamp .* --log)/);
+      assert(command !== null, claimed.output);
+      await repo.swamp(splitWords(command[1]).slice(1));
+      const key = String((await repo.data("lab", `ticket-${issue}`)).key);
+      await lab("assign", { issue, username: "seth" });
+
+      const statuses: string[] = [];
+      const publish = async () => {
+        await lab("publish", { workItem: key });
+        const now = fake.issues[0].status;
+        if (statuses.at(-1) !== now) statuses.push(now);
+      };
+      const record = async (
+        kind: "artifact" | "evidence",
+        name: string,
+        payload: Record<string, unknown>,
+      ) =>
+        await repo.workItem(key, `record_${kind}`, {
+          name,
+          payload: JSON.stringify(payload),
+          ...await repo.expected(key),
+        });
+      const approve = async (gateId: string) =>
+        await repo.workItem(key, "approve", {
+          gateId,
+          ...await repo.expected(key),
+        });
+      const go = async (transition: string) => {
+        await repo.workItem(key, "advance", {
+          transition,
+          ...await repo.expected(key),
+        });
+        await publish();
+      };
+
+      await publish();
+      await record("evidence", "classification", {
+        type: "bug",
+        confidence: "high",
+        reasoning: "503 is never retried",
+      });
+      await go("bug");
+      await record("evidence", "reproduction", {
+        reproduced: true,
+        commands: ["deno test"],
+        observed: "1 failed",
+        expected: "a retry",
+        fixScope: "vault/aws-sm",
+      });
+      await go("reproduced");
+      await record("artifact", "plan", {
+        summary: "Retry on 503",
+        scopeAnalysis: "One vault extension",
+        steps: [{ order: 1, description: "Retry", files: ["x.ts"] }],
+        testingStrategy: "A mock server",
+      });
+      await go("submit");
+      await record("artifact", "plan-review", { findings: [] });
+      await approve("plan-approval");
+      await go("approve");
+      await record("artifact", "change-summary", {
+        summary: "Retry on 503",
+        commit: COMMIT,
+        branch: "fix-retry",
+        files: ["x.ts"],
+      });
+      await go("submit");
+      await record("artifact", "conformance", {
+        steps: [{ order: 1, status: "implemented", description: "Retry" }],
+      });
+      await go("conforms");
+      await record("evidence", "verification", {
+        status: "succeeded",
+        runId: "w1",
+        commit: COMMIT,
+        buildStatus: "succeeded",
+        buildRunId: "b1",
+        reviewsStatus: "succeeded",
+        reviewsRunId: "v1",
+      });
+      await approve("checklist-confirmed");
+      await go("passed");
+
+      // attest: through the adapter, recording the id it returns.
+      await lab("post_attestation", {
+        attestation: JSON.stringify({
+          version: "1",
+          subject: { commit: COMMIT, branch: "fix-retry" },
+          gate: { allPassed: true },
+        }),
+      });
+      const attestation = await repo.data("lab", `attestation-${COMMIT}`);
+      await record("evidence", "attestation", {
+        attestationId: String(attestation.id),
+        commit: COMMIT,
+        buildRunId: "b1",
+        reviewsRunId: "v1",
+      });
+      await approve("open-pr");
+      await go("attested");
+      await record("evidence", "pull-request", { url: PR, commit: COMMIT });
+      await go("opened");
+      await record("evidence", "merge", {
+        status: "merged",
+        mergeCommit: COMMIT,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await go("merged");
+      await record("evidence", "release", { outcome: "shipped" });
+      await go("released");
+
+      // notify: the adapter checks the roster and thanks an outsider.
+      const thanked = await lab("thank_author", {
+        issue,
+        summary: "Retry on 503",
+        prUrl: PR,
+      });
+      assert(thanked.output.includes("thanked @outsider"), thanked.output);
+      await record("evidence", "notification", {
+        action: "posted",
+        author: "outsider",
+        reason: "not on the swamp-club team",
+      });
+      await go("notified");
+
+      assertEquals(fake.entries.map((e) => [e.step, e.targetStatus]), [
+        ["assigned", "open"],
+        ["triage_started", "open"],
+        ["classified", "triaged"],
+        ["plan_generated", "triaged"],
+        ["adversarial_review", "triaged"],
+        ["plan_approved", "in_progress"],
+        ["implementation_started", "in_progress"],
+        ["code_conformance_review", "in_progress"],
+        ["verification_started", "in_progress"],
+        ["verification_passed", "in_progress"],
+        ["attestation_posted", "in_progress"],
+        ["pr_linked", "in_progress"],
+        ["pr_merged", "in_progress"],
+        ["shipped", "shipped"],
+        ["contributor_notified", "shipped"],
+      ]);
+      const classified = fake.entries.find((e) => e.step === "classified");
+      assertEquals(classified?.summary, "Classified as bug (high)");
+      assertEquals(fake.issues[0].type, "bug", "triage set the type");
+      assertEquals(
+        fake.requests.filter((r) =>
+          r.method === "PATCH" &&
+          (r.body as { type?: unknown }).type !== undefined
+        ).length,
+        1,
+      );
+      assertEquals(statuses, ["open", "triaged", "in_progress", "shipped"]);
+      assertEquals(fake.attestations.length, 1);
+      assertEquals(fake.comments.map((c) => c.body.split("!")[0]), [
+        "Thanks @outsider for reporting this",
+      ]);
+
+      // A re-run posts nothing new.
+      const writes = fake.requests.filter((r) => r.method !== "GET").length;
+      await publish();
+      assertEquals(
+        fake.requests.filter((r) => r.method !== "GET").length,
+        writes,
+      );
     });
   } finally {
     await fake.close();

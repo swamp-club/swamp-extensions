@@ -23,7 +23,11 @@ import {
   SEVERITIES,
 } from "./payload_schema.ts";
 import type { CelContext } from "./cel_context.ts";
-import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
+import {
+  IDENTIFIER_PATTERN,
+  parseTemplate,
+  undeclaredPlaceholders,
+} from "./template.ts";
 
 // ---------------------------------------------------------------------------
 // The lifecycle meta-schema: what a gatorwalk lifecycle (and a stage template)
@@ -547,6 +551,54 @@ export const TransitionSchema = z.strictObject({
 
 export type TransitionSpec = z.infer<typeof TransitionSchema>;
 
+/**
+ * What a projection entry answers to: the work item entering the stage
+ * (including starting in it), a product the stage declares being recorded,
+ * or a person approving one of its human-approval gates.
+ */
+export const EntryTriggerSchema = z.union([
+  z.literal("enter"),
+  z.strictObject({ record: NameSchema }),
+  z.strictObject({ approve: NameSchema }),
+]);
+
+export type EntryTrigger = z.infer<typeof EntryTriggerSchema>;
+
+/**
+ * One journal event as a structured entry in the ticket's history (the
+ * Lab's lifecycle entry). DESIGN.md, "The projection publisher".
+ */
+export const ProjectionEntrySchema = z.strictObject({
+  on: EntryTriggerSchema,
+  /** Top-level payload fields the recorded product must hold, by equality. */
+  match: z.record(
+    z.string().regex(IDENTIFIER_PATTERN),
+    z.union([z.string(), z.number(), z.boolean()]),
+  ).optional(),
+  /** first: only the stage's first cycle; later: only a cycle after it. */
+  cycle: z.enum(["first", "later"]).optional(),
+  /** The entry's step, e.g. issue-lifecycle's classified. */
+  step: z.string().regex(/^[a-z][a-z0-9_]*$/).max(100),
+  emoji: z.string().min(1).max(32),
+  /** The entry's summary; `{{field}}` is a top-level field of the recorded
+   * product's payload. */
+  summary: z.string().min(1).max(2000),
+  /** The status key that labels the entry; defaults to the stage's. */
+  status: NameSchema.optional(),
+  /** Shown only in the ticket's verbose history. */
+  verbose: z.boolean().optional(),
+  /** A payload field holding the ticket type to set before the entry. */
+  setsType: z.string().regex(IDENTIFIER_PATTERN).optional(),
+});
+
+export type ProjectionEntry = z.infer<typeof ProjectionEntrySchema>;
+
+/** The key two entries collide on: the same kind of event, same target. */
+export function triggerKey(on: EntryTrigger): string {
+  if (on === "enter") return "enter";
+  return "record" in on ? `record:${on.record}` : `approve:${on.approve}`;
+}
+
 export const StageSchema = z.strictObject({
   id: NameSchema,
   description: z.string().optional(),
@@ -565,6 +617,10 @@ export const StageSchema = z.strictObject({
      * maps to its own status name. Absent: entering the stage leaves the
      * ticket's status alone. */
     status: NameSchema.optional(),
+    /** Journal events this stage turns into ticket history entries. A
+     * lifecycle that declares any is published as entries, not comments,
+     * to a tracker that keeps them. */
+    entries: z.array(ProjectionEntrySchema).optional(),
   }).optional(),
 });
 
@@ -989,6 +1045,10 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     }
   });
 
+  doc.stages.forEach((stage, i) =>
+    checkEntries(stage, ["stages", i, "projection", "entries"], fail)
+  );
+
   // `${{ }}` anywhere else would be evaluated by the platform on save.
   findTemplates(doc, [], (path) =>
     fail(
@@ -997,6 +1057,135 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         "saved; declare runtime values in work.bindings as bare CEL and " +
         "refer to them as {{name}}",
     ));
+}
+
+/**
+ * A stage's projection entries: each names something the stage has, only a
+ * recorded product has payload fields to match, fill or read a type from,
+ * and no two entries can answer the same event.
+ */
+function checkEntries(
+  stage: StageSpec,
+  path: Path,
+  fail: (path: Path, message: string) => void,
+): void {
+  const entries = stage.projection?.entries ?? [];
+  const products = new Map<string, PayloadSchema | undefined>();
+  for (const spec of stage.artifacts ?? []) {
+    products.set(spec.name, spec.schema);
+  }
+  for (const spec of stage.evidence ?? []) products.set(spec.name, spec.schema);
+  const result = stage.work?.resultEvidence;
+  if (result !== undefined && !products.has(result)) {
+    products.set(result, undefined);
+  }
+  const gates = new Set(
+    (stage.transitions ?? []).flatMap((t) =>
+      (t.gates ?? []).flatMap((g) =>
+        g.type === "human-approval" ? [g.config.id] : []
+      )
+    ),
+  );
+  entries.forEach((entry, j) => {
+    const at: Path = [...path, j];
+    const on = entry.on;
+    const parts = parseTemplate(entry.summary);
+    const placeholders = parts.flatMap((p) =>
+      p.kind === "placeholder" ? [p.name] : []
+    );
+    // An absent field fills as empty text, and the tracker refuses an empty
+    // summary, so some fixed text must always be there.
+    if (
+      !parts.some((p) => p.kind === "text" && p.text.trim() !== "")
+    ) {
+      fail(
+        [...at, "summary"],
+        "a summary needs some text besides its {{field}} placeholders, " +
+          "since an absent field fills as empty",
+      );
+    }
+    if (on === "enter" || "approve" in on) {
+      if (on !== "enter" && !gates.has(on.approve)) {
+        fail(
+          [...at, "on", "approve"],
+          `'${on.approve}' is not a human-approval gate on stage '${stage.id}'`,
+        );
+      }
+      const payloadOnly: [string, boolean][] = [
+        ["match", entry.match !== undefined],
+        ["setsType", entry.setsType !== undefined],
+        ["summary", placeholders.length > 0],
+      ];
+      for (const [field, used] of payloadOnly) {
+        if (used) {
+          fail(
+            [...at, field],
+            `only an entry on a recorded product has payload fields ` +
+              `(${field === "summary" ? "{{field}} placeholders" : field})`,
+          );
+        }
+      }
+      return;
+    }
+    if (!products.has(on.record)) {
+      fail(
+        [...at, "on", "record"],
+        `'${on.record}' is not a product stage '${stage.id}' declares`,
+      );
+      return;
+    }
+    const properties = products.get(on.record)?.properties;
+    if (typeof properties !== "object" || properties === null) return;
+    const declared = (name: string) => Object.hasOwn(properties, name);
+    const fields: [Path, string][] = [
+      ...placeholders.map((n): [Path, string] => [[...at, "summary"], n]),
+      ...Object.keys(entry.match ?? {}).map((n): [Path, string] => [
+        [...at, "match", n],
+        n,
+      ]),
+      ...(entry.setsType === undefined
+        ? []
+        : [[[...at, "setsType"], entry.setsType] as [Path, string]]),
+    ];
+    for (const [where, name] of fields) {
+      if (!declared(name)) {
+        fail(where, `'${name}' is not a field of '${on.record}'`);
+      }
+    }
+    // A summary is one line of text: an object or a list would be pasted in
+    // as JSON.
+    for (const name of placeholders) {
+      const type = declared(name)
+        ? (properties as Record<string, { type?: unknown }>)[name]?.type
+        : undefined;
+      if (type === "object" || type === "array") {
+        fail(
+          [...at, "summary"],
+          `{{${name}}} is an ${type} field of '${on.record}'; a summary ` +
+            "placeholder needs a string, number or boolean field",
+        );
+      }
+    }
+  });
+  // Exclusive: two entries on one trigger must differ in cycle, or require
+  // different values of one match field.
+  entries.forEach((a, j) => {
+    entries.slice(j + 1).forEach((b, k) => {
+      if (triggerKey(a.on) !== triggerKey(b.on)) return;
+      const byCycle = a.cycle !== undefined && b.cycle !== undefined &&
+        a.cycle !== b.cycle;
+      const byMatch = Object.entries(a.match ?? {}).some(([field, value]) =>
+        Object.hasOwn(b.match ?? {}, field) && b.match![field] !== value
+      );
+      if (!byCycle && !byMatch) {
+        fail(
+          [...path, j + 1 + k],
+          `entries '${a.step}' and '${b.step}' can both answer the same ` +
+            "event; give them different cycles or different match values",
+        );
+      }
+    });
+  });
 }
 
 /** The positions that hold CEL: a stage's `work.bindings`, a cel gate's

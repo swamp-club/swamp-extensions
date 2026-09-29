@@ -119,6 +119,18 @@ artifacts, evidence, transitions and gates. Three things change:
   moves its ticket to the status the tracker adapter's `statuses` argument maps
   that key to. A stage without one leaves the ticket's status alone. See
   [DESIGN.md](DESIGN.md), "The projection publisher".
+- **A stage may list projection entries**, `projection.entries`, new in
+  gatorwalk: which of its journal events become structured entries in the
+  ticket's history (the Lab's lifecycle entries). Each has a trigger
+  (`on:
+  enter`, `on: { record: <product> }` or `on: { approve: <gate id> }`),
+  a `step`, `emoji` and `summary` (whose `{{field}}` placeholders are fields of
+  the recorded payload), and optionally `match` (payload fields that must hold a
+  value), `cycle` (`first` or `later`), `status` (the status key labelling it,
+  defaulting to the stage's), `verbose` and `setsType` (a payload field holding
+  the ticket type to set first). Two entries on one trigger must be told apart
+  by `cycle` or `match`. To a tracker that keeps entries, a lifecycle that
+  declares any is published as entries instead of comments.
 
 A **stage template** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
@@ -254,12 +266,14 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
   → done
 ```
 
-- **It describes the process; it does not replace issue-lifecycle.** The
-  repository keeps issue-lifecycle for now. gatorwalk has a swamp-club adapter
-  (`@swamp/gatorwalk-factory/swamp-club`), but this lifecycle does not use it
-  yet; wiring it in is a follow-up. Until then, where the process posts to
-  swamp-club (the attestation, the contributor's thank-you), a person does it
-  and the stage records the result.
+- **It drives a Lab issue as issue-lifecycle does.** Through the swamp-club
+  adapter (`@swamp/gatorwalk-factory/swamp-club`), `publish` moves the issue's
+  status, writes issue-lifecycle's lifecycle entries under the same step names
+  and sets the type from the classification; `attest` and `notify` post the
+  attestation and the thank-you through the adapter. issue-lifecycle stays and
+  drives every other issue: the adapter's `claim` refuses an issue it already
+  drives. `lifecycles/swamp-extensions.md` lists each entry and where its
+  summary differs.
 - **People decide at six points:** a bug that cannot be reproduced, plan
   approval, the verification checklist, opening the pull request, what to do
   after a failed pull request, and abandoning the work. Five are approvals;
@@ -397,12 +411,13 @@ swamp model method run linear publish --input workItem=<key> --log
 item with. `comment` and `set_status` take the UUID; given `workItem` and
 `journalVersion`, a repeat of the same pair writes nothing to Linear.
 
-`publish` replays a work item's journal to the issue its `externalRefs` name: a
-comment for each event a person needs (the start, each stage entered, approvals,
-waits at a human stop, resets, the finish), and the status when the stage's
-status key changes. Run it after any change; it delivers only what is new, and
-after a failure a re-run picks up where it stopped. It is the only writer of a
-work item's ticket status.
+`publish` replays a work item's journal to the issue its `externalRefs` name (to
+a tracker that keeps lifecycle entries, with a lifecycle that declares them, it
+writes those instead of comments): a comment for each event a person needs (the
+start, each stage entered, approvals, waits at a human stop, resets, the
+finish), and the status when the stage's status key changes. Run it after any
+change; it delivers only what is new, and after a failure a re-run picks up
+where it stopped. It is the only writer of a work item's ticket status.
 
 ## swamp-club Lab
 
@@ -410,8 +425,8 @@ work item's ticket status.
 same key as swamp and issue-lifecycle: the `apiKey` global argument if set,
 otherwise `SWAMP_API_KEY`, otherwise your `swamp auth login` (whose key is only
 ever sent to the server you logged in to). Status moves past open or closed,
-assignment and attestations need an admin key. See [DESIGN.md](DESIGN.md), "The
-swamp-club Lab adapter".
+assignment, attestations, lifecycle entries, the type and the team check need an
+admin key. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
 
 ```bash
 swamp model create @swamp/gatorwalk-factory/swamp-club lab --json
@@ -420,6 +435,9 @@ swamp model method run lab set_status --input issue=2631 --input status=triaged 
 swamp model method run lab assign --input issue=2631 --log
 swamp model method run lab post_attestation \
   --input attestation="$(cat /tmp/attestation-<SHA>.json)" --log
+swamp model method run lab set_type --input issue=2631 --input type=bug --log
+swamp model method run lab team_member --input issue=2631 --log
+swamp model method run lab thank_author --input issue=2631 --log
 ```
 
 `assign` without `username` assigns your stored login's user, and only on the
@@ -428,10 +446,21 @@ swamp-club's team, since swamp-club refuses the whole list otherwise. `comment`
 posts a ripple. Statuses only move forward, one step at a time, which
 `set_status` walks for you; moving back is refused. `publish` works as it does
 for Linear (above), and skips a status move the issue cannot make, such as back
-to `triaged` after a reset, rather than failing. Do not publish to an issue that
-issue-lifecycle also drives: both would write its status. `post_attestation`
-posts an attestation built elsewhere (`deno task build-attestation`), and
-posting the same one again for a commit writes nothing.
+to `triaged` after a reset, rather than failing. For a lifecycle that declares
+projection entries it writes lifecycle entries instead of ripples, and the type
+an entry reads (`setsType`) just before it; it is the only writer of a work
+item's status and type. `claim` refuses an issue that issue-lifecycle drives in
+the repository (an instance `issue-<N>`), even a finished one.
+`post_attestation` posts an attestation built elsewhere
+(`deno task
+build-attestation`), and posting the same one again for a commit
+writes nothing. `fetch_issue` records the issue's body, type, author and ripples
+too. `set_type` sets the type by hand. `team_member` says whether the issue's
+author is on swamp-club's team, failing rather than guessing when a lookup
+fails. `thank_author` posts issue-lifecycle's thank-you ripple to an author
+outside the team and skips a team member; a failed lookup posts nothing, and
+`force=true` skips only the team check. `assign` also records issue-lifecycle's
+`assigned` entry, best effort.
 
 ## Start from a ticket
 

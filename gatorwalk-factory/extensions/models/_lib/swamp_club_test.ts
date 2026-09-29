@@ -92,6 +92,11 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
       missing: String(MISSING_ISSUE),
       statusNames: ["triaged", "in_progress"],
       commentsPosted: () => fake.comments.length,
+      history: {
+        entriesPosted: () => fake.entries.length,
+        statusName: "open",
+        types: ["bug", "platform"],
+      },
     });
   });
 });
@@ -107,7 +112,215 @@ Deno.test("swamp-club: sends the key as a Bearer token, to the configured URL", 
       title: "Lab adapter",
       url: `${fake.url}/lab/${ISSUE}`,
       status: { id: "open", name: "open" },
+      details: {
+        body: "Adapt the Lab.",
+        type: "feature",
+        author: "outsider",
+        authorId: "user-outsider",
+        comments: [],
+      },
     });
+  });
+});
+
+Deno.test("swamp-club: the full fetch carries the body, type, author and ripples", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    await adapter.comment(ISSUE, "First ripple");
+    const issue = await adapter.fetchIssue(ISSUE);
+    assertEquals(issue.details?.comments, [{
+      author: "seth",
+      body: "First ripple",
+      createdAt: "2026-09-29T00:00:00.000Z",
+    }]);
+  });
+});
+
+Deno.test("swamp-club: an issue without the Lab-only fields reads them as empty", async () => {
+  await withFake(async (fake) => {
+    fake.issues.push({
+      number: 7,
+      title: "Bare",
+      status: "open",
+      assignees: [],
+    });
+    const issue = await adapterFor(fake).fetchIssue("7");
+    assertEquals(issue.details, {
+      body: "",
+      type: "",
+      author: "",
+      authorId: "",
+      comments: [],
+    });
+  });
+});
+
+Deno.test("swamp-club: setType patches only when the type differs, and needs an admin", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    assertEquals(await adapter.history.setType(ISSUE, "feature"), {
+      changed: false,
+      type: "feature",
+    });
+    assertEquals(fake.requests.filter((r) => r.method === "PATCH").length, 0);
+    assertEquals(await adapter.history.setType(ISSUE, "bug"), {
+      changed: true,
+      type: "bug",
+    });
+    assertEquals(fake.issues[0].type, "bug");
+    assertEquals(fake.requests.at(-1)?.body, { type: "bug" });
+    await failsWith(
+      "invalid",
+      () => adapter.history.setType(ISSUE, "chore"),
+      "bug, feature, platform, security",
+    );
+    await failsWith(
+      "auth",
+      () => adapterFor(fake, MEMBER_KEY).history.setType(ISSUE, "security"),
+      "admin",
+    );
+  });
+});
+
+Deno.test("swamp-club: a lifecycle entry is posted as issue-lifecycle posts it", async () => {
+  await withFake(async (fake) => {
+    const posted = await adapterFor(fake).history.postEntry(ISSUE, {
+      step: " classified ",
+      targetStatus: "triaged",
+      summary: "Classified as bug (high)",
+      emoji: "\u{1F4CB}",
+      payload: { type: "bug", isRegression: true },
+      isVerbose: false,
+    });
+    assertEquals(posted.id, fake.entries[0].id);
+    assertEquals(
+      fake.requests[0].path,
+      `/api/v1/lab/issues/${ISSUE}/lifecycle`,
+    );
+    assertEquals(fake.requests[0].body, {
+      step: "classified",
+      targetStatus: "triaged",
+      summary: "Classified as bug (high)",
+      emoji: "\u{1F4CB}",
+      payload: { type: "bug", isRegression: true },
+      isVerbose: false,
+    });
+    // A label only: the issue's status is untouched.
+    assertEquals(fake.issues[0].status, "open");
+    assertEquals(fake.issues[0].isRegression, true);
+  });
+});
+
+Deno.test("swamp-club: a lifecycle entry's limits are checked before any call, and a long summary is cut", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    const entry = {
+      step: "classified",
+      targetStatus: "triaged",
+      summary: "ok",
+      emoji: "x",
+      payload: {},
+      isVerbose: false,
+    };
+    await failsWith(
+      "invalid",
+      () =>
+        adapter.history.postEntry(ISSUE, { ...entry, step: "s".repeat(101) }),
+      "step",
+    );
+    await failsWith(
+      "invalid",
+      () =>
+        adapter.history.postEntry(ISSUE, { ...entry, targetStatus: "done" }),
+      "not a Lab status",
+    );
+    await failsWith(
+      "invalid",
+      () => adapter.history.postEntry(ISSUE, { ...entry, emoji: " " }),
+      "emoji",
+    );
+    await failsWith(
+      "invalid",
+      () => adapter.history.postEntry(ISSUE, { ...entry, summary: "" }),
+      "summary",
+    );
+    assertEquals(fake.requests.length, 0);
+    await adapter.history.postEntry(ISSUE, {
+      ...entry,
+      summary: "y".repeat(2500),
+    });
+    assertEquals(fake.entries[0].summary, `${"y".repeat(1997)}...`);
+    // An emoji across the cut is dropped whole, never halved.
+    await adapter.history.postEntry(ISSUE, {
+      ...entry,
+      summary: `${"y".repeat(1996)}\u{1F389}${"z".repeat(10)}`,
+    });
+    assertEquals(fake.entries[1].summary, `${"y".repeat(1996)}...`);
+  });
+});
+
+Deno.test("swamp-club: a refused lifecycle entry is invalid with swamp-club's reason, and needs an admin", async () => {
+  await withFake(async (fake) => {
+    const entry = {
+      step: "classified",
+      targetStatus: "triaged",
+      summary: "ok",
+      emoji: "x",
+      payload: { "$where": "1" },
+      isVerbose: false,
+    };
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).history.postEntry(ISSUE, entry),
+      "must not start with $",
+    );
+    await failsWith(
+      "auth",
+      () =>
+        adapterFor(fake, MEMBER_KEY).history.postEntry(ISSUE, {
+          ...entry,
+          payload: {},
+        }),
+      "admin",
+    );
+    assertEquals(fake.entries.length, 0);
+  });
+});
+
+Deno.test("swamp-club: team membership matches the author by id, then by username", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    assertEquals(await adapter.teamMembership(ISSUE), {
+      author: "outsider",
+      authorId: "user-outsider",
+      member: false,
+    });
+    fake.issues[0].authorId = "user-ape";
+    assertEquals((await adapter.teamMembership(ISSUE)).member, true);
+    // No id: the username, which is also a swamp-club identity.
+    fake.issues[0].authorId = undefined;
+    fake.issues[0].authorUsername = "seth";
+    assertEquals((await adapter.teamMembership(ISSUE)).member, true);
+  });
+});
+
+Deno.test("swamp-club: team membership is fail-closed", async () => {
+  await withFake(async (fake) => {
+    // The roster needs an admin: a member key cannot decide, so it fails.
+    await failsWith(
+      "auth",
+      () => adapterFor(fake, MEMBER_KEY).teamMembership(ISSUE),
+    );
+    fake.issues[0].authorId = undefined;
+    fake.issues[0].authorUsername = undefined;
+    await failsWith(
+      "upstream",
+      () => adapterFor(fake).teamMembership(ISSUE),
+      "no author",
+    );
+    fake.issues[0].authorUsername = "outsider";
+    fake.queue.push({ status: 503, body: "down" });
+    await failsWith("upstream", () => adapterFor(fake).teamMembership(ISSUE));
   });
 });
 
@@ -316,6 +529,7 @@ Deno.test("swamp-club: assign adds to the assignees, and a repeat writes nothing
       changed: true,
       username: "seth",
       userId: "user-seth",
+      status: "open",
       dropped: [],
     });
     assertEquals(fake.issues[0].assignees.map((a) => a.userId), [
@@ -346,6 +560,7 @@ Deno.test("swamp-club: assign drops, and names, assignees no longer on the team"
       changed: true,
       username: "seth",
       userId: "user-seth",
+      status: "open",
       dropped: [{ userId: "user-gone", username: "gone" }],
     });
     const patches = fake.requests.filter((r) => r.method === "PATCH");
@@ -365,6 +580,7 @@ Deno.test("swamp-club: assign to a user already there writes nothing, stale assi
       changed: false,
       username: "seth",
       userId: "user-seth",
+      status: "open",
       dropped: [],
     });
     assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);

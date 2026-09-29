@@ -115,6 +115,9 @@ answers in one of three ways:
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
+- **`is driven by issue-lifecycle here (instance 'issue-<N>')`** (the Lab only):
+  `@swamp/issue-lifecycle` already drives this issue. Stop and drive it with
+  issue-lifecycle; do not delete its instance unless the person says to.
 
 If anything fails between `claim` and `start`, run `claim` again: it hands back
 the same key and command. `lifecycle` is only needed when a new key is reserved;
@@ -364,10 +367,15 @@ swamp model method run <tracker> publish --input workItem=<key> --log
 ```
 
 `publish` posts a comment for each new event a person on the ticket needs, and
-moves the ticket when the stage's status key changes. It is the only thing that
-writes the ticket's status: never call `set_status` for a work item yourself.
-Running it again delivers only what is new, so after a failure run it again.
-Publishing is a view; a failed publish never blocks the work item.
+moves the ticket when the stage's status key changes. When the lifecycle
+declares projection entries and the tracker keeps them (the Lab), it writes
+those lifecycle entries instead of comments, and sets the ticket type an entry
+names. It is the only thing that writes the ticket's status and type: never call
+`set_status` or `set_type` for a work item yourself. Running it again delivers
+only what is new. A failed publish never blocks the work item, but the ticket
+falls behind until it succeeds, and on the Lab that ticket is the audit trail:
+after a failure, run it again before moving on. An entry the tracker refuses
+outright is skipped and logged as a warning; tell the person which one.
 
 ## When something fails
 

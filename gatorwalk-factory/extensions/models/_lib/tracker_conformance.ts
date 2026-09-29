@@ -53,6 +53,16 @@ export interface ConformanceFixture {
   statusNames: [string, string];
   /** How many comments the fake has accepted so far. */
   commentsPosted(): number;
+  /**
+   * For an adapter with the optional history capability: how many lifecycle
+   * entries the fake has accepted, and a status name and two ticket types it
+   * knows, the ticket starting in neither type.
+   */
+  history?: {
+    entriesPosted(): number;
+    statusName: string;
+    types: [string, string];
+  };
 }
 
 async function rejectsWith(
@@ -101,6 +111,51 @@ export async function assertTrackerConformance(
   await rejectsWith("auth", () => f.badAuth.comment(f.issue.id, "x"));
   await rejectsWith("not_found", () => adapter.fetchIssue(f.missing));
   await rejectsWith("not_found", () => adapter.comment(f.missing, "x"));
+
+  // History, where the adapter has it: an entry returns its id, and a type
+  // move reports changed, then writes nothing the second time.
+  if ((adapter.history === undefined) !== (f.history === undefined)) {
+    throw new Error("fixture: history needs both the capability and counts");
+  }
+  if (adapter.history !== undefined && f.history !== undefined) {
+    const entry = {
+      step: "conformance",
+      targetStatus: f.history.statusName,
+      summary: "conformance",
+      emoji: "\u{1F50D}",
+      payload: { checked: true },
+      isVerbose: false,
+    };
+    const entries = f.history.entriesPosted();
+    const written = await adapter.history.postEntry(f.issue.id, entry);
+    assert(written.id !== "", "an entry returns its id");
+    assertEquals(f.history.entriesPosted(), entries + 1);
+    const [type, other] = f.history.types;
+    assertEquals(await adapter.history.setType(f.issue.id, type), {
+      changed: true,
+      type,
+    });
+    assertEquals(await adapter.history.setType(f.issue.id, type), {
+      changed: false,
+      type,
+    });
+    assertEquals(
+      (await adapter.history.setType(f.issue.id, other)).changed,
+      true,
+    );
+    await rejectsWith(
+      "invalid",
+      () => adapter.history!.setType(f.issue.id, "No Such Type"),
+    );
+    await rejectsWith(
+      "auth",
+      () => f.badAuth.history!.postEntry(f.issue.id, entry),
+    );
+    await rejectsWith(
+      "not_found",
+      () => adapter.history!.postEntry(f.missing, entry),
+    );
+  }
 
   // The ledger, through the shared methods: one delivery key, one write.
   const methods = trackerMethods({

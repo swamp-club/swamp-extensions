@@ -695,7 +695,12 @@ async function drive(lifecycle: Lifecycle, env: Env) {
   await startRun(
     store,
     lifecycle,
-    { key: "wi-swx", lifecycleDigest: "sha256:l" },
+    // A Lab issue, as a claimed work item has: notify binds it.
+    {
+      key: "wi-swx",
+      lifecycleDigest: "sha256:l",
+      externalRefs: { "swamp-club": "2734", "swamp-club.display": "#2734" },
+    },
     actor,
     env,
   );

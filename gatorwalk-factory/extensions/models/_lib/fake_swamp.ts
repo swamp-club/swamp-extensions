@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
+import { evaluate } from "npm:@marcbachmann/cel-js@7.6.1";
 import type { ClaimContext, ModelDataRecord } from "./claim.ts";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ export interface FakeSwamp {
       modelName: string,
       specName?: string,
     ): Promise<ModelDataRecord[]>;
+    queryData(predicate: string): Promise<ModelDataRecord[]>;
   };
   versionsWritten(instance: string): number;
 }
@@ -131,6 +133,33 @@ export function fakeSwamp(): FakeSwamp {
             attributes: structuredClone(latest),
             content: structuredClone(latest),
           });
+        }
+        return Promise.resolve(records);
+      },
+      // Like swamp's data query: a CEL predicate over every version of every
+      // record, by modelName, specName, name and version. Reaches history.
+      queryData: (predicate) => {
+        const records: ModelDataRecord[] = [];
+        for (const [modelName, map] of resources) {
+          for (const [resource, versions] of map) {
+            const specName = specs.get(modelName)?.get(resource) ?? "";
+            versions.forEach((data, i) => {
+              const hit = evaluate(predicate, {
+                modelName,
+                specName,
+                name: resource,
+                version: i + 1,
+              });
+              if (hit !== true) return;
+              records.push({
+                name: resource,
+                version: i + 1,
+                isLatest: i === versions.length - 1,
+                attributes: structuredClone(data),
+                content: structuredClone(data),
+              });
+            });
+          }
         }
         return Promise.resolve(records);
       },

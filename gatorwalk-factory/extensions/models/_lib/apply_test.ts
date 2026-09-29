@@ -1011,3 +1011,74 @@ Deno.test("apply: a placeholder may not declare a projection hint; the stage tem
     "replace: stage 'review' is not a bare placeholder (it declares projection)",
   );
 });
+
+Deno.test("apply: projection entries follow their products' new names; approve and enter triggers stay", () => {
+  const helper = template(`
+contract:
+  exits: [{ name: out }]
+stages:
+  - id: write
+    initial: true
+    artifacts: [{ name: note, schema: { type: object, properties: { text: { type: string } } } }]
+    evidence: [{ name: check, schema: { type: object } }]
+    projection:
+      status: in_progress
+      entries:
+        - { on: enter, step: write_started, emoji: x, summary: Writing }
+        - { on: { record: note }, step: noted, emoji: x, summary: "Note: {{text}}" }
+        - { on: { record: check }, step: checked, emoji: x, summary: Checked }
+        - { on: { approve: sign-off }, step: signed, emoji: x, summary: Signed }
+    transitions:
+      - name: out
+        exit: out
+        gates: [{ type: human-approval, config: { id: sign-off } }]
+`);
+  const base = lifecycle(`
+stages:
+  - id: start
+    initial: true
+    transitions: [{ name: go, to: slot }]
+  - id: slot
+    transitions: [{ name: out, to: end }]
+  - id: end
+    terminal: true
+`);
+  const { lifecycle: composed } = ok(
+    applyStageTemplate(base, helper, {
+      replace: "slot",
+      names: {
+        artifacts: { note: "ticket-note" },
+        evidence: { check: "ticket-check" },
+      },
+    }),
+  );
+  assertEquals(
+    stage(composed, "write").projection?.entries?.map((e) => e.on),
+    [
+      "enter",
+      { record: "ticket-note" },
+      { record: "ticket-check" },
+      { approve: "sign-off" },
+    ],
+  );
+});
+
+Deno.test("apply: a stage template whose entry names a product it lacks is refused as a stage template", () => {
+  const result = parseStageTemplate(parseYaml(`schemaVersion: 1
+name: helper
+contract:
+  exits: [{ name: out }]
+stages:
+  - id: write
+    initial: true
+    projection:
+      entries:
+        - { on: { record: note }, step: noted, emoji: x, summary: Noted }
+    transitions: [{ name: out, exit: out }]
+`));
+  assert(!result.ok);
+  assertMentions(
+    result.errors,
+    "'note' is not a product stage 'write' declares",
+  );
+});

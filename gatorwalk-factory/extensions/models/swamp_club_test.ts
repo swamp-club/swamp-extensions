@@ -17,6 +17,7 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
   model,
+  refuseIssueLifecycle,
   SwampClubArgumentsSchema,
   swampClubMethods,
 } from "./swamp_club.ts";
@@ -33,7 +34,12 @@ import {
 } from "./_lib/swamp_club_fake.ts";
 import { type FakeSwamp, fakeSwamp } from "./_lib/fake_swamp.ts";
 import { TrackerError } from "./_lib/tracker.ts";
-import { PROJECTED_ITEM, projectedItem } from "./_lib/test_support.ts";
+import {
+  PROJECTED_ITEM,
+  projectedItem,
+  smallLifecycle,
+} from "./_lib/test_support.ts";
+import { HOLDER_TYPE } from "./_lib/work_item_ops.ts";
 
 const INSTANCE = "lab";
 const ISSUE = String(LAB_ISSUE);
@@ -345,5 +351,258 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
       await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
       assertEquals(fake.requests.length, requests);
     },
+  );
+});
+
+Deno.test("swamp-club model: set_type once per delivery key, and a Lab type only", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      const key = { workItem: "build-abcdefgh", journalVersion: "4" };
+      await call(methods, swamp, "set_type", {
+        issue: ISSUE,
+        type: "bug",
+        ...key,
+      });
+      fake.issues[0].type = "feature";
+      // The ledger holds the key: nothing is written, even though the issue
+      // was moved back by hand since.
+      await call(methods, swamp, "set_type", {
+        issue: ISSUE,
+        type: "bug",
+        ...key,
+      });
+      assertEquals(fake.issues[0].type, "feature");
+      const ledger = swamp.resources.get(INSTANCE)?.get(
+        "delivery-set_type-build-abcdefgh-4",
+      )?.[0];
+      assertEquals(ledger?.action, "set_type");
+      await assertRejects(
+        () => call(methods, swamp, "set_type", { issue: ISSUE, type: "chore" }),
+      );
+    },
+  );
+});
+
+Deno.test("swamp-club model: thank_author ripples issue-lifecycle's thank-you to an author outside the team", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      await call(methods, swamp, "thank_author", {
+        issue: ISSUE,
+        summary: "the Lab adapter",
+        prUrl: "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/1",
+      });
+      assertEquals(fake.comments.length, 1);
+      assertEquals(
+        fake.comments[0].body,
+        "Thanks @outsider for reporting this! We shipped: the Lab adapter. " +
+          "The fix has been [merged](https://git.swamp-club.com/swamp-club/" +
+          "swamp-extensions/pulls/1) and a release is on its way. We " +
+          "appreciate your contribution to swamp.",
+      );
+      const done = swamp.logs.at(-1)?.props;
+      assertEquals(done?.action, "posted");
+      assertEquals(done?.author, "outsider");
+      assertEquals(done?.reason, "not_team_member");
+    },
+  );
+});
+
+Deno.test("swamp-club model: thank_author skips a team member and posts nothing", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      fake.issues[0].authorId = "user-ape";
+      fake.issues[0].authorUsername = "skunk-ape";
+      await call(methods, swamp, "thank_author", { issue: ISSUE });
+      assertEquals(fake.comments.length, 0);
+      assertEquals(swamp.logs.at(-1)?.props?.action, "skipped");
+      assertEquals(swamp.logs.at(-1)?.props?.reason, "team_member");
+    },
+  );
+});
+
+Deno.test("swamp-club model: thank_author is fail-closed, and force skips only the team check", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      fake.respond = (r) =>
+        r.path === "/api/v1/lab/assignees"
+          ? { status: 503, body: "down" }
+          : undefined;
+      await assertRejects(
+        () => call(methods, swamp, "thank_author", { issue: ISSUE }),
+        TrackerError,
+      );
+      assertEquals(fake.comments.length, 0, "a failed lookup posts nothing");
+      // force: no roster read, but the author still comes from the issue.
+      fake.issues[0].authorId = "user-ape";
+      fake.issues[0].authorUsername = "skunk-ape";
+      const rosterReads = () =>
+        fake.requests.filter((r) => r.path === "/api/v1/lab/assignees").length;
+      const before = rosterReads();
+      await call(methods, swamp, "thank_author", { issue: ISSUE, force: true });
+      assertEquals(rosterReads(), before, "force reads no roster");
+      assertEquals(fake.comments.length, 1);
+      assert(fake.comments[0].body.startsWith("Thanks @skunk-ape"));
+      assertEquals(swamp.logs.at(-1)?.props?.reason, "forced");
+    },
+  );
+});
+
+Deno.test("swamp-club model: team_member reports the author and the answer", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp) => {
+      await call(methods, swamp, "team_member", { issue: ISSUE });
+      const props = swamp.logs.at(-1)?.props;
+      assertEquals(props?.author, "outsider");
+      assertEquals(props?.member, false);
+    },
+  );
+});
+
+Deno.test("swamp-club model: assign records issue-lifecycle's assigned entry, and a failed entry only warns", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      await call(methods, swamp, "assign", { issue: ISSUE, username: "seth" });
+      assertEquals(fake.entries.map((e) => [e.step, e.summary]), [
+        ["assigned", "Assigned to seth"],
+      ]);
+      assertEquals(fake.entries[0].payload, {
+        username: "seth",
+        userId: "user-seth",
+      });
+      // Already assigned: nothing written, no second entry.
+      await call(methods, swamp, "assign", { issue: ISSUE, username: "seth" });
+      assertEquals(fake.entries.length, 1);
+      fake.respond = (r) =>
+        r.path.endsWith("/lifecycle")
+          ? { status: 503, body: "down" }
+          : undefined;
+      await call(methods, swamp, "assign", {
+        issue: ISSUE,
+        username: "skunk-ape",
+      });
+      assertEquals(fake.issues[0].assignees.length, 2);
+      assert(
+        String(swamp.logs.at(-2)?.props?.warning).includes("not recorded"),
+      );
+    },
+  );
+});
+
+async function claimIn(swamp: FakeSwamp, methods: Methods) {
+  swamp.definitions.set("team", {
+    globalArguments: smallLifecycle(),
+    type: HOLDER_TYPE,
+  });
+  return await call(methods, swamp, "claim", {
+    issue: ISSUE,
+    lifecycle: "team",
+  });
+}
+
+Deno.test("swamp-club model: claim refuses an issue issue-lifecycle drives, and writes nothing", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp) => {
+      swamp.definitions.set(`issue-${ISSUE}`, {
+        globalArguments: { issueNumber: LAB_ISSUE },
+        type: "@swamp/issue-lifecycle",
+      });
+      const error = await assertRejects(() => claimIn(swamp, methods), Error);
+      assert(error.message.includes(`instance 'issue-${ISSUE}'`));
+      assert(error.message.includes("even once that instance is done"));
+      assertEquals(swamp.versionsWritten(INSTANCE), 0);
+    },
+  );
+});
+
+Deno.test("swamp-club model: claim refuses on issue-lifecycle's state data when its definition is not found", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp) => {
+      await swamp.context(`issue-${ISSUE}`).writeResource?.(
+        "state",
+        "state-main",
+        { phase: "done", issueNumber: LAB_ISSUE },
+      );
+      await assertRejects(
+        () => claimIn(swamp, methods),
+        Error,
+        "driven by issue-lifecycle",
+      );
+    },
+  );
+});
+
+Deno.test("swamp-club model: an issue-<N> of another type does not block a claim", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp) => {
+      swamp.definitions.set(`issue-${ISSUE}`, {
+        globalArguments: {},
+        type: "@acme/something-else",
+      });
+      await claimIn(swamp, methods);
+      assert(swamp.resources.get(INSTANCE)?.has(`ticket-${ISSUE}`));
+    },
+  );
+});
+
+Deno.test("swamp-club model: thank_author never thanks twice, even without a delivery key", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      await call(methods, swamp, "thank_author", { issue: ISSUE });
+      await call(methods, swamp, "thank_author", { issue: ISSUE });
+      assertEquals(fake.comments.length, 1);
+      const done = swamp.logs.at(-1)?.props;
+      assertEquals(done?.action, "posted");
+      assertEquals(done?.reason, "already_thanked");
+    },
+  );
+});
+
+Deno.test("swamp-club model: the assigned entry is labelled with the issue's own status", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      fake.issues[0].status = "in_progress";
+      await call(methods, swamp, "assign", { issue: ISSUE, username: "seth" });
+      assertEquals(fake.entries[0].targetStatus, "in_progress");
+    },
+  );
+});
+
+Deno.test("swamp-club model: the issue-lifecycle guard fails closed when it cannot look", async () => {
+  await assertRejects(
+    () =>
+      refuseIssueLifecycle(
+        { logger: { info: () => {} } },
+        {
+          id: ISSUE,
+          display: `#${ISSUE}`,
+          title: "t",
+          url: "u",
+          status: { id: "open", name: "open" },
+        },
+      ),
+    Error,
+    "cannot check whether issue-lifecycle drives",
   );
 });

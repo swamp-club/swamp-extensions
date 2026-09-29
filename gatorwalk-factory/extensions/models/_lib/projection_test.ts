@@ -16,10 +16,27 @@
 
 import { assert, assertEquals } from "@std/assert";
 import type { JournalEvent } from "./journal.ts";
-import type { Lifecycle } from "./lifecycle_schema.ts";
-import { commentFor, project } from "./projection.ts";
+import {
+  type Lifecycle,
+  parseLifecycle,
+  type ProjectionEntry,
+} from "./lifecycle_schema.ts";
+import {
+  chooseEntry,
+  commentFor,
+  declaresEntries,
+  project,
+  projectEntries,
+  renderEntry,
+  withoutDollarKeys,
+} from "./projection.ts";
 import { RUN_SCHEMA_VERSION, type RunRecord } from "./run_record.ts";
-import { ALICE, NOBODY, smallLifecycle } from "./test_support.ts";
+import {
+  ALICE,
+  entriesDefinition,
+  NOBODY,
+  smallLifecycle,
+} from "./test_support.ts";
 
 const KEY = "small-abcdefgh";
 const BASE = {
@@ -248,4 +265,119 @@ Deno.test("projection: the same run gives the same bodies, none starting with a 
   for (const { body } of first.comments) {
     assert(!body.startsWith("$") && !body.includes('""'), body);
   }
+});
+
+// --- entries -----------------------------------------------------------------
+
+function entriesLifecycle(): Lifecycle {
+  const result = parseLifecycle(entriesDefinition());
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}
+
+const RECORDED: JournalEvent = {
+  ...BASE,
+  stage: "write",
+  type: "recorded",
+  kind: "artifact",
+  name: "note",
+  version: 1,
+  digest: "sha256:n",
+};
+
+Deno.test("projection entries: only a lifecycle that declares entries is in entry mode", () => {
+  assertEquals(declaresEntries(lifecycle()), false);
+  assertEquals(declaresEntries(entriesLifecycle()), true);
+});
+
+Deno.test("projection entries: events map to their stage's entries, with the product to read", () => {
+  const doc = entriesLifecycle();
+  const events = projectEntries(
+    runWith("review", [STARTED, DISPATCHED, RECORDED, SUBMITTED]),
+    doc,
+    0,
+  );
+  assertEquals(
+    events.map((e) => [e.journalVersion, e.candidates.map((c) => c.step)]),
+    [[1, ["work_started"]], [3, ["noted"]], [4, ["review_started"]]],
+  );
+  assertEquals(events[1].product, {
+    kind: "artifact",
+    name: "note",
+    version: 1,
+    digest: "sha256:n",
+  });
+  // write has no key and nothing came before; review names in_review.
+  assertEquals(events.map((e) => e.status), [null, null, "in_review"]);
+  // After the cursor only, but labels still count what came before.
+  assertEquals(
+    projectEntries(runWith("review", [STARTED, SUBMITTED, RECORDED]), doc, 2)
+      .map((e) => [e.journalVersion, e.status]),
+    [[3, "in_review"]],
+  );
+});
+
+Deno.test("projection entries: a declined approval answers nothing; an approved one its gate's entry", () => {
+  const doc = entriesLifecycle();
+  const approval = (decision: "approve" | "decline"): JournalEvent => ({
+    ...BASE,
+    stage: "review",
+    type: "approval",
+    approvalId: 1,
+    gateId: "ship-approval",
+    decision,
+  });
+  assertEquals(
+    projectEntries(runWith("review", [approval("decline")]), doc, 0),
+    [],
+  );
+  assertEquals(
+    projectEntries(runWith("review", [approval("approve")]), doc, 0)
+      .map((e) => e.candidates.map((c) => c.step)),
+    [["ship_approved"]],
+  );
+});
+
+Deno.test("projection entries: the payload chooses between matching entries, and fills the summary", () => {
+  const entry = (step: string, status: string): ProjectionEntry => ({
+    on: { record: "result" },
+    match: { status },
+    step,
+    emoji: "x",
+    summary: "{{status}} at {{absent}}!",
+  });
+  const candidates = [entry("passed", "passed"), entry("failed", "failed")];
+  assertEquals(chooseEntry(candidates, { status: "failed" })?.step, "failed");
+  assertEquals(chooseEntry(candidates, { status: "other" }), null);
+  const rendered = renderEntry(
+    { ...candidates[0], setsType: "status" },
+    {
+      journalVersion: 2,
+      candidates,
+      status: "in_review",
+      product: { kind: "evidence", name: "result", version: 1, digest: "d" },
+    },
+    { status: "passed" },
+  );
+  assertEquals(rendered, {
+    step: "passed",
+    emoji: "x",
+    // An absent field reads as empty text rather than blocking the entry.
+    summary: "passed at !",
+    status: "in_review",
+    isVerbose: false,
+    payload: { status: "passed" },
+    type: "passed",
+  });
+});
+
+Deno.test("projection entries: payload keys starting with $ are dropped at any depth, as swamp-club refuses them", () => {
+  assertEquals(
+    withoutDollarKeys({
+      text: "$5 is fine as a value",
+      $where: "1",
+      nested: { $gt: 1, ok: [{ $x: 1, y: 2 }] },
+    }),
+    { text: "$5 is fine as a value", nested: { ok: [{ y: 2 }] } },
+  );
 });

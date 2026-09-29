@@ -712,6 +712,135 @@ Deno.test("projection: a stage without one parses without the key, so its digest
   assert(result.value.stages.every((s) => !("projection" in s)));
 });
 
+/** base() with an approval gate on finish and the given projection entries. */
+function withEntries(entries: unknown[]): Raw {
+  const doc = base();
+  set(doc, "stages.0.transitions.0.gates.1", {
+    type: "human-approval",
+    config: { id: "sign-off" },
+  });
+  set(doc, "stages.0.projection", { status: "in_progress", entries });
+  return doc;
+}
+
+const entry = (extra: Raw): Raw => ({
+  step: "noted",
+  emoji: "x",
+  summary: "Noted",
+  ...extra,
+});
+
+Deno.test("projection entries: enter, record and approve triggers, with a payload summary and a status label", () => {
+  assertValid(withEntries([
+    entry({ on: "enter", step: "work_started" }),
+    entry({
+      on: { record: "summary" },
+      summary: "Summary: {{text}}",
+      status: "triaged",
+      verbose: true,
+    }),
+    entry({ on: { approve: "sign-off" }, step: "signed_off" }),
+  ]));
+});
+
+Deno.test("projection entries: a trigger names what its stage has", () => {
+  assertRejects(
+    withEntries([entry({ on: { record: "elsewhere" } })]),
+    "'elsewhere' is not a product stage 'work' declares",
+  );
+  assertRejects(
+    withEntries([entry({ on: { approve: "nobody" } })]),
+    "'nobody' is not a human-approval gate on stage 'work'",
+  );
+});
+
+Deno.test("projection entries: payload fields are the recorded product's own", () => {
+  assertRejects(
+    withEntries([entry({ on: { record: "summary" }, summary: "{{missing}}" })]),
+    "'missing' is not a field of 'summary'",
+  );
+  assertRejects(
+    withEntries([entry({ on: { record: "summary" }, match: { kind: "x" } })]),
+    "'kind' is not a field of 'summary'",
+  );
+  assertRejects(
+    withEntries([entry({ on: { record: "summary" }, setsType: "type" })]),
+    "'type' is not a field of 'summary'",
+  );
+});
+
+Deno.test("projection entries: a summary needs fixed text, since an absent field fills as empty", () => {
+  assertRejects(
+    withEntries([entry({ on: { record: "summary" }, summary: " {{text}} " })]),
+    "a summary needs some text besides its {{field}} placeholders",
+  );
+});
+
+Deno.test("projection entries: a summary placeholder names a scalar field, not an object or a list", () => {
+  const doc = withEntries([
+    entry({ on: { record: "summary" }, summary: "{{tags}} and {{meta}}" }),
+  ]);
+  set(doc, "stages.0.artifacts.0.schema.properties.tags", { type: "array" });
+  set(doc, "stages.0.artifacts.0.schema.properties.meta", { type: "object" });
+  assertRejects(
+    doc,
+    "{{tags}} is an array field of 'summary'",
+    "{{meta}} is an object field of 'summary'",
+  );
+});
+
+Deno.test("projection entries: enter and approve have no payload to match, fill or read a type from", () => {
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "At {{text}}" })]),
+    "{{field}} placeholders",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", match: { text: "a" } })]),
+    "only an entry on a recorded product",
+  );
+  assertRejects(
+    withEntries([entry({ on: { approve: "sign-off" }, setsType: "text" })]),
+    "setsType",
+  );
+});
+
+Deno.test("projection entries: two entries on one trigger must be told apart by cycle or match", () => {
+  assertRejects(
+    withEntries([
+      entry({ on: { record: "summary" }, step: "one" }),
+      entry({ on: { record: "summary" }, step: "two" }),
+    ]),
+    "entries 'one' and 'two' can both answer the same event",
+  );
+  assertValid(withEntries([
+    entry({ on: { record: "summary" }, step: "generated", cycle: "first" }),
+    entry({ on: { record: "summary" }, step: "revised", cycle: "later" }),
+  ]));
+  assertValid(withEntries([
+    entry({ on: { record: "summary" }, step: "yes", match: { text: "y" } }),
+    entry({ on: { record: "summary" }, step: "no", match: { text: "n" } }),
+  ]));
+  // Matching different fields does not make them exclusive.
+  assertRejects(
+    withEntries([
+      entry({ on: { record: "summary" }, step: "yes", match: { text: "y" } }),
+      entry({ on: { record: "summary" }, step: "other", cycle: "later" }),
+    ]),
+    "can both answer",
+  );
+});
+
+Deno.test("projection entries: a step is a lowercase name, and a status label a status key", () => {
+  assertRejects(
+    withEntries([entry({ on: "enter", step: "Started" })]),
+    "step",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", status: "In Progress" })]),
+    "status",
+  );
+});
+
 // --- evidence-recorded: match and message -------------------------------------
 
 /** base() with evidence 'out' and one evidence-recorded gate on it. */

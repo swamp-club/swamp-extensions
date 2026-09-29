@@ -8,11 +8,14 @@ human stop onto the lifecycle format. Anything the format could not express is
 listed under [Format gaps](#format-gaps) at the end. Each gap is a finding about
 the format; none was worked around silently.
 
-`swamp-extensions.yaml` describes the process. It does not replace
-issue-lifecycle: this repository keeps issue-lifecycle for now. gatorwalk has a
-swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), but this lifecycle
-does not use it yet; wiring it in, so gatorwalk can stand in for issue-lifecycle
-completely, is a follow-up.
+A work item on `swamp-extensions.yaml` drives a Lab issue end to end through the
+swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), so the issue reads
+the same as one issue-lifecycle drives: the same status moves, the same
+lifecycle entries under the same step names, the type set at triage, the
+attestation posted and the contributor thanked. issue-lifecycle stays and drives
+every other issue; the adapter's `claim` refuses an issue that has an
+issue-lifecycle instance (`issue-<N>`) in the repository, so one issue never has
+two drivers. See [Lifecycle entries](#lifecycle-entries).
 
 ## The process, stage by stage
 
@@ -30,26 +33,26 @@ open from every stage.
 
 ### Phases
 
-| issue-lifecycle                                      | gatorwalk                                                                                                          | Fit                                                        |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| `created`, `start` (fetch the issue, assign it)      | Starting the work item. The issue number goes in `externalRefs`.                                                   | Partial: fetching and assigning need swamp-club (gap 1)    |
-| `triaging` → `triage` → `classified`                 | `triage` stage, `classification` evidence                                                                          | Fits                                                       |
-| Bug reproduction (triage step 4)                     | `reproduce` stage, `reproduction` evidence, entered only for a bug                                                 | Fits                                                       |
-| `classified` → `plan` → `plan_generated`             | `plan` stage, `plan` artifact                                                                                      | Fits                                                       |
-| `adversarial_review`, `resolve_findings`, `iterate`  | `plan-review` stage, `plan-review` findings artifact reviewing `plan`; rework or revise go back to `plan`          | Fits; see "Resolving findings"                             |
-| `approve` → `approved`                               | `plan-review.approve`, with `human-approval` `plan-approval`                                                       | Fits                                                       |
-| `implement` → `implementing`                         | `implement` stage, `change-summary` artifact (full commit SHA and branch)                                          | Fits                                                       |
-| `code_conformance_review`, `justify_deviations`      | `conformance-review` stage, `conformance` artifact reviewing `change-summary`; justifying is recording it again    | Fits                                                       |
-| `verify` → `verifying`                               | `verify` stage, workflow mode: a wrapper runs verify-build and verify-reviews concurrently (gap 2)                 | Partial: the workflows' location (gap 3)                   |
-| `verification_passed`, `verification_failed`         | `verification` evidence, `status: succeeded` or `failed` with each child's; failed goes back to `implement`        | Fits                                                       |
-| `post_attestation`                                   | `attest` stage, `attestation` evidence carrying the id                                                             | Partial: the id is recorded, not posted or checked (gap 1) |
-| `link_pr` → `pr_open`                                | `pull-request` stage, `pull-request` evidence                                                                      | Fits                                                       |
-| `pr_merged` → `releasing`, `pr_failed` → `pr_failed` | `merge` stage, `merge` evidence `merged` or `failed`; failed has two manual exits, a new PR or back to `implement` | Fits                                                       |
-| `ship`, `complete` → `notify`                        | `release` stage, `release` evidence `shipped` or `completed`                                                       | Partial: `complete` from other phases (gap 6)              |
-| `notify`, `skip_notify` → `summarizing`              | `notify` stage, `notification` evidence `posted` or `skipped`; a person posts the ripple                           | Partial: posting needs swamp-club (gap 1)                  |
-| `summarize` → `done`                                 | `summary` stage, `summary` artifact, then `done`                                                                   | Fits                                                       |
-| `start` from any phase (a restart)                   | `reset`                                                                                                            | Partial (gap 7)                                            |
-| (none)                                               | `abandoned`, through the global `abandon` behind `human-approval` `abandon-confirmation`                           | Added: an issue abandoned today is simply left             |
+| issue-lifecycle                                      | gatorwalk                                                                                                          | Fit                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `created`, `start` (fetch the issue, assign it)      | The adapter's `claim` fetches the issue and prints the start command; `assign` assigns it and records `assigned`.  | Fits                                           |
+| `triaging` → `triage` → `classified`                 | `triage` stage, `classification` evidence                                                                          | Fits                                           |
+| Bug reproduction (triage step 4)                     | `reproduce` stage, `reproduction` evidence, entered only for a bug                                                 | Fits                                           |
+| `classified` → `plan` → `plan_generated`             | `plan` stage, `plan` artifact                                                                                      | Fits                                           |
+| `adversarial_review`, `resolve_findings`, `iterate`  | `plan-review` stage, `plan-review` findings artifact reviewing `plan`; rework or revise go back to `plan`          | Fits; see "Resolving findings"                 |
+| `approve` → `approved`                               | `plan-review.approve`, with `human-approval` `plan-approval`                                                       | Fits                                           |
+| `implement` → `implementing`                         | `implement` stage, `change-summary` artifact (full commit SHA and branch)                                          | Fits                                           |
+| `code_conformance_review`, `justify_deviations`      | `conformance-review` stage, `conformance` artifact reviewing `change-summary`; justifying is recording it again    | Fits                                           |
+| `verify` → `verifying`                               | `verify` stage, workflow mode: a wrapper runs verify-build and verify-reviews concurrently (gap 2)                 | Partial: the workflows' location (gap 3)       |
+| `verification_passed`, `verification_failed`         | `verification` evidence, `status: succeeded` or `failed` with each child's; failed goes back to `implement`        | Fits                                           |
+| `post_attestation`                                   | `attest` stage: posted through the adapter's `post_attestation`, `attestation` evidence carrying the id it returns | Fits; CI checks the attestation, as today      |
+| `link_pr` → `pr_open`                                | `pull-request` stage, `pull-request` evidence                                                                      | Fits                                           |
+| `pr_merged` → `releasing`, `pr_failed` → `pr_failed` | `merge` stage, `merge` evidence `merged` or `failed`; failed has two manual exits, a new PR or back to `implement` | Fits                                           |
+| `ship`, `complete` → `notify`                        | `release` stage, `release` evidence `shipped` or `completed`                                                       | Partial: `complete` from other phases (gap 6)  |
+| `notify`, `skip_notify` → `summarizing`              | `notify` stage: the adapter's `thank_author`, `notification` evidence `posted` or `skipped`                        | Fits                                           |
+| `summarize` → `done`                                 | `summary` stage, `summary` artifact, then `done`                                                                   | Fits                                           |
+| `start` from any phase (a restart)                   | `reset`                                                                                                            | Partial (gap 7)                                |
+| (none)                                               | `abandoned`, through the global `abandon` behind `human-approval` `abandon-confirmation`                           | Added: an issue abandoned today is simply left |
 
 ### Gates (issue-lifecycle's pre-flight checks)
 
@@ -83,7 +86,7 @@ code's.
 | Checklist: a person sees the green checklist and confirms before posting       | `verify.passed` needs `human-approval` `checklist-confirmed`                                                                                                                                                               |
 | Never open a PR without asking                                                 | `attest.attested` needs `human-approval` `open-pr`                                                                                                                                                                         |
 | PR failed: open a new PR or rework                                             | `merge.new-pr` and `merge.rework`, both manual                                                                                                                                                                             |
-| Contributor lookup failed: ask, then re-run, force or skip                     | `notify` is interactive; a person decides and the evidence records `posted` or `skipped` with the reason                                                                                                                   |
+| Contributor lookup failed: ask, then re-run, force or skip                     | `thank_author` fails closed and posts nothing; `notify` is interactive, so a person decides and the evidence records `posted` or `skipped` with the reason                                                                 |
 | (gatorwalk's own) declined approval must not leave abandon as the only way out | Manual `reclassify` from reproduce; manual `revise` after plan-review, the checklist and the open-pr decision; manual `rework` after conformance-review                                                                    |
 
 ### Cycle limits
@@ -104,22 +107,57 @@ reviews the new plan version. Here a blocking finding sends the plan back
 against the new plan. A finding can carry `resolved` and `resolutionNote`, as
 issue-lifecycle's do. Nothing is lost, so this is not a gap.
 
+### Lifecycle entries
+
+Each stage's `projection.entries` says which journal events become which Lab
+lifecycle entries, and `publish` writes them in place of comments. Every step
+name is issue-lifecycle's, with its emoji and its `targetStatus` label (an entry
+names its own `status` where the stage's differs, as `classified` and
+`plan_approved` do). The `classified` entry sets the issue type first, as
+issue-lifecycle's triage does.
+
+| Step                      | From                                         | Summary                               |
+| ------------------------- | -------------------------------------------- | ------------------------------------- |
+| `triage_started`          | entering `triage`                            | Same                                  |
+| `classified`              | `classification` recorded; sets the type     | Same, but no "(regression)"           |
+| `plan_generated`          | `plan` recorded, first cycle                 | Same                                  |
+| `plan_revised`            | `plan` recorded, a later cycle               | Close: no version or feedback round   |
+| `adversarial_review`      | `plan-review` recorded                       | Close: no counts                      |
+| `plan_approved`           | `plan-approval` approved                     | Close: no version                     |
+| `implementation_started`  | entering `implement`                         | Same                                  |
+| `code_conformance_review` | `conformance` recorded                       | Close: no counts                      |
+| `verification_started`    | entering `verify`                            | Close: no commit or branch            |
+| `verification_passed`     | `verification` recorded, `succeeded`         | Close: the commit, not the step count |
+| `verification_failed`     | `verification` recorded, `failed`            | Close: the commit, not the reason     |
+| `attestation_posted`      | `attestation` recorded                       | Same                                  |
+| `pr_linked`               | `pull-request` recorded                      | Close: no attempt number              |
+| `pr_merged`, `pr_failed`  | `merge` recorded, `merged` or `failed`       | Close: no attempt number              |
+| `shipped`, `complete`     | `release` recorded, `shipped` or `completed` | Same (no release url)                 |
+| `contributor_notified`    | `notification` recorded, `posted`            | Same                                  |
+| `notification_skipped`    | `notification` recorded, `skipped`           | Close: gives the reason               |
+| `session_summarized`      | `summary` recorded                           | Same                                  |
+| `abandoned` (gatorwalk's) | entering `abandoned`                         | issue-lifecycle has none              |
+
+"Close" summaries leave out what issue-lifecycle computes (counts, versions,
+attempt numbers): an entry's summary fills only fields of the recorded payload.
+Payloads are gatorwalk's own products, not issue-lifecycle's shapes.
+issue-lifecycle's `assigned` comes from the adapter's `assign`, not the journal.
+It has no entry for entering `reproduce`, for waiting on a person, for a reset
+or for a declined approval, and none of those posts one here.
+`findings_resolved` and `deviations_justified` have no gatorwalk event: a
+finding is resolved by recording the review again.
+
 ## Format gaps
 
 Candidates for issues. A resolved gap says so and keeps its number.
 
-1. **No way to act on swamp-club.** Fetching the issue, assigning it,
-   classifying it (the type PATCH), moving its status, posting lifecycle
-   entries, posting the attestation and thanking the contributor all happen
-   outside the lifecycle. The attestation id is recorded, but nothing checks
-   that it was posted or that it matches. The swamp-club adapter now exists
-   (`@swamp/gatorwalk-factory/swamp-club`: fetch, ripple, status, assign and
-   posting an attestation), but this lifecycle does not call it yet; listed so
-   the mapping is complete. The ticket's status is the one part now covered:
-   each stage names a Lab status as its `projection` key, and the adapter's
-   `publish` moves the issue as the work item moves (triaged while planning,
-   in_progress through release, shipped from `notify`, closed if abandoned). The
-   type PATCH, assignment, lifecycle entries and the attestation stay outside.
+1. **No way to act on swamp-club.** Resolved by swamp-club #2734. The adapter's
+   `publish` moves the status, writes the lifecycle entries and sets the type
+   from the classification; `attest` posts the attestation and `notify` thanks
+   the contributor through the adapter; `claim` and `assign` start from the
+   issue. The attestation is still checked only in CI (`validate-attestation`
+   reads it from the Lab by commit), as today. Kept here so the numbering the
+   other gaps are cited by stays.
 2. **No parallel stages (resolved inside one stage).** verify-build and
    verify-reviews run at the same time today and are judged together as one
    checklist. A lifecycle is in one stage at a time, so the first version ran

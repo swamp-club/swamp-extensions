@@ -108,6 +108,7 @@ the work item the ticket already has. Re-run it after any failure. See
 | `transition ... is not ready`             | Do what the failures name, or ask the person about a human gate.  |
 | `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                |
 | cycle limit, `runaway loop suspected`     | Stop and tell the person. Only they can grant an override.        |
+| `claim`: `driven by issue-lifecycle here` | Drive the issue with issue-lifecycle; gatorwalk does not take it. |
 
 Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops
 and their controls".

@@ -1080,10 +1080,11 @@ The contract:
   down or slow never holds a work item's lock or fails one of its writes.
 - **One writer per tracker field.** An adapter's `set_status` is the only code
   that writes a ticket's status, and the projection publisher (`publish`, below)
-  is its only caller for a work item. A stage that wants the ticket to move
-  requests a transition; the projection reflects it. A person moving the ticket
-  in the tracker is outside this rule; reconciling that belongs with inbound
-  webhooks.
+  is its only caller for a work item. The same holds for a ticket's type, where
+  the tracker has one: `publish` sets it from the entry that names it. A stage
+  that wants the ticket to move requests a transition; the projection reflects
+  it. A person moving the ticket in the tracker is outside this rule;
+  reconciling that belongs with inbound webhooks.
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
@@ -1136,6 +1137,17 @@ Every adapter provides five operations, as swamp methods built by
 | `claim`       | `issue`: id or display, optional `lifecycle`       | the snapshot, and the ticket index when it reserves a key |
 | `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 
+**An optional capability: history.** A tracker that keeps a structured history
+of each ticket and a ticket type (the Lab's lifecycle entries and issue type)
+offers it as the adapter's `history` (`postEntry`, `setType`). It sits beside
+the contract, not in it: Linear has neither, and the shared methods never ask an
+adapter without it. `publish` uses it when the lifecycle declares projection
+entries; its writes go through the same ledger (actions `lifecycle_entry` and
+`set_type`). The conformance suite checks it for an adapter that declares it (an
+entry returns its id, a type move is a no-op the second time, bad credentials
+are `auth`) and skips it otherwise. A snapshot may also carry the tracker's own
+`details` (the Lab's body, type, author and ripples).
+
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
 and are matched by exact name, then resolved to an id at call time). An unmapped
@@ -1172,7 +1184,8 @@ unchanged, and what it says is a pure function of the run and its pinned
 lifecycle (`_lib/projection.ts`). An explicit method now: a scheduled sweep or a
 driver tick can call the same thing later.
 
-What it does, in order:
+What it does, in order (step 3 is comments; a lifecycle with entries is
+published as entries instead, below):
 
 1. **Reads the work item** through `context.readModelData(<key>, "run")`, and
    its pinned lifecycle: by exact version through `context.queryData` (a query
@@ -1205,6 +1218,36 @@ What it does, in order:
    was; the re-run replays from there and the ledger turns every write that
    landed into a no-op. A publish with nothing new writes nothing.
 
+**Entries instead of comments.** A stage's `projection.entries` says which of
+its journal events become structured entries in the ticket's history: entering
+the stage (or starting in it), a product it declares being recorded, or one of
+its human-approval gates being approved. When the pinned lifecycle declares any
+and the adapter has the history capability, `publish` writes those entries and
+no comments: one event, one entry, or none if no entry answers it (a decline, a
+wait, a reset, a stage without entries). This is how a work item's Lab issue
+reads like one issue-lifecycle drives: the bundled `swamp-extensions` lifecycle
+reuses issue-lifecycle's step names, emoji and status labels. Which event is
+which step belongs to the lifecycle, pinned with it, for the same reason as the
+status key. For a recorded product, `publish` reads the payload at the version
+the journal names (by query, falling back to the latest copy) and accepts it
+only if its digest is the one the journal recorded, so an entry never describes
+a later version. `match` picks between entries on one trigger, `{{field}}` fills
+the summary from the payload (an absent field is empty text), and `setsType`
+names a payload field whose value is written as the ticket type first, under its
+own ledger key, as issue-lifecycle writes the type before its `classified`
+entry. An entry's `targetStatus` is a label only (swamp-club never moves the
+issue for it): the entry's own `status` key, else its stage's, else the last
+stage's before it, else the ticket's current status. Summaries are a template
+over the payload, not CEL, so what issue-lifecycle computes (counts, versions,
+attempts) is left out; `lifecycles/swamp-extensions.md` lists where. A summary
+needs fixed text besides its placeholders, and names only scalar fields. The
+payload sent is the recorded one without keys that start with `$`, which
+swamp-club refuses. An entry or type the tracker still refuses outright
+(`invalid`) is recorded in the ledger as skipped and logged, and the replay
+moves past it: its request comes from a digest-pinned payload, so no re-run
+could ever land it, and stalling there would freeze the ticket's status and
+every later entry. Other failures stop the publish for a re-run.
+
 **Where the stage-to-status mapping lives: both places.** A stage names a
 gatorwalk status key (`projection: { status: in_progress }`), and the adapter's
 `statuses` argument maps keys to the tracker's own names. The key belongs in the
@@ -1221,15 +1264,15 @@ placeholder stays bare.
 different request. `publish` derives its keys from the journal, so a different
 request under its own key can only mean a later gatorwalk-factory words the same
 event differently; a re-run after an upgrade counts it as delivered and logs the
-difference. `comment` and `set_status` keep the strict refusal.
+difference. `comment`, `set_status` and `set_type` keep the strict refusal.
 
 **Known gaps.** A crash between the tracker accepting a comment and the ledger
 recording it repeats that comment (the adapter contract's gap, above). Catching
-up after a long outage posts one comment per event. A work item parked by its
-stage's dispatch cap is not in the journal, so it is not projected (#2703). If
-the issue-lifecycle model drives the same Lab issue, it writes that issue's
-status too, and there are two writers; project a work item to an issue nothing
-else moves.
+up after a long outage posts one comment (or entry) per event. A work item
+parked by its stage's dispatch cap is not in the journal, so it is not projected
+(#2703). A failed publish does not block the work item, unlike issue-lifecycle,
+whose methods fail when their entry is refused; the Lab falls behind until
+`publish` is re-run, which the driving reference asks for after each step.
 
 ### The swamp-club Lab adapter
 
@@ -1260,6 +1303,21 @@ to it:
   reply is `upstream` rather than a silent unassign. Without a `username` input
   `assign` takes the stored login's user, as issue-lifecycle does, but only when
   the server it writes to is that login's own; otherwise it asks for `username`.
+  `set_type` sets the issue's type (one of bug, feature, platform, security);
+  the same type again writes nothing. `team_member` says whether the issue's
+  author is on swamp-club's team, from a fresh read of the issue and of the
+  eligible-assignee roster, matching the author's id and falling back to the
+  username, as issue-lifecycle does. It is fail-closed: any failed read is an
+  error, never "not on the team". `thank_author` does issue-lifecycle's
+  `notify`: the team check, then issue-lifecycle's thank-you ripple (word for
+  word, given the plan's summary and the pull request) to an author outside the
+  team, or nothing for a team member. A failed lookup posts nothing; `force`
+  skips only the roster check. A delivery key makes the ripple idempotent.
+  `assign` records issue-lifecycle's `assigned` entry when it adds the user,
+  best effort as there. The history capability posts lifecycle entries (the
+  server's step, emoji and summary limits checked before the call, a summary
+  over 2000 characters cut as issue-lifecycle cuts it) and sets the type.
+  `fetch_issue` records the body, type, author and ripples in `details`.
   `post_attestation` posts a verification attestation that was built elsewhere
   (`deno task build-attestation`); the adapter only checks that `subject.commit`
   is a full lowercase SHA, and swamp-club validates the rest. swamp-club stores
@@ -1269,8 +1327,19 @@ to it:
   timing, at least) and is posted, which is right: CI reads the latest
   attestation for a commit.
 - **An admin key.** swamp-club lets any user read issues and ripple, but only an
-  admin may move a status past `open` or `closed`, assign, look up assignees or
-  post attestations. A 403 says so.
+  admin may move a status past `open` or `closed`, assign, look up assignees
+  (and so check the team), post attestations or lifecycle entries, or set the
+  type. A 403 says so.
+- **One driver per issue.** issue-lifecycle keeps driving every issue it already
+  has. The Lab adapter's `claim` refuses an issue that has an issue-lifecycle
+  instance in the repository, `issue-<N>`: a definition of type
+  `@swamp/issue-lifecycle` by that name (including the one direct type execution
+  writes), or, when no definition is found, its `state` data. It refuses even
+  once that instance is done, and writes nothing. Two drivers would both write
+  the issue's status and history, and migrating an issue between them is not
+  supported; deleting the issue-lifecycle instance is the way to hand an issue
+  over. The check is gatorwalk's alone and read-only (`beforeClaim`, a hook the
+  shared `claim` calls once the ticket is fetched).
 - **Forked, not shared.** The client is a fork of issue-lifecycle's
   (`extensions/models/_lib/swamp_club.ts` at the repository root). The two are
   published as separate packages, so neither can import the other, and

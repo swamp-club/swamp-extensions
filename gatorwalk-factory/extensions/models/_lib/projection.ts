@@ -14,9 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import type { AwaitingExit, JournalEvent } from "./journal.ts";
-import type { Lifecycle } from "./lifecycle_schema.ts";
+import type { AwaitingExit, JournalEvent, ProductKind } from "./journal.ts";
+import {
+  type Lifecycle,
+  type ProjectionEntry,
+  triggerKey,
+} from "./lifecycle_schema.ts";
 import type { RunRecord } from "./run_record.ts";
+import { parseTemplate, renderTemplate } from "./template.ts";
 
 // ---------------------------------------------------------------------------
 // The projection: what a work item's journal says to its tracker ticket
@@ -111,4 +116,194 @@ function exitLine(exit: AwaitingExit): string {
     : "a person to confirm it";
   const from = exit.readyAt === undefined ? "" : `, from ${exit.readyAt}`;
   return `- \`${exit.transition}\` to **${exit.to}**: needs ${needs}${from}`;
+}
+
+// ---------------------------------------------------------------------------
+// Entries: the journal as structured ticket history (the Lab's lifecycle
+// entries), for a lifecycle whose stages declare projection.entries. Which
+// event becomes which step is the lifecycle's to say, pinned with the rest
+// of it. An event no entry answers posts nothing.
+// ---------------------------------------------------------------------------
+
+/** Whether a lifecycle declares any projection entries. */
+export function declaresEntries(lifecycle: Lifecycle): boolean {
+  return lifecycle.stages.some((s) => (s.projection?.entries?.length ?? 0) > 0);
+}
+
+/** A recorded product an entry reads its payload from. */
+export interface EntryProduct {
+  kind: ProductKind;
+  name: string;
+  version: number;
+  digest: string;
+}
+
+/** The entries one journal event could become; the payload picks one. */
+export interface EntryEvent {
+  /** The journal's length once this event was written (its index + 1). */
+  journalVersion: number;
+  /** The candidates in the lifecycle's order: those on the event's trigger
+   * and cycle. A match decides between them once the payload is read. */
+  candidates: ProjectionEntry[];
+  /** The status key labelling the entry unless it names its own: the
+   * stage's, else the last one entered before it, else null. */
+  status: string | null;
+  /** Set for a recorded product. */
+  product?: EntryProduct;
+}
+
+/**
+ * The journal events after `since` that some entry answers, in journal
+ * order. Status labels are worked out from the start of the journal, so a
+ * stage without a status key carries the one before it.
+ */
+export function projectEntries(
+  run: RunRecord,
+  lifecycle: Lifecycle,
+  since: number,
+): EntryEvent[] {
+  const stages = new Map(lifecycle.stages.map((s) => [s.id, s]));
+  const out: EntryEvent[] = [];
+  let status: string | null = null;
+  for (let i = 0; i < run.journal.length; i++) {
+    const event = run.journal[i];
+    const at = triggerOf(event);
+    if (at === null) continue;
+    const stage = stages.get(at.stage);
+    status = stage?.projection?.status ?? status;
+    if (i < since) continue;
+    const candidates = (stage?.projection?.entries ?? []).filter((e) =>
+      triggerKey(e.on) === at.key &&
+      (e.cycle === undefined || (e.cycle === "first") === (at.cycle === 1))
+    );
+    if (candidates.length === 0) continue;
+    out.push({
+      journalVersion: i + 1,
+      candidates,
+      status,
+      ...(at.product === undefined ? {} : { product: at.product }),
+    });
+  }
+  return out;
+}
+
+function triggerOf(event: JournalEvent): {
+  stage: string;
+  key: string;
+  cycle: number;
+  product?: EntryProduct;
+} | null {
+  switch (event.type) {
+    case "started":
+      return { stage: event.stage, key: "enter", cycle: 1 };
+    case "advanced":
+      return { stage: event.to, key: "enter", cycle: event.toCycle };
+    case "recorded":
+      return {
+        stage: event.stage,
+        key: triggerKey({ record: event.name }),
+        cycle: event.cycle,
+        product: {
+          kind: event.kind,
+          name: event.name,
+          version: event.version,
+          digest: event.digest,
+        },
+      };
+    case "approval":
+      return event.decision === "approve"
+        ? {
+          stage: event.stage,
+          key: triggerKey({ approve: event.gateId }),
+          cycle: event.cycle,
+        }
+        : null;
+    default:
+      return null;
+  }
+}
+
+/** The first candidate whose match the payload holds, or null. */
+export function chooseEntry(
+  candidates: ProjectionEntry[],
+  payload: Record<string, unknown>,
+): ProjectionEntry | null {
+  return candidates.find((e) =>
+    Object.entries(e.match ?? {}).every(([field, value]) =>
+      Object.hasOwn(payload, field) && payload[field] === value
+    )
+  ) ?? null;
+}
+
+/** An entry ready to write: everything but the tracker's status name. */
+export interface RenderedEntry {
+  step: string;
+  emoji: string;
+  summary: string;
+  /** The status key labelling it, or null when nothing names one. */
+  status: string | null;
+  isVerbose: boolean;
+  payload: Record<string, unknown>;
+  /** The ticket type to set first, when the entry reads one. */
+  type?: string;
+}
+
+/**
+ * The payload without keys that start with `$`, at any depth: swamp-club
+ * refuses a lifecycle entry whose payload has one (swamp-club#2284), and
+ * the recorded payload cannot be changed to suit it.
+ */
+export function withoutDollarKeys(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const clean = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(clean);
+    if (value === null || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([k]) => !k.startsWith("$"))
+        .map(([k, v]) => [k, clean(v)]),
+    );
+  };
+  return clean(payload) as Record<string, unknown>;
+}
+
+/**
+ * Fill an entry from its event and the recorded payload (empty for enter
+ * and approve). A placeholder whose field is absent reads as empty text,
+ * so an optional field never blocks the history.
+ */
+export function renderEntry(
+  entry: ProjectionEntry,
+  event: EntryEvent,
+  payload: Record<string, unknown>,
+): RenderedEntry {
+  const values: Record<string, unknown> = {};
+  for (const part of parseTemplate(entry.summary)) {
+    if (part.kind !== "placeholder") continue;
+    const value = Object.hasOwn(payload, part.name)
+      ? payload[part.name]
+      : undefined;
+    values[part.name] = value === null || value === undefined ? "" : value;
+  }
+  // Every value is filled above, so the render cannot come back missing one.
+  const rendered = renderTemplate(entry.summary, values);
+  if (!rendered.ok) {
+    throw new Error(
+      `entry '${entry.step}' left ${rendered.missing.join(", ")} unfilled`,
+    );
+  }
+  const summary = rendered.text;
+  const type = entry.setsType === undefined
+    ? undefined
+    : payload[entry.setsType];
+  return {
+    step: entry.step,
+    emoji: entry.emoji,
+    summary,
+    status: entry.status ?? event.status,
+    isVerbose: entry.verbose === true,
+    payload: event.product === undefined ? {} : withoutDollarKeys(payload),
+    ...(typeof type === "string" && type !== "" ? { type } : {}),
+  };
 }
