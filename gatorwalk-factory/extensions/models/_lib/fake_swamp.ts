@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import type { ClaimContext } from "./claim.ts";
+import type { ClaimContext, ModelDataRecord } from "./claim.ts";
 
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
-// instance, a definition repository, globalArgs per instance, tagOverrides
-// and a logger. Not used by production code.
+// instance, readModelData across instances, a definition repository,
+// globalArgs per instance, tagOverrides and a logger. Not used by production
+// code.
 // ---------------------------------------------------------------------------
 
 export interface FakeSwamp {
@@ -36,7 +37,13 @@ export interface FakeSwamp {
   context(
     name: string,
     initiatedBy?: string,
-  ): ClaimContext & { globalArgs: Record<string, unknown> };
+  ): ClaimContext & {
+    globalArgs: Record<string, unknown>;
+    readModelData(
+      modelName: string,
+      specName?: string,
+    ): Promise<ModelDataRecord[]>;
+  };
   versionsWritten(instance: string): number;
 }
 
@@ -87,20 +94,25 @@ export function fakeSwamp(): FakeSwamp {
           value === undefined ? null : structuredClone(value),
         );
       },
-      // Another instance's records of a spec, every version, as swamp's
-      // readModelData returns them (only the fields claim reads).
+      // Like swamp: the latest version of each of another instance's records
+      // (a query that names version reaches history; this call does not),
+      // its data as both attributes and content. Reading never creates the
+      // instance.
       readModelData: (modelName, specName) => {
-        const records = [...of(modelName).entries()]
-          .filter(([resource]) =>
-            specName === undefined ||
-            specs.get(modelName)?.get(resource) === specName
-          )
-          .flatMap(([, versions]) =>
-            versions.map((attributes, i) => ({
-              version: i + 1,
-              attributes: structuredClone(attributes),
-            }))
-          );
+        const records: ModelDataRecord[] = [];
+        for (const [resource, versions] of resources.get(modelName) ?? []) {
+          const spec = specs.get(modelName)?.get(resource);
+          if (specName !== undefined && spec !== specName) continue;
+          const latest = versions.at(-1);
+          if (latest === undefined) continue;
+          records.push({
+            name: resource,
+            version: versions.length,
+            isLatest: true,
+            attributes: structuredClone(latest),
+            content: structuredClone(latest),
+          });
+        }
         return Promise.resolve(records);
       },
       definitionRepository: {

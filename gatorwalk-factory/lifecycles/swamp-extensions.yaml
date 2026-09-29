@@ -156,6 +156,7 @@ stages:
                 answers; record it again once they have answered
 
   - id: reproduce
+    projection: { status: triaged }
     description: >-
       Reproduce the bug before planning a fix. A bug that cannot be
       reproduced goes on to planning only with a person's approval.
@@ -207,6 +208,7 @@ stages:
           is not the bug it looked like. Manual, so it never fires on its own.
 
   - id: plan
+    projection: { status: triaged }
     description: Plan the change, following the repository's planning conventions.
     # Three plans before a person grants another round. The limits on triage,
     # plan, implement and pull-request also keep the graph analysis complete:
@@ -256,6 +258,7 @@ stages:
             config: { artifact: plan }
 
   - id: plan-review
+    projection: { status: triaged }
     description: >-
       Adversarial review of the current plan. Approval needs a fresh review
       with no open critical or high findings and a person's sign-off; open
@@ -314,6 +317,7 @@ stages:
           blocking finding. Manual, so it never fires on its own.
 
   - id: implement
+    projection: { status: in_progress }
     description: >-
       Implement the approved plan and commit it. Each pass through
       verification needs a new commit; recheck re-runs it on the same one.
@@ -378,6 +382,7 @@ stages:
                 new commit goes through submit
 
   - id: conformance-review
+    projection: { status: in_progress }
     description: >-
       Compare the committed code with the approved plan, step by step. Every
       step not implemented as planned needs a justification; recording the
@@ -439,6 +444,7 @@ stages:
           The code has to change to match the plan. A person decides.
 
   - id: verify
+    projection: { status: in_progress }
     description: >-
       The verify workflow at the change-summary commit: verify-build and
       verify-reviews run concurrently as nested runs of one wrapper, and are
@@ -529,6 +535,7 @@ stages:
           on its own.
 
   - id: attest
+    projection: { status: in_progress }
     description: >-
       Build the attestation from the two child runs of verify and post it to swamp-club, then
       record its id. Posting is done by hand until this lifecycle uses the
@@ -584,6 +591,7 @@ stages:
           Manual, so it never fires on its own.
 
   - id: pull-request
+    projection: { status: in_progress }
     description: Open the pull request for the attested commit.
     # One replacement pull request before a person grants another; see plan.
     maxCycles: 2
@@ -617,6 +625,7 @@ stages:
               message: the pull request must be for the attested commit
 
   - id: merge
+    projection: { status: in_progress }
     description: >-
       Wait for CI and the merge. The outcome is reported no sooner than three
       minutes after the pull request was recorded, to give CI time to run. A
@@ -678,6 +687,7 @@ stages:
             config: { afterEvidence: pull-request, seconds: 180 }
 
   - id: release
+    projection: { status: in_progress }
     description: >-
       Check that the change was released: CI publishes an extension whose
       manifest changed on main. completed is the fallback when there is no
@@ -710,6 +720,7 @@ stages:
             config: { name: release }
 
   - id: notify
+    projection: { status: shipped }
     description: >-
       Thank the issue's author, unless they are on the swamp-club team. Done by
       hand until this lifecycle uses the swamp-club adapter.
@@ -738,6 +749,7 @@ stages:
             config: { name: notification }
 
   - id: summary
+    projection: { status: shipped }
     description: >-
       Restate the original problem and the delivered outcome, and say whether
       the outcome met the problem.
@@ -764,9 +776,11 @@ stages:
 
   - id: done
     terminal: true
+    projection: { status: shipped }
 
   - id: abandoned
     terminal: true
+    projection: { status: closed }
 
 globalTransitions:
   - name: abandon

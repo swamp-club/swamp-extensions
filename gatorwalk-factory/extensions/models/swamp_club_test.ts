@@ -33,6 +33,7 @@ import {
 } from "./_lib/swamp_club_fake.ts";
 import { type FakeSwamp, fakeSwamp } from "./_lib/fake_swamp.ts";
 import { TrackerError } from "./_lib/tracker.ts";
+import { PROJECTED_ITEM, projectedItem } from "./_lib/test_support.ts";
 
 const INSTANCE = "lab";
 const ISSUE = String(LAB_ISSUE);
@@ -285,6 +286,31 @@ Deno.test("swamp-club model: an attestation without a full lowercase commit is r
         assertEquals(error.kind, "invalid");
       }
       assertEquals(fake.requests.length, 0);
+    },
+  );
+});
+
+Deno.test("swamp-club model: publish ripples each event and skips a status the issue cannot move back to", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      fake.issues[0].status = "shipped";
+      await projectedItem(swamp, { "swamp-club": ISSUE });
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      assertEquals(fake.comments.length, 1);
+      assert(fake.comments[0].body.includes("started on lifecycle"));
+      assertEquals(fake.issues[0].status, "shipped");
+      assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
+      const cursor = swamp.resources.get(INSTANCE)?.get(
+        `cursor-${PROJECTED_ITEM}`,
+      )?.[0];
+      assertEquals(cursor?.status, "in_progress");
+
+      // Nothing new: nothing is read or written on the Lab.
+      const requests = fake.requests.length;
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      assertEquals(fake.requests.length, requests);
     },
   );
 });

@@ -151,14 +151,15 @@ Deno.test("swamp-club: a status move walks one step at a time, from the current 
   });
 });
 
-Deno.test("swamp-club: moving backwards is invalid and writes nothing", async () => {
+Deno.test("swamp-club: moving backwards is invalid, unreachable, and writes nothing", async () => {
   await withFake(async (fake) => {
     fake.issues[0].status = "in_progress";
-    await failsWith(
+    const back = await failsWith(
       "invalid",
       () => adapterFor(fake).setStatus(ISSUE, "triaged"),
       "only move forward",
     );
+    assertEquals(back.reason, "unreachable");
     await failsWith(
       "invalid",
       () => adapterFor(fake).setStatus(ISSUE, "open"),
@@ -169,13 +170,26 @@ Deno.test("swamp-club: moving backwards is invalid and writes nothing", async ()
   });
 });
 
+Deno.test("swamp-club: from a status the adapter does not know, a move is plain invalid, not unreachable", async () => {
+  await withFake(async (fake) => {
+    fake.issues[0].status = "archived";
+    const error = await failsWith(
+      "invalid",
+      () => adapterFor(fake).setStatus(ISSUE, "in_progress"),
+      "no path from it",
+    );
+    assertEquals(error.reason, undefined);
+  });
+});
+
 Deno.test("swamp-club: an unknown status lists the five Lab statuses, before any call", async () => {
   await withFake(async (fake) => {
-    await failsWith(
+    const unknown = await failsWith(
       "invalid",
       () => adapterFor(fake).setStatus(ISSUE, "In Progress"),
       "open, triaged, in_progress, shipped, closed",
     );
+    assertEquals(unknown.reason, undefined, "a name it lacks is plain invalid");
     assertEquals(fake.requests.length, 0);
   });
 });

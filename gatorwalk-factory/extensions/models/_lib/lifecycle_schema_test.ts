@@ -682,6 +682,27 @@ Deno.test("transitionsFrom: stage transitions plus globals; none from terminals"
   assertEquals(transitionsFrom(lifecycle, done), []);
 });
 
+// --- projection hints ----------------------------------------------------------
+
+Deno.test("projection: a stage may name a status key", () => {
+  const doc = base();
+  set(doc, "stages.0.projection", { status: "in_progress" });
+  set(doc, "stages.1.projection", {});
+  assertValid(doc);
+});
+
+Deno.test("projection: the status key is a name, and nothing else is accepted", () => {
+  const doc = base();
+  set(doc, "stages.0.projection", { status: "In Progress", comment: false });
+  assertRejects(doc, "stages.0.projection.status:", "comment");
+});
+
+Deno.test("projection: a stage without one parses without the key, so its digest does not move", () => {
+  const result = parseLifecycle(base());
+  assert(result.ok);
+  assert(result.value.stages.every((s) => !("projection" in s)));
+});
+
 // --- evidence-recorded: match and message -------------------------------------
 
 /** base() with evidence 'out' and one evidence-recorded gate on it. */

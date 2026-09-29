@@ -71,6 +71,14 @@ export const TRACKER_ERROR_KINDS = [
 export type TrackerErrorKind = typeof TRACKER_ERROR_KINDS[number];
 
 /**
+ * Why an `invalid` status move was refused, when the reason is where the
+ * ticket is now: the tracker knows the status but cannot move there from
+ * here (the Lab only moves forward). The projection skips such a move
+ * rather than failing.
+ */
+export type TrackerErrorReason = "unreachable";
+
+/**
  * A failure every tracker reports the same way. Messages never carry a
  * credential.
  */
@@ -80,6 +88,7 @@ export class TrackerError extends Error {
     readonly tracker: string,
     /** The message without the tracker and kind in front. */
     readonly detail: string,
+    readonly reason?: TrackerErrorReason,
   ) {
     super(`${tracker} ${kind}: ${detail}`);
     this.name = "TrackerError";

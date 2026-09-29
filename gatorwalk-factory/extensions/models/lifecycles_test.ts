@@ -47,6 +47,7 @@ import {
   update,
 } from "./_lib/run_store.ts";
 import { expectNow, testEnv } from "./_lib/test_support.ts";
+import { LAB_STATUSES } from "./_lib/swamp_club.ts";
 
 // ---------------------------------------------------------------------------
 // The lifecycles gatorwalk-factory ships, under lifecycles/.
@@ -92,6 +93,38 @@ Deno.test("every file under lifecycles/ is a valid lifecycle", async () => {
   }
   assert(files.length > 0, "no lifecycles found");
   for (const file of files) await load(file);
+});
+
+Deno.test("every lifecycle's status keys are Lab statuses, so the Lab adapter needs no status map", async () => {
+  for await (const entry of Deno.readDir(LIFECYCLES)) {
+    if (!entry.isFile || !entry.name.endsWith(".yaml")) continue;
+    const lifecycle = await load(entry.name);
+    const keyed = lifecycle.stages.filter((s) =>
+      s.projection?.status !== undefined
+    );
+    assert(keyed.length > 0, `${entry.name} projects no status`);
+    for (const s of keyed) {
+      assert(
+        (LAB_STATUSES as readonly string[]).includes(
+          s.projection?.status ?? "",
+        ),
+        `${entry.name}: stage '${s.id}' has status key ` +
+          `'${s.projection?.status}', not one of ${LAB_STATUSES.join(", ")}`,
+      );
+    }
+    // In stage order the keys only move forward along the Lab's order, so
+    // a work item going forward never asks the Lab to move back.
+    const order = ["open", "triaged", "in_progress", "shipped"];
+    const forward = keyed.filter((s) => s.projection?.status !== "closed")
+      .map((s) => order.indexOf(s.projection?.status ?? ""));
+    assertEquals(
+      forward,
+      [...forward].sort((a, b) => a - b),
+      `${entry.name}: status keys go backwards in stage order`,
+    );
+    assertEquals(stage(lifecycle, "done").projection?.status, "shipped");
+    assertEquals(stage(lifecycle, "abandoned").projection?.status, "closed");
+  }
 });
 
 // --- build-swamp-extension -------------------------------------------------

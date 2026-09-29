@@ -115,7 +115,11 @@ Candidates for issues. A resolved gap says so and keeps its number.
    that it was posted or that it matches. The swamp-club adapter now exists
    (`@swamp/gatorwalk-factory/swamp-club`: fetch, ripple, status, assign and
    posting an attestation), but this lifecycle does not call it yet; listed so
-   the mapping is complete.
+   the mapping is complete. The ticket's status is the one part now covered:
+   each stage names a Lab status as its `projection` key, and the adapter's
+   `publish` moves the issue as the work item moves (triaged while planning,
+   in_progress through release, shipped from `notify`, closed if abandoned). The
+   type PATCH, assignment, lifecycle entries and the attestation stay outside.
 2. **No parallel stages (resolved inside one stage).** verify-build and
    verify-reviews run at the same time today and are judged together as one
    checklist. A lifecycle is in one stage at a time, so the first version ran

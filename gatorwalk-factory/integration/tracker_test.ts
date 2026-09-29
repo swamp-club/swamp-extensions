@@ -26,6 +26,7 @@ import {
   LAB_ISSUE,
   swampClubFake,
 } from "../extensions/models/_lib/swamp_club_fake.ts";
+import { projectedDefinition } from "../extensions/models/_lib/test_support.ts";
 import {
   LINEAR_TYPE,
   SWAMP_CLUB_TYPE,
@@ -216,6 +217,97 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
         !(await Deno.readTextFile(path)).includes(ADMIN_KEY),
         "the definition keeps the vault expression, not the key",
       );
+    });
+  } finally {
+    await fake.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Publish on the real engine: the Linear adapter reads a work item that is
+// another model instance (context.readModelData), replays its journal to
+// the local Linear fake, and a re-run delivers only what is new.
+// ---------------------------------------------------------------------------
+
+Deno.test("tracker: publish replays a work item's journal to its Linear issue, once", async () => {
+  const fake = linearFake();
+  try {
+    await withRepo(async (repo) => {
+      await repo.holder("projected", projectedDefinition());
+      const key = await repo.newKey("projected");
+      await repo.workItem(key, "start", {
+        lifecycle: "projected",
+        externalRefs: JSON.stringify({ linear: ISSUE_UUID }),
+      });
+      await repo.workItem(key, "advance", {
+        transition: "submit",
+        ...await repo.expected(key),
+      });
+
+      const { stdout } = await repo.swamp([
+        "model",
+        "create",
+        LINEAR_TYPE,
+        "linear",
+        "--json",
+      ]);
+      const path = (JSON.parse(stdout) as { path: string }).path;
+      const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+        string,
+        unknown
+      >;
+      definition.globalArguments = {
+        apiToken: FAKE_TOKEN,
+        apiUrl: fake.url,
+        statuses: {
+          in_progress: "In Progress",
+          in_review: "In Review",
+          shipped: "Done",
+        },
+      };
+      await Deno.writeTextFile(path, stringifyYaml(definition));
+      const publish = () =>
+        repo.swamp([
+          "model",
+          "method",
+          "run",
+          "linear",
+          "publish",
+          "--input",
+          `workItem=${key}`,
+          "--log",
+        ]);
+
+      await publish();
+      assertEquals(
+        fake.comments.map((c) => c.body.split("\n")[0]),
+        [
+          `**${key}** started on lifecycle \`projected\`, at stage **write**.`,
+          `**${key}** entered **review** (cycle 1) by \`submit\`.`,
+          `**${key}** is waiting on a person in **review**:`,
+        ],
+      );
+      assertEquals(fake.issues[0].stateId, "state-review");
+
+      const again = await publish();
+      assert(again.output.includes("is up to date"), again.output);
+      assertEquals(fake.comments.length, 3);
+
+      await repo.workItem(key, "approve", {
+        gateId: "ship-approval",
+        ...await repo.expected(key),
+      });
+      await repo.workItem(key, "advance", {
+        transition: "ship",
+        ...await repo.expected(key),
+      });
+      await publish();
+      assertEquals(fake.comments.length, 5, "only the new events");
+      assert(fake.comments[4].body.includes("finished at **done** by `ship`"));
+      assertEquals(fake.issues[0].stateId, "state-done");
+      const cursor = await repo.data("linear", `cursor-${key}`);
+      assertEquals(cursor.status, "shipped");
+      assertEquals(cursor.journalVersion, (await repo.run(key)).journal.length);
     });
   } finally {
     await fake.close();

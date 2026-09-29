@@ -543,6 +543,14 @@ export const StageSchema = z.strictObject({
   artifacts: z.array(ArtifactSpecSchema).optional(),
   evidence: z.array(EvidenceSpecSchema).optional(),
   transitions: z.array(TransitionSchema).optional(),
+  /** How a tracker ticket shows this stage (DESIGN.md, "The projection
+   * publisher"). */
+  projection: z.strictObject({
+    /** A gatorwalk status key, which a tracker adapter's statuses argument
+     * maps to its own status name. Absent: entering the stage leaves the
+     * ticket's status alone. */
+    status: NameSchema.optional(),
+  }).optional(),
 });
 
 export type StageSpec = z.infer<typeof StageSchema>;

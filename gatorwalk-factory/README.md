@@ -111,6 +111,11 @@ artifacts, evidence, transitions and gates. Three things change:
   does not produce, and transitions only a cycle override opens. Each finding
   gives its path, the stage it is judged from, and a trace of stages from the
   initial stage. See [DESIGN.md](DESIGN.md), "Graph validation".
+- **A stage may name a tracker status key**, `projection: { status: <key> }`,
+  new in gatorwalk. When a work item enters the stage, the projection publisher
+  moves its ticket to the status the tracker adapter's `statuses` argument maps
+  that key to. A stage without one leaves the ticket's status alone. See
+  [DESIGN.md](DESIGN.md), "The projection publisher".
 
 A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
@@ -127,7 +132,8 @@ method copies its stages into the lifecycle as ordinary stages, which you then
 save and edit freely. Nothing refers back to the plugin afterwards.
 
 Sketch the lifecycle first, with a **placeholder stage** where the plugin goes.
-It is bare (only `id`, `description`, `initial` and `transitions`), and its
+It is bare (only `id`, `description`, `initial` and `transitions`; no
+`projection`, since the plugin's stages carry their own status keys), and its
 transitions are named after the plugin's exits:
 
 ```yaml
@@ -215,6 +221,13 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
   it. This is how a lifecycle, which is in one stage at a time, runs things in
   parallel; see DESIGN.md, "Parallel work inside one stage". Every exit from
   verification to the merge is bound to the commit in `change-summary`.
+
+Both lifecycles name a status key on their stages, using the Lab's own status
+names: the planning stages are `triaged` (swamp-extensions' `triage` stage has
+no key, so the issue's status is left alone while it is triaged), the work
+through release is `in_progress`, `done` is `shipped` (in swamp-extensions, also
+`notify` and `summary`), and `abandoned` is `closed`. The Lab adapter maps them
+as they are; a Linear instance maps them to its team's names.
 
 `lifecycles/swamp-extensions.md` is not a lifecycle. It maps every phase, gate
 and human stop of today's process onto the format, and lists what the format
@@ -324,13 +337,21 @@ swamp vault put secrets linear-token          # prompts for the key
 swamp model create @swamp/gatorwalk-factory/linear linear --json
 # In the printed definition file, set globalArguments:
 #   apiToken: ${{ vault.get(secrets, linear-token) }}
-#   statuses: { started: In Progress, review: In Review, done: Done }
+#   statuses: { triaged: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
 swamp model method run linear fetch_issue --input issue=ABC-1 --log
+swamp model method run linear publish --input workItem=<key> --log
 ```
 
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
 item with. `comment` and `set_status` take the UUID; given `workItem` and
 `journalVersion`, a repeat of the same pair writes nothing to Linear.
+
+`publish` replays a work item's journal to the issue its `externalRefs` name: a
+comment for each event a person needs (the start, each stage entered, approvals,
+waits at a human stop, resets, the finish), and the status when the stage's
+status key changes. Run it after any change; it delivers only what is new, and
+after a failure a re-run picks up where it stopped. It is the only writer of a
+work item's ticket status.
 
 ## swamp-club Lab
 
@@ -351,9 +372,12 @@ swamp model method run lab post_attestation \
 ```
 
 `comment` posts a ripple. Statuses only move forward, one step at a time, which
-`set_status` walks for you; moving back is refused. `post_attestation` posts an
-attestation built elsewhere (`deno task build-attestation`), and posting the
-same one again for a commit writes nothing.
+`set_status` walks for you; moving back is refused. `publish` works as it does
+for Linear (above), and skips a status move the issue cannot make, such as back
+to `triaged` after a reset, rather than failing. Do not publish to an issue that
+issue-lifecycle also drives: both would write its status. `post_attestation`
+posts an attestation built elsewhere (`deno task build-attestation`), and
+posting the same one again for a commit writes nothing.
 
 ## Start from a ticket
 

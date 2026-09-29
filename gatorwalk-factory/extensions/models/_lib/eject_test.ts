@@ -758,3 +758,31 @@ Deno.test("rewriteCel: other maps and dynamic keys are left alone; string litera
   );
   assertEquals(result.literals, ["plan"]);
 });
+
+// --- projection hints -------------------------------------------------------------
+
+Deno.test("eject: a plugin stage's projection hint is carried into the lifecycle", async () => {
+  const doc = await raw("plugins/review-plan.yaml");
+  (doc.stages as Record<string, unknown>[])[0].projection = {
+    status: "triaged",
+  };
+  const instantiated = instantiatePlugin(doc, undefined);
+  if (!instantiated.ok) throw new Error(instantiated.errors.join("\n"));
+  const { lifecycle: out } = ok(
+    ejectPlugin(await target(), instantiated.plugin, { replace: "review" }),
+  );
+  assertEquals(stage(out, "review").projection, { status: "triaged" });
+});
+
+Deno.test("eject: a placeholder may not declare a projection hint; the plugin's stages carry their own", async () => {
+  const base = await raw("lifecycles/eject-target.yaml");
+  (base.stages as Record<string, unknown>[])[1].projection = {
+    status: "triaged",
+  };
+  assertMentions(
+    errorsOf(
+      ejectPlugin(asLifecycle(base), await reviewPlan(), { replace: "review" }),
+    ),
+    "replace: stage 'review' is not a bare placeholder (it declares projection)",
+  );
+});

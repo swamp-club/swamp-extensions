@@ -54,10 +54,17 @@ export const TicketClaimSchema = z.object({
 });
 export type TicketClaim = z.infer<typeof TicketClaimSchema>;
 
-/** A data record as swamp's readModelData returns it: the part claim reads. */
+/**
+ * A data record as swamp's readModelData (and queryData) returns it: the
+ * parts gatorwalk reads. swamp gives a JSON resource's data as both
+ * `attributes` and `content`; claim reads the one, publish the other.
+ */
 export interface ModelDataRecord {
+  name?: string;
   version: number;
-  attributes: Record<string, unknown>;
+  isLatest?: boolean;
+  attributes?: Record<string, unknown>;
+  content?: unknown;
 }
 
 /** What claim needs from swamp's method context. */

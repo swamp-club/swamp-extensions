@@ -19,21 +19,30 @@ import { digestOf } from "./canonical.ts";
 import {
   type ClaimContext,
   claimTicket,
+  type ModelDataRecord,
   TICKET_SPEC,
   TicketClaimSchema,
 } from "./claim.ts";
+import { project } from "./projection.ts";
+import { parseRun, type RunRecord } from "./run_record.ts";
+import { RUN_NAME, RUN_SPEC } from "./run_store.ts";
 import {
   type DeliveryKey,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
 } from "./tracker.ts";
-import type { MethodOutput } from "./work_item_ops.ts";
+import {
+  checkPinned,
+  LIFECYCLE_NAME,
+  LIFECYCLE_SPEC,
+  type MethodOutput,
+} from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
-// contract: fetch_issue, comment and set_status, and claim, which starts
-// from a ticket (claim.ts).
+// contract: fetch_issue, comment, set_status and publish, and claim, which
+// starts from a ticket (claim.ts).
 //
 // Delivery ledger: a comment or status write that carries a delivery key
 // (workItem + journalVersion) records what the tracker returned under a name
@@ -46,6 +55,7 @@ import type { MethodOutput } from "./work_item_ops.ts";
 
 export const ISSUE_SPEC = "issue";
 export const DELIVERY_SPEC = "delivery";
+export const CURSOR_SPEC = "cursor";
 
 export const DeliverySchema = z.object({
   action: z.enum(["comment", "set_status"]),
@@ -74,9 +84,25 @@ export const IssueSchema = z.object({
   fetchedAt: z.string(),
 });
 
+/**
+ * How far publish has delivered a work item to its ticket: every journal
+ * event up to journalVersion, and the last status key it wrote.
+ */
+export const CursorSchema = z.object({
+  workItem: z.string(),
+  issue: z.string(),
+  journalVersion: z.number().int().nonnegative(),
+  /** The status key last delivered (or skipped as unreachable), or null. */
+  status: z.string().nullable(),
+  at: z.string(),
+});
+export type Cursor = z.infer<typeof CursorSchema>;
+
 /** What the methods need from swamp's method context. */
 export interface TrackerContext extends ClaimContext {
   globalArgs?: Record<string, unknown>;
+  /** A CEL query over all data; one that names `version` reaches history. */
+  queryData?(predicate: string, select?: string): Promise<unknown[]>;
 }
 
 // Record names come from ids and keys; keep them to a path-safe alphabet.
@@ -91,11 +117,18 @@ function safePart(what: string, value: string): string {
   return value;
 }
 
+/**
+ * The ledger record for a keyed write. publish keeps its own records
+ * (`delivery-publish-<action>-...`), so a key someone passed to comment or
+ * set_status by hand never stands in for, or blocks, a publish.
+ */
 export function deliveryName(
   action: Delivery["action"],
   key: DeliveryKey,
+  by: "method" | "publish" = "method",
 ): string {
-  return `delivery-${action}-${safePart("workItem", key.workItem)}-${
+  const prefix = by === "publish" ? "delivery-publish" : "delivery";
+  return `${prefix}-${action}-${safePart("workItem", key.workItem)}-${
     String(key.journalVersion)
   }`;
 }
@@ -135,14 +168,18 @@ function resources(ctx: TrackerContext) {
 
 /**
  * The delivery already recorded under this key, if any. The same key for a
- * different ticket or a different request is refused: one key names one
- * moment of one work item, so it can only ever mean one write.
+ * different ticket is refused: one key names one moment of one work item. So
+ * is the same key for a different request, unless `replay` is set: publish
+ * derives its keys from the journal, so a different request there can only
+ * be a later version wording the same event differently, and the event has
+ * been delivered.
  */
 async function priorDelivery(
   ctx: TrackerContext,
   name: string,
   issue: string,
   request: string,
+  replay: boolean,
 ): Promise<Delivery | null> {
   const raw = await resources(ctx).read(name);
   if (raw === null) return null;
@@ -154,10 +191,16 @@ async function priorDelivery(
     );
   }
   if (prior.request !== request) {
-    throw new Error(
-      `delivery ${name} was made with a different request; ` +
-        "a delivery key names one write",
-    );
+    if (!replay) {
+      throw new Error(
+        `delivery ${name} was made with a different request; ` +
+          "a delivery key names one write",
+      );
+    }
+    ctx.logger.info("{summary}", {
+      summary: `delivery ${name} was made with a different request ` +
+        "(worded by another version); counted as delivered",
+    });
   }
   return prior;
 }
@@ -177,6 +220,268 @@ export interface TrackerModelOptions {
   /** Status keys to the tracker's status names (from globalArgs). */
   statuses(globalArgs: Record<string, unknown>): Record<string, string>;
   now?: () => Date;
+}
+
+/** One keyed or unkeyed write, as the comment and set_status paths take it. */
+interface Write {
+  issue: string;
+  key: DeliveryKey | null;
+  /** Set by publish: its own ledger records, and see priorDelivery. */
+  replay: boolean;
+}
+
+interface Delivered {
+  handles: unknown[];
+  /** False when the ledger already held the key and nothing was written. */
+  wrote: boolean;
+}
+
+/** The ledger-guarded writes, shared by comment, set_status and publish. */
+function deliveries(options: TrackerModelOptions, now: () => Date) {
+  const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+
+  const comment = async (
+    ctx: TrackerContext,
+    write: Write & { body: string },
+  ): Promise<Delivered> => {
+    const { key } = write;
+    const name = key === null
+      ? null
+      : deliveryName("comment", key, write.replay ? "publish" : "method");
+    const request = await digestOf({ body: write.body });
+    if (name !== null) {
+      const prior = await priorDelivery(
+        ctx,
+        name,
+        write.issue,
+        request,
+        write.replay,
+      );
+      if (prior !== null) {
+        ctx.logger.info("{summary}", {
+          summary: `already delivered (${name}); posted nothing`,
+          ...prior.result,
+        });
+        return { handles: [], wrote: false };
+      }
+    }
+    const adapter = options.adapter(argsOf(ctx));
+    const posted = await adapter.comment(write.issue, write.body);
+    const handles: unknown[] = [];
+    if (key !== null && name !== null) {
+      handles.push(
+        await recordDelivery(ctx, name, {
+          action: "comment",
+          issue: write.issue,
+          ...key,
+          request,
+          result: { ...posted },
+          at: now().toISOString(),
+        }),
+      );
+    }
+    ctx.logger.info("{summary}", {
+      summary: `commented on ${write.issue}`,
+      id: posted.id,
+      url: posted.url,
+    });
+    return { handles, wrote: true };
+  };
+
+  const setStatus = async (
+    ctx: TrackerContext,
+    write: Write & {
+      status: string;
+      /** Record an unreachable status as a skip instead of failing. */
+      skipUnreachable: boolean;
+    },
+  ): Promise<Delivered> => {
+    // The ledger first: a delivered key is a no-op even if the statuses
+    // mapping has changed since.
+    const { key } = write;
+    const name = key === null
+      ? null
+      : deliveryName("set_status", key, write.replay ? "publish" : "method");
+    const request = await digestOf({ status: write.status });
+    if (name !== null) {
+      const prior = await priorDelivery(
+        ctx,
+        name,
+        write.issue,
+        request,
+        write.replay,
+      );
+      if (prior !== null) {
+        ctx.logger.info("{summary}", {
+          summary: `already delivered (${name}); wrote nothing`,
+          ...prior.result,
+        });
+        return { handles: [], wrote: false };
+      }
+    }
+    const statuses = options.statuses(argsOf(ctx));
+    const statusName = statuses[write.status];
+    if (statusName === undefined) {
+      const known = Object.keys(statuses);
+      throw new TrackerError(
+        "invalid",
+        options.tracker,
+        `status key '${write.status}' is not in the statuses global argument (${
+          known.length === 0 ? "it is empty" : `mapped: ${known.join(", ")}`
+        })`,
+      );
+    }
+    const adapter = options.adapter(argsOf(ctx));
+    let result: Record<string, unknown>;
+    let summary: string;
+    try {
+      const change = await adapter.setStatus(write.issue, statusName);
+      result = { ...change };
+      summary = change.changed
+        ? `moved ${write.issue} to '${change.status.name}'`
+        : `${write.issue} is already '${change.status.name}'; wrote nothing`;
+    } catch (error) {
+      if (
+        !write.skipUnreachable || key === null || name === null ||
+        !(error instanceof TrackerError) || error.reason !== "unreachable"
+      ) throw error;
+      // Recorded, so a retry of the key does not try again.
+      result = { skipped: "unreachable", detail: error.detail };
+      summary = `skipped moving ${write.issue} to '${statusName}': ` +
+        error.detail;
+    }
+    const handles: unknown[] = [];
+    if (key !== null && name !== null) {
+      handles.push(
+        await recordDelivery(ctx, name, {
+          action: "set_status",
+          issue: write.issue,
+          ...key,
+          request,
+          result,
+          at: now().toISOString(),
+        }),
+      );
+    }
+    ctx.logger.info("{summary}", { summary });
+    return { handles, wrote: true };
+  };
+
+  return { comment, setStatus };
+}
+
+const publishArguments = z.object({
+  workItem: z.string().min(1).describe(
+    "The work item's name (its key); its externalRefs name the ticket",
+  ),
+});
+
+/**
+ * A record's data as an object: its content, or its attributes. swamp
+ * parses JSON content for readModelData and queryData, but a query result
+ * may carry it as the JSON text instead, so that is parsed here; anything
+ * else is no object.
+ */
+function recordObject(record: unknown): Record<string, unknown> | null {
+  const r = record !== null && typeof record === "object"
+    ? record as { content?: unknown; attributes?: unknown }
+    : {};
+  let content = r.content ?? r.attributes;
+  if (typeof content === "string") {
+    try {
+      content = JSON.parse(content);
+    } catch {
+      return null;
+    }
+  }
+  return content !== null && typeof content === "object" &&
+      !Array.isArray(content)
+    ? content as Record<string, unknown>
+    : null;
+}
+
+/** The latest version of a named record among another model's data. */
+function latestNamed(
+  records: ModelDataRecord[],
+  name: string,
+): ModelDataRecord | null {
+  const named = records.filter((r) => r.name === undefined || r.name === name);
+  if (named.length === 0) return null;
+  return named.find((r) => r.isLatest === true) ??
+    named.reduce((a, b) => (b.version > a.version ? b : a));
+}
+
+/** A work item's run and pinned lifecycle, read across model instances. */
+async function readWorkItem(ctx: TrackerContext, workItem: string) {
+  if (ctx.readModelData === undefined) {
+    throw new Error(
+      "this method context has no readModelData; the runtime is too old " +
+        "to read a work item from a tracker model",
+    );
+  }
+  // Only a run whose own key is this work item counts: readModelData labels
+  // data it attributes to the name from an earlier definition with the name
+  // asked for too (see claim.ts).
+  const runRecord = latestNamed(
+    (await ctx.readModelData(workItem, RUN_SPEC)).filter((r) =>
+      recordObject(r)?.key === workItem
+    ),
+    RUN_NAME,
+  );
+  if (runRecord === null) {
+    throw new Error(`no work item '${workItem}': it has no run record`);
+  }
+  const parsed = parseRun(recordObject(runRecord));
+  if (!parsed.ok) {
+    throw new Error(
+      `work item '${workItem}' has an unreadable run record:\n${
+        parsed.errors.join("\n")
+      }`,
+    );
+  }
+  const run: RunRecord = parsed.value;
+  // The copy the run names. readModelData gives only the latest version,
+  // which is that one unless a repinning reset was cut short, so ask for the
+  // exact version first. A query is not limited to this repository's
+  // namespace; checkPinned accepts only a copy with the digest the run
+  // recorded, so whichever candidate passes is the pinned lifecycle.
+  const candidates: unknown[] = [];
+  if (ctx.queryData !== undefined && run.lifecycle.version !== undefined) {
+    // workItem has passed safePart, so it cannot break out of the string.
+    try {
+      candidates.push(
+        ...await ctx.queryData(
+          `modelName == "${workItem}" && specName == "${LIFECYCLE_SPEC}" && ` +
+            `name == "${LIFECYCLE_NAME}" && ` +
+            `version == ${run.lifecycle.version}`,
+        ),
+      );
+    } catch (error) {
+      // The latest copy is almost always the pinned one; try it instead.
+      ctx.logger.info("{summary}", {
+        summary: `could not query the pinned lifecycle of '${workItem}' ` +
+          `by version (${
+            error instanceof Error ? error.message : String(error)
+          }); trying the latest copy`,
+      });
+    }
+  }
+  const latest = latestNamed(
+    await ctx.readModelData(workItem, LIFECYCLE_SPEC),
+    LIFECYCLE_NAME,
+  );
+  if (latest !== null) candidates.push(latest);
+  let refusal: unknown = null;
+  for (const candidate of candidates) {
+    try {
+      const pinned = await checkPinned(recordObject(candidate), run);
+      return { run, lifecycle: pinned.lifecycle };
+    } catch (error) {
+      refusal = error;
+    }
+  }
+  if (refusal !== null) throw refusal;
+  return { run, lifecycle: (await checkPinned(null, run)).lifecycle };
 }
 
 const fetchIssueArguments = z.object({
@@ -231,6 +536,13 @@ export const trackerResources = {
     // key, so retention never counts versions here.
     garbageCollection: "1y",
   },
+  [CURSOR_SPEC]: {
+    description:
+      "How far publish has delivered each work item: one record per work item",
+    schema: CursorSchema,
+    lifetime: "infinite" as const,
+    garbageCollection: 5,
+  },
   [TICKET_SPEC]: {
     description:
       "The ticket index: each ticket's work item, reserved or started, one record per ticket",
@@ -242,10 +554,12 @@ export const trackerResources = {
   },
 };
 
-/** The fetch_issue, claim, comment and set_status methods, over one adapter. */
+/** The fetch_issue, claim, comment, set_status and publish methods, over one
+ * adapter. */
 export function trackerMethods(options: TrackerModelOptions) {
   const now = options.now ?? (() => new Date());
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+  const deliver = deliveries(options, now);
 
   const fetch = (ctx: TrackerContext, ref: string): Promise<TrackerIssue> =>
     options.adapter(argsOf(ctx)).fetchIssue(ref);
@@ -313,96 +627,119 @@ export function trackerMethods(options: TrackerModelOptions) {
         args: z.infer<typeof commentArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        const key = deliveryKeyOf(args);
-        const name = key === null ? null : deliveryName("comment", key);
-        const request = await digestOf({ body: args.body });
-        if (name !== null) {
-          const prior = await priorDelivery(ctx, name, args.issue, request);
-          if (prior !== null) {
-            ctx.logger.info("{summary}", {
-              summary: `already delivered (${name}); posted nothing`,
-              ...prior.result,
-            });
-            return { dataHandles: [] };
-          }
-        }
-        const adapter = options.adapter(argsOf(ctx));
-        const posted = await adapter.comment(args.issue, args.body);
-        const handles: unknown[] = [];
-        if (key !== null && name !== null) {
-          handles.push(
-            await recordDelivery(ctx, name, {
-              action: "comment",
-              issue: args.issue,
-              ...key,
-              request,
-              result: { ...posted },
-              at: now().toISOString(),
-            }),
-          );
-        }
-        ctx.logger.info("{summary}", {
-          summary: `commented on ${args.issue}`,
-          id: posted.id,
-          url: posted.url,
+        const { handles } = await deliver.comment(ctx, {
+          issue: args.issue,
+          body: args.body,
+          key: deliveryKeyOf(args),
+          replay: false,
         });
         return { dataHandles: handles };
       },
     },
     set_status: {
       description:
-        "Move a ticket to a mapped status (the single writer of tracker status); already there writes nothing",
+        "Move a ticket to a mapped status (publish is the single writer of a work item's status); already there writes nothing",
       arguments: setStatusArguments,
       execute: async (
         args: z.infer<typeof setStatusArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        // The ledger first: a delivered key is a no-op even if the statuses
-        // mapping has changed since.
-        const key = deliveryKeyOf(args);
-        const name = key === null ? null : deliveryName("set_status", key);
-        const request = await digestOf({ status: args.status });
-        if (name !== null) {
-          const prior = await priorDelivery(ctx, name, args.issue, request);
-          if (prior !== null) {
-            ctx.logger.info("{summary}", {
-              summary: `already delivered (${name}); wrote nothing`,
-              ...prior.result,
-            });
-            return { dataHandles: [] };
-          }
-        }
-        const statuses = options.statuses(argsOf(ctx));
-        const statusName = statuses[args.status];
-        if (statusName === undefined) {
-          const known = Object.keys(statuses);
-          throw new TrackerError(
-            "invalid",
-            options.tracker,
-            `status key '${args.status}' is not in the statuses global argument (${
-              known.length === 0 ? "it is empty" : `mapped: ${known.join(", ")}`
-            })`,
+        const { handles } = await deliver.setStatus(ctx, {
+          issue: args.issue,
+          status: args.status,
+          key: deliveryKeyOf(args),
+          replay: false,
+          skipUnreachable: false,
+        });
+        return { dataHandles: handles };
+      },
+    },
+    publish: {
+      description:
+        "Replay a work item's journal to its ticket: a comment per event a person needs, and the status when the stage's key changes; a re-run delivers only what is new",
+      arguments: publishArguments,
+      execute: async (
+        args: z.infer<typeof publishArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const workItem = safePart("workItem", args.workItem);
+        const { run, lifecycle } = await readWorkItem(ctx, workItem);
+        const issue = run.externalRefs[options.tracker];
+        if (issue === undefined || issue === "") {
+          throw new Error(
+            `work item '${workItem}' has no externalRefs.${options.tracker}; ` +
+              "start it with the ticket's stable id to publish it",
           );
         }
-        const adapter = options.adapter(argsOf(ctx));
-        const change = await adapter.setStatus(args.issue, statusName);
+        const cursorName = `cursor-${workItem}`;
+        const rawCursor = await resources(ctx).read(cursorName);
+        const cursor = rawCursor === null
+          ? null
+          : CursorSchema.parse(rawCursor);
+        if (cursor !== null && cursor.issue !== issue) {
+          throw new Error(
+            `work item '${workItem}' was published to ${cursor.issue}, and ` +
+              `now names ${issue}; one work item projects to one ticket`,
+          );
+        }
+        const journalVersion = run.journal.length;
+        const since = cursor?.journalVersion ?? 0;
+        if (since > journalVersion) {
+          throw new Error(
+            `the cursor for '${workItem}' is at journal version ${since}, ` +
+              `past the run's ${journalVersion}; the journal only grows`,
+          );
+        }
+        const projection = project(run, lifecycle, since);
+        const lastStatus = cursor?.status ?? null;
+        const moveTo = projection.status !== null &&
+            projection.status !== lastStatus
+          ? projection.status
+          : null;
+        if (since === journalVersion && moveTo === null) {
+          ctx.logger.info("{summary}", {
+            summary: `${workItem} is up to date on ${issue}`,
+          });
+          return { dataHandles: [] };
+        }
+
         const handles: unknown[] = [];
-        if (key !== null && name !== null) {
-          handles.push(
-            await recordDelivery(ctx, name, {
-              action: "set_status",
-              issue: args.issue,
-              ...key,
-              request,
-              result: { ...change },
-              at: now().toISOString(),
-            }),
-          );
+        let posted = 0;
+        for (const planned of projection.comments) {
+          const done = await deliver.comment(ctx, {
+            issue,
+            body: planned.body,
+            key: { workItem, journalVersion: planned.journalVersion },
+            replay: true,
+          });
+          handles.push(...done.handles);
+          if (done.wrote) posted++;
         }
+        if (moveTo !== null) {
+          const done = await deliver.setStatus(ctx, {
+            issue,
+            status: moveTo,
+            key: { workItem, journalVersion },
+            replay: true,
+            skipUnreachable: true,
+          });
+          handles.push(...done.handles);
+        }
+        // Last: a failure above leaves the cursor where it was, and the
+        // re-run's replay finds each landed write in the ledger.
+        handles.push(
+          await resources(ctx).write(CURSOR_SPEC, cursorName, {
+            workItem,
+            issue,
+            journalVersion,
+            status: moveTo ?? lastStatus,
+            at: now().toISOString(),
+          }),
+        );
         ctx.logger.info("{summary}", {
-          summary: change.changed
-            ? `moved ${args.issue} to '${change.status.name}'`
-            : `${args.issue} is already '${change.status.name}'; wrote nothing`,
+          summary: `published ${workItem} to ${issue} through journal ` +
+            `version ${journalVersion}: ${posted} comment(s)` +
+            (moveTo === null ? "" : `, status '${moveTo}'`),
         });
         return { dataHandles: handles };
       },

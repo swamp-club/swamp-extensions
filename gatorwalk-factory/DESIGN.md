@@ -368,15 +368,15 @@ Warnings:
 
 - **`ambiguous-exit`:** two sibling exits to different stages, neither of them
   manual or behind a `human-approval` gate without `when`, whose gates are not
-  provably exclusive. Exclusive means `evidence-recorded` on the same evidence requiring
-  values of a field no single payload can hold, or `max-cycles` on the same
-  stage and limit with opposite `invert`. Keys are compared as the field paths
-  the gate reads, so `a.b: 1` and `a: { b: 2 }` are exclusive. A `requireField`
-  value reads as a `const`; of a `match` fragment, only `const`, `enum` and a
-  `not` of those are read, and a fragment with none of them is never proven
-  exclusive. Other keywords beside a `const` or `enum` only narrow, so they are
-  ignored safely; inside a `not` they would narrow what is excluded, so a `not`
-  is read only when it holds nothing else but annotations. A set of
+  provably exclusive. Exclusive means `evidence-recorded` on the same evidence
+  requiring values of a field no single payload can hold, or `max-cycles` on the
+  same stage and limit with opposite `invert`. Keys are compared as the field
+  paths the gate reads, so `a.b: 1` and `a: { b: 2 }` are exclusive. A
+  `requireField` value reads as a `const`; of a `match` fragment, only `const`,
+  `enum` and a `not` of those are read, and a fragment with none of them is
+  never proven exclusive. Other keywords beside a `const` or `enum` only narrow,
+  so they are ignored safely; inside a `not` they would narrow what is excluded,
+  so a `not` is read only when it holds nothing else but annotations. A set of
   values required above a path is read at the path below; an exclusion above
   says nothing about the path below. CEL cannot be compared. Two exits to the
   same stage are not ambiguous, since the driver reaches the same place
@@ -660,11 +660,11 @@ its properties, so the text carries everything a driver acts on: `status` prints
 each exit's readiness and the ids of its human-approval gates (a ready exit that
 a person must decide looks otherwise the same as one an agent may take), split
 into those a person must decide now and conditional ones whose `when` is false
-(`humanGates` and `humanGatesNotRequired` in the logged status), the
-stage's work mode, the dispatch count, and payload rejections; and `dispatch`
-prints the whole packet. `status` is a `read` method, so it takes no lock. A
-refused write throws with its reason and writes nothing. A rejected payload is
-committed to the run as retry feedback and then thrown: no method declares
+(`humanGates` and `humanGatesNotRequired` in the logged status), the stage's
+work mode, the dispatch count, and payload rejections; and `dispatch` prints the
+whole packet. `status` is a `read` method, so it takes no lock. A refused write
+throws with its reason and writes nothing. A rejected payload is committed to
+the run as retry feedback and then thrown: no method declares
 `rollbackOnFailure`, so the feedback survives and the caller still gets a
 non-zero exit.
 
@@ -780,10 +780,11 @@ The contract:
   The work-item type and its runtime make no network call, so a tracker being
   down or slow never holds a work item's lock or fails one of its writes.
 - **One writer per tracker field.** An adapter's `set_status` is the only code
-  that writes a ticket's status, and the projection publisher (GW-17) is its
-  only caller for a work item. A stage that wants the ticket to move requests a
-  transition; the projection reflects it. A person moving the ticket in the
-  tracker is outside this rule; reconciling that belongs with inbound webhooks.
+  that writes a ticket's status, and the projection publisher (`publish`, below)
+  is its only caller for a work item. A stage that wants the ticket to move
+  requests a transition; the projection reflects it. A person moving the ticket
+  in the tracker is outside this rule; reconciling that belongs with inbound
+  webhooks.
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
@@ -825,7 +826,7 @@ The contract:
   asked (the comment body or the status key), so the same key for a different
   ticket or a different request is refused rather than silently skipped.
 
-Every adapter provides four operations, as swamp methods built by
+Every adapter provides five operations, as swamp methods built by
 `trackerMethods`:
 
 | Method        | Inputs                                             | Writes                                                    |
@@ -834,6 +835,7 @@ Every adapter provides four operations, as swamp methods built by
 | `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed                             |
 | `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
 | `claim`       | `issue`: id or display, optional `lifecycle`       | the snapshot, and the ticket index when it reserves a key |
+| `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
@@ -843,12 +845,16 @@ listing the team's statuses. Moving a ticket to the status it already has writes
 nothing.
 
 Failures are a `TrackerError` with one of five kinds: `auth`, `not_found`,
-`rate_limited`, `invalid` or `upstream`. Nothing is retried: every write is
-idempotent through the ledger or by being a no-op, so the caller re-runs.
-`_lib/tracker_conformance.ts` checks this contract the same way for every
-adapter, against that adapter's local fake of its tracker. It checks a bad
-credential on a write (`comment`), not a read: swamp-club serves reads to
-anyone, so a bad key only shows once the adapter writes.
+`rate_limited`, `invalid` or `upstream`. An `invalid` status move may also carry
+the reason `unreachable`: the tracker knows the status, but the ticket cannot
+get there from where it is (the Lab only moves forward, and a shipped issue
+cannot be closed). A ticket in a status the adapter does not know is plain
+`invalid`, so publish reports it rather than skipping the move. Nothing is
+retried: every write is idempotent through the ledger or by being a no-op, so
+the caller re-runs. `_lib/tracker_conformance.ts` checks this contract the same
+way for every adapter, against that adapter's local fake of its tracker. It
+checks a bad credential on a write (`comment`), not a read: swamp-club serves
+reads to anyone, so a bad key only shows once the adapter writes.
 
 **Known gaps.** The ledger is read, then the tracker is written, then the
 ledger. That relies on swamp running one method at a time per adapter instance,
@@ -858,6 +864,72 @@ retry. For a comment that means a duplicate. A hidden marker in the comment
 body, searched on retry, would close it if that matters. Ledger records are kept
 by age for a year; a replay of a key older than that would write again. Linear
 status lookup reads up to 250 statuses per team, Linear's page limit.
+
+### The projection publisher
+
+**Decision.** `publish` replays one work item's journal to its ticket. It is one
+of the shared methods in `_lib/tracker_methods.ts`, so every adapter has it
+unchanged, and what it says is a pure function of the run and its pinned
+lifecycle (`_lib/projection.ts`). An explicit method now: a scheduled sweep or a
+driver tick can call the same thing later.
+
+What it does, in order:
+
+1. **Reads the work item** through `context.readModelData(<key>, "run")`, and
+   its pinned lifecycle: by exact version through `context.queryData` (a query
+   naming `version` reaches history; `readModelData` gives only the latest), and
+   otherwise, or if that query fails (logged), the latest copy. The query is not
+   limited to this repository's namespace, so a candidate is used only if its
+   digest is the one the run recorded. The ticket is `externalRefs[<tracker>]`;
+   a work item without one is refused.
+2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
+   version delivered so far, the ticket, and the last status key written. A
+   cursor for another ticket is refused: one work item projects to one ticket.
+3. **Posts a comment for each event after the cursor** that a person on the
+   ticket needs, keyed on (work item, that event's journal version). publish
+   keeps its own ledger records, `delivery-publish-<action>-<key>-<version>`, so
+   a key someone passed to `comment` or `set_status` by hand neither stands in
+   for a publish nor blocks it. The events: `started`, `advanced` (worded as
+   finishing when the stage is terminal, so `abandoned` is not announced as
+   done), `approval` (given or declined, naming the actor's platform principal
+   as the journal records it; an asserted actor is free text and left out),
+   `awaiting` with exits (each exit and what it needs), and `reset`.
+   `dispatched`, `usage`, `recorded`, `rejected`, `override` and an empty
+   `awaiting` post nothing.
+4. **Writes the status once**, keyed on (work item, journal length), and only
+   when the current stage's status key differs from the last one written. A
+   person who moves the ticket in the tracker is not undone by a publish that
+   did not change the stage; the next stage whose key differs moves it again. A
+   move the tracker refuses as `unreachable` is recorded in the ledger as
+   skipped, counts as written, and is logged rather than failing the publish.
+5. **Writes the cursor last.** A failure part-way leaves the cursor where it
+   was; the re-run replays from there and the ledger turns every write that
+   landed into a no-op. A publish with nothing new writes nothing.
+
+**Where the stage-to-status mapping lives: both places.** A stage names a
+gatorwalk status key (`projection: { status: in_progress }`), and the adapter's
+`statuses` argument maps keys to the tracker's own names. The key belongs in the
+lifecycle because only its author knows what a stage means, and there it is
+pinned by digest with the rest of the run. The tracker's names belong to whoever
+runs the workspace, and differ per team. The bundled lifecycles use the Lab's
+own status names as keys (`triaged`, `in_progress`, `shipped`, `closed`), so the
+Lab adapter's default map needs no configuration and Linear maps the same keys
+to its team's names. A stage without a key leaves the status alone. Stages a
+plugin brings in by eject carry the plugin's keys; the placeholder stays bare.
+
+**Why replay tolerates a reworded body.** The ledger refuses a key reused for a
+different request. `publish` derives its keys from the journal, so a different
+request under its own key can only mean a later gatorwalk-factory words the same
+event differently; a re-run after an upgrade counts it as delivered and logs the
+difference. `comment` and `set_status` keep the strict refusal.
+
+**Known gaps.** A crash between the tracker accepting a comment and the ledger
+recording it repeats that comment (the adapter contract's gap, above). Catching
+up after a long outage posts one comment per event. A work item parked by its
+stage's dispatch cap is not in the journal, so it is not projected (#2703). If
+the issue-lifecycle model drives the same Lab issue, it writes that issue's
+status too, and there are two writers; project a work item to an issue nothing
+else moves.
 
 ### The swamp-club Lab adapter
 
@@ -911,14 +983,6 @@ to it:
   reason, and the caller rephrases. Issue reads are rate limited per IP.
   `assign` reads the assignees and then writes their union, so an edit made in
   between is lost.
-
-**Designed for, not built here.**
-
-- **The projection publisher (GW-17)** reads a work item's run record through
-  `context.readModelData(<key>, "run")`, takes the journal length as its cursor,
-  and calls `comment` and `set_status` with that length as the delivery key. A
-  replay after a crash re-sends keys already delivered, and the ledger skips
-  them.
 
 ### Start from a ticket
 

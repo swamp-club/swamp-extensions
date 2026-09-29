@@ -21,8 +21,9 @@ Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
 8. [Record products](#record-products)
 9. [Advance: the propulsion rule](#advance-the-propulsion-rule)
 10. [Human stops](#human-stops)
-11. [When something fails](#when-something-fails)
-12. [Resuming](#resuming)
+11. [Keep the ticket in step](#keep-the-ticket-in-step)
+12. [When something fails](#when-something-fails)
+13. [Resuming](#resuming)
 
 ## The two model types
 
@@ -342,6 +343,22 @@ swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
 An approval is bound to the exact versions of the products in the era. If a
 product it covered is recorded again, the approval stops counting and the person
 must decide again.
+
+## Keep the ticket in step
+
+When the work item was started with `externalRefs` for a tracker, publish it
+after each write, on that tracker's adapter instance (`<tracker>`, for example
+the `linear` or `lab` instance):
+
+```sh
+swamp model method run <tracker> publish --input workItem=<key> --log
+```
+
+`publish` posts a comment for each new event a person on the ticket needs, and
+moves the ticket when the stage's status key changes. It is the only thing that
+writes the ticket's status: never call `set_status` for a work item yourself.
+Running it again delivers only what is new, so after a failure run it again.
+Publishing is a view; a failed publish never blocks the work item.
 
 ## When something fails
 

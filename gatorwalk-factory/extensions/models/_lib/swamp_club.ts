@@ -21,6 +21,7 @@ import {
   type TrackerComment,
   TrackerError,
   type TrackerErrorKind,
+  type TrackerErrorReason,
   type TrackerIssue,
 } from "./tracker.ts";
 
@@ -248,8 +249,12 @@ interface LabIssueBody {
   };
 }
 
-function fail(kind: TrackerErrorKind, detail: string): never {
-  throw new TrackerError(kind, SWAMP_CLUB, detail);
+function fail(
+  kind: TrackerErrorKind,
+  detail: string,
+  reason?: TrackerErrorReason,
+): never {
+  throw new TrackerError(kind, SWAMP_CLUB, detail, reason);
 }
 
 function kindOf(status: number): TrackerErrorKind {
@@ -291,15 +296,24 @@ function pathOf(
   current: string,
   target: LabStatus,
 ): LabStatus[] {
-  const refuse = (why: string): never =>
-    fail("invalid", `#${issue} is '${current}'; ${why}`);
+  // unreachable: the Lab knows both statuses; the issue just cannot get
+  // there from where it is. A current status the adapter does not know is
+  // plain invalid, so publish reports it rather than skipping the move.
+  const refuse = (why: string, unreachable = true): never =>
+    fail(
+      "invalid",
+      `#${issue} is '${current}'; ${why}`,
+      unreachable ? "unreachable" : undefined,
+    );
   if (target === "closed") {
     if (current === "shipped") refuse("a shipped issue cannot be closed");
     return ["closed"];
   }
   // Reopening is the only move out of closed, then forward from open.
   const from = current === "closed" ? 0 : FORWARD.indexOf(current as LabStatus);
-  if (from < 0) refuse(`swamp-club has no path from it to '${target}'`);
+  if (from < 0) {
+    refuse(`swamp-club has no path from it to '${target}'`, false);
+  }
   const to = FORWARD.indexOf(target);
   if (to < from) {
     refuse(

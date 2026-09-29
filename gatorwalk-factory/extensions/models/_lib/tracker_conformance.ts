@@ -26,7 +26,11 @@ import {
   type TrackerContext,
   trackerMethods,
 } from "./tracker_methods.ts";
-import { smallLifecycle } from "./test_support.ts";
+import {
+  PROJECTED_ITEM,
+  projectedItem,
+  smallLifecycle,
+} from "./test_support.ts";
 import { HOLDER_TYPE } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
@@ -148,4 +152,28 @@ export async function assertTrackerConformance(
     [`${adapter.tracker}.display`]: f.issue.display,
   });
   assert(summary.includes(refs), summary);
+
+  // Publish, through the shared methods: a work item started on the ticket
+  // is read across instances, its started event is posted once, and its
+  // stage's key maps to the status the ticket already has, so the move
+  // writes nothing. A second publish delivers nothing.
+  const published = fakeSwamp();
+  await projectedItem(published, { [adapter.tracker]: f.issue.id });
+  const publisher = trackerMethods({
+    tracker: adapter.tracker,
+    adapter: () => adapter,
+    statuses: () => ({ in_progress: second }),
+  });
+  const publishArgs = publisher.publish.arguments.parse({
+    workItem: PROJECTED_ITEM,
+  });
+  const beforePublish = f.commentsPosted();
+  await publisher.publish.execute(publishArgs, published.context("tracker"));
+  await publisher.publish.execute(publishArgs, published.context("tracker"));
+  assertEquals(
+    f.commentsPosted(),
+    beforePublish + 1,
+    "publish posts the started event once",
+  );
+  assertEquals((await adapter.fetchIssue(f.issue.id)).status.name, second);
 }
