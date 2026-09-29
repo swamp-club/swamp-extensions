@@ -197,6 +197,140 @@ Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
 (`version + 1.0`) or a conversion (`int(version) + 1`).
 
+## Loops and their controls
+
+**Decision.** A lifecycle is a directed graph that contains cycles. It is
+deliberately not a DAG: rework, re-checking and revision are loops back to
+earlier stages, and every loop is bounded by the controls below.
+
+The swamp workflows that do a stage's work are acyclic (they have no loops),
+which is why parallel work belongs there (#2699; see "Parallel work inside one
+stage"). Looping happens between stages; concurrency happens inside one.
+
+The examples are from `lifecycles/build-swamp-extension.yaml` and
+`lifecycles/swamp-extensions.yaml`, except where marked.
+
+### A loop is an ordinary transition back
+
+There is no loop construct. A loop is a transition whose target is an earlier
+stage, such as `rework` from `plan-review` back to `plan`. Each entry into a
+stage is a new **cycle** of it: the run record counts entries per stage, and the
+cycle number is that count. Entering `plan` for the second time starts `plan`
+cycle 2.
+
+### Evidence counts only for the current pass
+
+A gate reads what was recorded in this cycle, so a loop cannot pass on the
+previous pass's results:
+
+- `evidence-recorded` accepts only evidence recorded in the current stage and
+  cycle.
+- `artifact-fresh` with `recordedThisCycle: true` accepts only an artifact
+  recorded in the current stage and cycle. Both exits of `plan-review` demand a
+  review recorded in this pass.
+- `human-approval` counts decisions for its gate id in the current stage, cycle
+  and era, so an approval given in an earlier pass does not carry over.
+- An approval is voided when what it approved changes, even within one pass.
+  Resolving findings means recording the findings artifact again, which voids an
+  approval bound to the old version. See "Approvals".
+
+### A loop needs a reason
+
+A way back either reads the run data or waits for a person:
+
+- **Rework exits are gated on data.** `rework` from `plan-review` has a `cel`
+  gate that needs an open critical or high finding in `plan-review`. With no
+  such finding it cannot pass, so an agent cannot loop on its own whim.
+- **Manual ways back need a person.** `revise` (after a review is declined
+  without a blocking finding) and `recheck` (for a failure that was not the
+  code's, such as a flaky test) are `manual: true`. The driver never takes a
+  manual transition, even when its gates pass; a person says go.
+
+### The cycle limit
+
+A stage may be entered `maxCycles` times, 5 by default, plus once per cycle
+override granted for it. `advance` refuses the entry past that. In
+`swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan` and
+`implement` set 3; `build-swamp-extension.yaml` keeps the default everywhere.
+
+Cycle overrides (`grant_override` with `kind=cycle`) are granted by a person.
+They accumulate: every grant in the era counts, and none resets the count. A
+reset starts a new era, and with it fresh entry counts and no overrides. See
+"Circuit breakers".
+
+### The dispatch cap
+
+The cycle limit bounds loops between stages. The dispatch cap bounds a runaway
+loop within one pass: a stage entry may take `maxDispatchesPerCycle` dispatches,
+2 by default, plus once per dispatch override granted for that stage and cycle.
+Past that, `dispatch` is refused as a suspected runaway loop. Neither bundled
+lifecycle sets it.
+
+### Routing on the loop count
+
+A `max-cycles` gate reads how many times a stage has been entered in the era: it
+passes while the count is below `limit`, or, with `invert: true`, once it has
+reached `limit`. A pair of them routes on the count, for example to stop
+reworking and escalate after three passes. No bundled lifecycle does this yet;
+this is an illustration:
+
+```yaml
+- id: code-review
+  transitions:
+    - name: rework # after the first and second pass
+      to: implement
+      gates:
+        - type: max-cycles
+          config: { stage: implement, limit: 3 }
+        # ...and the open-finding cel gate, as in the bundled lifecycles
+    - name: escalate # after the third
+      to: redesign
+      gates:
+        - type: max-cycles
+          config: { stage: implement, limit: 3, invert: true }
+        # ...and the same open-finding cel gate
+```
+
+The two gates are on the same stage and limit with opposite `invert`, so the
+graph analysis proves the exits exclusive and does not warn that the driver
+would have to guess.
+
+### Escape hatches
+
+A loop can never wedge a run:
+
+- **Global transitions are exempt from cycle limits.** `abandon`, a
+  `globalTransitions` entry with a `human-approval` gate, can be taken from any
+  non-terminal stage, and the cycle limit of the stage it leads to never closes
+  it.
+- **A reset starts a new era.** `reset` (on a person's word) returns the work
+  item to the initial stage with fresh counts. Earlier products, approvals and
+  dispatches stay recorded but belong to the old era, so no gate sees them.
+
+### Design-time checks
+
+The holder's `validate` analyses the graph (see "Graph validation"), and three
+of its warnings are about loops:
+
+- **`escape-only`:** a loop whose only way out is a global transition such as
+  `abandon`.
+- **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
+  transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
+  `build-swamp-extension.yaml` gets it for both of its loops.
+- **`needs-cycle-override`:** a transition that only a cycle override opens,
+  such as an inverted `max-cycles` above the stage's limit.
+
+Loops multiply the states the analysis explores. `validate` fails if either pass
+stops at the 100,000-state cap without finishing, because a partial exploration
+cannot show that the lifecycle is sound.
+
+### Measurement
+
+Loops are measured per era and in total in the per-item metrics (GW-19, #2687;
+see "The metrics"): **re-entries** into each stage after its first, **review
+rounds** of each reviewed artifact, **declines** and **rejected payloads**, and
+the cycle and dispatch **overrides** granted.
+
 ## Gates and limits
 
 Gates are evaluated by `_lib/gates.ts`. Every gate of a transition is evaluated

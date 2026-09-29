@@ -109,6 +109,9 @@ the work item the ticket already has. Re-run it after any failure. See
 | `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                |
 | cycle limit, `runaway loop suspected`     | Stop and tell the person. Only they can grant an override.        |
 
+Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops
+and their controls".
+
 Nothing is ever half-written, and nothing wedges: a manual way back (such as
 `revise` or `recheck`) or, as a last resort, a `reset` on the person's word gets
 the item moving again. Never force past a refusal you do not understand.

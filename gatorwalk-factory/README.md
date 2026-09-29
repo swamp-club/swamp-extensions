@@ -124,6 +124,35 @@ stages may be a parameter placeholder, `{ $param: <name> }`, which is replaced
 whole by the parameter's value (or its schema `default`). See
 `testdata/plugins/review-plan.yaml`.
 
+## Loops
+
+A lifecycle is a directed graph that contains cycles. It is deliberately not a
+DAG: rework, re-checking and revision are loops back to earlier stages, and
+every loop is bounded. The swamp workflows that do a stage's work are acyclic,
+which is why parallel work belongs there (#2699). Looping happens between
+stages; concurrency happens inside one.
+
+A loop is an ordinary transition back, and each re-entry into a stage is a new
+cycle of it. The controls:
+
+- **Per-cycle evidence.** Gates count only what the current pass recorded, and
+  an approval is voided when what it approved changes.
+- **A reason to loop.** Rework exits are gated on data (an open blocking
+  finding); manual ways back need a person.
+- **The cycle limit** (`maxCycles`, default 5) and cycle overrides, which
+  accumulate until a reset.
+- **The dispatch cap** (`maxDispatchesPerCycle`, default 2) and dispatch
+  overrides, against a runaway loop within one pass.
+- **Routing on the loop count** with a `max-cycles` gate, such as escalating
+  after a number of passes.
+- **Escape hatches.** Global transitions are exempt from cycle limits, and a
+  reset starts a new era.
+- **Design-time checks** in `validate`'s graph analysis, and **measurement** of
+  rework in the per-item metrics.
+
+See [DESIGN.md](DESIGN.md), "Loops and their controls", for each control with an
+example.
+
 ## Stage plugins: eject
 
 A plugin is a working starting point, not a dependency. It lives in a **plugin
