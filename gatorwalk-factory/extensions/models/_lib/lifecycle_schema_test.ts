@@ -183,6 +183,44 @@ Deno.test("cel: bindings and gate expressions are bare, valid CEL", () => {
   assertEquals(errors.filter((e) => e.includes("contains ${{")).length, 0);
 });
 
+Deno.test("cel: a human-approval gate's when is bare, valid CEL", () => {
+  const valid = base();
+  push(valid, "stages.0.transitions.0.gates", {
+    type: "human-approval",
+    config: { id: "review", when: 'item.key == "a"' },
+  });
+  assertEquals(errorsOf(valid), []);
+
+  const doc = base();
+  push(doc, "stages.0.transitions.0.gates", {
+    type: "human-approval",
+    config: { id: "review", when: "size(artifacts[" },
+  });
+  set(doc, "globalTransitions", [{
+    name: "abandon",
+    to: "done",
+    gates: [{
+      type: "human-approval",
+      config: { id: "sure", when: "${{ item.key }}" },
+    }],
+  }]);
+  const errors = errorsOf(doc);
+  assert(
+    errors.some((e) =>
+      e.startsWith("stages.0.transitions.0.gates.1.config.when: not valid CEL")
+    ),
+    errors.join("\n"),
+  );
+  assert(
+    errors.some((e) =>
+      e.startsWith("globalTransitions.0.gates.0.config.when: write bare CEL")
+    ),
+    errors.join("\n"),
+  );
+  // when is a CEL position, so the ${{ }} scan does not report it again.
+  assertEquals(errors.filter((e) => e.includes("contains ${{")).length, 0);
+});
+
 Deno.test("cel: ${{ in a literal input is caught, even under a key named bindings", () => {
   const doc = base();
   set(doc, "stages.0.work", {

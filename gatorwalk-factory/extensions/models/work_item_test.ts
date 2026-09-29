@@ -321,12 +321,14 @@ Deno.test("status: names each exit's human gates, global exits included", async 
 
   const view = await describeStatus(swamp.context(ITEM), systemEnv);
   assertEquals(
-    Object.fromEntries(view.exits.map((e) => [e.name, e.humanGates])),
+    Object.fromEntries(
+      view.exits.map((e) => [e.name, [e.humanGates, e.humanGatesNotRequired]]),
+    ),
     {
-      approve: ["plan-approval"],
-      rework: [],
-      revise: [],
-      abandon: ["abandon-confirmation"],
+      approve: [["plan-approval"], []],
+      rework: [[], []],
+      revise: [[], []],
+      abandon: [["abandon-confirmation"], []],
     },
   );
 
@@ -342,6 +344,70 @@ Deno.test("status: names each exit's human gates, global exits included", async 
       "exit abandon -> abandoned [human: abandon-confirmation]: ",
     ),
     summary,
+  );
+
+  // A conditional approval is required only while its when is true; one whose
+  // when cannot be evaluated counts as required, so the driver stops and asks.
+  const conditional = fakeSwamp();
+  conditional.definitions.set("team", {
+    globalArguments: {
+      schemaVersion: 1,
+      name: "conditional",
+      stages: [
+        {
+          id: "review",
+          initial: true,
+          artifacts: [{ name: "plan", schema: { type: "object" } }],
+          transitions: ["now", "later", "broken"].map((name) => ({
+            name,
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: {
+                id: name,
+                when: name === "now"
+                  ? "true"
+                  : name === "later"
+                  ? "false"
+                  : 'artifacts["plan"].payload.risky',
+              },
+            }],
+          })),
+        },
+        { id: "done", terminal: true },
+      ],
+    },
+    type: HOLDER_TYPE,
+  });
+  await call(conditional, "start", { lifecycle: "team" }, "conditional-a");
+  const gates = await describeStatus(
+    conditional.context("conditional-a"),
+    systemEnv,
+  );
+  assertEquals(
+    Object.fromEntries(
+      gates.exits.map((e) => [e.name, [e.humanGates, e.humanGatesNotRequired]]),
+    ),
+    {
+      now: [["now"], []],
+      later: [[], ["later"]],
+      broken: [["broken"], []],
+    },
+  );
+  await call(conditional, "status", {}, "conditional-a");
+  const lines = String(conditional.logs.at(-1)?.props?.summary);
+  assert(lines.includes("exit now -> done [human: now]: not ready"), lines);
+  assert(
+    lines.includes(
+      "exit later -> done [approval not required now: later]: ready",
+    ),
+    lines,
+  );
+  assert(
+    lines.includes(
+      "exit broken -> done [human: broken]: not ready: human-approval: when: could not evaluate",
+    ),
+    lines,
   );
 });
 

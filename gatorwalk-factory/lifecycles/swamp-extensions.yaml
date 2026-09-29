@@ -38,7 +38,9 @@ stages:
     description: >-
       Classify the issue. A low-confidence classification carries the
       questions for the person and stops here until it is recorded again with
-      their answers. A bug goes to reproduction; anything else to planning.
+      their answers. A classification claiming a regression waits for a
+      person to approve regression-review. A bug goes to reproduction;
+      anything else to planning.
     work:
       mode: interactive
       skills: [issue-lifecycle]
@@ -46,8 +48,10 @@ stages:
         Read the issue and the code it touches, following
         agent-constraints/triage-conventions.md. Classify it as bug, feature,
         platform or security. If you believe it is a regression, gather the
-        evidence for it, argue against it, reach a verdict and show both sides
-        to the person before recording. If you cannot classify it
+        evidence for it, argue against it, reach a verdict, record it, and
+        show both sides and the verdict to the person, who approves
+        regression-review (confirmed or downgraded) before the bug moves on.
+        If you cannot classify it
         confidently, record confidence low with your questions, and record the
         classification again once the person has answered.
     evidence:
@@ -101,6 +105,17 @@ stages:
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered
+          # A person sees the regression evidence, the counter-argument and
+          # the verdict before a regression claim goes on, whichever way the
+          # verdict went. The guard keeps when false, not an error, before a
+          # classification exists or when isRegression is absent.
+          - type: human-approval
+            config:
+              id: regression-review
+              when: >-
+                "classification" in evidence &&
+                has(evidence.classification.payload.isRegression) &&
+                evidence.classification.payload.isRegression
       - name: feature
         to: plan
         gates:

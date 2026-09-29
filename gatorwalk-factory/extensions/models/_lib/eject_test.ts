@@ -422,6 +422,7 @@ stages:
           - { type: cooldown, config: { afterArtifact: notes, seconds: 5 } }
           - { type: cel, config: { expr: "has(artifacts.notes) && evidence.outcome.version > 0" } }
           - { type: human-approval, config: { id: sign-off } }
+          - { type: human-approval, config: { id: risky, when: 'has(artifacts.notes)' } }
 `);
   const base = lifecycle(`
 stages:
@@ -477,6 +478,10 @@ stages:
       },
     },
     { type: "human-approval", config: { id: "sign-off" } },
+    {
+      type: "human-approval",
+      config: { id: "risky", when: "has(artifacts.draft_notes)" },
+    },
   ]);
   assertMentions(
     warnings,
@@ -590,7 +595,13 @@ Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a
     name: "second-look",
     to: "plan",
     manual: true,
-    gates: [{ type: "cel", config: { expr: 'stage.id != "review"' } }],
+    gates: [
+      { type: "cel", config: { expr: 'stage.id != "review"' } },
+      {
+        type: "human-approval",
+        config: { id: "look-again", when: 'stage.id == "review"' },
+      },
+    ],
   }];
   const doc = await raw("plugins/review-plan.yaml");
   const review = (doc.stages as { work: Record<string, unknown> }[])[0];
@@ -617,6 +628,14 @@ Deno.test("eject: a CEL string naming a renamed product, or the placeholder in a
   );
   assert(
     !warnings.some((w) => w.includes("binding 'failed'")),
+    warnings.join("\n"),
+  );
+  // Once for the cel gate, once for the approval's when.
+  assertEquals(
+    warnings.filter((w) =>
+      w.startsWith("global transition 'second-look' of lifecycle")
+    ).length,
+    2,
     warnings.join("\n"),
   );
 });

@@ -40,8 +40,9 @@ import {
 //   cycle limit with no overrides. It only finds transitions that can be taken
 //   after an override and never without one.
 //
-// human-approval and cel gates are unknowns, so they are assumed passable.
-// See DESIGN.md, "Graph validation".
+// human-approval and cel gates are unknowns, so they are assumed passable. A
+// human-approval gate with `when` may not apply, so it is not a person
+// choosing between exits. See DESIGN.md, "Graph validation".
 // ---------------------------------------------------------------------------
 
 export type FindingCode =
@@ -562,10 +563,16 @@ function describe(edge: Edge): string {
   } '${edge.transition.name}' (${where})`;
 }
 
-/** A person chooses, so propulsion never has to guess (DESIGN.md). */
+/**
+ * A person chooses, so propulsion never has to guess (DESIGN.md). A
+ * conditional approval does not count: while its `when` is false no one is
+ * asked.
+ */
 function personChooses(t: TransitionSpec): boolean {
   return t.manual === true ||
-    (t.gates ?? []).some((gate) => gate.type === "human-approval");
+    (t.gates ?? []).some((gate) =>
+      gate.type === "human-approval" && gate.config.when === undefined
+    );
 }
 
 /** Whether two sibling transitions can never both pass. */
@@ -829,7 +836,7 @@ export function analyzeLifecycle(
             describe(b)
           } from stage '${id}' can both pass with no person choosing between them` +
             (cel ? "; their cel gates could not be compared" : "") +
-            "; make one manual, give it a human-approval gate, or make their gates exclusive",
+            "; make one manual, give it a human-approval gate without when, or make their gates exclusive",
           { stage: id, trace: reachedTrace(id) },
         );
       }

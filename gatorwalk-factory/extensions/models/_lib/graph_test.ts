@@ -413,6 +413,35 @@ stages:
   );
 });
 
+Deno.test("graph: a conditional approval is not a person choosing; an unconditional one is", () => {
+  const siblings = (when: string) =>
+    analyzeLifecycle(lifecycle(`
+stages:
+  - id: a
+    initial: true
+    transitions:
+      - name: ship
+        to: done
+        gates: [{ type: human-approval, config: { id: go${when} } }]
+      - name: drop
+        to: dropped
+  - id: done
+    terminal: true
+  - id: dropped
+    terminal: true
+`));
+  const conditional = siblings(", when: \"item.key == 'x'\"");
+  assertEquals(codes(conditional.warnings), [
+    "ambiguous-exit stages.0.transitions.0 [a]",
+  ]);
+  assert(
+    conditional.warnings[0].message.includes(
+      "a human-approval gate without when",
+    ),
+  );
+  assertEquals(codes(siblings("").warnings), []);
+});
+
 Deno.test("graph: requireField values that differ make siblings exclusive", () => {
   const report = analyzeLifecycle(lifecycle(`
 stages:

@@ -108,7 +108,8 @@ build-swamp-extension-r2ner2de: active at stage 'plan-review' cycle 1
 | `expect: ...`                         | The expectation. Copy these three `--input` flags into every write except `record_usage`. A write whose expectation no longer matches is refused. |
 | `exit <name> -> <to>`                 | One way out of the stage, including global ones such as `abandon`.                                                                                |
 | `(manual)`                            | Only a person can send the item this way, and `advance` needs `confirm=true`.                                                                     |
-| `[human: <gate-id>, ...]`             | The exit has human-approval gates. A person decides them, even once they pass.                                                                    |
+| `[human: <gate-id>, ...]`             | The exit has human-approval gates a person must decide now. A person decides them, even once they pass.                                           |
+| `[approval not required now: <id>]`   | A conditional approval whose `when` is false right now: it passes and no one is asked. It can become `[human: ...]` when the data changes.        |
 | `ready` / `not ready: ...`            | Whether `advance` would take it now. Each failure names the gate, what it needed and what it found; a cycle limit shows here too.                 |
 | `work: <mode>; dispatches this cycle` | The stage's work mode, and how many dispatches this stage and cycle has had of its cap.                                                           |
 | `dispatch not ready: ...`             | The stage's packet cannot be built: a binding failed or a prompt placeholder has no value. Fix the run data it names.                             |
@@ -224,7 +225,8 @@ only what you observed, with the values you observed.
 
 After recording, read `status` and sort the `ready` exits into two kinds:
 
-- **Yours**: ready, not `(manual)`, and no `[human: ...]`.
+- **Yours**: ready, not `(manual)`, and no `[human: ...]`. An
+  `[approval not required now: ...]` marker does not make an exit the person's.
 - **The person's**: ready and `(manual)`, or ready with `[human: ...]`.
 
 A manual exit with no gates, such as `recheck` or `revise`, shows `ready` all
@@ -268,6 +270,12 @@ of these without the person's explicit word, given for this decision:**
 "Explicit word" means the person said it in this conversation about this item
 and this decision. Earlier approvals, approvals of something similar, and your
 own judgment that it is fine do not count.
+
+A conditional approval shows as `[human: ...]` only while its condition holds,
+so read `status` again after recording: recording can turn a stop on (a
+classification that claims a regression) or off. A condition that cannot be
+evaluated also shows as `[human: ...]`, with the CEL error among the failures;
+tell the person, since the run data or the lifecycle needs fixing.
 
 When a person must decide:
 

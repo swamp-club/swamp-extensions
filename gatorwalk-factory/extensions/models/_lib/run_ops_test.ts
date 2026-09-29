@@ -281,6 +281,49 @@ Deno.test("recordApproval: an unknown gate or a stale view is refused", async ()
   assert(!stale.ok && stale.reason.startsWith("stale:"));
 });
 
+Deno.test("recordApproval: a conditional gate takes decisions while its when is false", () => {
+  const parsed = parseLifecycle({
+    schemaVersion: 1,
+    name: "conditional",
+    stages: [
+      {
+        id: "review",
+        initial: true,
+        transitions: [{
+          name: "ship",
+          to: "done",
+          gates: [{
+            type: "human-approval",
+            config: { id: "look", when: "false" },
+          }],
+        }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+  const env = testEnv();
+  let run = start(
+    parsed.value,
+    { key: "wi-c", lifecycleDigest: "sha256:c" },
+    ALICE,
+    env,
+  );
+  for (const decision of ["approve", "decline"] as const) {
+    const result = recordApproval(
+      run,
+      parsed.value,
+      expectedOf(run),
+      { gateId: "look", decision },
+      ALICE,
+      env,
+    );
+    assert(result.ok, result.ok ? "" : result.reason);
+    run = result.run;
+  }
+  assertEquals(run.approvals.map((a) => a.decision), ["approve", "decline"]);
+});
+
 // --- advance -------------------------------------------------------------------
 
 Deno.test("advance: moves, counts entries, and journals", async () => {

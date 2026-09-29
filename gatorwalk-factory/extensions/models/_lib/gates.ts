@@ -52,6 +52,15 @@ export interface GateCheck {
   pass: boolean;
   /** Why it failed: what the gate needed and what it found. */
   reason?: string;
+  /** A human-approval gate's id. */
+  gateId?: string;
+  /** For a human-approval gate, whether a person must decide it now: false
+   * only while its `when` is false. */
+  required?: boolean;
+  /** A human-approval gate whose `when` could not be evaluated. It counts as
+   * required, but the fix is to the run data or the lifecycle, not a
+   * person's decision. */
+  conditionError?: true;
 }
 
 interface GateInputs {
@@ -236,14 +245,30 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
       );
     }
 
-    case "human-approval":
-      return humanApproval(
-        gate.config.id,
-        gate.config.minApprovals ?? 1,
-        run,
-        fail,
-        pass,
-      );
+    case "human-approval": {
+      const id = gate.config.id;
+      const when = gate.config.when;
+      if (when !== undefined) {
+        const ctx = needContext();
+        const condition = "pass" in ctx
+          ? { error: ctx.reason ?? "run data could not be read" }
+          : evaluateCondition(when, ctx);
+        if ("error" in condition) {
+          return {
+            ...fail(`when: ${condition.error}`),
+            gateId: id,
+            required: true,
+            conditionError: true,
+          };
+        }
+        if (!condition.value) return { ...pass, gateId: id, required: false };
+      }
+      return {
+        ...humanApproval(id, gate.config.minApprovals ?? 1, run, fail, pass),
+        gateId: id,
+        required: true,
+      };
+    }
 
     case "evidence-recorded": {
       const name = gate.config.name;
@@ -327,30 +352,36 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
     case "cel": {
       const ctx = needContext();
       if ("pass" in ctx) return ctx;
-      let result: Json;
-      try {
-        result = evaluateCel(gate.config.expr, ctx);
-      } catch (error) {
-        return fail(
-          `could not evaluate ${gate.config.expr}: ${
-            error instanceof Error
-              ? error.message.split("\n")[0]
-              : String(error)
-          }`,
-        );
-      }
-      if (typeof result !== "boolean") {
-        return fail(
-          `${gate.config.expr} must be true or false, but was ${
-            JSON.stringify(result)
-          }`,
-        );
-      }
-      return result
+      const result = evaluateCondition(gate.config.expr, ctx);
+      if ("error" in result) return fail(result.error);
+      return result.value
         ? pass
         : fail(gate.config.message ?? `${gate.config.expr} is false`);
     }
   }
+}
+
+/** Evaluate a CEL condition; an error or a non-boolean result is an error. */
+function evaluateCondition(
+  expr: string,
+  ctx: CelContext,
+): { value: boolean } | { error: string } {
+  let result: Json;
+  try {
+    result = evaluateCel(expr, ctx);
+  } catch (error) {
+    return {
+      error: `could not evaluate ${expr}: ${
+        error instanceof Error ? error.message.split("\n")[0] : String(error)
+      }`,
+    };
+  }
+  if (typeof result !== "boolean") {
+    return {
+      error: `${expr} must be true or false, but was ${JSON.stringify(result)}`,
+    };
+  }
+  return { value: result };
 }
 
 /**

@@ -76,7 +76,7 @@ code's.
 | Stop                                                                           | gatorwalk                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit needs confidence not low, so triage waits until the person answers and it is recorded again |
-| Present the regression evidence and verdict before classifying                 | The four regression fields are required together, but nothing makes a person see them (gap 4)                                                                                              |
+| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when `isRegression` is true, whatever the verdict                                                  |
 | A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                   |
 | Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                           |
 | Plan feedback (iterate)                                                        | `plan-review.revise`, manual                                                                                                                                                               |
@@ -106,7 +106,7 @@ issue-lifecycle's do. Nothing is lost, so this is not a gap.
 
 ## Format gaps
 
-Candidates for issues. None has been filed.
+Candidates for issues. A resolved gap says so and keeps its number.
 
 1. **No way to act on swamp-club.** Fetching the issue, assigning it,
    classifying it (the type PATCH), moving its status, posting lifecycle
@@ -130,12 +130,12 @@ Candidates for issues. None has been filed.
    that nests them, run only with `SWAMP_WORKFLOWS_DIR` pointing at
    `verification/` (an absolute path from a worktree) and `--repo-dir` at the
    main checkout. The stage carries that in its `command` for the driver.
-4. **No conditional human approval.** A `human-approval` gate applies every time
-   its transition is taken. "A person sees the regression analysis before a bug
-   is classified as a regression" would need a second exit per classification,
-   gated on `isRegression`. The low-confidence stop avoids this by blocking with
-   `cel` until the classification is recorded again, which a regression verdict
-   cannot do: it should still go ahead once a person has seen it.
+4. **No conditional human approval.** Resolved by swamp-club #2666: a
+   `human-approval` gate's `when` makes it apply only while a CEL condition
+   holds. `triage.bug` now carries `regression-review` with
+   `when: ... isRegression`, so a person sees the regression analysis and
+   verdict before a regression claim goes on, and any other bug goes ahead
+   without them. Kept here so the numbering the other gaps are cited by stays.
 5. **`requireField` only matches equal values.** "Type is not bug" cannot be
    written, so triage has one exit per non-bug type (all to `plan`), and
    "confidence is not low" is a `cel` gate. The graph analysis only proves exits

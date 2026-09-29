@@ -42,7 +42,10 @@ import type { RunStore } from "./run_store.ts";
 // A manual exit with no gates is a way back a person may always take, and a
 // global transition is an escape hatch; neither is a stop. A gate declined in
 // this stage entry waits on rework, not on a person, until a product is
-// recorded after the decline.
+// recorded after the decline. A conditional approval whose `when` is false
+// passes, so it is no stop; one whose `when` cannot be evaluated waits on a
+// fix to the run data or the lifecycle, not on a person, even though status
+// lists it as required so the driver stops and asks.
 // ---------------------------------------------------------------------------
 
 /** The exits of the current stage entry that only a person can open. */
@@ -83,6 +86,7 @@ async function heldBy(
   for (const [i, gate] of gates.entries()) {
     if (checks[i].pass) continue;
     if (gate.type === "human-approval") {
+      if (checks[i].conditionError === true) return null;
       if (declinedAwaitingRework(run, gate.config.id)) return null;
       pending.push(gate.config.id);
       continue;

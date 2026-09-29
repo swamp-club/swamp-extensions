@@ -48,7 +48,8 @@ import {
 // the entry to add, so two uses of one plugin are separate by the names the
 // author gave them. Renames follow identity through every reference,
 // including CEL, which is edited in place by source range. Approval gate ids
-// need no rename: approvals are counted per stage (gates.ts).
+// need no rename: approvals are counted per stage (gates.ts). An approval's
+// `when` is CEL, so it is renamed like a cel gate's expression.
 //
 // The composed lifecycle must pass the lifecycle schema and the graph
 // analysis, and every contract input must be produced on every path into the
@@ -414,7 +415,10 @@ export function ejectPlugin(
           config: { ...gate.config, expr: cel(gate.config.expr, where) },
         };
       case "human-approval":
-        return gate;
+        return gate.config.when === undefined ? gate : {
+          ...gate,
+          config: { ...gate.config, when: cel(gate.config.when, where) },
+        };
     }
   };
   const ejected: StageSpec[] = plugin.stages.map((stage) => {
@@ -495,25 +499,15 @@ export function ejectPlugin(
     }
     const transitions = stage.transitions?.map(retarget);
     for (const t of stage.transitions ?? []) {
-      for (const gate of t.gates ?? []) {
-        if (gate.type === "cel") {
-          baseCel(
-            gate.config.expr,
-            `stage '${stage.id}' of ${into}, transition '${t.name}'`,
-          );
-        }
+      for (const expr of gateCel(t.gates)) {
+        baseCel(expr, `stage '${stage.id}' of ${into}, transition '${t.name}'`);
       }
     }
     return transitions === undefined ? stage : { ...stage, transitions };
   };
   for (const t of base.globalTransitions ?? []) {
-    for (const gate of t.gates ?? []) {
-      if (gate.type === "cel") {
-        baseCel(
-          gate.config.expr,
-          `global transition '${t.name}' of ${into}`,
-        );
-      }
+    for (const expr of gateCel(t.gates)) {
+      baseCel(expr, `global transition '${t.name}' of ${into}`);
     }
   }
   const composed: Lifecycle = {
@@ -590,6 +584,17 @@ function lookup(
   key: string,
 ): string | undefined {
   return map !== undefined && Object.hasOwn(map, key) ? map[key] : undefined;
+}
+
+/** The CEL in a transition's gates: cel expressions and approvals' `when`. */
+function gateCel(gates: GateSpec[] | undefined): string[] {
+  return (gates ?? []).flatMap((gate) =>
+    gate.type === "cel"
+      ? [gate.config.expr]
+      : gate.type === "human-approval" && gate.config.when !== undefined
+      ? [gate.config.when]
+      : []
+  );
 }
 
 function evidenceDeclaredBy(stage: StageSpec): string[] {

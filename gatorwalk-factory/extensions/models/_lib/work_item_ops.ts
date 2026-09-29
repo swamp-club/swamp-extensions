@@ -18,7 +18,11 @@ import { z } from "npm:zod@4.3.6";
 import { digestOf, jsonSafe } from "./canonical.ts";
 import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch } from "./dispatch.ts";
-import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
+import {
+  evaluateTransitions,
+  type GateCheck,
+  makeGateEvaluator,
+} from "./gates.ts";
 import { ejectPlugin } from "./eject.ts";
 import {
   analyzeLifecycle,
@@ -27,11 +31,9 @@ import {
 } from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
-  findStage,
   type Lifecycle,
   parseLifecycle,
   type Plugin,
-  transitionsFrom,
 } from "./lifecycle_schema.ts";
 import { instantiatePlugin } from "./plugin_instance.ts";
 import {
@@ -773,26 +775,23 @@ function expectationProps(run: RunRecord) {
 }
 
 /**
- * The ids of each transition's human-approval gates, by transition name. A
- * driver needs them to tell an exit a person must decide from one it may take
- * on its own, including once the gate is satisfied and the exit shows ready.
+ * An exit's human-approval gate ids, split by whether a person must decide
+ * them now. A driver needs them to tell an exit a person must decide from one
+ * it may take on its own, including once the gate is satisfied and the exit
+ * shows ready. A conditional approval whose `when` is false is not required;
+ * one whose `when` cannot be evaluated is, so the driver stops and asks.
  */
-function humanGatesByTransition(
-  lifecycle: Lifecycle,
-  stageId: string,
-): Map<string, string[]> {
-  const stage = findStage(lifecycle, stageId);
-  const out = new Map<string, string[]>();
-  if (stage === undefined) return out;
-  for (const transition of transitionsFrom(lifecycle, stage)) {
-    out.set(
-      transition.name,
-      (transition.gates ?? []).flatMap((gate) =>
-        gate.type === "human-approval" ? [gate.config.id] : []
-      ),
+function humanGatesOf(gates: GateCheck[]): {
+  humanGates: string[];
+  humanGatesNotRequired: string[];
+} {
+  const ids = (required: boolean) =>
+    gates.flatMap((g) =>
+      g.gateId !== undefined && (g.required !== false) === required
+        ? [g.gateId]
+        : []
     );
-  }
-  return out;
+  return { humanGates: ids(true), humanGatesNotRequired: ids(false) };
 }
 
 /** Everything a caller needs to act next, as data. */
@@ -804,7 +803,6 @@ export async function describeStatus(
   const lifecycle = pinned.lifecycle;
   const context = await buildCelContext(run, store);
   const active = run.status === "active";
-  const humanGates = humanGatesByTransition(lifecycle, run.stage);
   return {
     key: run.key,
     lifecycle: {
@@ -824,7 +822,7 @@ export async function describeStatus(
         name: t.name,
         to: t.to,
         manual: t.manual,
-        humanGates: humanGates.get(t.name) ?? [],
+        ...humanGatesOf(t.gates),
         ready: t.ready,
         failures: t.failures,
       }))
@@ -847,6 +845,12 @@ export async function status(
     ...view.exits.map((e) =>
       `  exit ${e.name} -> ${e.to}${e.manual ? " (manual)" : ""}${
         e.humanGates.length > 0 ? ` [human: ${e.humanGates.join(", ")}]` : ""
+      }${
+        e.humanGatesNotRequired.length > 0
+          ? ` [approval not required now: ${
+            e.humanGatesNotRequired.join(", ")
+          }]`
+          : ""
       }: ${e.ready ? "ready" : `not ready: ${e.failures.join("; ")}`}`
     ),
   ];

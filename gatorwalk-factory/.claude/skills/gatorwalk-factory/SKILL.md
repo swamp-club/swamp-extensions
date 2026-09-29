@@ -42,7 +42,8 @@ not covered yet.
    neither `(manual)` nor `[human: ...]`. If there is exactly one and no
    human-gated exit is ready, advance on it. Otherwise stop and ask. Ready
    manual exits (ways back such as `revise`) are the person's; they do not
-   count, and you never take one unasked.
+   count, and you never take one unasked. `[approval not required now: ...]` is
+   not a human gate: its condition is false right now, so it does not stop you.
 6. **Record only what happened.** Evidence is what you observed, with the real
    commit, run id and outcome.
 

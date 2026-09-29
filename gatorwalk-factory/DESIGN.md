@@ -167,7 +167,7 @@ wrong data.
 
 ## The CEL vocabulary
 
-Bindings and `cel` gates see (`_lib/cel_context.ts`):
+Bindings, `cel` gates and an approval's `when` see (`_lib/cel_context.ts`):
 
 | Name          | Value                                                       |
 | ------------- | ----------------------------------------------------------- |
@@ -226,6 +226,20 @@ Locally the agent and the person run as the same principal, so an approval
 cannot show which of them gave it, and `minApprovals` above 1 needs distinct
 principals (serve, later trackers).
 
+**Conditional approval (#2666).** A gate with `when`, a CEL expression over the
+same context as a `cel` gate, applies only while `when` is true. While it is
+false the gate passes and is not required, whatever decisions were recorded;
+`approve` and `decline` still accept its id, and a recorded decline blocks again
+once the condition holds in the same stage entry. A `when` that cannot be
+evaluated, or is not true or false, fails the gate with the error and counts as
+required, so the driver stops and asks; it is not a human stop in the journal,
+since the fix is to the run data or the lifecycle. CEL has no value for a
+missing key, so a `when` that reads evidence which may not exist yet guards it
+(`"x" in evidence && ...`, `has(evidence.x.payload.field)`). A conditional gate
+is only as strong as the data it reads, and the driving agent records that data:
+`when` should read something a person sees anyway, such as the classification
+shown before triage, never stand in for a check.
+
 ### Circuit breakers
 
 The limits are enforced inside `advance` and `recordDispatch` themselves, not in
@@ -260,15 +274,16 @@ Gates are a veto: `advance` refuses a transition whose gates fail. What moves a
 work item is the driver (an agent, a runner, a person), under the rule ported
 from software-factory:
 
-- If exactly one transition is fully satisfied and has no `human-approval` gate,
-  the driver takes it.
+- If exactly one transition is fully satisfied and has no `human-approval` gate
+  required now (one without `when`, or whose `when` holds), the driver takes it.
 - `manual: true` makes a transition wait for a person's explicit go, even when
   every gate passes.
 - If several transitions are satisfied at once, the driver asks a person.
 
 So a person choosing between exits is intended wherever a transition is manual
-or has a `human-approval` gate. Anywhere else, two exits that can pass together
-leave the driver to guess, and the analysis warns.
+or has a `human-approval` gate without `when`. Anywhere else, two exits that can
+pass together leave the driver to guess, and the analysis warns. A conditional
+approval does not count, since while its `when` is false no one is asked.
 
 ### What the analysis assumes
 
@@ -297,7 +312,8 @@ In both passes a gate is judged like this:
   only once a stage that produces what they read has been entered on the path.
   For `artifact-fresh` that means both the artifact and the subject it reviews.
   In a plugin, contract inputs are present from the start.
-- **`human-approval` and `cel`** are unknowns, so they are assumed to pass.
+- **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
+  is a `human-approval` gate with `when`: it may apply or not.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration. The
@@ -326,13 +342,13 @@ Errors:
 Warnings:
 
 - **`ambiguous-exit`:** two sibling exits to different stages, neither of them
-  manual or behind a `human-approval` gate, whose gates are not provably
-  exclusive. Exclusive means `evidence-recorded` on the same evidence requiring
-  values of a field no single payload can hold, or `max-cycles` on the same
-  stage and limit with opposite `invert`. `requireField` keys are compared as
-  the field paths the gate reads, so `a.b: 1` and `a: { b: 2 }` are exclusive.
-  CEL cannot be compared. Two exits to the same stage are not ambiguous, since
-  the driver reaches the same place whichever it picks.
+  manual or behind a `human-approval` gate without `when`, whose gates are not
+  provably exclusive. Exclusive means `evidence-recorded` on the same evidence
+  requiring values of a field no single payload can hold, or `max-cycles` on the
+  same stage and limit with opposite `invert`. `requireField` keys are compared
+  as the field paths the gate reads, so `a.b: 1` and `a: { b: 2 }` are
+  exclusive. CEL cannot be compared. Two exits to the same stage are not
+  ambiguous, since the driver reaches the same place whichever it picks.
 - **`escape-only`:** a stage or loop whose only way to finish is a global
   transition, such as `abandon`.
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
@@ -610,7 +626,9 @@ the holder's lock.
 `@swamp/issue-lifecycle` does. The CLI shows only a log message's text, never
 its properties, so the text carries everything a driver acts on: `status` prints
 each exit's readiness and the ids of its human-approval gates (a ready exit that
-a person must decide looks otherwise the same as one an agent may take), the
+a person must decide looks otherwise the same as one an agent may take), split
+into those a person must decide now and conditional ones whose `when` is false
+(`humanGates` and `humanGatesNotRequired` in the logged status), the
 stage's work mode, the dispatch count, and payload rejections; and `dispatch`
 prints the whole packet. `status` is a `read` method, so it takes no lock. A
 refused write throws with its reason and writes nothing. A rejected payload is
@@ -667,7 +685,8 @@ change as it happens.
 An exit is **held by a person** when it is not a global transition, its cycle
 limit allows entry, every gate that is not a human approval passes, and either
 one of its human-approval gates is pending, or it is manual and has gates, all
-passing. Excluded, on purpose:
+passing. A conditional approval whose `when` is false passes, so it is no stop.
+Excluded, on purpose:
 
 - **A manual exit with no gates** (`revise`, `recheck`) is a way back a person
   may always take. Counting it would make every stage a stop from the moment it
@@ -675,6 +694,8 @@ passing. Excluded, on purpose:
 - **A global transition** (`abandon`) is an escape hatch, open everywhere.
 - **A freshly declined gate** waits on rework, not on a person, until a product
   is recorded after the decline.
+- **A conditional approval whose `when` cannot be evaluated** waits on a fix to
+  the run data or the lifecycle, not on a person.
 
 A cooldown gate counts as passing from when it lifts; the event carries that
 time as `readyAt`. Recording the product it counts from again restarts it, and

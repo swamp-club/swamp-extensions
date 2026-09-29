@@ -34,7 +34,7 @@ extensions/models/
     awaiting.ts           which exits only a person can open, journaled
     metrics.ts            per-work-item metrics from the run and journal
     summary.ts            the summary: timeline and metrics as markdown
-    cel_context.ts        the CEL vocabulary for bindings and cel gates
+    cel_context.ts        the CEL vocabulary for bindings, cel gates and when
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
     graph.ts              graph analysis of a lifecycle or plugin
@@ -82,11 +82,12 @@ artifacts, evidence, transitions and gates. Three things change:
   keywords and unknown `format` names are rejected, so a typo is an error, not a
   silent no-op. References must be local (`#/...` or `#anchor`), and nothing is
   fetched.
-- **Runtime values are bare CEL**, in `work.bindings` and `cel` gates. Never use
-  `${{ }}`: a lifecycle lives in a model's `globalArguments`, where the platform
-  evaluates `${{ }}` when the definition is saved. This also means a prompt
-  cannot contain a literal `${{` (a GitHub Actions snippet, say); the platform
-  has no escape for it.
+- **Runtime values are bare CEL**, in `work.bindings`, `cel` gates and a
+  `human-approval` gate's `when` (the gate applies only while it is true). Never
+  use `${{ }}`: a lifecycle lives in a model's `globalArguments`, where the
+  platform evaluates `${{ }}` when the definition is saved. This also means a
+  prompt cannot contain a literal `${{` (a GitHub Actions snippet, say); the
+  platform has no escape for it.
 - **Prompts refer to bindings as `{{name}}`**, in `systemPrompt` and `command`.
   A placeholder holds a binding name, never an expression, and an undeclared
   name is an error when the lifecycle is checked. `{{` around anything that is
@@ -269,13 +270,15 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 
 `status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
 `expectedEra` every write must pass back; each exit's readiness, with its
-failures and the ids of its human-approval gates (`[human: plan-approval]`); the
-stage's work mode and dispatch count; and any payload rejections. `dispatch`
-prints the whole dispatch packet. Writes are `record_artifact`,
-`record_evidence`, `dispatch`, `record_usage`, `approve`, `decline`,
-`grant_override`, `advance` and `reset`. A refused write fails with its reason
-and writes nothing. A payload that breaks its schema also fails, but is kept on
-the work item as retry feedback. Method output goes to the log, so pass `--log`.
+failures and the ids of its human-approval gates (`[human: plan-approval]`, or
+`[approval not required now: regression-review]` for a conditional approval
+whose `when` is false); the stage's work mode and dispatch count; and any
+payload rejections. `dispatch` prints the whole dispatch packet. Writes are
+`record_artifact`, `record_evidence`, `dispatch`, `record_usage`, `approve`,
+`decline`, `grant_override`, `advance` and `reset`. A refused write fails with
+its reason and writes nothing. A payload that breaks its schema also fails, but
+is kept on the work item as retry feedback. Method output goes to the log, so
+pass `--log`.
 
 ## Summary and metrics
 

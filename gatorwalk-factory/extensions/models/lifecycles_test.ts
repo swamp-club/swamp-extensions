@@ -765,7 +765,7 @@ Deno.test("swamp-extensions: graph analysis finishes, and stays small", async ()
   );
 });
 
-Deno.test("swamp-extensions: people decide at an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
+Deno.test("swamp-extensions: people decide at a regression claim, an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
   const lifecycle = await load(SWX);
   const approvals = new Set<string>();
   for (
@@ -782,6 +782,7 @@ Deno.test("swamp-extensions: people decide at an unreproduced bug, the plan, the
     "open-pr",
     "plan-approval",
     "proceed-unreproduced",
+    "regression-review",
   ]);
 });
 
@@ -1212,6 +1213,11 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
     }
     for (const t of s.transitions ?? []) {
       for (const gate of t.gates ?? []) {
+        if (gate.type === "human-approval" && gate.config.when !== undefined) {
+          const result = evaluateCel(gate.config.when, context);
+          assertEquals(typeof result, "boolean", `${s.id}.${t.name} when`);
+          results.set(`${s.id}.${t.name}.${gate.config.id}`, result);
+        }
         if (gate.type !== "cel") continue;
         const result = evaluateCel(gate.config.expr, context);
         assertEquals(typeof result, "boolean", `${s.id}.${t.name}`);
@@ -1224,12 +1230,58 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
     `${bindings} bindings, ${results.size} gates`,
   );
   assertEquals(results.get("triage.bug"), true);
+  assertEquals(results.get("triage.bug.regression-review"), false);
   assertEquals(results.get("plan-review.rework"), false);
   assertEquals(results.get("implement.submit"), false);
   assertEquals(results.get("conformance-review.conforms"), true);
   assertEquals(results.get("verify.passed"), true);
   assertEquals(results.get("attest.attested"), true);
   assertEquals(results.get("pull-request.opened"), true);
+});
+
+Deno.test("swamp-extensions: a regression claim waits for regression-review whatever its verdict; a plain bug does not", async () => {
+  const regression = {
+    type: "bug",
+    confidence: "high",
+    reasoning: "The retry stopped firing",
+    isRegression: true,
+    regressionEvidence: "Passed at 2026.09.20.1",
+    regressionCounterEvidence: "The test never covered 503",
+    regressionVerdictReasoning: "A bisect lands on the refactor",
+  };
+  for (const verdict of ["confirmed", "downgraded"]) {
+    const lifecycle = await load(SWX);
+    const { record, approve, tryMove } = await drive(
+      lifecycle,
+      movableEnv().env,
+    );
+    await record("evidence", "classification", {
+      ...regression,
+      regressionVerdict: verdict,
+    });
+    const refused = await tryMove("bug");
+    assert(
+      refused?.includes("awaiting approval 'regression-review'"),
+      `${verdict}: ${refused}`,
+    );
+    await approve("regression-review");
+    assertEquals(await tryMove("bug"), null, verdict);
+  }
+  for (
+    const classification of [
+      { type: "bug", confidence: "high", reasoning: "r", isRegression: false },
+      { type: "bug", confidence: "high", reasoning: "r" },
+    ]
+  ) {
+    const lifecycle = await load(SWX);
+    const { record, tryMove } = await drive(lifecycle, movableEnv().env);
+    await record("evidence", "classification", classification);
+    assertEquals(
+      await tryMove("bug"),
+      null,
+      JSON.stringify(classification),
+    );
+  }
 });
 
 Deno.test("swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {

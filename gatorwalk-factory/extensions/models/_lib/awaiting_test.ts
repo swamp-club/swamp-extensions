@@ -23,7 +23,8 @@ import {
   recordApproval,
   recordDispatch,
 } from "./run_ops.ts";
-import { noteAwaiting } from "./awaiting.ts";
+import { noteAwaiting, personHeldExits } from "./awaiting.ts";
+import { parseLifecycle } from "./lifecycle_schema.ts";
 import {
   committingStore,
   loadRun,
@@ -293,4 +294,81 @@ Deno.test("awaiting: nothing is noted on a commit whose run data cannot be read"
     readPayload: () => Promise.resolve({ text: "tampered" }),
   };
   assertEquals(await noteAwaiting(run, lifecycle, unreadable, wi.env), run);
+});
+
+Deno.test("awaiting: a conditional approval is a stop only while its when is true; one that errors is not a stop", async () => {
+  const parsed = parseLifecycle({
+    schemaVersion: 1,
+    name: "conditional",
+    stages: [
+      {
+        id: "review",
+        initial: true,
+        artifacts: [{ name: "plan", schema: { type: "object" } }],
+        transitions: [
+          {
+            name: "careful",
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: {
+                id: "look",
+                when: '"plan" in artifacts && ' +
+                  'artifacts["plan"].payload.risky == true',
+              },
+            }],
+          },
+          {
+            name: "broken",
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: { id: "fix", when: 'artifacts["plan"].payload.risky' },
+            }],
+          },
+        ],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+  const lifecycle = parsed.value;
+  const env = settableEnv("2026-09-29T10:00:00.000Z");
+  const store = memoryStore();
+  await startRun(
+    store,
+    lifecycle,
+    { key: "wi-c", lifecycleDigest: "sha256:c" },
+    ALICE,
+    env,
+  );
+  const held = async () =>
+    names(
+      await personHeldExits(
+        (await loadRun(store))!,
+        lifecycle,
+        store,
+        env,
+        env.now(),
+      ),
+    );
+  const record = async (payload: Record<string, unknown>) =>
+    assert(
+      (await recordProduct(
+        store,
+        lifecycle,
+        await expectNow(store),
+        "artifact",
+        "plan",
+        payload,
+        ALICE,
+        env,
+      )).ok,
+    );
+  // No plan: careful's when is false; broken's cannot be evaluated.
+  assertEquals(await held(), []);
+  await record({ risky: true });
+  assertEquals(await held(), ["careful", "broken"]);
+  await record({ risky: false });
+  assertEquals(await held(), []);
 });

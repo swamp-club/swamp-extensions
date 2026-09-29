@@ -110,6 +110,37 @@ function gateLifecycle(): Lifecycle {
             }],
           },
           {
+            name: "approved-if-go",
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: {
+                id: "ship",
+                when: '"plan" in artifacts && ' +
+                  'artifacts["plan"].payload.text == "go"',
+              },
+            }],
+          },
+          {
+            name: "approved-if-go-unguarded",
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: {
+                id: "ship",
+                when: 'artifacts["plan"].payload.text == "go"',
+              },
+            }],
+          },
+          {
+            name: "approved-if-text",
+            to: "done",
+            gates: [{
+              type: "human-approval",
+              config: { id: "ship", when: 'artifacts["plan"].payload.text' },
+            }],
+          },
+          {
             name: "green",
             to: "done",
             gates: [{
@@ -391,6 +422,72 @@ Deno.test("human-approval: minApprovals needs distinct platform principals; asse
   assert((await gate(store, env, "approved-twice")).pass);
 });
 
+Deno.test("human-approval: an unconditional gate is always required", async () => {
+  const { store, env } = await setup();
+  const check = await gate(store, env, "approved");
+  assertEquals([check.gateId, check.required], ["ship", true]);
+  assertEquals(check.conditionError, undefined);
+});
+
+Deno.test("human-approval: while when is false the gate passes and is not required, even over a decline", async () => {
+  const { store, env } = await setup();
+  assertEquals(await gate(store, env, "approved-if-go"), {
+    type: "human-approval",
+    pass: true,
+    gateId: "ship",
+    required: false,
+  });
+  await record(store, env, "artifact", "plan", { text: "wait" });
+  await approve(store, env, ALICE, "decline", "no");
+  const declined = await gate(store, env, "approved-if-go");
+  assert(declined.pass && declined.required === false);
+});
+
+Deno.test("human-approval: while when is true, approvals count as without it", async () => {
+  const { store, env } = await setup();
+  await record(store, env, "artifact", "plan", { text: "go" });
+  const waiting = await gate(store, env, "approved-if-go");
+  assert(
+    !waiting.pass && waiting.required === true &&
+      waiting.reason?.startsWith("awaiting approval 'ship' (0/1)"),
+    waiting.reason,
+  );
+  await approve(store, env, ALICE);
+  const approved = await gate(store, env, "approved-if-go");
+  assert(approved.pass && approved.required === true);
+});
+
+Deno.test("human-approval: a decline recorded while when is false blocks once it is true", async () => {
+  const { store, env } = await setup();
+  await record(store, env, "artifact", "plan", { text: "wait" });
+  await approve(store, env, ALICE, "decline", "not this");
+  assert((await gate(store, env, "approved-if-go")).pass);
+  await record(store, env, "artifact", "plan", { text: "go" });
+  const check = await gate(store, env, "approved-if-go");
+  assert(
+    !check.pass && check.reason?.includes("declined by user:alice: not this"),
+    check.reason,
+  );
+});
+
+Deno.test("human-approval: a when that errors or is not boolean fails the gate, required", async () => {
+  const { store, env } = await setup();
+  const missing = await gate(store, env, "approved-if-go-unguarded");
+  assert(
+    !missing.pass && missing.reason?.startsWith("when: could not evaluate"),
+    missing.reason,
+  );
+  assertEquals([missing.required, missing.conditionError], [true, true]);
+  await record(store, env, "artifact", "plan", { text: "wait" });
+  const text = await gate(store, env, "approved-if-text");
+  assert(
+    !text.pass &&
+      text.reason?.includes('must be true or false, but was "wait"'),
+    text.reason,
+  );
+  assertEquals([text.required, text.conditionError], [true, true]);
+});
+
 // --- evidence-recorded, cooldown, max-cycles, cel ------------------------------
 
 Deno.test("evidence-recorded: this stage and cycle, with required fields", async () => {
@@ -520,6 +617,23 @@ Deno.test("gates: run data that fails its digest check becomes a failure, not an
   assert(
     !check.pass && check.reason?.startsWith("run data could not be read"),
     check.reason,
+  );
+  const conditional = LIFECYCLE.stages[0].transitions?.find((t) =>
+    t.name === "approved-if-go"
+  );
+  assert(conditional !== undefined);
+  const [approval] = await evaluateGates(
+    run,
+    LIFECYCLE,
+    conditional,
+    tampered,
+    env,
+  );
+  assert(
+    !approval.pass &&
+      approval.reason?.startsWith("when: run data could not be read") &&
+      approval.conditionError === true,
+    approval.reason,
   );
 });
 

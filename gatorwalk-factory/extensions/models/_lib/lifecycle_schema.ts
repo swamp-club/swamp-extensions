@@ -31,8 +31,8 @@ import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 //
 // - Payload schemas are standard JSON Schema 2020-12 (payload_schema.ts),
 //   not a home-grown dialect.
-// - Runtime values are bare CEL strings in `work.bindings` and cel gates,
-//   never `${{ }}`. A lifecycle is stored in a model's globalArguments, where
+// - Runtime values are bare CEL strings in `work.bindings`, cel gates and a
+//   human-approval gate's `when`, never `${{ }}`. A lifecycle is stored in a model's globalArguments, where
 //   the platform would evaluate `${{ }}` when the definition is saved. Prose
 //   fields refer to bindings by name with `{{name}}` placeholders
 //   (template.ts).
@@ -227,11 +227,17 @@ export const FindingsClearGateSchema = z.strictObject({
   }),
 });
 
+/**
+ * A person's decision. With `when`, the gate applies only while that CEL
+ * expression over run data is true; while it is false the gate passes and no
+ * one is asked.
+ */
 export const HumanApprovalGateSchema = z.strictObject({
   type: z.literal("human-approval"),
   config: z.strictObject({
     id: NameSchema,
     minApprovals: z.number().int().positive().optional(),
+    when: CelExpressionSchema.optional(),
   }),
 });
 
@@ -936,14 +942,16 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     ));
 }
 
-/** The positions that hold CEL: a stage's `work.bindings` and a cel gate's
- * `config.expr`. Matched on the whole path, never on key names alone, so
+/** The positions that hold CEL: a stage's `work.bindings`, a cel gate's
+ * `config.expr` and a human-approval gate's `config.when`. Matched on the whole path, never on key names alone, so
  * user data shaped like these (a literal input called `bindings`, a payload
  * schema `default`) is still scanned. */
 const CEL_POSITIONS: (string | "#")[][] = [
   ["stages", "#", "work", "bindings"],
   ["stages", "#", "transitions", "#", "gates", "#", "config", "expr"],
   ["globalTransitions", "#", "gates", "#", "config", "expr"],
+  ["stages", "#", "transitions", "#", "gates", "#", "config", "when"],
+  ["globalTransitions", "#", "gates", "#", "config", "when"],
 ];
 
 function isCelPosition(path: Path): boolean {
