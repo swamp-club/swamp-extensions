@@ -118,6 +118,43 @@ Deno.test("holder: validate fails on a graph error, listing it with its path", a
   assert(text.includes("warnings:\nstages.0 (from stage 'plan')"), text);
 });
 
+Deno.test("holder: validate fails when the graph analysis stops at the state cap", async () => {
+  // 15 stages, each with a manual transition to every other and to done: the
+  // structural pass meets 15 * 2^14 (stage, entered set) states, past the
+  // default cap of 100,000. Nothing enters the orphan stage.
+  const ids = Array.from({ length: 15 }, (_, i) => `s${i}`);
+  const stages: Record<string, unknown>[] = ids.map((id, i) => ({
+    id,
+    ...(i === 0 ? { initial: true } : {}),
+    maxCycles: 1,
+    transitions: [...ids.filter((other) => other !== id), "done"].map(
+      (to) => ({ name: `to-${to}`, to, manual: true }),
+    ),
+  }));
+  stages.push(
+    { id: "orphan", transitions: [{ name: "finish", to: "done" }] },
+    { id: "done", terminal: true },
+  );
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: { schemaVersion: 1, name: "wide", stages },
+    type: HOLDER_TYPE,
+  });
+  const error = await assertRejects(() =>
+    holder.methods.validate.execute({}, swamp.context("team"))
+  );
+  const text = (error as Error).message;
+  assert(
+    text.includes(
+      "lifecycle holder 'team' could not be checked in full: the graph analysis stopped at its cap of 100000 states",
+    ),
+    text,
+  );
+  assert(text.includes("the structural pass stopped at 100000 states"), text);
+  assertMatch(text, /stages\.15[^\n]*: stage 'orphan'/);
+  assert(!swamp.logs.some((l) => l.message === "{summary}"));
+});
+
 Deno.test("holder: validate reads the raw definition, so a platform expression gets the schema's own error", async () => {
   const swamp = fakeSwamp();
   const lifecycle = await buildLifecycle();

@@ -297,6 +297,9 @@ In both passes a gate is judged like this:
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration.
+The holder's `validate` fails whenever either pass stops at the cap: a partial
+exploration cannot show the lifecycle is sound. It names the cap and the pass
+that stopped, and still lists the partial findings as warnings.
 
 ### Findings
 
@@ -335,7 +338,8 @@ Warnings:
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
-- **`exploration-truncated`:** a pass hit the state cap.
+- **`exploration-truncated`:** a pass hit the state cap. `validate` fails on
+  it, although it is a warning in the report.
 
 The analysis looks at one document at a time. A plugin's inputs are checked
 once it is ejected into a lifecycle, on the composed lifecycle (below).

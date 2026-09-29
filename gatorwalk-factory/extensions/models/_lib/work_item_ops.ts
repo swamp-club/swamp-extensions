@@ -20,7 +20,11 @@ import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch } from "./dispatch.ts";
 import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
 import { ejectPlugin } from "./eject.ts";
-import { analyzeLifecycle, formatFinding } from "./graph.ts";
+import {
+  analyzeLifecycle,
+  DEFAULT_MAX_STATES,
+  formatFinding,
+} from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   findStage,
@@ -272,8 +276,9 @@ export async function loadHolderLifecycle(
 
 /**
  * The holder's validate method: the schema's errors, then the graph
- * analysis (graph.ts). Graph errors fail the method with every finding;
- * warnings are logged one by one before the summary. Work items load the
+ * analysis (graph.ts). Graph errors, or an analysis that stopped at the
+ * state cap, fail the method with every finding; otherwise warnings are
+ * logged one by one before the summary. Work items load the
  * lifecycle with the schema check alone.
  */
 export async function validateHolder(
@@ -281,16 +286,31 @@ export async function validateHolder(
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
   const lifecycle = await loadHolderLifecycle(ctx, name);
-  const graph = analyzeLifecycle(lifecycle);
-  if (graph.errors.length > 0) {
-    throw new Error(
-      `lifecycle holder '${name}' has design errors:\n${
-        graph.errors.map(formatFinding).join("\n")
-      }` +
-        (graph.warnings.length > 0
-          ? `\nwarnings:\n${graph.warnings.map(formatFinding).join("\n")}`
-          : ""),
-    );
+  const maxStates = DEFAULT_MAX_STATES;
+  const graph = analyzeLifecycle(lifecycle, { maxStates });
+  // A partial exploration proves nothing, so it fails validation too. The
+  // exploration-truncated warnings name the pass that stopped.
+  if (graph.errors.length > 0 || graph.truncated) {
+    const parts: string[] = [];
+    if (graph.errors.length > 0) {
+      parts.push(
+        `lifecycle holder '${name}' has design errors:\n${
+          graph.errors.map(formatFinding).join("\n")
+        }`,
+      );
+    }
+    if (graph.truncated) {
+      parts.push(
+        `lifecycle holder '${name}' could not be checked in full: the graph ` +
+          `analysis stopped at its cap of ${maxStates} states, so ` +
+          `its findings rest on a partial exploration. Reduce the ` +
+          `stages or the branching between them.`,
+      );
+    }
+    if (graph.warnings.length > 0) {
+      parts.push(`warnings:\n${graph.warnings.map(formatFinding).join("\n")}`);
+    }
+    throw new Error(parts.join("\n"));
   }
   for (const finding of graph.warnings) {
     ctx.logger.info("{warning}", {
