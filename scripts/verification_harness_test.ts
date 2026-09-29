@@ -119,6 +119,42 @@ Deno.test("harness: verify workflows depend on no registry extension", async () 
   }
 });
 
+Deno.test("harness: the verify wrapper runs every verification workflow concurrently", async () => {
+  // The attestation is built from the wrapper's child runs, so it must nest
+  // each verification workflow exactly once, at the commit it was given, and
+  // with no job waiting on another.
+  interface WrapperJob {
+    name: string;
+    dependsOn?: unknown[];
+    steps: Array<{
+      name: string;
+      task?: {
+        type?: string;
+        workflowIdOrName?: string;
+        inputs?: Record<string, unknown>;
+      };
+    }>;
+  }
+  const wrapper = await readYaml<{ jobs: WrapperJob[] }>(
+    "verification/workflow-verify.yaml",
+  );
+  const nested = wrapper.jobs.flatMap((job) => {
+    assertEquals(job.dependsOn ?? [], [], `${job.name} waits on another job`);
+    assertEquals(job.steps.length, 1, `${job.name} is not one nested run`);
+    const task = job.steps[0].task;
+    assertEquals(task?.type, "workflow", `${job.name} does not nest a run`);
+    assertEquals(task?.inputs, {
+      commit: "${{ inputs.commit }}",
+      branch: "${{ inputs.branch }}",
+    });
+    return [task?.workflowIdOrName];
+  });
+  assertEquals(
+    nested.sort(),
+    attestation.workflows.map((w) => w.name).sort(),
+  );
+});
+
 Deno.test("harness: every review is decided by its submitted record", async () => {
   const workflow = attestation.workflows.find((w) =>
     w.name === "verify-reviews"

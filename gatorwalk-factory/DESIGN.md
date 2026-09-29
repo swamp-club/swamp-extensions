@@ -348,6 +348,83 @@ Warnings:
 The analysis looks at one document at a time. A plugin's inputs are checked once
 it is ejected into a lifecycle, on the composed lifecycle (below).
 
+## Parallel work inside one stage
+
+**Decision.** A work item is in one stage at a time. Work that should run in
+parallel goes inside one stage: the stage's work is a swamp workflow whose jobs
+run concurrently, and one piece of evidence records how they did together.
+Parallel stages are deferred (swamp-club #2665).
+
+### Why one stage at a time
+
+The run record holds a single current stage. Everything in the runtime is keyed
+to it:
+
+- `evidence-recorded` and `artifact-fresh` accept only what the current stage
+  recorded in its current cycle.
+- The cycle limit counts entries into a stage, and the dispatch cap counts per
+  stage and cycle.
+- Approvals are counted per stage, cycle and era.
+- The graph analysis explores states as a current stage plus counts.
+
+Parallel stages would need a set of current stages, a join that says when the
+set has finished, and gates and an analysis that understand both. That is a
+different runtime. Running things in parallel does not need it.
+
+### The pattern
+
+The stage has `work.mode: workflow` and names a wrapper workflow. The wrapper's
+jobs have no `dependsOn` between them, so swamp puts them at the same dependency
+level and runs them concurrently (`execution_service.ts` 2299-2371 in swamp at
+c48ef142). Each job either does the work directly or runs another workflow with
+a nested step (`task: { type: workflow, workflowIdOrName, inputs }`,
+`step_task.ts:51`). The stage records one `resultEvidence` that judges the whole
+run. It carries whatever later stages need from each part, and its exits gate on
+it as usual.
+
+The swamp-extensions lifecycle does this for verification.
+`verification/workflow-verify.yaml` runs verify-build and verify-reviews as two
+nested runs at the same time. The `verify` stage records `verification`: the
+wrapper's status and run id, and each child's status and run id. `passed`
+requires both children to have succeeded. Before this, the two ran as two stages
+one after the other. A reviews failure showed only after the build passed, and
+verification took the sum of both times.
+
+### What the engine does, and what the stage must allow for
+
+Checked on swamp 20260929.151817.0 and in its source at c48ef142
+(`runWorkflowStep`, `execution_service.ts` 3950-4215):
+
+- **A nested run is a run of its own.** It has its own run id, and its own
+  record under its own workflow's id. It also has its own evaluated workflow,
+  its own recorded inputs, and its own `${{ run.id }}`. Anything that reads runs
+  by workflow name finds it, as `swamp workflow history get` and
+  `scripts/build_attestation.ts` do. So the attestation is built from the two
+  child runs, not from the wrapper.
+- **The wrapper records a child's run id only when the child succeeds.** It is
+  the step's `output.runId` in the wrapper's run record. A failed child's run is
+  found with `swamp workflow history search <name>`. A child that never started
+  has no run, so the evidence makes child run ids optional and `passed` requires
+  them.
+- **Nothing stops early.** A failed job does not cancel its sibling. The wrapper
+  waits for every job and is `failed` if any failed. The stage therefore always
+  sees every part's outcome.
+- **Nested inputs are not validated** against the child's input schema; only its
+  defaults apply. The wrapper declares the inputs itself and passes each one
+  explicitly.
+- **Concurrency is capped per nesting level.** The cap is the workflow's
+  `concurrency` and `SWAMP_MAX_CONCURRENT_STEPS`, whichever is lower. Each child
+  applies its own. `SWAMP_MAX_CONCURRENT_STEPS=1` runs the jobs one after the
+  other: the stage is still correct, but no faster.
+- **Workflows are found by name** in the repository's `workflows/` directory,
+  then in the directory tree `SWAMP_WORKFLOWS_DIR` names. So the wrapper lives
+  beside the workflows it nests, which is why swamp-extensions keeps it in
+  `verification/`.
+
+`integration/verify_workflow_test.ts` runs the real wrapper on the real engine
+with stub children. It checks that the children overlap and are runs of their
+own, that the wrapper waits for both, and that it fails when either does.
+
 ## Stage plugins: eject only
 
 **Decision.** A stage plugin is a working starting point that a lifecycle
@@ -571,12 +648,12 @@ It is written after the run record, in `committingStore` (`_lib/run_store.ts`).
 A crash in between leaves it one commit behind, never ahead of the run; it names
 the `journalVersion` it was computed from, and the next commit brings it level.
 A failed metrics write is logged, not thrown, because the change it follows is
-already committed. A terminal work item has no next commit, and one that has
-not committed since metrics were introduced has no record at all, so the
-`rebuild_metrics` method rewrites the record from the run whenever it is
-missing or behind, and writes nothing when it is level.
-Nothing in it reads the clock: a stage or wait still running has a start and a
-null end, so the same run always gives the same metrics.
+already committed. A terminal work item has no next commit, and one that has not
+committed since metrics were introduced has no record at all, so the
+`rebuild_metrics` method rewrites the record from the run whenever it is missing
+or behind, and writes nothing when it is level. Nothing in it reads the clock: a
+stage or wait still running has a start and a null end, so the same run always
+gives the same metrics.
 
 ### Why `awaiting` is journaled
 
@@ -602,13 +679,13 @@ passing. Excluded, on purpose:
 A cooldown gate counts as passing from when it lifts; the event carries that
 time as `readyAt`. Recording the product it counts from again restarts it, and
 the new `readyAt` is a change: the wait so far ends (`cleared`) and a new one
-starts when the cooldown lifts again. A commit whose run data cannot be read (a payload failing its digest check)
-notes nothing, since the journal cannot take a wrong event back; the next
-readable commit notes any change. Runs started before the event existed
-have no waits rather than guessed ones.
+starts when the cooldown lifts again. A commit whose run data cannot be read (a
+payload failing its digest check) notes nothing, since the journal cannot take a
+wrong event back; the next readable commit notes any change. Runs started before
+the event existed have no waits rather than guessed ones.
 
-The event is a new journal variant, so a run that holds one cannot be read by
-an earlier gatorwalk-factory. Before go-live that is accepted: the upgrade is
+The event is a new journal variant, so a run that holds one cannot be read by an
+earlier gatorwalk-factory. Before go-live that is accepted: the upgrade is
 one-way.
 
 ### The metrics

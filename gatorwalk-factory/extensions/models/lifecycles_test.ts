@@ -740,8 +740,7 @@ Deno.test("swamp-extensions: the stages, in order", async () => {
     "plan-review",
     "implement",
     "conformance-review",
-    "verify-build",
-    "verify-reviews",
+    "verify",
     "attest",
     "pull-request",
     "merge",
@@ -754,7 +753,7 @@ Deno.test("swamp-extensions: the stages, in order", async () => {
 });
 
 Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
-  // Measured at 145 structural and 18632 count states. With the default
+  // Measured at 119 structural and 11132 count states. With the default
   // cycle limit the count pass stops at its cap; triage, plan, implement and
   // pull-request set maxCycles for that reason (swamp-extensions.md, gap 8).
   const report = analyzeLifecycle(await load(SWX));
@@ -831,8 +830,7 @@ Deno.test("swamp-extensions: every exit from verification to the merge is bound 
     );
   };
   bound("implement", "submit");
-  bound("verify-build", "passed");
-  bound("verify-reviews", "passed");
+  bound("verify", "passed");
   bound("attest", "attested");
   bound("pull-request", "opened");
 });
@@ -845,9 +843,9 @@ Deno.test("swamp-extensions: a person can always send the work back without aban
     );
   assert(manual("reproduce", "reclassify", "triage"));
   assert(manual("plan-review", "revise", "plan"));
-  assert(manual("implement", "recheck", "verify-build"));
+  assert(manual("implement", "recheck", "verify"));
   assert(manual("conformance-review", "rework", "implement"));
-  assert(manual("verify-reviews", "revise", "implement"));
+  assert(manual("verify", "revise", "implement"));
   assert(manual("attest", "revise", "implement"));
   assert(manual("merge", "new-pr", "pull-request"));
   assert(manual("merge", "rework", "implement"));
@@ -915,8 +913,24 @@ Deno.test("swamp-extensions: realistic payloads validate", async () => {
       },
     ],
   });
-  evidence("verify-build", { status: "succeeded", runId: "r1", commit: SHA });
-  evidence("verify-reviews", { status: "failed", runId: "r2", commit: SHA });
+  evidence("verification", {
+    status: "failed",
+    runId: "w1",
+    commit: SHA,
+    buildStatus: "succeeded",
+    buildRunId: "r1",
+    reviewsStatus: "failed",
+    reviewsRunId: "r2",
+  });
+  // A child that never started has no run id.
+  evidence("verification", {
+    status: "failed",
+    runId: "w2",
+    commit: SHA,
+    buildStatus: "failed",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "r3",
+  });
   evidence("attestation", {
     attestationId: "f1a4a927-819e-4142-82b7-a010a62bc821",
     commit: SHA,
@@ -981,18 +995,28 @@ Deno.test("swamp-extensions: drifted payloads are rejected", async () => {
       ...changeSummary(SHA),
       branch: "x;rm -rf ~",
     }],
-    ["a misspelt verify outcome field", "evidence", "verify-build", {
+    ["a misspelt verify outcome field", "evidence", "verification", {
       status: "succeeded",
-      runId: "r1",
+      runId: "w1",
       commit: SHA,
+      buildStatus: "succeeded",
+      reviewsStatus: "succeeded",
       comit: SHA,
     }],
     ["an unknown conformance status", "artifact", "conformance", {
       steps: [{ order: 1, status: "done", description: "d" }],
     }],
-    ["a verify outcome without its commit", "evidence", "verify-build", {
+    ["a verify outcome without its commit", "evidence", "verification", {
       status: "succeeded",
-      runId: "r1",
+      runId: "w1",
+      buildStatus: "succeeded",
+      reviewsStatus: "succeeded",
+    }],
+    ["a verify outcome without a child's status", "evidence", "verification", {
+      status: "succeeded",
+      runId: "w1",
+      commit: SHA,
+      buildStatus: "succeeded",
     }],
     ["a merge without its merge commit", "evidence", "merge", {
       status: "merged",
@@ -1057,17 +1081,23 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
   await approve("plan-approval");
   await move("approve");
 
-  // The first commit fails verify-build, and cannot be submitted again.
+  // The first commit fails verification, and cannot be submitted again.
+  // verify-build failed while verify-reviews passed: the two are judged
+  // together, so the whole verification failed.
   await record("artifact", "change-summary", changeSummary(SHA));
   await move("submit");
   await record("artifact", "conformance", {
     steps: [{ order: 1, status: "implemented", description: "Retry added" }],
   });
   await move("conforms");
-  await record("evidence", "verify-build", {
+  await record("evidence", "verification", {
     status: "failed",
-    runId: "b1",
+    runId: "w1",
     commit: SHA,
+    buildStatus: "failed",
+    buildRunId: "b1",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "v1",
   });
   assert((await tryMove("passed")) !== null);
   await move("failed");
@@ -1099,16 +1129,30 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
     }],
   });
   await move("conforms");
-  await record("evidence", "verify-build", {
+  // A wrapper recorded as succeeded while a child failed is refused: the
+  // wrapper fails whenever a child does.
+  await record("evidence", "verification", {
     status: "succeeded",
-    runId: "b2",
+    runId: "w2",
     commit: SHA_2,
+    buildStatus: "succeeded",
+    buildRunId: "b2",
+    reviewsStatus: "failed",
+    reviewsRunId: "v2",
   });
-  await move("passed");
-  await record("evidence", "verify-reviews", {
+  await approve("checklist-confirmed");
+  assert(
+    (await tryMove("passed"))?.includes("must have succeeded"),
+    "a failed child passed verification",
+  );
+  await record("evidence", "verification", {
     status: "succeeded",
-    runId: "v2",
+    runId: "w3",
     commit: SHA_2,
+    buildStatus: "succeeded",
+    buildRunId: "b2",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "v2",
   });
   await approve("checklist-confirmed");
   await move("passed");
@@ -1183,8 +1227,7 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
   assertEquals(results.get("plan-review.rework"), false);
   assertEquals(results.get("implement.submit"), false);
   assertEquals(results.get("conformance-review.conforms"), true);
-  assertEquals(results.get("verify-build.passed"), true);
-  assertEquals(results.get("verify-reviews.passed"), true);
+  assertEquals(results.get("verify.passed"), true);
   assertEquals(results.get("attest.attested"), true);
   assertEquals(results.get("pull-request.opened"), true);
 });

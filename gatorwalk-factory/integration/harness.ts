@@ -53,6 +53,12 @@ export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
   import.meta.url,
 );
 
+/** The wrapper swamp-extensions.yaml's verify stage runs; see DESIGN.md. */
+export const VERIFY_WORKFLOW = new URL(
+  "../../verification/workflow-verify.yaml",
+  import.meta.url,
+);
+
 export {
   HOLDER_TYPE,
   LINEAR_TYPE,

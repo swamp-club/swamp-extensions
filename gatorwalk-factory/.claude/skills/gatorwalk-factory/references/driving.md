@@ -159,6 +159,22 @@ Then, by `mode`:
   `failed`. Never record a run you did not see finish. (The bundled lifecycle
   has no such stage.)
 
+A lifecycle is in one stage at a time, so work that runs in parallel does so
+inside one stage. Such a stage names a wrapper workflow whose jobs run at once,
+often each nesting another workflow. swamp-extensions' `verify` stage is one: it
+runs verify-build and verify-reviews together. Its result evidence records each
+part, not only the wrapper:
+
+- The wrapper's own run id and status are `runId` and `status`. The wrapper
+  fails if any part failed.
+- A part that succeeded has its run id in the wrapper's run record (the `path`
+  that `swamp workflow run --json` prints), as the step's `output.runId`.
+- A part that failed has none there. Find it with
+  `swamp workflow history search <workflow name> --json`, and check that its
+  inputs name the same commit.
+
+See DESIGN.md, "Parallel work inside one stage", for the rule and the pattern.
+
 When the work used tokens you can count (a subagent reports them), attach them
 to the dispatch. `record_usage` takes no expectation, since usage arrives after
 the item may have moved on, and each dispatch takes usage once:

@@ -331,30 +331,30 @@ stages:
           - type: cel
             config:
               expr: >-
-                !("verify-build" in evidence) ||
-                evidence["verify-build"].payload.commit !=
+                !("verification" in evidence) ||
+                evidence["verification"].payload.commit !=
                 artifacts["change-summary"].payload.commit
               message: >-
                 change-summary still names the commit already verified; record
                 it for the new commit
       - name: recheck
-        to: verify-build
+        to: verify
         manual: true
         description: >-
           Verify the same commit again, for a failure that was not the code's
           (a flaky test, a review provider error). A person decides. Only for
-          the commit verify-build already ran on: a new commit goes through
+          the commit verification already ran on: a new commit goes through
           conformance-review first.
         gates:
           - type: cel
             config:
               expr: >-
-                "verify-build" in evidence &&
+                "verification" in evidence &&
                 "change-summary" in artifacts &&
-                evidence["verify-build"].payload.commit ==
+                evidence["verification"].payload.commit ==
                 artifacts["change-summary"].payload.commit
               message: >-
-                recheck re-verifies the commit verify-build already ran on; a
+                recheck re-verifies the commit verification already ran on; a
                 new commit goes through submit
 
   - id: conformance-review
@@ -401,7 +401,7 @@ stages:
                   justification: { type: string, minLength: 1 }
     transitions:
       - name: conforms
-        to: verify-build
+        to: verify
         gates:
           - type: artifact-fresh
             config: { artifact: conformance, recordedThisCycle: true }
@@ -418,19 +418,28 @@ stages:
         description: >-
           The code has to change to match the plan. A person decides.
 
-  - id: verify-build
+  - id: verify
     description: >-
-      The verify-build workflow at the change-summary commit: every check in
+      The verify workflow at the change-summary commit: verify-build and
+      verify-reviews run concurrently as nested runs of one wrapper, and are
+      judged together. verify-build runs every check in
       verification/checks.yaml for the directories the change touches, the
-      audits, codegen idempotency and the upgrade gate.
+      audits, codegen idempotency and the upgrade gate; verify-reviews runs
+      the agent reviews the change's paths call for. The wrapper fails if
+      either fails, and waits for both. A person then sees the combined
+      checklist of both runs and confirms it before the attestation is
+      posted. A lifecycle is in one stage at a time, so this is how the two
+      run in parallel; see DESIGN.md, "Parallel work inside one stage".
     work:
       mode: workflow
-      workflow: { name: verify-build }
+      workflow: { name: verify }
       command: >-
         SWAMP_WORKFLOWS_DIR=<absolute path to the checkout>/verification
-        swamp workflow run verify-build --input commit={{commit}}
+        swamp workflow run verify --input commit={{commit}}
         --input branch={{branch}} (from a worktree, add --repo-dir with the
-        main checkout)
+        main checkout). The child run ids are each step's output.runId in the
+        wrapper's run record; a failed child's is found with swamp workflow
+        history search verify-build (or verify-reviews).
       bindings:
         commit: artifacts["change-summary"].payload.commit
         branch: artifacts["change-summary"].payload.branch
@@ -440,75 +449,25 @@ stages:
         properties:
           commit: { type: string, pattern: "^[0-9a-f]{40}$" }
           branch: { type: string, pattern: "^[A-Za-z0-9._/-]+$" }
-      resultEvidence: verify-build
+      resultEvidence: verification
     evidence:
-      - name: verify-build
+      - name: verification
         description: >-
-          The run's outcome: succeeded only when every step that was not
-          skipped succeeded.
+          The wrapper run's outcome and each child's. status and runId are the
+          wrapper run's: succeeded only when both children succeeded. A
+          child's run id is missing only when it never started.
         schema:
           type: object
-          required: [status, runId, commit]
+          required: [status, runId, commit, buildStatus, reviewsStatus]
           additionalProperties: false
           properties:
             status: { enum: [succeeded, failed] }
             runId: { type: string, minLength: 1 }
             commit: { type: string, pattern: "^[0-9a-f]{40}$" }
-            outputs: { type: object }
-    transitions:
-      - name: passed
-        to: verify-reviews
-        gates:
-          - type: evidence-recorded
-            config: { name: verify-build, requireField: { status: succeeded } }
-          - type: cel
-            config:
-              expr: >-
-                evidence["verify-build"].payload.commit ==
-                artifacts["change-summary"].payload.commit
-              message: verify-build must have run on the change-summary commit
-      - name: failed
-        to: implement
-        gates:
-          - type: evidence-recorded
-            config: { name: verify-build, requireField: { status: failed } }
-
-  - id: verify-reviews
-    description: >-
-      The verify-reviews workflow at the same commit: the agent reviews that
-      the change's paths call for. A person then sees the combined checklist
-      of both runs and confirms it before the attestation is posted.
-    work:
-      mode: workflow
-      workflow: { name: verify-reviews }
-      command: >-
-        SWAMP_WORKFLOWS_DIR=<absolute path to the checkout>/verification
-        swamp workflow run verify-reviews --input commit={{commit}}
-        --input branch={{branch}} (from a worktree, add --repo-dir with the
-        main checkout)
-      bindings:
-        commit: artifacts["change-summary"].payload.commit
-        branch: artifacts["change-summary"].payload.branch
-      inputsSchema:
-        type: object
-        required: [commit, branch]
-        properties:
-          commit: { type: string, pattern: "^[0-9a-f]{40}$" }
-          branch: { type: string, pattern: "^[A-Za-z0-9._/-]+$" }
-      resultEvidence: verify-reviews
-    evidence:
-      - name: verify-reviews
-        description: >-
-          The run's outcome: succeeded only when every review that ran passed.
-          A missing record or a provider error is a failure.
-        schema:
-          type: object
-          required: [status, runId, commit]
-          additionalProperties: false
-          properties:
-            status: { enum: [succeeded, failed] }
-            runId: { type: string, minLength: 1 }
-            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            buildStatus: { enum: [succeeded, failed] }
+            buildRunId: { type: string, minLength: 1 }
+            reviewsStatus: { enum: [succeeded, failed] }
+            reviewsRunId: { type: string, minLength: 1 }
             outputs: { type: object }
     transitions:
       - name: passed
@@ -516,21 +475,32 @@ stages:
         gates:
           - type: evidence-recorded
             config:
-              name: verify-reviews
+              name: verification
               requireField: { status: succeeded }
           - type: cel
             config:
               expr: >-
-                evidence["verify-reviews"].payload.commit ==
+                evidence["verification"].payload.commit ==
                 artifacts["change-summary"].payload.commit
-              message: verify-reviews must have run on the change-summary commit
+              message: verification must have run on the change-summary commit
+          - type: cel
+            config:
+              expr: >-
+                evidence["verification"].payload.buildStatus == "succeeded" &&
+                evidence["verification"].payload.reviewsStatus == "succeeded"
+                && "buildRunId" in evidence["verification"].payload &&
+                "reviewsRunId" in evidence["verification"].payload
+              message: >-
+                both verify-build and verify-reviews must have succeeded, with
+                their run ids; status is the wrapper run's own, which fails
+                when either child does
           - type: human-approval
             config: { id: checklist-confirmed }
       - name: failed
         to: implement
         gates:
           - type: evidence-recorded
-            config: { name: verify-reviews, requireField: { status: failed } }
+            config: { name: verification, requireField: { status: failed } }
       - name: revise
         to: implement
         manual: true
@@ -540,7 +510,7 @@ stages:
 
   - id: attest
     description: >-
-      Build the attestation from the two runs and post it to swamp-club, then
+      Build the attestation from the two child runs of verify and post it to swamp-club, then
       record its id. Posting is done by hand until this lifecycle uses the
       swamp-club adapter. The pull request opens only once a person says so.
     work:
@@ -553,8 +523,8 @@ stages:
         pull request.
       bindings:
         commit: artifacts["change-summary"].payload.commit
-        buildRun: evidence["verify-build"].payload.runId
-        reviewsRun: evidence["verify-reviews"].payload.runId
+        buildRun: evidence["verification"].payload.buildRunId
+        reviewsRun: evidence["verification"].payload.reviewsRunId
     evidence:
       - name: attestation
         schema:
@@ -578,9 +548,9 @@ stages:
                 evidence["attestation"].payload.commit ==
                 artifacts["change-summary"].payload.commit &&
                 evidence["attestation"].payload.buildRunId ==
-                evidence["verify-build"].payload.runId &&
+                evidence["verification"].payload.buildRunId &&
                 evidence["attestation"].payload.reviewsRunId ==
-                evidence["verify-reviews"].payload.runId
+                evidence["verification"].payload.reviewsRunId
               message: >-
                 the attestation must be built from this commit's verify-build
                 and verify-reviews runs

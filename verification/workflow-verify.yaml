@@ -1,0 +1,57 @@
+id: 63078dbb-621e-4f43-92d9-bf9b5a98074b
+name: verify
+description: |
+  verify-build and verify-reviews at the same commit, run concurrently as one
+  run that fails if either fails. The gatorwalk swamp-extensions lifecycle
+  (gatorwalk-factory/lifecycles/swamp-extensions.yaml) runs this as its one
+  verify stage; see gatorwalk-factory/DESIGN.md, "Parallel work inside one
+  stage". It is not a verification workflow of its own: it is not listed in
+  attestation.yaml, and the attestation is built from its two child runs,
+  each of which keeps its own run record. Launching the two workflows by hand,
+  as agent-constraints/verification-conventions.md describes, verifies the
+  same way.
+version: 1
+
+tags:
+  purpose: pre-pr-verification
+
+inputs:
+  properties:
+    commit:
+      type: string
+      description: Commit SHA being verified.
+    branch:
+      type: string
+      description: Branch name being verified.
+  required:
+    - commit
+    - branch
+
+concurrency: 2
+
+# Two jobs with no dependsOn sit at the same dependency level, so they run
+# concurrently. A failed child does not stop the other: the run waits for both
+# and is failed if either is. Nested calls do not validate the child's inputs
+# against its schema, so both are passed explicitly.
+jobs:
+  - name: build
+    description: The verify-build workflow at the commit.
+    steps:
+      - name: verify-build
+        task:
+          type: workflow
+          workflowIdOrName: verify-build
+          inputs:
+            commit: ${{ inputs.commit }}
+            branch: ${{ inputs.branch }}
+
+  - name: reviews
+    description: The verify-reviews workflow at the commit.
+    steps:
+      - name: verify-reviews
+        task:
+          type: workflow
+          workflowIdOrName: verify-reviews
+          inputs:
+            commit: ${{ inputs.commit }}
+            branch: ${{ inputs.branch }}

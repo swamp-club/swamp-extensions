@@ -531,16 +531,14 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     steps: [{ order: 1, status: "implemented", description: "Written" }],
   });
   await go("conforms");
-  await record("evidence", "verify-build", {
+  await record("evidence", "verification", {
     status: "succeeded",
-    runId: "b1",
+    runId: "w1",
     commit: SHA,
-  });
-  await go("passed");
-  await record("evidence", "verify-reviews", {
-    status: "succeeded",
-    runId: "v1",
-    commit: SHA,
+    buildStatus: "succeeded",
+    buildRunId: "b1",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "v1",
   });
   await approve("checklist-confirmed");
   await go("passed");

@@ -143,8 +143,8 @@ plugin. The inputs are:
 
 - `plugin`, `replace`: the plugin holder, and the placeholder stage.
 - `exits`: where exits go, overriding the placeholder's transitions.
-- `inputs`: which of your products each contract input is, when the names
-  differ (`{"plan": "design"}`).
+- `inputs`: which of your products each contract input is, when the names differ
+  (`{"plan": "design"}`).
 - `names`: new names for the plugin's `stages`, `artifacts` and `evidence`
   (`{"stages": {"review": "design-review"}}`). A name that clashes with one of
   yours is an error that says which entry to add; nothing is prefixed, so two
@@ -193,8 +193,8 @@ the session summary:
 
 ```
 triage → [reproduce] → plan → plan-review → implement → conformance-review
-  → verify-build → verify-reviews → attest → pull-request → merge → release
-  → notify → summary → done
+  → verify → attest → pull-request → merge → release → notify → summary
+  → done
 ```
 
 - **It describes the process; it does not replace issue-lifecycle.** The
@@ -207,9 +207,12 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
   approval, the verification checklist, opening the pull request, what to do
   after a failed pull request, and abandoning the work. Five are approvals;
   after a failed pull request the person picks one of two manual exits.
-- **Verification runs as workflow stages**, verify-build then verify-reviews,
-  each recording its run's outcome. Every exit from verification to the merge is
-  bound to the commit in `change-summary`.
+- **Verification runs as one workflow stage.** Its wrapper workflow,
+  `verification/workflow-verify.yaml`, runs verify-build and verify-reviews at
+  the same time as nested runs. The stage records one outcome with both runs in
+  it. This is how a lifecycle, which is in one stage at a time, runs things in
+  parallel; see DESIGN.md, "Parallel work inside one stage". Every exit from
+  verification to the merge is bound to the commit in `change-summary`.
 
 `lifecycles/swamp-extensions.md` is not a lifecycle. It maps every phase, gate
 and human stop of today's process onto the format, and lists what the format
@@ -296,8 +299,8 @@ it was computed from. A dashboard reads every work item's metrics in one query:
 swamp data query 'modelType == "@swamp/gatorwalk-factory/work-item" && name == "metrics"' --json
 ```
 
-If a metrics write failed, or the work item has not committed since metrics
-were introduced, `rebuild_metrics` rewrites the record from the run:
+If a metrics write failed, or the work item has not committed since metrics were
+introduced, `rebuild_metrics` rewrites the record from the run:
 
 ```bash
 swamp model @swamp/gatorwalk-factory/work-item method run rebuild_metrics <key> --log
