@@ -19,9 +19,9 @@ import { parse as parseYaml } from "@std/yaml";
 import {
   type Lifecycle,
   parseLifecycle,
-  parsePlugin,
   transitionsFrom,
 } from "./lifecycle_schema.ts";
+import { instantiatePlugin } from "./plugin_instance.ts";
 
 const TESTDATA = new URL("../../../testdata/", import.meta.url);
 
@@ -130,8 +130,8 @@ for (
   });
 }
 
-Deno.test("fixture: the review-plan plugin is valid", async () => {
-  const result = parsePlugin(await fixture("plugins/review-plan.yaml"));
+Deno.test("fixture: the review-plan plugin is valid with its default parameters", async () => {
+  const result = instantiatePlugin(await fixture("plugins/review-plan.yaml"));
   assertEquals(result.ok ? [] : result.errors, []);
 });
 
@@ -255,6 +255,41 @@ Deno.test("cel: binding names are identifiers", () => {
     doc,
     "stages.0.work.bindings.change-url: a binding name is an identifier",
   );
+});
+
+Deno.test("cel: a macro or cel.bind variable may not reuse a context name", () => {
+  const doc = base();
+  set(doc, "stages.0.work.bindings", {
+    a: "[1].exists(artifacts, artifacts > 0)",
+    b: "cel.bind(stage, 1, stage + 1)",
+    c: "evidence.all(k, v, v != null)",
+    d: "[1].map(item, item * 2)",
+  });
+  push(doc, "stages.0.transitions.0.gates", {
+    type: "cel",
+    config: { expr: "[[1]].all(validations, validations.size() > 0)" },
+  });
+  assertRejects(
+    doc,
+    "stages.0.work.bindings.a: 'artifacts' is a name the CEL context defines (item, stage, artifacts, evidence, validations)",
+    "stages.0.work.bindings.b: 'stage' is a name",
+    "stages.0.work.bindings.d: 'item' is a name",
+    "stages.0.transitions.0.gates.1.config.expr: 'validations' is a name",
+  );
+  assert(
+    !errorsOf(doc).some((e) => e.includes("bindings.c")),
+    "the map's own variables k and v are fine",
+  );
+});
+
+Deno.test("cel: macro variables with other names, and reading the context in a macro, are fine", () => {
+  const doc = base();
+  set(doc, "stages.0.work.bindings", {
+    a: "artifacts.all(k, artifacts[k].version > 0) && [1].exists(x, x > 0)",
+    b: "cel.bind(n, artifacts.summary.version, n + 1.0)",
+    c: 'stage.id.startsWith("w")',
+  });
+  assertValid(doc);
 });
 
 // --- templates ---------------------------------------------------------------
@@ -403,6 +438,28 @@ Deno.test("products: reviews links resolve and do not loop", () => {
   assertRejects(loop, "reviews chain from 'a' loops through 'a'");
 });
 
+Deno.test("products: a name is one kind, across artifacts, evidence and contract inputs", () => {
+  const doc = base();
+  set(doc, "stages.0.evidence", [{
+    name: "summary",
+    schema: { type: "object" },
+  }]);
+  assertRejects(
+    doc,
+    "stages.0.evidence.0.name: 'summary' names both an artifact and evidence",
+  );
+  const result = base();
+  set(result, "stages.0.work", {
+    mode: "workflow",
+    workflow: { name: "w" },
+    resultEvidence: "summary",
+  });
+  assertRejects(
+    result,
+    "stages.0.work.resultEvidence: 'summary' names both an artifact and evidence",
+  );
+});
+
 // --- stages and transitions ----------------------------------------------
 
 Deno.test("stages: exactly one initial and at least one terminal", () => {
@@ -496,7 +553,9 @@ async function pluginErrors(
 ): Promise<string[]> {
   const doc = await fixture("plugins/review-plan.yaml");
   mutate(doc);
-  const result = parsePlugin(doc);
+  // Filled in with its defaults: the fixture's $param placeholders are only
+  // valid values once instantiated.
+  const result = instantiatePlugin(doc);
   return result.ok ? [] : result.errors;
 }
 
@@ -550,6 +609,15 @@ Deno.test("plugin: gates may reference inputs, which are declared elsewhere", as
       });
     }),
     [],
+  );
+});
+
+Deno.test("plugin: an evidence input may not share an artifact's name", async () => {
+  assertMentions(
+    await pluginErrors((doc) => {
+      push(doc, "contract.inputs", { kind: "evidence", name: "plan" });
+    }),
+    "contract.inputs.1.name: 'plan' names both an artifact and evidence",
   );
 });
 

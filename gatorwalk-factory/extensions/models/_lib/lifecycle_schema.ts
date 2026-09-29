@@ -21,6 +21,7 @@ import {
   type PayloadSchema,
   SEVERITIES,
 } from "./payload_schema.ts";
+import type { CelContext } from "./cel_context.ts";
 import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 
 // ---------------------------------------------------------------------------
@@ -90,6 +91,80 @@ export const ObjectPayloadSchemaSchema = PayloadSchemaSchema.refine(
 
 const TEMPLATE_OPEN = "${{";
 
+/**
+ * The names CEL reads from its context (cel_context.ts). A macro or cel.bind
+ * variable may not reuse one: it would hide the context's value for the rest
+ * of the expression, and eject renames products on the assumption that these
+ * names always mean the context's.
+ */
+export const CEL_VOCABULARY = [
+  "item",
+  "stage",
+  "artifacts",
+  "evidence",
+  "validations",
+] as const satisfies readonly (keyof CelContext)[];
+
+// Every context name is listed: this fails to compile when one is missing.
+const _vocabularyComplete: Exclude<
+  keyof CelContext,
+  typeof CEL_VOCABULARY[number]
+> extends never ? true : never = true;
+
+/** Comprehension macros, whose leading arguments are variables they bind. */
+const COMPREHENSIONS = new Set([
+  "all",
+  "exists",
+  "exists_one",
+  "existsOne",
+  "map",
+  "filter",
+  "transformList",
+  "transformMap",
+  "transformMapEntry",
+]);
+
+interface CelNode {
+  op: string;
+  args: unknown;
+}
+
+function isCelNode(value: unknown): value is CelNode {
+  return value !== null && typeof value === "object" && "op" in value &&
+    "args" in value;
+}
+
+/** Variables the expression's macros and cel.bind calls bind. */
+function boundVariables(node: unknown, out: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const child of node) boundVariables(child, out);
+    return out;
+  }
+  if (!isCelNode(node)) return out;
+  if (node.op === "rcall") {
+    const [name, receiver, args] = node.args as [string, unknown, unknown[]];
+    let vars: unknown[] = [];
+    if (name === "bind") {
+      if (
+        isCelNode(receiver) && receiver.op === "id" && receiver.args === "cel"
+      ) {
+        vars = args.slice(0, 1);
+      }
+    } else if (COMPREHENSIONS.has(name)) {
+      // map(x, p, t) and filter bind one variable; the others may bind two.
+      const most = name === "map" || name === "filter" ? 1 : 2;
+      vars = args.slice(0, Math.min(most, args.length - 1));
+    }
+    for (const v of vars) {
+      if (isCelNode(v) && v.op === "id" && typeof v.args === "string") {
+        out.push(v.args);
+      }
+    }
+  }
+  if (node.op !== "id" && node.op !== "value") boundVariables(node.args, out);
+  return out;
+}
+
 /** A bare CEL expression, syntax-checked when the lifecycle is saved. */
 export const CelExpressionSchema = z.string().min(1).superRefine(
   (expr, ctx) => {
@@ -101,8 +176,9 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
       });
       return;
     }
+    let ast: unknown;
     try {
-      parseCel(expr);
+      ast = parseCel(expr).ast;
     } catch (error) {
       ctx.addIssue({
         code: "custom",
@@ -110,6 +186,18 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
           error instanceof Error ? error.message : String(error)
         }`,
       });
+      return;
+    }
+    const reserved: readonly string[] = CEL_VOCABULARY;
+    for (const name of new Set(boundVariables(ast))) {
+      if (reserved.includes(name)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `'${name}' is a name the CEL context defines (${
+            CEL_VOCABULARY.join(", ")
+          }); a macro or cel.bind variable may not reuse it`,
+        });
+      }
     }
   },
 );
@@ -624,6 +712,35 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       else evidence.add(port.name);
     }
   }
+
+  // A name is one kind: context.inject and the graph find a product by name
+  // alone.
+  const oneKind = (name: string, path: Path) =>
+    fail(
+      path,
+      `'${name}' names both an artifact and evidence; use a different name ` +
+        "for one of them (context.inject refers to a product by name alone)",
+    );
+  doc.stages.forEach((stage, i) => {
+    const own = stage.evidence ?? [];
+    own.forEach((spec, j) => {
+      if (artifacts.has(spec.name)) {
+        oneKind(spec.name, ["stages", i, "evidence", j, "name"]);
+      }
+    });
+    const result = stage.work?.resultEvidence;
+    if (
+      result !== undefined && !own.some((e) => e.name === result) &&
+      artifacts.has(result)
+    ) {
+      oneKind(result, ["stages", i, "work", "resultEvidence"]);
+    }
+  });
+  (contract?.inputs ?? []).forEach((port, j) => {
+    if (port.kind === "evidence" && artifacts.has(port.name)) {
+      oneKind(port.name, ["contract", "inputs", j, "name"]);
+    }
+  });
 
   // reviews: links resolve, and the chain is acyclic.
   doc.stages.forEach((stage, i) => {

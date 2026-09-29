@@ -17,6 +17,7 @@ adds the manifest and deletes that test.
 ```
 extensions/models/
   lifecycle.ts            the lifecycle holder model type
+  plugin.ts               the plugin holder model type
   work_item.ts            the work-item model type
   linear.ts               the Linear tracker adapter model type
   _lib/
@@ -32,7 +33,11 @@ extensions/models/
     cel_context.ts        the CEL vocabulary for bindings and cel gates
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
-    work_item_ops.ts      the methods of the holder and work-item types
+    graph.ts              graph analysis of a lifecycle or plugin
+    plugin_instance.ts    a plugin's $param placeholders, filled in
+    eject.ts              a plugin's stages, copied into a lifecycle
+    work_item_ops.ts      the methods of the holder, plugin holder and
+                          work-item types
     tracker.ts            the tracker adapter contract
     tracker_methods.ts    the methods every tracker model has, and its ledger
     tracker_conformance.ts  the contract, checked the same way per adapter
@@ -48,7 +53,8 @@ lifecycles/               lifecycles gatorwalk-factory ships, and the
   SKILL.md                the skill: how an agent drives a work item
   references/             driving in full, and a worked example
 testdata/
-  lifecycles/             software-factory's examples, ported
+  lifecycles/             software-factory's examples, ported, and a
+                          lifecycle to eject a plugin into
   plugins/                stage plugins
 ```
 
@@ -81,7 +87,10 @@ artifacts, evidence, transitions and gates. Three things change:
   than rendering blank. See [DESIGN.md](DESIGN.md) for why.
 - **References are checked when the lifecycle is checked.** This covers
   transition targets, gate references, `reviews` links and injected context, and
-  every problem is reported with its path.
+  every problem is reported with its path. A name is one kind: an artifact and
+  evidence may not share it, since `context.inject` names a product alone. A CEL
+  macro or `cel.bind` may not bind a variable named after the CEL vocabulary
+  (`item`, `stage`, `artifacts`, `evidence`, `validations`).
 - **The lifecycle is analysed as a graph** by `validate`. Errors are stages that
   cannot be reached, stages with no way to a terminal stage, transitions whose
   gates can never pass (such as `evidence-recorded` on evidence another stage
@@ -95,8 +104,51 @@ artifacts, evidence, transitions and gates. Three things change:
 
 A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
-transitions leave through `exit:` rather than `to:`. See
+transitions leave through `exit:` rather than `to:`. A value anywhere in its
+stages may be a parameter placeholder, `{ $param: <name> }`, which is replaced
+whole by the parameter's value (or its schema `default`). See
 `testdata/plugins/review-plan.yaml`.
+
+## Stage plugins: eject
+
+A plugin is a working starting point, not a dependency. It lives in a **plugin
+holder** (`@swamp/gatorwalk-factory/plugin`), and a lifecycle holder's `eject`
+method copies its stages into the lifecycle as ordinary stages, which you then
+save and edit freely. Nothing refers back to the plugin afterwards.
+
+Sketch the lifecycle first, with a **placeholder stage** where the plugin goes.
+It is bare (only `id`, `description`, `initial` and `transitions`), and its
+transitions are named after the plugin's exits:
+
+```yaml
+- id: review
+  description: Placeholder for the review-plan plugin.
+  transitions:
+    - { name: approved, to: implement }
+    - { name: rework, to: plan }
+```
+
+`eject` replaces it. Transitions into the placeholder now enter the plugin's
+first stage, and each exit leaves to the stage the placeholder's transition of
+the same name targets. An exit that targets the placeholder itself re-enters the
+plugin. The inputs are:
+
+- `plugin`, `replace`: the plugin holder, and the placeholder stage.
+- `exits`: where exits go, overriding the placeholder's transitions.
+- `inputs`: which of your products each contract input is, when the names
+  differ (`{"plan": "design"}`).
+- `names`: new names for the plugin's `stages`, `artifacts` and `evidence`
+  (`{"stages": {"review": "design-review"}}`). A name that clashes with one of
+  yours is an error that says which entry to add; nothing is prefixed, so two
+  uses of one plugin are told apart by the names you give them.
+- `params`: the plugin's parameter values.
+
+The result must pass the schema and the graph analysis, every exit must be
+wired, and every contract input must be produced on every path into the plugin.
+`eject` never changes the holder: it logs the lifecycle (as JSON, which is YAML)
+and writes it to the holder's `ejected-lifecycle` record. Save it as the
+holder's `globalArguments` and run `validate`. See [DESIGN.md](DESIGN.md),
+"Stage plugins: eject only".
 
 ## Bundled lifecycles
 
@@ -188,6 +240,13 @@ swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
 swamp model method run team new_key --log        # prints a work-item key
+
+# A plugin holder, and its stages ejected into team's placeholder stage.
+swamp model create @swamp/gatorwalk-factory/plugin review-plan --json
+swamp model method run review-plan validate --log
+swamp model method run team eject --input plugin=review-plan \
+  --input replace=review --log
+swamp data get team ejected-lifecycle --json     # save .content.lifecycle
 
 # A work item, named by that key.
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \

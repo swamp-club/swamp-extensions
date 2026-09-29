@@ -24,6 +24,7 @@ import {
 import { LINEAR_TYPE } from "../extensions/models/_lib/linear.ts";
 import {
   HOLDER_TYPE,
+  PLUGIN_TYPE,
   WORK_ITEM_TYPE,
 } from "../extensions/models/_lib/work_item_ops.ts";
 
@@ -51,7 +52,7 @@ export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
   import.meta.url,
 );
 
-export { HOLDER_TYPE, LINEAR_TYPE, WORK_ITEM_TYPE };
+export { HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, WORK_ITEM_TYPE };
 
 // The only inherited SWAMP_ variable kept. SWAMP_HOME relocates swamp's user
 // directory (config, stored login, and the runtime that loads extensions),
@@ -100,13 +101,15 @@ export interface SwampRepo {
   >;
   /** Create a lifecycle holder whose globalArguments are `lifecycle`. */
   holder(name: string, lifecycle: unknown): Promise<void>;
+  /** Create a plugin holder whose globalArguments are `plugin`. */
+  pluginHolder(name: string, plugin: unknown): Promise<void>;
   /** Replace a holder's lifecycle, as `swamp model edit` would. */
   editHolder(name: string, lifecycle: unknown): Promise<void>;
-  /** Run a holder method by name. */
+  /** Run a holder (or plugin holder) method by name. */
   holderMethod(
     name: string,
     method: string,
-    options?: { allowFailure?: boolean },
+    options?: { allowFailure?: boolean; inputs?: Record<string, string> },
   ): Promise<SwampResult>;
   /** Run a work-item method by direct type execution. */
   workItem(
@@ -225,6 +228,12 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     await Deno.writeTextFile(path, stringifyYaml(definition));
   };
 
+  const createHolder = async (type: string, name: string, doc: unknown) => {
+    const { stdout } = await swamp(["model", "create", type, name, "--json"]);
+    holderFiles.set(name, (JSON.parse(stdout) as { path: string }).path);
+    await writeHolder(name, doc);
+  };
+
   const data: SwampRepo["data"] = async (instance, name, version) => {
     const args = ["data", "get", instance, name, "--json"];
     if (version !== undefined) args.push("--version", String(version));
@@ -244,20 +253,22 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   return {
     dir,
     swamp,
-    async holder(name, lifecycle) {
-      const { stdout } = await swamp([
-        "model",
-        "create",
-        HOLDER_TYPE,
-        name,
-        "--json",
-      ]);
-      holderFiles.set(name, (JSON.parse(stdout) as { path: string }).path);
-      await writeHolder(name, lifecycle);
-    },
+    holder: (name, lifecycle) => createHolder(HOLDER_TYPE, name, lifecycle),
+    pluginHolder: (name, plugin) => createHolder(PLUGIN_TYPE, name, plugin),
     editHolder: writeHolder,
-    holderMethod: (name, method, options) =>
-      swamp(["model", "method", "run", name, method, "--log"], options),
+    holderMethod: (name, method, options = {}) =>
+      swamp(
+        [
+          "model",
+          "method",
+          "run",
+          name,
+          method,
+          ...inputArgs(options.inputs ?? {}),
+          "--log",
+        ],
+        options,
+      ),
     workItem: (key, method, inputs = {}, options) =>
       swamp(
         [

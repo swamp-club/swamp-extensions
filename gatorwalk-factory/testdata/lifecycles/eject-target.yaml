@@ -1,0 +1,48 @@
+# A lifecycle sketched with a placeholder stage, review, where the
+# review-plan plugin is ejected (eject_test.ts, integration/cli_test.ts). The
+# placeholder's transitions name where each of the plugin's exits goes.
+schemaVersion: 1
+name: plan-then-build
+description: Plan, have the plan reviewed, build it.
+stages:
+  - id: plan
+    initial: true
+    maxCycles: 3
+    work:
+      mode: interactive
+      systemPrompt: Write the plan.
+    artifacts:
+      - name: plan
+        schema:
+          type: object
+          required: [summary]
+          properties: { summary: { type: string } }
+    transitions:
+      - name: submit
+        to: review
+        gates:
+          - type: artifact-exists
+            config: { artifact: plan }
+  - id: review
+    description: Placeholder for the review-plan plugin.
+    transitions:
+      - { name: approved, to: implement }
+      - { name: rework, to: plan }
+  - id: implement
+    work:
+      mode: interactive
+      systemPrompt: Implement the plan.
+    evidence:
+      - name: change
+        schema:
+          type: object
+          required: [url]
+          properties: { url: { type: string } }
+    transitions:
+      - name: finish
+        to: done
+        gates:
+          - type: evidence-recorded
+            config: { name: change }
+  - id: done
+    terminal: true

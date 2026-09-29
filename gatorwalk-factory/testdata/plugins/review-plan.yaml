@@ -1,5 +1,6 @@
 # An adversarial plan review as a plugin: consumes a plan, produces
-# findings, and leaves through approved or rework.
+# findings, and leaves through approved or rework. Its reviewer skills and
+# blocking severities are parameters, filled in when it is ejected.
 schemaVersion: 1
 name: review-plan
 description: Adversarial review of a plan, with a human sign-off.
@@ -15,16 +16,22 @@ contract:
     type: object
     additionalProperties: false
     properties:
-      skills: { type: array, items: { type: string }, minItems: 1 }
+      skills:
+        type: array
+        items: { type: string }
+        minItems: 1
+        default: [adversarial-review]
       blocking:
         type: array
         items: { enum: [critical, high, medium, low] }
+        minItems: 1
+        default: [critical, high]
 stages:
   - id: review
     initial: true
     work:
       mode: dispatch
-      skills: [adversarial-review]
+      skills: { $param: skills }
       systemPrompt: |
         Adversarially review the injected plan. Try to refute it. Record
         findings with severities; do not soften them.
@@ -41,7 +48,7 @@ stages:
           - type: artifact-fresh
             config: { artifact: plan-review, recordedThisCycle: true }
           - type: findings-clear
-            config: { artifact: plan-review, blocking: [critical, high] }
+            config: { artifact: plan-review, blocking: { $param: blocking } }
           - type: human-approval
             config: { id: plan-approval }
       - name: rework

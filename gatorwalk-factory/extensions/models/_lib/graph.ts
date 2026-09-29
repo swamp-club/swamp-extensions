@@ -557,6 +557,44 @@ function components(
   return out;
 }
 
+export interface MissingOnEntry {
+  kind: ProductKind;
+  name: string;
+  /** The shortest path of stages into the stage without the product. */
+  trace: string[];
+}
+
+/**
+ * Products that some path into `stage` enters it without, by the structural
+ * pass: a product is there once a stage that produces it has been entered.
+ * Eject uses it to check a plugin's contract inputs on the composed
+ * lifecycle, including inputs only a CEL binding reads.
+ */
+export function productsMissingOnEntry(
+  doc: Lifecycle | Plugin,
+  stage: string,
+  products: { kind: ProductKind; name: string }[],
+  options: AnalyzeOptions = {},
+): { missing: MissingOnEntry[]; truncated: boolean } {
+  const g = buildGraph(doc);
+  const structure = exploreStructure(
+    g,
+    options.maxStates ?? DEFAULT_MAX_STATES,
+  );
+  const missing: MissingOnEntry[] = [];
+  for (const product of products) {
+    // Breadth-first order, so the first visit lacking it has the shortest trace.
+    const lacking = structure.nodes.findIndex((node) =>
+      node.stage === stage &&
+      !available(g, product.kind, product.name, node.state)
+    );
+    if (lacking !== -1) {
+      missing.push({ ...product, trace: traceOf(structure.nodes, lacking) });
+    }
+  }
+  return { missing, truncated: structure.truncated };
+}
+
 /**
  * Analyse a parsed lifecycle or plugin. Errors are problems a work item will
  * hit; warnings are designs worth a second look.

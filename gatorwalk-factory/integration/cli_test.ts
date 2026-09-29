@@ -27,6 +27,7 @@ import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
   LINEAR_TYPE,
+  PLUGIN_TYPE,
   SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
   withRepo,
@@ -40,6 +41,15 @@ import {
 // ---------------------------------------------------------------------------
 
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
+
+const TESTDATA = new URL("../testdata/", import.meta.url);
+
+async function testdata(path: string): Promise<Record<string, unknown>> {
+  return parseYaml(await Deno.readTextFile(new URL(path, TESTDATA))) as Record<
+    string,
+    unknown
+  >;
+}
 
 async function buildLifecycle(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD_LIFECYCLE)) as Record<
@@ -96,7 +106,10 @@ Deno.test("cli: every model type registers from the extension source", async () 
     ]);
     const types = (JSON.parse(stdout) as { results: { raw: string }[] })
       .results.map((r) => r.raw).sort();
-    assertEquals(types, [HOLDER_TYPE, LINEAR_TYPE, WORK_ITEM_TYPE].sort());
+    assertEquals(
+      types,
+      [HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, WORK_ITEM_TYPE].sort(),
+    );
   });
 });
 
@@ -355,5 +368,65 @@ Deno.test("cli: build-swamp-extension from start to release, with every stored v
     const parsed = parseLifecycle(pin.lifecycle);
     assert(parsed.ok);
     assertEquals(await digestOf(parsed.value), run.lifecycle.digest);
+  });
+});
+
+Deno.test("cli: eject a plugin into a lifecycle, save it, and run a work item through the ejected stages", async () => {
+  await withRepo(async (repo) => {
+    // The plugin's $param placeholders come back from swamp's storage as
+    // written, or validate could not fill them in.
+    await repo.pluginHolder(
+      "review-plan",
+      await testdata("plugins/review-plan.yaml"),
+    );
+    const valid = await repo.holderMethod("review-plan", "validate", {
+      inputs: { params: JSON.stringify({ blocking: ["critical"] }) },
+    });
+    assert(
+      valid.output.includes("plugin 'review-plan' in 'review-plan' is valid"),
+      valid.output,
+    );
+
+    await repo.holder("team", await testdata("lifecycles/eject-target.yaml"));
+    const ejected = await repo.holderMethod("team", "eject", {
+      inputs: {
+        plugin: "review-plan",
+        replace: "review",
+        names: JSON.stringify({ stages: { review: "plan-review" } }),
+      },
+    });
+    assert(
+      ejected.output.includes(
+        "ejected plugin 'review-plan' from 'review-plan' into lifecycle 'plan-then-build'",
+      ),
+      ejected.output,
+    );
+    const record = await repo.data("team", "ejected-lifecycle");
+    const parsed = parseLifecycle(record.lifecycle);
+    assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+    assertEquals(await digestOf(parsed.value), record.digest);
+
+    // The author saves it as the holder's lifecycle; nothing else changes.
+    await repo.editHolder("team", record.lifecycle);
+    const saved = await repo.holderMethod("team", "validate");
+    assert(
+      saved.output.includes("lifecycle 'plan-then-build' in 'team' is valid"),
+      saved.output,
+    );
+
+    const key = await repo.newKey("team");
+    await repo.workItem(key, "start", { lifecycle: "team" });
+    const { record: put, go, approve } = driver(repo, key);
+    await put("artifact", "plan", { summary: "Add list" });
+    await go("submit");
+    assertEquals((await repo.run(key)).stage, "plan-review");
+    await put("artifact", "plan-review", { findings: [] });
+    await approve("plan-approval");
+    await go("approve");
+    await put("evidence", "change", { url: "https://example.com/pr/1" });
+    await go("finish");
+    const run = await repo.run(key);
+    assertEquals(run.stage, "done");
+    assertEquals(run.status, "terminal");
   });
 });

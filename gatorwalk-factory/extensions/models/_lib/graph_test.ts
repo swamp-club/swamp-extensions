@@ -21,6 +21,7 @@ import {
   formatFinding,
   type GraphFinding,
   type GraphReport,
+  productsMissingOnEntry,
 } from "./graph.ts";
 import {
   type Lifecycle,
@@ -28,6 +29,7 @@ import {
   parsePlugin,
   type Plugin,
 } from "./lifecycle_schema.ts";
+import { instantiatePlugin } from "./plugin_instance.ts";
 
 function lifecycle(yaml: string): Lifecycle {
   const result = parseLifecycle(
@@ -512,6 +514,50 @@ stages:
   ]);
 });
 
+// --- products on entry -------------------------------------------------------------
+
+Deno.test("productsMissingOnEntry: the shortest path into a stage without each product", () => {
+  const doc = lifecycle(`
+stages:
+  - id: start
+    initial: true
+    transitions:
+      - { name: long, to: write, manual: true }
+      - { name: short, to: use, manual: true }
+  - id: write
+    artifacts: [{ name: draft, schema: ${OBJECT} }]
+    evidence: [{ name: ci, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: use }]
+  - id: use
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`);
+  assertEquals(
+    productsMissingOnEntry(doc, "use", [
+      { kind: "artifact", name: "draft" },
+      { kind: "evidence", name: "ci" },
+    ]),
+    {
+      missing: [
+        { kind: "artifact", name: "draft", trace: ["start", "use"] },
+        { kind: "evidence", name: "ci", trace: ["start", "use"] },
+      ],
+      truncated: false,
+    },
+  );
+  assertEquals(
+    productsMissingOnEntry(doc, "done", [{ kind: "artifact", name: "draft" }])
+      .missing.map((m) => m.trace),
+    [["start", "use", "done"]],
+  );
+  assertEquals(
+    productsMissingOnEntry(doc, "write", [{ kind: "artifact", name: "draft" }])
+      .missing,
+    [],
+  );
+});
+
 // --- truncation -----------------------------------------------------------------
 
 Deno.test("graph: a truncated exploration demotes its errors to warnings", () => {
@@ -561,6 +607,11 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   // implement <-> test without maxCycles, as the originals did: they rely on
   // the default cycle limit, which is the warning, not a defect.
   const expected: Record<string, string[]> = {
+    // The placeholder's two ungated transitions only sketch where the
+    // plugin's exits go; eject replaces them with the plugin's own.
+    "lifecycles/eject-target.yaml": [
+      "ambiguous-exit stages.1.transitions.0 [review]",
+    ],
     "lifecycles/feature-factory.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
@@ -579,11 +630,14 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
       const name = `${dir}${file}`;
       seen.push(name);
       const raw = parseYaml(await Deno.readTextFile(new URL(name, TESTDATA)));
+      // A plugin is analysed with its parameters' defaults filled in.
       const parsed = dir === "plugins/"
-        ? parsePlugin(raw)
+        ? instantiatePlugin(raw)
         : parseLifecycle(raw);
       if (!parsed.ok) throw new Error(`${name}: ${parsed.errors.join("\n")}`);
-      const report = analyzeLifecycle(parsed.value);
+      const report = analyzeLifecycle(
+        "plugin" in parsed ? parsed.plugin : parsed.value,
+      );
       assertEquals(codes(report.errors), [], name);
       assertEquals(codes(report.warnings), expected[name], name);
     }

@@ -179,6 +179,16 @@ deliberately different: it only accepts evidence recorded in the current stage
 and cycle. The gate asks "did this stage produce it?", while CEL asks "what is
 the latest?". A reset starts a new era, so nothing from before it is visible.
 
+These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...)
+or `cel.bind` may not bind a variable called `item`, `stage`, `artifacts`,
+`evidence` or `validations`; the lifecycle schema rejects it. CEL allows it,
+and the variable would hide the context's value for the rest of the
+expression, which is almost always a mistake. The rule also lets tools that
+read CEL (eject's renames) take these names to mean the context's. The list
+is `CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when
+it compiles. Putting the vocabulary under a single prefix would also do this,
+at the cost of changing every lifecycle; that is left for later.
+
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
 (`version + 1.0`) or a conversion (`int(version) + 1`).
@@ -322,8 +332,149 @@ Warnings:
   designed stop for a person, never a dead end.
 - **`exploration-truncated`:** a pass hit the state cap.
 
-The analysis looks at one document at a time. Checking that a plugin's inputs
-are produced on every path into it waits for plugin composition.
+The analysis looks at one document at a time. A plugin's inputs are checked
+once it is ejected into a lifecycle, on the composed lifecycle (below).
+
+## Stage plugins: eject only
+
+**Decision.** A stage plugin is a working starting point that a lifecycle
+copies, never a dependency it keeps. A lifecycle holder's `eject` method copies
+a plugin's stages into the lifecycle as ordinary stages, and the author saves
+the result and edits it freely. There is no reference to a plugin in a
+lifecycle, so nothing is resolved at `validate` or `start`. Code:
+`_lib/plugin_instance.ts`, `_lib/eject.ts`, `extensions/models/plugin.ts`, and
+`ejectMethod` in `_lib/work_item_ops.ts`.
+
+### Why eject and not references
+
+The point of plugins is that a team starts from stages that already work (plan,
+review-plan, implement, review, verify) and is encouraged to change them.
+Ejected stages are ordinary stages, which gives three things for free:
+
+- **Customising is editing.** Nothing tracks the plugin, and no upstream change
+  needs merging.
+- **Nothing new at run time.** The run record, journal, pinning and approvals
+  are unchanged. The pinned copy's digest covers the ejected stages because they
+  are part of the lifecycle.
+- **Separate records by construction.** Two uses of one plugin are different
+  stages with different names, chosen by the author.
+
+A plugin that a lifecycle refers to, with its content resolved and pinned at
+`start`, was the other design. It would need a use-site identity in the run
+record for every stage, product and approval, and a policy for moving in-flight
+work to a new plugin version. It may come later if teams want updates to flow
+from a shared plugin; nothing here rules it out.
+
+### Where a plugin lives: a plugin holder
+
+A plugin is the `globalArguments` of a **plugin holder**
+(`@swamp/gatorwalk-factory/plugin`), exactly as a lifecycle is held by a
+lifecycle holder. `eject` and the plugin holder's `validate` read it raw,
+through the definition repository, with the same code as the lifecycle holder
+(`readHolderArguments`), so it works on remote workers too. Its
+`globalArguments` schema only names the top-level fields, for the lifecycle
+holder's reason (`.partial()`) and because placeholders are not valid values
+until they are filled in.
+
+Files shipped in an extension were the alternative. A model has no way to read
+another extension's files, so that would need a change in swamp. A plugin can
+still be shipped as a file and pasted into a holder, as lifecycles are today.
+
+### Parameters: whole-value placeholders
+
+A plugin may put `{ $param: <name> }` wherever a value goes. Before a plugin is
+used, `instantiatePlugin`:
+
+1. checks that each placeholder names a property of `contract.parameters`, and
+   none is inside the contract;
+2. takes the given values, then each top-level property's `default` (the
+   validator does not apply defaults);
+3. checks the values against the parameters schema;
+4. replaces each placeholder, whole, and parses the result as a plugin.
+
+Every error carries its path. There is no substitution inside strings: a
+parameter that shapes a prompt is a value the prompt refers to, not text spliced
+into it. An object whose only key is `$param` is always a placeholder, so a
+payload schema cannot have a property called `$param` and nothing else. An
+object that looks like a placeholder but is not one is an error, never kept
+as it is: a `$param` whose value is not a name (`{ $param: 3 }`), or a name
+beside other keys. A `$param` key holding an object is left alone, so a
+payload schema may still have a property of that name.
+
+### How eject wires a plugin in
+
+The author sketches the lifecycle with a bare **placeholder stage** where the
+plugin goes. It may declare only an `id`, a `description`, `initial` and
+`transitions` (no work, no products, no gates on its transitions). Eject
+replaces the placeholder:
+
+- **Transitions into it**, including global transitions, enter the plugin's
+  initial stage. If the placeholder was the initial stage, the plugin's initial
+  stage becomes the initial stage.
+- **Each contract exit** leaves to the stage that `exits` names, or else to the
+  target of the placeholder's transition of the same name. An exit wired to the
+  placeholder itself re-enters the plugin. An unwired exit is an error, and so
+  is a placeholder transition that matches no exit.
+- **Other references to the placeholder** cannot be carried over, and are
+  errors. A `max-cycles` gate on it is one example.
+
+### Names are chosen at the use site
+
+`names` renames the plugin's stages, artifacts and evidence, and `inputs` maps
+each contract input to one of the lifecycle's products. So an output takes the
+name the lifecycle gives it. A name that clashes with the lifecycle's is an
+error naming the `names` entry to add, and eject never makes a name by adding a
+prefix, so the defect family this rebuild exists to remove (records told apart
+by name conventions) cannot come back through plugins.
+
+Within one lifecycle or plugin, a name is also one kind: an artifact and
+evidence may not share it (the schema rejects it, and eject reports such a
+clash with the `names` entry to add). `context.inject` lists
+products by name alone, so a shared name was ambiguous to the dispatch packet,
+to the graph analysis, and to eject's renames.
+
+Renames follow identity through every reference: stage ids, `max-cycles` gates,
+gate products, `reviews`, `context.inject`, `resultEvidence`, and CEL. In CEL,
+`artifacts.x`, `artifacts["x"]`, `evidence.x`, `validations.artifacts.x` and
+`validations["artifacts"]["x"]` are rewritten by editing the source text at
+each node's range, so the rest of an expression keeps its spelling.
+`has(artifacts.x)` renamed to a name that is not an identifier becomes
+`("x-y" in artifacts)`: `has()` only takes a field selection, and cel-js
+accepts `has(artifacts["x-y"])` when it is checked but refuses it when it runs.
+This
+relies on `artifacts`, `evidence` and `validations` always meaning the
+context's maps, which the lifecycle schema guarantees (see "The CEL
+vocabulary"). A name held in a CEL string cannot be told apart from any other
+string: `stage.id == "review"`, or `artifacts.exists(k, k == "plan")`, where
+the product is looked up by a value only known at run time. So a CEL string
+equal to a renamed stage or product is left as written, with a warning; so is
+one equal to the placeholder's id, anywhere in the lifecycle, global
+transitions included. Approval gate ids are not renamed:
+approvals are counted per gate id within the current stage (`gates.ts`), so
+distinct stage ids already keep two uses apart.
+
+### What is checked
+
+The composed lifecycle must pass the lifecycle schema and the graph analysis,
+and eject reports every error at once. Each error names the stage and whether it
+came from the plugin or the lifecycle, because indexes into the composed
+document mean nothing to the author. Plugin wiring is checked as errors, not
+left to warnings:
+
+- every exit is wired to a stage of the lifecycle;
+- every contract input is produced on every path into the plugin's entry stage.
+  This uses `productsMissingOnEntry` in `graph.ts`, a query over the structural
+  pass. It also covers an input that only a CEL binding reads, which
+  `product-missing-on-path` cannot see.
+
+### The result is handed back, not saved
+
+`eject` writes the composed lifecycle, with its digest, to the lifecycle
+holder's `ejected-lifecycle` record. It also logs it as JSON, which is valid
+YAML. It never edits the holder's definition: a method cannot safely rewrite its
+own definition, and the author should read what they adopt. The author saves the
+lifecycle as the holder's `globalArguments` and runs `validate`, and the
+lifecycle is then theirs.
 
 ## The model types: a lifecycle holder and work items
 
@@ -337,6 +488,9 @@ logic in `_lib/work_item_ops.ts`):
   later method uses that copy, so editing the holder never changes a running
   work item. `reset` keeps the pinned copy unless `repin=true` adopts the
   holder's current one.
+
+The plugin holder, another model type, only serves `eject`; see "Stage
+plugins: eject only".
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its

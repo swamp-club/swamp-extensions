@@ -19,14 +19,17 @@ import { digestOf, jsonSafe } from "./canonical.ts";
 import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch } from "./dispatch.ts";
 import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
+import { ejectPlugin } from "./eject.ts";
 import { analyzeLifecycle, formatFinding } from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   findStage,
   type Lifecycle,
   parseLifecycle,
+  type Plugin,
   transitionsFrom,
 } from "./lifecycle_schema.ts";
+import { instantiatePlugin } from "./plugin_instance.ts";
 import {
   advance,
   dispatchCap,
@@ -52,7 +55,7 @@ import {
 } from "./run_store.ts";
 
 // ---------------------------------------------------------------------------
-// The methods of the two model types, written against a narrow view of
+// The methods of the model types, written against a narrow view of
 // swamp's method context so they can be tested with a fake one.
 //
 // Output: methods return swamp data handles; what a person or agent reads
@@ -65,6 +68,7 @@ import {
 
 export const HOLDER_TYPE = "@swamp/gatorwalk-factory/lifecycle";
 export const WORK_ITEM_TYPE = "@swamp/gatorwalk-factory/work-item";
+export const PLUGIN_TYPE = "@swamp/gatorwalk-factory/plugin";
 
 /** The resource spec and fixed name of a work item's pinned lifecycle. */
 export const LIFECYCLE_SPEC = "lifecycle";
@@ -76,6 +80,10 @@ export const LIFECYCLE_NAME = "lifecycle";
  */
 export const KEY_SPEC = "key";
 export const KEY_NAME = "key";
+
+/** The resource spec and fixed name of a holder's last ejected lifecycle. */
+export const EJECTED_SPEC = "ejected-lifecycle";
+export const EJECTED_NAME = "ejected-lifecycle";
 
 export interface Logger {
   info(message: string, props?: Record<string, unknown>): void;
@@ -212,26 +220,32 @@ function typeNameOf(type: unknown): string {
   return String(type);
 }
 
+const HOLDER_KINDS: Record<string, string> = {
+  [HOLDER_TYPE]: "lifecycle holder",
+  [PLUGIN_TYPE]: "plugin holder",
+};
+
 /**
- * The raw, unevaluated globalArguments of a lifecycle holder. Read through
- * the definition repository, never the evaluated context.globalArgs, so a
- * ${{ }} reaches the lifecycle schema's own error. On a remote worker the
- * definition arrives as a plain object with _globalArguments.
+ * The raw, unevaluated globalArguments of a lifecycle holder (or, given its
+ * type, a plugin holder). Read through the definition repository, never the
+ * evaluated context.globalArgs, so a ${{ }} reaches the lifecycle schema's
+ * own error. On a remote worker the definition arrives as a plain object
+ * with _globalArguments.
  */
 export async function readHolderArguments(
   ctx: MethodContextLike,
   name: string,
+  holderType: string = HOLDER_TYPE,
 ): Promise<unknown> {
+  const kind = HOLDER_KINDS[holderType] ?? holderType;
   if (ctx.definitionRepository === undefined) {
     throw new Error("this method context cannot read model definitions");
   }
   const found = await ctx.definitionRepository.findByNameGlobal(name);
-  if (found === null) throw new Error(`no lifecycle holder named '${name}'`);
+  if (found === null) throw new Error(`no ${kind} named '${name}'`);
   const type = typeNameOf(found.type);
-  if (type !== HOLDER_TYPE) {
-    throw new Error(
-      `'${name}' is a ${type}, not a lifecycle holder (${HOLDER_TYPE})`,
-    );
+  if (type !== holderType) {
+    throw new Error(`'${name}' is a ${type}, not a ${kind} (${holderType})`);
   }
   const definition = found.definition as {
     globalArguments?: unknown;
@@ -334,6 +348,188 @@ function selfName(ctx: MethodContextLike): string {
     throw new Error("this method context has no definition name");
   }
   return name;
+}
+
+// --- plugin holders and eject ------------------------------------------------
+
+/** An object, from --input-file, or as a JSON string from --input. */
+export const ObjectInput = z.union([
+  z.record(z.string(), z.unknown()),
+  z.string(),
+]);
+
+const NameMapSchema = z.record(z.string(), z.string());
+const EjectNamesSchema = z.strictObject({
+  stages: NameMapSchema.optional(),
+  artifacts: NameMapSchema.optional(),
+  evidence: NameMapSchema.optional(),
+});
+
+/** An object input, parsed from JSON when it arrives as a string. */
+function objectInput<T>(
+  input: Record<string, unknown> | string | undefined,
+  label: string,
+  schema: z.ZodType<T>,
+): T | undefined {
+  if (input === undefined) return undefined;
+  let value: unknown = input;
+  if (typeof input === "string") {
+    try {
+      value = JSON.parse(input);
+    } catch (error) {
+      throw new Error(
+        `${label} is not valid JSON: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(
+      `${label} is not valid:\n${
+        parsed.error.issues.map((i) =>
+          `${[label, ...i.path].join(".")}: ${i.message}`
+        ).join("\n")
+      }`,
+    );
+  }
+  return parsed.data;
+}
+
+async function loadPlugin(
+  ctx: MethodContextLike,
+  name: string,
+  params: Record<string, unknown> | undefined,
+): Promise<Plugin> {
+  const result = instantiatePlugin(
+    await readHolderArguments(ctx, name, PLUGIN_TYPE),
+    params,
+  );
+  if (!result.ok) {
+    throw new Error(
+      `plugin holder '${name}' is not a valid plugin with these parameters:\n${
+        result.errors.join("\n")
+      }`,
+    );
+  }
+  return result.plugin;
+}
+
+/**
+ * The plugin holder's validate method: parameters filled in (the given
+ * values, then defaults), the plugin schema, then graph analysis, reported
+ * like the lifecycle holder's validate.
+ */
+export async function validatePluginHolder(
+  ctx: MethodContextLike,
+  args: { params?: Record<string, unknown> | string },
+): Promise<MethodOutput> {
+  const name = selfName(ctx);
+  const plugin = await loadPlugin(
+    ctx,
+    name,
+    objectInput(args.params, "params", z.record(z.string(), z.unknown())),
+  );
+  const graph = analyzeLifecycle(plugin);
+  if (graph.errors.length > 0) {
+    throw new Error(
+      `plugin holder '${name}' has design errors:\n${
+        graph.errors.map(formatFinding).join("\n")
+      }` +
+        (graph.warnings.length > 0
+          ? `\nwarnings:\n${graph.warnings.map(formatFinding).join("\n")}`
+          : ""),
+    );
+  }
+  for (const finding of graph.warnings) {
+    ctx.logger.info("{warning}", {
+      warning: formatFinding(finding),
+      ...finding,
+    });
+  }
+  ctx.logger.info("{summary}", {
+    summary: `plugin '${plugin.name}' in '${name}' is valid: ` +
+      `${plugin.stages.length} stages (${
+        plugin.stages.map((s) => s.id).join(", ")
+      }), exits ${plugin.contract.exits.map((e) => e.name).join(", ")}, ` +
+      `${graph.warnings.length} warning(s)`,
+    plugin: plugin.name,
+    digest: await digestOf(plugin),
+  });
+  return { dataHandles: [] };
+}
+
+export interface EjectArgs {
+  plugin: string;
+  replace: string;
+  exits?: Record<string, unknown> | string;
+  inputs?: Record<string, unknown> | string;
+  names?: Record<string, unknown> | string;
+  params?: Record<string, unknown> | string;
+}
+
+/**
+ * The lifecycle holder's eject method: a plugin holder's stages composed into
+ * this holder's lifecycle in place of a placeholder stage (eject.ts). The
+ * result is written as a record and logged, never saved into the holder: the
+ * author copies it into the holder's definition and edits it from there.
+ */
+export async function ejectMethod(
+  ctx: MethodContextLike,
+  args: EjectArgs,
+): Promise<MethodOutput> {
+  if (ctx.writeResource === undefined) {
+    throw new Error("this method context cannot write resources");
+  }
+  const holder = selfName(ctx);
+  const base = await loadHolderLifecycle(ctx, holder);
+  const params = objectInput(
+    args.params,
+    "params",
+    z.record(z.string(), z.unknown()),
+  );
+  const plugin = await loadPlugin(ctx, args.plugin, params);
+  const result = ejectPlugin(base, plugin, {
+    replace: args.replace,
+    exits: objectInput(args.exits, "exits", NameMapSchema),
+    inputs: objectInput(args.inputs, "inputs", NameMapSchema),
+    names: objectInput(args.names, "names", EjectNamesSchema),
+  });
+  if (!result.ok) {
+    throw new Error(
+      `cannot eject plugin holder '${args.plugin}' into lifecycle holder '${holder}':\n${
+        result.errors.join("\n")
+      }` +
+        (result.warnings.length > 0
+          ? `\nwarnings:\n${result.warnings.join("\n")}`
+          : ""),
+    );
+  }
+  for (const warning of result.warnings) {
+    ctx.logger.info("{warning}", { warning });
+  }
+  const lifecycle = jsonSafe(result.lifecycle);
+  const digest = await digestOf(result.lifecycle);
+  const handle = await ctx.writeResource(EJECTED_SPEC, EJECTED_NAME, {
+    holder,
+    plugin: args.plugin,
+    replace: args.replace,
+    digest,
+    lifecycle,
+  });
+  // JSON is YAML, so the text can go into the holder's globalArguments as it
+  // is; the record holds the same lifecycle for a caller that reads data.
+  ctx.logger.info("{summary}", {
+    summary: `ejected plugin '${plugin.name}' from '${args.plugin}' into ` +
+      `lifecycle '${result.lifecycle.name}' in place of stage ` +
+      `'${args.replace}': ${result.lifecycle.stages.length} stages, ` +
+      `${result.warnings.length} warning(s). Save it as the globalArguments ` +
+      `of '${holder}' (also in its ${EJECTED_NAME} record), then run ` +
+      `validate:\n${JSON.stringify(lifecycle, null, 2)}`,
+    digest,
+  });
+  return { dataHandles: [handle] };
 }
 
 // --- the pinned lifecycle ------------------------------------------------------

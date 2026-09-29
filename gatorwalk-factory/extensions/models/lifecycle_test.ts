@@ -18,12 +18,28 @@ import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
-import { generateKey, HOLDER_TYPE } from "./_lib/work_item_ops.ts";
+import {
+  EJECTED_NAME,
+  generateKey,
+  HOLDER_TYPE,
+  PLUGIN_TYPE,
+} from "./_lib/work_item_ops.ts";
+import { digestOf } from "./_lib/canonical.ts";
+import { parseLifecycle } from "./_lib/lifecycle_schema.ts";
 
 const BUILD = new URL(
   "../../lifecycles/build-swamp-extension.yaml",
   import.meta.url,
 );
+
+const TESTDATA = new URL("../../testdata/", import.meta.url);
+
+async function testdata(path: string): Promise<Record<string, unknown>> {
+  return parseYaml(await Deno.readTextFile(new URL(path, TESTDATA))) as Record<
+    string,
+    unknown
+  >;
+}
 
 async function buildLifecycle(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
@@ -169,4 +185,105 @@ Deno.test("holder: the model's literal type is HOLDER_TYPE", () => {
   // swamp reads `type` from the source as a string literal, so it cannot be
   // the constant itself; this keeps the two in step.
   assert(holder.type === HOLDER_TYPE);
+});
+
+// --- eject ------------------------------------------------------------------------
+
+async function ejectSwamp() {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: await testdata("lifecycles/eject-target.yaml"),
+    type: HOLDER_TYPE,
+  });
+  swamp.definitions.set("review-plan", {
+    globalArguments: await testdata("plugins/review-plan.yaml"),
+    type: PLUGIN_TYPE,
+  });
+  return swamp;
+}
+
+Deno.test("holder: eject writes the composed lifecycle as a record and logs it, leaving the holder alone", async () => {
+  const swamp = await ejectSwamp();
+  const before = structuredClone(swamp.definitions.get("team"));
+  const out = await holder.methods.eject.execute(
+    {
+      plugin: "review-plan",
+      replace: "review",
+      params: '{"blocking":["critical"]}',
+      names: { stages: { review: "plan-review" } },
+    },
+    swamp.context("team"),
+  );
+  assertEquals(out.dataHandles.length, 1);
+  assertEquals(swamp.definitions.get("team"), before);
+  const record = swamp.resources.get("team")?.get(EJECTED_NAME)?.[0];
+  assert(record !== undefined);
+  assertEquals(record.holder, "team");
+  assertEquals(record.plugin, "review-plan");
+  const parsed = parseLifecycle(record.lifecycle);
+  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+  assertEquals(record.digest, await digestOf(parsed.value));
+  assertEquals(parsed.value.stages.map((s) => s.id), [
+    "plan",
+    "plan-review",
+    "implement",
+    "done",
+  ]);
+  const summary = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    summary.startsWith(
+      "ejected plugin 'review-plan' from 'review-plan' into lifecycle 'plan-then-build' in place of stage 'review': 4 stages, 0 warning(s).",
+    ),
+    summary,
+  );
+  // The logged text is the same lifecycle, ready to paste.
+  const logged = JSON.parse(summary.slice(summary.indexOf("\n{") + 1));
+  assertEquals(logged, record.lifecycle);
+});
+
+Deno.test("holder: eject reports every error and writes nothing", async () => {
+  const swamp = await ejectSwamp();
+  const error = await assertRejects(() =>
+    holder.methods.eject.execute(
+      {
+        plugin: "review-plan",
+        replace: "review",
+        exits: { rework: "nowhere" },
+        names: '{"stages":{"nope":"x"}}',
+      },
+      swamp.context("team"),
+    )
+  );
+  const text = (error as Error).message;
+  assert(
+    text.includes(
+      "cannot eject plugin holder 'review-plan' into lifecycle holder 'team':",
+    ),
+    text,
+  );
+  assert(text.includes("names.stages.nope"), text);
+  assert(text.includes("goes to 'nowhere'"), text);
+  assertEquals(swamp.versionsWritten("team"), 0);
+});
+
+Deno.test("holder: eject checks its inputs' shape and the plugin holder's type", async () => {
+  const swamp = await ejectSwamp();
+  await assertRejects(
+    () =>
+      holder.methods.eject.execute(
+        { plugin: "review-plan", replace: "review", exits: { rework: 3 } },
+        swamp.context("team"),
+      ),
+    Error,
+    "exits.rework",
+  );
+  await assertRejects(
+    () =>
+      holder.methods.eject.execute(
+        { plugin: "team", replace: "review" },
+        swamp.context("team"),
+      ),
+    Error,
+    "not a plugin holder",
+  );
 });

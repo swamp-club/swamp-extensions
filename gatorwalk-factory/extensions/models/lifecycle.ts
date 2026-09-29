@@ -16,9 +16,13 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  type EjectArgs,
+  EJECTED_SPEC,
+  ejectMethod,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
+  ObjectInput,
   validateHolder,
 } from "./_lib/work_item_ops.ts";
 
@@ -32,6 +36,10 @@ import {
 // made of. So this schema only names the top-level fields; the full check is
 // the validate method (schema, then graph analysis), and its schema check runs
 // again whenever a work item starts.
+//
+// eject copies a plugin holder's stages into this lifecycle in place of a
+// placeholder stage, and hands the result back to be saved; it never edits
+// the holder's definition.
 // ---------------------------------------------------------------------------
 
 export const HolderArgumentsSchema = z.object({
@@ -61,6 +69,20 @@ export const model = {
       lifetime: "infinite" as const,
       garbageCollection: 10,
     },
+    [EJECTED_SPEC]: {
+      description:
+        "The lifecycle the last eject composed, to be saved as this holder's " +
+        "globalArguments",
+      schema: z.object({
+        holder: z.string(),
+        plugin: z.string(),
+        replace: z.string(),
+        digest: z.string(),
+        lifecycle: z.record(z.string(), z.unknown()),
+      }),
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
   },
   methods: {
     validate: {
@@ -78,6 +100,33 @@ export const model = {
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         newKey(context),
+    },
+    eject: {
+      description:
+        "Compose a plugin holder's stages into this lifecycle in place of a placeholder stage, check the result, and hand it back to be saved",
+      arguments: z.object({
+        plugin: z.string().min(1).describe("The plugin holder's name"),
+        replace: z.string().min(1).describe(
+          "The placeholder stage the plugin's stages replace",
+        ),
+        exits: ObjectInput.optional().describe(
+          "Contract exit -> stage (JSON object); defaults to the " +
+            "placeholder's transition of the same name",
+        ),
+        inputs: ObjectInput.optional().describe(
+          "Contract input -> this lifecycle's product (JSON object); " +
+            "defaults to the same name",
+        ),
+        names: ObjectInput.optional().describe(
+          "Renames of the plugin's stages, artifacts and evidence (JSON " +
+            "object with stages, artifacts, evidence maps)",
+        ),
+        params: ObjectInput.optional().describe(
+          "The plugin's parameter values (JSON object); defaults fill the rest",
+        ),
+      }),
+      execute: (args: EjectArgs, context: MethodContextLike) =>
+        ejectMethod(context, args),
     },
   },
 };
