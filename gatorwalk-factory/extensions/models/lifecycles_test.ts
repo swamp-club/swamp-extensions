@@ -808,10 +808,50 @@ Deno.test("swamp-extensions: triage has one exit per type, and none while confid
     );
     assert(
       gates.some((g) =>
-        g.type === "cel" && g.config.expr.includes('confidence != "low"')
+        g.type === "evidence-recorded" &&
+        g.config.name === "classification" &&
+        JSON.stringify(g.config.match) ===
+          JSON.stringify({ confidence: { enum: ["high", "medium"] } }) &&
+        g.config.message?.includes("low-confidence") === true
       ),
       `${t.name} does not wait out low confidence`,
     );
+  }
+  // The type gates prove the four exits exclusive.
+  assertEquals(
+    analyzeLifecycle(await load(SWX)).warnings.filter((w) =>
+      w.code === "ambiguous-exit" && w.stage === "triage"
+    ),
+    [],
+  );
+});
+
+Deno.test("swamp-extensions: triage's confidence gate lets high and medium through and holds low", async () => {
+  const lifecycle = await load(SWX);
+  for (const type of ["bug", "feature", "platform", "security"]) {
+    const low = await drive(lifecycle, movableEnv().env);
+    await low.record("evidence", "classification", {
+      type,
+      confidence: "low",
+      reasoning: "Unsure",
+      clarifyingQuestions: ["Which is it?"],
+    });
+    for (const exit of ["bug", "feature", "platform", "security"]) {
+      const refused = await low.tryMove(exit);
+      assert(
+        refused?.includes("waits for the person's answers") === true,
+        `${type} ${exit}: ${refused}`,
+      );
+    }
+    for (const confidence of ["high", "medium"]) {
+      const sure = await drive(lifecycle, movableEnv().env);
+      await sure.record("evidence", "classification", {
+        type,
+        confidence,
+        reasoning: "Clear",
+      });
+      assertEquals(await sure.tryMove(type), null, `${type} ${confidence}`);
+    }
   }
 });
 
@@ -1225,11 +1265,11 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
       }
     }
   }
+  // Triage's confidence check is a match gate, not CEL.
   assert(
-    bindings >= 10 && results.size >= 10,
+    bindings >= 10 && results.size >= 8,
     `${bindings} bindings, ${results.size} gates`,
   );
-  assertEquals(results.get("triage.bug"), true);
   assertEquals(results.get("triage.bug.regression-review"), false);
   assertEquals(results.get("plan-review.rework"), false);
   assertEquals(results.get("implement.submit"), false);

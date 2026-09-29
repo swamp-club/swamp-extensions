@@ -27,6 +27,7 @@ import {
   transitionsFrom,
   type TransitionSpec,
 } from "./lifecycle_schema.ts";
+import { validateField } from "./payload_schema.ts";
 import {
   cycleLimitFor,
   cycleLimitMessage,
@@ -283,11 +284,12 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
         );
       }
       const required = Object.entries(gate.config.requireField ?? {});
-      if (required.length === 0) return pass;
+      const matches = Object.entries(gate.config.match ?? {});
+      if (required.length === 0 && matches.length === 0) return pass;
       const ctx = needContext();
       if ("pass" in ctx) return ctx;
       const payload = ctx.evidence[name]?.payload;
-      const mismatches = required.flatMap(([field, expected]) => {
+      const equalities = required.flatMap(([field, expected]) => {
         const actual = fieldAt(payload, field);
         // Canonical JSON: objects and arrays compare by content, not identity.
         return actual !== undefined &&
@@ -299,9 +301,32 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
             }, expected ${JSON.stringify(expected)}`,
           ];
       });
-      return mismatches.length === 0
-        ? pass
-        : fail(`evidence '${name}': ${mismatches.join("; ")}`);
+      // A missing field fails even under `not`: match constrains a value
+      // that is there, as requireField does.
+      const schemaMismatches = matches.flatMap(([field, schema]) => {
+        const actual = fieldAt(payload, field);
+        if (actual === undefined) {
+          return [
+            `field '${field}' is missing, expected to match ${
+              JSON.stringify(schema)
+            }`,
+          ];
+        }
+        const reasons = validateField(schema, field, actual);
+        return reasons === null ? [] : [
+          `field '${field}' is ${JSON.stringify(actual)}, expected to match ${
+            JSON.stringify(schema)
+          } (${reasons.join("; ")})`,
+        ];
+      });
+      const mismatches = [...equalities, ...schemaMismatches];
+      if (mismatches.length === 0) return pass;
+      const detail = mismatches.join("; ");
+      return fail(
+        gate.config.message === undefined
+          ? `evidence '${name}': ${detail}`
+          : `${gate.config.message} (evidence '${name}': ${detail})`,
+      );
     }
 
     case "cooldown": {

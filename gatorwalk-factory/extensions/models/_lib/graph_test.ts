@@ -832,3 +832,145 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   }
   assertEquals(seen, Object.keys(expected));
 });
+
+// --- match ------------------------------------------------------------------
+
+/** Two sibling exits gated on the same evidence, each with the given config
+ * beside the evidence name (requireField, match or both). */
+function matchSiblings(left: string, right: string): GraphReport {
+  return analyzeLifecycle(lifecycle(`
+stages:
+  - id: check
+    initial: true
+    maxCycles: 3
+    evidence: [{ name: checks, schema: ${OBJECT} }]
+    transitions:
+      - name: passed
+        to: done
+        gates:
+          - type: evidence-recorded
+            config: { name: checks, ${left} }
+      - name: failed
+        to: fix
+        gates:
+          - type: evidence-recorded
+            config: { name: checks, ${right} }
+  - id: fix
+    maxCycles: 3
+    transitions: [{ name: recheck, to: check }]
+  - id: done
+    terminal: true
+`));
+}
+
+Deno.test("graph: match const, enum and not of those make siblings exclusive", () => {
+  const exclusive: [string, string][] = [
+    ["match: { s: { const: a } }", "match: { s: { const: b } }"],
+    ["match: { s: { enum: [a, b] } }", "match: { s: { enum: [c] } }"],
+    ["match: { s: { const: a } }", "match: { s: { not: { const: a } } }"],
+    [
+      "match: { s: { enum: [a, b] } }",
+      "match: { s: { not: { enum: [a, b, c] } } }",
+    ],
+    // requireField reads as a const, in either direction.
+    ["requireField: { s: a }", "match: { s: { not: { const: a } } }"],
+    // Annotations inside a not change nothing it accepts.
+    [
+      "requireField: { s: a }",
+      "match: { s: { not: { const: a, description: x, x-note: y } } }",
+    ],
+    ["match: { s: { enum: [b, c] } }", "requireField: { s: a }"],
+    // Sibling keywords only narrow a const or enum.
+    [
+      "match: { s: { const: a, type: string, description: x } }",
+      "match: { s: { const: b } }",
+    ],
+    // Both const and enum: only what both allow.
+    ["match: { s: { const: a, enum: [a, b] } }", "match: { s: { const: b } }"],
+    // A set required above is read at the path below.
+    ["match: { a: { const: { b: 1 } } }", "match: { a.b: { const: 2 } }"],
+    [
+      "match: { a: { enum: [{ b: 1 }, { c: 1 }] } }",
+      "requireField: { a.b: 2 }",
+    ],
+    ["requireField: { a: { b: 1 } }", "match: { a.b: { not: { const: 1 } } }"],
+  ];
+  for (const [left, right] of exclusive) {
+    const report = matchSiblings(left, right);
+    assertEquals(report.errors, [], `${left} / ${right}`);
+    assertEquals(report.warnings, [], `${left} / ${right}`);
+  }
+});
+
+Deno.test("graph: match fragments that can both hold, or cannot be compared, stay ambiguous", () => {
+  const ambiguous: [string, string][] = [
+    ["match: { s: { enum: [a, b] } }", "match: { s: { enum: [b, c] } }"],
+    [
+      "match: { s: { not: { const: a } } }",
+      "match: { s: { not: { const: b } } }",
+    ],
+    ["match: { s: { const: a } }", "match: { s: { not: { const: b } } }"],
+    // Only const, enum and not of those are read.
+    ["match: { s: { type: string } }", "match: { s: { type: number } }"],
+    ["match: { s: { minimum: 5 } }", "match: { s: { maximum: 1 } }"],
+    // Excluding whole values above says nothing definite about a field below.
+    ["match: { a: { not: { const: { b: 1 } } } }", "requireField: { a.b: 1 }"],
+    // Different fields.
+    ["match: { s: { const: a } }", "match: { t: { const: b } }"],
+    // A keyword beside the const inside a not narrows what is excluded: this
+    // not of nothing excludes nothing.
+    [
+      "match: { s: { const: a } }",
+      "match: { s: { not: { const: a, type: number } } }",
+    ],
+    [
+      "requireField: { s: a }",
+      "match: { s: { not: { enum: [a], minLength: 3 } } }",
+    ],
+  ];
+  for (const [left, right] of ambiguous) {
+    assertEquals(codes(matchSiblings(left, right).warnings), [
+      "ambiguous-exit stages.0.transitions.0 [check]",
+    ], `${left} / ${right}`);
+  }
+});
+
+Deno.test("graph: match that no payload can satisfy never passes", () => {
+  const cases: [string, string][] = [
+    [
+      "[{ type: evidence-recorded, config: { name: checks, match: { s: false } } }]",
+      "'s' to match false and 's' to match false",
+    ],
+    [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { s: a }, match: { s: { not: { const: a } } } } }]",
+      `'s' to be "a" and 's' to match {"not":{"const":"a"}}`,
+    ],
+    // Across two gates on one evidence.
+    [
+      "[{ type: evidence-recorded, config: { name: checks, match: { s: { enum: [a] } } } }, " +
+      "{ type: evidence-recorded, config: { name: checks, match: { s: { enum: [b] } } } }]",
+      `'s' to match {"enum":["a"]} and 's' to match {"enum":["b"]}`,
+    ],
+  ];
+  for (const [gates, conflict] of cases) {
+    const report = guarded(gates);
+    assertEquals(codes(report.errors), [
+      "gate-never-passes stages.0.transitions.0 [check]",
+    ], gates);
+    assert(
+      report.errors[0].message.includes(
+        `evidence-recorded on 'checks' requires ${conflict}, which no payload can hold`,
+      ),
+      report.errors[0].message,
+    );
+  }
+  for (
+    const gates of [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { s: a }, match: { s: { enum: [a, b] }, t: { not: { const: a } } } } }]",
+      // s: a passes this match: the not's inner schema accepts nothing.
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { s: a }, match: { s: { not: { const: a, type: number } } } } }]",
+    ]
+  ) {
+    assertEquals(guarded(gates).errors, [], gates);
+  }
+});

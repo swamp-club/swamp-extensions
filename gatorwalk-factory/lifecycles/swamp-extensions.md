@@ -73,18 +73,18 @@ code's.
 
 ### Human stops
 
-| Stop                                                                           | gatorwalk                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit needs confidence not low, so triage waits until the person answers and it is recorded again |
-| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when `isRegression` is true, whatever the verdict                                                  |
-| A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                   |
-| Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                           |
-| Plan feedback (iterate)                                                        | `plan-review.revise`, manual                                                                                                                                                               |
-| Checklist: a person sees the green checklist and confirms before posting       | `verify.passed` needs `human-approval` `checklist-confirmed`                                                                                                                               |
-| Never open a PR without asking                                                 | `attest.attested` needs `human-approval` `open-pr`                                                                                                                                         |
-| PR failed: open a new PR or rework                                             | `merge.new-pr` and `merge.rework`, both manual                                                                                                                                             |
-| Contributor lookup failed: ask, then re-run, force or skip                     | `notify` is interactive; a person decides and the evidence records `posted` or `skipped` with the reason                                                                                   |
-| (gatorwalk's own) declined approval must not leave abandon as the only way out | Manual `reclassify` from reproduce; manual `revise` after plan-review, the checklist and the open-pr decision; manual `rework` after conformance-review                                    |
+| Stop                                                                           | gatorwalk                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit has a `match` gate needing confidence `high` or `medium`, so triage waits until the person answers and it is recorded again |
+| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when `isRegression` is true, whatever the verdict                                                                                  |
+| A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                                                   |
+| Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                                                           |
+| Plan feedback (iterate)                                                        | `plan-review.revise`, manual                                                                                                                                                                                               |
+| Checklist: a person sees the green checklist and confirms before posting       | `verify.passed` needs `human-approval` `checklist-confirmed`                                                                                                                                                               |
+| Never open a PR without asking                                                 | `attest.attested` needs `human-approval` `open-pr`                                                                                                                                                                         |
+| PR failed: open a new PR or rework                                             | `merge.new-pr` and `merge.rework`, both manual                                                                                                                                                                             |
+| Contributor lookup failed: ask, then re-run, force or skip                     | `notify` is interactive; a person decides and the evidence records `posted` or `skipped` with the reason                                                                                                                   |
+| (gatorwalk's own) declined approval must not leave abandon as the only way out | Manual `reclassify` from reproduce; manual `revise` after plan-review, the checklist and the open-pr decision; manual `rework` after conformance-review                                                                    |
 
 ### Cycle limits
 
@@ -136,11 +136,12 @@ Candidates for issues. A resolved gap says so and keeps its number.
    `when: ... isRegression`, so a person sees the regression analysis and
    verdict before a regression claim goes on, and any other bug goes ahead
    without them. Kept here so the numbering the other gaps are cited by stays.
-5. **`requireField` only matches equal values.** "Type is not bug" cannot be
-   written, so triage has one exit per non-bug type (all to `plan`), and
-   "confidence is not low" is a `cel` gate. The graph analysis only proves exits
-   exclusive through `requireField`, so a `cel`-only condition would warn as
-   ambiguous.
+5. **`requireField` only matches equal values.** Resolved by swamp-club #2667:
+   an `evidence-recorded` gate's `match` holds a JSON Schema fragment per field,
+   and the graph analysis proves exits exclusive through its `const`, `enum` and
+   `not` of those. Triage keeps one exit per type, as issue-lifecycle names
+   them, and "confidence is not low" is a `match` gate carrying the old message.
+   Kept here so the numbering the other gaps are cited by stays.
 6. **The `complete` shortcut.** issue-lifecycle's `complete` goes straight to
    `notify` from `implementing`, `pr_open` or `releasing`. Only the `releasing`
    case is kept (`release` evidence `completed`). A shortcut from several stages

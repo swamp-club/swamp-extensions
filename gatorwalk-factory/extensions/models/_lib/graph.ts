@@ -305,50 +305,143 @@ function edgeBlockers(
     : [edge.contradiction, ...reasons];
 }
 
-// --- requireField, read as field paths --------------------------------------
-
-type Requirements = Record<string, unknown>;
+// --- requireField and match, read as field paths ----------------------------
 
 /**
- * The first pair of requireField entries, one from each map, that no single
- * payload can satisfy, or null. Keys are dotted field paths, read with fieldAt
- * as gates.ts reads them: equal paths need equal values, and a path below
- * another must hold, inside the value required there, the value it requires.
+ * What an evidence-recorded gate demands of the value at one field path, as
+ * far as the analysis can tell: one of a set of values, or none of them.
+ * Anything a fragment says beyond this is not modelled, so it can only make
+ * the real demand narrower, never turn a proven conflict into a false one.
  */
-function requireFieldConflict(
-  left: Requirements,
-  right: Requirements,
+interface Constraint {
+  path: string[];
+  kind: "in" | "not-in";
+  values: Json[];
+  /** For the finding: what the gate asks, as written. */
+  text: string;
+}
+
+type EvidenceGateConfig = Extract<
+  GateSpec,
+  { type: "evidence-recorded" }
+>["config"];
+
+function constraintsOf(config: EvidenceGateConfig): Constraint[] {
+  const out: Constraint[] = [];
+  for (const [key, value] of Object.entries(config.requireField ?? {})) {
+    out.push({
+      path: key.split("."),
+      kind: "in",
+      values: [value as Json],
+      text: `'${key}' to be ${JSON.stringify(value)}`,
+    });
+  }
+  for (const [key, schema] of Object.entries(config.match ?? {})) {
+    const read = readFragment(schema);
+    if (read === null) continue;
+    out.push({
+      path: key.split("."),
+      ...read,
+      text: `'${key}' to match ${JSON.stringify(schema)}`,
+    });
+  }
+  return out;
+}
+
+/**
+ * The set a fragment confines a value to: its own const and enum (both, when
+ * both are there), false as the empty set, and a not holding only a const or
+ * enum as the values excluded. Null when the fragment says neither.
+ */
+function readFragment(
+  schema: boolean | Record<string, unknown>,
+): Pick<Constraint, "kind" | "values"> | null {
+  if (schema === false) return { kind: "in", values: [] };
+  if (schema === true) return null;
+  const own = allowedValues(schema);
+  if (own !== null) return { kind: "in", values: own };
+  const not = schema.not;
+  // Inside a not, any other keyword narrows what is excluded, so only a not
+  // of nothing but const, enum and annotations excludes all of their values.
+  if (
+    not !== null && typeof not === "object" && !Array.isArray(not) &&
+    Object.keys(not).every((k) =>
+      k === "const" || k === "enum" || ANNOTATIONS.has(k) || k.startsWith("x-")
+    )
+  ) {
+    const excluded = allowedValues(not as Record<string, unknown>);
+    if (excluded !== null) return { kind: "not-in", values: excluded };
+  }
+  return null;
+}
+
+/** Keywords that never change what a schema accepts. */
+const ANNOTATIONS = new Set([
+  "title",
+  "description",
+  "$comment",
+  "default",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+]);
+
+function allowedValues(schema: Record<string, unknown>): Json[] | null {
+  let values: Json[] | null = null;
+  if (Object.hasOwn(schema, "const")) values = [schema.const as Json];
+  if (Array.isArray(schema.enum)) {
+    const listed = new Set(schema.enum.map((v) => canonicalJson(v as Json)));
+    values = (values ?? (schema.enum as Json[])).filter((v) =>
+      listed.has(canonicalJson(v))
+    );
+  }
+  return values;
+}
+
+/**
+ * The first pair of constraints, one from each list, that no single payload
+ * can satisfy, or null. Paths are read with fieldAt as gates.ts reads them:
+ * a set of values required at a path above another is narrowed to what each
+ * holds at the lower path (a value without it cannot pass there, since a
+ * missing field fails). By segment, not by string: 'ab' is not above 'a.b'.
+ */
+function constraintConflict(
+  left: Constraint[],
+  right: Constraint[],
 ): string | null {
-  for (const [lk, lv] of Object.entries(left)) {
-    for (const [rk, rv] of Object.entries(right)) {
-      if (!requirementsAgree(lk, lv, rk, rv)) {
-        return `'${lk}' to be ${JSON.stringify(lv)} and '${rk}' to be ${
-          JSON.stringify(rv)
-        }`;
-      }
+  for (const l of left) {
+    for (const r of right) {
+      if (conflicts(l, r)) return `${l.text} and ${r.text}`;
     }
   }
   return null;
 }
 
-function requirementsAgree(
-  aKey: string,
-  aValue: unknown,
-  bKey: string,
-  bValue: unknown,
-): boolean {
-  const a = aKey.split(".");
-  const b = bKey.split(".");
-  const [short, shortValue, long, longValue] = a.length <= b.length
-    ? [a, aValue, b, bValue]
-    : [b, bValue, a, aValue];
-  // By segment, not by string: 'ab' is not above 'a.b'.
-  if (!short.every((segment, i) => long[i] === segment)) return true;
-  const rest = long.slice(short.length);
-  const held = rest.length === 0
-    ? shortValue
-    : fieldAt(shortValue as Json, rest.join("."));
-  return held !== undefined && canonicalJson(held) === canonicalJson(longValue);
+function conflicts(a: Constraint, b: Constraint): boolean {
+  const [short, long] = a.path.length <= b.path.length ? [a, b] : [b, a];
+  if (!short.path.every((segment, i) => long.path[i] === segment)) {
+    return false;
+  }
+  const rest = long.path.slice(short.path.length).join(".");
+  let upper = short;
+  if (rest !== "") {
+    // Excluding whole values above says nothing definite about a field below.
+    if (short.kind !== "in") return false;
+    upper = {
+      ...short,
+      values: short.values.flatMap((v) => {
+        const held = fieldAt(v, rest);
+        return held === undefined ? [] : [held];
+      }),
+    };
+  }
+  const [x, y] = upper.kind === "in" ? [upper, long] : [long, upper];
+  if (x.kind !== "in") return false; // two exclusions can always both hold
+  const other = new Set(y.values.map(canonicalJson));
+  return y.kind === "in"
+    ? !x.values.some((v) => other.has(canonicalJson(v)))
+    : x.values.every((v) => other.has(canonicalJson(v)));
 }
 
 /**
@@ -357,25 +450,18 @@ function requirementsAgree(
  * gates on the same evidence read the same payload.
  */
 function contradiction(transition: TransitionSpec): string | null {
-  const byEvidence = new Map<string, Requirements[]>();
+  const byEvidence = new Map<string, Constraint[]>();
   for (const gate of transition.gates ?? []) {
-    if (
-      gate.type !== "evidence-recorded" ||
-      gate.config.requireField === undefined
-    ) {
-      continue;
-    }
-    const maps = byEvidence.get(gate.config.name) ?? [];
-    maps.push(gate.config.requireField);
-    byEvidence.set(gate.config.name, maps);
+    if (gate.type !== "evidence-recorded") continue;
+    const all = byEvidence.get(gate.config.name) ?? [];
+    all.push(...constraintsOf(gate.config));
+    byEvidence.set(gate.config.name, all);
   }
-  for (const [name, maps] of byEvidence) {
-    for (let i = 0; i < maps.length; i++) {
-      for (let j = i; j < maps.length; j++) {
-        const conflict = requireFieldConflict(maps[i], maps[j]);
-        if (conflict !== null) {
-          return `evidence-recorded on '${name}' requires ${conflict}, which no payload can hold`;
-        }
+  for (const [name, all] of byEvidence) {
+    for (let i = 0; i < all.length; i++) {
+      const conflict = constraintConflict([all[i]], all.slice(i));
+      if (conflict !== null) {
+        return `evidence-recorded on '${name}' requires ${conflict}, which no payload can hold`;
       }
     }
   }
@@ -583,9 +669,9 @@ function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
         x.type === "evidence-recorded" && y.type === "evidence-recorded" &&
         x.config.name === y.config.name
       ) {
-        const conflict = requireFieldConflict(
-          x.config.requireField ?? {},
-          y.config.requireField ?? {},
+        const conflict = constraintConflict(
+          constraintsOf(x.config),
+          constraintsOf(y.config),
         );
         if (conflict !== null) return true;
       }

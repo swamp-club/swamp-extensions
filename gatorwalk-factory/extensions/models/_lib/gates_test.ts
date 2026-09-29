@@ -156,6 +156,33 @@ function gateLifecycle(): Lifecycle {
             }],
           },
           {
+            name: "qualified",
+            to: "done",
+            gates: [{
+              type: "evidence-recorded",
+              config: {
+                name: "ci",
+                requireField: { "run.ok": true },
+                match: {
+                  status: { enum: ["green", "amber"] },
+                  run: { type: "object", required: ["ok"] },
+                },
+              },
+            }],
+          },
+          {
+            name: "not-red",
+            to: "done",
+            gates: [{
+              type: "evidence-recorded",
+              config: {
+                name: "ci",
+                match: { "run.status": { not: { const: "red" } } },
+                message: "a red run waits for a fix",
+              },
+            }],
+          },
+          {
             name: "cooled",
             to: "done",
             gates: [{
@@ -750,6 +777,79 @@ Deno.test("evidence-recorded: requireField compares objects and arrays by conten
   assert(
     (await gate(store, env, "green")).pass,
     "{ ok: true } matches a separately parsed { ok: true }",
+  );
+});
+
+Deno.test("evidence-recorded: match checks each field against its schema, with requireField", async () => {
+  const { store, env } = await setup();
+  await record(store, env, "evidence", "ci", {
+    status: "red",
+    run: { ok: true },
+  });
+  const off = await gate(store, env, "qualified");
+  assertEquals(
+    off.reason,
+    `evidence 'ci': field 'status' is "red", expected to match ` +
+      `{"enum":["green","amber"]} (status: Instance does not match any of ` +
+      `["green","amber"].)`,
+  );
+  await record(store, env, "evidence", "ci", {
+    status: "amber",
+    run: { ok: false },
+  });
+  const both = await gate(store, env, "qualified");
+  assert(
+    !both.pass && both.reason?.includes(`field 'run.ok' is false`),
+    both.reason,
+  );
+  await record(store, env, "evidence", "ci", {
+    status: "amber",
+    run: { ok: true },
+  });
+  assert((await gate(store, env, "qualified")).pass);
+});
+
+Deno.test("evidence-recorded: a match failure below the field is named from the field", async () => {
+  const { store, env } = await setup();
+  await record(store, env, "evidence", "ci", { status: "green", run: {} });
+  const off = await gate(store, env, "qualified");
+  assert(
+    !off.pass && off.reason?.includes(`(run: Instance does not have required`),
+    off.reason,
+  );
+  assert(!off.reason?.includes("(root)"), off.reason);
+});
+
+Deno.test("evidence-recorded: a missing field fails a match, even under not", async () => {
+  const { store, env } = await setup();
+  await record(store, env, "evidence", "ci", { status: "green" });
+  const off = await gate(store, env, "not-red");
+  assertEquals(
+    off.reason,
+    `a red run waits for a fix (evidence 'ci': field 'run.status' is ` +
+      `missing, expected to match {"not":{"const":"red"}})`,
+  );
+  await record(store, env, "evidence", "ci", {
+    status: "green",
+    run: { status: "red" },
+  });
+  const red = await gate(store, env, "not-red");
+  assert(
+    !red.pass && red.reason?.startsWith("a red run waits for a fix ("),
+    red.reason,
+  );
+  await record(store, env, "evidence", "ci", {
+    status: "green",
+    run: { status: "blue" },
+  });
+  assert((await gate(store, env, "not-red")).pass);
+});
+
+Deno.test("evidence-recorded: the message is only for values, not for when evidence was recorded", async () => {
+  const { store, env } = await setup();
+  assertEquals(
+    (await gate(store, env, "not-red")).reason,
+    "evidence 'ci' has not been recorded",
   );
 });
 

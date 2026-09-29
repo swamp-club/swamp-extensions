@@ -176,6 +176,44 @@ export function lintPayloadSchema(schema: unknown): SchemaIssue[] {
   return issues;
 }
 
+/** Keywords that name or point at a place in a schema. */
+const REFERENCE_KEYWORDS = [
+  "$id",
+  "$ref",
+  "$dynamicRef",
+  "$anchor",
+  "$dynamicAnchor",
+  "$defs",
+];
+
+/**
+ * Check a schema for one field of a payload, as a gate's `match` holds one:
+ * a well-formed 2020-12 schema (an object or a boolean) with no references.
+ * A fragment for one field has no document around it to point into.
+ */
+export function lintFieldSchema(schema: unknown): SchemaIssue[] {
+  // Shape first, then references, before anything is compiled: a reference
+  // is refused outright rather than resolved.
+  const issues: SchemaIssue[] = [];
+  lintSubschema(schema, [], issues);
+  if (issues.length > 0) return issues;
+  for (const { schema: sub, path } of subschemas(schema)) {
+    for (const keyword of REFERENCE_KEYWORDS) {
+      if (Object.hasOwn(sub, keyword)) {
+        issues.push({
+          path: [...path, keyword],
+          message: `${keyword} is not supported in a field schema; ` +
+            "write the schema in place",
+        });
+      }
+    }
+  }
+  if (issues.length > 0) return issues;
+  // A copy: compiling marks the schema object it is given, and a fragment is
+  // copied again when the gate config is parsed, which would keep the marks.
+  return lintPayloadSchema(structuredClone(schema));
+}
+
 function lintSubschema(
   schema: unknown,
   path: (string | number)[],
@@ -399,8 +437,8 @@ function compileProblem(schema: PayloadSchema): string | null {
   }
 }
 
-function validatorFor(schema: PayloadSchema): Validator {
-  return new Validator(schema as Schema, "2020-12", false);
+function validatorFor(schema: PayloadSchema | boolean): Validator {
+  return new Validator(schema as Schema | boolean, "2020-12", false);
 }
 
 // ---------------------------------------------------------------------------
@@ -438,7 +476,7 @@ const ALTERNATIVE_KEYWORDS = new Set(["anyOf", "oneOf", "not"]);
  * on: leaf errors, with the summaries above them and the per-branch noise
  * under anyOf/oneOf/not removed.
  */
-function actionableErrors(errors: OutputUnit[]): string[] {
+function actionableErrors(errors: OutputUnit[], base?: string): string[] {
   const alternativeRoots = errors
     .filter((e) => ALTERNATIVE_KEYWORDS.has(e.keyword))
     .map((e) => `${e.keywordLocation}/`);
@@ -461,17 +499,20 @@ function actionableErrors(errors: OutputUnit[]): string[] {
     return !failing(`${e.instanceLocation}/${escaped}`);
   });
   const lines = actionable.map((e) =>
-    `${instancePath(e.instanceLocation)}: ${e.error}`
+    `${instancePath(e.instanceLocation, base)}: ${e.error}`
   );
   return [...new Set(lines)];
 }
 
-function instancePath(location: string): string {
+/** A dotted path, below `base` when given (a field path), else from the
+ * payload's root. */
+function instancePath(location: string, base?: string): string {
   const pointer = location.replace(/^#/, "");
-  if (pointer === "" || pointer === "/") return "(root)";
-  return pointer.slice(1).split("/").map((s) =>
+  if (pointer === "" || pointer === "/") return base ?? "(root)";
+  const path = pointer.slice(1).split("/").map((s) =>
     s.replaceAll("~1", "/").replaceAll("~0", "~")
   ).join(".");
+  return base === undefined ? path : `${base}.${path}`;
 }
 
 /**
@@ -486,6 +527,23 @@ export function validatePayload(
   if (result.valid) return null;
   const errors = actionableErrors(result.errors);
   return errors.length > 0 ? errors : ["(root): does not match the schema"];
+}
+
+/**
+ * Validate the value of one payload field against a schema that passed
+ * lintFieldSchema. Returns null when valid, else reasons whose paths start
+ * at the field.
+ */
+export function validateField(
+  schema: PayloadSchema | boolean,
+  field: string,
+  value: unknown,
+): string[] | null {
+  // A copy, so the lifecycle's own gate config is never marked by compiling.
+  const result = validatorFor(structuredClone(schema)).validate(value);
+  if (result.valid) return null;
+  const errors = actionableErrors(result.errors, field);
+  return errors.length > 0 ? errors : [`${field}: does not match the schema`];
 }
 
 // ---------------------------------------------------------------------------

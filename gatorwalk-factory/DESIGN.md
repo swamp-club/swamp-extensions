@@ -208,6 +208,30 @@ exit's gates **and** the cycle limit of the stage it enters, so it never shows
 as ready a transition that `advance` would refuse; that mismatch is how a
 driving agent gets stuck (#916).
 
+### Evidence values: `requireField` and `match`
+
+`evidence-recorded` can demand values of the evidence payload in two ways, and a
+gate may use both (every condition must hold):
+
+- **`requireField`** maps a dotted field path to the value that must be there,
+  compared as canonical JSON.
+- **`match`** maps a dotted field path to a JSON Schema 2020-12 fragment the
+  value there must satisfy, such as `{ not: { const: bug } }` or
+  `{ enum: [high, medium] }`. Fragments are checked when the lifecycle is saved
+  and validated by the same engine as payload schemas, so there is no second
+  dialect. A fragment for one field has nothing to point into, so `$ref`,
+  `$dynamicRef`, `$defs`, `$id`, `$anchor` and `$dynamicAnchor` are refused.
+
+A missing field fails both, even under `not`: a condition is about a value that
+is there. `match` is a sibling rather than operator objects inside
+`requireField` because a `requireField` value may itself be any object, so
+`{ in: [...] }` there would be ambiguous.
+
+An optional `message` replaces the gate's opening when a value does not qualify,
+with the detail kept after it in parentheses. Missing evidence, or evidence from
+another stage or cycle, keeps the standard text: that is about when it was
+recorded, not what it holds.
+
 ### Approvals
 
 `human-approval` counts, for its gate id in the current stage, cycle and era,
@@ -334,8 +358,9 @@ Errors:
   satisfy, with the gate and the reason. A global transition is judged from each
   stage separately, and the finding names the stage. This includes a transition
   whose `evidence-recorded` gates on one evidence require values no single
-  payload can hold, such as `a: { b: 1 }` with `a.b: 2`, since every gate of a
-  transition reads the same payload.
+  payload can hold, such as `a: { b: 1 }` with `a.b: 2`, or `s: a` with a
+  `match` of `{ not: { const: a } }`, since every gate of a transition reads the
+  same payload.
 - **`exit-unreachable`:** a plugin contract exit that no transition that can
   pass takes.
 
@@ -343,12 +368,19 @@ Warnings:
 
 - **`ambiguous-exit`:** two sibling exits to different stages, neither of them
   manual or behind a `human-approval` gate without `when`, whose gates are not
-  provably exclusive. Exclusive means `evidence-recorded` on the same evidence
-  requiring values of a field no single payload can hold, or `max-cycles` on the
-  same stage and limit with opposite `invert`. `requireField` keys are compared
-  as the field paths the gate reads, so `a.b: 1` and `a: { b: 2 }` are
-  exclusive. CEL cannot be compared. Two exits to the same stage are not
-  ambiguous, since the driver reaches the same place whichever it picks.
+  provably exclusive. Exclusive means `evidence-recorded` on the same evidence requiring
+  values of a field no single payload can hold, or `max-cycles` on the same
+  stage and limit with opposite `invert`. Keys are compared as the field paths
+  the gate reads, so `a.b: 1` and `a: { b: 2 }` are exclusive. A `requireField`
+  value reads as a `const`; of a `match` fragment, only `const`, `enum` and a
+  `not` of those are read, and a fragment with none of them is never proven
+  exclusive. Other keywords beside a `const` or `enum` only narrow, so they are
+  ignored safely; inside a `not` they would narrow what is excluded, so a `not`
+  is read only when it holds nothing else but annotations. A set of
+  values required above a path is read at the path below; an exclusion above
+  says nothing about the path below. CEL cannot be compared. Two exits to the
+  same stage are not ambiguous, since the driver reaches the same place
+  whichever it picks.
 - **`escape-only`:** a stage or loop whose only way to finish is a global
   transition, such as `abandon`.
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no

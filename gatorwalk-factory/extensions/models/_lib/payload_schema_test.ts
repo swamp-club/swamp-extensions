@@ -17,10 +17,12 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   FINDINGS_SCHEMA,
+  lintFieldSchema,
   lintPayloadSchema,
   OUTCOME_SCHEMA,
   type PayloadSchema,
   validateArtifactPayload,
+  validateField,
   validatePayload,
 } from "./payload_schema.ts";
 
@@ -299,4 +301,51 @@ Deno.test("validateArtifactPayload: findings contract and declared schema both a
     validateArtifactPayload(spec, { reviewer: "r" }),
     'required property "findings"',
   );
+});
+
+// --- field schemas (an evidence-recorded gate's match) -----------------------
+
+Deno.test("field schema: a well-formed fragment or boolean is accepted", () => {
+  assertEquals(lintFieldSchema({ not: { enum: ["a", "b"] } }), []);
+  assertEquals(lintFieldSchema(false), []);
+  assertEquals(lintFieldSchema({ type: "object", required: ["ok"] }), []);
+});
+
+Deno.test("field schema: references and definitions are refused, with their path", () => {
+  const messages = [
+    { $ref: "#" },
+    { not: { $dynamicRef: "#x" } },
+    { $defs: { a: true } },
+    { properties: { a: { $anchor: "a" } } },
+    { $dynamicAnchor: "a" },
+    { $id: "https://example.com/x" },
+  ].flatMap((schema) =>
+    lintFieldSchema(schema).map((i) => `${i.path.join(".")}: ${i.message}`)
+  );
+  assertEquals(messages, [
+    "$ref: $ref is not supported in a field schema; write the schema in place",
+    "not.$dynamicRef: $dynamicRef is not supported in a field schema; write the schema in place",
+    "$defs: $defs is not supported in a field schema; write the schema in place",
+    "properties.a.$anchor: $anchor is not supported in a field schema; write the schema in place",
+    "$dynamicAnchor: $dynamicAnchor is not supported in a field schema; write the schema in place",
+    "$id: $id is not supported in a field schema; write the schema in place",
+  ]);
+});
+
+Deno.test("field schema: lint and validation leave the fragment unmarked", () => {
+  const schema = { enum: ["a"] };
+  lintFieldSchema(schema);
+  validateField(schema, "f", "b");
+  assertEquals(Reflect.ownKeys(schema), ["enum"]);
+});
+
+Deno.test("field schema: reasons are named from the field", () => {
+  assertEquals(validateField({ const: 1 }, "a.b", 1), null);
+  assertEquals(validateField(false, "a", 1), ["a: does not match the schema"]);
+  const nested = validateField(
+    { type: "object", properties: { ok: { type: "boolean" } } },
+    "run",
+    { ok: "yes" },
+  );
+  assert(nested?.every((r) => r.startsWith("run.ok: ")), nested?.join());
 });

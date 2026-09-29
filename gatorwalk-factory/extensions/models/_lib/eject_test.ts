@@ -418,7 +418,7 @@ stages:
         gates:
           - { type: artifact-fresh, config: { artifact: notes-review } }
           - { type: findings-clear, config: { artifact: notes-review, blocking: [high] } }
-          - { type: evidence-recorded, config: { name: outcome } }
+          - { type: evidence-recorded, config: { name: outcome, match: { status: { not: { const: failed } } }, message: not yet } }
           - { type: cooldown, config: { afterArtifact: notes, seconds: 5 } }
           - { type: cel, config: { expr: "has(artifacts.notes) && evidence.outcome.version > 0" } }
           - { type: human-approval, config: { id: sign-off } }
@@ -468,7 +468,14 @@ stages:
       type: "findings-clear",
       config: { artifact: "draft-review", blocking: ["high"] },
     },
-    { type: "evidence-recorded", config: { name: "draft-outcome" } },
+    {
+      type: "evidence-recorded",
+      config: {
+        name: "draft-outcome",
+        match: { status: { not: { const: "failed" } } },
+        message: "not yet",
+      },
+    },
     { type: "cooldown", config: { afterArtifact: "draft_notes", seconds: 5 } },
     {
       type: "cel",

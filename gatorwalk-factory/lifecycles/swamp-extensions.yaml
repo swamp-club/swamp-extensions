@@ -92,16 +92,18 @@ stages:
                   - regressionVerdictReasoning
                 properties: { type: { const: bug } }
     transitions:
-      # One exit per type: requireField only matches equal values, and it is
-      # what lets the graph analysis prove these exits exclusive.
+      # One exit per type, named as issue-lifecycle's classifications are.
+      # The confidence check is a gate of its own, so a type mismatch on a
+      # sibling exit never shows its message.
       - name: bug
         to: reproduce
         gates:
           - type: evidence-recorded
             config: { name: classification, requireField: { type: bug } }
-          - type: cel
+          - type: evidence-recorded
             config:
-              expr: evidence["classification"].payload.confidence != "low"
+              name: classification
+              match: { confidence: { enum: [high, medium] } }
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered
@@ -121,9 +123,10 @@ stages:
         gates:
           - type: evidence-recorded
             config: { name: classification, requireField: { type: feature } }
-          - type: cel
+          - type: evidence-recorded
             config:
-              expr: evidence["classification"].payload.confidence != "low"
+              name: classification
+              match: { confidence: { enum: [high, medium] } }
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered
@@ -132,9 +135,10 @@ stages:
         gates:
           - type: evidence-recorded
             config: { name: classification, requireField: { type: platform } }
-          - type: cel
+          - type: evidence-recorded
             config:
-              expr: evidence["classification"].payload.confidence != "low"
+              name: classification
+              match: { confidence: { enum: [high, medium] } }
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered
@@ -143,9 +147,10 @@ stages:
         gates:
           - type: evidence-recorded
             config: { name: classification, requireField: { type: security } }
-          - type: cel
+          - type: evidence-recorded
             config:
-              expr: evidence["classification"].payload.confidence != "low"
+              name: classification
+              match: { confidence: { enum: [high, medium] } }
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered

@@ -681,3 +681,57 @@ Deno.test("transitionsFrom: stage transitions plus globals; none from terminals"
   );
   assertEquals(transitionsFrom(lifecycle, done), []);
 });
+
+// --- evidence-recorded: match and message -------------------------------------
+
+/** base() with evidence 'out' and one evidence-recorded gate on it. */
+function evidenceGate(config: Raw): Raw {
+  const doc = base();
+  set(doc, "stages.0.evidence", [{ name: "out", schema: { type: "object" } }]);
+  set(doc, "stages.0.transitions.0.gates.0", {
+    type: "evidence-recorded",
+    config: { name: "out", ...config },
+  });
+  return doc;
+}
+
+Deno.test("evidence-recorded: match and message are accepted beside requireField", () => {
+  const doc = evidenceGate({
+    requireField: { type: "bug" },
+    match: { confidence: { enum: ["high", "medium"] }, "a.b": false },
+    message: "waits for answers",
+  });
+  const result = parseLifecycle(doc);
+  assert(result.ok, result.ok ? "" : result.errors.join("\n"));
+  const gate = result.value.stages[0].transitions![0].gates![0];
+  // Compiling a fragment to lint it must not leave marks on the parsed one.
+  assertEquals(gate.config, {
+    name: "out",
+    requireField: { type: "bug" },
+    match: { confidence: { enum: ["high", "medium"] }, "a.b": false },
+    message: "waits for answers",
+  });
+  // assertEquals ignores non-enumerable keys, which compiling adds.
+  const match = gate.type === "evidence-recorded" ? gate.config.match : {};
+  assertEquals(Reflect.ownKeys(match?.confidence as object), ["enum"]);
+});
+
+Deno.test("evidence-recorded: a bad match fragment is refused at its path", () => {
+  assertRejects(
+    evidenceGate({ match: { status: { enmu: ["x"] } } }),
+    "stages.0.transitions.0.gates.0.config.match.status.enmu: unknown JSON Schema keyword 'enmu'",
+  );
+  assertRejects(
+    evidenceGate({ match: { status: { not: { $ref: "#" } } } }),
+    "stages.0.transitions.0.gates.0.config.match.status.not.$ref: $ref is not supported in a field schema",
+  );
+  assertRejects(
+    evidenceGate({ match: { status: "x" } }),
+    "config.match.status",
+  );
+  // A computed key: a literal "__proto__" key sets the prototype.
+  assertRejects(
+    evidenceGate({ match: { ["__proto__"]: { const: 1 } } }),
+    "match cannot name '__proto__'",
+  );
+});

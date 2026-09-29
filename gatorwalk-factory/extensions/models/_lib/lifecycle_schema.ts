@@ -17,6 +17,7 @@
 import { z } from "npm:zod@4.3.6";
 import { parse as parseCel } from "npm:@marcbachmann/cel-js@7.6.1";
 import {
+  lintFieldSchema,
   lintPayloadSchema,
   type PayloadSchema,
   SEVERITIES,
@@ -257,11 +258,42 @@ const RequireFieldSchema = z.unknown().superRefine((raw, ctx) => {
   }
 }).pipe(z.record(z.string(), z.unknown()));
 
+/**
+ * Field paths to JSON Schema 2020-12 fragments the evidence payload's value
+ * there must satisfy: a sibling of requireField rather than operator objects
+ * inside it, because a requireField value may itself be any object. The same
+ * __proto__ refusal applies.
+ */
+const MatchSchema = z.unknown().superRefine((raw, ctx) => {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return;
+  if (Object.hasOwn(raw, "__proto__")) {
+    ctx.addIssue({ code: "custom", message: "match cannot name '__proto__'" });
+    return;
+  }
+  for (const [field, schema] of Object.entries(raw)) {
+    for (const issue of lintFieldSchema(schema)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [field, ...issue.path],
+        message: issue.message,
+      });
+    }
+  }
+}).pipe(
+  z.record(
+    z.string(),
+    z.union([z.boolean(), z.record(z.string(), z.unknown())]),
+  ),
+);
+
 export const EvidenceRecordedGateSchema = z.strictObject({
   type: z.literal("evidence-recorded"),
   config: z.strictObject({
     name: NameSchema,
     requireField: RequireFieldSchema.optional(),
+    match: MatchSchema.optional(),
+    /** Shown, with the detail, when a field's value does not qualify. */
+    message: z.string().optional(),
   }),
 });
 
