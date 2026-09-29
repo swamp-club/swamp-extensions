@@ -510,6 +510,13 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Optional. Manages streaming of notifications from apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices. This is supported on Android 13 and above.",
     ).optional(),
+    taskContinuityHandoff: z.enum([
+      "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+      "TASK_CONTINUITY_HANDOFF_ALLOWED",
+      "TASK_CONTINUITY_HANDOFF_DISALLOWED",
+    ]).describe(
+      "Optional. Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature. This policy applies to the entire device for fully managed devices, and to the work profile for devices with a work profile. Requires Android 17 QPR1 or higher.",
+    ).optional(),
   }).describe("Optional. Policies controlling cross-device communication.")
     .optional(),
   crossProfilePolicies: z.object({
@@ -525,7 +532,7 @@ const GlobalArgsSchema = z.object({
       "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED",
       "CROSS_PROFILE_COPY_PASTE_ALLOWED",
     ]).describe(
-      "Whether text copied from one profile (personal or work) can be pasted in the other profile.",
+      "Optional. Whether text copied from one profile (personal or work) can be pasted in the other profile.",
     ).optional(),
     crossProfileDataSharing: z.enum([
       "CROSS_PROFILE_DATA_SHARING_UNSPECIFIED",
@@ -533,13 +540,13 @@ const GlobalArgsSchema = z.object({
       "DATA_SHARING_FROM_WORK_TO_PERSONAL_DISALLOWED",
       "CROSS_PROFILE_DATA_SHARING_ALLOWED",
     ]).describe(
-      "Whether data from one profile (personal or work) can be shared with apps in the other profile. Specifically controls simple data sharing via intents. Management of other cross-profile communication channels, such as contact search, copy/paste, or connected work & personal apps, are configured separately.",
+      "Optional. Whether data from one profile (personal or work) can be shared with apps in the other profile. Specifically controls simple data sharing via intents. Management of other cross-profile communication channels, such as contact search, copy/paste, or connected work & personal apps, are configured separately.",
     ).optional(),
     exemptionsToShowWorkContactsInPersonalProfile: z.object({
       packageNames: z.array(z.string()).describe("A list of package names.")
         .optional(),
     }).describe(
-      "List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting. For this to be set, ShowWorkContactsInPersonalProfile must be set to one of the following values: SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED. In this case, these exemptions act as a blocklist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED. In this case, these exemptions act as an allowlist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM. In this case, these exemptions act as an allowlist, in addition to the already allowlisted system apps.Supported on Android 14 and above. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 14.",
+      "Optional. List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting. For this to be set, ShowWorkContactsInPersonalProfile must be set to one of the following values: SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED. In this case, these exemptions act as a blocklist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED. In this case, these exemptions act as an allowlist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM. In this case, these exemptions act as an allowlist, in addition to the already allowlisted system apps.Supported on Android 14 and above. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 14.",
     ).optional(),
     showWorkContactsInPersonalProfile: z.enum([
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_UNSPECIFIED",
@@ -547,16 +554,17 @@ const GlobalArgsSchema = z.object({
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED",
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM",
     ]).describe(
-      "Whether personal apps can access contacts stored in the work profile.See also exemptions_to_show_work_contacts_in_personal_profile.",
+      "Optional. Whether personal apps can access contacts stored in the work profile.See also exemptions_to_show_work_contacts_in_personal_profile.",
     ).optional(),
     workProfileWidgetsDefault: z.enum([
       "WORK_PROFILE_WIDGETS_DEFAULT_UNSPECIFIED",
       "WORK_PROFILE_WIDGETS_DEFAULT_ALLOWED",
       "WORK_PROFILE_WIDGETS_DEFAULT_DISALLOWED",
     ]).describe(
-      "Specifies the default behaviour for work profile widgets. If the policy does not specify work_profile_widgets for a specific application, it will behave according to the value specified here.",
+      "Optional. Specifies the default behaviour for work profile widgets. If the policy does not specify work_profile_widgets for a specific application, it will behave according to the value specified here.",
     ).optional(),
-  }).describe("Cross-profile policies applied on the device.").optional(),
+  }).describe("Optional. Cross-profile policies applied on the device.")
+    .optional(),
   dataRoamingDisabled: z.boolean().describe(
     "Whether roaming data services are disabled.",
   ).optional(),
@@ -964,14 +972,15 @@ const GlobalArgsSchema = z.object({
       "DEVICE_SETTINGS_UNSPECIFIED",
       "SETTINGS_ACCESS_ALLOWED",
       "SETTINGS_ACCESS_BLOCKED",
-    ]).describe("Specifies whether the Settings app is allowed in kiosk mode.")
-      .optional(),
+    ]).describe(
+      "Optional. Specifies whether the Settings app is allowed in kiosk mode.",
+    ).optional(),
     powerButtonActions: z.enum([
       "POWER_BUTTON_ACTIONS_UNSPECIFIED",
       "POWER_BUTTON_AVAILABLE",
       "POWER_BUTTON_BLOCKED",
     ]).describe(
-      "Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button.",
+      "Optional. Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button.",
     ).optional(),
     statusBar: z.enum([
       "STATUS_BAR_UNSPECIFIED",
@@ -979,14 +988,14 @@ const GlobalArgsSchema = z.object({
       "NOTIFICATIONS_AND_SYSTEM_INFO_DISABLED",
       "SYSTEM_INFO_ONLY",
     ]).describe(
-      "Specifies whether system info and notifications are disabled in kiosk mode.",
+      "Optional. Specifies whether system info and notifications are disabled in kiosk mode.",
     ).optional(),
     systemErrorWarnings: z.enum([
       "SYSTEM_ERROR_WARNINGS_UNSPECIFIED",
       "ERROR_AND_WARNINGS_ENABLED",
       "ERROR_AND_WARNINGS_MUTED",
     ]).describe(
-      'Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode. When blocked, the system will force-stop the app as if the user chooses the "close app" option on the UI.',
+      'Optional. Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode. When blocked, the system will force-stop the app as if the user chooses the "close app" option on the UI.',
     ).optional(),
     systemNavigation: z.enum([
       "SYSTEM_NAVIGATION_UNSPECIFIED",
@@ -994,10 +1003,10 @@ const GlobalArgsSchema = z.object({
       "NAVIGATION_DISABLED",
       "HOME_BUTTON_ONLY",
     ]).describe(
-      "Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
+      "Optional. Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
     ).optional(),
   }).describe(
-    "Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
+    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
   ).optional(),
   locationMode: z.enum([
     "LOCATION_MODE_UNSPECIFIED",
@@ -1077,34 +1086,34 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   passwordPolicies: z.array(z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -1118,60 +1127,60 @@ const GlobalArgsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   })).describe(
-    "Password requirement policies. Different policies can be set for work profile or fully managed devices by setting the password_scope field in the policy.",
+    "Optional. Password requirement policies. Different policies can be set for work profile or fully managed devices by setting the password_scope field in the policy.",
   ).optional(),
   passwordRequirements: z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -1185,26 +1194,26 @@ const GlobalArgsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   }).describe(
     "Password requirements. The field password_requirements.require_password_unlock must not be set. DEPRECATED - Use passwordPolicies.Note:Complexity-based values of PasswordQuality, that is, COMPLEXITY_LOW, COMPLEXITY_MEDIUM, and COMPLEXITY_HIGH, cannot be used here. unified_lock_settings cannot be used here.",
@@ -1254,6 +1263,17 @@ const GlobalArgsSchema = z.object({
     ]).describe("Optional. Whether bluetooth sharing is allowed.").optional(),
     cameraDisabled: z.boolean().describe(
       "If true, the camera is disabled on the personal profile.",
+    ).optional(),
+    crossDevicePolicies: z.object({
+      taskContinuityHandoff: z.enum([
+        "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+        "TASK_CONTINUITY_HANDOFF_ALLOWED",
+        "TASK_CONTINUITY_HANDOFF_DISALLOWED",
+      ]).describe(
+        "Optional. Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature for the personal profile on company-owned devices with a work profile. To disable Handoff device-wide on a company-owned device, both crossDevicePolicies.taskContinuityHandoff and this policy should be set to TASK_CONTINUITY_HANDOFF_DISALLOWED. Requires Android 17 QPR1 or higher.",
+      ).optional(),
+    }).describe(
+      "Optional. Policies controlling cross-device communication in the personal profile.",
     ).optional(),
     maxDaysWithWorkOff: z.number().int().describe(
       "Controls how long the work profile can stay off. The minimum duration must be at least 3 days. Other details are as follows: - If the duration is set to 0, the feature is turned off. - If the duration is set to a value smaller than the minimum duration, the feature returns an error. *Note:* If you want to avoid personal profiles being suspended during long periods of off-time, you can temporarily set a large value for this parameter.",
@@ -1653,6 +1673,7 @@ const StateSchema = z.object({
   crossDevicePolicies: z.object({
     nearbyAppStreaming: z.string(),
     nearbyNotificationStreaming: z.string(),
+    taskContinuityHandoff: z.string(),
   }).optional(),
   crossProfilePolicies: z.object({
     crossProfileAppFunctions: z.string(),
@@ -1846,6 +1867,9 @@ const StateSchema = z.object({
     accountTypesWithManagementDisabled: z.array(z.string()),
     bluetoothSharing: z.string(),
     cameraDisabled: z.boolean(),
+    crossDevicePolicies: z.object({
+      taskContinuityHandoff: z.string(),
+    }),
     maxDaysWithWorkOff: z.number(),
     personalApplications: z.array(z.object({
       installType: z.string(),
@@ -2331,6 +2355,13 @@ const InputsSchema = z.object({
     ]).describe(
       "Optional. Manages streaming of notifications from apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices. This is supported on Android 13 and above.",
     ).optional(),
+    taskContinuityHandoff: z.enum([
+      "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+      "TASK_CONTINUITY_HANDOFF_ALLOWED",
+      "TASK_CONTINUITY_HANDOFF_DISALLOWED",
+    ]).describe(
+      "Optional. Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature. This policy applies to the entire device for fully managed devices, and to the work profile for devices with a work profile. Requires Android 17 QPR1 or higher.",
+    ).optional(),
   }).describe("Optional. Policies controlling cross-device communication.")
     .optional(),
   crossProfilePolicies: z.object({
@@ -2346,7 +2377,7 @@ const InputsSchema = z.object({
       "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED",
       "CROSS_PROFILE_COPY_PASTE_ALLOWED",
     ]).describe(
-      "Whether text copied from one profile (personal or work) can be pasted in the other profile.",
+      "Optional. Whether text copied from one profile (personal or work) can be pasted in the other profile.",
     ).optional(),
     crossProfileDataSharing: z.enum([
       "CROSS_PROFILE_DATA_SHARING_UNSPECIFIED",
@@ -2354,13 +2385,13 @@ const InputsSchema = z.object({
       "DATA_SHARING_FROM_WORK_TO_PERSONAL_DISALLOWED",
       "CROSS_PROFILE_DATA_SHARING_ALLOWED",
     ]).describe(
-      "Whether data from one profile (personal or work) can be shared with apps in the other profile. Specifically controls simple data sharing via intents. Management of other cross-profile communication channels, such as contact search, copy/paste, or connected work & personal apps, are configured separately.",
+      "Optional. Whether data from one profile (personal or work) can be shared with apps in the other profile. Specifically controls simple data sharing via intents. Management of other cross-profile communication channels, such as contact search, copy/paste, or connected work & personal apps, are configured separately.",
     ).optional(),
     exemptionsToShowWorkContactsInPersonalProfile: z.object({
       packageNames: z.array(z.string()).describe("A list of package names.")
         .optional(),
     }).describe(
-      "List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting. For this to be set, ShowWorkContactsInPersonalProfile must be set to one of the following values: SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED. In this case, these exemptions act as a blocklist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED. In this case, these exemptions act as an allowlist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM. In this case, these exemptions act as an allowlist, in addition to the already allowlisted system apps.Supported on Android 14 and above. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 14.",
+      "Optional. List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting. For this to be set, ShowWorkContactsInPersonalProfile must be set to one of the following values: SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED. In this case, these exemptions act as a blocklist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED. In this case, these exemptions act as an allowlist. SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM. In this case, these exemptions act as an allowlist, in addition to the already allowlisted system apps.Supported on Android 14 and above. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 14.",
     ).optional(),
     showWorkContactsInPersonalProfile: z.enum([
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_UNSPECIFIED",
@@ -2368,16 +2399,17 @@ const InputsSchema = z.object({
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED",
       "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM",
     ]).describe(
-      "Whether personal apps can access contacts stored in the work profile.See also exemptions_to_show_work_contacts_in_personal_profile.",
+      "Optional. Whether personal apps can access contacts stored in the work profile.See also exemptions_to_show_work_contacts_in_personal_profile.",
     ).optional(),
     workProfileWidgetsDefault: z.enum([
       "WORK_PROFILE_WIDGETS_DEFAULT_UNSPECIFIED",
       "WORK_PROFILE_WIDGETS_DEFAULT_ALLOWED",
       "WORK_PROFILE_WIDGETS_DEFAULT_DISALLOWED",
     ]).describe(
-      "Specifies the default behaviour for work profile widgets. If the policy does not specify work_profile_widgets for a specific application, it will behave according to the value specified here.",
+      "Optional. Specifies the default behaviour for work profile widgets. If the policy does not specify work_profile_widgets for a specific application, it will behave according to the value specified here.",
     ).optional(),
-  }).describe("Cross-profile policies applied on the device.").optional(),
+  }).describe("Optional. Cross-profile policies applied on the device.")
+    .optional(),
   dataRoamingDisabled: z.boolean().describe(
     "Whether roaming data services are disabled.",
   ).optional(),
@@ -2785,14 +2817,15 @@ const InputsSchema = z.object({
       "DEVICE_SETTINGS_UNSPECIFIED",
       "SETTINGS_ACCESS_ALLOWED",
       "SETTINGS_ACCESS_BLOCKED",
-    ]).describe("Specifies whether the Settings app is allowed in kiosk mode.")
-      .optional(),
+    ]).describe(
+      "Optional. Specifies whether the Settings app is allowed in kiosk mode.",
+    ).optional(),
     powerButtonActions: z.enum([
       "POWER_BUTTON_ACTIONS_UNSPECIFIED",
       "POWER_BUTTON_AVAILABLE",
       "POWER_BUTTON_BLOCKED",
     ]).describe(
-      "Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button.",
+      "Optional. Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button.",
     ).optional(),
     statusBar: z.enum([
       "STATUS_BAR_UNSPECIFIED",
@@ -2800,14 +2833,14 @@ const InputsSchema = z.object({
       "NOTIFICATIONS_AND_SYSTEM_INFO_DISABLED",
       "SYSTEM_INFO_ONLY",
     ]).describe(
-      "Specifies whether system info and notifications are disabled in kiosk mode.",
+      "Optional. Specifies whether system info and notifications are disabled in kiosk mode.",
     ).optional(),
     systemErrorWarnings: z.enum([
       "SYSTEM_ERROR_WARNINGS_UNSPECIFIED",
       "ERROR_AND_WARNINGS_ENABLED",
       "ERROR_AND_WARNINGS_MUTED",
     ]).describe(
-      'Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode. When blocked, the system will force-stop the app as if the user chooses the "close app" option on the UI.',
+      'Optional. Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode. When blocked, the system will force-stop the app as if the user chooses the "close app" option on the UI.',
     ).optional(),
     systemNavigation: z.enum([
       "SYSTEM_NAVIGATION_UNSPECIFIED",
@@ -2815,10 +2848,10 @@ const InputsSchema = z.object({
       "NAVIGATION_DISABLED",
       "HOME_BUTTON_ONLY",
     ]).describe(
-      "Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
+      "Optional. Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
     ).optional(),
   }).describe(
-    "Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
+    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
   ).optional(),
   locationMode: z.enum([
     "LOCATION_MODE_UNSPECIFIED",
@@ -2898,34 +2931,34 @@ const InputsSchema = z.object({
   ).optional(),
   passwordPolicies: z.array(z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -2939,60 +2972,60 @@ const InputsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   })).describe(
-    "Password requirement policies. Different policies can be set for work profile or fully managed devices by setting the password_scope field in the policy.",
+    "Optional. Password requirement policies. Different policies can be set for work profile or fully managed devices by setting the password_scope field in the policy.",
   ).optional(),
   passwordRequirements: z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -3006,26 +3039,26 @@ const InputsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   }).describe(
     "Password requirements. The field password_requirements.require_password_unlock must not be set. DEPRECATED - Use passwordPolicies.Note:Complexity-based values of PasswordQuality, that is, COMPLEXITY_LOW, COMPLEXITY_MEDIUM, and COMPLEXITY_HIGH, cannot be used here. unified_lock_settings cannot be used here.",
@@ -3075,6 +3108,17 @@ const InputsSchema = z.object({
     ]).describe("Optional. Whether bluetooth sharing is allowed.").optional(),
     cameraDisabled: z.boolean().describe(
       "If true, the camera is disabled on the personal profile.",
+    ).optional(),
+    crossDevicePolicies: z.object({
+      taskContinuityHandoff: z.enum([
+        "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+        "TASK_CONTINUITY_HANDOFF_ALLOWED",
+        "TASK_CONTINUITY_HANDOFF_DISALLOWED",
+      ]).describe(
+        "Optional. Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature for the personal profile on company-owned devices with a work profile. To disable Handoff device-wide on a company-owned device, both crossDevicePolicies.taskContinuityHandoff and this policy should be set to TASK_CONTINUITY_HANDOFF_DISALLOWED. Requires Android 17 QPR1 or higher.",
+      ).optional(),
+    }).describe(
+      "Optional. Policies controlling cross-device communication in the personal profile.",
     ).optional(),
     maxDaysWithWorkOff: z.number().int().describe(
       "Controls how long the work profile can stay off. The minimum duration must be at least 3 days. Other details are as follows: - If the duration is set to 0, the feature is turned off. - If the duration is set to a value smaller than the minimum duration, the feature returns an error. *Note:* If you want to avoid personal profiles being suspended during long periods of off-time, you can temporarily set a large value for this parameter.",
@@ -3400,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.09.17.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3570,6 +3614,11 @@ export const model = {
     {
       toVersion: "2026.09.17.1",
       description: "Added: backupService",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

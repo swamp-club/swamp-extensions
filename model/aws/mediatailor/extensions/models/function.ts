@@ -75,9 +75,11 @@ const GlobalArgsSchema = z.object({
   FunctionId: z.string().describe("The unique identifier for the function."),
   FunctionType: z.enum([
     "HTTP_REQUEST",
+    "AWS_SERVICE_REQUEST",
     "CUSTOM_OUTPUT",
     "CONCURRENT_EXECUTOR",
     "SEQUENTIAL_EXECUTOR",
+    "VAST_REQUEST",
   ]).describe(
     "The type of the function. Determines which configuration object is used.",
   ),
@@ -101,6 +103,36 @@ const GlobalArgsSchema = z.object({
       "A map of HTTP headers to include in the request.",
     ).optional(),
   }).describe("Configuration for HTTP request functions.").optional(),
+  AwsServiceRequestConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings. Each key is a namespaced output path, such as player_params.device_type. Each value is an expression that MediaTailor evaluates at runtime and can reference the response object from the target service. For more information, see JSONata expression reference (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-jsonata.html) in the MediaTailor User Guide.",
+    ).optional(),
+    MethodType: z.enum(["GET", "POST"]),
+    RequestTimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, that MediaTailor waits for a response from the AWS service. If the call exceeds this timeout, MediaTailor sets the response status code to null and proceeds with output expression evaluation. Valid values are 100 to 2000.",
+    ),
+    Url: z.string().describe(
+      "An expression that evaluates to the endpoint URL for the target AWS service API operation. Use {%...%} delimiters for dynamic expressions. The URL must correspond to a valid endpoint for the service specified in TargetService. The maximum length after evaluation is 2,048 characters.",
+    ),
+    Body: z.string().describe(
+      "An expression that evaluates to the request body for the AWS service API call. The body must conform to the input format that the target service operation expects. Applies only when the target operation accepts a request body. The maximum size after evaluation is 64 KB.",
+    ).optional(),
+    Headers: z.record(z.string(), z.string()).describe(
+      "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request to the AWS service. Use this to pass any headers required by the target service operation. You can include a maximum of 50 headers.",
+    ).optional(),
+    TargetService: z.string().min(1).max(63).regex(new RegExp("[a-z0-9-]+"))
+      .describe(
+        "The AWS service to call. Valid value: elemental-inference (AWS Elemental Inference).",
+      ),
+    TargetRegion: z.string().min(1).max(256).describe(
+      "The AWS Region for the target service. Specify a static Region code (for example, us-east-1) or a JSONata expression that resolves to a Region code at runtime (for example, {%inference.region%}).",
+    ),
+  }).describe(
+    "The configuration for an AWS_SERVICE_REQUEST function. Contains the target service, target Region, and request parameters that the function uses to call an AWS service API. For more information, see AWS_SERVICE_REQUEST (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types-aws-service-request.html) in the MediaTailor User Guide.",
+  ).optional(),
   CustomOutputConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
       "The runtime environment for the function expression language.",
@@ -144,6 +176,29 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The configuration for a SEQUENTIAL_EXECUTOR function. A SEQUENTIAL_EXECUTOR runs an ordered list of child functions one at a time, passing data between them. For more information about functions, see Working with functions (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions.html) in the MediaTailor User Guide.",
   ).optional(),
+  VastRequestConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings. Each key is a namespaced output path (such as temp.wrappedAds), and each value is an expression that MediaTailor evaluates at runtime. Output expressions in a VAST_REQUEST function can reference the response object, which exposes response.parsedAds, the ads parsed from the VAST response after schema validation and wrapper resolution, and response.statusCode. For more information about expression syntax, see JSONata expression reference (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-jsonata.html) in the MediaTailor User Guide.",
+    ).optional(),
+    MethodType: z.enum(["GET", "POST"]),
+    RequestTimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, that MediaTailor waits for a response from the VAST endpoint. The timeout covers the entire response, including any wrapper redirects that MediaTailor follows. If the call exceeds this timeout, MediaTailor proceeds with an empty ad list and continues output expression evaluation. Valid values are 100 to 2000.",
+    ),
+    Url: z.string().describe(
+      "An expression that evaluates to the VAST endpoint URL. Use {%...%} delimiters for dynamic expressions. A literal value must be an https:// URL. The expression can be up to 25,000 characters, and the URL after evaluation can be up to 2,048 characters.",
+    ),
+    Body: z.string().describe(
+      "An expression that evaluates to the request body, for example to send an OpenRTB bid request. The expression can be up to 100,000 characters, and the body after evaluation can be up to 64 KB.",
+    ).optional(),
+    Headers: z.record(z.string(), z.string()).describe(
+      "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request. Headers beginning with X-Amz- are reserved by the service, and method override headers are not allowed.",
+    ).optional(),
+  }).describe(
+    "The configuration for a VAST_REQUEST function. Specifies the HTTP method, URL, headers, body, timeout, and output expressions for a request to a VAST endpoint. MediaTailor parses the response as VAST and resolves wrapper redirects, then makes the parsed ads available to the function's output expressions. For more information, see Function types and composition (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types.html) in the MediaTailor User Guide.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to assign to the function resource.",
   ).optional(),
@@ -163,6 +218,17 @@ const StateSchema = z.object({
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
   }).optional(),
+  AwsServiceRequestConfiguration: z.object({
+    Runtime: z.string(),
+    Output: z.record(z.string(), z.unknown()),
+    MethodType: z.string(),
+    RequestTimeoutMilliseconds: z.number(),
+    Url: z.string(),
+    Body: z.string(),
+    Headers: z.record(z.string(), z.unknown()),
+    TargetService: z.string(),
+    TargetRegion: z.string(),
+  }).optional(),
   CustomOutputConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
@@ -180,6 +246,15 @@ const StateSchema = z.object({
     FunctionList: z.array(FunctionRefSchema),
     TimeoutMilliseconds: z.number(),
   }).optional(),
+  VastRequestConfiguration: z.object({
+    Runtime: z.string(),
+    Output: z.record(z.string(), z.unknown()),
+    MethodType: z.string(),
+    RequestTimeoutMilliseconds: z.number(),
+    Url: z.string(),
+    Body: z.string(),
+    Headers: z.record(z.string(), z.unknown()),
+  }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -194,9 +269,11 @@ const InputsSchema = z.object({
     .optional(),
   FunctionType: z.enum([
     "HTTP_REQUEST",
+    "AWS_SERVICE_REQUEST",
     "CUSTOM_OUTPUT",
     "CONCURRENT_EXECUTOR",
     "SEQUENTIAL_EXECUTOR",
+    "VAST_REQUEST",
   ]).describe(
     "The type of the function. Determines which configuration object is used.",
   ).optional(),
@@ -221,6 +298,36 @@ const InputsSchema = z.object({
       "A map of HTTP headers to include in the request.",
     ).optional(),
   }).describe("Configuration for HTTP request functions.").optional(),
+  AwsServiceRequestConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ).optional(),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings. Each key is a namespaced output path, such as player_params.device_type. Each value is an expression that MediaTailor evaluates at runtime and can reference the response object from the target service. For more information, see JSONata expression reference (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-jsonata.html) in the MediaTailor User Guide.",
+    ).optional(),
+    MethodType: z.enum(["GET", "POST"]).optional(),
+    RequestTimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, that MediaTailor waits for a response from the AWS service. If the call exceeds this timeout, MediaTailor sets the response status code to null and proceeds with output expression evaluation. Valid values are 100 to 2000.",
+    ).optional(),
+    Url: z.string().describe(
+      "An expression that evaluates to the endpoint URL for the target AWS service API operation. Use {%...%} delimiters for dynamic expressions. The URL must correspond to a valid endpoint for the service specified in TargetService. The maximum length after evaluation is 2,048 characters.",
+    ).optional(),
+    Body: z.string().describe(
+      "An expression that evaluates to the request body for the AWS service API call. The body must conform to the input format that the target service operation expects. Applies only when the target operation accepts a request body. The maximum size after evaluation is 64 KB.",
+    ).optional(),
+    Headers: z.record(z.string(), z.string()).describe(
+      "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request to the AWS service. Use this to pass any headers required by the target service operation. You can include a maximum of 50 headers.",
+    ).optional(),
+    TargetService: z.string().min(1).max(63).regex(new RegExp("[a-z0-9-]+"))
+      .describe(
+        "The AWS service to call. Valid value: elemental-inference (AWS Elemental Inference).",
+      ).optional(),
+    TargetRegion: z.string().min(1).max(256).describe(
+      "The AWS Region for the target service. Specify a static Region code (for example, us-east-1) or a JSONata expression that resolves to a Region code at runtime (for example, {%inference.region%}).",
+    ).optional(),
+  }).describe(
+    "The configuration for an AWS_SERVICE_REQUEST function. Contains the target service, target Region, and request parameters that the function uses to call an AWS service API. For more information, see AWS_SERVICE_REQUEST (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types-aws-service-request.html) in the MediaTailor User Guide.",
+  ).optional(),
   CustomOutputConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
       "The runtime environment for the function expression language.",
@@ -263,6 +370,29 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "The configuration for a SEQUENTIAL_EXECUTOR function. A SEQUENTIAL_EXECUTOR runs an ordered list of child functions one at a time, passing data between them. For more information about functions, see Working with functions (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions.html) in the MediaTailor User Guide.",
+  ).optional(),
+  VastRequestConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ).optional(),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings. Each key is a namespaced output path (such as temp.wrappedAds), and each value is an expression that MediaTailor evaluates at runtime. Output expressions in a VAST_REQUEST function can reference the response object, which exposes response.parsedAds, the ads parsed from the VAST response after schema validation and wrapper resolution, and response.statusCode. For more information about expression syntax, see JSONata expression reference (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-jsonata.html) in the MediaTailor User Guide.",
+    ).optional(),
+    MethodType: z.enum(["GET", "POST"]).optional(),
+    RequestTimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, that MediaTailor waits for a response from the VAST endpoint. The timeout covers the entire response, including any wrapper redirects that MediaTailor follows. If the call exceeds this timeout, MediaTailor proceeds with an empty ad list and continues output expression evaluation. Valid values are 100 to 2000.",
+    ).optional(),
+    Url: z.string().describe(
+      "An expression that evaluates to the VAST endpoint URL. Use {%...%} delimiters for dynamic expressions. A literal value must be an https:// URL. The expression can be up to 25,000 characters, and the URL after evaluation can be up to 2,048 characters.",
+    ).optional(),
+    Body: z.string().describe(
+      "An expression that evaluates to the request body, for example to send an OpenRTB bid request. The expression can be up to 100,000 characters, and the body after evaluation can be up to 64 KB.",
+    ).optional(),
+    Headers: z.record(z.string(), z.string()).describe(
+      "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request. Headers beginning with X-Amz- are reserved by the service, and method override headers are not allowed.",
+    ).optional(),
+  }).describe(
+    "The configuration for a VAST_REQUEST function. Specifies the HTTP method, URL, headers, body, timeout, and output expressions for a request to a VAST endpoint. MediaTailor parses the response as VAST and resolves wrapper redirects, then makes the parsed ads available to the function's output expressions. For more information, see Function types and composition (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types.html) in the MediaTailor User Guide.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to assign to the function resource.",
@@ -288,7 +418,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Function. Registered at `@swamp/aws/mediatailor/function`. */
 export const model = {
   type: "@swamp/aws/mediatailor/function",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -303,6 +433,12 @@ export const model = {
     {
       toVersion: "2026.09.25.1",
       description: "Added: ConcurrentExecutorConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description:
+        "Added: AwsServiceRequestConfiguration, VastRequestConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -58,6 +58,7 @@ const ResourceSchema = z.object({
   config: z.object({
     dimensions: z.number().optional(),
     metric: z.string().optional(),
+    preset: z.string().optional(),
   }).optional(),
   created_on: z.string().optional(),
   description: z.string().optional(),
@@ -82,7 +83,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Indexes. Registered at `@swamp/cloudflare/vectorize/indexes-v2`. */
 export const model = {
   type: "@swamp/cloudflare/vectorize/indexes-v2",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -106,6 +107,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -61,7 +61,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  config: z.string().optional(),
+  created_at: z.string().optional(),
   id: z.string(),
+  is_active: z.number().optional(),
+  name: z.string().optional(),
+  output_schema: z.string().optional(),
+  prompt: z.string().optional(),
+  source: z.string().optional(),
+  type: z.string().optional(),
+  updated_at: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -82,10 +91,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Skills. Registered at `@swamp/cloudflare/cloudforce-one/skills`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/skills",
-  version: "2026.09.29.1",
+  version: "2026.09.29.2",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

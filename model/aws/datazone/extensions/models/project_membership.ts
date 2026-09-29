@@ -58,13 +58,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Designation: z.enum([
-    "PROJECT_OWNER",
-    "PROJECT_CONTRIBUTOR",
-    "PROJECT_CATALOG_VIEWER",
-    "PROJECT_CATALOG_CONSUMER",
-    "PROJECT_CATALOG_STEWARD",
-  ]),
+  Designation: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$")),
   DomainIdentifier: z.string().regex(
     new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"),
   ),
@@ -95,13 +89,7 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Designation: z.enum([
-    "PROJECT_OWNER",
-    "PROJECT_CONTRIBUTOR",
-    "PROJECT_CATALOG_VIEWER",
-    "PROJECT_CATALOG_CONSUMER",
-    "PROJECT_CATALOG_STEWARD",
-  ]).optional(),
+  Designation: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$")).optional(),
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .optional(),
   Member: z.object({
@@ -131,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone ProjectMembership. Registered at `@swamp/aws/datazone/project-membership`. */
 export const model = {
   type: "@swamp/aws/datazone/project-membership",
-  version: "2026.08.17.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -180,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

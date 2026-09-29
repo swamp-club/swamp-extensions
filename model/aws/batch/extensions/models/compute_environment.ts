@@ -116,6 +116,13 @@ const ManagedInstancesProviderSchema = z.object({
   InfrastructureOptimization: InfrastructureOptimizationSchema.optional(),
 });
 
+const EksAccessEntrySchema = z.object({
+  DesiredState: z.enum(["ENABLED", "DISABLED", "INHERIT_FROM_CLUSTER"])
+    .describe(
+      "The desired state of the EKS access entry managed by AWS Batch. When omitted, AWS Batch applies INHERIT_FROM_CLUSTER.",
+    ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -175,6 +182,9 @@ const GlobalArgsSchema = z.object({
   EksConfiguration: z.object({
     EksClusterArn: z.string(),
     KubernetesNamespace: z.string(),
+    AccessEntry: EksAccessEntrySchema.describe(
+      "The EKS access entry configuration for the compute environment. Controls whether AWS Batch manages the EKS access entry for the compute environment's service role, or inherits it from the cluster.",
+    ).optional(),
   }).optional(),
   EcsSettings: z.object({
     ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
@@ -223,6 +233,7 @@ const StateSchema = z.object({
   EksConfiguration: z.object({
     EksClusterArn: z.string(),
     KubernetesNamespace: z.string(),
+    AccessEntry: EksAccessEntrySchema,
   }).optional(),
   EcsSettings: z.object({
     ContainerInsights: z.string(),
@@ -281,6 +292,9 @@ const InputsSchema = z.object({
   EksConfiguration: z.object({
     EksClusterArn: z.string().optional(),
     KubernetesNamespace: z.string().optional(),
+    AccessEntry: EksAccessEntrySchema.describe(
+      "The EKS access entry configuration for the compute environment. Controls whether AWS Batch manages the EKS access entry for the compute environment's service role, or inherits it from the cluster.",
+    ).optional(),
   }).optional(),
   EcsSettings: z.object({
     ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
@@ -309,7 +323,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ComputeEnvironment. Registered at `@swamp/aws/batch/compute-environment`. */
 export const model = {
   type: "@swamp/aws/batch/compute-environment",
-  version: "2026.09.16.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -488,7 +507,8 @@ export const model = {
             "ComputeEnvironmentName",
             "Tags",
             "Type",
-            "EksConfiguration",
+            "EksClusterArn",
+            "KubernetesNamespace",
             "CapacityOptionType",
             "FipsEnabled",
           ],

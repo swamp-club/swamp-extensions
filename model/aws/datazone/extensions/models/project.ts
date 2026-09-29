@@ -68,7 +68,7 @@ const MemberSchema = z.object({
 
 const ProjectMembershipAssignmentSchema = z.object({
   Member: MemberSchema.describe("The member of the project."),
-  Designation: z.enum(["PROJECT_OWNER", "PROJECT_CONTRIBUTOR"]),
+  Designation: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$")),
 });
 
 const GlobalArgsSchema = z.object({
@@ -210,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Project. Registered at `@swamp/aws/datazone/project`. */
 export const model = {
   type: "@swamp/aws/datazone/project",
-  version: "2026.08.17.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +275,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

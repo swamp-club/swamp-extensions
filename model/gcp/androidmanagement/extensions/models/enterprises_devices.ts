@@ -233,34 +233,34 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   appliedPasswordPolicies: z.array(z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -274,26 +274,26 @@ const GlobalArgsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   })).describe(
     "The password requirements currently applied to the device. This field exists because the applied requirements may be slightly different from those specified in passwordPolicies in some cases. Note that this field does not provide information about password compliance. For non-compliance information, see nonComplianceDetails. NonComplianceDetail.fieldPath, is set based on passwordPolicies, not based on this field.",
@@ -1142,34 +1142,34 @@ const InputsSchema = z.object({
   ).optional(),
   appliedPasswordPolicies: z.array(z.object({
     maximumFailedPasswordsForWipe: z.number().int().describe(
-      "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
+      "Optional. Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.",
     ).optional(),
     passwordExpirationTimeout: z.string().describe(
-      "Password expiration timeout.",
+      "Optional. Password expiration timeout.",
     ).optional(),
     passwordHistoryLength: z.number().int().describe(
-      "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
+      "Optional. The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.",
     ).optional(),
     passwordMinimumLength: z.number().int().describe(
-      "The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
+      "Optional. The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password_quality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.",
     ).optional(),
     passwordMinimumLetters: z.number().int().describe(
-      "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumLowerCase: z.number().int().describe(
-      "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNonLetter: z.number().int().describe(
-      "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumNumeric: z.number().int().describe(
-      "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumSymbols: z.number().int().describe(
-      "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordMinimumUpperCase: z.number().int().describe(
-      "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
+      "Optional. Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX.",
     ).optional(),
     passwordQuality: z.enum([
       "PASSWORD_QUALITY_UNSPECIFIED",
@@ -1183,26 +1183,26 @@ const InputsSchema = z.object({
       "COMPLEXITY_LOW",
       "COMPLEXITY_MEDIUM",
       "COMPLEXITY_HIGH",
-    ]).describe("The required password quality.").optional(),
+    ]).describe("Optional. The required password quality.").optional(),
     passwordScope: z.enum([
       "SCOPE_UNSPECIFIED",
       "SCOPE_DEVICE",
       "SCOPE_PROFILE",
-    ]).describe("The scope that the password requirement applies to.")
+    ]).describe("Optional. The scope that the password requirement applies to.")
       .optional(),
     requirePasswordUnlock: z.enum([
       "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
       "USE_DEFAULT_DEVICE_TIMEOUT",
       "REQUIRE_EVERY_DAY",
     ]).describe(
-      "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
+      "Optional. The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.",
     ).optional(),
     unifiedLockSettings: z.enum([
       "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
       "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
       "REQUIRE_SEPARATE_WORK_LOCK",
     ]).describe(
-      "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
+      "Optional. Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise. If user has not set a separate work lock and this field is set to REQUIRE_SEPARATE_WORK_LOCK, a NonComplianceDetail is reported with nonComplianceReason set to USER_ACTION.",
     ).optional(),
   })).describe(
     "The password requirements currently applied to the device. This field exists because the applied requirements may be slightly different from those specified in passwordPolicies in some cases. Note that this field does not provide information about password compliance. For non-compliance information, see nonComplianceDetails. NonComplianceDetail.fieldPath, is set based on passwordPolicies, not based on this field.",
@@ -1777,7 +1777,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.08.12.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1916,6 +1916,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

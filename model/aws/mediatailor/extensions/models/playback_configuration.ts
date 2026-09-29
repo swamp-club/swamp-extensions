@@ -224,7 +224,7 @@ const GlobalArgsSchema = z.object({
   AdDecisionServerConfiguration: z.object({
     HttpRequest: HttpRequestSchema.describe(
       "The configuration for the request to the Ad Decision Server URL.",
-    ),
+    ).optional(),
     VastResponse: VastResponseSchema.describe(
       "The configuration for how MediaTailor processes the VAST response returned by the Ad Decision Server.",
     ).optional(),
@@ -506,7 +506,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -566,6 +566,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

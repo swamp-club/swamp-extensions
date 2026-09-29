@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Detail: z.record(z.string(), z.unknown()).optional(),
+  Detail: z.record(z.string(), z.unknown()),
   DomainIdentifier: z.string().regex(
     new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"),
   ),
@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     "CREATE_ENVIRONMENT_FROM_BLUEPRINT",
     "CREATE_PROJECT_FROM_PROJECT_PROFILE",
   ]),
-  Principal: z.record(z.string(), z.unknown()).optional(),
+  Principal: z.record(z.string(), z.unknown()),
 });
 
 const StateSchema = z.object({
@@ -153,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone PolicyGrant. Registered at `@swamp/aws/datazone/policy-grant`. */
 export const model = {
   type: "@swamp/aws/datazone/policy-grant",
-  version: "2026.08.17.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -207,6 +207,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

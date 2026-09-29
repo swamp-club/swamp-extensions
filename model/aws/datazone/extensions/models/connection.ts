@@ -198,6 +198,13 @@ const HyperPodPropertiesInputSchema = z.object({
 
 const IamPropertiesInputSchema = z.object({
   GlueLineageSyncEnabled: z.boolean().optional(),
+  RoleArn: z.string().max(2048).regex(
+    new RegExp(
+      "^arn:aws[^:]*:iam::\\d{12}:role(\\/[a-zA-Z0-9+=,.@_-]+)*\\/[a-zA-Z0-9+=,.@_-]+$",
+    ),
+  ).describe(
+    "The ARN of the IAM role to associate with the connection as the project user role.",
+  ).optional(),
 });
 
 const UsernamePasswordSchema = z.object({
@@ -566,7 +573,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Connection. Registered at `@swamp/aws/datazone/connection`. */
 export const model = {
   type: "@swamp/aws/datazone/connection",
-  version: "2026.08.17.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -635,6 +642,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
