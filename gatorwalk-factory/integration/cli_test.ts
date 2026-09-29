@@ -26,6 +26,7 @@ import { parseLifecycle } from "../extensions/models/_lib/lifecycle_schema.ts";
 import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
+  LINEAR_TYPE,
   SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
   withRepo,
@@ -84,7 +85,7 @@ const PLAN = {
   versionBump: { needed: true, reason: "New method" },
 };
 
-Deno.test("cli: both model types register from the extension source", async () => {
+Deno.test("cli: every model type registers from the extension source", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
       "model",
@@ -95,7 +96,7 @@ Deno.test("cli: both model types register from the extension source", async () =
     ]);
     const types = (JSON.parse(stdout) as { results: { raw: string }[] })
       .results.map((r) => r.raw).sort();
-    assertEquals(types, [HOLDER_TYPE, WORK_ITEM_TYPE]);
+    assertEquals(types, [HOLDER_TYPE, LINEAR_TYPE, WORK_ITEM_TYPE].sort());
   });
 });
 
@@ -211,6 +212,22 @@ Deno.test("cli: start, status, a rejected payload and a stale write", async () =
       before,
       "a refused write writes nothing",
     );
+  });
+});
+
+Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640)", async () => {
+  await withRepo(async (repo) => {
+    await repo.holder("team", await buildLifecycle());
+    const key = await repo.newKey("team");
+    const refs = {
+      linear: "5b0e7a52-3f0c-4d8e-9a51-2c7d4a1e9b10",
+      "linear.display": "GW-16",
+    };
+    await repo.workItem(key, "start", {
+      lifecycle: "team",
+      externalRefs: JSON.stringify(refs),
+    });
+    assertEquals((await repo.run(key)).externalRefs, refs);
   });
 });
 

@@ -24,6 +24,7 @@ import {
   decide,
   dispatch,
   ExpectedInputs,
+  ExternalRefsInput,
   grantOverrideMethod,
   LIFECYCLE_SPEC,
   type MethodContextLike,
@@ -104,15 +105,13 @@ export const model = {
         "Start the work item on a lifecycle holder's current lifecycle, pinning a copy",
       arguments: z.object({
         lifecycle: z.string().min(1).describe("The lifecycle holder's name"),
-        externalRefs: z.record(z.string(), z.string()).optional().describe(
-          "Tracker ids, e.g. a Linear issue UUID",
-        ),
+        externalRefs: ExternalRefsInput.optional(),
         ...ActorInputs,
       }),
       execute: (
         args: {
           lifecycle: string;
-          externalRefs?: Record<string, string>;
+          externalRefs?: Record<string, string> | string;
           onBehalfOf?: string;
         },
         context: MethodContextLike,

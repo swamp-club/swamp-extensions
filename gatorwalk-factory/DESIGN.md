@@ -381,6 +381,97 @@ check each equals the constant the code compares against.
 (swamp only locks an instance once its definition exists), so two concurrent
 first starts can race. That is accepted for solo use until swamp fixes it.
 
+## Trackers
+
+**Decision.** A tracker (Linear now, swamp-club Lab next) is reached only
+through an **adapter**: its own model type, never part of the work item. The
+contract is written once, in `_lib/tracker.ts` and `_lib/tracker_methods.ts`,
+and each tracker is a thin model over it (`extensions/models/linear.ts`, with
+its client in `_lib/linear.ts`).
+
+The contract:
+
+- **Swamp owns the facts; the tracker is a view.** The work item's run record
+  and journal are the truth. What a ticket shows is written from them, never
+  read back into them.
+- **The state piece makes no network calls.** Only adapters talk to a tracker.
+  The work-item type and its runtime make no network call, so a tracker being
+  down or slow never holds a work item's lock or fails one of its writes.
+- **One writer per tracker field.** An adapter's `set_status` is the only code
+  that writes a ticket's status, and the projection publisher (GW-17) is its
+  only caller for a work item. A stage that wants the ticket to move requests a
+  transition; the projection reflects it. A person moving the ticket in the
+  tracker is outside this rule; reconciling that belongs with inbound webhooks.
+- **Tracker ids are data.** A work item records them in `externalRefs`: the
+  stable id under the tracker's name, and the human identifier under
+  `<tracker>.display`, for example
+  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`. Neither is ever an
+  instance name. Linear identifiers change when an issue moves team, so Linear
+  keys on the UUID: `comment` and `set_status` refuse an identifier, and
+  `fetch_issue`, which accepts either, reports the UUID and the `externalRefs`
+  to start a work item with.
+- **Credentials come from a vault.** An adapter's credential is a sensitive
+  global argument wired with `${{ vault.get(<vault>, <key>) }}`, so swamp
+  resolves it at run time and redacts it from logs. It is never read from
+  lifecycle data, method inputs or the environment. (The Lab adapter may use
+  swamp auth instead.)
+- **Delivery is idempotent on (work item, journal version).** The journal
+  version is the length of the run record's journal array. The journal only
+  grows (`reset` carries it forward, and only `start` begins one), and its
+  length does not depend on swamp's data versions or their retention. A
+  `comment` or `set_status` given `workItem` and `journalVersion` records what
+  the tracker returned (a comment's id and url, or the status) in the adapter
+  instance's delivery ledger, as `delivery-<action>-<workItem>-<journalVersion>`.
+  A later call with the same key finds that record and writes nothing to the
+  tracker, even if the `statuses` mapping has changed since. The record keeps a
+  digest of what was asked (the comment body or the status key), so the same
+  key for a different ticket or a different request is refused rather than
+  silently skipped.
+
+Every adapter provides three operations, as swamp methods built by
+`trackerMethods`:
+
+| Method        | Inputs                                              | Writes                              |
+| ------------- | --------------------------------------------------- | ----------------------------------- |
+| `fetch_issue` | `issue`: stable id or display identifier            | `issue-<id>`: a snapshot            |
+| `comment`     | `issue` (stable id), `body`, optional delivery key  | the ledger record, when keyed       |
+| `set_status`  | `issue` (stable id), `status` key, optional key     | the ledger record, when keyed       |
+
+`set_status` takes a gatorwalk **status key**, which the `statuses` global
+argument maps to the tracker's own status name (Linear statuses belong to a
+team and are matched by exact name, then resolved to an id at call time). An
+unmapped key is refused, listing the mapped keys; a name the team lacks is
+refused, listing the team's statuses. Moving a ticket to the status it already
+has writes nothing.
+
+Failures are a `TrackerError` with one of five kinds: `auth`, `not_found`,
+`rate_limited`, `invalid` or `upstream`. Nothing is retried: every write is
+idempotent through the ledger or by being a no-op, so the caller re-runs.
+`_lib/tracker_conformance.ts` checks this contract the same way for every
+adapter, against that adapter's local fake of its tracker.
+
+**Known gaps.** The ledger is read, then the tracker is written, then the
+ledger. That relies on swamp running one method at a time per adapter
+instance, so keep one adapter instance per tracker workspace. A crash after
+the tracker accepted a write but before the ledger record landed repeats that
+one write on retry. For a comment that means a duplicate. A hidden marker in
+the comment body, searched on retry, would close it if that matters. Ledger
+records are kept by age for a year; a replay of a key older than that would
+write again. Linear status lookup reads up to 250 statuses per team, Linear's
+page limit.
+
+**Designed for, not built here.**
+
+- **The projection publisher (GW-17)** reads a work item's run record through
+  `context.readModelData(<key>, "run")`, takes the journal length as its
+  cursor, and calls `comment` and `set_status` with that length as the
+  delivery key. A replay after a crash re-sends keys already delivered, and the
+  ledger skips them.
+- **Start from a ticket (GW-18)** calls `fetch_issue`, starts a work item with
+  the `externalRefs` it reports, and keeps an index from ticket id to work-item
+  key on the adapter instance, so a ticket finds its work item without scanning
+  every instance.
+
 ## Tests on the real engine
 
 **Decision.** Besides the unit tests, which run against fakes
@@ -389,8 +480,10 @@ through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution with `--log`, and reads results back from
 swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
-`integration/cli_test.ts`, and `integration/skill_test.ts`, which checks every
-command the driving skill shows and runs its worked example as written.
+`integration/cli_test.ts`; `integration/skill_test.ts`, which checks every
+command the driving skill shows and runs its worked example as written; and
+`integration/tracker_test.ts`, which runs the Linear adapter with its token in
+a vault made inside the temp repo, against the local Linear fake.
 
 ### Why
 
@@ -405,10 +498,15 @@ swamp's storage still have the digest taken before they were written.
 
 The suite needs to run the swamp binary, write a temp dir and read the
 environment, so it is its own command, `integration`, on the gatorwalk-factory
-target in `verification/checks.yaml`. The unit `test` command stays at
-`--allow-read` and never reaches `integration/`. A separate command was chosen
-over widening the unit tests' flags, so that tests of the pure runtime keep
-their read-only guarantee.
+target in `verification/checks.yaml`. The unit `test` command never reaches
+`integration/`. A separate command was chosen over widening the unit tests'
+flags, so that tests of the pure runtime keep their guarantee: they read files
+and nothing else.
+
+Both commands also have `--allow-net=127.0.0.1`, only because the tracker tests
+serve a local fake of each tracker's API (`_lib/linear_fake.ts`) on a free
+port. Nothing reaches a live service. The state piece still makes no network
+calls; its tests would pass without the flag.
 
 What those flags do not limit:
 
@@ -425,7 +523,7 @@ What the suite depends on:
   fresh HOME, swamp needed the network to load the extension.
 - **The swamp version on the host.** The suite logs `swamp --version` at the
   start of each run, and the path of each repo it creates. It last ran against
-  swamp `20260928.205839.0`.
+  swamp `20260929.002922.0`.
 - **Only gatorwalk-factory changes trigger it.** A swamp upgrade that breaks
   gatorwalk is caught by the next gatorwalk change, or by running
   `deno task test:integration` by hand.

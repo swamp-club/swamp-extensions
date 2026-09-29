@@ -137,6 +137,42 @@ Deno.test("start: a second start, a missing holder, or an invalid lifecycle is r
   assertEquals(fresh.versionsWritten(ITEM), 0);
 });
 
+async function holderOnly(): Promise<FakeSwamp> {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: await buildLifecycle(),
+    type: HOLDER_TYPE,
+  });
+  return swamp;
+}
+
+Deno.test("start: externalRefs as an object (--input-file) or a JSON string (--input) (#2640)", async () => {
+  const refs = { linear: "7d2b8c4e-0000-4000-8000-000000000001" };
+  for (const externalRefs of [refs, JSON.stringify(refs)]) {
+    const swamp = await holderOnly();
+    await call(swamp, "start", { lifecycle: "team", externalRefs });
+    assertEquals((await runOf(swamp)).externalRefs, refs);
+  }
+});
+
+Deno.test("start: externalRefs that are not a JSON object of strings are refused and write nothing", async () => {
+  for (
+    const [externalRefs, message] of [
+      ["{not json", "externalRefs is not valid JSON"],
+      ['["ABC-1"]', "externalRefs must be a JSON object"],
+      ['{"linear":1}', "externalRefs values must be strings; not: linear"],
+    ]
+  ) {
+    const swamp = await holderOnly();
+    await assertRejects(
+      () => call(swamp, "start", { lifecycle: "team", externalRefs }),
+      Error,
+      message,
+    );
+    assertEquals(swamp.versionsWritten(ITEM), 0);
+  }
+});
+
 Deno.test("pinning: editing the holder does not change a running work item; reset with repin adopts the edit", async () => {
   const swamp = await started();
   const before = (await runOf(swamp)).lifecycle.digest;

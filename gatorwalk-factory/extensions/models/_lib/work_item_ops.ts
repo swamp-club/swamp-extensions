@@ -117,22 +117,64 @@ export const PayloadInput = z.union([
   z.string(),
 ]).describe("The payload: an object, or a JSON object as a string");
 
-function payloadFrom(input: Record<string, unknown> | string) {
-  if (typeof input !== "string") return input;
+function jsonObjectFrom(what: string, input: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
   } catch (error) {
     throw new Error(
-      `payload is not valid JSON: ${
+      `${what} is not valid JSON: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("payload must be a JSON object");
+    throw new Error(`${what} must be a JSON object`);
   }
   return parsed as Record<string, unknown>;
+}
+
+function payloadFrom(input: Record<string, unknown> | string) {
+  if (typeof input !== "string") return input;
+  return jsonObjectFrom("payload", input);
+}
+
+/**
+ * Tracker ids as an object (from --input-file) or a JSON string (--input),
+ * which swamp passes through as a string rather than a record (#2640).
+ */
+export const ExternalRefsInput = z.union([
+  z.record(z.string(), z.string()),
+  z.string(),
+]).describe(
+  "Tracker ids, e.g. a Linear issue UUID: an object, or a JSON object as a string",
+);
+
+/**
+ * A string-to-string map from either form; every value must be a string.
+ * `what` names the input in errors.
+ */
+export function stringMapFrom(
+  what: string,
+  input: Record<string, string> | string | undefined,
+): Record<string, string> {
+  if (input === undefined) return {};
+  if (typeof input !== "string") return input;
+  const parsed = jsonObjectFrom(what, input);
+  const bad = Object.entries(parsed).filter(([, v]) => typeof v !== "string");
+  if (bad.length > 0) {
+    throw new Error(
+      `${what} values must be strings; not: ${bad.map(([k]) => k).join(", ")}`,
+    );
+  }
+  return parsed as Record<string, string>;
+}
+
+/** The tracker ids from either form of ExternalRefsInput. */
+export function externalRefsFrom(
+  input: Record<string, string> | string | undefined,
+): Record<string, string> {
+  return stringMapFrom("externalRefs", input);
 }
 
 function expectedFrom(args: {
@@ -380,12 +422,14 @@ export async function startWorkItem(
   ctx: MethodContextLike,
   args: {
     lifecycle: string;
-    externalRefs?: Record<string, string>;
+    externalRefs?: Record<string, string> | string;
     onBehalfOf?: string;
   },
   env: Env,
 ): Promise<MethodOutput> {
   const key = selfName(ctx);
+  // Parsed before anything is read or written, so bad input changes nothing.
+  const externalRefs = externalRefsFrom(args.externalRefs);
   const handles: unknown[] = [];
   const store = contextStore(ctx, handles);
   const existing = await loadRun(store);
@@ -403,7 +447,7 @@ export async function startWorkItem(
       lifecycle,
       {
         key,
-        externalRefs: args.externalRefs ?? {},
+        externalRefs,
         lifecycleDigest: pinned.digest,
         lifecycleVersion: pinned.version,
       },

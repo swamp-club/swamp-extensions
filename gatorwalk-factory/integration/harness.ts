@@ -21,6 +21,7 @@ import {
   parseRun,
   type RunRecord,
 } from "../extensions/models/_lib/run_record.ts";
+import { LINEAR_TYPE } from "../extensions/models/_lib/linear.ts";
 import {
   HOLDER_TYPE,
   WORK_ITEM_TYPE,
@@ -50,7 +51,7 @@ export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
   import.meta.url,
 );
 
-export { HOLDER_TYPE, WORK_ITEM_TYPE };
+export { HOLDER_TYPE, LINEAR_TYPE, WORK_ITEM_TYPE };
 
 // Variables that would point swamp at another repo, server or workflow dir
 // than the temp repo. The verify-build workflow sets some of them.

@@ -18,6 +18,7 @@ adds the manifest and deletes that test.
 extensions/models/
   lifecycle.ts            the lifecycle holder model type
   work_item.ts            the work-item model type
+  linear.ts               the Linear tracker adapter model type
   _lib/
     lifecycle_schema.ts   the lifecycle and plugin meta-schema
     payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
@@ -31,7 +32,12 @@ extensions/models/
     cel_context.ts        the CEL vocabulary for bindings and cel gates
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
-    work_item_ops.ts      the methods of both model types
+    work_item_ops.ts      the methods of the holder and work-item types
+    tracker.ts            the tracker adapter contract
+    tracker_methods.ts    the methods every tracker model has, and its ledger
+    tracker_conformance.ts  the contract, checked the same way per adapter
+    linear.ts             the Linear GraphQL client
+    linear_fake.ts        a local fake of Linear's API, for tests
     test_support.ts       shared test fixtures
     fake_swamp.ts         a fake swamp method context for tests
 integration/              the real-engine suite: gatorwalk through the swamp CLI
@@ -161,7 +167,9 @@ deno install --frozen
 
 These are the same checks that `verification/checks.yaml` runs before a PR.
 
-`deno task test` runs the unit tests against fakes and needs only read access.
+`deno task test` runs the unit tests against fakes. It needs read access, and
+network access to 127.0.0.1 only, where the tracker tests serve a fake of
+Linear's API.
 `deno task test:integration` runs gatorwalk through the installed `swamp` CLI,
 each test in a throwaway swamp repo. It fails if `swamp` is not on `PATH`. It
 uses your swamp config and login and deno's npm cache, and needs no network once
@@ -196,6 +204,26 @@ prints the whole dispatch packet. Writes are `record_artifact`,
 `grant_override`, `advance` and `reset`. A refused write fails with its reason
 and writes nothing. A payload that breaks its schema also fails, but is kept on
 the work item as retry feedback. Method output goes to the log, so pass `--log`.
+
+## Linear
+
+`@swamp/gatorwalk-factory/linear` connects a Linear workspace. Keep one instance
+per workspace; its API key comes from a vault. See [DESIGN.md](DESIGN.md),
+"Trackers".
+
+```bash
+swamp vault create local_encryption secrets
+swamp vault put secrets linear-token          # prompts for the key
+swamp model create @swamp/gatorwalk-factory/linear linear --json
+# In the printed definition file, set globalArguments:
+#   apiToken: ${{ vault.get(secrets, linear-token) }}
+#   statuses: { started: In Progress, review: In Review, done: Done }
+swamp model method run linear fetch_issue --input issue=ABC-1 --log
+```
+
+`fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
+item with. `comment` and `set_status` take the UUID; given `workItem` and
+`journalVersion`, a repeat of the same pair writes nothing to Linear.
 
 ## Driving it
 

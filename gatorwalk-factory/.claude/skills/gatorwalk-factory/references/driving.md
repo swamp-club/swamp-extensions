@@ -73,14 +73,14 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 ```
 
 `new_key` prints an unused key such as `build-swamp-extension-r2ner2de`. Use it
-as the work item's name from then on. To link a tracker ticket, put the inputs
-in a YAML file (`lifecycle: <holder>`, then `externalRefs:` mapping tracker to
-id, such as `linear: <id>`) and pass it with `--input-file`; `--input` cannot
-carry the mapping. The key never carries the ticket id.
+as the work item's name from then on. To link a tracker ticket, pass
+`externalRefs` as a JSON object mapping tracker to id. The key never carries the
+ticket id.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input-file <path> --log
+  --input lifecycle=<holder> \
+  --input 'externalRefs={"linear":"<issue UUID>"}' --log
 ```
 
 ## Read status

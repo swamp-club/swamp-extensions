@@ -18,8 +18,8 @@ import type { MethodContextLike } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
-// instance, a definition repository, tagOverrides and a logger. Not used by
-// production code.
+// instance, a definition repository, globalArgs per instance, tagOverrides
+// and a logger. Not used by production code.
 // ---------------------------------------------------------------------------
 
 export interface FakeSwamp {
@@ -28,15 +28,21 @@ export interface FakeSwamp {
     string,
     { globalArguments: unknown; type: string; remote?: boolean }
   >;
+  /** Evaluated globalArgs per instance, as a method sees them. */
+  globalArgs: Map<string, Record<string, unknown>>;
   /** Resources per instance: name -> versions. */
   resources: Map<string, Map<string, Record<string, unknown>[]>>;
   logs: { message: string; props?: Record<string, unknown> }[];
-  context(name: string, initiatedBy?: string): MethodContextLike;
+  context(
+    name: string,
+    initiatedBy?: string,
+  ): MethodContextLike & { globalArgs: Record<string, unknown> };
   versionsWritten(instance: string): number;
 }
 
 export function fakeSwamp(): FakeSwamp {
   const definitions: FakeSwamp["definitions"] = new Map();
+  const globalArgs: FakeSwamp["globalArgs"] = new Map();
   const resources: FakeSwamp["resources"] = new Map();
   const logs: FakeSwamp["logs"] = [];
   const of = (instance: string) => {
@@ -49,12 +55,14 @@ export function fakeSwamp(): FakeSwamp {
   };
   return {
     definitions,
+    globalArgs,
     resources,
     logs,
     versionsWritten: (instance) =>
       [...of(instance).values()].reduce((n, v) => n + v.length, 0),
     context: (name, initiatedBy = "user:alice") => ({
       definition: { name },
+      globalArgs: structuredClone(globalArgs.get(name) ?? {}),
       tagOverrides: { initiatedBy },
       logger: {
         info: (message, props) => {

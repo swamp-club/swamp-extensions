@@ -73,7 +73,7 @@ Work-item methods run by type, with the key as the instance:
 
 | Method            | Inputs                                                          | Needs the person |
 | ----------------- | --------------------------------------------------------------- | ---------------- |
-| `start`           | `lifecycle=<holder>` (and `externalRefs`, via `--input-file`)   |                  |
+| `start`           | `lifecycle=<holder>` (and `externalRefs`, a JSON object)        |                  |
 | `status`          | none (a read; no lock)                                          |                  |
 | `dispatch`        | expect                                                          |                  |
 | `record_artifact` | `name`, `payload` (JSON), expect                                |                  |

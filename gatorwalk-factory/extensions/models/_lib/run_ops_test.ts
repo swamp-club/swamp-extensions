@@ -455,6 +455,10 @@ Deno.test("reset: a new era at the initial stage; old records kept but out of er
     last.type === "reset" && last.previousEra === "era-1" &&
       last.era === "era-2",
   );
+  // The journal only grows: its length is the delivery key trackers use
+  // (DESIGN.md, "Trackers"), so a reset must carry every event forward.
+  assertEquals(result.run.journal.slice(0, run.journal.length), run.journal);
+  assertEquals(result.run.journal.length, run.journal.length + 1);
   assert(
     !reset(run, LIFECYCLE, { ...expectedOf(run), stage: "write" }, ALICE, env)
       .ok,
