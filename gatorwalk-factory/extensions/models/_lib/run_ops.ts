@@ -593,7 +593,6 @@ export function cycleLimitFor(
   lifecycle: Lifecycle,
   transition: TransitionSpec,
 ): Limit | null {
-  if (transition.to === undefined) return null;
   if ((lifecycle.globalTransitions ?? []).includes(transition)) return null;
   return cycleLimit(run, lifecycle, transition.to);
 }
@@ -712,12 +711,6 @@ export async function advance(
     return refuse(
       `stage '${run.stage}' has no transition '${input.transition}' ` +
         `(there is: ${available.map((t) => t.name).join(", ") || "none"})`,
-    );
-  }
-  if (transition.to === undefined) {
-    return refuse(
-      `transition '${transition.name}' leaves through a stage template exit, which ` +
-        "needs a composed lifecycle",
     );
   }
   if (transition.manual === true && input.manualConfirmed !== true) {

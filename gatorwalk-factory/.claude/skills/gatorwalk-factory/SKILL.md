@@ -24,6 +24,12 @@ not covered yet.
 - Driving in full: [references/driving.md](references/driving.md)
 - A whole work item, start to done:
   [references/examples/build-swamp-extension.md](references/examples/build-swamp-extension.md)
+- A lifecycle to start from: copy the closest example in
+  [references/examples/](references/examples/) into a holder, then run
+  `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general change
+  from plan to release; `build-swamp-extension.yaml` builds a swamp extension;
+  `swamp-club-swamp-extensions.yaml` is a real repository's process, to read
+  rather than copy whole. Each file's opening comment says what to change first.
 
 ## Rules
 

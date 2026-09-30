@@ -1,5 +1,14 @@
-# The swamp-extensions process: a swamp-club Lab issue from triage to the
-# session summary.
+# swamp-club-swamp-extensions: a real-world example. A swamp-club Lab issue in
+# the swamp-extensions repository, from triage to the session summary.
+#
+# For reading, not for copying whole: it shows a full process with a
+# tracker, a verification workflow, attestation and pull requests, and it
+# depends on that repository (the agent-constraints/ conventions its prompts
+# cite, the verification/ workflows and its forge). To build one like it,
+# start from starter.yaml and borrow the stages you need.
+#
+# Change first, if you copy it whole: the verify stage's workflow, the
+# pull-request command and the conventions the prompts cite.
 #
 # This is the process swamp-extensions runs with @swamp/issue-lifecycle and
 # agent-constraints/verification-conventions.md, written as a gatorwalk
@@ -7,8 +16,8 @@
 # swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue reads
 # the same as one issue-lifecycle drives. issue-lifecycle stays, and drives
 # every other issue: the adapter's claim refuses an issue it already drives.
-# swamp-extensions.md maps every phase, gate and human stop onto this file and
-# lists what the format could not express.
+# swamp-club-swamp-extensions.md maps every phase, gate and human stop onto
+# this file and lists what the format could not express.
 #
 # The work item never talks to swamp-club itself. The adapter's publish
 # replays its journal to the issue: each stage's projection names the Lab
@@ -28,7 +37,7 @@
 # the evidence-recorded gate, which only accepts evidence from the current
 # stage and cycle. implement.submit and attest.attested depend on it.
 schemaVersion: 1
-name: swamp-extensions
+name: swamp-club-swamp-extensions
 description: >-
   A swamp-club Lab issue in swamp-extensions, from triage through
   verification, the pull request and release to the session summary.
@@ -249,7 +258,7 @@ stages:
     description: Plan the change, following the repository's planning conventions.
     # Five plans before a person grants another round. triage, plan, implement
     # and pull-request state the default of 5 as the process's choice, so each
-    # loop has a limit someone chose (swamp-extensions.md, "Cycle limits").
+    # loop has a limit someone chose (swamp-club-swamp-extensions.md, "Cycle limits").
     maxCycles: 5
     work:
       mode: interactive

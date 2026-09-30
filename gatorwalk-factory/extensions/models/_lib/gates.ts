@@ -139,7 +139,6 @@ export async function evaluateTransitions(
   if (stage === undefined) throw new Error(`no stage '${run.stage}'`);
   const out: TransitionReadiness[] = [];
   for (const transition of transitionsFrom(lifecycle, stage)) {
-    if (transition.to === undefined) continue;
     const gates = await evaluateGates(run, lifecycle, transition, store, env);
     const limit = cycleLimitFor(run, lifecycle, transition);
     const failures = gates.flatMap((c) =>

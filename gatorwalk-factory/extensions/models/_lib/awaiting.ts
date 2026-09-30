@@ -62,7 +62,7 @@ export async function personHeldExits(
   const globals = lifecycle.globalTransitions ?? [];
   const held: AwaitingExit[] = [];
   for (const transition of transitionsFrom(lifecycle, stage)) {
-    if (transition.to === undefined || globals.includes(transition)) continue;
+    if (globals.includes(transition)) continue;
     const exit = await heldBy(run, lifecycle, transition, store, env, at);
     if (exit !== null) held.push(exit);
   }
@@ -99,7 +99,7 @@ async function heldBy(
   if (pending.length === 0 && !(manual && gates.length > 0)) return null;
   return {
     transition: transition.name,
-    to: transition.to as string,
+    to: transition.to,
     manual,
     gateIds: pending,
     ...(readyAt !== null && readyAt > Date.parse(at)

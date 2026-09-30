@@ -338,7 +338,10 @@ async function labAdapter(repo: SwampRepo, url: string): Promise<void> {
   await Deno.writeTextFile(path, stringifyYaml(definition));
 }
 
-const MINIMAL = new URL("../testdata/lifecycles/minimal.yaml", import.meta.url);
+const MINIMAL = new URL(
+  "../.claude/skills/gatorwalk-factory/references/examples/minimal.yaml",
+  import.meta.url,
+);
 
 Deno.test("tracker: claim starts a work item from a Lab issue once, and hands back a reservation after an interrupted start", async () => {
   const fake = swampClubFake();
@@ -410,7 +413,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
 // @swamp/issue-lifecycle, added as a second extension source, is run by
 // direct type execution as the real one is, so claim's guard is checked
 // against the auto-definition swamp writes. Then a work item on the bundled
-// swamp-extensions lifecycle goes from claim to notify against the Lab fake,
+// swamp-club-swamp-extensions lifecycle goes from claim to notify against the Lab fake,
 // published after each move.
 // ---------------------------------------------------------------------------
 

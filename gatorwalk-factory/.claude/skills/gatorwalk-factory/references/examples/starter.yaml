@@ -1,15 +1,17 @@
-# The starter lifecycle written by hand: what applying the starter stage
-# templates to starter-sketch.yaml must give (templates_test.ts). It is the
-# core of lifecycles/build-swamp-extension.yaml (plan, plan review,
-# implement, check, code review, release), made generic:
+# starter: a general software change, from plan to release. Plan, have the
+# plan reviewed, implement, verify, have the change reviewed, release.
 #
-# - verify runs a command the stage names and records checks; there is no
-#   quality score and no quality waiver.
-# - The plan has no versionBump, and change-summary no manifestVersion.
-# - implement has no guard against resubmitting the commit already checked:
-#   that reads verify's evidence, which implement cannot take as an input.
-# - The approvals (plan-approval, release-approval, abandon-confirmation) and
-#   release are the lifecycle's; the stage templates carry none.
+# For: changes to any codebase. A person approves the plan and the release,
+# and confirms abandoning the work. A review with a blocking finding, or a
+# failed verify, sends the work back. Every check and the release are bound
+# to the commit named in change-summary. Stages project Lab statuses, so a
+# work item can drive a swamp-club issue; drop the projection keys if it
+# will not. For a swamp extension, build-swamp-extension.yaml adds a quality
+# score and a manifest version check.
+#
+# Change first: verify's command (your project's checks), the skills the
+# plan-review and code-review stages load, and release's description (how
+# your project ships).
 schemaVersion: 1
 name: starter
 description: Plan, review the plan, implement, verify, review the change, release.
@@ -139,8 +141,8 @@ stages:
         name, status and, when it failed, the output that shows why). Record
         only what you ran and saw.
       command: >-
-        swamp extension fmt --check; deno check on the extension's files;
-        deno lint; deno test
+        the project's format, lint, type and test checks (replace this with
+        the real commands)
       bindings:
         commit: artifacts["change-summary"].payload.commit
     evidence:

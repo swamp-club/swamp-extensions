@@ -25,31 +25,18 @@ import { parse as parseYaml } from "@std/yaml";
 import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
 import {
-  APPLIED_NAME,
   DESIGN_PAGE_NAME,
   DESIGN_PAGE_SPEC,
   freshKey,
   generateKey,
   HOLDER_TYPE,
   keySlug,
-  STAGE_TEMPLATE_TYPE,
 } from "./_lib/work_item_ops.ts";
-import { digestOf } from "./_lib/canonical.ts";
-import { parseLifecycle } from "./_lib/lifecycle_schema.ts";
 
 const BUILD = new URL(
-  "../../lifecycles/build-swamp-extension.yaml",
+  "../../.claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
   import.meta.url,
 );
-
-const TESTDATA = new URL("../../testdata/", import.meta.url);
-
-async function testdata(path: string): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(new URL(path, TESTDATA))) as Record<
-    string,
-    unknown
-  >;
-}
 
 async function buildLifecycle(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
@@ -408,105 +395,4 @@ Deno.test("holder: the model's literal type is HOLDER_TYPE", () => {
   // swamp reads `type` from the source as a string literal, so it cannot be
   // the constant itself; this keeps the two in step.
   assert(holder.type === HOLDER_TYPE);
-});
-
-// --- apply -------------------------------------------------------------------
-
-async function applySwamp() {
-  const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: await testdata("lifecycles/apply-target.yaml"),
-    type: HOLDER_TYPE,
-  });
-  swamp.definitions.set("review-plan", {
-    globalArguments: await testdata("../templates/review-plan.yaml"),
-    type: STAGE_TEMPLATE_TYPE,
-  });
-  return swamp;
-}
-
-Deno.test("holder: apply writes the composed lifecycle as a record and logs it, leaving the holder alone", async () => {
-  const swamp = await applySwamp();
-  const before = structuredClone(swamp.definitions.get("team"));
-  const out = await holder.methods.apply.execute(
-    {
-      template: "review-plan",
-      replace: "review",
-      params: '{"blocking":["critical"]}',
-      names: { stages: { "plan-review": "critique" } },
-    },
-    swamp.context("team"),
-  );
-  assertEquals(out.dataHandles.length, 1);
-  assertEquals(swamp.definitions.get("team"), before);
-  const record = swamp.resources.get("team")?.get(APPLIED_NAME)?.[0];
-  assert(record !== undefined);
-  assertEquals(record.holder, "team");
-  assertEquals(record.template, "review-plan");
-  const parsed = parseLifecycle(record.lifecycle);
-  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
-  assertEquals(record.digest, await digestOf(parsed.value));
-  assertEquals(parsed.value.stages.map((s) => s.id), [
-    "plan",
-    "critique",
-    "implement",
-    "done",
-  ]);
-  const summary = String(swamp.logs.at(-1)?.props?.summary);
-  assert(
-    summary.startsWith(
-      "applied stage template 'review-plan' from 'review-plan' to lifecycle 'plan-then-build' in place of stage 'review': 4 stages, 0 warning(s).",
-    ),
-    summary,
-  );
-  // The logged text is the same lifecycle, ready to paste.
-  const logged = JSON.parse(summary.slice(summary.indexOf("\n{") + 1));
-  assertEquals(logged, record.lifecycle);
-});
-
-Deno.test("holder: apply reports every error and writes nothing", async () => {
-  const swamp = await applySwamp();
-  const error = await assertRejects(() =>
-    holder.methods.apply.execute(
-      {
-        template: "review-plan",
-        replace: "review",
-        exits: { rework: "nowhere" },
-        names: '{"stages":{"nope":"x"}}',
-      },
-      swamp.context("team"),
-    )
-  );
-  const text = (error as Error).message;
-  assert(
-    text.includes(
-      "cannot apply template holder 'review-plan' to lifecycle holder 'team':",
-    ),
-    text,
-  );
-  assert(text.includes("names.stages.nope"), text);
-  assert(text.includes("goes to 'nowhere'"), text);
-  assertEquals(swamp.versionsWritten("team"), 0);
-});
-
-Deno.test("holder: apply checks its inputs' shape and the template holder's type", async () => {
-  const swamp = await applySwamp();
-  await assertRejects(
-    () =>
-      holder.methods.apply.execute(
-        { template: "review-plan", replace: "review", exits: { rework: 3 } },
-        swamp.context("team"),
-      ),
-    Error,
-    "exits.rework",
-  );
-  await assertRejects(
-    () =>
-      holder.methods.apply.execute(
-        { template: "team", replace: "review" },
-        swamp.context("team"),
-      ),
-    Error,
-    "not a template holder",
-  );
 });

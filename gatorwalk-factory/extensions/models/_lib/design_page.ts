@@ -226,8 +226,7 @@ function transitionView(t: TransitionSpec, path: string): TransitionView {
   const view: TransitionView = {
     name: t.name,
     path,
-    // A lifecycle's transitions all have `to`; `exit` is a stage template's.
-    to: t.to ?? `exit:${t.exit}`,
+    to: t.to,
     manual,
     gates,
     humanStop: manual || gates.some((g) => g.human && g.when === undefined),
@@ -253,7 +252,7 @@ function loopPaths(lifecycle: Lifecycle): Set<string> {
   const walk = (i: number) => {
     onPath.add(i);
     (lifecycle.stages[i].transitions ?? []).forEach((t, k) => {
-      const to = t.to === undefined ? undefined : index.get(t.to);
+      const to = index.get(t.to);
       if (to === undefined) return;
       if (onPath.has(to)) loops.add(`stages.${i}.transitions.${k}`);
       else if (!done.has(to)) walk(to);

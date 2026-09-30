@@ -36,7 +36,7 @@ import {
 } from "./_lib/cel_context.ts";
 import { buildDispatch } from "./_lib/dispatch.ts";
 import { makeGateEvaluator } from "./_lib/gates.ts";
-import { analyzeLifecycle, formatFinding } from "./_lib/graph.ts";
+import { analyzeLifecycle } from "./_lib/graph.ts";
 import {
   advance,
   type Env,
@@ -55,10 +55,15 @@ import { expectNow, testEnv } from "./_lib/test_support.ts";
 import { LAB_STATUSES } from "./_lib/swamp_club.ts";
 
 // ---------------------------------------------------------------------------
-// The lifecycles gatorwalk-factory ships, under lifecycles/.
+// The example lifecycles the skill ships, under its references/examples/.
+// examples_test.ts checks that every one validates; this file tests how each
+// behaves.
 // ---------------------------------------------------------------------------
 
-const LIFECYCLES = new URL("../../lifecycles/", import.meta.url);
+const LIFECYCLES = new URL(
+  "../../.claude/skills/gatorwalk-factory/references/examples/",
+  import.meta.url,
+);
 
 async function load(file: string): Promise<Lifecycle> {
   const raw = parseYaml(await Deno.readTextFile(new URL(file, LIFECYCLES)));
@@ -91,29 +96,24 @@ function evidenceSchema(lifecycle: Lifecycle, name: string): PayloadSchema {
   throw new Error(`no evidence schema '${name}'`);
 }
 
-Deno.test("every file under lifecycles/ is a valid lifecycle", async () => {
-  const files: string[] = [];
-  for await (const entry of Deno.readDir(LIFECYCLES)) {
-    if (entry.isFile && entry.name.endsWith(".yaml")) files.push(entry.name);
-  }
-  assert(files.length > 0, "no lifecycles found");
-  for (const file of files) await load(file);
-});
+const STARTER = "starter.yaml";
+const BUILD = "build-swamp-extension.yaml";
+const SWX = "swamp-club-swamp-extensions.yaml";
 
-Deno.test("every lifecycle's status keys are Lab statuses, so the Lab adapter needs no status map", async () => {
-  for await (const entry of Deno.readDir(LIFECYCLES)) {
-    if (!entry.isFile || !entry.name.endsWith(".yaml")) continue;
-    const lifecycle = await load(entry.name);
+Deno.test("every projecting example's status keys are Lab statuses, so the Lab adapter needs no status map", async () => {
+  // minimal projects nothing, by design.
+  for (const file of [STARTER, BUILD, SWX]) {
+    const lifecycle = await load(file);
     const keyed = lifecycle.stages.filter((s) =>
       s.projection?.status !== undefined
     );
-    assert(keyed.length > 0, `${entry.name} projects no status`);
+    assert(keyed.length > 0, `${file} projects no status`);
     for (const s of keyed) {
       assert(
         (LAB_STATUSES as readonly string[]).includes(
           s.projection?.status ?? "",
         ),
-        `${entry.name}: stage '${s.id}' has status key ` +
+        `${file}: stage '${s.id}' has status key ` +
           `'${s.projection?.status}', not one of ${LAB_STATUSES.join(", ")}`,
       );
     }
@@ -125,7 +125,7 @@ Deno.test("every lifecycle's status keys are Lab statuses, so the Lab adapter ne
     assertEquals(
       forward,
       [...forward].sort((a, b) => a - b),
-      `${entry.name}: status keys go backwards in stage order`,
+      `${file}: status keys go backwards in stage order`,
     );
     assertEquals(stage(lifecycle, "done").projection?.status, "shipped");
     assertEquals(stage(lifecycle, "abandoned").projection?.status, "closed");
@@ -134,8 +134,6 @@ Deno.test("every lifecycle's status keys are Lab statuses, so the Lab adapter ne
 
 // --- build-swamp-extension -------------------------------------------------
 
-const BUILD = "build-swamp-extension.yaml";
-const SWX = "swamp-extensions.yaml";
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
 Deno.test("build-swamp-extension: the stages, in order", async () => {
@@ -150,34 +148,6 @@ Deno.test("build-swamp-extension: the stages, in order", async () => {
     "done",
     "abandoned",
   ]);
-});
-
-Deno.test("every file under lifecycles/ passes graph analysis, with only the explained warnings", async () => {
-  // Graph checks live in the analyser (_lib/graph.ts), not here: it also
-  // covers reachability, dead ends and evidence gates on other stages.
-  // build-swamp-extension's rework loops set no maxCycles and rely on the
-  // default cycle limit; a person grants an override to go round again.
-  const expected: Record<string, string[]> = {
-    [BUILD]: [
-      "default-cycle-bound stages.0 (from stage 'plan')",
-      "default-cycle-bound stages.2 (from stage 'implement')",
-    ],
-    [SWX]: [],
-  };
-  const files: string[] = [];
-  for await (const entry of Deno.readDir(LIFECYCLES)) {
-    if (entry.isFile && entry.name.endsWith(".yaml")) files.push(entry.name);
-  }
-  assertEquals(files.sort(), Object.keys(expected).sort());
-  for (const file of files) {
-    const report = analyzeLifecycle(await load(file));
-    assertEquals(report.errors.map(formatFinding), [], file);
-    assertEquals(
-      report.warnings.map((w) => `${w.code} ${formatFinding(w).split(":")[0]}`),
-      expected[file],
-      file,
-    );
-  }
 });
 
 Deno.test("build-swamp-extension: graph analysis stays small", async () => {
@@ -672,7 +642,7 @@ Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at t
   assertEquals((await loadRun(store))?.entries.plan, 6);
 });
 
-// --- swamp-extensions --------------------------------------------------------
+// --- swamp-club-swamp-extensions ---------------------------------------------
 
 const SHA_2 = "8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde";
 const PR_URL =
@@ -775,7 +745,7 @@ function changeSummary(commit: string) {
   };
 }
 
-Deno.test("swamp-extensions: the stages, in order", async () => {
+Deno.test("swamp-club-swamp-extensions: the stages, in order", async () => {
   const lifecycle = await load(SWX);
   assertEquals(lifecycle.stages.map((s) => s.id), [
     "triage",
@@ -809,7 +779,7 @@ const ONE_DRIVER = "gatorwalk drives this issue: do not use the " +
   "when a request would trigger it.";
 const collapse = (text: string) => text.replace(/\s+/g, " ").trim();
 
-Deno.test("swamp-extensions: no stage hands its agent issue-lifecycle's driver", async () => {
+Deno.test("swamp-club-swamp-extensions: no stage hands its agent issue-lifecycle's driver", async () => {
   const lifecycle = await load(SWX);
   for (const s of lifecycle.stages) {
     assert(
@@ -826,7 +796,7 @@ Deno.test("swamp-extensions: no stage hands its agent issue-lifecycle's driver",
   }
 });
 
-Deno.test("swamp-extensions: every agent-run stage tells the agent not to drive issue-lifecycle", async () => {
+Deno.test("swamp-club-swamp-extensions: every agent-run stage tells the agent not to drive issue-lifecycle", async () => {
   const agentRun = (await load(SWX)).stages.filter((s) =>
     s.work?.mode === "interactive" || s.work?.mode === "dispatch"
   );
@@ -839,10 +809,10 @@ Deno.test("swamp-extensions: every agent-run stage tells the agent not to drive 
   }
 });
 
-Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
+Deno.test("swamp-club-swamp-extensions: graph analysis finishes, and stays small", async () => {
   // Measured at 159 structural and 159 count states at the default cycle
   // limit of 5. Without the count pass pruning dominated states it needs
-  // 716,220 there, past its cap (swamp-extensions.md, gap 8).
+  // 716,220 there, past its cap (swamp-club-swamp-extensions.md, gap 8).
   const report = analyzeLifecycle(await load(SWX));
   assert(!report.truncated);
   assert(
@@ -852,7 +822,7 @@ Deno.test("swamp-extensions: graph analysis finishes, and stays small", async ()
   );
 });
 
-Deno.test("swamp-extensions: people decide at a regression claim, an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
+Deno.test("swamp-club-swamp-extensions: people decide at a regression claim, an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
   const lifecycle = await load(SWX);
   const approvals = new Set<string>();
   for (
@@ -873,7 +843,7 @@ Deno.test("swamp-extensions: people decide at a regression claim, an unreproduce
   ]);
 });
 
-Deno.test("swamp-extensions: triage has one exit per type, and none while confidence is low", async () => {
+Deno.test("swamp-club-swamp-extensions: triage has one exit per type, and none while confidence is low", async () => {
   const exits = stage(await load(SWX), "triage").transitions ?? [];
   assertEquals(
     exits.map((t) => [t.name, t.to]),
@@ -913,7 +883,7 @@ Deno.test("swamp-extensions: triage has one exit per type, and none while confid
   );
 });
 
-Deno.test("swamp-extensions: triage's confidence gate lets high and medium through and holds low", async () => {
+Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and medium through and holds low", async () => {
   const lifecycle = await load(SWX);
   for (const type of ["bug", "feature", "platform", "security"]) {
     const low = await drive(lifecycle, movableEnv().env);
@@ -942,7 +912,7 @@ Deno.test("swamp-extensions: triage's confidence gate lets high and medium throu
   }
 });
 
-Deno.test("swamp-extensions: every exit from verification to the merge is bound to the change-summary commit", async () => {
+Deno.test("swamp-club-swamp-extensions: every exit from verification to the merge is bound to the change-summary commit", async () => {
   const lifecycle = await load(SWX);
   const bound = (stageId: string, name: string) => {
     const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
@@ -965,7 +935,7 @@ Deno.test("swamp-extensions: every exit from verification to the merge is bound 
   bound("merge", "complete");
 });
 
-Deno.test("swamp-extensions: a person can always send the work back without abandoning it", async () => {
+Deno.test("swamp-club-swamp-extensions: a person can always send the work back without abandoning it", async () => {
   const lifecycle = await load(SWX);
   const manual = (stageId: string, name: string, to: string) =>
     (stage(lifecycle, stageId).transitions ?? []).some((t) =>
@@ -981,7 +951,7 @@ Deno.test("swamp-extensions: a person can always send the work back without aban
   assert(manual("merge", "rework", "implement"));
 });
 
-Deno.test("swamp-extensions: realistic payloads validate", async () => {
+Deno.test("swamp-club-swamp-extensions: realistic payloads validate", async () => {
   const lifecycle = await load(SWX);
   const evidence = (name: string, payload: Json) =>
     assertEquals(
@@ -1084,7 +1054,7 @@ Deno.test("swamp-extensions: realistic payloads validate", async () => {
   });
 });
 
-Deno.test("swamp-extensions: drifted payloads are rejected", async () => {
+Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async () => {
   const lifecycle = await load(SWX);
   const rejects = (
     kind: "artifact" | "evidence",
@@ -1164,7 +1134,7 @@ Deno.test("swamp-extensions: drifted payloads are rejected", async () => {
   }
 });
 
-Deno.test("swamp-extensions: a bug walks triage to done through the real gates, and every CEL expression evaluates on it", async () => {
+Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the real gates, and every CEL expression evaluates on it", async () => {
   // As build-swamp-extension's run, plus the stops this lifecycle adds: low
   // confidence holds triage, a failed verification needs a new commit, and
   // the merge waits out the cooldown.
@@ -1370,7 +1340,7 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
   assertEquals(results.get("merge.complete"), true);
 });
 
-Deno.test("swamp-extensions: a regression claim waits for regression-review whatever its verdict; a plain bug does not", async () => {
+Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-review whatever its verdict; a plain bug does not", async () => {
   const regression = {
     type: "bug",
     confidence: "high",
@@ -1415,7 +1385,7 @@ Deno.test("swamp-extensions: a regression claim waits for regression-review what
   }
 });
 
-Deno.test("swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
+Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
   const lifecycle = await load(SWX);
   const merge = stage(lifecycle, "merge").transitions ?? [];
   for (const name of ["new-pr", "rework"]) {
@@ -1511,7 +1481,7 @@ async function notifyPrUrl(
   return packet.values.prUrl;
 }
 
-Deno.test("swamp-extensions: complete from attest after a failed pull request links no pull request", async () => {
+Deno.test("swamp-club-swamp-extensions: complete from attest after a failed pull request links no pull request", async () => {
   // The failed pull request was for an earlier commit; the thank-you must not
   // call it merged.
   const lifecycle = await load(SWX);
@@ -1551,7 +1521,7 @@ Deno.test("swamp-extensions: complete from attest after a failed pull request li
   assertEquals(await notifyPrUrl(lifecycle, store), null);
 });
 
-Deno.test("swamp-extensions: complete leaves attest and merge for notify, by a person's choice, and the release case stays", async () => {
+Deno.test("swamp-club-swamp-extensions: complete leaves attest and merge for notify, by a person's choice, and the release case stays", async () => {
   const lifecycle = await load(SWX);
   for (const stageId of ["attest", "merge"]) {
     const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
@@ -1583,7 +1553,7 @@ Deno.test("swamp-extensions: complete leaves attest and merge for notify, by a p
   );
 });
 
-Deno.test("swamp-extensions: complete from attest goes to notify and on to done, once a person confirms it", async () => {
+Deno.test("swamp-club-swamp-extensions: complete from attest goes to notify and on to done, once a person confirms it", async () => {
   const lifecycle = await load(SWX);
   const { store, record, tryMove, move } = await walkToAttest(
     lifecycle,
@@ -1611,7 +1581,7 @@ Deno.test("swamp-extensions: complete from attest goes to notify and on to done,
   assertEquals((await loadRun(store))?.stage, "done");
 });
 
-Deno.test("swamp-extensions: complete from merge is for an open pull request, with no cooldown", async () => {
+Deno.test("swamp-club-swamp-extensions: complete from merge is for an open pull request, with no cooldown", async () => {
   const lifecycle = await load(SWX);
   const toMerge = async () => {
     const { env, wait } = movableEnv();
@@ -1664,7 +1634,7 @@ Deno.test("swamp-extensions: complete from merge is for an open pull request, wi
   );
 });
 
-Deno.test("swamp-extensions: complete refuses when conformance or verification is not clear", async () => {
+Deno.test("swamp-club-swamp-extensions: complete refuses when conformance or verification is not clear", async () => {
   // A run cannot reach attest or merge with conformance or verification not
   // clear: conforms and passed check them, and a stage records only its own
   // products. So each complete exit's own cel gates, as the yaml has them,
@@ -1723,4 +1693,152 @@ Deno.test("swamp-extensions: complete refuses when conformance or verification i
       );
     }
   }
+});
+
+// --- starter ------------------------------------------------------------------
+
+const STARTER_SHA2 = "d6bbbe43ad0dfc5fce1615b09ff6e6f6639bd9ae";
+
+Deno.test("starter: a run walks from plan to done through the real gates, with a rework round from each review and from verify", async () => {
+  const core = await load(STARTER);
+  const store = memoryStore();
+  const env = testEnv();
+  const actor = { principal: "user:alice", source: "platform" as const };
+  await startRun(
+    store,
+    core,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    actor,
+    env,
+  );
+  const record = async (
+    kind: "artifact" | "evidence",
+    name: string,
+    payload: Record<string, unknown>,
+  ) => {
+    const result = await recordProduct(
+      store,
+      core,
+      await expectNow(store),
+      kind,
+      name,
+      payload,
+      actor,
+      env,
+    );
+    assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
+  };
+  const gates = makeGateEvaluator(core, store, env);
+  const move = async (transition: string) =>
+    await update(store, (run) =>
+      advance(
+        run,
+        core,
+        expectedOf(run),
+        { transition },
+        gates,
+        actor,
+        env,
+      ));
+  const go = async (transition: string, to: string) => {
+    const result = await move(transition);
+    assert(result.ok, result.ok ? "" : result.reason);
+    assertEquals((await loadRun(store))?.stage, to);
+  };
+  const refused = async (transition: string) => {
+    const result = await move(transition);
+    assert(!result.ok, `${transition} was not refused`);
+  };
+  const approve = async (gateId: string) => {
+    const result = await update(store, (run) =>
+      recordApproval(
+        run,
+        core,
+        expectedOf(run),
+        { gateId, decision: "approve" },
+        actor,
+        env,
+      ));
+    assert(result.ok, result.ok ? "" : result.reason);
+  };
+  const plan = {
+    summary: "Add list",
+    steps: [{ description: "Add list", files: ["x.ts"] }],
+    testingStrategy: "Unit tests",
+  };
+
+  await record("artifact", "plan", plan);
+  await go("submit", "plan-review");
+  // A high finding sends the plan back and holds approval.
+  await record("artifact", "plan-review", {
+    findings: [{ id: "F1", severity: "high", description: "No tests" }],
+  });
+  await approve("plan-approval");
+  await refused("approve");
+  await go("rework", "plan");
+  await record("artifact", "plan", { ...plan, testingStrategy: "Tests" });
+  await go("submit", "plan-review");
+  // A low finding blocks nothing: approval, and no rework.
+  await record("artifact", "plan-review", {
+    findings: [{ id: "F2", severity: "low", description: "Naming" }],
+  });
+  await refused("rework");
+  await refused("approve");
+  await approve("plan-approval");
+  await go("approve", "implement");
+
+  await record("artifact", "change-summary", {
+    summary: "Added list",
+    commit: SHA,
+    files: ["x.ts"],
+  });
+  await go("submit", "verify");
+  await record("evidence", "checks", {
+    commit: SHA,
+    status: "failed",
+    results: [{ name: "test", status: "failed", detail: "1 failed" }],
+  });
+  await refused("passed");
+  await go("failed", "implement");
+  await record("artifact", "change-summary", {
+    summary: "Added list, fixed",
+    commit: STARTER_SHA2,
+    files: ["x.ts"],
+  });
+  await go("submit", "verify");
+  // Checks for another commit do not count.
+  await record("evidence", "checks", {
+    commit: SHA,
+    status: "passed",
+    results: [{ name: "test", status: "passed" }],
+  });
+  await refused("passed");
+  await record("evidence", "checks", {
+    commit: STARTER_SHA2,
+    status: "passed",
+    results: [{ name: "test", status: "passed" }],
+  });
+  await go("passed", "code-review");
+
+  await record("artifact", "code-review", {
+    findings: [{ id: "C1", severity: "critical", description: "Leak" }],
+  });
+  await refused("accept");
+  await go("rework", "implement");
+  await go("submit", "verify");
+  await record("evidence", "checks", {
+    commit: STARTER_SHA2,
+    status: "passed",
+    results: [{ name: "test", status: "passed" }],
+  });
+  await go("passed", "code-review");
+  await record("artifact", "code-review", { findings: [] });
+  await approve("release-approval");
+  await go("accept", "release");
+  await record("evidence", "release", {
+    commit: STARTER_SHA2,
+    url: "https://example.com/pr/1",
+  });
+  await go("released", "done");
+  assertEquals((await loadRun(store))?.status, "terminal");
 });

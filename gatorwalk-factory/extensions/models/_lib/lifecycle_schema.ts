@@ -30,8 +30,7 @@ import {
 } from "./template.ts";
 
 // ---------------------------------------------------------------------------
-// The lifecycle meta-schema: what a gatorwalk lifecycle (and a stage template)
-// looks like as data. Ported from @swamp/software-factory's definition
+// The lifecycle meta-schema: what a gatorwalk lifecycle looks like as data. Ported from @swamp/software-factory's definition
 // schema, with three changes:
 //
 // - Payload schemas are standard JSON Schema 2020-12 (payload_schema.ts),
@@ -46,9 +45,8 @@ import {
 //   the broken stage. Graph analysis (reachability, dead ends, ambiguous
 //   exits) is in graph.ts.
 //
-// Structure is by identity, never by name convention: a transition leaves a
-// stage template through `exit`, not a specially spelt `to`; the resultEvidence
-// of a stage and an evidence entry of the same name on that stage are one
+// Structure is by identity, never by name convention: the resultEvidence of a
+// stage and an evidence entry of the same name on that stage are one
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
@@ -537,17 +535,12 @@ export type EvidenceSpec = z.infer<typeof EvidenceSpecSchema>;
 export const TransitionSchema = z.strictObject({
   name: NameSchema,
   /** Target stage. */
-  to: NameSchema.optional(),
-  /** Target contract exit; only inside a stage template. */
-  exit: NameSchema.optional(),
+  to: NameSchema,
   description: z.string().optional(),
   /** Require an explicit human "go" even when every gate passes. */
   manual: z.boolean().optional(),
   gates: z.array(GateSchema).optional(),
-}).refine(
-  (t) => (t.to === undefined) !== (t.exit === undefined),
-  "a transition has exactly one of 'to' (a stage) or 'exit' (a stage template exit)",
-);
+});
 
 export type TransitionSpec = z.infer<typeof TransitionSchema>;
 
@@ -627,85 +620,37 @@ export const StageSchema = z.strictObject({
 export type StageSpec = z.infer<typeof StageSchema>;
 
 // ---------------------------------------------------------------------------
-// Stage template contract
+// The document
 // ---------------------------------------------------------------------------
-
-export const ContractPortSchema = z.strictObject({
-  kind: z.enum(["artifact", "evidence"]),
-  name: NameSchema,
-  description: z.string().optional(),
-});
-
-export type ContractPort = z.infer<typeof ContractPortSchema>;
-
-export const ContractExitSchema = z.strictObject({
-  name: NameSchema,
-  description: z.string().optional(),
-});
-
-export const ContractSchema = z.strictObject({
-  /** Products the stage template consumes, declared by whatever precedes it. */
-  inputs: z.array(ContractPortSchema).optional(),
-  /** Products the stage template's own stages declare and hand on. */
-  outputs: z.array(ContractPortSchema).optional(),
-  /** Named ways out; the using lifecycle wires each to a stage. */
-  exits: z.array(ContractExitSchema).min(1),
-  /** Schema of the values a using lifecycle passes in. */
-  parameters: ObjectPayloadSchemaSchema.optional(),
-});
-
-export type ContractSpec = z.infer<typeof ContractSchema>;
-
-// ---------------------------------------------------------------------------
-// Documents
-// ---------------------------------------------------------------------------
-
-const DOCUMENT_FIELDS = {
-  schemaVersion: z.literal(LIFECYCLE_SCHEMA_VERSION),
-  name: NameSchema,
-  description: z.string().optional(),
-  stages: z.array(StageSchema).min(1),
-};
 
 /**
  * A lifecycle: the state machine a work item runs, copied into the work item
  * at start so the run is pinned to it.
  */
 export const LifecycleSchema = z.strictObject({
-  ...DOCUMENT_FIELDS,
+  schemaVersion: z.literal(LIFECYCLE_SCHEMA_VERSION),
+  name: NameSchema,
+  description: z.string().optional(),
+  stages: z.array(StageSchema).min(1),
   /** Escape hatches (abort, escalate) available from any non-terminal stage. */
   globalTransitions: z.array(TransitionSchema).optional(),
 }).superRefine((doc, ctx) => checkDocument(doc, ctx));
 
 export type Lifecycle = z.infer<typeof LifecycleSchema>;
 
-/**
- * A stage template: a stage or group of stages with a contract. It is entered
- * at its initial stage and left only through its contract exits.
- */
-export const StageTemplateSchema = z.strictObject({
-  ...DOCUMENT_FIELDS,
-  contract: ContractSchema,
-}).superRefine((doc, ctx) => checkDocument(doc, ctx));
-
-export type StageTemplate = z.infer<typeof StageTemplateSchema>;
-
 type Doc = {
   stages: StageSpec[];
   globalTransitions?: TransitionSpec[];
-  contract?: ContractSpec;
 };
 
 type Path = (string | number)[];
 
-/** Cross-reference checks over a whole lifecycle or stage template. */
+/** Cross-reference checks over a whole lifecycle. */
 function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
   const fail = (path: Path, message: string) =>
     ctx.addIssue({ code: "custom", path, message });
-  const template = doc.contract !== undefined;
-  const kindName = template ? "stage template" : "lifecycle";
 
-  // Stages: unique ids, one initial, terminals only in a lifecycle.
+  // Stages: unique ids, one initial, at least one terminal.
   const stageIds = new Set<string>();
   doc.stages.forEach((stage, i) => {
     if (stageIds.has(stage.id)) {
@@ -718,12 +663,6 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         `stage '${stage.id}' cannot be both initial and terminal`,
       );
     }
-    if (template && stage.terminal === true) {
-      fail(
-        ["stages", i, "terminal"],
-        "a stage template has no terminal stages; it is left through its contract exits",
-      );
-    }
   });
   const initials = doc.stages.filter((s) => s.initial === true).length;
   if (initials !== 1) {
@@ -732,21 +671,21 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       `exactly one stage must declare initial: true (found ${initials})`,
     );
   }
-  if (!template && !doc.stages.some((s) => s.terminal === true)) {
+  if (!doc.stages.some((s) => s.terminal === true)) {
     fail(["stages"], "at least one stage must declare terminal: true");
   }
 
   // Products: names are unique per kind across the document. A stage's
   // resultEvidence and its own evidence entry of the same name are one
   // declaration.
-  const artifacts = new Map<string, ArtifactSpec | null>();
+  const artifacts = new Map<string, ArtifactSpec>();
   const evidence = new Set<string>();
   doc.stages.forEach((stage, i) => {
     (stage.artifacts ?? []).forEach((spec, j) => {
       if (artifacts.has(spec.name)) {
         fail(
           ["stages", i, "artifacts", j, "name"],
-          `artifact '${spec.name}' is declared more than once; artifact names are unique across the ${kindName}`,
+          `artifact '${spec.name}' is declared more than once; artifact names are unique across the lifecycle`,
         );
       }
       artifacts.set(spec.name, spec);
@@ -756,7 +695,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (evidence.has(spec.name) || own.has(spec.name)) {
         fail(
           ["stages", i, "evidence", j, "name"],
-          `evidence '${spec.name}' is declared more than once; evidence names are unique across the ${kindName}`,
+          `evidence '${spec.name}' is declared more than once; evidence names are unique across the lifecycle`,
         );
       }
       own.add(spec.name);
@@ -775,61 +714,13 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (evidence.has(result)) {
         fail(
           ["stages", i, "work", "resultEvidence"],
-          `evidence '${result}' is declared more than once; evidence names are unique across the ${kindName}`,
+          `evidence '${result}' is declared more than once; evidence names are unique across the lifecycle`,
         );
       }
       own.add(result);
     }
     for (const name of own) evidence.add(name);
   });
-
-  // Stage template ports: inputs come from outside, outputs from the stage
-  // template's stages.
-  const contract = doc.contract;
-  if (contract !== undefined) {
-    const seen = new Set<string>();
-    const checkPort = (port: ContractPort, path: Path) => {
-      const key = `${port.kind}:${port.name}`;
-      if (seen.has(key)) {
-        fail(
-          path,
-          `${port.kind} '${port.name}' appears more than once in the contract`,
-        );
-      }
-      seen.add(key);
-    };
-    (contract.inputs ?? []).forEach((port, j) => {
-      const path: Path = ["contract", "inputs", j];
-      checkPort(port, path);
-      const declared = port.kind === "artifact"
-        ? artifacts.has(port.name)
-        : evidence.has(port.name);
-      if (declared) {
-        fail(
-          path,
-          `input ${port.kind} '${port.name}' is declared by the stage template's own stages; list it as an output instead`,
-        );
-      }
-    });
-    (contract.outputs ?? []).forEach((port, j) => {
-      const path: Path = ["contract", "outputs", j];
-      checkPort(port, path);
-      const declared = port.kind === "artifact"
-        ? artifacts.has(port.name)
-        : evidence.has(port.name);
-      if (!declared) {
-        fail(
-          path,
-          `output ${port.kind} '${port.name}' is not declared by any of the stage template's stages`,
-        );
-      }
-    });
-    // Inputs are referenceable; their full spec belongs to the producer.
-    for (const port of contract.inputs ?? []) {
-      if (port.kind === "artifact") artifacts.set(port.name, null);
-      else evidence.add(port.name);
-    }
-  }
 
   // A name is one kind: context.inject and the graph find a product by name
   // alone.
@@ -852,11 +743,6 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       artifacts.has(result)
     ) {
       oneKind(result, ["stages", i, "work", "resultEvidence"]);
-    }
-  });
-  (contract?.inputs ?? []).forEach((port, j) => {
-    if (port.kind === "evidence" && artifacts.has(port.name)) {
-      oneKind(port.name, ["contract", "inputs", j, "name"]);
     }
   });
 
@@ -898,8 +784,6 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
   });
 
   // Transitions and gates.
-  const exits = new Set((contract?.exits ?? []).map((e) => e.name));
-  const usedExits = new Set<string>();
   const globalNames = new Set(
     (doc.globalTransitions ?? []).map((t) => t.name),
   );
@@ -921,7 +805,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         return;
       case "artifact-fresh": {
         const spec = needArtifact(gate.config.artifact, "artifact");
-        if (spec !== undefined && spec !== null && spec.reviews === undefined) {
+        if (spec !== undefined && spec.reviews === undefined) {
           fail(
             [...configPath, "artifact"],
             `artifact-fresh on '${gate.config.artifact}' requires that artifact to declare reviews: <subject>`,
@@ -932,7 +816,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       case "findings-clear":
       case "findings-open": {
         const spec = needArtifact(gate.config.artifact, "artifact");
-        if (spec !== undefined && spec !== null && spec.kind !== "findings") {
+        if (spec !== undefined && spec.kind !== "findings") {
           fail(
             [...configPath, "artifact"],
             `${gate.type} on '${gate.config.artifact}' requires that artifact to be kind: findings`,
@@ -993,23 +877,8 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
           `transition '${t.name}' has the same name as a global transition`,
         );
       }
-      if (t.to !== undefined && !stageIds.has(t.to)) {
+      if (!stageIds.has(t.to)) {
         fail([...path, "to"], `targets unknown stage '${t.to}'`);
-      }
-      if (t.exit !== undefined) {
-        if (!template) {
-          fail(
-            [...path, "exit"],
-            "'exit' is only valid inside a stage template; use 'to'",
-          );
-        } else if (!exits.has(t.exit)) {
-          fail(
-            [...path, "exit"],
-            `targets '${t.exit}', which is not a contract exit`,
-          );
-        } else {
-          usedExits.add(t.exit);
-        }
       }
       (t.gates ?? []).forEach((gate, k) =>
         checkGate(gate, [...path, "gates", k])
@@ -1036,15 +905,6 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     }
   });
   checkTransitions(doc.globalTransitions ?? [], ["globalTransitions"], true);
-  (contract?.exits ?? []).forEach((exit, j) => {
-    if (!usedExits.has(exit.name)) {
-      fail(
-        ["contract", "exits", j],
-        `exit '${exit.name}' is not the target of any transition`,
-      );
-    }
-  });
-
   doc.stages.forEach((stage, i) =>
     checkEntries(stage, ["stages", i, "projection", "entries"], fail)
   );
@@ -1250,13 +1110,6 @@ export type ParseResult<T> =
 
 export function parseLifecycle(raw: unknown): ParseResult<Lifecycle> {
   const result = LifecycleSchema.safeParse(raw);
-  return result.success
-    ? { ok: true, value: result.data }
-    : { ok: false, errors: formatIssues(result.error) };
-}
-
-export function parseStageTemplate(raw: unknown): ParseResult<StageTemplate> {
-  const result = StageTemplateSchema.safeParse(raw);
   return result.success
     ? { ok: true, value: result.data }
     : { ok: false, errors: formatIssues(result.error) };

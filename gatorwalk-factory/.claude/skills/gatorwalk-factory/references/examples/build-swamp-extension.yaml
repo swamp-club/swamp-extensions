@@ -1,8 +1,15 @@
-# Build a swamp extension: plan it, have the plan reviewed, implement it,
-# check it, have the change reviewed, and release it.
+# build-swamp-extension: build a swamp extension. Plan it, have the plan
+# reviewed, implement it, check it, have the change reviewed, and release it.
+# build-swamp-extension.md, beside this file, walks one work item through it
+# from start to done.
 #
-# This is the tier 1 lifecycle for a developer building their own extension,
-# and gatorwalk-factory's own process. It releases one of two ways:
+# For: a developer building their own swamp extension. For other code,
+# start from starter.yaml.
+#
+# Change first: the release route your repository uses (below), and the
+# skills the plan-review and code-review stages load.
+#
+# It releases one of two ways:
 #
 # - registry-push: `swamp extension push` publishes the extension.
 # - pull-request: a pull request is merged and CI publishes it. A repository

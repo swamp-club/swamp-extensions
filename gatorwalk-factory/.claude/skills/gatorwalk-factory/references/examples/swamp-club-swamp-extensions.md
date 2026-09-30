@@ -1,17 +1,17 @@
 # swamp-extensions as a gatorwalk lifecycle: the mapping
 
 This is the paper check that swamp-club #2630 asked for before
-`swamp-extensions.yaml` was written. It takes the process this repository runs
-today, `@swamp/issue-lifecycle` plus
-`agent-constraints/verification-conventions.md`, and maps every phase, gate and
-human stop onto the lifecycle format. Anything the format could not express is
-listed under [Format gaps](#format-gaps) at the end. Each gap is a finding about
-the format; none was worked around silently.
+`swamp-club-swamp-extensions.yaml` (first named `swamp-extensions.yaml`) was
+written. It takes the process this repository runs today,
+`@swamp/issue-lifecycle` plus `agent-constraints/verification-conventions.md`,
+and maps every phase, gate and human stop onto the lifecycle format. Anything
+the format could not express is listed under [Format gaps](#format-gaps) at the
+end. Each gap is a finding about the format; none was worked around silently.
 
-A work item on `swamp-extensions.yaml` drives a Lab issue end to end through the
-swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), so the issue reads
-the same as one issue-lifecycle drives: the same status moves, the same
-lifecycle entries under the same step names, the type set at triage, the
+A work item on `swamp-club-swamp-extensions.yaml` drives a Lab issue end to end
+through the swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), so the
+issue reads the same as one issue-lifecycle drives: the same status moves, the
+same lifecycle entries under the same step names, the type set at triage, the
 attestation posted and the contributor thanked. issue-lifecycle stays and drives
 every other issue; the adapter's `claim` refuses an issue that has an
 issue-lifecycle instance (`issue-<N>`) in the repository, so one issue never has

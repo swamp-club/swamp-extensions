@@ -20,13 +20,12 @@ import {
   type Lifecycle,
   maxCyclesFor,
   type StageSpec,
-  type StageTemplate,
   type TransitionSpec,
 } from "./lifecycle_schema.ts";
 
 // ---------------------------------------------------------------------------
-// Graph analysis of a parsed lifecycle or stage template: the design problems a
-// work item would otherwise hit at run time. The schema (lifecycle_schema.ts)
+// Graph analysis of a parsed lifecycle: the design problems a work item would
+// otherwise hit at run time. The schema (lifecycle_schema.ts)
 // has already checked shape and references, so every name here resolves.
 //
 // Two explorations of abstract run states, both breadth-first so each state
@@ -49,7 +48,6 @@ export type FindingCode =
   | "unreachable-stage"
   | "dead-end"
   | "gate-never-passes"
-  | "exit-unreachable"
   | "ambiguous-exit"
   | "escape-only"
   | "default-cycle-bound"
@@ -104,15 +102,13 @@ interface Edge {
   transition: TransitionSpec;
   path: Path;
   global: boolean;
-  /** Target stage, or undefined for a stage template exit. */
-  to?: string;
-  exit?: string;
+  /** Target stage. */
+  to: string;
   /** Why the transition's own requirements can never all hold, or null. */
   contradiction: string | null;
 }
 
 interface Graph {
-  template: boolean;
   stages: Map<string, StageSpec>;
   stageIndex: Map<string, number>;
   initial: string;
@@ -120,15 +116,11 @@ interface Graph {
   outgoing: Map<string, Edge[]>;
   artifactProducers: Map<string, Set<string>>;
   evidenceProducers: Map<string, Set<string>>;
-  /** Stage template contract inputs, present from the start. */
-  inputArtifacts: Set<string>;
-  inputEvidence: Set<string>;
   /** Artifact name -> the artifact it reviews. */
   reviews: Map<string, string>;
 }
 
-function buildGraph(doc: Lifecycle | StageTemplate): Graph {
-  const template = "contract" in doc;
+function buildGraph(doc: Lifecycle): Graph {
   const stages = new Map<string, StageSpec>();
   const stageIndex = new Map<string, number>();
   const artifactProducers = new Map<string, Set<string>>();
@@ -150,8 +142,7 @@ function buildGraph(doc: Lifecycle | StageTemplate): Graph {
       add(evidenceProducers, stage.work.resultEvidence, stage.id);
     }
   });
-  const inputs = template ? doc.contract.inputs ?? [] : [];
-  const globals = template ? [] : doc.globalTransitions ?? [];
+  const globals = doc.globalTransitions ?? [];
   const edges: Edge[] = [];
   const outgoing = new Map<string, Edge[]>();
   doc.stages.forEach((stage, i) => {
@@ -169,7 +160,6 @@ function buildGraph(doc: Lifecycle | StageTemplate): Graph {
           path,
           global,
           to: transition.to,
-          exit: transition.exit,
           contradiction: contradiction(transition),
         };
         edges.push(edge);
@@ -187,7 +177,6 @@ function buildGraph(doc: Lifecycle | StageTemplate): Graph {
     throw new Error("the document has no initial stage (it was not parsed)");
   }
   return {
-    template,
     stages,
     stageIndex,
     initial: initial.id,
@@ -195,12 +184,6 @@ function buildGraph(doc: Lifecycle | StageTemplate): Graph {
     outgoing,
     artifactProducers,
     evidenceProducers,
-    inputArtifacts: new Set(
-      inputs.filter((p) => p.kind === "artifact").map((p) => p.name),
-    ),
-    inputEvidence: new Set(
-      inputs.filter((p) => p.kind === "evidence").map((p) => p.name),
-    ),
     reviews,
   };
 }
@@ -215,8 +198,6 @@ function available(
   name: string,
   entered: ReadonlySet<string>,
 ): boolean {
-  const inputs = kind === "artifact" ? g.inputArtifacts : g.inputEvidence;
-  if (inputs.has(name)) return true;
   const producers = kind === "artifact"
     ? g.artifactProducers
     : g.evidenceProducers;
@@ -538,9 +519,7 @@ function exploreStructure(g: Graph, maxStates: number): StructuralResult {
         continue;
       }
       if (!live.has(edge.id)) live.set(edge.id, i);
-      if (edge.to !== undefined) {
-        visit(edge.to, new Set([...entered, edge.to]), i);
-      }
+      visit(edge.to, new Set([...entered, edge.to]), i);
     }
   }
   return { nodes, truncated, reached, live, blocked };
@@ -634,11 +613,9 @@ function exploreCounts(
         continue;
       }
       enabled.add(edge.id);
-      if (edge.to !== undefined) {
-        const next = [...counts];
-        next[index.get(edge.to) as number]++;
-        visit(edge.to, next);
-      }
+      const next = [...counts];
+      next[index.get(edge.to) as number]++;
+      visit(edge.to, next);
     }
   }
   return {
@@ -677,7 +654,7 @@ function countRefusal(
   }
   // Global transitions are escape hatches the cycle limit never closes
   // (run_ops.ts cycleLimitFor).
-  if (edge.global || edge.to === undefined) return null;
+  if (edge.global) return null;
   const target = g.stages.get(edge.to) as StageSpec;
   if (counts[index.get(edge.to) as number] + 1 > maxCyclesFor(target)) {
     return `stage '${edge.to}' is always at its cycle limit (${
@@ -705,12 +682,9 @@ function comparePaths(a: Path, b: Path): number {
 }
 
 function describe(edge: Edge): string {
-  const where = edge.to !== undefined
-    ? `to '${edge.to}'`
-    : `to exit '${edge.exit}'`;
   return `${
     edge.global ? "global transition" : "transition"
-  } '${edge.transition.name}' (${where})`;
+  } '${edge.transition.name}' (to '${edge.to}')`;
 }
 
 /**
@@ -826,50 +800,12 @@ function components(
   return out;
 }
 
-export interface MissingOnEntry {
-  kind: ProductKind;
-  name: string;
-  /** The shortest path of stages into the stage without the product. */
-  trace: string[];
-}
-
 /**
- * Products that some path into `stage` enters it without, by the structural
- * pass: a product is there once a stage that produces it has been entered.
- * Apply uses it to check a stage template's contract inputs on the composed
- * lifecycle, including inputs only a CEL binding reads.
- */
-export function productsMissingOnEntry(
-  doc: Lifecycle | StageTemplate,
-  stage: string,
-  products: { kind: ProductKind; name: string }[],
-  options: AnalyzeOptions = {},
-): { missing: MissingOnEntry[]; truncated: boolean } {
-  const g = buildGraph(doc);
-  const structure = exploreStructure(
-    g,
-    options.maxStates ?? DEFAULT_MAX_STATES,
-  );
-  const missing: MissingOnEntry[] = [];
-  for (const product of products) {
-    // Breadth-first order, so the first visit lacking it has the shortest trace.
-    const lacking = structure.nodes.findIndex((node) =>
-      node.stage === stage &&
-      !available(g, product.kind, product.name, node.state)
-    );
-    if (lacking !== -1) {
-      missing.push({ ...product, trace: traceOf(structure.nodes, lacking) });
-    }
-  }
-  return { missing, truncated: structure.truncated };
-}
-
-/**
- * Analyse a parsed lifecycle or stage template. Errors are problems a work item
- * will hit; warnings are designs worth a second look.
+ * Analyse a parsed lifecycle. Errors are problems a work item will hit;
+ * warnings are designs worth a second look.
  */
 export function analyzeLifecycle(
-  doc: Lifecycle | StageTemplate,
+  doc: Lifecycle,
   options: AnalyzeOptions = {},
 ): GraphReport {
   const maxStates = options.maxStates ?? DEFAULT_MAX_STATES;
@@ -906,26 +842,22 @@ export function analyzeLifecycle(
   // Live edges between stages.
   const liveEdges = g.edges.filter((e) => structure.live.has(e.id));
   const liveTargets = (stage: string, withGlobals: boolean) =>
-    liveEdges.filter((e) =>
-      e.from === stage && e.to !== undefined && (withGlobals || !e.global)
-    ).map((e) => e.to as string);
+    liveEdges.filter((e) => e.from === stage && (withGlobals || !e.global)).map(
+      (e) => e.to,
+    );
 
-  // Stages that can finish: reach a terminal stage (or, in a stage template,
-  // take a contract exit) over live edges.
+  // Stages that can finish: reach a terminal stage over live edges.
   const finishers = (withGlobals: boolean): Set<string> => {
     const done = new Set<string>();
     for (const [id, stage] of g.stages) {
       if (stage.terminal === true) done.add(id);
-    }
-    for (const e of liveEdges) {
-      if (e.exit !== undefined && (withGlobals || !e.global)) done.add(e.from);
     }
     let changed = true;
     while (changed) {
       changed = false;
       for (const e of liveEdges) {
         if (withGlobals || !e.global) {
-          if (e.to !== undefined && done.has(e.to) && !done.has(e.from)) {
+          if (done.has(e.to) && !done.has(e.from)) {
             done.add(e.from);
             changed = true;
           }
@@ -936,7 +868,6 @@ export function analyzeLifecycle(
   };
   const canFinish = finishers(true);
   const canFinishAlone = finishers(false);
-  const goal = g.template ? "a contract exit" : "a terminal stage";
 
   for (const [id, stage] of g.stages) {
     if (!structure.reached.has(id)) {
@@ -954,7 +885,7 @@ export function analyzeLifecycle(
         complete,
         "dead-end",
         stagePath(id),
-        `no transition that can pass leads from stage '${id}' to ${goal}${incomplete}`,
+        `no transition that can pass leads from stage '${id}' to a terminal stage${incomplete}`,
         { stage: id, trace: reachedTrace(id) },
       );
     }
@@ -981,20 +912,6 @@ export function analyzeLifecycle(
     );
   }
 
-  if ("contract" in doc) {
-    doc.contract.exits.forEach((exit, j) => {
-      const taken = liveEdges.some((e) => e.exit === exit.name);
-      if (!taken) {
-        report(
-          complete,
-          "exit-unreachable",
-          ["contract", "exits", j],
-          `contract exit '${exit.name}' is never taken by a transition that can pass${incomplete}`,
-        );
-      }
-    });
-  }
-
   // Ambiguous exits, by the propulsion rule.
   for (const [id] of g.stages) {
     if (!structure.reached.has(id)) continue;
@@ -1005,10 +922,7 @@ export function analyzeLifecycle(
       for (let j = i + 1; j < siblings.length; j++) {
         const a = siblings[i];
         const b = siblings[j];
-        const sameTarget = a.to !== undefined
-          ? a.to === b.to
-          : a.exit === b.exit;
-        if (sameTarget || exclusive(a.transition, b.transition)) continue;
+        if (a.to === b.to || exclusive(a.transition, b.transition)) continue;
         const cel = [a, b].some((e) =>
           (e.transition.gates ?? []).some((gate) => gate.type === "cel")
         );
@@ -1047,8 +961,7 @@ export function analyzeLifecycle(
     const first = sorted[0];
     const names = sorted.map((s) => `'${s}'`).join(", ");
     const loopEdges = liveEdges.filter((e) =>
-      !e.global && members.has(e.from) && e.to !== undefined &&
-      members.has(e.to)
+      !e.global && members.has(e.from) && members.has(e.to)
     );
     if (loopEdges.length === 0) continue;
     for (const s of sorted) inLoop.add(s);
@@ -1060,7 +973,7 @@ export function analyzeLifecycle(
         warnings,
         "escape-only",
         stagePath(first),
-        `the loop through ${names} reaches ${goal} only through a global transition`,
+        `the loop through ${names} reaches a terminal stage only through a global transition`,
         { stage: first, trace: reachedTrace(first) },
       );
     }
@@ -1093,7 +1006,7 @@ export function analyzeLifecycle(
       warnings,
       "escape-only",
       stagePath(id),
-      `stage '${id}' reaches ${goal} only through a global transition`,
+      `stage '${id}' reaches a terminal stage only through a global transition`,
       { stage: id, trace: reachedTrace(id) },
     );
   }
@@ -1112,10 +1025,9 @@ export function analyzeLifecycle(
       gate: boolean;
     }[] = [];
     (stage.work?.context?.inject ?? []).forEach((name, j) => {
-      const kind: ProductKind =
-        g.artifactProducers.has(name) || g.inputArtifacts.has(name)
-          ? "artifact"
-          : "evidence";
+      const kind: ProductKind = g.artifactProducers.has(name)
+        ? "artifact"
+        : "evidence";
       refs.push({
         path: ["stages", index, "work", "context", "inject", j],
         kind,

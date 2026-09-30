@@ -187,8 +187,8 @@ These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...) or
 `cel.bind` may not bind a variable called `item`, `stage`, `artifacts`,
 `evidence` or `validations`; the lifecycle schema rejects it. CEL allows it, and
 the variable would hide the context's value for the rest of the expression,
-which is almost always a mistake. The rule also lets tools that read CEL
-(apply's renames) take these names to mean the context's. The list is
+which is almost always a mistake. The rule also lets tools that read CEL take
+these names to mean the context's. The list is
 `CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when it
 compiles. Putting the vocabulary under a single prefix would also do this, at
 the cost of changing every lifecycle; that is left for later.
@@ -207,8 +207,9 @@ The swamp workflows that do a stage's work are acyclic (they have no loops),
 which is why parallel work belongs there (#2699; see "Parallel work inside one
 stage"). Looping happens between stages; concurrency happens inside one.
 
-The examples are from `lifecycles/build-swamp-extension.yaml` and
-`lifecycles/swamp-extensions.yaml`, except where marked.
+The examples are from `build-swamp-extension.yaml` and
+`swamp-club-swamp-extensions.yaml`, under
+`.claude/skills/gatorwalk-factory/references/examples/`, except where marked.
 
 ### A loop is an ordinary transition back
 
@@ -250,7 +251,7 @@ A way back either reads the run data or waits for a person:
 
 A stage may be entered `maxCycles` times, 5 by default, plus once per cycle
 override granted for it. `advance` refuses the entry past that. In
-`swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan` and
+`swamp-club-swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan` and
 `implement` set 3; `build-swamp-extension.yaml` keeps the default everywhere.
 
 Cycle overrides (`grant_override` with `kind=cycle`) are granted by a person.
@@ -477,8 +478,7 @@ In both passes a gate is judged like this:
 - **`artifact-exists`, `findings-clear`, `findings-open`, `artifact-fresh` and
   `cooldown`** pass only once a stage that produces what they read has been
   entered on the path. For `artifact-fresh` that means both the artifact and the
-  subject it reviews. In a stage template, contract inputs are present from the
-  start.
+  subject it reviews.
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
   is a `human-approval` gate with `when`: it may apply or not.
 
@@ -495,7 +495,7 @@ one entry, so the breadth-first order always reaches the state with fewer
 entries first. This is exact, not an approximation: the findings are those of
 the full exploration, which the tests keep as the reference. It also bounds the
 count pass by the structural pass, times the counts an inverted gate's stage can
-take. `swamp-extensions.yaml` at the default limits takes 159 count states
+take. `swamp-club-swamp-extensions.yaml` at the default limits takes 159 count states
 instead of 716,220. A `needs-cycle-override` finding gives the refusal seen in
 the state with the fewest entries, so its message does not depend on the order
 states are explored in.
@@ -512,7 +512,7 @@ Errors:
 
 - **`unreachable-stage`:** no path from the initial stage enters the stage.
 - **`dead-end`:** a reachable non-terminal stage from which no transition that
-  can pass leads to a terminal stage (in a stage template, a contract exit).
+  can pass leads to a terminal stage.
   Global transitions count as a way out only if the stage they lead to can
   itself finish.
 - **`gate-never-passes`:** a transition from a reachable stage that no path can
@@ -522,8 +522,6 @@ Errors:
   payload can hold, such as `a: { b: 1 }` with `a.b: 2`, or `s: a` with a
   `match` of `{ not: { const: a } }`, since every gate of a transition reads the
   same payload.
-- **`exit-unreachable`:** a stage template contract exit that no transition that
-  can pass takes.
 
 Warnings:
 
@@ -547,15 +545,16 @@ Warnings:
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
   transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
 - **`product-missing-on-path`:** a stage injects, or gates on, an artifact or
-  evidence that some path to it does not produce.
+  evidence that some path to it does not produce. A product read only by CEL
+  (a binding, a `cel` gate or an approval's `when`) is not checked yet; that
+  is swamp-club #2792.
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
 - **`exploration-truncated`:** a pass hit the state cap. `validate` fails on it,
   although it is a warning in the report.
 
-The analysis looks at one document at a time. A stage template's inputs are
-checked once it is applied to a lifecycle, on the composed lifecycle (below).
+The analysis looks at one document at a time.
 
 ## Parallel work inside one stage
 
@@ -634,219 +633,6 @@ Checked on swamp 20260929.151817.0 and in its source at c48ef142
 with stub children. It checks that the children overlap and are runs of their
 own, that the wrapper waits for both, and that it fails when either does.
 
-## Stage templates: apply only
-
-**Decision.** A stage template is a working starting point that a lifecycle
-copies, never a dependency it keeps. A lifecycle holder's `apply` method copies
-a stage template's stages into the lifecycle as ordinary stages, and the author
-saves the result and edits it freely. There is no reference to a stage template
-in a lifecycle, so nothing is resolved at `validate` or `start`. Code:
-`_lib/stage_template.ts`, `_lib/apply.ts`, `extensions/models/template.ts`, and
-`applyMethod` in `_lib/work_item_ops.ts`.
-
-These were first called stage plugins and `eject` (GW-12), and renamed in GW-20
-(#2717): "eject" means leaving a managed dependency by copying its config out,
-and "plugin" suggests a live dependency, but here there is none. From the
-lifecycle's side it is using a template. In code the name is `StageTemplate`,
-because `_lib/template.ts` already means the `{{name}}` placeholders in prompts.
-
-### Why apply and not references
-
-The point of stage templates is that a team starts from stages that already work
-(plan, review-plan, implement, review, verify) and is encouraged to change them.
-Applied stages are ordinary stages, which gives three things for free:
-
-- **Customising is editing.** Nothing tracks the stage template, and no upstream
-  change needs merging.
-- **Nothing new at run time.** The run record, journal, pinning and approvals
-  are unchanged. The pinned copy's digest covers the applied stages because they
-  are part of the lifecycle.
-- **Separate records by construction.** Two uses of one stage template are
-  different stages with different names, chosen by the author.
-
-A stage template that a lifecycle refers to, with its content resolved and
-pinned at `start`, was the other design. It would need a use-site identity in
-the run record for every stage, product and approval, and a policy for moving
-in-flight work to a new stage template version. It may come later if teams want
-updates to flow from a shared stage template; nothing here rules it out.
-
-### Where a stage template lives: a template holder
-
-A stage template is the `globalArguments` of a **template holder**
-(`@swamp/gatorwalk-factory/template`), exactly as a lifecycle is held by a
-lifecycle holder. `apply` and the template holder's `validate` read it raw,
-through the definition repository, with the same code as the lifecycle holder
-(`readHolderArguments`), so it works on remote workers too. Its
-`globalArguments` schema only names the top-level fields, for the lifecycle
-holder's reason (`.partial()`) and because placeholders are not valid values
-until they are filled in.
-
-Files shipped in an extension were the alternative. A model has no way to read
-another extension's files, so that would need a change in swamp. A stage
-template can still be shipped as a file and pasted into a holder, as lifecycles
-are today.
-
-### Parameters: whole-value placeholders
-
-A stage template may put `{ $param: <name> }` wherever a value goes. Before a
-stage template is used, `instantiateStageTemplate`:
-
-1. checks that each placeholder names a property of `contract.parameters`, and
-   none is inside the contract;
-2. takes the given values, then each top-level property's `default` (the
-   validator does not apply defaults);
-3. checks the values against the parameters schema;
-4. replaces each placeholder, whole, and parses the result as a stage template.
-
-Every error carries its path. There is no substitution inside strings: a
-parameter that shapes a prompt is a value the prompt refers to, not text spliced
-into it. An object whose only key is `$param` is always a placeholder, so a
-payload schema cannot have a property called `$param` and nothing else. An
-object that looks like a placeholder but is not one is an error, never kept as
-it is: a `$param` whose value is not a name (`{ $param: 3 }`), or a name beside
-other keys. A `$param` key holding an object is left alone, so a payload schema
-may still have a property of that name.
-
-### How apply wires a stage template in
-
-The author sketches the lifecycle with a bare **placeholder stage** where the
-stage template goes. It may declare only an `id`, a `description`, `initial` and
-`transitions` (no work, no products). Its transitions may have gates but not
-`manual`. Apply replaces the placeholder:
-
-- **Transitions into it**, including global transitions, enter the stage
-  template's initial stage. If the placeholder was the initial stage, the stage
-  template's initial stage becomes the initial stage.
-- **Each contract exit** leaves to the stage that `exits` names, or else to the
-  target of the placeholder's transition of the same name. An exit wired to the
-  placeholder itself re-enters the stage template. An unwired exit is an error,
-  and so is a placeholder transition that matches no exit.
-- **Gates on a placeholder transition** belong to the lifecycle. Apply adds
-  them, as written and after the stage template's own gates, to each of the
-  stage template's transitions that leaves through that exit and is not manual.
-  A person already decides a manual transition (a `revise`, say), so it is left
-  alone; to gate one as well, edit the result. Gates on an exit whose every
-  transition is manual would go nowhere, so they are an error, and so is an
-  approval id the stage template's transition already has. The gates follow the
-  exit by name, so they still apply when `exits` sends it elsewhere.
-- **Other references to the placeholder** cannot be carried over, and are
-  errors. A `max-cycles` gate on it is one example, wherever it is, including on
-  the placeholder's own transitions.
-
-Gates on the placeholder are how a lifecycle puts its approvals on a stage
-template's exits. Approvals are the lifecycle's decision, not the stage
-template's: who signs off, and where, differs from team to team, and a stage
-template that carried them would have to be edited on every use. So the starter
-stage templates carry none, and a lifecycle writes
-`approved: { to: implement, gates: [{ type: human-approval, config: { id: plan-approval } }] }`
-on the placeholder. The gates are not renamed: they are written in the
-lifecycle's names, and may read the lifecycle's products.
-
-### Names are chosen at the use site
-
-`names` renames the stage template's stages, artifacts and evidence, and
-`inputs` maps each contract input to one of the lifecycle's products. So an
-output takes the name the lifecycle gives it. A name that clashes with the
-lifecycle's is an error naming the `names` entry to add, and apply never makes a
-name by adding a prefix, so the defect family this rebuild exists to remove
-(records told apart by name conventions) cannot come back through stage
-templates.
-
-Within one lifecycle or stage template, a name is also one kind: an artifact and
-evidence may not share it (the schema rejects it, and apply reports such a clash
-with the `names` entry to add). `context.inject` lists products by name alone,
-so a shared name was ambiguous to the dispatch packet, to the graph analysis,
-and to apply's renames.
-
-Renames follow identity through every reference: stage ids, `max-cycles` gates,
-gate products, `reviews`, `context.inject`, `resultEvidence`, and CEL. In CEL,
-`artifacts.x`, `artifacts["x"]`, `evidence.x`, `validations.artifacts.x` and
-`validations["artifacts"]["x"]` are rewritten by editing the source text at each
-node's range, so the rest of an expression keeps its spelling.
-`has(artifacts.x)` renamed to a name that is not an identifier becomes
-`("x-y" in artifacts)`: `has()` only takes a field selection, and cel-js accepts
-`has(artifacts["x-y"])` when it is checked but refuses it when it runs. This
-relies on `artifacts`, `evidence` and `validations` always meaning the context's
-maps, which the lifecycle schema guarantees (see "The CEL vocabulary"). A name
-held in a CEL string cannot be told apart from any other string:
-`stage.id == "review"`, or `artifacts.exists(k, k == "plan")`, where the product
-is looked up by a value only known at run time. So a CEL string equal to a
-renamed stage or product is left as written, with a warning; so is one equal to
-the placeholder's id, anywhere in the lifecycle, global transitions included.
-Approval gate ids are not renamed: approvals are counted per gate id within the
-current stage (`gates.ts`), so distinct stage ids already keep two uses apart.
-
-### What is checked
-
-The composed lifecycle must pass the lifecycle schema and the graph analysis,
-and apply reports every error at once. Each error names the stage and whether it
-came from the stage template or the lifecycle, because indexes into the composed
-document mean nothing to the author. Stage template wiring is checked as errors,
-not left to warnings:
-
-- every exit is wired to a stage of the lifecycle;
-- every contract input is produced on every path into the stage template's entry
-  stage. This uses `productsMissingOnEntry` in `graph.ts`, a query over the
-  structural pass. It also covers an input that only a CEL binding reads, which
-  `product-missing-on-path` cannot see.
-
-### The result is handed back, not saved
-
-`apply` writes the composed lifecycle, with its digest, to the lifecycle
-holder's `applied-lifecycle` record. It also logs it as JSON, which is valid
-YAML. It never edits the holder's definition: a method cannot safely rewrite its
-own definition, and the author should read what they adopt. The author saves the
-lifecycle as the holder's `globalArguments` and runs `validate`, and the
-lifecycle is then theirs.
-
-## The starter stage templates
-
-`templates/` holds five stage templates a team starts from: `plan`,
-`review-plan`, `implement`, `verify` and `review`. Their stages are taken from
-`lifecycles/build-swamp-extension.yaml` and `lifecycles/swamp-extensions.yaml`,
-which already work. Applied in flow order they give
-`lifecycles/build-swamp-extension.yaml`'s core, made generic. The test is
-`testdata/lifecycles/starter-core.yaml`, the same lifecycle written by hand:
-applying the five to `testdata/lifecycles/starter-sketch.yaml` gives it exactly.
-
-| Stage template | Stage (mode)              | Inputs                   | Outputs                  | Exits                | Parameters           |
-| -------------- | ------------------------- | ------------------------ | ------------------------ | -------------------- | -------------------- |
-| `plan`         | `plan` (interactive)      |                          | `plan`                   | `submitted`          | `skills`             |
-| `review-plan`  | `plan-review` (dispatch)  | `plan`                   | `plan-review` (findings) | `approved`, `rework` | `skills`, `blocking` |
-| `implement`    | `implement` (interactive) | `plan`                   | `change-summary`         | `submitted`          | `skills`             |
-| `verify`       | `verify` (interactive)    | `change-summary`         | `checks` (evidence)      | `passed`, `failed`   | `command`            |
-| `review`       | `code-review` (dispatch)  | `plan`, `change-summary` | `code-review` (findings) | `accepted`, `rework` | `skills`, `blocking` |
-
-The choices:
-
-- **No approvals.** Every approval is the lifecycle's, on the placeholder's
-  transitions (see "How apply wires a stage template in"). The stage templates
-  are still safe on their own: a review's exits are exclusive, and `revise` is
-  manual.
-- **One `blocking` drives both review exits.** `approved` needs a fresh review
-  and `findings-clear`; `rework` needs a fresh review and `findings-open`, with
-  the same severities. CEL cannot read a parameter (placeholders are replaced
-  whole, never spliced into a string), so the rework gate could not be a `cel`
-  expression over `blocking`. `findings-open`, the mirror of `findings-clear`,
-  was added for this.
-- **`verify` is an agent stage.** The agent runs the stage's `command` and
-  records `checks` with one result per check, as build-swamp-extension's `check`
-  does. The default command is swamp-extension checks; a team replaces it. A
-  `workflow` stage (swamp-extensions' `verify`) is the other design; a launch
-  template may add one.
-- **`implement` stops at a committed change.** It never opens a pull request:
-  releasing differs by team and is the lifecycle's.
-- **What build-swamp-extension has that the starters do not.** No quality score
-  or waiver in `verify`, no `versionBump` in the plan and no `manifestVersion`
-  in `change-summary`: they are swamp-extension specific. Nor does `implement`
-  refuse to resubmit the commit already checked: that reads `verify`'s evidence,
-  which `implement` cannot take as a contract input, since it is not produced on
-  the first way in. `verify`'s `passed` exit is bound to the change-summary
-  commit instead.
-
-Apply them in flow order: a contract input must be produced on every path into a
-stage template, so `review-plan` can only be applied once `plan` has been.
-
 ## The model types: a lifecycle holder and work items
 
 **Decision.** Two model types (`extensions/models/lifecycle.ts`, `work_item.ts`,
@@ -859,9 +645,6 @@ logic in `_lib/work_item_ops.ts`):
   later method uses that copy, so editing the holder never changes a running
   work item. `reset` keeps the pinned copy unless `repin=true` adopts the
   holder's current one.
-
-The template holder, another model type, only serves `apply`; see "Stage
-templates: apply only".
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
@@ -1270,7 +1053,7 @@ entry. An entry's `targetStatus` is a label only (swamp-club never moves the
 issue for it): the entry's own `status` key, else its stage's, else the last
 stage's before it, else the ticket's current status. Summaries are a template
 over the payload, not CEL, so what issue-lifecycle computes (counts, versions,
-attempts) is left out; `lifecycles/swamp-extensions.md` lists where. A summary
+attempts) is left out; `swamp-club-swamp-extensions.md` lists where. A summary
 needs fixed text besides its placeholders, and names only scalar fields. The
 payload sent is the recorded one without keys that start with `$`, which
 swamp-club refuses. An entry or type the tracker still refuses outright
@@ -1284,12 +1067,10 @@ gatorwalk status key (`projection: { status: in_progress }`), and the adapter's
 `statuses` argument maps keys to the tracker's own names. The key belongs in the
 lifecycle because only its author knows what a stage means, and there it is
 pinned by digest with the rest of the run. The tracker's names belong to whoever
-runs the workspace, and differ per team. The bundled lifecycles use the Lab's
+runs the workspace, and differ per team. The example lifecycles use the Lab's
 own status names as keys (`triaged`, `in_progress`, `shipped`, `closed`), so the
 Lab adapter's default map needs no configuration and Linear maps the same keys
-to its team's names. A stage without a key leaves the status alone. Stages a
-stage template brings in by apply carry the stage template's keys; the
-placeholder stays bare.
+to its team's names. A stage without a key leaves the status alone.
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different
@@ -1545,3 +1326,47 @@ login is not read either.
 read on a remote worker arrives as a plain object with `_globalArguments`, and
 that shape is still unconfirmed against the real engine. The driving skill is
 GW-8. Dispatch and usage run through the CLI in the summary test.
+
+## Decision log
+
+### 2026-09-30: stage templates and apply cut; examples in the skill instead (swamp-club #2767)
+
+**Cut.** The template model type (`@swamp/gatorwalk-factory/template`), the
+lifecycle holder's `apply` method and its `applied-lifecycle` record, the
+stage template format (a `contract` of inputs, outputs, exits and parameters,
+`exit:` transitions, `{ $param }` placeholders), the five starter stage
+templates under `templates/`, and the graph checks only stage templates used
+(`exit-unreachable`, contract inputs present from the start).
+
+**Why.** Once triage narrowed it to copy-and-own (#2663, renamed in #2717),
+the feature was one-time scaffolding, and an agent does the same by copying
+YAML and running `validate`. Nothing used it: neither
+`build-swamp-extension.yaml` nor `swamp-club-swamp-extensions.yaml` used a
+template, `apply`, a contract or a `$param`, and the starter templates were
+extracted from those lifecycles, not used to build them. It was about 1,400
+lines of source and 1,800 of tests, plus a public model type and a method
+that would have become API at go-live. Removing it before go-live costs users
+nothing; after go-live it would be a breaking change. No model version was
+bumped: the extension has never been published, so there is nothing to
+upgrade.
+
+**What replaced it.** Example lifecycles in the skill, under
+`.claude/skills/gatorwalk-factory/references/examples/`: `minimal`, `starter`,
+`build-swamp-extension`, and `swamp-club-swamp-extensions` as a real-world
+example. The skill tells an agent to copy the closest one and run `validate`,
+and `examples_test.ts` runs `validate` on each so none can rot. They live in
+the skill rather than in an `examples/` directory at the extension root
+because the skill is what reaches an agent: `swamp extension pull` installs a
+skill into the skill directory of every agent tool the repository uses, so a
+path relative to the skill works in all of them, whereas files at the
+extension root land under the pulled extension's `files/` directory, which
+the skill cannot name. Push refuses symlinks, so linking one place to the
+other is not an option. `lifecycles/` is gone too: gatorwalk-factory ships
+no lifecycle of its own.
+
+**What was not kept.** One check only `apply` made: that a contract input read
+only by a CEL binding is produced on every path into the stage template
+(`productsMissingOnEntry`). Its general form, for any lifecycle, is to warn
+when a product only CEL reads is not produced on every path to the reading
+stage. That needs design of its own (which guarded reads count as tolerant)
+and shares a CEL reference walker with #2680, so it is swamp-club #2792.

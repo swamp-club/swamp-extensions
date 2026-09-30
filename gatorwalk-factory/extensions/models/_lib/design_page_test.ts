@@ -96,7 +96,10 @@ function assertTracesDrawn(view: DesignView, read: DesignView): void {
 }
 
 const SHIPPED = [
-  new URL("../../../lifecycles/", import.meta.url),
+  new URL(
+    "../../../.claude/skills/gatorwalk-factory/references/examples/",
+    import.meta.url,
+  ),
   new URL("../../../testdata/lifecycles/", import.meta.url),
 ];
 
@@ -180,9 +183,9 @@ Deno.test("design page: findings-clear and findings-open read as opposites", () 
   );
 });
 
-Deno.test("design page: the swamp-extensions lifecycle shows its handoffs", async () => {
+Deno.test("design page: the swamp-club-swamp-extensions lifecycle shows its handoffs", async () => {
   const text = await Deno.readTextFile(
-    new URL("swamp-extensions.yaml", SHIPPED[0]),
+    new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
   );
   const lc = lifecycle(text);
   const { view, html } = await render(lc);
@@ -319,9 +322,11 @@ Deno.test("design page: loops back and global transitions are layers, both off a
   }
 });
 
-Deno.test("design page: swamp-extensions draws its forward flow first", async () => {
+Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first", async () => {
   const lc = lifecycle(
-    await Deno.readTextFile(new URL("swamp-extensions.yaml", SHIPPED[0])),
+    await Deno.readTextFile(
+      new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
+    ),
   );
   const { view } = await render(lc);
   const loopNames = view.stages.flatMap((s) =>

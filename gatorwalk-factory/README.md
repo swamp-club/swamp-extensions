@@ -17,12 +17,11 @@ adds the manifest and deletes that test.
 ```
 extensions/models/
   lifecycle.ts            the lifecycle holder model type
-  template.ts             the template holder model type
   work_item.ts            the work-item model type
   linear.ts               the Linear tracker adapter model type
   swamp_club.ts           the swamp-club Lab tracker adapter model type
   _lib/
-    lifecycle_schema.ts   the lifecycle and stage template meta-schema
+    lifecycle_schema.ts   the lifecycle meta-schema
     payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
     template.ts           {{name}} placeholders in prompts
     canonical.ts          JSON safety (CEL integers) and content digests
@@ -37,12 +36,9 @@ extensions/models/
     cel_context.ts        the CEL vocabulary for bindings, cel gates and when
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
-    graph.ts              graph analysis of a lifecycle or stage template
+    graph.ts              graph analysis of a lifecycle
     design_page.ts        a lifecycle as a static HTML page
-    stage_template.ts     a stage template's $param placeholders, filled in
-    apply.ts              a stage template's stages, copied into a lifecycle
-    work_item_ops.ts      the methods of the holder, template holder and
-                          work-item types
+    work_item_ops.ts      the methods of the holder and work-item types
     tracker.ts            the tracker adapter contract
     tracker_methods.ts    the methods every tracker model has, and its ledger
     tracker_conformance.ts  the contract, checked the same way per adapter
@@ -57,17 +53,14 @@ extensions/reports/
   work_item_summary_report.ts  the summary report, run after `summary`
 integration/              the real-engine suite: gatorwalk through the swamp CLI
   skill_commands.ts       the skill's commands, pulled out to check and run
-lifecycles/               lifecycles gatorwalk-factory ships, and the
-                          swamp-extensions mapping (a .md)
-templates/                the starter stage templates: plan, review-plan,
-                          implement, verify, review
 .claude/skills/gatorwalk-factory/
   SKILL.md                the skill: how an agent drives a work item
-  references/             driving in full, and a worked example
+  references/             driving in full
+    examples/             the example lifecycles to start from, a worked
+                          example, and the swamp-club-swamp-extensions
+                          mapping (a .md)
 testdata/
-  lifecycles/             software-factory's examples, ported, lifecycles
-                          to apply stage templates to, and the starter
-                          lifecycle written by hand
+  lifecycles/             software-factory's examples, ported
 ```
 
 ## The lifecycle format
@@ -107,7 +100,7 @@ artifacts, evidence, transitions and gates. Three things change:
 - **The lifecycle is analysed as a graph** by `validate`. Errors are stages that
   cannot be reached, stages with no way to a terminal stage, transitions whose
   gates can never pass (such as `evidence-recorded` on evidence another stage
-  records), and stage template exits that nothing reaches. They fail `validate`.
+  records). They fail `validate`.
   Warnings are logged: exits that can pass together with no person choosing,
   loops whose only way out is a global transition such as `abandon`, loops
   bounded only by the default cycle limit, products that some path to a stage
@@ -131,13 +124,6 @@ artifacts, evidence, transitions and gates. Three things change:
   the ticket type to set first). Two entries on one trigger must be told apart
   by `cycle` or `match`. To a tracker that keeps entries, a lifecycle that
   declares any is published as entries instead of comments.
-
-A **stage template** has the same shape plus a `contract`: `inputs` it consumes,
-`outputs` its stages produce, named `exits`, and a `parameters` schema. Its
-transitions leave through `exit:` rather than `to:`. A value anywhere in its
-stages may be a parameter placeholder, `{ $param: <name> }`, which is replaced
-whole by the parameter's value (or its schema `default`). See
-`templates/review-plan.yaml`.
 
 ## Loops
 
@@ -168,68 +154,21 @@ cycle of it. The controls:
 See [DESIGN.md](DESIGN.md), "Loops and their controls", for each control with an
 example.
 
-## Stage templates: apply
+## Example lifecycles
 
-A stage template is a working starting point, not a dependency. It lives in a
-**template holder** (`@swamp/gatorwalk-factory/template`), and a lifecycle
-holder's `apply` method copies its stages into the lifecycle as ordinary stages,
-which you then save and edit freely. Nothing refers back to the stage template
-afterwards.
+gatorwalk-factory ships no lifecycle of its own. The skill carries examples to
+copy into a holder and change, under
+`.claude/skills/gatorwalk-factory/references/examples/`, so they reach every
+agent the skill is installed for. Each opens with a comment saying what it is
+for and what to change first, and each passes `validate`
+(`extensions/models/examples_test.ts`):
 
-Sketch the lifecycle first, with a **placeholder stage** where the stage
-template goes. It is bare (only `id`, `description`, `initial` and
-`transitions`; no `projection`, since the stage template's stages carry their
-own status keys), and its transitions are named after the stage template's
-exits. They may carry your gates, such as an approval:
+- `minimal.yaml`: one stage of work, then done.
+- `starter.yaml`: a general change, from plan through plan review, implement,
+  verify and code review to release.
+- `build-swamp-extension.yaml` and `swamp-club-swamp-extensions.yaml`, below.
 
-```yaml
-- id: review
-  description: Placeholder for the review-plan stage template.
-  transitions:
-    - name: approved
-      to: implement
-      gates:
-        - type: human-approval
-          config: { id: plan-approval }
-    - { name: rework, to: plan }
-```
-
-`apply` replaces it. Transitions into the placeholder now enter the stage
-template's first stage, and each exit leaves to the stage the placeholder's
-transition of the same name targets. That transition's gates are added to each
-of the stage template's transitions through the exit, except manual ones (even
-when `exits` sends the exit elsewhere); gates that would land on no transition
-are an error. An exit that targets the placeholder itself re-enters the stage
-template. The inputs are:
-
-- `template`, `replace`: the template holder, and the placeholder stage.
-- `exits`: where exits go, overriding the placeholder's transitions.
-- `inputs`: which of your products each contract input is, when the names differ
-  (`{"plan": "design"}`).
-- `names`: new names for the stage template's `stages`, `artifacts` and
-  `evidence` (`{"stages": {"review": "design-review"}}`). A name that clashes
-  with one of yours is an error that says which entry to add; nothing is
-  prefixed, so two uses of one stage template are told apart by the names you
-  give them.
-- `params`: the stage template's parameter values.
-
-The result must pass the schema and the graph analysis, every exit must be
-wired, and every contract input must be produced on every path into the stage
-template. `apply` never changes the holder: it logs the lifecycle (as JSON,
-which is YAML) and writes it to the holder's `applied-lifecycle` record. Save it
-as the holder's `globalArguments` and run `validate`. See
-[DESIGN.md](DESIGN.md), "Stage templates: apply only".
-
-`templates/` has five starter stage templates to begin from: `plan`,
-`review-plan`, `implement`, `verify` and `review`. They carry no approvals; put
-yours on the placeholders. Apply them in flow order, since each needs its inputs
-produced before it, saving the result as the holder's lifecycle before the next
-`apply`. `testdata/lifecycles/starter-sketch.yaml` is a lifecycle sketched for
-all five. See [DESIGN.md](DESIGN.md), "The starter stage templates".
-
-## Bundled lifecycles
-
-`lifecycles/build-swamp-extension.yaml` takes a change to a swamp extension from
+`build-swamp-extension.yaml` takes a change to a swamp extension from
 plan to release:
 
 ```
@@ -252,11 +191,10 @@ plan → plan-review → implement → check → code-review → release → don
   in `change-summary`, which is the commit that was reviewed. A squash merge's
   own commit is recorded separately, as `mergeCommit`.
 
-This is the tier 1 lifecycle and gatorwalk-factory's own process. Later it will
-be recomposed from stage templates; it lives under `lifecycles/` because it is a
-lifecycle either way.
+This is the tier 1 lifecycle and gatorwalk-factory's own process.
 
-`lifecycles/swamp-extensions.yaml` is the process this repository runs with
+`swamp-club-swamp-extensions.yaml` is a real-world example, to read rather than
+copy whole: the process this repository runs with
 `@swamp/issue-lifecycle` and its verification conventions, from a Lab issue to
 the session summary:
 
@@ -272,7 +210,7 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
   and sets the type from the classification; `attest` and `notify` post the
   attestation and the thank-you through the adapter. issue-lifecycle stays and
   drives every other issue: the adapter's `claim` refuses an issue it already
-  drives. `lifecycles/swamp-extensions.md` lists each entry and where its
+  drives. `swamp-club-swamp-extensions.md` lists each entry and where its
   summary differs.
 - **People decide at six points:** a bug that cannot be reproduced, plan
   approval, the verification checklist, opening the pull request, what to do
@@ -285,14 +223,16 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
   parallel; see DESIGN.md, "Parallel work inside one stage". Every exit from
   verification to the merge is bound to the commit in `change-summary`.
 
-Both lifecycles name a status key on their stages, using the Lab's own status
-names: the planning stages are `triaged` (swamp-extensions' `triage` stage has
+These two and `starter.yaml` name a status key on their stages, using the Lab's
+own status names: the planning stages are `triaged`
+(swamp-club-swamp-extensions' `triage` stage has
 no key, so the issue's status is left alone while it is triaged), the work
-through release is `in_progress`, `done` is `shipped` (in swamp-extensions, also
+through release is `in_progress`, `done` is `shipped` (in
+swamp-club-swamp-extensions, also
 `notify` and `summary`), and `abandoned` is `closed`. The Lab adapter maps them
 as they are; a Linear instance maps them to its team's names.
 
-`lifecycles/swamp-extensions.md` is not a lifecycle. It maps every phase, gate
+`swamp-club-swamp-extensions.md` is not a lifecycle. It maps every phase, gate
 and human stop of today's process onto the format, and lists what the format
 could not express.
 
@@ -327,7 +267,7 @@ swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 
 # A lifecycle holder. create prints the definition file's path; set that
 # file's globalArguments to a lifecycle, e.g. the contents of
-# lifecycles/build-swamp-extension.yaml.
+# .claude/skills/gatorwalk-factory/references/examples/starter.yaml.
 swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
 swamp model method run team design_page --log    # the lifecycle as a page
@@ -335,13 +275,6 @@ swamp data get team design-page --json | jq -r .content > team.html
 # Prints a work-item key made from the title, such as
 # build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
 swamp model method run team new_key --input 'title=Add a list method' --log
-
-# A template holder, applied in place of team's placeholder stage.
-swamp model create @swamp/gatorwalk-factory/template review-plan --json
-swamp model method run review-plan validate --log
-swamp model method run team apply --input template=review-plan \
-  --input replace=review --log
-swamp data get team applied-lifecycle --json     # save .content.lifecycle
 
 # A work item, named by that key.
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \

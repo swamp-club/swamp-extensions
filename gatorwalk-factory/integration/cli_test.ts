@@ -29,7 +29,6 @@ import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
   LINEAR_TYPE,
-  STAGE_TEMPLATE_TYPE,
   SWAMP_CLUB_TYPE,
   SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
@@ -44,15 +43,6 @@ import {
 // ---------------------------------------------------------------------------
 
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
-
-const TESTDATA = new URL("../testdata/", import.meta.url);
-
-async function testdata(path: string): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(new URL(path, TESTDATA))) as Record<
-    string,
-    unknown
-  >;
-}
 
 async function buildLifecycle(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD_LIFECYCLE)) as Record<
@@ -114,7 +104,6 @@ Deno.test("cli: every model type registers from the extension source", async () 
       [
         HOLDER_TYPE,
         LINEAR_TYPE,
-        STAGE_TEMPLATE_TYPE,
         SWAMP_CLUB_TYPE,
         WORK_ITEM_TYPE,
       ]
@@ -184,7 +173,7 @@ Deno.test("cli: holder validate reports a valid lifecycle, every schema error an
   });
 });
 
-Deno.test("cli: swamp-extensions validates on the real engine, and a work item starts on it", async () => {
+Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a work item starts on it", async () => {
   await withRepo(async (repo) => {
     const lifecycle = parseYaml(
       await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
@@ -192,7 +181,9 @@ Deno.test("cli: swamp-extensions validates on the real engine, and a work item s
     await repo.holder("process", lifecycle);
     const ok = await repo.holderMethod("process", "validate");
     assert(
-      ok.output.includes("lifecycle 'swamp-extensions' in 'process' is valid"),
+      ok.output.includes(
+        "lifecycle 'swamp-club-swamp-extensions' in 'process' is valid",
+      ),
       ok.output,
     );
     const key = await repo.newKey("process", "Integration work");
@@ -201,7 +192,7 @@ Deno.test("cli: swamp-extensions validates on the real engine, and a work item s
   });
 });
 
-Deno.test("cli: design_page stores the swamp-extensions lifecycle as an HTML file", async () => {
+Deno.test("cli: design_page stores the swamp-club-swamp-extensions lifecycle as an HTML file", async () => {
   await withRepo(async (repo) => {
     const lifecycle = parseYaml(
       await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
@@ -210,7 +201,7 @@ Deno.test("cli: design_page stores the swamp-extensions lifecycle as an HTML fil
     const run = await repo.holderMethod("process", "design_page");
     assert(
       run.output.includes(
-        "design page for lifecycle 'swamp-extensions' in 'process'",
+        "design page for lifecycle 'swamp-club-swamp-extensions' in 'process'",
       ),
       run.output,
     );
@@ -230,7 +221,7 @@ Deno.test("cli: design_page stores the swamp-extensions lifecycle as an HTML fil
     assertEquals(page.contentType, "text/html");
     assertEquals(page.tags.specName, "design-page");
     assert(page.content.startsWith("<!doctype html>"));
-    assert(page.content.includes("<h1>swamp-extensions</h1>"));
+    assert(page.content.includes("<h1>swamp-club-swamp-extensions</h1>"));
     assert(page.content.includes('id="stage-triage"'));
   });
 });
@@ -417,169 +408,6 @@ Deno.test("cli: build-swamp-extension from start to release, with every stored v
     const parsed = parseLifecycle(pin.lifecycle);
     assert(parsed.ok);
     assertEquals(await digestOf(parsed.value), run.lifecycle.digest);
-  });
-});
-
-Deno.test("cli: apply a stage template to a lifecycle, save it, and run a work item through the applied stages", async () => {
-  await withRepo(async (repo) => {
-    // The stage template's $param placeholders come back from swamp's storage
-    // as written, or validate could not fill them in.
-    await repo.templateHolder(
-      "review-plan",
-      await testdata("../templates/review-plan.yaml"),
-    );
-    const valid = await repo.holderMethod("review-plan", "validate", {
-      inputs: { params: JSON.stringify({ blocking: ["critical"] }) },
-    });
-    assert(
-      valid.output.includes(
-        "stage template 'review-plan' in 'review-plan' is valid",
-      ),
-      valid.output,
-    );
-
-    await repo.holder("team", await testdata("lifecycles/apply-target.yaml"));
-    const applied = await repo.holderMethod("team", "apply", {
-      inputs: {
-        template: "review-plan",
-        replace: "review",
-        names: JSON.stringify({ stages: { "plan-review": "critique" } }),
-      },
-    });
-    assert(
-      applied.output.includes(
-        "applied stage template 'review-plan' from 'review-plan' to lifecycle 'plan-then-build'",
-      ),
-      applied.output,
-    );
-    const record = await repo.data("team", "applied-lifecycle");
-    const parsed = parseLifecycle(record.lifecycle);
-    assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
-    assertEquals(await digestOf(parsed.value), record.digest);
-
-    // The author saves it as the holder's lifecycle; nothing else changes.
-    await repo.editHolder("team", record.lifecycle);
-    const saved = await repo.holderMethod("team", "validate");
-    assert(
-      saved.output.includes("lifecycle 'plan-then-build' in 'team' is valid"),
-      saved.output,
-    );
-
-    const key = await repo.newKey("team", "Integration work");
-    await repo.workItem(key, "start", { lifecycle: "team" });
-    const { record: put, go, approve } = driver(repo, key);
-    await put("artifact", "plan", { summary: "Add list" });
-    await go("submit");
-    assertEquals((await repo.run(key)).stage, "critique");
-    await put("artifact", "plan-review", { findings: [] });
-    await approve("plan-approval");
-    await go("approve");
-    await put("evidence", "change", { url: "https://example.com/pr/1" });
-    await go("finish");
-    const run = await repo.run(key);
-    assertEquals(run.stage, "done");
-    assertEquals(run.status, "terminal");
-  });
-});
-
-Deno.test("cli: the starter stage templates, applied in flow order through the holders, give a lifecycle a work item runs to done", async () => {
-  await withRepo(async (repo) => {
-    const starters: [template: string, placeholder: string][] = [
-      ["plan", "plan"],
-      ["review-plan", "plan-review"],
-      ["implement", "implement"],
-      ["verify", "verify"],
-      ["review", "code-review"],
-    ];
-    for (const [template] of starters) {
-      await repo.templateHolder(
-        template,
-        await testdata(`../templates/${template}.yaml`),
-      );
-      const valid = await repo.holderMethod(template, "validate");
-      assert(
-        valid.output.includes(
-          `stage template '${template}' in '${template}' is valid`,
-        ),
-        valid.output,
-      );
-    }
-
-    // Each apply reads the holder's lifecycle, so each result is saved
-    // before the next, as an author would.
-    await repo.holder("team", await testdata("lifecycles/starter-sketch.yaml"));
-    for (const [template, placeholder] of starters) {
-      await repo.holderMethod("team", "apply", {
-        inputs: { template, replace: placeholder },
-      });
-      const record = await repo.data("team", "applied-lifecycle");
-      await repo.editHolder("team", record.lifecycle);
-    }
-    const saved = await repo.holderMethod("team", "validate");
-    assert(
-      saved.output.includes("lifecycle 'starter' in 'team' is valid"),
-      saved.output,
-    );
-    const core = parseLifecycle(
-      await testdata("lifecycles/starter-core.yaml"),
-    );
-    assert(core.ok);
-    const record = await repo.data("team", "applied-lifecycle");
-    assertEquals(record.digest, await digestOf(core.value));
-
-    const key = await repo.newKey("team", "Integration work");
-    await repo.workItem(key, "start", { lifecycle: "team" });
-    const { record: put, go, approve } = driver(repo, key);
-    const stage = async () => (await repo.run(key)).stage;
-    await put("artifact", "plan", {
-      summary: "Add list",
-      steps: [{ description: "Add list", files: ["x.ts"] }],
-      testingStrategy: "Unit tests",
-    });
-    await go("submit");
-    assertEquals(await stage(), "plan-review");
-    await put("artifact", "plan-review", { findings: [] });
-    await approve("plan-approval");
-    await go("approve");
-    assertEquals(await stage(), "implement");
-    await put("artifact", "change-summary", {
-      summary: "Added list",
-      commit: SHA,
-      files: ["x.ts"],
-    });
-    await go("submit");
-    assertEquals(await stage(), "verify");
-    await put("evidence", "checks", {
-      commit: SHA,
-      status: "passed",
-      results: [{ name: "test", status: "passed" }],
-    });
-    await go("passed");
-    assertEquals(await stage(), "code-review");
-    await put("artifact", "code-review", {
-      findings: [{ id: "C1", severity: "critical", description: "Leak" }],
-    });
-    await go("rework");
-    assertEquals(await stage(), "implement");
-    await go("submit");
-    await put("evidence", "checks", {
-      commit: SHA,
-      status: "passed",
-      results: [{ name: "test", status: "passed" }],
-    });
-    await go("passed");
-    await put("artifact", "code-review", { findings: [] });
-    await approve("release-approval");
-    await go("accept");
-    assertEquals(await stage(), "release");
-    await put("evidence", "release", {
-      commit: SHA,
-      url: "https://example.com/pr/1",
-    });
-    await go("released");
-    const run = await repo.run(key);
-    assertEquals(run.stage, "done");
-    assertEquals(run.status, "terminal");
   });
 });
 

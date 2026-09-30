@@ -29,7 +29,7 @@ Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
 
 - **`@swamp/gatorwalk-factory/lifecycle`**, the holder: one instance whose
   `globalArguments` are a lifecycle (stages, work, products, transitions,
-  gates). Methods: `validate`, `design_page`, `new_key`, `apply`.
+  gates). Methods: `validate`, `design_page`, `new_key`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
   named by a key from `new_key`. `start` pins a copy of the holder's lifecycle,
   so editing the holder never changes a running item. Every other method works
@@ -53,8 +53,9 @@ swamp model create @swamp/gatorwalk-factory/lifecycle <holder> --json
 ```
 
 The output's `path` is the holder's definition file. Set its `globalArguments`
-to the lifecycle by editing that file: for example, paste the contents of
-`lifecycles/build-swamp-extension.yaml` under `globalArguments:`, indented. Do
+to the lifecycle by editing that file: paste the contents of the closest example
+in [examples/](examples/) (for instance `examples/starter.yaml`) under
+`globalArguments:`, indented, and change what its opening comment says to. Do
 not use `swamp model edit`, which opens an editor, and do not try
 `--global-arg`, which cannot carry a nested lifecycle. swamp does not check the
 lifecycle when the file is saved, so check it:

@@ -16,15 +16,11 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  APPLIED_SPEC,
-  type ApplyArgs,
-  applyMethod,
   DESIGN_PAGE_SPEC,
   designPageMethod,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
-  ObjectInput,
   validateHolder,
 } from "./_lib/work_item_ops.ts";
 
@@ -38,10 +34,6 @@ import {
 // made of. So this schema only names the top-level fields; the full check is
 // the validate method (schema, then graph analysis), and its schema check runs
 // again whenever a work item starts.
-//
-// apply copies a template holder's stages into this lifecycle in place of a
-// placeholder stage, and hands the result back to be saved; it never edits
-// the holder's definition.
 //
 // design_page renders the lifecycle, with its graph findings, as a static
 // HTML page stored as the holder's design-page file.
@@ -71,20 +63,6 @@ export const model = {
         "The latest key new_key generated. A key is only needed until a " +
         "work item starts under it, so few versions are kept.",
       schema: z.object({ key: z.string() }),
-      lifetime: "infinite" as const,
-      garbageCollection: 10,
-    },
-    [APPLIED_SPEC]: {
-      description:
-        "The lifecycle the last apply composed, to be saved as this holder's " +
-        "globalArguments",
-      schema: z.object({
-        holder: z.string(),
-        template: z.string(),
-        replace: z.string(),
-        digest: z.string(),
-        lifecycle: z.record(z.string(), z.unknown()),
-      }),
       lifetime: "infinite" as const,
       garbageCollection: 10,
     },
@@ -127,33 +105,6 @@ export const model = {
       }),
       execute: (args: { title: string }, context: MethodContextLike) =>
         newKey(context, args.title),
-    },
-    apply: {
-      description:
-        "Compose a template holder's stages into this lifecycle in place of a placeholder stage, check the result, and hand it back to be saved",
-      arguments: z.object({
-        template: z.string().min(1).describe("The template holder's name"),
-        replace: z.string().min(1).describe(
-          "The placeholder stage the stage template's stages replace",
-        ),
-        exits: ObjectInput.optional().describe(
-          "Contract exit -> stage (JSON object); defaults to the " +
-            "placeholder's transition of the same name",
-        ),
-        inputs: ObjectInput.optional().describe(
-          "Contract input -> this lifecycle's product (JSON object); " +
-            "defaults to the same name",
-        ),
-        names: ObjectInput.optional().describe(
-          "Renames of the stage template's stages, artifacts and evidence (JSON " +
-            "object with stages, artifacts, evidence maps)",
-        ),
-        params: ObjectInput.optional().describe(
-          "The stage template's parameter values (JSON object); defaults fill the rest",
-        ),
-      }),
-      execute: (args: ApplyArgs, context: MethodContextLike) =>
-        applyMethod(context, args),
     },
   },
 };

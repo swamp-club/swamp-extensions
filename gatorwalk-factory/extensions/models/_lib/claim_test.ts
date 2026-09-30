@@ -33,7 +33,7 @@ import {
 const TRACKER = "tracker";
 const NOW = new Date("2026-09-29T00:00:00Z");
 const MINIMAL = new URL(
-  "../../../testdata/lifecycles/minimal.yaml",
+  "../../../.claude/skills/gatorwalk-factory/references/examples/minimal.yaml",
   import.meta.url,
 );
 const REFS = { test: "T1", "test.display": "T-1" };

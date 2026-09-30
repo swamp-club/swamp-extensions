@@ -33,7 +33,7 @@ import {
 } from "./_lib/work_item_ops.ts";
 
 const BUILD = new URL(
-  "../../lifecycles/build-swamp-extension.yaml",
+  "../../.claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
   import.meta.url,
 );
 const ITEM = "build-swamp-extension-abcdefgh";
@@ -514,7 +514,10 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   swamp.definitions.set("team", {
     globalArguments: parseYaml(
       await Deno.readTextFile(
-        new URL("../../lifecycles/swamp-extensions.yaml", import.meta.url),
+        new URL(
+          "../../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
+          import.meta.url,
+        ),
       ),
     ),
     type: HOLDER_TYPE,
@@ -638,7 +641,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await go("notified");
   await record("artifact", "summary", {
     originalProblem: "No lifecycle for this repo",
-    deliveredOutcome: "swamp-extensions.yaml",
+    deliveredOutcome: "swamp-club-swamp-extensions.yaml",
     outcomeMet: true,
   });
   await go("finish");

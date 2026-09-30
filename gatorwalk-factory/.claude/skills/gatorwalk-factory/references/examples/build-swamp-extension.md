@@ -1,7 +1,8 @@
 # Worked example: build-swamp-extension
 
 One work item driven from start to `done` on
-`lifecycles/build-swamp-extension.yaml`, by the pull-request route:
+[build-swamp-extension.yaml](build-swamp-extension.yaml), by the pull-request
+route:
 
 ```
 plan → plan-review → implement → check → code-review → release → done
@@ -33,7 +34,7 @@ swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 
 `model create` prints the definition file's `path`. Open that file and set its
 `globalArguments` to the lifecycle, the contents of
-`lifecycles/build-swamp-extension.yaml`:
+[build-swamp-extension.yaml](build-swamp-extension.yaml), beside this file:
 
 ```yaml
 globalArguments:

@@ -21,26 +21,11 @@ import {
   formatFinding,
   type GraphFinding,
   type GraphReport,
-  productsMissingOnEntry,
 } from "./graph.ts";
-import {
-  type Lifecycle,
-  parseLifecycle,
-  parseStageTemplate,
-  type StageTemplate,
-} from "./lifecycle_schema.ts";
-import { instantiateStageTemplate } from "./stage_template.ts";
+import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
 
 function lifecycle(yaml: string): Lifecycle {
   const result = parseLifecycle(
-    parseYaml(`schemaVersion: 1\nname: test\n${yaml}`),
-  );
-  if (!result.ok) throw new Error(result.errors.join("\n"));
-  return result.value;
-}
-
-function template(yaml: string): StageTemplate {
-  const result = parseStageTemplate(
     parseYaml(`schemaVersion: 1\nname: test\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
@@ -718,85 +703,6 @@ globalTransitions:
   );
 });
 
-// --- stage templates ---------------------------------------------------------
-
-Deno.test("graph: a stage template exit no passable transition takes is an error", () => {
-  const report = analyzeLifecycle(template(`
-contract:
-  inputs: [{ kind: artifact, name: plan }]
-  exits: [{ name: approved }, { name: rework }]
-stages:
-  - id: review
-    initial: true
-    work:
-      mode: interactive
-      context: { inject: [plan] }
-    transitions:
-      - name: approve
-        exit: approved
-        gates:
-          - type: artifact-exists
-            config: { artifact: plan }
-      - name: rework
-        exit: rework
-        gates:
-          - type: evidence-recorded
-            config: { name: elsewhere }
-  - id: other
-    evidence: [{ name: elsewhere, schema: ${OBJECT} }]
-    transitions: [{ name: out, exit: approved }]
-`));
-  assertEquals(codes(report.errors), [
-    "exit-unreachable contract.exits.1",
-    "gate-never-passes stages.0.transitions.1 [review]",
-    "unreachable-stage stages.1 [other]",
-  ]);
-});
-
-// --- products on entry -------------------------------------------------------------
-
-Deno.test("productsMissingOnEntry: the shortest path into a stage without each product", () => {
-  const doc = lifecycle(`
-stages:
-  - id: start
-    initial: true
-    transitions:
-      - { name: long, to: write, manual: true }
-      - { name: short, to: use, manual: true }
-  - id: write
-    artifacts: [{ name: draft, schema: ${OBJECT} }]
-    evidence: [{ name: ci, schema: ${OBJECT} }]
-    transitions: [{ name: next, to: use }]
-  - id: use
-    transitions: [{ name: finish, to: done }]
-  - id: done
-    terminal: true
-`);
-  assertEquals(
-    productsMissingOnEntry(doc, "use", [
-      { kind: "artifact", name: "draft" },
-      { kind: "evidence", name: "ci" },
-    ]),
-    {
-      missing: [
-        { kind: "artifact", name: "draft", trace: ["start", "use"] },
-        { kind: "evidence", name: "ci", trace: ["start", "use"] },
-      ],
-      truncated: false,
-    },
-  );
-  assertEquals(
-    productsMissingOnEntry(doc, "done", [{ kind: "artifact", name: "draft" }])
-      .missing.map((m) => m.trace),
-    [["start", "use", "done"]],
-  );
-  assertEquals(
-    productsMissingOnEntry(doc, "write", [{ kind: "artifact", name: "draft" }])
-      .missing,
-    [],
-  );
-});
-
 // --- truncation -----------------------------------------------------------------
 
 Deno.test("graph: a truncated exploration demotes its errors to warnings", () => {
@@ -846,34 +752,17 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   // implement <-> test without maxCycles, as the originals did: they rely on
   // the default cycle limit, which is the warning, not a defect.
   const expected: Record<string, string[]> = {
-    // The placeholder's transitions only sketch where the stage template's
-    // exits go; its approval on approved means a person chooses between them.
-    "lifecycles/apply-target.yaml": [],
     "lifecycles/feature-factory.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
-    "lifecycles/minimal.yaml": [],
     "lifecycles/retry-feedback.yaml": [],
     "lifecycles/sdlc-classic.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
-    // The starter lifecycle's rework loops rely on the default cycle limit,
-    // as build-swamp-extension's do. In the sketch, verify's placeholder
-    // transitions are ungated: they only say where verify's exits go.
-    "lifecycles/starter-core.yaml": [
-      "default-cycle-bound stages.0 [plan]",
-      "default-cycle-bound stages.2 [implement]",
-    ],
-    "lifecycles/starter-sketch.yaml": [
-      "default-cycle-bound stages.0 [plan]",
-      "default-cycle-bound stages.2 [implement]",
-      "ambiguous-exit stages.3.transitions.0 [verify]",
-    ],
   };
   const seen: string[] = [];
-  // The shipped stage templates are analysed in templates_test.ts.
   for (const file of await fixtures("lifecycles/")) {
     const name = `lifecycles/${file}`;
     seen.push(name);
@@ -1039,7 +928,7 @@ const FULL = { pruneCounts: false, maxStates: 2_000_000 };
  * Returns both, so callers do not explore again.
  */
 function assertPruningExact(
-  doc: Lifecycle | StageTemplate,
+  doc: Lifecycle,
   label: string,
 ): { pruned: GraphReport; full: GraphReport } {
   const pruned = analyzeLifecycle(doc);
@@ -1070,22 +959,17 @@ async function yamlFiles(dir: URL): Promise<URL[]> {
   return files.sort((a, b) => a.href.localeCompare(b.href));
 }
 
-function parsed(raw: unknown, label: string): Lifecycle | StageTemplate {
-  if (typeof raw === "object" && raw !== null && "contract" in raw) {
-    // Starter templates have parameters; analyse them with their defaults.
-    const result = instantiateStageTemplate(raw);
-    if (!result.ok) throw new Error(`${label}: ${result.errors.join("\n")}`);
-    return result.template;
-  }
+function parsed(raw: unknown, label: string): Lifecycle {
   const result = parseLifecycle(raw);
   if (!result.ok) throw new Error(`${label}: ${result.errors.join("\n")}`);
   return result.value;
 }
 
 const ROOT = new URL("../../../", import.meta.url);
+const EXAMPLES = ".claude/skills/gatorwalk-factory/references/examples/";
 
 Deno.test("graph: pruning the count pass agrees with the full exploration on every shipped document", async () => {
-  const dirs = ["lifecycles/", "testdata/lifecycles/", "templates/"];
+  const dirs = [EXAMPLES, "testdata/lifecycles/"];
   let checked = 0;
   for (const dir of dirs) {
     for (const file of await yamlFiles(new URL(dir, ROOT))) {
@@ -1095,19 +979,21 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on eve
       checked++;
     }
   }
-  assert(checked >= 10, `only ${checked} documents found`);
+  assert(checked >= 7, `only ${checked} documents found`);
 });
 
-Deno.test("graph: swamp-extensions at the default cycle limits finishes under the cap", async () => {
+Deno.test("graph: swamp-club-swamp-extensions at the default cycle limits finishes under the cap", async () => {
   // Without pruning this is 716,220 count states, past the 100,000 cap.
   const raw = parseYaml(
-    await Deno.readTextFile(new URL("lifecycles/swamp-extensions.yaml", ROOT)),
+    await Deno.readTextFile(
+      new URL(`${EXAMPLES}swamp-club-swamp-extensions.yaml`, ROOT),
+    ),
   ) as { stages: { maxCycles?: number }[] };
   for (const stage of raw.stages) delete stage.maxCycles;
-  const doc = parsed(raw, "swamp-extensions without maxCycles");
+  const doc = parsed(raw, "swamp-club-swamp-extensions without maxCycles");
   const { pruned, full } = assertPruningExact(
     doc,
-    "swamp-extensions without maxCycles",
+    "swamp-club-swamp-extensions without maxCycles",
   );
   assert(
     full.statesExplored.counts > 100_000,
