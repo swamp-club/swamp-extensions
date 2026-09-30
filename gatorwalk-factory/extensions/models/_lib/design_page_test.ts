@@ -200,6 +200,47 @@ Deno.test("design page: the swamp-club-swamp-extensions lifecycle shows its hand
   assert(html.includes("<h4>Handoff</h4>"));
 });
 
+Deno.test("design page: gate and work descriptions are shown", async () => {
+  const { view, html } = await render(lifecycle(`
+schemaVersion: 1
+name: described
+stages:
+  - id: plan
+    initial: true
+    work:
+      mode: interactive
+      description: The plan names every file it touches.
+    transitions:
+      - name: approved
+        to: done
+        gates:
+          - type: human-approval
+            description: A person reads the plan before any code is written.
+            config: { id: plan-approval }
+          - type: cel
+            config: { expr: "true" }
+  - id: done
+    terminal: true
+`));
+  assertEquals(
+    view.stages[0].work?.description,
+    "The plan names every file it touches.",
+  );
+  const [approval, cel] = view.stages[0].transitions[0].gates;
+  assertEquals(
+    approval.description,
+    "A person reads the plan before any code is written.",
+  );
+  assertFalse("description" in cel);
+  assert(html.includes(
+    `<p class="desc">The plan names every file it touches.</p><table class="kv">`,
+  ));
+  assert(html.includes(
+    `<div class="desc">A person reads the plan before any code is written.</div></li>`,
+  ));
+  assertEquals(embedded(html), view);
+});
+
 const FLAWED = `
 schemaVersion: 1
 name: flawed
@@ -363,6 +404,7 @@ stages:
     description: "a]\\"|b[#x] --> c((d)) <b>bold</b>"
     work:
       mode: dispatch
+      description: "<iframe src=x></iframe>"
       systemPrompt: "Close with </script><!-- and \\u2028 here"
       command: "echo \\"$HOME\\" | tee <out>"
     artifacts:
@@ -375,6 +417,7 @@ stages:
         description: "</td></table><script>alert(2)</script>"
         gates:
           - type: cel
+            description: "<svg onload=alert(3)>"
             config:
               expr: "item.title != '<script>'"
               message: "</script>"
@@ -391,6 +434,8 @@ Deno.test("design page: lifecycle text is escaped in the HTML, the diagram and t
   assertFalse(html.includes("<b>bold"));
   assertFalse(html.includes("</td></table>"));
   assertFalse(html.includes("<!--"));
+  assertFalse(html.includes("<iframe"));
+  assertFalse(html.includes("<svg onload"));
   assert(html.includes("&lt;/script&gt;&lt;script&gt;alert(1)"));
   // The embedded view reads back whole, text included.
   const read = embedded(html);
@@ -405,6 +450,8 @@ Deno.test("design page: lifecycle text is escaped in the HTML, the diagram and t
   for (const layer of DIAGRAM_LAYERS) {
     assertFalse(view.diagrams[layer].includes("script"));
     assertFalse(view.diagrams[layer].includes("bold"));
+    assertFalse(view.diagrams[layer].includes("iframe"));
+    assertFalse(view.diagrams[layer].includes("onload"));
   }
 });
 

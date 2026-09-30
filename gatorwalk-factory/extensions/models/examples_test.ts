@@ -85,18 +85,41 @@ Deno.test("examples: each passes the holder's validate method, with only the exp
   }
 });
 
-Deno.test("examples: each opens with a comment saying what it is for", async () => {
+Deno.test("examples: each description says what it is for and what to change first", async () => {
   for (const file of await examples()) {
-    const text = await Deno.readTextFile(new URL(file, EXAMPLES));
-    const name = file.replace(/\.yaml$/, "");
+    const doc = parseYaml(
+      await Deno.readTextFile(new URL(file, EXAMPLES)),
+    ) as { description?: unknown };
+    const description = doc.description;
+    assert(typeof description === "string", `${file} has no description`);
     assert(
-      text.startsWith(`# ${name}: `),
-      `${file} does not open with '# ${name}: '`,
+      /\n\nFor\b/.test(description),
+      `${file}'s description does not say what it is for`,
     );
-    assert(/\n# For\b/.test(text), `${file} does not say what it is for`);
     assert(
-      /\n# Change first\b/.test(text),
-      `${file} does not say what to change first`,
+      /\n\nChange first\b/.test(description),
+      `${file}'s description does not say what to change first`,
     );
+  }
+});
+
+// Agents rewrite lifecycle YAML, which drops comments, and the studio and the
+// design page show descriptions, not comments; so what is worth keeping goes
+// in a description, and no lifecycle file carries a comment.
+Deno.test("examples and fixtures: no lifecycle file carries a comment", async () => {
+  const dirs = [
+    EXAMPLES,
+    new URL("../../testdata/lifecycles/", import.meta.url),
+  ];
+  for (const dir of dirs) {
+    for await (const entry of Deno.readDir(dir)) {
+      if (!entry.isFile || !entry.name.endsWith(".yaml")) continue;
+      const text = await Deno.readTextFile(new URL(entry.name, dir));
+      const comments = text.split("\n")
+        .map((line, i) => [i + 1, line] as const)
+        .filter(([, line]) => /^\s*#/.test(line))
+        .map(([n]) => n);
+      assertEquals(comments, [], `${entry.name}: comment lines`);
+    }
   }
 });

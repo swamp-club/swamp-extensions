@@ -209,13 +209,21 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
 // Gates
 // ---------------------------------------------------------------------------
 
+/**
+ * Prose for the lifecycle's authors: why the gate is there. Shown on the
+ * design page and in the studio; no engine path sends it to an agent.
+ */
+const GateDescriptionSchema = z.string().optional();
+
 export const ArtifactExistsGateSchema = z.strictObject({
   type: z.literal("artifact-exists"),
+  description: GateDescriptionSchema,
   config: z.strictObject({ artifact: NameSchema }),
 });
 
 export const ArtifactFreshGateSchema = z.strictObject({
   type: z.literal("artifact-fresh"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     artifact: NameSchema,
     recordedThisCycle: z.boolean().optional(),
@@ -224,6 +232,7 @@ export const ArtifactFreshGateSchema = z.strictObject({
 
 export const FindingsClearGateSchema = z.strictObject({
   type: z.literal("findings-clear"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     artifact: NameSchema,
     blocking: z.array(SeveritySchema).min(1),
@@ -238,6 +247,7 @@ export const FindingsClearGateSchema = z.strictObject({
  */
 export const FindingsOpenGateSchema = z.strictObject({
   type: z.literal("findings-open"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     artifact: NameSchema,
     blocking: z.array(SeveritySchema).min(1),
@@ -251,6 +261,7 @@ export const FindingsOpenGateSchema = z.strictObject({
  */
 export const HumanApprovalGateSchema = z.strictObject({
   type: z.literal("human-approval"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     id: NameSchema,
     minApprovals: z.number().int().positive().optional(),
@@ -304,6 +315,7 @@ const MatchSchema = z.unknown().superRefine((raw, ctx) => {
 
 export const EvidenceRecordedGateSchema = z.strictObject({
   type: z.literal("evidence-recorded"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     name: NameSchema,
     requireField: RequireFieldSchema.optional(),
@@ -315,6 +327,7 @@ export const EvidenceRecordedGateSchema = z.strictObject({
 
 export const CooldownGateSchema = z.strictObject({
   type: z.literal("cooldown"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     afterEvidence: NameSchema.optional(),
     afterArtifact: NameSchema.optional(),
@@ -327,6 +340,7 @@ export const CooldownGateSchema = z.strictObject({
 
 export const MaxCyclesGateSchema = z.strictObject({
   type: z.literal("max-cycles"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     stage: NameSchema,
     limit: z.number().int().positive(),
@@ -336,6 +350,7 @@ export const MaxCyclesGateSchema = z.strictObject({
 
 export const CelGateSchema = z.strictObject({
   type: z.literal("cel"),
+  description: GateDescriptionSchema,
   config: z.strictObject({
     expr: CelExpressionSchema,
     message: z.string().optional(),
@@ -391,6 +406,12 @@ export const WORK_MODES = [
 
 export const WorkSchema = z.strictObject({
   mode: z.enum(WORK_MODES),
+  /**
+   * Prose for the lifecycle's authors: what the work is and why. Shown on the
+   * design page and in the studio; never sent to whoever does the work (that
+   * is systemPrompt and command).
+   */
+  description: z.string().optional(),
   skills: z.array(z.string().min(1)).optional(),
   /** Prose for whoever does the work; may use `{{binding}}` placeholders. */
   systemPrompt: z.string().optional(),

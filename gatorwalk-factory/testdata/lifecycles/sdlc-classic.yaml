@@ -1,7 +1,8 @@
-# plan → review → implement → test → release → UAT, with a cooldown after
-# release and a CEL rule on the UAT report.
 schemaVersion: 1
 name: sdlc-classic
+description: >-
+  plan → review → implement → test → release → UAT, with a cooldown after
+  release and a CEL rule on the UAT report.
 stages:
   - id: planning
     initial: true
@@ -84,9 +85,10 @@ stages:
         ref: evidence["change-request"].payload.branch
       resultEvidence: test-run
     evidence:
-      # Restates the resultEvidence with a stricter contract than the
-      # built-in outcome schema (#897: this pairing is one declaration).
       - name: test-run
+        description: >-
+          Restates the resultEvidence with a stricter contract than the
+          built-in outcome schema (#897: this pairing is one declaration).
         schema:
           type: object
           required: [status, runId, passed, failed]

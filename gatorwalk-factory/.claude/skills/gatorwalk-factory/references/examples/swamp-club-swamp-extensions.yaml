@@ -1,51 +1,49 @@
-# swamp-club-swamp-extensions: a real-world example. A swamp-club Lab issue in
-# the swamp-extensions repository, from triage to the session summary.
-#
-# For reading, not for copying whole: it shows a full process with a
-# tracker, a verification workflow, attestation and pull requests, and it
-# depends on that repository (the agent-constraints/ conventions its prompts
-# cite, the verification/ workflows and its forge). To build one like it,
-# start from starter.yaml and borrow the stages you need.
-#
-# Change first, if you copy it whole: the verify stage's workflow, the
-# pull-request command and the conventions the prompts cite.
-#
-# This is the process swamp-extensions runs with @swamp/issue-lifecycle and
-# agent-constraints/verification-conventions.md, written as a gatorwalk
-# lifecycle. A work item on it drives a Lab issue end to end through the
-# swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue reads
-# the same as one issue-lifecycle drives. issue-lifecycle stays, and drives
-# every other issue: the adapter's claim refuses an issue it already drives.
-# swamp-club-swamp-extensions.md maps every phase, gate and human stop onto
-# this file and lists what the format could not express.
-#
-# The work item never talks to swamp-club itself. The adapter's publish
-# replays its journal to the issue: each stage's projection names the Lab
-# status and the lifecycle entries (issue-lifecycle's step names) its events
-# become, and the classification sets the issue type. attest and notify post
-# the attestation and the contributor's thank-you through the adapter.
-#
-# People decide at: a bug that cannot be reproduced, plan approval, the
-# verification checklist, opening the pull request, what to do after a
-# failed pull request, completing the work early (issue-lifecycle's complete,
-# from attest or merge), and abandoning the work. Every exit past implement is
-# bound to the commit named in change-summary, the commit that was reviewed
-# and verified. Commits are full 40-character SHAs.
-#
-# The CEL vocabulary is in extensions/models/_lib/cel_context.ts. In CEL,
-# evidence["x"] is the latest record of x in the era from any stage, unlike
-# the evidence-recorded gate, which only accepts evidence from the current
-# stage and cycle. implement.submit and attest.attested depend on it.
 schemaVersion: 1
 name: swamp-club-swamp-extensions
-description: >-
-  A swamp-club Lab issue in swamp-extensions, from triage through
-  verification, the pull request and release to the session summary.
+description: |-
+  A real-world example: a swamp-club Lab issue in swamp-extensions, from
+  triage through verification, the pull request and release to the session
+  summary.
+
+  For reading, not for copying whole: it shows a full process with a
+  tracker, a verification workflow, attestation and pull requests, and it
+  depends on that repository (the agent-constraints/ conventions its prompts
+  cite, the verification/ workflows and its forge). To build one like it,
+  start from starter.yaml and borrow the stages you need.
+
+  Change first, if you copy it whole: the verify stage's workflow, the
+  pull-request command and the conventions the prompts cite.
+
+  This is the process swamp-extensions runs with @swamp/issue-lifecycle and
+  agent-constraints/verification-conventions.md, written as a gatorwalk
+  lifecycle. A work item on it drives a Lab issue end to end through the
+  swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue reads
+  the same as one issue-lifecycle drives. issue-lifecycle stays, and drives
+  every other issue: the adapter's claim refuses an issue it already drives.
+  swamp-club-swamp-extensions.md maps every phase, gate and human stop onto
+  this lifecycle and lists what the format could not express.
+
+  The work item never talks to swamp-club itself. The adapter's publish
+  replays its journal to the issue: each stage's projection names the Lab
+  status and the lifecycle entries (issue-lifecycle's step names) its events
+  become, and the classification sets the issue type. attest and notify post
+  the attestation and the contributor's thank-you through the adapter.
+
+  People decide at: a bug that cannot be reproduced, plan approval, the
+  verification checklist, opening the pull request, what to do after a
+  failed pull request, completing the work early (issue-lifecycle's complete,
+  from attest or merge), and abandoning the work. Every exit past implement is
+  bound to the commit named in change-summary, the commit that was reviewed
+  and verified. Commits are full 40-character SHAs.
+
+  The CEL vocabulary is in extensions/models/_lib/cel_context.ts. In CEL,
+  evidence["x"] is the latest record of x in the era from any stage, unlike
+  the evidence-recorded gate, which only accepts evidence from the current
+  stage and cycle. implement.submit and attest.attested depend on it.
 
 stages:
   - id: triage
     initial: true
-    # Five entries, the default, stated as the process's choice; see plan.
     maxCycles: 5
     projection:
       entries:
@@ -65,7 +63,11 @@ stages:
       questions for the person and stops here until it is recorded again with
       their answers. A classification claiming a regression waits for a
       person to approve regression-review. A bug goes to reproduction;
-      anything else to planning.
+      anything else to planning. There is one exit per type, named as
+      issue-lifecycle's classifications are; the confidence check is a gate of
+      its own, so a type mismatch on a sibling exit never shows its message.
+      maxCycles states the default of five entries as the process's choice
+      (see plan).
     work:
       mode: interactive
       systemPrompt: |
@@ -107,9 +109,10 @@ stages:
                 properties: { confidence: { const: low } }
               then:
                 required: [clarifyingQuestions]
-            # A regression is a bug with both sides of the argument and a
-            # verdict.
-            - if:
+            - $comment: >-
+                A regression is a bug with both sides of the argument and a
+                verdict.
+              if:
                 required: [isRegression]
                 properties: { isRegression: { const: true } }
               then:
@@ -120,9 +123,6 @@ stages:
                   - regressionVerdictReasoning
                 properties: { type: { const: bug } }
     transitions:
-      # One exit per type, named as issue-lifecycle's classifications are.
-      # The confidence check is a gate of its own, so a type mismatch on a
-      # sibling exit never shows its message.
       - name: bug
         to: reproduce
         gates:
@@ -135,11 +135,12 @@ stages:
               message: >-
                 a low-confidence classification waits for the person's
                 answers; record it again once they have answered
-          # A person sees the regression evidence, the counter-argument and
-          # the verdict before a regression claim goes on, whichever way the
-          # verdict went. The guard keeps when false, not an error, before a
-          # classification exists or when isRegression is absent.
           - type: human-approval
+            description: >-
+              A person sees the regression evidence, the counter-argument and
+              the verdict before a regression claim goes on, whichever way the
+              verdict went. The guard keeps when false, not an error, before a
+              classification exists or when isRegression is absent.
             config:
               id: regression-review
               when: >-
@@ -255,10 +256,12 @@ stages:
           emoji: "🔄"
           summary: "Plan revised — {{summary}}"
           verbose: true
-    description: Plan the change, following the repository's planning conventions.
-    # Five plans before a person grants another round. triage, plan, implement
-    # and pull-request state the default of 5 as the process's choice, so each
-    # loop has a limit someone chose (swamp-club-swamp-extensions.md, "Cycle limits").
+    description: >-
+      Plan the change, following the repository's planning conventions. Five
+      plans before a person grants another round: triage, plan, implement and
+      pull-request state the default of 5 as the process's choice, so each
+      loop has a limit someone chose (swamp-club-swamp-extensions.md, "Cycle
+      limits").
     maxCycles: 5
     work:
       mode: interactive
@@ -392,8 +395,8 @@ stages:
     description: >-
       Implement the approved plan and commit it. Each pass through
       verification needs a new commit; recheck re-runs it on the same one.
-    # Five commits through verification before a person grants another
-    # round; see plan.
+      Five commits through verification before a person grants another round
+      (see plan).
     maxCycles: 5
     work:
       mode: interactive
@@ -755,8 +758,9 @@ stages:
           step: pr_linked
           emoji: "🔗"
           summary: "PR linked: {{url}}"
-    description: Open the pull request for the attested commit.
-    # Four replacement pull requests before a person grants another; see plan.
+    description: >-
+      Open the pull request for the attested commit. Four replacement pull
+      requests before a person grants another (see plan).
     maxCycles: 5
     work:
       mode: interactive
@@ -990,6 +994,10 @@ stages:
       with issue-lifecycle.
     work:
       mode: interactive
+      description: >-
+        The prUrl binding is only the pull request for the change-summary
+        commit: attest.complete reaches notify with none, or with one from an
+        earlier, failed round.
       systemPrompt: |
         Run the swamp-club adapter's thank_author with the issue, summary
         and prUrl values you are given; leave prUrl out when it is null (no
@@ -1011,8 +1019,6 @@ stages:
       bindings:
         issue: item.externalRefs["swamp-club"]
         summary: artifacts["plan"].payload.summary
-        # Only the pull request for the change-summary commit: attest.complete
-        # reaches notify with none, or with one from an earlier, failed round.
         prUrl: >-
           "pull-request" in evidence && "change-summary" in artifacts &&
           evidence["pull-request"].payload.commit ==

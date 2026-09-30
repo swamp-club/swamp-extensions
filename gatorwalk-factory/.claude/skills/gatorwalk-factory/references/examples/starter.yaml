@@ -1,20 +1,20 @@
-# starter: a general software change, from plan to release. Plan, have the
-# plan reviewed, implement, verify, have the change reviewed, release.
-#
-# For: changes to any codebase. A person approves the plan and the release,
-# and confirms abandoning the work. A review with a blocking finding, or a
-# failed verify, sends the work back. Every check and the release are bound
-# to the commit named in change-summary. Stages project Lab statuses, so a
-# work item can drive a swamp-club issue; drop the projection keys if it
-# will not. For a swamp extension, build-swamp-extension.yaml adds a quality
-# score and a manifest version check.
-#
-# Change first: verify's command (your project's checks), the skills the
-# plan-review and code-review stages load, and release's description (how
-# your project ships).
 schemaVersion: 1
 name: starter
-description: Plan, review the plan, implement, verify, review the change, release.
+description: |-
+  A general software change, from plan to release: plan, review the plan,
+  implement, verify, review the change, release.
+
+  For: changes to any codebase. A person approves the plan and the release,
+  and confirms abandoning the work. A review with a blocking finding, or a
+  failed verify, sends the work back. Every check and the release are bound
+  to the commit named in change-summary. Stages project Lab statuses, so a
+  work item can drive a swamp-club issue; drop the projection keys if it will
+  not. For a swamp extension, build-swamp-extension.yaml adds a quality score
+  and a manifest version check.
+
+  Change first: verify's command (your project's checks), the skills the
+  plan-review and code-review stages load, and release's description (how
+  your project ships).
 
 stages:
   - id: plan
@@ -164,7 +164,7 @@ stages:
                   name: { type: string, minLength: 1 }
                   status: { enum: [passed, failed, skipped] }
                   detail: { type: string }
-          # An overall pass cannot contain a failed result.
+          $comment: An overall pass cannot contain a failed result.
           if:
             properties: { status: { const: passed } }
           then:

@@ -55,10 +55,11 @@ swamp model create @swamp/gatorwalk-factory/lifecycle <holder> --json
 The output's `path` is the holder's definition file. Set its `globalArguments`
 to the lifecycle by editing that file: paste the contents of the closest example
 in [examples/](examples/) (for instance `examples/starter.yaml`) under
-`globalArguments:`, indented, and change what its opening comment says to. Do
-not use `swamp model edit`, which opens an editor, and do not try
-`--global-arg`, which cannot carry a nested lifecycle. swamp does not check the
-lifecycle when the file is saved, so check it:
+`globalArguments:`, indented, and change what its description's "Change first"
+paragraph names; then rewrite the description for your process. Do not use
+`swamp model edit`, which opens an editor, and do not try `--global-arg`, which
+cannot carry a nested lifecycle. swamp does not check the lifecycle when the
+file is saved, so check it:
 
 ```sh
 swamp model method run <holder> validate --log

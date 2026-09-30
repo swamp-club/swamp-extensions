@@ -1,37 +1,35 @@
-# build-swamp-extension: build a swamp extension. Plan it, have the plan
-# reviewed, implement it, check it, have the change reviewed, and release it.
-# build-swamp-extension.md, beside this file, walks one work item through it
-# from start to done.
-#
-# For: a developer building their own swamp extension. For other code,
-# start from starter.yaml.
-#
-# Change first: the release route your repository uses (below), and the
-# skills the plan-review and code-review stages load.
-#
-# It releases one of two ways:
-#
-# - registry-push: `swamp extension push` publishes the extension.
-# - pull-request: a pull request is merged and CI publishes it. A repository
-#   that verifies before a pull request opens (as swamp-extensions does)
-#   records the attestation id.
-#
-# People decide at four points: approving the plan, waiving the quality score,
-# releasing, and abandoning the work. A person can also always send the work
-# back by hand (revise, recheck), so declining an approval never leaves
-# abandon as the only way out. Every check and the release are bound to
-# the commit named in change-summary, which is the commit that was reviewed.
-# Commits are full 40-character SHAs, so the same commit always compares
-# equal.
-#
-# The CEL vocabulary in bindings and cel gates is defined in
-# extensions/models/_lib/cel_context.ts. This lifecycle relies on one rule of
-# it: in CEL, evidence["x"] is the latest record of x in the era from any
-# stage, unlike the evidence-recorded gate, which only accepts evidence from
-# the current stage and cycle. implement.submit depends on it.
 schemaVersion: 1
 name: build-swamp-extension
-description: Build a swamp extension from plan to release.
+description: |-
+  Build a swamp extension from plan to release: plan it, have the plan
+  reviewed, implement it, check it, have the change reviewed, and release it.
+  build-swamp-extension.md, beside this lifecycle, walks one work item through
+  it from start to done.
+
+  For: a developer building their own swamp extension. For other code, start
+  from starter.yaml.
+
+  Change first: the release route your repository uses (below), and the
+  skills the plan-review and code-review stages load.
+
+  It releases one of two ways. registry-push: `swamp extension push`
+  publishes the extension. pull-request: a pull request is merged and CI
+  publishes it; a repository that verifies before a pull request opens (as
+  swamp-extensions does) records the attestation id.
+
+  People decide at four points: approving the plan, waiving the quality score,
+  releasing, and abandoning the work. A person can also always send the work
+  back by hand (revise, recheck), so declining an approval never leaves
+  abandon as the only way out. Every check and the release are bound to the
+  commit named in change-summary, which is the commit that was reviewed.
+  Commits are full 40-character SHAs, so the same commit always compares
+  equal.
+
+  The CEL vocabulary in bindings and cel gates is defined in
+  extensions/models/_lib/cel_context.ts. This lifecycle relies on one rule of
+  it: in CEL, evidence["x"] is the latest record of x in the era from any
+  stage, unlike the evidence-recorded gate, which only accepts evidence from
+  the current stage and cycle. implement.submit depends on it.
 
 stages:
   - id: plan
@@ -214,7 +212,7 @@ stages:
                   name: { type: string, minLength: 1 }
                   status: { enum: [passed, failed, skipped] }
                   detail: { type: string }
-          # An overall pass cannot contain a failed result.
+          $comment: An overall pass cannot contain a failed result.
           if:
             properties: { status: { const: passed } }
           then:

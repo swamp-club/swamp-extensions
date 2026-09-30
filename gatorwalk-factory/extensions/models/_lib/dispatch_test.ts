@@ -200,3 +200,97 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
     packet.problems.join(),
   );
 });
+
+Deno.test("dispatch: no description reaches whoever does the work, in any mode", async () => {
+  // Descriptions are for the lifecycle's authors (the design page, the
+  // studio). Each carries a marker; none may appear in a packet, which is
+  // what the agent reads and what recordDispatch stores.
+  const marker = (where: string) => `DESCRIPTION-MARKER-${where}`;
+  const calls = {
+    interactive: {},
+    dispatch: { skills: ["review"] },
+    workflow: { workflow: { name: "@acme/tests", inputs: { suite: "all" } } },
+    method: {
+      method: { modelIdOrName: "m", methodName: "run", inputs: { n: 1 } },
+    },
+  } as const;
+  for (const [mode, call] of Object.entries(calls)) {
+    const lifecycle = parseLifecycle({
+      schemaVersion: 1,
+      name: "described",
+      description: marker("lifecycle"),
+      stages: [
+        {
+          id: "work",
+          initial: true,
+          description: marker("stage"),
+          work: {
+            mode,
+            description: marker("work"),
+            systemPrompt: "Do {{what}}.",
+            command: "run {{what}}",
+            constraints: "Stay small.",
+            bindings: { what: "item.key" },
+            ...call,
+          },
+          artifacts: [{
+            name: "summary",
+            description: marker("artifact"),
+            schema: {
+              type: "object",
+              description: marker("schema"),
+              $comment: marker("schema-comment"),
+              properties: {
+                text: { type: "string", description: marker("property") },
+              },
+            },
+          }],
+          evidence: [{
+            name: "pr",
+            description: marker("evidence"),
+            schema: { type: "object" },
+          }],
+          transitions: [{
+            name: "finish",
+            to: "done",
+            description: marker("transition"),
+            gates: [{
+              type: "artifact-exists",
+              description: marker("gate"),
+              config: { artifact: "summary" },
+            }],
+          }],
+        },
+        { id: "done", terminal: true, description: marker("terminal") },
+      ],
+      globalTransitions: [{
+        name: "abort",
+        to: "done",
+        description: marker("global"),
+      }],
+    });
+    if (!lifecycle.ok) throw new Error(lifecycle.errors.join("\n"));
+    const store = memoryStore();
+    await startRun(
+      store,
+      lifecycle.value,
+      { key: "wi-1", lifecycleDigest: "sha256:d" },
+      ALICE,
+      testEnv(),
+    );
+    const run = await loadRun(store);
+    assert(run !== null);
+    const packet = buildDispatch(
+      lifecycle.value,
+      run,
+      await buildCelContext(run, store),
+    );
+    assertEquals(packet.mode, mode);
+    assert(packet.ready, packet.problems.join());
+    assertEquals(packet.prompt, "Do wi-1.");
+    assert(
+      !JSON.stringify(packet).includes("DESCRIPTION-MARKER"),
+      `${mode}: ${JSON.stringify(packet)}`,
+    );
+  }
+});

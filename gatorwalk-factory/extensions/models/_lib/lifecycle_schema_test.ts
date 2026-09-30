@@ -571,6 +571,59 @@ Deno.test("gates: references resolve to declared things of the right kind", () =
   );
 });
 
+Deno.test("gates and work: every gate type and work take a description, kept on the parsed lifecycle", () => {
+  const doc = base();
+  push(doc, "stages.0.artifacts", {
+    name: "review",
+    kind: "findings",
+    reviews: "summary",
+  });
+  set(doc, "stages.0.evidence", [{
+    name: "pr",
+    schema: { type: "object" },
+  }]);
+  set(doc, "stages.0.work.description", "Why the work is done here.");
+  const gates = [
+    { type: "artifact-exists", config: { artifact: "summary" } },
+    { type: "artifact-fresh", config: { artifact: "review" } },
+    {
+      type: "findings-clear",
+      config: { artifact: "review", blocking: ["high"] },
+    },
+    {
+      type: "findings-open",
+      config: { artifact: "review", blocking: ["high"] },
+    },
+    { type: "human-approval", config: { id: "sign-off" } },
+    { type: "evidence-recorded", config: { name: "pr" } },
+    { type: "cooldown", config: { afterEvidence: "pr", seconds: 5 } },
+    { type: "max-cycles", config: { stage: "work", limit: 2 } },
+    { type: "cel", config: { expr: "true" } },
+  ].map((g) => ({ ...g, description: `Why ${g.type} is here.` }));
+  set(doc, "stages.0.transitions.0.gates", gates);
+  const result = parseLifecycle(doc);
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  assertEquals(
+    result.value.stages[0].transitions?.[0].gates?.map((g) => g.description),
+    gates.map((g) => g.description),
+  );
+  assertEquals(
+    result.value.stages[0].work?.description,
+    "Why the work is done here.",
+  );
+});
+
+Deno.test("gates and work: a description is a string", () => {
+  const doc = base();
+  set(doc, "stages.0.transitions.0.gates.0.description", 7);
+  set(doc, "stages.0.work.description", ["a", "list"]);
+  assertRejects(
+    doc,
+    "stages.0.transitions.0.gates.0.description",
+    "stages.0.work.description",
+  );
+});
+
 Deno.test("gates: workflow-succeeded is not in the launch library", () => {
   const doc = base();
   set(doc, "stages.0.transitions.0.gates", [{

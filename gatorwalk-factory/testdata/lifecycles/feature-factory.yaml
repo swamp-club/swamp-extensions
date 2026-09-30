@@ -1,7 +1,8 @@
-# plan → adversarial plan review → implement → tests → adversarial code
-# review → done, with loop-backs and human approval at plan and ship.
 schemaVersion: 1
 name: feature-factory
+description: >-
+  plan → adversarial plan review → implement → tests → adversarial code
+  review → done, with loop-backs and human approval at plan and ship.
 stages:
   - id: planning
     initial: true

@@ -57,6 +57,7 @@ export interface GateView {
   human: boolean;
   /** For a human-approval gate with `when`: the condition it applies under. */
   when?: string;
+  description?: string;
 }
 
 export interface TransitionView {
@@ -77,6 +78,7 @@ export interface TransitionView {
 
 export interface WorkView {
   mode: string;
+  description?: string;
   skills: string[];
   /** The workflow, or model.method, a workflow or method stage calls. */
   call?: string;
@@ -151,11 +153,11 @@ function quoted(names: string[]): string {
 }
 
 export function describeGate(gate: GateSpec): GateView {
-  const view = (text: string, human = false): GateView => ({
-    type: gate.type,
-    text,
-    human,
-  });
+  const view = (text: string, human = false): GateView => {
+    const result: GateView = { type: gate.type, text, human };
+    if (gate.description !== undefined) result.description = gate.description;
+    return result;
+  };
   switch (gate.type) {
     case "artifact-exists":
       return view(`artifact '${gate.config.artifact}' is recorded`);
@@ -324,6 +326,7 @@ export function designView(
       if (w.resultEvidence !== undefined) {
         work.resultEvidence = w.resultEvidence;
       }
+      if (w.description !== undefined) work.description = w.description;
       if (w.systemPrompt !== undefined) work.systemPrompt = w.systemPrompt;
       if (w.command !== undefined) work.command = w.command;
       if (w.constraints !== undefined) work.constraints = w.constraints;
@@ -502,6 +505,10 @@ function gatesHtml(t: TransitionView): string {
         g.when !== undefined
           ? ` <span class="when">only when <code>${e(g.when)}</code></span>`
           : ""
+      }${
+        g.description !== undefined
+          ? `<div class="desc">${e(g.description)}</div>`
+          : ""
       }</li>`
     ).join("")
   }</ul>`;
@@ -567,7 +574,10 @@ function workHtml(w: WorkView): string {
   ).filter(([, v]) => v !== undefined).map(([k, v]) =>
     `<details><summary>${k}</summary><pre>${e(v as string)}</pre></details>`
   ).join("");
-  return `<table class="kv"><tbody>${
+  const description = w.description !== undefined
+    ? `<p class="desc">${e(w.description)}</p>`
+    : "";
+  return `${description}<table class="kv"><tbody>${
     rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")
   }</tbody></table>${texts}`;
 }

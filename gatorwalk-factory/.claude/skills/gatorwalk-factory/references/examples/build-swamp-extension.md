@@ -40,7 +40,9 @@ swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 globalArguments:
   schemaVersion: 1
   name: build-swamp-extension
-  description: Build a swamp extension from plan to release.
+  description: |-
+    Build a swamp extension from plan to release: plan it, have the plan
+    ...
   stages:
     - id: plan
       # ... the rest of the lifecycle file, indented under globalArguments

@@ -1,19 +1,21 @@
-# An LLM method produces a plan; a rejected payload is fed back on retry.
 schemaVersion: 1
 name: retry-feedback
+description: >-
+  An LLM method produces a plan; a rejected payload is fed back on retry.
 stages:
   - id: planning
     initial: true
     description: An LLM produces a plan; malformed output is fed back on retry.
     work:
       mode: method
+      description: >-
+        The feedback binding is the whole validation record, null-safe: null
+        on the first attempt, the recorded rejection on a retry.
       method:
         modelIdOrName: "@my/planner"
         methodName: generate
       bindings:
         workItem: item.key
-        # The whole record, null-safe: null on the first attempt, the
-        # recorded rejection on a retry.
         feedback: >-
           "plan" in validations.artifacts ? validations.artifacts["plan"] : null
       resultEvidence: plan-run

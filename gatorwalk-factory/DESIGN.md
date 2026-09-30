@@ -818,6 +818,15 @@ human stops, each stage's handoff (work mode, what it calls, skills, injected
 context, bindings, result evidence, prompts) and products, and the graph
 analysis's findings with their traces (`_lib/design_page.ts`).
 
+**Descriptions, not comments.** The lifecycle, its stages, transitions, gates,
+work, artifacts and evidence each take an optional `description`, and the page
+shows every one. A description is for the lifecycle's authors: no engine path
+sends one to whoever does the work, which gets `systemPrompt`, `command` and
+`constraints` (`dispatch_test.ts` pins this). Lifecycle files carry no YAML
+comments: agents rewrite the YAML, which drops them, and the read-only studio
+and this page show descriptions, not comments. A note inside a payload schema
+uses JSON Schema's own `description` or `$comment`.
+
 **A method, not a report.** A swamp report produces markdown and JSON, is kept
 for 30 days and five versions, and only exists once a run triggers it. The page
 is HTML an author asks for when they want to look, so it is a file the method
