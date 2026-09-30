@@ -687,6 +687,8 @@ The dispatch record held a prompt no subagent saw.
   a running work item. `reset` keeps the pinned copy unless `repin=true` adopts
   the file's current contents.
 
+A third type, the **studio**, only reads: see "The studio server".
+
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
 digest. A repin writes the new copy first and commits the run record last, the
@@ -977,6 +979,93 @@ each out afresh.
 are human stops, drawn as thick arrows. A human-approval gate with `when` is a
 conditional one, shown with its condition, because the graph analysis treats it
 the same way: it may not apply.
+
+## The studio server
+
+**Decision.** The studio is a model type of its own,
+`@swamp/gatorwalk-factory/studio` (`extensions/models/engine/studio.ts`), with
+one instance per repo and one method, `serve`. `serve` runs a web server on
+127.0.0.1 (port 0, a free one, unless `port` says otherwise), logs its URL, and
+runs until swamp aborts the method on Ctrl-C (`ctx.signal`). The page lists
+every factory in the repo and shows its definition file and its scenario files,
+`scenarios/<factory>/<scenario>.yaml`, reloading them as they change
+(`_lib/engine/studio_server.ts`, `studio_watch.ts`, `studio_serve.ts`).
+
+**Its own type, not a factory method.** One studio covers every factory in the
+repo through a picker, rather than one server per factory. It finds the
+factories with the definition repository's `findAllGlobal`, and resolves each
+definition file as the factory does (`resolveDefinitionPath`). It takes only its
+own instance's lock, which `serve` holds while it runs, and never a factory's,
+so `validate`, `new_key` and `start` run while it is open.
+
+**Read-only.** The studio views; it never writes (Seth, 2026-09-30: edits come
+from the agent, and people do not create or edit factory definitions by hand).
+The agent writes the definition and scenario files, and the page reloads them.
+Every route is `GET`; any other method gets 405. No route writes a file or runs
+swamp, a shell or a method.
+
+| Route                                             | Returns                                        |
+| ------------------------------------------------- | ---------------------------------------------- |
+| `GET /`, `/assets/<file>`                         | the page                                       |
+| `GET /api/factories`                              | every factory, with the path it names          |
+| `GET /api/factories/<factory>`                    | the definition file: path, text, digest        |
+| `GET /api/factories/<factory>/scenarios[/<name>]` | the scenario files, listed or one              |
+| `GET /api/events`                                 | server-sent events when a watched file changes |
+
+**Security posture.** Any page in any browser tab can send requests to
+localhost, so the server trusts nothing a request says about where it came from,
+and reveals only files the local account can already read.
+
+| Threat                                       | Control                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Another machine on the network               | Binds 127.0.0.1 only                                                                                                                                                                                                                                      |
+| DNS rebinding (a hostile name for 127.0.0.1) | `Host` must be `127.0.0.1:<port>` or `localhost:<port>`                                                                                                                                                                                                   |
+| Another website reading responses            | A request carrying `Origin` must carry the server's own; a `Sec-Fetch-Site` other than `same-origin` or `none` is refused, except a person opening `/` itself from a link (a top-level document navigation, which the linking page cannot read); no CORS header is ever sent; `Cross-Origin-Resource-Policy: same-origin` and `nosniff` stop no-cors embedding                  |
+| Reading other files (path traversal)         | A request names a factory and a scenario, never a path. The definition path comes from the factory's model definition and must resolve inside the repo; a scenario name must match `NameSchema`, and its real path must sit inside `scenarios/<factory>/` |
+| Scripts from elsewhere                       | CSP `default-src 'self'`, no inline script or style; the fonts are bundled                                                                                                                                                                                |
+
+There is no token or cookie: nothing is written, and the files are ones the
+local account can already read. **If a write route is ever added**, it needs the
+design from the studio proposal first: a one-time token exchanged for an
+`HttpOnly`, `SameSite=Strict` cookie, a custom header on every call, and a write
+that carries the digest the page loaded and is refused on a mismatch.
+
+**Live reload.** The file watch (`Deno.watchFs`) covers the directory of each
+definition file, so an agent's write by rename is seen (before that directory
+exists, the nearest one above it, until it appears); `scenarios/` and each
+factory's directory in it; and the repo root, to see `scenarios/` appear. Every
+watch is one level deep, on a directory whose real path is inside the repo, so
+no symlink leads one out. It follows the factory list each
+time the page reads it, one refresh at a time so a slow one never wins over a
+newer list; a refresh that fails keeps the old watches and the next one retries.
+swamp says nothing when a factory is created or removed, so `serve`
+reads the factory list again every three seconds, and a change sends
+`{ kind: "factories" }`, on which the page lists them again. The watch drops
+paths nobody asked about, coalesces a save's several events, and sends
+`{ kind, factory, name? }` to every open event stream. Deno's server waits for
+open responses when it stops, so the event streams close on the same signal.
+
+**The page is embedded, not beside the module.** The page's source is
+`studio/src/` (plain TypeScript and DOM, grown from the prototype; its tokens
+follow swamp-club's HUD style) with the fonts in `studio/fonts/`.
+`deno task build:studio` bundles it with `deno bundle --platform browser` and
+writes every served file into the generated `_lib/engine/studio_assets.ts`,
+which `serve` serves from. A model added as an extension source runs from
+swamp's bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the
+source module can be found from `import.meta.url`, and `ctx.extensionFile()`
+needs a manifest. Embedding works the same before and after go-live; the
+starters are embedded the same way.
+
+**Fresh by digest.** The generated module records a sha256 of the build's inputs
+(`studio/src`, `studio/fonts`, `studio/build.ts`), and `studio_assets_test`
+recomputes it, so a stale page fails the unit tests. Text inputs are hashed with
+LF line endings, so a checkout that writes CRLF gives the same digest. Rebuilding
+and diffing
+would depend on the Deno version that bundles, which verification does not pin.
+`build.ts` refuses to build if `app.ts` imports anything outside `studio/src`,
+so the digest covers the whole page; Design mode, which imports the engine,
+widens the inputs first. The same test keeps the module well under the
+registry's 976.6 KB file limit.
 
 ## Trackers
 
@@ -1654,6 +1743,21 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: the studio server, read-only, with its page embedded (swamp-club #2806)
+
+**Decision.** A studio model type whose `serve` method runs a read-only local
+server for the studio page. See "The studio server".
+
+**Why.** The issue predates #2785 and #2803, so its `lifecycles/` and holder
+became `factories/` and factories: the definition path is whatever the factory
+names, checked by `resolveDefinitionPath`, and scenarios sit at
+`scenarios/<factory>/`, the location #2805 settled on. Two changes from the
+issue text, both from evidence found in triage. The page is embedded in a
+generated module rather than found beside the model module and shipped as
+`additionalFiles`, because a source-loaded model runs from swamp's bundle
+directory. And the build is checked by a digest of its inputs rather than by
+rebuilding and diffing, because the bundle depends on the Deno version.
 
 ### 2026-09-30: a built-in tracker core; Lab and Linear rebuilt on it (swamp-club #2794)
 

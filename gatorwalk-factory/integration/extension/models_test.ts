@@ -18,6 +18,7 @@ import { assertEquals } from "@std/assert";
 import { BUILTIN_TYPE } from "../../extensions/models/_lib/tracker/backends/builtin.ts";
 import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linear.ts";
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
+import { STUDIO_TYPE } from "../../extensions/models/_lib/engine/studio_server.ts";
 import { FACTORY_TYPE, withRepo, WORK_ITEM_TYPE } from "../harness.ts";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ Deno.test("cli: every model type registers from the extension source", async () 
         BUILTIN_TYPE,
         FACTORY_TYPE,
         LINEAR_TYPE,
+        STUDIO_TYPE,
         SWAMP_CLUB_TYPE,
         WORK_ITEM_TYPE,
       ]

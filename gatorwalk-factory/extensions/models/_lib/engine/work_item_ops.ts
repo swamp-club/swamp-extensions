@@ -282,6 +282,23 @@ export function typeNameOf(type: unknown): string {
 }
 
 /**
+ * The definition path a factory's model definition names in its raw,
+ * unevaluated globalArguments; undefined when it names none. On a remote
+ * worker the definition arrives as a plain object with _globalArguments.
+ */
+export function factoryPathArgument(definition: unknown): string | undefined {
+  const d = definition as {
+    globalArguments?: unknown;
+    _globalArguments?: unknown;
+  };
+  const args = d.globalArguments ?? d._globalArguments;
+  const path = args !== null && typeof args === "object"
+    ? (args as Record<string, unknown>).definition
+    : undefined;
+  return typeof path === "string" ? path : undefined;
+}
+
+/**
  * The repo-relative path of a factory's definition file, from the factory's
  * raw, unevaluated globalArguments, read through the definition repository.
  * On a remote worker the definition arrives as a plain object with
@@ -302,15 +319,8 @@ export async function readFactoryPath(
       `'${name}' is a ${type}, not a factory (${FACTORY_TYPE})`,
     );
   }
-  const definition = found.definition as {
-    globalArguments?: unknown;
-    _globalArguments?: unknown;
-  };
-  const args = definition.globalArguments ?? definition._globalArguments;
-  const path = args !== null && typeof args === "object"
-    ? (args as Record<string, unknown>).definition
-    : undefined;
-  if (typeof path !== "string") {
+  const path = factoryPathArgument(found.definition);
+  if (path === undefined) {
     throw new Error(
       `factory '${name}' does not name its definition file: set its ` +
         `globalArguments to { definition: <repo-relative path> }, e.g. ` +

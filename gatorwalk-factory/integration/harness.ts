@@ -138,6 +138,11 @@ export interface SwampRepo {
   run(key: string): Promise<RunRecord>;
   /** The expectation every write passes back, as CLI strings. */
   expected(key: string): Promise<Record<string, string>>;
+  /**
+   * Start swamp in the repo without waiting for it, for a method that runs
+   * until stopped (the studio's serve). The caller ends it.
+   */
+  spawn(args: string[]): Deno.ChildProcess;
 }
 
 let versionLogged: Promise<void> | undefined;
@@ -260,9 +265,21 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     return parsed.value;
   };
 
+  const spawn: SwampRepo["spawn"] = (args) =>
+    new Deno.Command("swamp", {
+      args,
+      cwd: dir,
+      env: swampEnv(Deno.env.toObject()),
+      clearEnv: true,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).spawn();
+
   return {
     dir,
     swamp,
+    spawn,
     factory: createFactory,
     editFactory: writeFactory,
     factoryMethod: (name, method, options = {}) =>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Gatorwalk Studio</title>
+    <link rel="stylesheet" href="/assets/studio.css">
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="bar">
+        <div class="brand" aria-label="Gatorwalk Studio">
+          <span class="a">GATORWALK</span><span class="b">STUDIO</span><small>READ-ONLY</small>
+        </div>
+        <div class="file">
+          <label for="factory-pick" class="sr-only">Factory</label>
+          <select id="factory-pick"></select>
+          <span class="path" id="factory-path"></span>
+        </div>
+        <div class="health" id="live" role="status" aria-live="polite"></div>
+        <div class="spacer"></div>
+        <span class="flash" id="flash" role="status" aria-live="polite"
+          hidden></span>
+      </header>
+
+      <main class="main">
+        <section class="source" aria-labelledby="source-title">
+          <div class="pane-head">
+            <h2 id="source-title">Factory definition</h2>
+            <span class="digest" id="source-digest"></span>
+          </div>
+          <div class="problem" id="source-error" hidden></div>
+          <pre class="code" id="source-text" tabindex="0"></pre>
+        </section>
+        <aside class="panel" aria-labelledby="scenarios-title">
+          <div class="pane-head">
+            <h2 id="scenarios-title">Scenarios</h2>
+            <span class="dir" id="scenarios-dir"></span>
+          </div>
+          <div class="panel-body">
+            <p class="empty" id="scenarios-empty" hidden></p>
+            <ul class="scenarios" id="scenarios"></ul>
+            <div class="problem" id="scenario-error" hidden></div>
+            <pre class="code small" id="scenario-text" tabindex="0"
+              hidden></pre>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </body>
+</html>

@@ -84,6 +84,12 @@ swamp model method run <factory> design_page --log
 swamp data get <factory> design-page --json
 ```
 
+When a person wants to watch your edits to a factory definition or its
+scenarios, point them at the studio: a read-only local page that reloads each
+file as you save it. They start it themselves, since it runs until Ctrl-C:
+`swamp model create @swamp/gatorwalk-factory/studio studio` once, then
+`swamp model method run studio serve`, which logs the URL.
+
 ## Start a work item
 
 ```sh

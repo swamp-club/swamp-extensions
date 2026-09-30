@@ -70,15 +70,18 @@ groups:
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
       - dir: gatorwalk-factory
         vars:
-          check: extensions/models/ extensions/reports/ integration/ scripts/
-          paths: extensions/models/ extensions/reports/ integration/ scripts/
+          check: extensions/models/ extensions/reports/ integration/ scripts/ studio/
+          paths: extensions/models/ extensions/reports/ integration/ scripts/ studio/
         commands:
           # The skill's markdown is format-checked too. It has its own
           # command because {paths} also feeds lint, which has nothing to
           # lint in a directory of markdown.
-          fmt: deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ .claude/skills/
+          fmt: deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ studio/ .claude/skills/
           # The unit tests only read files and never reach integration/. scripts/
           # holds the lifecycle -> factory codemod (swamp-club #2785) and its test.
+          # studio_assets_test (under extensions/models/) checks the embedded
+          # studio page against its source in studio/ by digest, so a stale
+          # build fails here without rebuilding.
           # --allow-net=127.0.0.1 is for the local fakes of Linear's and
           # swamp-club's APIs the tracker tests serve; nothing reaches a live
           # service.
