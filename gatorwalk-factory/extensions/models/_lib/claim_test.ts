@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { model as linear } from "../linear.ts";
 import { model as swampClub } from "../swamp_club.ts";
@@ -166,7 +166,7 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
     lifecycle: "team",
   });
   const [record] = index(swamp);
-  assert(record.key.startsWith("minimal-"), record.key);
+  assertMatch(record.key, /^minimal-t-1-ticket-[a-z2-7]{4}$/);
   assertEquals(record, {
     tracker: "test",
     issue: "T1",

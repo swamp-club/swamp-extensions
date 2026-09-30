@@ -320,11 +320,10 @@ of its warnings are about loops:
 - **`needs-cycle-override`:** a transition that only a cycle override opens,
   such as an inverted `max-cycles` above the stage's limit.
 
-Loops do not multiply the states the analysis explores, except where an
-inverted `max-cycles` gate counts a stage (see "What the analysis assumes").
-`validate` fails if either pass stops at the 100,000-state cap without
-finishing, because a partial exploration cannot show that the lifecycle is
-sound.
+Loops do not multiply the states the analysis explores, except where an inverted
+`max-cycles` gate counts a stage (see "What the analysis assumes"). `validate`
+fails if either pass stops at the 100,000-state cap without finishing, because a
+partial exploration cannot show that the lifecycle is sound.
 
 ### Measurement
 
@@ -483,8 +482,8 @@ In both passes a gate is judged like this:
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass. So
   is a `human-approval` gate with `when`: it may apply or not.
 
-The count pass keeps only the states that can show something new. Two states
-at the same stage with the same stages entered have passed the same structural
+The count pass keeps only the states that can show something new. Two states at
+the same stage with the same stages entered have passed the same structural
 checks, since those read only which stages were entered. If one has no more
 entries into any stage than the other, every transition open to the other is
 open to it too: an entry below a limit never closes a transition, and a
@@ -883,12 +882,41 @@ schema's own error. On a remote worker that definition arrives as a plain object
 with `_globalArguments`; both shapes are read.
 
 **Keys are gatorwalk's.** swamp cannot generate instance names, so the holder's
-`new_key` generates an unused `<lifecycle>-<8 base32 characters>` key, and the
-work item is created under it. Tracker ids are kept as data (`externalRefs`),
-never as the name. `new_key` logs the key and also records it as the holder's
-`key` data, so a program reads it from `--json` output (`dataArtifacts`) instead
-of parsing log text; it is therefore not a `read` method, and the write takes
-the holder's lock.
+`new_key` generates an unused key from the work's title (a required `title`
+input), and the work item is created under it. A key is how a person refers to a
+work item everywhere (`status`, the summary report, commands, conversation), so
+it says what the work is: `<lifecycle>-<slug>-<suffix>`, for example
+`build-swamp-extension-add-list-method-r2ne`.
+
+- **The slug** is the title with accents removed, lowercased, and split into
+  ASCII letters and digits; every other character is a break, so separators
+  collapse and trim. Stop words (a, an, and, as, at, be, by, for, from, in,
+  into, is, it, of, on, or, the, to, with) are left out unless nothing else is
+  left. Whole words are kept while the key fits; only a first word too long for
+  the room left is cut. A title with nothing left is refused.
+- **The length** is swamp's: an instance name is at most 64 characters matching
+  `^[a-z0-9][a-z0-9_-]*$` (`DEFINITION_NAME_MAX_LENGTH` and
+  `DEFINITION_NAME_PATTERN` in swamp's `src/domain/definitions/definition.ts`).
+  The lifecycle prefix is cut at 55 characters (and any trailing separator
+  dropped), so the slug always keeps at least 3.
+- **The suffix** is 4 random base32 characters, about a million per slug. Only
+  work with the same lifecycle and slug can collide, in practice a ticket
+  claimed again, and a key some definition already has is drawn again.
+- **From a ticket,** `claim` puts the ticket's display id first, all its words
+  kept: `2734-drive-lab-issue` for the Lab's `#2734`, `abc-12-...` for Linear's
+  `ABC-12`. The id there is for reading only (see "Tracker ids are data").
+- **A key never changes.** If the work changes meaning the key stays; a person
+  may abandon the item and start a new one. `start` takes any unused name, so a
+  person may also choose a key by hand.
+- **Not a sequence** (`cue-7`): that needs one counter minted in one place,
+  reuses numbers when a holder is recreated, and reads like a tracker id. **Not
+  calver:** it is long, hard to say, and repeats what the journal records. Order
+  does not matter, since work is often picked up out of order.
+
+`new_key` logs the key and also records it as the holder's `key` data, so a
+program reads it from `--json` output (`dataArtifacts`) instead of parsing log
+text; it is therefore not a `read` method, and the write takes the holder's
+lock.
 
 **Output and failure.** Methods report through the log, as
 `@swamp/issue-lifecycle` does. The CLI shows only a log message's text, never
@@ -1089,11 +1117,14 @@ The contract:
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
   `{"linear": "<issue UUID>", "linear.display": "ABC-1"}` or
-  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`. Neither is ever an
-  instance name. Linear identifiers change when an issue moves team, so Linear
-  keys on the UUID: `comment` and `set_status` refuse an identifier, and
-  `fetch_issue`, which accepts either, reports the UUID and the `externalRefs`
-  to start a work item with.
+  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`. `claim` writes the
+  display id into the key's slug for a person to read, but no code reads it
+  back: `externalRefs` is the only link. A Linear identifier that changes when
+  an issue moves team leaves that slug stale, which is accepted. Linear
+  identifiers change when an issue moves team, so Linear keys on the UUID:
+  `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
+  accepts either, reports the UUID and the `externalRefs` to start a work item
+  with.
 - **Credentials never come from lifecycle data or method inputs.** An adapter's
   credential is a sensitive global argument, which can be wired with
   `${{ vault.get(<vault>, <key>) }}` so swamp resolves it at run time and
@@ -1373,8 +1404,9 @@ work items. A ticket finds its work item without scanning every instance.
 record, and reads the named work item's run through swamp's `readModelData`:
 
 - **No record:** it loads the holder (checked in full), generates a key no
-  definition uses, **writes the record first**, and prints the work-item `start`
-  command with the ticket's `externalRefs`. The driver runs it.
+  definition uses from the ticket's display id and title, **writes the record
+  first**, and prints the work-item `start` command with the ticket's
+  `externalRefs`. The driver runs it.
 - **A record whose key has no run:** a reservation whose start never ran. The
   same key and command are printed again, and the index is not written. A
   different holder is refused.

@@ -199,7 +199,8 @@ export async function claimTicket(
     );
   }
   const lifecycle = await loadHolderLifecycle(ctx, req.lifecycle);
-  const key = await freshKey(ctx, lifecycle.name);
+  // The display id leads the key for reading only; externalRefs is the link.
+  const key = await freshKey(ctx, lifecycle.name, issue.title, issue.display);
   // The index first: a crash before the work item starts leaves a
   // reservation that the next claim hands back.
   const handle = await ctx.writeResource(

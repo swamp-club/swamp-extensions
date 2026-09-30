@@ -235,7 +235,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
   try {
     await withRepo(async (repo) => {
       await repo.holder("projected", projectedDefinition());
-      const key = await repo.newKey("projected");
+      const key = await repo.newKey("projected", "Projected work");
       await repo.workItem(key, "start", {
         lifecycle: "projected",
         externalRefs: JSON.stringify({ linear: ISSUE_UUID }),

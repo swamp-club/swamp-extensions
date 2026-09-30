@@ -57,7 +57,11 @@ Deno.test("linear: meets the tracker adapter contract", async () => {
     await assertTrackerConformance({
       adapter: adapterFor(fake),
       badAuth: adapterFor(fake, "lin_api_wrong"),
-      issue: { id: ISSUE_UUID, display: "GW-16" },
+      issue: {
+        id: ISSUE_UUID,
+        display: "GW-16",
+        slug: "gw-16-linear-adapter",
+      },
       missing: OTHER_UUID,
       statusNames: ["In Progress", "In Review"],
       commentsPosted: () => fake.comments.length,

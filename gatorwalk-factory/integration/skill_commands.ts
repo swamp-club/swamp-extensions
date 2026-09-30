@@ -184,7 +184,7 @@ export async function skillCommands(): Promise<SkillCommand[]> {
 // Values that stand in for placeholders when a command's inputs are checked
 // against its method's schema.
 const SAMPLE: Record<string, string> = {
-  "<key>": "build-swamp-extension-abcdefgh",
+  "<key>": "build-swamp-extension-add-list-method-abcd",
   "<era>": "00000000-0000-0000-0000-000000000000",
   "<holder>": "team",
   "<ticket>": "ABC-1",

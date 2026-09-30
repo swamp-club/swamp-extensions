@@ -120,9 +120,13 @@ export const model = {
       description:
         "Generate an unused work-item key for this lifecycle, to start a work item under",
       // Not a read method: it records the key, under the holder's lock.
-      arguments: z.object({}),
-      execute: (_args: Record<string, never>, context: MethodContextLike) =>
-        newKey(context),
+      arguments: z.object({
+        title: z.string().min(1).describe(
+          "The work's title, slugged into the key",
+        ),
+      }),
+      execute: (args: { title: string }, context: MethodContextLike) =>
+        newKey(context, args.title),
     },
     apply: {
       description:

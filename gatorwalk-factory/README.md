@@ -332,7 +332,9 @@ swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
 swamp model method run team design_page --log    # the lifecycle as a page
 swamp data get team design-page --json | jq -r .content > team.html
-swamp model method run team new_key --log        # prints a work-item key
+# Prints a work-item key made from the title, such as
+# build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
+swamp model method run team new_key --input 'title=Add a list method' --log
 
 # A template holder, applied in place of team's placeholder stage.
 swamp model create @swamp/gatorwalk-factory/template review-plan --json

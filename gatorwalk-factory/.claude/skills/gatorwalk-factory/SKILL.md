@@ -90,8 +90,9 @@ Work-item methods run by type, with the key as the instance:
 
 Holder methods run by instance name:
 `swamp model method run <holder> validate --log` checks a lifecycle in full;
-`swamp model method run <holder> new_key --log` makes a key to start a work item
-under.
+`swamp model method run <holder> new_key --input 'title=<title>' --log` makes a
+key from the work's title to start a work item under; `start` also takes any
+unused name chosen by hand.
 
 Work from a tracker ticket starts through the tracker's adapter instance:
 `swamp model method run <tracker> claim --input issue=<ticket> --input lifecycle=<holder> --log`

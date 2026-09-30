@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { fakeSwamp } from "./fake_swamp.ts";
 import {
   type TrackerAdapter,
@@ -45,8 +45,12 @@ export interface ConformanceFixture {
   adapter: TrackerAdapter;
   /** The same tracker with a credential the fake refuses. */
   badAuth: TrackerAdapter;
-  /** An existing ticket, which starts in neither of `statusNames`. */
-  issue: { id: string; display: string };
+  /**
+   * An existing ticket, which starts in neither of `statusNames`, and the
+   * slug its claimed key carries, written out by hand: its display id's
+   * words, then its title's.
+   */
+  issue: { id: string; display: string; slug: string };
   /** A well-formed stable id of no ticket. */
   missing: string;
   /** Two status names the ticket's team has. */
@@ -201,6 +205,10 @@ export async function assertTrackerConformance(
   const records = swamp.resources.get("tracker")?.get(ticketName(f.issue.id));
   assertEquals(records?.length, 1, "one reservation per ticket");
   assertEquals(records?.[0].issue, f.issue.id);
+  assertMatch(
+    String(records?.[0].key),
+    new RegExp(`^small-${f.issue.slug}-[a-z2-7]{4}$`),
+  );
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   const refs = JSON.stringify({
     [adapter.tracker]: f.issue.id,

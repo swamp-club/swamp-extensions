@@ -49,15 +49,15 @@ Then check it, get a key, and start the work item under that key:
 
 ```sh
 swamp model method run team validate --log
-swamp model method run team new_key --log
+swamp model method run team new_key --input 'title=Add a list method' --log
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
   --input lifecycle=team --log
 ```
 
 ```text
 lifecycle 'build-swamp-extension' in 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
-build-swamp-extension-r2ner2de
-started 'build-swamp-extension-r2ner2de' at stage 'plan' (lifecycle 'build-swamp-extension' from 'team')
+build-swamp-extension-add-list-method-r2ne
+started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (lifecycle 'build-swamp-extension' from 'team')
 ```
 
 ## plan (cycle 1)
@@ -67,7 +67,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
 ```text
-build-swamp-extension-r2ner2de: active at stage 'plan' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> plan-review: not ready: artifact-exists: artifact 'plan' has not been recorded
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: human-approval: awaiting approval 'abandon-confirmation' (0/1) for stage 'plan' cycle 1
@@ -119,7 +119,7 @@ Error: artifact 'plan' was rejected and kept as retry feedback:
 (root): Instance does not have required property "testingStrategy".
 (root): Instance does not have required property "versionBump".
 
-build-swamp-extension-r2ner2de: active at stage 'plan' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
   ...
   work: interactive; dispatches this cycle 1 of 2
   rejected artifact 'plan' (stage 'plan' cycle 1): (root): Instance does not have required property "testingStrategy".; (root): Instance does not have required property "versionBump".
@@ -198,7 +198,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
 ```text
-build-swamp-extension-r2ner2de: active at stage 'plan-review' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
   exit rework -> plan: not ready: cel: rework needs an open critical or high finding
@@ -308,7 +308,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
 ```text
-build-swamp-extension-r2ner2de: active at stage 'implement' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'implement' cycle 1
   expect: --input expectedStage=implement --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> check: ready
   exit recheck -> check (manual): ready
@@ -428,5 +428,5 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 
 ```text
 took 'released' to stage 'done' cycle 1 (finished)
-build-swamp-extension-r2ner2de: terminal at stage 'done' cycle 1
+build-swamp-extension-add-list-method-r2ne: terminal at stage 'done' cycle 1
 ```

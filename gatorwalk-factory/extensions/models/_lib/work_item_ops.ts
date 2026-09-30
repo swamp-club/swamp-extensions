@@ -387,21 +387,97 @@ export async function designPageMethod(
 
 const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 
-/** A fresh work-item key: <lifecycle>-<8 base32 characters>. */
-export function generateKey(lifecycleName: string): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
+// swamp's definition names: at most 64 characters matching
+// ^[a-z0-9][a-z0-9_-]*$ (DEFINITION_NAME_MAX_LENGTH and
+// DEFINITION_NAME_PATTERN in swamp's src/domain/definitions/definition.ts).
+const KEY_MAX_LENGTH = 64;
+// The random tail: 32^4 keys per slug. Only work with the same lifecycle and
+// slug can collide, and freshKey retries when it does.
+const KEY_SUFFIX_LENGTH = 4;
+// Today's cap on the lifecycle prefix, so the slug always keeps at least
+// 64 - 55 - 2 - 4 = 3 characters.
+const KEY_PREFIX_MAX_LENGTH = 55;
+
+// Words a title's slug leaves out. A ticket's display id keeps all its words.
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "in",
+  "into",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with",
+]);
+
+/** Lowercase ASCII words: accents removed, every other character a break. */
+function slugWords(text: string): string[] {
+  return text.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()
+    .split(/[^a-z0-9]+/).filter((w) => w !== "");
+}
+
+/**
+ * A title's slug for a work-item key, at most `budget` characters: an
+ * optional ticket display id's words, then the title's words without stop
+ * words (all of them if nothing else is left), joined by '-'. Whole words are
+ * kept while they fit; a first word longer than the budget is cut.
+ */
+export function keySlug(title: string, budget: number, id = ""): string {
+  const titleWords = slugWords(title);
+  const kept = titleWords.filter((w) => !STOP_WORDS.has(w));
+  const words = [
+    ...slugWords(id),
+    ...(kept.length > 0 ? kept : titleWords),
+  ];
+  if (words.length === 0) {
+    throw new Error(
+      `the title '${title}' has no letters or digits to make a key from; ` +
+        "a key keeps only ASCII letters and digits, with accents removed",
+    );
+  }
+  let slug = words[0].slice(0, budget);
+  for (const word of words.slice(1)) {
+    if (slug.length + 1 + word.length > budget) break;
+    slug += `-${word}`;
+  }
+  return slug;
+}
+
+/** A fresh work-item key: <lifecycle>-<slug>-<4 base32 characters>. */
+export function generateKey(
+  lifecycleName: string,
+  title: string,
+  id = "",
+): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(KEY_SUFFIX_LENGTH));
   const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
-  // Instance names are at most 64 characters.
-  return `${lifecycleName.slice(0, 55)}-${suffix}`;
+  const prefix = lifecycleName.length > KEY_PREFIX_MAX_LENGTH
+    ? lifecycleName.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
+    : lifecycleName;
+  const budget = KEY_MAX_LENGTH - prefix.length - KEY_SUFFIX_LENGTH - 2;
+  return `${prefix}-${keySlug(title, budget, id)}-${suffix}`;
 }
 
 /** A fresh work-item key that no definition uses yet. */
 export async function freshKey(
   ctx: { definitionRepository?: DefinitionLookup },
   lifecycleName: string,
+  title: string,
+  id = "",
 ): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(lifecycleName);
+    const key = generateKey(lifecycleName, title, id);
     if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
       return key;
     }
@@ -409,10 +485,13 @@ export async function freshKey(
   throw new Error("could not find a free work-item key; try again");
 }
 
-/** The holder's new_key method: a key no definition uses yet. */
-export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
+/** The holder's new_key method: a key for the work's title no definition uses yet. */
+export async function newKey(
+  ctx: MethodContextLike,
+  title: string,
+): Promise<MethodOutput> {
   const lifecycle = await loadHolderLifecycle(ctx, selfName(ctx));
-  const key = await freshKey(ctx, lifecycle.name);
+  const key = await freshKey(ctx, lifecycle.name, title);
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
   }

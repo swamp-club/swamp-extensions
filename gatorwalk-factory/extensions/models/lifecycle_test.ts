@@ -14,7 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertRejects,
+  assertThrows,
+} from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
@@ -22,8 +28,10 @@ import {
   APPLIED_NAME,
   DESIGN_PAGE_NAME,
   DESIGN_PAGE_SPEC,
+  freshKey,
   generateKey,
   HOLDER_TYPE,
+  keySlug,
   STAGE_TEMPLATE_TYPE,
 } from "./_lib/work_item_ops.ts";
 import { digestOf } from "./_lib/canonical.ts";
@@ -257,11 +265,16 @@ Deno.test("holder: new_key logs and records an unused key for this lifecycle", a
     type: HOLDER_TYPE,
   });
   const output = await holder.methods.new_key.execute(
-    {},
+    holder.methods.new_key.arguments.parse({
+      title: "Add JSON output to status",
+    }),
     swamp.context("team"),
   );
   const key = String(swamp.logs.at(-1)?.props?.key);
-  assertMatch(key, /^build-swamp-extension-[a-z2-7]{8}$/);
+  assertMatch(
+    key,
+    /^build-swamp-extension-add-json-output-status-[a-z2-7]{4}$/,
+  );
   // The key is also recorded, for programs that read --json output.
   assertEquals(swamp.resources.get("team")?.get("key"), [{ key }]);
   assertEquals(output.dataHandles, [{ version: 1 }]);
@@ -273,10 +286,109 @@ Deno.test("holder: new_key logs and records an unused key for this lifecycle", a
   );
 });
 
-Deno.test("generateKey: fits swamp's instance-name rules", () => {
-  const key = generateKey("x".repeat(80));
-  assert(key.length <= 64);
-  assertMatch(key, /^[a-z0-9][a-z0-9_-]*$/);
+Deno.test("holder: new_key needs a title", () => {
+  assert(!holder.methods.new_key.arguments.safeParse({}).success);
+  assert(!holder.methods.new_key.arguments.safeParse({ title: "" }).success);
+});
+
+Deno.test("keySlug: punctuation and separators become single hyphens", () => {
+  assertEquals(
+    keySlug("  Fix: status's --json output (again)!  ", 58),
+    "fix-status-s-json-output-again",
+  );
+  assertEquals(keySlug("v2.0 / API_v3", 58), "v2-0-api-v3");
+});
+
+Deno.test("keySlug: accents are removed and other scripts dropped", () => {
+  assertEquals(keySlug("Café crème brûlée", 58), "cafe-creme-brulee");
+  assertEquals(keySlug("Straße 日本語 report", 58), "stra-e-report");
+});
+
+Deno.test("keySlug: a title with nothing sluggable is refused", () => {
+  for (const title of ["日本語", "!!! ---", "   "]) {
+    assertThrows(
+      () => keySlug(title, 58),
+      Error,
+      "has no letters or digits to make a key from",
+    );
+  }
+});
+
+Deno.test("keySlug: stop words are dropped, unless nothing else is left", () => {
+  assertEquals(
+    keySlug("Add the JSON output to the status of a run", 58),
+    "add-json-output-status-run",
+  );
+  assertEquals(keySlug("To be or not to be", 58), "not");
+  assertEquals(keySlug("To be or to be", 58), "to-be-or-to-be");
+});
+
+Deno.test("keySlug: a display id leads and keeps every word", () => {
+  assertEquals(
+    keySlug("Drive a Lab issue", 58, "#2734"),
+    "2734-drive-lab-issue",
+  );
+  assertEquals(keySlug("Fix the build", 58, "OR-12"), "or-12-fix-build");
+  // The id alone is enough when the title slugs to nothing.
+  assertEquals(keySlug("日本語", 58, "#7"), "7");
+});
+
+Deno.test("keySlug: a long title is cut at a word boundary", () => {
+  const title = "Implement retries with exponential backoff for every " +
+    "outbound HTTP call the tracker adapters make";
+  const slug = keySlug(title, 30);
+  assertEquals(slug, "implement-retries-exponential");
+  assert(slug.length <= 30);
+  // A first word longer than the budget is cut mid-word.
+  assertEquals(keySlug("Supercalifragilistic", 5), "super");
+});
+
+Deno.test("generateKey: fits swamp's instance-name rules with a long lifecycle name", () => {
+  const title = "Implement retries with exponential backoff for every call";
+  for (const lifecycle of ["team", "x".repeat(50), "x".repeat(80)]) {
+    const key = generateKey(lifecycle, title);
+    assert(key.length <= 64, key);
+    assertMatch(key, /^[a-z0-9][a-z0-9_-]*$/);
+    assertMatch(key, /-[a-z2-7]{4}$/);
+  }
+  // The lifecycle name stays whole when it fits.
+  assertMatch(
+    generateKey("team", title),
+    /^team-implement-retries-exponential-backoff-every-call-[a-z2-7]{4}$/,
+  );
+  // An 80-character name is cut to 55, leaving 3 characters of slug.
+  assertMatch(generateKey("x".repeat(80), title), /^x{55}-imp-[a-z2-7]{4}$/);
+  // A cut name never ends in a separator, so none doubles.
+  assertMatch(
+    generateKey(`${"x".repeat(54)}-${"y".repeat(10)}`, title),
+    /^x{54}-impl-[a-z2-7]{4}$/,
+  );
+});
+
+Deno.test("freshKey: retries a key another definition has, and gives up after five", async () => {
+  const seen: string[] = [];
+  const takenFirst = (taken: number) => ({
+    definitionRepository: {
+      findByNameGlobal: (name: string) => {
+        seen.push(name);
+        return Promise.resolve(
+          seen.length <= taken ? { definition: {}, type: "x" } : null,
+        );
+      },
+    },
+  });
+  const key = await freshKey(takenFirst(2), "team", "Fix the build");
+  assertEquals(seen.length, 3);
+  assertEquals(key, seen[2]);
+  assertMatch(key, /^team-fix-build-[a-z2-7]{4}$/);
+
+  seen.length = 0;
+  await assertRejects(
+    () => freshKey(takenFirst(5), "team", "Fix the build"),
+    Error,
+    "could not find a free work-item key",
+  );
+  assertEquals(seen.length, 5);
 });
 
 Deno.test("holder: validate refuses a definition of another type", async () => {

@@ -78,15 +78,19 @@ swamp data get <holder> design-page --json
 ## Start a work item
 
 ```sh
-swamp model method run <holder> new_key --log
+swamp model method run <holder> new_key --input 'title=<title>' --log
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
   --input lifecycle=<holder> --log
 ```
 
-`new_key` prints an unused key such as `build-swamp-extension-r2ner2de`. Use it
-as the work item's name from then on. To link a tracker ticket, pass
-`externalRefs` as a JSON object mapping tracker to id. The key never carries the
-ticket id.
+`new_key` prints an unused key made from the work's title, such as
+`build-swamp-extension-add-list-method-r2ne`: the lifecycle name, a slug of the
+title, and a short random suffix. Use it as the work item's name from then on;
+it does not change if the work does. A title with no ASCII letters or digits is
+refused. `start` takes any unused name, so a person may choose a key by hand
+instead. To link a tracker ticket, pass `externalRefs` as a JSON object mapping
+tracker to id; the code links a work item to a ticket only through
+`externalRefs`.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
@@ -110,8 +114,10 @@ answers in one of three ways:
 
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
-  Run the printed `start` command exactly as printed; it carries the ticket's
-  `externalRefs`.
+  The key's slug starts with the ticket's display id, then its title (Lab:
+  `<lifecycle>-2734-drive-lab-issue-k3xq`; Linear: `<lifecycle>-abc-12-...`),
+  for reading only. Run the printed `start` command exactly as printed; it
+  carries the ticket's `externalRefs`.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.

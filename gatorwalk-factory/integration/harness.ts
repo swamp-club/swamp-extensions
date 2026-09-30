@@ -131,8 +131,8 @@ export interface SwampRepo {
     inputs?: Record<string, string>,
     options?: { allowFailure?: boolean },
   ): Promise<SwampResult>;
-  /** Generate a key with the holder's new_key. */
-  newKey(holder: string): Promise<string>;
+  /** Generate a key for a title with the holder's new_key. */
+  newKey(holder: string, title: string): Promise<string>;
   /** A stored record's content, the latest version unless one is given. */
   data(
     instance: string,
@@ -297,7 +297,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
         ],
         options,
       ),
-    async newKey(holder) {
+    async newKey(holder, title) {
       // The key record new_key writes, as this call's --json output lists
       // it, rather than the log text, whose format is swamp's to change.
       const { stdout } = await swamp([
@@ -306,6 +306,8 @@ async function openRepo(dir: string): Promise<SwampRepo> {
         "run",
         holder,
         "new_key",
+        "--input",
+        `title=${title}`,
         "--json",
       ]);
       const { dataArtifacts = [] } = JSON.parse(stdout) as {
