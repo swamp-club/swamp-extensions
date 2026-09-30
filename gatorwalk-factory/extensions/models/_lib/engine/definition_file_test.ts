@@ -17,6 +17,7 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import {
   readDefinitionFile,
+  readScenarioFiles,
   resolveDefinitionPath,
   writeNewDefinitionFile,
 } from "./definition_file.ts";
@@ -160,4 +161,60 @@ Deno.test("definition file: a new file is written with its directories, never ov
     Error,
     "'plain/new.yaml' cannot be created: /repo/plain is not a directory",
   );
+});
+
+// --- saved scenarios -----------------------------------------------------------
+
+Deno.test("scenario files: none without a directory; YAML files in name order, each parsed or with its error", async () => {
+  const r = repo();
+  assertEquals(await readScenarioFiles(r.dir, "team", r.files), []);
+  r.write("scenarios/team/b.yml", "scenario: b\n");
+  r.write("scenarios/team/a.yaml", "scenario: a\n");
+  r.write("scenarios/team/notes.md", "# not a scenario\n");
+  r.write("scenarios/team/c.yaml", "steps: [");
+  r.write("scenarios/team/d.yaml/x", "");
+  r.write("/elsewhere/e.yaml", "scenario: e\n");
+  r.symlink("scenarios/team/e.yaml", "/elsewhere/e.yaml");
+  r.symlink("scenarios/team/f.yaml", "nothing.yaml");
+  r.write("scenarios/other/z.yaml", "scenario: z\n");
+  const files = await readScenarioFiles(r.dir, "team", r.files);
+  assertEquals(
+    files.map((f) => [f.path, f.ok ? f.raw : f.error.split(":")[0]]),
+    [
+      ["scenarios/team/a.yaml", { scenario: "a" }],
+      ["scenarios/team/b.yml", { scenario: "b" }],
+      ["scenarios/team/c.yaml", "is not valid YAML"],
+      ["scenarios/team/d.yaml", "is not a file"],
+      [
+        "scenarios/team/e.yaml",
+        "resolves outside the repo (to /elsewhere/e.yaml)",
+      ],
+      ["scenarios/team/f.yaml", "is a symlink to nothing"],
+    ],
+  );
+});
+
+Deno.test("scenario files: a directory outside the repo, or not a directory, is refused", async () => {
+  const r = repo();
+  r.write("/elsewhere/x.yaml", "scenario: x\n");
+  r.symlink("scenarios/team", "/elsewhere");
+  await assertRejects(
+    () => readScenarioFiles(r.dir, "team", r.files),
+    Error,
+    "scenarios directory 'scenarios/team' resolves outside the repo " +
+      "(to /elsewhere)",
+  );
+  r.write("scenarios/solo", "a file");
+  await assertRejects(
+    () => readScenarioFiles(r.dir, "solo", r.files),
+    Error,
+    "scenarios directory 'scenarios/solo' is not a directory",
+  );
+  for (const name of ["", ".", "..", "a/b", "a\\b"]) {
+    await assertRejects(
+      () => readScenarioFiles(r.dir, name, r.files),
+      Error,
+      "is not a directory name",
+    );
+  }
 });

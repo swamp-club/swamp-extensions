@@ -1,0 +1,59 @@
+scenario: walk-to-attest
+factory: swamp-club-swamp-extensions
+description: >-
+  A feature walks to attest through the real gates, verified at one commit.
+  The complete exits and their refusals are checked on this run in code.
+externalRefs: { swamp-club: "2734", swamp-club.display: "#2734" }
+steps:
+  - record: { evidence: classification }
+    payload: {
+      type: feature,
+      confidence: high,
+      reasoning: A new exit,
+      isRegression: false,
+    }
+  - move: feature
+  - record: { artifact: plan }
+    payload:
+      summary: Fix the retry
+      scopeAnalysis: Vault extension; one file
+      steps: [{ order: 1, description: Retry on 503, files: [x.ts] }]
+      testingStrategy: A failing test against a mock server
+      potentialChallenges: []
+  - move: submit
+  - record: { artifact: plan-review }
+    payload:
+      findings:
+        - id: ADV-1
+          severity: low
+          category: test-fidelity
+          description: Naming
+  - approve: plan-approval
+  - move: approve
+  - record: { artifact: change-summary }
+    payload:
+      summary: Retry on 503
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      branch: fix-retry
+      files: [x.ts]
+  - move: submit
+  - record: { artifact: conformance }
+    payload:
+      steps:
+        - order: 1
+          status: deviated
+          description: Retry on 5xx
+          justification: 502 fails the same way
+  - move: conforms
+  - record: { evidence: verification }
+    payload:
+      status: succeeded
+      runId: w1
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      buildStatus: succeeded
+      buildRunId: b1
+      reviewsStatus: succeeded
+      reviewsRunId: v1
+  - approve: checklist-confirmed
+  - move: passed
+  - expect: { stage: attest }

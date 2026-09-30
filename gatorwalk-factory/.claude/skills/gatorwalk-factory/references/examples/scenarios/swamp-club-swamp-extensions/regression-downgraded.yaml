@@ -1,0 +1,22 @@
+scenario: regression-downgraded
+factory: swamp-club-swamp-extensions
+description: >-
+  A regression claim waits for regression-review whatever its verdict; this
+  one is downgraded, so it records the effective flag, false, and is still
+  reviewed: the gate keys on the verdict.
+steps:
+  - record: { evidence: classification }
+    payload:
+      type: bug
+      confidence: high
+      reasoning: The retry stopped firing
+      isRegression: false
+      regressionEvidence: Passed at 2026.09.20.1
+      regressionCounterEvidence: The test never covered 503
+      regressionVerdict: downgraded
+      regressionVerdictReasoning: A bisect lands on the refactor
+  - move: bug
+    expect: { refused: "awaiting approval 'regression-review'" }
+  - approve: regression-review
+  - move: bug
+  - expect: { stage: reproduce }

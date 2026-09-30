@@ -55,6 +55,7 @@ extensions/models/
       dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
       gates.ts              gate evaluation and transition readiness
       graph.ts              graph analysis of a definition
+      scenario.ts           saved scenarios: the file format and the runner
       design_page.ts        a definition as a static HTML page
       work_item_ops.ts      the methods of the factory and work-item types
       tracker.ts            the engine as tracker code sees it (the seam)
@@ -84,10 +85,11 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
     skill_commands.ts     the skill's commands, pulled out to check and run
 .claude/skills/gatorwalk-factory/
   SKILL.md                the skill: how an agent drives a work item
-  references/             driving in full
+  references/             driving in full, and saved scenarios (scenarios.md)
     examples/             the example definitions to start from, a worked
                           example, and the swamp-club-swamp-extensions
                           mapping (a .md)
+      scenarios/          each example's saved scenarios, by example
 testdata/
   factories/             software-factory's examples, ported
 ```
@@ -191,7 +193,8 @@ gatorwalk-factory ships no factory definition of its own. The skill carries
 examples to copy into a factory and change, under
 `.claude/skills/gatorwalk-factory/references/examples/`, so they reach every
 agent the skill is installed for. Each opens with a comment saying what it is
-for and what to change first, and each passes `validate`
+for and what to change first, and each passes `validate` with its saved
+scenarios, under `examples/scenarios/<example>/`
 (`extensions/models/engine/examples_test.ts`):
 
 - `minimal.yaml`: one stage of work, then done.
@@ -265,6 +268,65 @@ a Linear instance maps them to its team's names.
 `swamp-club-swamp-extensions.md` is not a factory definition. It maps every
 phase, gate and human stop of today's process onto the format, and lists what
 the format could not express.
+
+## Saved scenarios
+
+A saved scenario is a known path through a factory, written down so a change to
+the factory definition that breaks it fails `validate`. Each is a YAML file at
+`scenarios/<factory>/<scenario>.yaml` under the repo root, where `<factory>` is
+the factory's name (`team`), not its definition's. `validate` runs every one on
+the real engine, in process against an in-memory store, and fails naming each
+step that did not do what its scenario said. An agent writes them (the skill's
+`references/scenarios.md`); nothing else creates them.
+
+```yaml
+scenario: plan-waits-for-approval
+factory: team
+description: A reviewed plan waits for a person's approval, then goes on to implement.
+externalRefs: { swamp-club: "2805" }
+steps:
+  - record: { artifact: plan }
+    payload:
+      summary: Add list
+      steps: [{ description: Add list, files: [x.ts] }]
+      testingStrategy: Unit tests
+      versionBump: { needed: true, reason: New method }
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [] }
+  - move: approve
+    expect: { refused: "awaiting approval 'plan-approval'" }
+  - wait: 1800
+    note: The person reads the plan and the review
+  - approve: plan-approval
+  - move: approve
+  - expect: { stage: implement }
+```
+
+(for a factory `team` whose definition is `build-swamp-extension.yaml`).
+
+One engine call per step:
+
+- `record: { artifact: <name> }` or `record: { evidence: <name> }`, with
+  `payload`: record a product.
+- `approve: <gate id>`, `decline: <gate id>`: a person's decision.
+- `move: <transition>`: take a transition; `manual: true` is a person's go for
+  a manual one.
+- `override: { stage, note }`: a person grants one more entry into a stage past
+  its cycle limit.
+- `wait: <seconds>`: time passes on the scenario's clock.
+- `expect: { stage: <stage> }`, as a step of its own: the work item must be at
+  that stage.
+
+Any step but a wait can carry `expect: { refused: "<text>" }`: the step must be
+refused, and the reason must contain the text (`""` accepts any refusal). That
+pins gate messages. A step can also carry a `note`.
+
+The clock moves one second per engine reading, plus each `wait`. Records and
+automatic moves are an agent's; approvals, declines, overrides and manual moves
+are a person's. The `factory` key must match the directory, so a scenario copied
+from an example needs it changed. See [DESIGN.md](DESIGN.md), "Saved
+scenarios".
 
 ## Developing
 

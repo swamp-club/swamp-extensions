@@ -139,6 +139,18 @@ export function memoryRepo(dir = "/repo"): MemoryRepo {
       });
       return Promise.resolve();
     },
+    readDir: (path) => {
+      try {
+        const at = real(path);
+        if (entries.get(at)?.kind !== "dir") throw notFound(path);
+        const names = [...entries.keys()]
+          .filter((p) => p !== at && posix.dirname(p) === at)
+          .map((p) => posix.basename(p));
+        return Promise.resolve(names);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
   };
   mkdirs(posix.join(dir, ".swamp"));
   return {

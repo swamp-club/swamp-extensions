@@ -31,6 +31,10 @@ definitions is not covered yet.
   `swamp-club-swamp-extensions.yaml` is a real repository's process, to read
   rather than copy whole. Each factory definition's description says what it is
   for and what to change first.
+- Saved scenarios, the paths `validate` checks a factory still allows: write one
+  to `scenarios/<factory>/<scenario>.yaml` when you change a factory definition
+  or the person names a path to keep, then run `validate`. The format:
+  [references/scenarios.md](references/scenarios.md)
 
 ## Rules
 
@@ -98,9 +102,10 @@ Work-item methods run by type, with the key as the instance:
 
 Factory methods run by instance name:
 `swamp model method run <factory> validate --log` checks a factory definition in
-full; `swamp model method run <factory> new_key --input 'title=<title>' --log`
-makes a key from the work's title to start a work item under; `start` also takes
-any unused name chosen by hand.
+full and runs its saved scenarios in `scenarios/<factory>/`;
+`swamp model method run <factory> new_key --input 'title=<title>' --log` makes a
+key from the work's title to start a work item under; `start` also takes any
+unused name chosen by hand.
 
 Work from a tracker ticket starts through the tracker's adapter instance:
 `swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory> --log`

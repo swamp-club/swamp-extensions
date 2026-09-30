@@ -35,23 +35,14 @@ import {
   evaluateCel,
 } from "../_lib/engine/cel_context.ts";
 import { buildDispatch } from "../_lib/engine/dispatch.ts";
-import { makeGateEvaluator } from "../_lib/engine/gates.ts";
 import { analyzeDefinition } from "../_lib/engine/graph.ts";
+import type { RunRecord } from "../_lib/engine/run_record.ts";
+import { loadRun, type RunStore } from "../_lib/engine/run_store.ts";
 import {
-  advance,
-  type Env,
-  expectedOf,
-  grantOverride,
-  recordApproval,
-} from "../_lib/engine/run_ops.ts";
-import {
-  loadRun,
-  memoryStore,
-  recordProduct,
-  startRun,
-  update,
-} from "../_lib/engine/run_store.ts";
-import { expectNow, testEnv } from "../_lib/engine/test_support.ts";
+  parseScenario,
+  runScenario,
+  type ScenarioResult,
+} from "../_lib/engine/scenario.ts";
 
 // ---------------------------------------------------------------------------
 // The example factory definitions the skill ships, under its
@@ -71,6 +62,30 @@ async function load(file: string): Promise<FactoryDefinition> {
     throw new Error(`${file} is invalid:\n${result.errors.join("\n")}`);
   }
   return result.value;
+}
+
+// The walks through each example are its saved scenarios, under
+// references/examples/scenarios/<example>/, which validate runs (see
+// examples_test.ts). What stays here inspects CEL results on the run a
+// scenario leaves.
+const SCENARIOS = new URL("scenarios/", DEFINITIONS);
+
+/** Run a saved scenario, which must pass, and return the run it leaves. */
+async function scenario(
+  definition: FactoryDefinition,
+  example: string,
+  name: string,
+): Promise<{ result: ScenarioResult; run: RunRecord; store: RunStore }> {
+  const file = `${example}/${name}.yaml`;
+  const parsed = parseScenario(
+    parseYaml(await Deno.readTextFile(new URL(file, SCENARIOS))),
+  );
+  if (!parsed.ok) throw new Error(`${file}:\n${parsed.errors.join("\n")}`);
+  const result = await runScenario(definition, parsed.value);
+  assertEquals(result.failures, [], file);
+  const run = await loadRun(result.store);
+  assert(run !== null);
+  return { result, run, store: result.store };
 }
 
 function stage(definition: FactoryDefinition, id: string): StageSpec {
@@ -98,7 +113,6 @@ function evidenceSchema(
   throw new Error(`no evidence schema '${name}'`);
 }
 
-const STARTER = "starter.yaml";
 const BUILD = "build-swamp-extension.yaml";
 const SWX = "swamp-club-swamp-extensions.yaml";
 
@@ -402,108 +416,18 @@ Deno.test("build-swamp-extension: release evidence, by route", async () => {
 });
 
 Deno.test("build-swamp-extension: a run walks plan to release through the real gates, and every CEL expression evaluates on it", async () => {
-  // The schema only syntax-checks CEL. This drives a real run through the
-  // runtime and the real gate evaluator, recording each product on the
-  // stage that declares it and each approval the gates need, then evaluates
-  // every binding and cel gate against the context the runtime builds. It
-  // shows every gate on the path can pass on a realistic run, and catches
-  // expressions cel-js parses but cannot run (has() on an indexed path).
+  // The schema only syntax-checks CEL. The plan-to-release scenario drives a
+  // real run through the runtime and the real gate evaluator, recording each
+  // product on the stage that declares it and each approval the gates need;
+  // this evaluates every binding and cel gate against the context the
+  // runtime builds on it. It catches expressions cel-js parses but cannot
+  // run (has() on an indexed path).
   const definition = await load(BUILD);
-  const store = memoryStore();
-  const env = testEnv();
-  const actor = { principal: "user:alice", source: "platform" as const };
-  await startRun(
-    store,
+  const { run, store } = await scenario(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
-    actor,
-    env,
+    "build-swamp-extension",
+    "plan-to-release",
   );
-  const record = async (
-    kind: "artifact" | "evidence",
-    name: string,
-    payload: Record<string, unknown>,
-  ) => {
-    const result = await recordProduct(
-      store,
-      definition,
-      await expectNow(store),
-      kind,
-      name,
-      payload,
-      actor,
-      env,
-    );
-    assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
-  };
-  const gates = makeGateEvaluator(definition, store, env);
-  const move = async (transition: string) => {
-    const result = await update(store, (run) =>
-      advance(
-        run,
-        definition,
-        expectedOf(run),
-        { transition },
-        gates,
-        actor,
-        env,
-      ));
-    assert(result.ok, result.ok ? "" : result.reason);
-  };
-  const approve = async (gateId: string) => {
-    const result = await update(store, (run) =>
-      recordApproval(
-        run,
-        definition,
-        expectedOf(run),
-        { gateId, decision: "approve" },
-        actor,
-        env,
-      ));
-    assert(result.ok, result.ok ? "" : result.reason);
-  };
-  await record("artifact", "plan", {
-    summary: "Add list",
-    steps: [{ description: "Add list", files: ["x.ts"] }],
-    testingStrategy: "Unit tests",
-    versionBump: { needed: true, reason: "New method" },
-  });
-  await move("submit");
-  await record("artifact", "plan-review", {
-    findings: [{ id: "F1", severity: "low", description: "Naming" }],
-  });
-  await approve("plan-approval");
-  await move("approve");
-  await record("artifact", "change-summary", {
-    summary: "Added list",
-    commit: SHA,
-    files: ["x.ts"],
-    manifestVersion: "2026.09.28.1",
-  });
-  await move("submit");
-  await record("evidence", "checks", {
-    commit: SHA,
-    status: "passed",
-    results: [{ name: "test", status: "passed" }],
-  });
-  await record("evidence", "quality", {
-    commit: SHA,
-    status: "passed",
-    allPassed: true,
-  });
-  await move("passed");
-  await record("artifact", "code-review", { findings: [] });
-  await approve("release-approval");
-  await move("accept");
-  await record("evidence", "release", {
-    via: "registry-push",
-    commit: SHA,
-    url: "https://swamp-club.com/extensions/@me/thing",
-    version: "2026.09.28.1",
-  });
-
-  const run = await loadRun(store);
-  assert(run !== null);
   assertEquals(run.stage, "release");
   const context = await buildCelContext(run, store);
   const results = new Map<string, Json>();
@@ -539,164 +463,11 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
   assertEquals(results.get("implement.submit"), false);
 });
 
-Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at the cycle limit, and continues after an override", async () => {
-  const definition = await load(BUILD);
-  const store = memoryStore();
-  const env = testEnv();
-  const actor = { principal: "user:alice", source: "platform" as const };
-  await startRun(
-    store,
-    definition,
-    { key: "wi-2", definitionDigest: "sha256:l" },
-    actor,
-    env,
-  );
-  const gates = makeGateEvaluator(definition, store, env);
-  await recordProduct(
-    store,
-    definition,
-    await expectNow(store),
-    "artifact",
-    "plan",
-    {
-      summary: "s",
-      steps: [{ description: "d", files: [] }],
-      testingStrategy: "t",
-      versionBump: { needed: false, reason: "none" },
-    },
-    actor,
-    env,
-  );
-  const move = (transition: string, manualConfirmed = false) =>
-    update(
-      store,
-      (run) =>
-        advance(
-          run,
-          definition,
-          expectedOf(run),
-          { transition, manualConfirmed },
-          gates,
-          actor,
-          env,
-        ),
-    );
-  // plan is entered once at start; each revise enters it again. maxCycles
-  // defaults to 5, so the fifth revise is refused.
-  for (let i = 0; i < 4; i++) {
-    assert((await move("submit")).ok);
-    const revised = await move("revise", true);
-    assert(revised.ok, revised.ok ? "" : revised.reason);
-  }
-  assert((await move("submit")).ok);
-  const stalled = await move("revise", true);
-  assert(
-    !stalled.ok && stalled.reason.includes("cycle override for 'plan'"),
-    stalled.ok ? "" : stalled.reason,
-  );
-  const granted = await update(
-    store,
-    (run) =>
-      grantOverride(
-        run,
-        definition,
-        expectedOf(run),
-        { kind: "cycle", stage: "plan", note: "one more pass" },
-        actor,
-        env,
-      ),
-  );
-  assert(granted.ok);
-  const continued = await move("revise", true);
-  assert(continued.ok, continued.ok ? "" : continued.reason);
-  assertEquals((await loadRun(store))?.entries.plan, 6);
-});
-
 // --- swamp-club-swamp-extensions ---------------------------------------------
 
 const SHA_2 = "8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde";
 const PR_URL =
   "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346";
-
-/** A clock the test moves: one second per reading, and wait() jumps ahead. */
-function movableEnv(): { env: Env; wait: (seconds: number) => void } {
-  let ms = Date.UTC(2026, 8, 28, 12, 0, 0);
-  let era = 0;
-  return {
-    env: {
-      now: () => new Date(ms += 1000).toISOString(),
-      newEra: () => `era-${++era}`,
-    },
-    wait: (seconds) => {
-      ms += seconds * 1000;
-    },
-  };
-}
-
-/** Record, approve and advance on a fresh run, through the real gates. */
-async function drive(definition: FactoryDefinition, env: Env) {
-  const store = memoryStore();
-  const actor = { principal: "user:alice", source: "platform" as const };
-  await startRun(
-    store,
-    definition,
-    // A Lab issue, as a claimed work item has: notify binds it.
-    {
-      key: "wi-swx",
-      definitionDigest: "sha256:l",
-      externalRefs: { "swamp-club": "2734", "swamp-club.display": "#2734" },
-    },
-    actor,
-    env,
-  );
-  const gates = makeGateEvaluator(definition, store, env);
-  return {
-    store,
-    record: async (
-      kind: "artifact" | "evidence",
-      name: string,
-      payload: Record<string, unknown>,
-    ) => {
-      const result = await recordProduct(
-        store,
-        definition,
-        await expectNow(store),
-        kind,
-        name,
-        payload,
-        actor,
-        env,
-      );
-      assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
-    },
-    approve: async (gateId: string) => {
-      const result = await update(store, (run) =>
-        recordApproval(
-          run,
-          definition,
-          expectedOf(run),
-          { gateId, decision: "approve" },
-          actor,
-          env,
-        ));
-      assert(result.ok, result.ok ? "" : result.reason);
-    },
-    /** Take a transition; returns the refusal reason, or null. */
-    tryMove: async (transition: string, manualConfirmed = false) => {
-      const result = await update(store, (run) =>
-        advance(
-          run,
-          definition,
-          expectedOf(run),
-          { transition, manualConfirmed },
-          gates,
-          actor,
-          env,
-        ));
-      return result.ok ? null : result.reason;
-    },
-  };
-}
 
 const SWX_PLAN = {
   summary: "Fix the retry",
@@ -851,37 +622,6 @@ Deno.test("swamp-club-swamp-extensions: triage has one exit per type, and none w
     ),
     [],
   );
-});
-
-Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and medium through and holds low", async () => {
-  const definition = await load(SWX);
-  for (const type of ["bug", "feature", "platform", "security"]) {
-    const low = await drive(definition, movableEnv().env);
-    await low.record("evidence", "classification", {
-      type,
-      confidence: "low",
-      reasoning: "Unsure",
-      isRegression: false,
-      clarifyingQuestions: ["Which is it?"],
-    });
-    for (const exit of ["bug", "feature", "platform", "security"]) {
-      const refused = await low.tryMove(exit);
-      assert(
-        refused?.includes("waits for the person's answers") === true,
-        `${type} ${exit}: ${refused}`,
-      );
-    }
-    for (const confidence of ["high", "medium"]) {
-      const sure = await drive(definition, movableEnv().env);
-      await sure.record("evidence", "classification", {
-        type,
-        confidence,
-        reasoning: "Clear",
-        isRegression: false,
-      });
-      assertEquals(await sure.tryMove(type), null, `${type} ${confidence}`);
-    }
-  }
 });
 
 Deno.test("swamp-club-swamp-extensions: every exit from verification to the merge is bound to the change-summary commit", async () => {
@@ -1166,174 +906,16 @@ Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async ()
 });
 
 Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the real gates, and every CEL expression evaluates on it", async () => {
-  // As build-swamp-extension's run, plus the stops this factory definition
-  // adds: low confidence holds triage, a failed verification needs a new
-  // commit, and the merge waits out the cooldown.
+  // As build-swamp-extension's run, on the bug-to-done scenario, which walks
+  // the stops this factory definition adds: low confidence holds triage, a
+  // failed verification needs a new commit, and the merge waits out the
+  // cooldown.
   const definition = await load(SWX);
-  const { env, wait } = movableEnv();
-  const { store, record, approve, tryMove } = await drive(definition, env);
-  const move = async (transition: string, manual = false) => {
-    const refused = await tryMove(transition, manual);
-    assertEquals(refused, null, transition);
-  };
-
-  await record("evidence", "classification", {
-    type: "bug",
-    confidence: "low",
-    reasoning: "Maybe a bug",
-    isRegression: false,
-    clarifyingQuestions: ["Is a 503 retried today?"],
-  });
-  assert((await tryMove("bug"))?.includes("waits for the person's answers"));
-  await record("evidence", "classification", {
-    type: "bug",
-    confidence: "high",
-    reasoning: "The person says 503 was never retried",
-    isRegression: false,
-  });
-  assert((await tryMove("feature")) !== null, "a bug took the feature exit");
-  await move("bug");
-  await record("evidence", "reproduction", {
-    reproduced: true,
-    commands: ["deno test extensions/vaults/"],
-    observed: "1 failed",
-    expected: "retry after 503",
-    fixScope: "vault/aws-sm",
-  });
-  await move("reproduced");
-  await record("artifact", "plan", SWX_PLAN);
-  await move("submit");
-  await record("artifact", "plan-review", {
-    findings: [{
-      id: "ADV-1",
-      severity: "low",
-      category: "test-fidelity",
-      description: "Naming",
-    }],
-  });
-  await approve("plan-approval");
-  await move("approve");
-
-  // The first commit fails verification, and cannot be submitted again.
-  // verify-build failed while verify-reviews passed: the two are judged
-  // together, so the whole verification failed.
-  await record("artifact", "change-summary", changeSummary(SHA));
-  await move("submit");
-  await record("artifact", "conformance", {
-    steps: [{ order: 1, status: "implemented", description: "Retry added" }],
-  });
-  await move("conforms");
-  await record("evidence", "verification", {
-    status: "failed",
-    runId: "w1",
-    commit: SHA,
-    buildStatus: "failed",
-    buildRunId: "b1",
-    reviewsStatus: "succeeded",
-    reviewsRunId: "v1",
-  });
-  assert((await tryMove("passed")) !== null);
-  await move("failed");
-  assert(
-    (await tryMove("submit"))?.includes("commit already verified"),
-    "the verified commit was submitted again",
+  const { run, store } = await scenario(
+    definition,
+    "swamp-club-swamp-extensions",
+    "bug-to-done",
   );
-
-  // recheck only re-verifies that commit: a new one goes through
-  // conformance-review, and recheck refuses it.
-  await record("artifact", "change-summary", changeSummary(SHA_2));
-  assert(
-    (await tryMove("recheck", true))?.includes("re-verifies the commit"),
-    "a new commit skipped conformance-review",
-  );
-
-  await record("artifact", "change-summary", changeSummary(SHA_2));
-  await move("submit");
-  await record("artifact", "conformance", {
-    steps: [{ order: 1, status: "deviated", description: "Retry on 5xx" }],
-  });
-  assert((await tryMove("conforms"))?.includes("needs a justification"));
-  await record("artifact", "conformance", {
-    steps: [{
-      order: 1,
-      status: "deviated",
-      description: "Retry on 5xx",
-      justification: "502 fails the same way",
-    }],
-  });
-  await move("conforms");
-  // A wrapper recorded as succeeded while a child failed is refused: the
-  // wrapper fails whenever a child does.
-  await record("evidence", "verification", {
-    status: "succeeded",
-    runId: "w2",
-    commit: SHA_2,
-    buildStatus: "succeeded",
-    buildRunId: "b2",
-    reviewsStatus: "failed",
-    reviewsRunId: "v2",
-  });
-  await approve("checklist-confirmed");
-  assert(
-    (await tryMove("passed"))?.includes("must have succeeded"),
-    "a failed child passed verification",
-  );
-  await record("evidence", "verification", {
-    status: "succeeded",
-    runId: "w3",
-    commit: SHA_2,
-    buildStatus: "succeeded",
-    buildRunId: "b2",
-    reviewsStatus: "succeeded",
-    reviewsRunId: "v2",
-  });
-  await approve("checklist-confirmed");
-  await move("passed");
-  // An attestation from the failed run is refused.
-  await record("evidence", "attestation", {
-    attestationId: "a-old",
-    commit: SHA_2,
-    buildRunId: "b1",
-    reviewsRunId: "v2",
-  });
-  await approve("open-pr");
-  assert((await tryMove("attested"))?.includes("this commit's verify-build"));
-  await record("evidence", "attestation", {
-    attestationId: "a-2",
-    commit: SHA_2,
-    buildRunId: "b2",
-    reviewsRunId: "v2",
-  });
-  // The approval was bound to the attestation it saw, which has changed.
-  assert((await tryMove("attested"))?.includes("no longer count"));
-  await approve("open-pr");
-  await move("attested");
-  await record("evidence", "pull-request", { url: PR_URL, commit: SHA_2 });
-  await move("opened");
-  await record("evidence", "merge", { status: "merged", mergeCommit: SHA });
-  assert((await tryMove("merged")) !== null, "merged before the cooldown");
-  wait(180);
-  await move("merged");
-  await record("evidence", "release", {
-    outcome: "shipped",
-    version: "2026.09.28.1",
-  });
-  await move("released");
-  await record("evidence", "notification", {
-    action: "posted",
-    author: "someone-outside",
-    reason: "not on the swamp-club team",
-  });
-  await move("notified");
-  await record("artifact", "summary", {
-    originalProblem: "503 was never retried",
-    deliveredOutcome: "5xx responses are retried",
-    outcomeMet: true,
-  });
-  await move("finish");
-
-  const run = await loadRun(store);
-  assert(run !== null);
   assertEquals(run.stage, "done");
   const context = await buildCelContext(run, store);
   const results = new Map<string, Json>();
@@ -1373,47 +955,6 @@ Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the r
   assertEquals(results.get("merge.complete"), true);
 });
 
-Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-review whatever its verdict; a plain bug does not", async () => {
-  const regression = {
-    type: "bug",
-    confidence: "high",
-    reasoning: "The retry stopped firing",
-    regressionEvidence: "Passed at 2026.09.20.1",
-    regressionCounterEvidence: "The test never covered 503",
-    regressionVerdictReasoning: "A bisect lands on the refactor",
-  };
-  // A downgraded claim records the effective flag, false, and is still
-  // reviewed: the gate keys on the verdict.
-  for (const verdict of ["confirmed", "downgraded"]) {
-    const definition = await load(SWX);
-    const { record, approve, tryMove } = await drive(
-      definition,
-      movableEnv().env,
-    );
-    await record("evidence", "classification", {
-      ...regression,
-      isRegression: verdict === "confirmed",
-      regressionVerdict: verdict,
-    });
-    const refused = await tryMove("bug");
-    assert(
-      refused?.includes("awaiting approval 'regression-review'"),
-      `${verdict}: ${refused}`,
-    );
-    await approve("regression-review");
-    assertEquals(await tryMove("bug"), null, verdict);
-  }
-  const definition = await load(SWX);
-  const { record, tryMove } = await drive(definition, movableEnv().env);
-  await record("evidence", "classification", {
-    type: "bug",
-    confidence: "high",
-    reasoning: "r",
-    isRegression: false,
-  });
-  assertEquals(await tryMove("bug"), null);
-});
-
 Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
   const definition = await load(SWX);
   const merge = stage(definition, "merge").transitions ?? [];
@@ -1444,63 +985,19 @@ Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR o
 // issue-lifecycle's complete from implementing and from pr_open (gap 6): a
 // manual exit to notify from attest and from merge.
 
-/** Walk a feature to attest through the real gates, verified at SHA. */
-async function walkToAttest(definition: FactoryDefinition, env: Env) {
-  const driven = await drive(definition, env);
-  const move = async (transition: string, manual = false) => {
-    assertEquals(await driven.tryMove(transition, manual), null, transition);
-  };
-  await driven.record("evidence", "classification", {
-    type: "feature",
-    confidence: "high",
-    reasoning: "A new exit",
-    isRegression: false,
-  });
-  await move("feature");
-  await driven.record("artifact", "plan", SWX_PLAN);
-  await move("submit");
-  await driven.record("artifact", "plan-review", {
-    findings: [{
-      id: "ADV-1",
-      severity: "low",
-      category: "test-fidelity",
-      description: "Naming",
-    }],
-  });
-  await driven.approve("plan-approval");
-  await move("approve");
-  await driven.record("artifact", "change-summary", changeSummary(SHA));
-  await move("submit");
-  await driven.record("artifact", "conformance", {
-    steps: [{
-      order: 1,
-      status: "deviated",
-      description: "Retry on 5xx",
-      justification: "502 fails the same way",
-    }],
-  });
-  await move("conforms");
-  await driven.record("evidence", "verification", {
-    status: "succeeded",
-    runId: "w1",
-    commit: SHA,
-    buildStatus: "succeeded",
-    buildRunId: "b1",
-    reviewsStatus: "succeeded",
-    reviewsRunId: "v1",
-  });
-  await driven.approve("checklist-confirmed");
-  await move("passed");
-  return { ...driven, move };
+/** The run as it first reached notify. */
+function notifyFrame(result: ScenarioResult): RunRecord {
+  const frame = result.frames.find((f) => f.run.stage === "notify");
+  assert(frame !== undefined, "the scenario never reached notify");
+  return frame.run;
 }
 
 /** The prUrl notify dispatches with; the packet must be ready. */
 async function notifyPrUrl(
   definition: FactoryDefinition,
-  store: ReturnType<typeof memoryStore>,
+  run: RunRecord,
+  store: RunStore,
 ): Promise<Json | undefined> {
-  const run = await loadRun(store);
-  assert(run !== null);
   assertEquals(run.stage, "notify");
   const packet = buildDispatch(
     definition,
@@ -1515,40 +1012,15 @@ Deno.test("swamp-club-swamp-extensions: complete from attest after a failed pull
   // The failed pull request was for an earlier commit; the thank-you must not
   // call it merged.
   const definition = await load(SWX);
-  const { env, wait } = movableEnv();
-  const { store, record, approve, move } = await walkToAttest(definition, env);
-  await record("evidence", "attestation", {
-    attestationId: "a-1",
-    commit: SHA,
-    buildRunId: "b1",
-    reviewsRunId: "v1",
-  });
-  await approve("open-pr");
-  await move("attested");
-  await record("evidence", "pull-request", { url: PR_URL, commit: SHA });
-  await move("opened");
-  await record("evidence", "merge", { status: "failed", reason: "The code" });
-  wait(180);
-  await move("rework", true);
-  await record("artifact", "change-summary", changeSummary(SHA_2));
-  await move("submit");
-  await record("artifact", "conformance", {
-    steps: [{ order: 1, status: "implemented", description: "Retry added" }],
-  });
-  await move("conforms");
-  await record("evidence", "verification", {
-    status: "succeeded",
-    runId: "w2",
-    commit: SHA_2,
-    buildStatus: "succeeded",
-    buildRunId: "b2",
-    reviewsStatus: "succeeded",
-    reviewsRunId: "v2",
-  });
-  await approve("checklist-confirmed");
-  await move("passed");
-  await move("complete", true);
-  assertEquals(await notifyPrUrl(definition, store), null);
+  const { result, store } = await scenario(
+    definition,
+    "swamp-club-swamp-extensions",
+    "complete-after-failed-pr",
+  );
+  assertEquals(
+    await notifyPrUrl(definition, notifyFrame(result), store),
+    null,
+  );
 });
 
 Deno.test("swamp-club-swamp-extensions: complete leaves attest and merge for notify, by a person's choice, and the release case stays", async () => {
@@ -1583,84 +1055,32 @@ Deno.test("swamp-club-swamp-extensions: complete leaves attest and merge for not
   );
 });
 
-Deno.test("swamp-club-swamp-extensions: complete from attest goes to notify and on to done, once a person confirms it", async () => {
+Deno.test("swamp-club-swamp-extensions: complete from attest dispatches notify with no pull request to link", async () => {
+  // complete-to-done walks on from notify to done.
   const definition = await load(SWX);
-  const { store, record, tryMove, move } = await walkToAttest(
+  const { result, store } = await scenario(
     definition,
-    movableEnv().env,
+    "swamp-club-swamp-extensions",
+    "complete-to-done",
   );
-  assert(
-    (await tryMove("complete"))?.includes("a person must confirm it"),
-    "complete moved without a person",
+  assertEquals(
+    await notifyPrUrl(definition, notifyFrame(result), store),
+    null,
   );
-  await move("complete", true);
-  // notify dispatches with no pull request to link.
-  assertEquals(await notifyPrUrl(definition, store), null);
-  await record("evidence", "notification", {
-    action: "skipped",
-    author: "swamp-team",
-    reason: "on the swamp-club team",
-  });
-  await move("notified");
-  await record("artifact", "summary", {
-    originalProblem: "No complete shortcut",
-    deliveredOutcome: "Completed without a pull request",
-    outcomeMet: true,
-  });
-  await move("finish");
-  assertEquals((await loadRun(store))?.stage, "done");
 });
 
-Deno.test("swamp-club-swamp-extensions: complete from merge is for an open pull request, with no cooldown", async () => {
+Deno.test("swamp-club-swamp-extensions: complete from merge after a new pull request links that pull request", async () => {
+  // complete-from-merge: the failed pull request is no longer open; a new one
+  // opens, and complete from merge passes.
   const definition = await load(SWX);
-  const toMerge = async () => {
-    const { env, wait } = movableEnv();
-    const driven = await walkToAttest(definition, env);
-    await driven.record("evidence", "attestation", {
-      attestationId: "a-1",
-      commit: SHA,
-      buildRunId: "b1",
-      reviewsRunId: "v1",
-    });
-    await driven.approve("open-pr");
-    await driven.move("attested");
-    await driven.record("evidence", "pull-request", {
-      url: PR_URL,
-      commit: SHA,
-    });
-    await driven.move("opened");
-    return { ...driven, wait };
-  };
-
-  // A failed pull request is no longer open. After a new one opens, complete
-  // passes again, although the failed merge is still the latest merge
-  // evidence, and without waiting out the cooldown.
-  const failed = await toMerge();
-  await failed.record("evidence", "merge", { status: "failed", reason: "CI" });
-  assert(
-    (await failed.tryMove("complete", true))?.includes(
-      "a merge outcome is already recorded",
-    ),
-    "complete after a failed pull request",
+  const { result, store } = await scenario(
+    definition,
+    "swamp-club-swamp-extensions",
+    "complete-from-merge",
   );
-  failed.wait(180);
-  await failed.move("new-pr", true);
-  await failed.record("evidence", "pull-request", { url: PR_URL, commit: SHA });
-  await failed.move("opened");
-  await failed.move("complete", true);
-  assertEquals(await notifyPrUrl(definition, failed.store), PR_URL);
-
-  // A merged pull request goes on to release, not complete.
-  const merged = await toMerge();
-  await merged.record("evidence", "merge", {
-    status: "merged",
-    mergeCommit: SHA_2,
-  });
-  assert(
-    (await merged.tryMove("complete", true))?.includes(
-      "a merge outcome is already recorded",
-    ),
-    "complete after a merged pull request",
+  assertEquals(
+    await notifyPrUrl(definition, notifyFrame(result), store),
+    PR_URL,
   );
 });
 
@@ -1670,9 +1090,11 @@ Deno.test("swamp-club-swamp-extensions: complete refuses when conformance or ver
   // products. So each complete exit's own cel gates, as the yaml has them,
   // are evaluated on a walked run's real context with one product changed.
   const definition = await load(SWX);
-  const { store } = await walkToAttest(definition, movableEnv().env);
-  const run = await loadRun(store);
-  assert(run !== null);
+  const { run, store } = await scenario(
+    definition,
+    "swamp-club-swamp-extensions",
+    "walk-to-attest",
+  );
   const context = await buildCelContext(run, store);
   const verification = (ctx: CelContext) =>
     ctx.evidence["verification"].payload as Record<string, Json>;
@@ -1723,152 +1145,4 @@ Deno.test("swamp-club-swamp-extensions: complete refuses when conformance or ver
       );
     }
   }
-});
-
-// --- starter ------------------------------------------------------------------
-
-const STARTER_SHA2 = "d6bbbe43ad0dfc5fce1615b09ff6e6f6639bd9ae";
-
-Deno.test("starter: a run walks from plan to done through the real gates, with a rework round from each review and from verify", async () => {
-  const core = await load(STARTER);
-  const store = memoryStore();
-  const env = testEnv();
-  const actor = { principal: "user:alice", source: "platform" as const };
-  await startRun(
-    store,
-    core,
-    { key: "wi-1", definitionDigest: "sha256:l" },
-    actor,
-    env,
-  );
-  const record = async (
-    kind: "artifact" | "evidence",
-    name: string,
-    payload: Record<string, unknown>,
-  ) => {
-    const result = await recordProduct(
-      store,
-      core,
-      await expectNow(store),
-      kind,
-      name,
-      payload,
-      actor,
-      env,
-    );
-    assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
-  };
-  const gates = makeGateEvaluator(core, store, env);
-  const move = async (transition: string) =>
-    await update(store, (run) =>
-      advance(
-        run,
-        core,
-        expectedOf(run),
-        { transition },
-        gates,
-        actor,
-        env,
-      ));
-  const go = async (transition: string, to: string) => {
-    const result = await move(transition);
-    assert(result.ok, result.ok ? "" : result.reason);
-    assertEquals((await loadRun(store))?.stage, to);
-  };
-  const refused = async (transition: string) => {
-    const result = await move(transition);
-    assert(!result.ok, `${transition} was not refused`);
-  };
-  const approve = async (gateId: string) => {
-    const result = await update(store, (run) =>
-      recordApproval(
-        run,
-        core,
-        expectedOf(run),
-        { gateId, decision: "approve" },
-        actor,
-        env,
-      ));
-    assert(result.ok, result.ok ? "" : result.reason);
-  };
-  const plan = {
-    summary: "Add list",
-    steps: [{ description: "Add list", files: ["x.ts"] }],
-    testingStrategy: "Unit tests",
-  };
-
-  await record("artifact", "plan", plan);
-  await go("submit", "plan-review");
-  // A high finding sends the plan back and holds approval.
-  await record("artifact", "plan-review", {
-    findings: [{ id: "F1", severity: "high", description: "No tests" }],
-  });
-  await approve("plan-approval");
-  await refused("approve");
-  await go("rework", "plan");
-  await record("artifact", "plan", { ...plan, testingStrategy: "Tests" });
-  await go("submit", "plan-review");
-  // A low finding blocks nothing: approval, and no rework.
-  await record("artifact", "plan-review", {
-    findings: [{ id: "F2", severity: "low", description: "Naming" }],
-  });
-  await refused("rework");
-  await refused("approve");
-  await approve("plan-approval");
-  await go("approve", "implement");
-
-  await record("artifact", "change-summary", {
-    summary: "Added list",
-    commit: SHA,
-    files: ["x.ts"],
-  });
-  await go("submit", "verify");
-  await record("evidence", "checks", {
-    commit: SHA,
-    status: "failed",
-    results: [{ name: "test", status: "failed", detail: "1 failed" }],
-  });
-  await refused("passed");
-  await go("failed", "implement");
-  await record("artifact", "change-summary", {
-    summary: "Added list, fixed",
-    commit: STARTER_SHA2,
-    files: ["x.ts"],
-  });
-  await go("submit", "verify");
-  // Checks for another commit do not count.
-  await record("evidence", "checks", {
-    commit: SHA,
-    status: "passed",
-    results: [{ name: "test", status: "passed" }],
-  });
-  await refused("passed");
-  await record("evidence", "checks", {
-    commit: STARTER_SHA2,
-    status: "passed",
-    results: [{ name: "test", status: "passed" }],
-  });
-  await go("passed", "code-review");
-
-  await record("artifact", "code-review", {
-    findings: [{ id: "C1", severity: "critical", description: "Leak" }],
-  });
-  await refused("accept");
-  await go("rework", "implement");
-  await go("submit", "verify");
-  await record("evidence", "checks", {
-    commit: STARTER_SHA2,
-    status: "passed",
-    results: [{ name: "test", status: "passed" }],
-  });
-  await go("passed", "code-review");
-  await record("artifact", "code-review", { findings: [] });
-  await approve("release-approval");
-  await go("accept", "release");
-  await record("evidence", "release", {
-    commit: STARTER_SHA2,
-    url: "https://example.com/pr/1",
-  });
-  await go("released", "done");
-  assertEquals((await loadRun(store))?.status, "terminal");
 });

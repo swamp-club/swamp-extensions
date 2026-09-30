@@ -169,6 +169,68 @@ Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a 
   });
 });
 
+Deno.test("cli: validate runs the saved scenarios in scenarios/<factory>/, names a failing step, and refuses a directory outside the repo", async () => {
+  await withRepo(async (repo) => {
+    const definition = parseYaml(
+      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
+    ) as Record<string, unknown>;
+    await repo.factory("process", definition);
+    const saved = (await Deno.readTextFile(
+      new URL(
+        "scenarios/swamp-club-swamp-extensions/bug-to-done.yaml",
+        SWAMP_EXTENSIONS_DEFINITION,
+      ),
+    )).replace(
+      "factory: swamp-club-swamp-extensions",
+      "factory: process",
+    );
+    const dir = join(repo.dir, "scenarios", "process");
+    await Deno.mkdir(dir, { recursive: true });
+    const file = join(dir, "bug-to-done.yaml");
+    await Deno.writeTextFile(file, saved);
+    const ok = await repo.factoryMethod("process", "validate");
+    assert(
+      ok.output.includes("1 saved scenario(s) passed"),
+      ok.output,
+    );
+
+    await Deno.writeTextFile(
+      file,
+      saved.replace("needs a justification", "needs a reason"),
+    );
+    const failed = await repo.factoryMethod("process", "validate", {
+      allowFailure: true,
+    });
+    assertNotEquals(failed.code, 0);
+    assert(
+      failed.output.includes(
+        "scenarios/process/bug-to-done.yaml step 28 (move conforms): " +
+          'expected a refusal mentioning "needs a reason"',
+      ),
+      failed.output,
+    );
+
+    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
+    try {
+      await Deno.writeTextFile(join(outside, "bug-to-done.yaml"), saved);
+      await Deno.remove(dir, { recursive: true });
+      await Deno.symlink(outside, dir);
+      const refused = await repo.factoryMethod("process", "validate", {
+        allowFailure: true,
+      });
+      assertNotEquals(refused.code, 0);
+      assert(
+        refused.output.includes(
+          "scenarios directory 'scenarios/process' resolves outside the repo",
+        ),
+        refused.output,
+      );
+    } finally {
+      await Deno.remove(outside, { recursive: true });
+    }
+  });
+});
+
 Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as an HTML file", async () => {
   await withRepo(async (repo) => {
     const definition = parseYaml(

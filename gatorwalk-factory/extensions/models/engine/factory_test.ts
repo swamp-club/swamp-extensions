@@ -81,7 +81,128 @@ Deno.test("factory: validate logs each graph warning", async () => {
       "stages.0 (from stage 'plan'): the loop through 'plan', 'plan-review'",
     ),
   );
-  assert(String(swamp.logs.at(-1)?.props?.summary).endsWith("2 warning(s)"));
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).includes(", 2 warning(s), "),
+  );
+});
+
+// --- saved scenarios ---------------------------------------------------------
+
+const PLAN_TO_REVIEW = `scenario: plan-to-review
+factory: team
+steps:
+  - record: { artifact: plan }
+    payload:
+      summary: Add list
+      steps: [{ description: Add list, files: [x.ts] }]
+      testingStrategy: Unit tests
+      versionBump: { needed: true, reason: New method }
+  - move: submit
+  - move: approve
+    expect: { refused: "awaiting approval 'plan-approval'" }
+  - expect: { stage: plan-review }
+`;
+
+Deno.test("factory: validate runs the saved scenarios and counts them in its summary", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  swamp.repo.write("scenarios/team/plan-to-review.yaml", PLAN_TO_REVIEW);
+  swamp.repo.write("scenarios/team/notes.txt", "not a scenario");
+  swamp.repo.write("scenarios/other/x.yaml", "not: for this factory");
+  await factory.methods.validate.execute({}, swamp.context("team"));
+  const passed = swamp.logs.filter((l) => l.message === "{scenario}");
+  assertEquals(passed.map((l) => l.props?.scenario), [
+    "scenarios/team/plan-to-review.yaml: passed, 4 steps",
+  ]);
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).endsWith(
+      "1 saved scenario(s) passed",
+    ),
+  );
+});
+
+Deno.test("factory: validate passes with no scenarios directory", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await factory.methods.validate.execute({}, swamp.context("team"));
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).endsWith(
+      "0 saved scenario(s) passed",
+    ),
+  );
+});
+
+Deno.test("factory: validate fails on an unexpected step, naming the file and step", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  swamp.repo.write(
+    "scenarios/team/plan-to-review.yaml",
+    PLAN_TO_REVIEW.replace(
+      "awaiting approval 'plan-approval'",
+      "a different message",
+    ),
+  );
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+  );
+  assertMatch(
+    error.message,
+    /1 of 1 saved scenario\(s\) failed:\nscenarios\/team\/plan-to-review\.yaml step 3 \(move approve\): expected a refusal mentioning "a different message", but it was refused for another reason: .*awaiting approval 'plan-approval'/,
+  );
+});
+
+Deno.test("factory: validate fails on a scenario saved for another factory, and a malformed one, reporting both", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  swamp.repo.write(
+    "scenarios/team/a.yaml",
+    PLAN_TO_REVIEW.replace("factory: team", "factory: build-swamp-extension"),
+  );
+  swamp.repo.write(
+    "scenarios/team/b.yml",
+    "scenario: b\nfactory: team\nsteps:\n  - move: submit\n    wait: 5\n",
+  );
+  swamp.repo.write("scenarios/team/c.yaml", "steps: [");
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+  );
+  assert(error.message.includes("3 of 3 saved scenario(s) failed"));
+  assert(
+    error.message.includes(
+      "scenarios/team/a.yaml says factory 'build-swamp-extension', but it is " +
+        "saved for factory 'team': set factory: team, or move it to " +
+        "scenarios/build-swamp-extension/",
+    ),
+    error.message,
+  );
+  assert(
+    error.message.includes(
+      "scenarios/team/b.yml is not a valid scenario:\n  steps.0: a step has one verb, not move and wait",
+    ),
+    error.message,
+  );
+  assert(
+    error.message.includes("scenarios/team/c.yaml is not valid YAML"),
+    error.message,
+  );
+});
+
+Deno.test("factory: validate refuses a scenarios directory that leads outside the repo", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  swamp.repo.write("/elsewhere/x.yaml", PLAN_TO_REVIEW);
+  swamp.repo.symlink("scenarios/team", "/elsewhere");
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+  );
+  assertEquals(
+    error.message,
+    "factory 'team': scenarios directory 'scenarios/team' resolves outside " +
+      "the repo (to /elsewhere)",
+  );
 });
 
 Deno.test("factory: validate fails on a graph error, listing it with its path", async () => {
@@ -95,8 +216,9 @@ Deno.test("factory: validate fails on a graph error, listing it with its path", 
     gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
   });
   swamp.factory("team", definition);
-  const error = await assertRejects(() =>
-    factory.methods.validate.execute({}, swamp.context("team"))
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
   );
   const text = (error as Error).message;
   assert(text.includes("factory 'team' has design errors:"), text);
@@ -128,8 +250,9 @@ Deno.test("factory: validate fails when the graph analysis stops at the state ca
   );
   const swamp = fakeSwamp();
   swamp.factory("team", { schemaVersion: 1, name: "wide", stages });
-  const error = await assertRejects(() =>
-    factory.methods.validate.execute({}, swamp.context("team"))
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
   );
   const text = (error as Error).message;
   assert(
@@ -153,8 +276,9 @@ Deno.test("factory: validate reads the raw definition, so a platform expression 
   stages[0].work.systemPrompt = "Plan ${{ model.x }}";
   stages[1].transitions.push({ name: "nowhere", to: "missing" });
   swamp.factory("team", definition);
-  const error = await assertRejects(() =>
-    factory.methods.validate.execute({}, swamp.context("team"))
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
   );
   const text = (error as Error).message;
   assert(text.includes("stages.0.work.systemPrompt: contains ${{ }}"), text);

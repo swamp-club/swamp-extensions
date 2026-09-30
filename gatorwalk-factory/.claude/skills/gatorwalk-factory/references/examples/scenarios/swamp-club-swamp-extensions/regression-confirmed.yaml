@@ -1,0 +1,21 @@
+scenario: regression-confirmed
+factory: swamp-club-swamp-extensions
+description: >-
+  A regression claim waits for regression-review whatever its verdict; this
+  one is confirmed.
+steps:
+  - record: { evidence: classification }
+    payload:
+      type: bug
+      confidence: high
+      reasoning: The retry stopped firing
+      isRegression: true
+      regressionEvidence: Passed at 2026.09.20.1
+      regressionCounterEvidence: The test never covered 503
+      regressionVerdict: confirmed
+      regressionVerdictReasoning: A bisect lands on the refactor
+  - move: bug
+    expect: { refused: "awaiting approval 'regression-review'" }
+  - approve: regression-review
+  - move: bug
+  - expect: { stage: reproduce }

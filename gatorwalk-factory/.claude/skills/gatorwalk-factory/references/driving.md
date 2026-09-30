@@ -70,7 +70,9 @@ swamp model method run <factory> validate --log
 ```
 
 `validate` reports every problem with its path. Fix them all before starting
-work.
+work. It also runs the factory's saved scenarios, the known paths through it,
+from `scenarios/<factory>/`; write one for each path the factory must keep
+([scenarios.md](scenarios.md)).
 
 To see the factory definition as a page (the stage graph, gates, human stops,
 handoffs and the graph findings with their traces), render it, then save the

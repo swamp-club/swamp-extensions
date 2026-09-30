@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
@@ -64,16 +64,48 @@ Deno.test("examples: the set of examples is the one listed here", async () => {
   assertEquals(await examples(), Object.keys(EXPECTED).sort());
 });
 
-Deno.test("examples: each passes the factory's validate method, with only the explained warnings", async () => {
+/** Each example's saved scenarios, under scenarios/<example>/, by file name. */
+async function scenariosOf(example: string): Promise<Map<string, string>> {
+  const dir = new URL(`scenarios/${example}/`, EXAMPLES);
+  const out = new Map<string, string>();
+  try {
+    for await (const entry of Deno.readDir(dir)) {
+      if (entry.isFile && entry.name.endsWith(".yaml")) {
+        out.set(entry.name, await Deno.readTextFile(new URL(entry.name, dir)));
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  return out;
+}
+
+/**
+ * A fake repo holding an example as the factory named after it, with its
+ * saved scenarios where validate finds them.
+ */
+async function exampleFactory(file: string) {
+  const name = file.replace(/\.yaml$/, "");
+  const swamp = fakeSwamp();
+  // The example's text, as init would copy it.
+  swamp.factory(name, await Deno.readTextFile(new URL(file, EXAMPLES)));
+  const scenarios = await scenariosOf(name);
+  for (const [scenario, text] of scenarios) {
+    swamp.repo.write(`scenarios/${name}/${scenario}`, text);
+  }
+  return { swamp, name, scenarios };
+}
+
+Deno.test("examples: each passes the factory's validate method, with its saved scenarios and only the explained warnings", async () => {
   for (const file of await examples()) {
-    const swamp = fakeSwamp();
-    // The example's text, as init would copy it.
-    swamp.factory("team", await Deno.readTextFile(new URL(file, EXAMPLES)));
-    // validate throws on a schema or graph error, or a truncated analysis.
-    await factory.methods.validate.execute({}, swamp.context("team"));
+    const { swamp, name, scenarios } = await exampleFactory(file);
+    // validate throws on a schema or graph error, a truncated analysis, or a
+    // saved scenario with a step that did not do what it said.
+    await factory.methods.validate.execute({}, swamp.context(name));
     const summary = String(swamp.logs.at(-1)?.props?.summary);
     assert(
-      summary.includes("' in factories/team.yaml is valid: "),
+      summary.includes(`' in factories/${name}.yaml is valid: `) &&
+        summary.endsWith(`, ${scenarios.size} saved scenario(s) passed`),
       `${file}: ${summary}`,
     );
     const warnings = swamp.logs
@@ -81,6 +113,47 @@ Deno.test("examples: each passes the factory's validate method, with only the ex
       .map((l) => `${l.props?.code} ${String(l.props?.warning).split(":")[0]}`);
     assertEquals(warnings, EXPECTED[file], file);
   }
+});
+
+Deno.test("examples: the scenarios directories are for examples, and every example but minimal has scenarios", async () => {
+  const dirs: string[] = [];
+  for await (const entry of Deno.readDir(new URL("scenarios/", EXAMPLES))) {
+    if (entry.isDirectory) dirs.push(entry.name);
+  }
+  assertEquals(
+    dirs.sort(),
+    (await examples()).map((f) => f.replace(/\.yaml$/, ""))
+      .filter((n) => n !== "minimal"),
+  );
+});
+
+Deno.test("examples: a changed gate message fails validate, naming the scenario and step", async () => {
+  const file = "swamp-club-swamp-extensions.yaml";
+  const { swamp, name } = await exampleFactory(file);
+  const path = `factories/${name}.yaml`;
+  const text = swamp.repo.read(path);
+  assert(text !== undefined);
+  // conformance-review's conforms gate; bug-to-done pins its message.
+  const gate = "message: >-\n                every step not implemented as " +
+    "planned needs a justification";
+  assert(text.includes(gate));
+  const message = "needs a justification";
+  swamp.repo.remove(path);
+  swamp.repo.write(
+    path,
+    text.replace(gate, gate.replace(message, "needs a reason")),
+  );
+  const error = await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context(name)),
+    Error,
+  );
+  assert(
+    error.message.includes(
+      `scenarios/${name}/bug-to-done.yaml step 28 (move conforms): ` +
+        `expected a refusal mentioning "${message}"`,
+    ),
+    error.message,
+  );
 });
 
 Deno.test("examples: each description says what it is for and what to change first", async () => {

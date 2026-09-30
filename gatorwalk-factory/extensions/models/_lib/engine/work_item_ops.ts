@@ -28,9 +28,13 @@ import {
   DEFINITION_DIR,
   denoRepoFiles,
   readDefinitionFile,
+  readScenarioFiles,
   type RepoFiles,
+  SCENARIO_DIR,
+  type ScenarioFile,
   writeNewDefinitionFile,
 } from "./definition_file.ts";
+import { parseScenario, runScenario } from "./scenario.ts";
 import { STARTERS } from "./starters.ts";
 import {
   analyzeDefinition,
@@ -440,16 +444,91 @@ export async function validateFactory(
       ...finding,
     });
   }
+  const scenarios = await runSavedScenarios(ctx, name, definition);
   ctx.logger.info("{summary}", {
     summary: `definition '${definition.name}' in ${path} is valid: ` +
       `${definition.stages.length} stages (${
         definition.stages.map((s) => s.id).join(", ")
-      }), ${graph.warnings.length} warning(s)`,
+      }), ${graph.warnings.length} warning(s), ` +
+      `${scenarios} saved scenario(s) passed`,
     definition: definition.name,
     path,
     digest: await digestOf(definition),
   });
   return { dataHandles: [] };
+}
+
+/**
+ * Run every scenario saved for the factory in scenarios/<factory>/ on its
+ * definition, logging each that passes. Throws with every problem: a file
+ * that cannot be read or is not a scenario, one saved for another factory,
+ * and each step that did not do what its scenario said, by file and step.
+ * Returns how many passed.
+ */
+async function runSavedScenarios(
+  ctx: MethodContextLike,
+  name: string,
+  definition: FactoryDefinition,
+): Promise<number> {
+  const repo = repoOf(ctx);
+  let files: ScenarioFile[];
+  try {
+    files = await readScenarioFiles(repo.dir, name, repo.files);
+  } catch (error) {
+    throw new Error(
+      `factory '${name}': ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  const problems: string[] = [];
+  let passed = 0;
+  for (const file of files) {
+    if (!file.ok) {
+      problems.push(`${file.path} ${file.error}`);
+      continue;
+    }
+    const parsed = parseScenario(file.raw);
+    if (!parsed.ok) {
+      problems.push(
+        `${file.path} is not a valid scenario:\n${
+          parsed.errors.map((e) => `  ${e}`).join("\n")
+        }`,
+      );
+      continue;
+    }
+    const scenario = parsed.value;
+    if (scenario.factory !== name) {
+      problems.push(
+        `${file.path} says factory '${scenario.factory}', but it is saved ` +
+          `for factory '${name}': set factory: ${name}, or move it to ` +
+          `${SCENARIO_DIR}/${scenario.factory}/`,
+      );
+      continue;
+    }
+    const result = await runScenario(definition, scenario);
+    if (!result.passed) {
+      for (const failure of result.failures) {
+        problems.push(
+          `${file.path} step ${failure.step} (${failure.label}): ` +
+            failure.message,
+        );
+      }
+      continue;
+    }
+    passed++;
+    ctx.logger.info("{scenario}", {
+      scenario: `${file.path}: passed, ${scenario.steps.length} steps`,
+      path: file.path,
+    });
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `factory '${name}': ${files.length - passed} of ${files.length} ` +
+        `saved scenario(s) failed:\n${problems.join("\n")}`,
+    );
+  }
+  return passed;
 }
 
 /**

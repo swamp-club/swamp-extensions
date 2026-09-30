@@ -1,0 +1,90 @@
+scenario: complete-from-merge
+factory: swamp-club-swamp-extensions
+description: >-
+  complete from merge is for an open pull request. After a failed one it is
+  refused; once a new pull request opens it passes again, although the failed
+  merge is still the latest merge evidence, and without waiting out the
+  cooldown.
+externalRefs: { swamp-club: "2734", swamp-club.display: "#2734" }
+steps:
+  - record: { evidence: classification }
+    payload: {
+      type: feature,
+      confidence: high,
+      reasoning: A new exit,
+      isRegression: false,
+    }
+  - move: feature
+  - record: { artifact: plan }
+    payload:
+      summary: Fix the retry
+      scopeAnalysis: Vault extension; one file
+      steps: [{ order: 1, description: Retry on 503, files: [x.ts] }]
+      testingStrategy: A failing test against a mock server
+      potentialChallenges: []
+  - move: submit
+  - record: { artifact: plan-review }
+    payload:
+      findings:
+        - id: ADV-1
+          severity: low
+          category: test-fidelity
+          description: Naming
+  - approve: plan-approval
+  - move: approve
+  - record: { artifact: change-summary }
+    payload:
+      summary: Retry on 503
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      branch: fix-retry
+      files: [x.ts]
+  - move: submit
+  - record: { artifact: conformance }
+    payload:
+      steps:
+        - order: 1
+          status: deviated
+          description: Retry on 5xx
+          justification: 502 fails the same way
+  - move: conforms
+  - record: { evidence: verification }
+    payload:
+      status: succeeded
+      runId: w1
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      buildStatus: succeeded
+      buildRunId: b1
+      reviewsStatus: succeeded
+      reviewsRunId: v1
+  - approve: checklist-confirmed
+  - move: passed
+  - record: { evidence: attestation }
+    payload:
+      attestationId: a-1
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      buildRunId: b1
+      reviewsRunId: v1
+  - approve: open-pr
+  - move: attested
+  - record: { evidence: pull-request }
+    payload:
+      url: https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+  - move: opened
+  - record: { evidence: merge }
+    payload: { status: failed, reason: CI }
+  - move: complete
+    manual: true
+    expect: { refused: "a merge outcome is already recorded" }
+  - wait: 180
+    note: CI settles
+  - move: new-pr
+    manual: true
+  - record: { evidence: pull-request }
+    payload:
+      url: https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+  - move: opened
+  - move: complete
+    manual: true
+  - expect: { stage: notify }

@@ -57,6 +57,8 @@ export interface RepoFiles {
   mkdir(path: string): Promise<void>;
   /** Writes a new file; throws if anything is already at the path. */
   writeNewTextFile(path: string, text: string): Promise<void>;
+  /** The names in a directory; throws if it is not one. */
+  readDir(path: string): Promise<string[]>;
 }
 
 export const denoRepoFiles: RepoFiles = {
@@ -83,6 +85,11 @@ export const denoRepoFiles: RepoFiles = {
   mkdir: (path) => Deno.mkdir(path, { recursive: true }),
   writeNewTextFile: (path, text) =>
     Deno.writeTextFile(path, text, { createNew: true }),
+  async readDir(path) {
+    const names: string[] = [];
+    for await (const entry of Deno.readDir(path)) names.push(entry.name);
+    return names;
+  },
 };
 
 /** Where factory definition files live by convention. */
@@ -226,4 +233,93 @@ export async function writeNewDefinitionFile(
   await files.mkdir(dirname(target));
   await files.writeNewTextFile(target, text);
   return target;
+}
+
+// ---------------------------------------------------------------------------
+// Saved scenarios (scenario.ts) live in scenarios/<factory>/ at the repo root,
+// one YAML file each. They are read with the same checks as a definition
+// file: nothing is read from outside the repo, symlinks included.
+// ---------------------------------------------------------------------------
+
+/** Where a factory's saved scenarios live, under the repo root. */
+export const SCENARIO_DIR = "scenarios";
+
+/** One scenario file: its parsed YAML, unchecked, or why it cannot be read. */
+export type ScenarioFile =
+  | { path: string; ok: true; raw: unknown }
+  | { path: string; ok: false; error: string };
+
+/**
+ * Every .yaml and .yml file in scenarios/<factory>/, in name order. No
+ * directory means no scenarios. A directory that is not one, or resolves
+ * outside the repo, throws; a file that cannot be read is returned with its
+ * error, so the caller can report every file at once.
+ */
+export async function readScenarioFiles(
+  repoDir: string,
+  factory: string,
+  files: RepoFiles = denoRepoFiles,
+): Promise<ScenarioFile[]> {
+  const dirPath = `${SCENARIO_DIR}/${factory}`;
+  const refuseDir = (why: string) =>
+    new Error(`scenarios directory '${dirPath}' ${why}`);
+  if (
+    factory === "" || factory === "." || factory === ".." ||
+    factory.includes("/") || factory.includes("\\")
+  ) {
+    throw refuseDir("is not a directory name");
+  }
+  const full = resolve(repoDir, SCENARIO_DIR, factory);
+  if (!inside(repoDir, full)) throw refuseDir("is outside the repo");
+  if (await files.lstat(full) === null) return [];
+  let real: string;
+  try {
+    real = await files.realPath(full);
+  } catch {
+    // A symlink to nothing: no scenarios either.
+    return [];
+  }
+  const realRepo = await files.realPath(repoDir);
+  if (!inside(realRepo, real)) {
+    throw refuseDir(`resolves outside the repo (to ${real})`);
+  }
+  if ((await files.lstat(real))?.isDirectory !== true) {
+    throw refuseDir("is not a directory");
+  }
+  const names = (await files.readDir(real))
+    .filter((name) => /\.ya?ml$/.test(name))
+    .sort();
+  const out: ScenarioFile[] = [];
+  for (const name of names) {
+    const path = `${dirPath}/${name}`;
+    const fail = (error: string): ScenarioFile => ({ path, ok: false, error });
+    let file: string;
+    try {
+      file = await files.realPath(join(real, name));
+    } catch {
+      out.push(fail("is a symlink to nothing"));
+      continue;
+    }
+    if (!inside(realRepo, file)) {
+      out.push(fail(`resolves outside the repo (to ${file})`));
+      continue;
+    }
+    if ((await files.lstat(file))?.isFile !== true) {
+      out.push(fail("is not a file"));
+      continue;
+    }
+    let raw: unknown;
+    try {
+      raw = parseYaml(await files.readTextFile(file));
+    } catch (error) {
+      out.push(fail(
+        `is not valid YAML: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ));
+      continue;
+    }
+    out.push({ path, ok: true, raw });
+  }
+  return out;
 }

@@ -1481,7 +1481,69 @@ read on a remote worker arrives as a plain object with `_globalArguments`, and
 that shape is still unconfirmed against the real engine. The driving skill is
 GW-8. Dispatch and usage run through the CLI in the summary test.
 
+## Saved scenarios
+
+**Decision** (swamp-club #2805). A factory can be tested before anyone runs work
+on it. Saved scenarios are YAML files at `scenarios/<factory>/<scenario>.yaml`
+under the repo root, one engine call per step (the format is in the README,
+"Saved scenarios"). The factory's `validate` runs every one after the schema and
+graph checks, and fails listing each step that did not do what its scenario
+said, as `<path> step <n> (<label>): <message>`, along with any file that cannot
+be read, is not a scenario, or names another factory. The runner is
+`_lib/engine/scenario.ts`; the files are read by `readScenarioFiles` in
+`definition_file.ts`, with the same checks as a definition file, so nothing is
+read from outside the repo, symlinks included.
+
+**Why.** A factory definition is code people run work on, and its graph analysis
+says what can happen, not what does. A scenario pins a known path, including the
+gate messages a person or agent sees when a step is refused
+(`expect: { refused }`), so a definition change that breaks one fails `validate`
+wherever it runs: an author's machine, or CI through `examples_test.ts`. The
+walks that were code in `factories_test.ts` are now the examples' scenarios, in
+`references/examples/scenarios/<example>/`; what stayed in code inspects CEL
+results on the run a scenario leaves.
+
+What it rests on:
+
+- **In process, on `committingStore(memoryStore())`.** The runner calls the same
+  operations a work item's methods do (`startRun`, `recordProduct`,
+  `recordApproval`, `advance`, `grantOverride`) with the real gate evaluator,
+  against a store that keeps nothing. That is good enough for now; revisit with
+  data. The fifteen swamp-club-swamp-extensions scenarios run in well under a
+  second.
+- **A simulated clock.** It moves one second per engine reading, plus each
+  `wait`, so cooldowns and waits are exact and a run is repeatable. Reading a
+  frame's readiness does not move it.
+- **Two actors.** Records and automatic moves are `agent:scenario`; approvals,
+  declines, overrides and manual moves are `user:scenario`.
+- **No Deno API.** The studio will run scenarios in the browser, so the runner
+  and everything it imports stay free of Deno APIs; `scenario_test.ts` walks the
+  import graph to check. It returns one frame per step, frame n for step n: the
+  committed run, readiness from `evaluateTransitions`, `computeMetrics`, and the
+  outcome.
+- **The directory is the factory's name, not the definition's.** `init` copies a
+  starter as it is, so a factory `team` holds a definition named `starter`. The
+  `factory` key must match the directory, which catches a file saved in the
+  wrong place; a scenario copied from an example needs its key changed.
+- **An agent writes them.** The studio views and simulates but never edits, so
+  the skill says where scenario files go, the verbs, and to run `validate` after
+  writing one (`references/scenarios.md`).
+
+Scenario files have no includes: the swamp-club `complete` variants each repeat
+the walk to attest. Each file reads whole in the studio; an include step would
+be its own change.
+
 ## Decision log
+
+### 2026-09-30: saved scenarios, run by validate (swamp-club #2805)
+
+**Decision.** Saved scenarios at `scenarios/<factory>/<scenario>.yaml`, run in
+process by `validate`, and the examples' walks moved out of `factories_test.ts`
+into scenario files. See "Saved scenarios".
+
+**Why.** So a definition change that breaks a known path fails `validate`. The
+issue used the names from before #2785 and #2803 for the directory and the key;
+they are `scenarios/<factory>/` and `factory`, matching the factory's name.
 
 ### 2026-09-30: a factory definition lives in a file the factory names (swamp-club #2803)
 

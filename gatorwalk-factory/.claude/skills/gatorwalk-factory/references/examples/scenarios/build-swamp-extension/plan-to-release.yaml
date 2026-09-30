@@ -1,0 +1,47 @@
+scenario: plan-to-release
+factory: build-swamp-extension
+description: >-
+  A new method walks plan to release through the real gates: the plan is
+  reviewed and approved, the change is checked, reviewed and released by a
+  registry push of the reviewed version.
+steps:
+  - record: { artifact: plan }
+    payload:
+      summary: Add list
+      steps: [{ description: Add list, files: [x.ts] }]
+      testingStrategy: Unit tests
+      versionBump: { needed: true, reason: New method }
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [{ id: F1, severity: low, description: Naming }] }
+  - approve: plan-approval
+  - move: approve
+  - record: { artifact: change-summary }
+    payload:
+      summary: Added list
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      files: [x.ts]
+      manifestVersion: 2026.09.28.1
+  - move: submit
+  - record: { evidence: checks }
+    payload:
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      status: passed
+      results: [{ name: test, status: passed }]
+  - record: { evidence: quality }
+    payload:
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      status: passed
+      allPassed: true
+  - move: passed
+  - record: { artifact: code-review }
+    payload: { findings: [] }
+  - approve: release-approval
+  - move: accept
+  - record: { evidence: release }
+    payload:
+      via: registry-push
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      url: https://swamp-club.com/extensions/@me/thing
+      version: 2026.09.28.1
+  - expect: { stage: release }

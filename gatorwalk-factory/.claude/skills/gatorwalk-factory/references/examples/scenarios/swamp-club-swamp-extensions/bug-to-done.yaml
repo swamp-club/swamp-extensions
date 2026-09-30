@@ -1,0 +1,195 @@
+scenario: bug-to-done
+factory: swamp-club-swamp-extensions
+description: >-
+  A bug from triage to done. Low confidence holds triage, the first commit
+  fails verification and cannot be submitted again, a new commit cannot skip
+  conformance-review, a failed child fails the whole verification, a stale
+  attestation is refused, and the merge waits out its cooldown.
+externalRefs: { swamp-club: "2734", swamp-club.display: "#2734" }
+steps:
+  - record: { evidence: classification }
+    payload:
+      type: bug
+      confidence: low
+      reasoning: Maybe a bug
+      isRegression: false
+      clarifyingQuestions: [Is a 503 retried today?]
+  - move: bug
+    expect: { refused: "waits for the person's answers" }
+  - wait: 900
+    note: The person answers the clarifying question
+  - record: { evidence: classification }
+    payload:
+      type: bug
+      confidence: high
+      reasoning: The person says 503 was never retried
+      isRegression: false
+  - move: feature
+    expect: { refused: "field 'type' is \"bug\"" }
+    note: A bug cannot take the feature exit
+  - move: bug
+  - record: { evidence: reproduction }
+    payload:
+      reproduced: true
+      commands: [deno test extensions/vaults/]
+      observed: 1 failed
+      expected: retry after 503
+      fixScope: vault/aws-sm
+  - move: reproduced
+  - record: { artifact: plan }
+    payload:
+      summary: Fix the retry
+      scopeAnalysis: Vault extension; one file
+      steps: [{ order: 1, description: Retry on 503, files: [x.ts] }]
+      testingStrategy: A failing test against a mock server
+      potentialChallenges: []
+  - move: submit
+  - record: { artifact: plan-review }
+    payload:
+      findings:
+        - id: ADV-1
+          severity: low
+          category: test-fidelity
+          description: Naming
+  - wait: 1800
+    note: The person reads the plan and the review
+  - approve: plan-approval
+  - move: approve
+  - record: { artifact: change-summary }
+    payload:
+      summary: Retry on 503
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      branch: fix-retry
+      files: [x.ts]
+  - move: submit
+  - record: { artifact: conformance }
+    payload:
+      steps: [{ order: 1, status: implemented, description: Retry added }]
+  - move: conforms
+  - record: { evidence: verification }
+    note: >-
+      verify-build failed while verify-reviews passed; the two are judged
+      together, so the whole verification failed
+    payload:
+      status: failed
+      runId: w1
+      commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
+      buildStatus: failed
+      buildRunId: b1
+      reviewsStatus: succeeded
+      reviewsRunId: v1
+  - move: passed
+    expect: { refused: "field 'status' is \"failed\"" }
+  - move: failed
+  - move: submit
+    expect: { refused: "commit already verified" }
+  - record: { artifact: change-summary }
+    payload:
+      summary: Retry on 503
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      branch: fix-retry
+      files: [x.ts]
+  - move: recheck
+    manual: true
+    expect: { refused: "re-verifies the commit" }
+    note: recheck only re-verifies that commit; a new one goes through conformance-review
+  - record: { artifact: change-summary }
+    payload:
+      summary: Retry on 503
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      branch: fix-retry
+      files: [x.ts]
+  - move: submit
+  - record: { artifact: conformance }
+    payload:
+      steps: [{ order: 1, status: deviated, description: Retry on 5xx }]
+  - move: conforms
+    expect: { refused: "needs a justification" }
+  - record: { artifact: conformance }
+    payload:
+      steps:
+        - order: 1
+          status: deviated
+          description: Retry on 5xx
+          justification: 502 fails the same way
+  - move: conforms
+  - record: { evidence: verification }
+    note: >-
+      A wrapper recorded as succeeded while a child failed is refused: the
+      wrapper fails whenever a child does
+    payload:
+      status: succeeded
+      runId: w2
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      buildStatus: succeeded
+      buildRunId: b2
+      reviewsStatus: failed
+      reviewsRunId: v2
+  - approve: checklist-confirmed
+  - move: passed
+    expect: { refused: "must have succeeded" }
+  - record: { evidence: verification }
+    payload:
+      status: succeeded
+      runId: w3
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      buildStatus: succeeded
+      buildRunId: b2
+      reviewsStatus: succeeded
+      reviewsRunId: v2
+  - wait: 600
+    note: The person works through the verification checklist
+  - approve: checklist-confirmed
+  - move: passed
+  - record: { evidence: attestation }
+    note: An attestation from the failed run
+    payload:
+      attestationId: a-old
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      buildRunId: b1
+      reviewsRunId: v2
+  - approve: open-pr
+  - move: attested
+    expect: { refused: "this commit's verify-build" }
+  - record: { evidence: attestation }
+    payload:
+      attestationId: a-2
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+      buildRunId: b2
+      reviewsRunId: v2
+  - move: attested
+    expect: { refused: "no longer count" }
+    note: The approval was bound to the attestation it saw, which has changed
+  - approve: open-pr
+  - move: attested
+  - record: { evidence: pull-request }
+    payload:
+      url: https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346
+      commit: 8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde
+  - move: opened
+  - record: { evidence: merge }
+    payload: {
+      status: merged,
+      mergeCommit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd,
+    }
+  - move: merged
+    expect: { refused: "cooldown" }
+  - wait: 180
+    note: CI settles
+  - move: merged
+  - record: { evidence: release }
+    payload: { outcome: shipped, version: 2026.09.28.1 }
+  - move: released
+  - record: { evidence: notification }
+    payload:
+      action: posted
+      author: someone-outside
+      reason: not on the swamp-club team
+  - move: notified
+  - record: { artifact: summary }
+    payload:
+      originalProblem: 503 was never retried
+      deliveredOutcome: 5xx responses are retried
+      outcomeMet: true
+  - move: finish
+  - expect: { stage: done }
