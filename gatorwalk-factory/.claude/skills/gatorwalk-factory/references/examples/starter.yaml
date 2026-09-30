@@ -32,9 +32,10 @@ stages:
         On a later plan, read the injected plan (the last one), plan-review
         (its review) and plan-feedback (the person's latest feedback); the
         first plan has none of them. After a review sends the plan back,
-        address its findings. After revise, address the feedback, and record
-        feedbackIncorporated: the last plan's list with the latest feedback
-        added, word for word.
+        address its findings. After revise, address the feedback. Record
+        feedbackIncorporated as the last plan's list, adding the feedback word
+        for word unless it is already the list's last entry: after rework,
+        plan-feedback is the feedback the last plan already answered.
       context:
         inject: [plan, plan-review, plan-feedback]
     artifacts:

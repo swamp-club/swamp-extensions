@@ -201,6 +201,20 @@ for (const [file, example, name] of PLAN_FEEDBACK) {
   });
 }
 
+Deno.test("plan feedback: every plan prompt adds the feedback only once, since after rework it is the feedback already answered", async () => {
+  for (const [file] of PLAN_FEEDBACK) {
+    const prompt = stage(await load(file), "plan").work?.systemPrompt ?? "";
+    const text = prompt.replace(/\s+/g, " ");
+    assert(
+      text.includes(
+        "Record feedbackIncorporated as the last plan's list, adding the " +
+          "feedback word for word unless it is already the list's last entry",
+      ),
+      `${file}: ${text}`,
+    );
+  }
+});
+
 Deno.test("plan feedback: after a declined plan, the person's feedback leaves approval declined and opens only revise", async () => {
   for (const [file, example] of [PLAN_FEEDBACK[0], PLAN_FEEDBACK[2]]) {
     const definition = await load(file);

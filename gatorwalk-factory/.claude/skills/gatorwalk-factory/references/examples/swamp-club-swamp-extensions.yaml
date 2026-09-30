@@ -315,8 +315,10 @@ stages:
         (its review) and plan-feedback (the person's latest feedback); the
         first plan has none of them. After rework, address every open
         critical and high finding of the last review. After revise, address
-        the feedback, and record feedbackIncorporated: the last plan's list
-        with the latest feedback added, word for word.
+        the feedback. Record feedbackIncorporated as the last plan's list,
+        adding the feedback word for word unless it is already the list's
+        last entry: after rework, plan-feedback is the feedback the last plan
+        already answered.
 
         gatorwalk drives this issue: do not use the issue-lifecycle skill or
         run any @swamp/issue-lifecycle method, even when a request would
