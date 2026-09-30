@@ -18,6 +18,7 @@ import { fromFileUrl } from "@std/path";
 import { model as factoryModel } from "../../extensions/models/engine/factory.ts";
 import { model as linearModel } from "../../extensions/models/tracker/linear.ts";
 import { model as swampClubModel } from "../../extensions/models/tracker/swamp_club.ts";
+import { model as builtinTrackerModel } from "../../extensions/models/tracker/builtin.ts";
 import { model as workItemModel } from "../../extensions/models/engine/work_item.ts";
 import {
   FACTORY_TYPE,
@@ -25,6 +26,8 @@ import {
 } from "../../extensions/models/_lib/engine/work_item_ops.ts";
 
 import { splitWords } from "../harness.ts";
+
+const BUILTIN_TRACKER_TYPE = builtinTrackerModel.type;
 // ---------------------------------------------------------------------------
 // The swamp commands the gatorwalk-factory skill shows, pulled out of its
 // markdown so a test can check and run them as written.
@@ -161,6 +164,7 @@ const SAMPLE: Record<string, string> = {
   "<key>": "build-swamp-extension-add-list-method-abcd",
   "<era>": "00000000-0000-0000-0000-000000000000",
   "<factory>": "team",
+  "<starter>": "starter",
   "<ticket>": "ABC-1",
   "<cycle>": "1",
   "<dispatch-id>": "1",
@@ -246,12 +250,33 @@ export function checkCommand(words: string[]): string | null {
     return checkInputs(method, rest, ["--log"]);
   }
   if (is("model", "create")) {
-    return args[2] === FACTORY_TYPE && args.length === 7 &&
-        args[4] === "--global-arg" &&
-        /^definition=[^/].*\.ya?ml$/.test(args[5]) && args[6] === "--json"
+    if (args[2] === FACTORY_TYPE) {
+      return args.length === 7 && args[4] === "--global-arg" &&
+          /^definition=[^/].*\.ya?ml$/.test(args[5]) && args[6] === "--json"
+        ? null
+        : `model create must be: model create ${FACTORY_TYPE} <name> ` +
+          "--global-arg definition=<path>.yaml --json";
+    }
+    // The built-in tracker needs its prefix; Linear is set up in the model
+    // file create prints.
+    if (args[2] === BUILTIN_TRACKER_TYPE) {
+      return args.length === 7 && args[4] === "--global-arg" &&
+          /^prefix=\S+$/.test(args[5]) && args[6] === "--json"
+        ? null
+        : `model create must be: model create ${BUILTIN_TRACKER_TYPE} ` +
+          "<name> --global-arg prefix=<prefix> --json";
+    }
+    if (args[2] === linearModel.type) {
+      return args.length === 5 && args[4] === "--json"
+        ? null
+        : `model create must be: model create ${args[2]} <name> --json`;
+    }
+    return `no model type the skill creates: ${args[2]}`;
+  }
+  if (is("model", "search")) {
+    return args.length === 4 && args[3] === "--json"
       ? null
-      : `model create must be: model create ${FACTORY_TYPE} <name> ` +
-        "--global-arg definition=<path>.yaml --json";
+      : "model search takes a query and --json";
   }
   if (is("extension", "source", "add")) {
     return args.length === 4 ? null : "extension source add takes one path";
@@ -291,10 +316,15 @@ interface RepoLike {
 export async function runExample(
   repo: RepoLike,
   commands: SkillCommand[],
-  context: { extensionRoot: string },
+  context: {
+    extensionRoot: string;
+    /** Fixed values for the placeholders the commands name, by placeholder. */
+    values?: Record<string, string>;
+  },
   onStep: (step: ExampleStep) => void = () => {},
 ): Promise<ExampleStep[]> {
   const values: Record<string, string> = {
+    ...context.values,
     "<gatorwalk-factory>": context.extensionRoot,
   };
   // Result files go to a fresh directory, named in the example as

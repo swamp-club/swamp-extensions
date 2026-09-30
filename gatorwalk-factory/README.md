@@ -92,8 +92,9 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
   extension/              the whole extension: model registration and the skill
     skill_commands.ts     the skill's commands, pulled out to check and run
 .claude/skills/gatorwalk-factory/
-  SKILL.md                the skill: how an agent drives a work item
-  references/             driving in full, and saved scenarios (scenarios.md)
+  SKILL.md                the skill: how an agent authors a factory and drives a work item
+  references/             authoring (authoring.md), driving in full, and saved
+                          scenarios (scenarios.md)
     examples/             the example definitions to start from, a worked
                           example, and the swamp-club-swamp-extensions
                           mapping (a .md)
@@ -592,6 +593,14 @@ nothing. A repeat claim refreshes only the ticket's snapshot, not the index
 record, so read the key with `swamp data get lab ticket-2631 --json`. See
 [DESIGN.md](DESIGN.md), "Start from a ticket".
 
+## Authoring a factory
+
+A factory is made and changed by an agent with the gatorwalk-factory skill,
+never by hand: the skill's `references/authoring.md` interviews the person,
+copies the closest example with `init`, applies the authoring rules, runs
+`validate` until it is clean, shows the design page, and starts the first work
+item. It also covers changing a factory that has work items running.
+
 ## Driving it
 
 The gatorwalk-factory skill, in `.claude/skills/gatorwalk-factory/`, is how an
@@ -601,6 +610,8 @@ here and ships with the extension at go-live. To use it in another repo before
 then, link the directory into that repo's `.claude/skills/`.
 
 `integration/extension/skill_test.ts` keeps it honest: every command the skill
-shows must name a real method with inputs it accepts, and the worked example
+shows must name a real method with inputs it accepts, the worked example
 (`references/examples/build-swamp-extension.md`) runs, as written, from start to
-done on the real engine.
+done on the real engine, and so do authoring's commands, from no factory to a
+started work item. Authoring's table of graph findings must name every finding
+`validate` can report.

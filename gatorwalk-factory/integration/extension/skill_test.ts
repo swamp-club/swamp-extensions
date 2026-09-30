@@ -32,6 +32,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const EXAMPLE = "references/examples/build-swamp-extension.md";
+const AUTHORING = "references/authoring.md";
 
 Deno.test("skill: commands split as a shell would, and shell syntax is refused", () => {
   assertEquals(
@@ -159,6 +160,71 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
       "not a command form",
     ),
   );
+  assert(
+    checkCommand([
+      "swamp",
+      "model",
+      "create",
+      "@swamp/gatorwalk-factory/tracker",
+      "board",
+      "--json",
+    ])?.includes("prefix=<prefix>"),
+    "the built-in tracker is created with its prefix",
+  );
+});
+
+// Authoring runs, as written, from an empty repo to a started work item: the
+// commands of its states, up to its first reference section.
+Deno.test("skill: authoring runs as written, from no factory to a started work item", async () => {
+  const text = await Deno.readTextFile(`${SKILL_DIR}/${AUTHORING}`);
+  const end = text.split("\n").indexOf("## The tracker") + 1;
+  assert(end > 0, "authoring.md has no '## The tracker' section");
+  const commands = commandsIn(AUTHORING, text).filter((c) => c.line < end);
+  // What each command does: its method, or its swamp subcommand.
+  const label = (w: string[]) =>
+    w[2] === "method" ? w[5] : w[3] === "method" ? w[5] : `${w[1]} ${w[2]}`;
+  assertEquals(commands.map((c) => label(c.words)), [
+    "model search",
+    "model create",
+    "init",
+    "validate",
+    "design_page",
+    "data get",
+    "new_key",
+    "start",
+    "status",
+  ]);
+  await withRepo(async (repo) => {
+    const steps = await runExample(repo, commands, {
+      extensionRoot: EXTENSION_ROOT,
+      values: {
+        "<factory>": "team",
+        "<starter>": "starter",
+        "<title>": "Fix a typo",
+      },
+    });
+    const validate = steps.find((s) => s.ran.includes("validate"))!;
+    assert(validate.output.includes("is valid"), validate.output);
+    const last = steps.at(-1)!;
+    assert(last.output.includes("'plan'"), last.output);
+  });
+});
+
+// The finding table in authoring.md names every graph finding validate can
+// report, and nothing else.
+Deno.test("skill: authoring explains every graph finding", async () => {
+  const graph = await Deno.readTextFile(
+    `${EXTENSION_ROOT}/extensions/models/_lib/engine/graph.ts`,
+  );
+  const union = graph.match(/export type FindingCode =([^;]+);/)?.[1] ?? "";
+  const codes = [...union.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]).sort();
+  assert(codes.length > 5, `FindingCode not found in graph.ts: ${codes}`);
+  const text = await Deno.readTextFile(`${SKILL_DIR}/${AUTHORING}`);
+  const table = text.split("## Findings in plain words")[1]?.split("\n## ")[0];
+  assert(table !== undefined, "authoring.md has no findings section");
+  const rows = [...table.matchAll(/^\| ([a-z]+(?:-[a-z]+)+) +\|/gm)]
+    .map((m) => m[1]).sort();
+  assertEquals(rows, codes);
 });
 
 Deno.test("skill: the worked example runs as written, from start to done", async () => {
@@ -237,4 +303,22 @@ Deno.test("skill: the worked example runs as written, from start to done", async
       );
     }
   });
+});
+
+// The swamp-club Lab tracker and its example are the swamp-club team's own:
+// authoring must never offer them. Only the tracker section names them, to
+// say so.
+Deno.test("skill: authoring never offers the swamp-club Lab", async () => {
+  const text = await Deno.readTextFile(`${SKILL_DIR}/${AUTHORING}`);
+  const sections = text.split(/\n(?=## )/);
+  const offering = sections.filter((s) =>
+    !s.startsWith("## The tracker") && /swamp-club|\bLab\b/.test(s)
+  );
+  assertEquals(offering.map((s) => s.split("\n")[0]), []);
+  assertEquals(
+    commandsIn(AUTHORING, text).filter((c) =>
+      c.words.some((w) => w.includes("swamp-club"))
+    ),
+    [],
+  );
 });

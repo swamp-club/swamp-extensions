@@ -1,12 +1,15 @@
 ---
 name: gatorwalk-factory
 description: >
-  Drive a work item through a gatorwalk factory
-  (@swamp/gatorwalk-factory): start it, read its status, dispatch and do each
-  stage's work, record artifacts and evidence, advance, and stop for a person
-  at every human gate. Use only when the user names gatorwalk: "gatorwalk",
-  "gatorwalk-factory", "gatorwalk work item", "gatorwalk status", "drive a
-  gatorwalk work item", "start a gatorwalk work item". Not for
+  Set up, change and drive a gatorwalk factory (@swamp/gatorwalk-factory):
+  interview the person and author a factory definition from an example,
+  validate it and show it; then start a work item, read its status, dispatch
+  and do each stage's work, record artifacts and evidence, advance, and stop
+  for a person at every human gate. Use only when the user names gatorwalk:
+  "gatorwalk", "gatorwalk-factory", "set up a gatorwalk factory", "create a
+  gatorwalk factory", "change a gatorwalk factory", "gatorwalk factory
+  definition", "gatorwalk work item", "gatorwalk status", "drive a gatorwalk
+  work item", "start a gatorwalk work item". Not for
   @swamp/software-factory runs or definitions, or @swamp/issue-lifecycle.
 ---
 
@@ -18,9 +21,11 @@ between them. Each piece of work is a **work item**, one model instance that
 enforces the gates, limits and human stops and writes a journal. You drive it;
 it never does the work itself.
 
-This skill covers **driving** a work item. Designing and authoring factory
-definitions is not covered yet.
+This skill covers **authoring** a factory and **driving** its work items.
 
+- Authoring a factory: make or change one with the person, never by hand. An
+  interview, an example to start from, `validate` until clean, the design page,
+  the first work item: [references/authoring.md](references/authoring.md)
 - Driving in full: [references/driving.md](references/driving.md)
 - A whole work item, start to done:
   [references/examples/build-swamp-extension.md](references/examples/build-swamp-extension.md)
