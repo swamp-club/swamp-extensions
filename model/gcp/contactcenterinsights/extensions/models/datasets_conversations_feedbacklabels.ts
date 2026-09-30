@@ -224,6 +224,8 @@ const StateSchema = z.object({
     skipValue: z.boolean(),
     strValue: z.string(),
   }).optional(),
+  satisfiesPzi: z.boolean().optional(),
+  satisfiesPzs: z.boolean().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -305,7 +307,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/datasets-conversations-feedbacklabels",
-  version: "2026.08.12.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -434,6 +436,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

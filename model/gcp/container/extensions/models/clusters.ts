@@ -645,7 +645,7 @@ const GlobalArgsSchema = z.object({
     costManagementConfig: z.object({
       enabled: z.boolean().describe("Whether the feature is enabled or not.")
         .optional(),
-    }).describe("Configuration for the fine-grained cost management feature.")
+    }).describe("Configuration for the fine-grained cost allocation feature.")
       .optional(),
     createTime: z.string().describe(
       "Output only. The time the cluster was created, in [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) text format.",
@@ -1821,7 +1821,7 @@ const GlobalArgsSchema = z.object({
         "A map of resource manager tag keys and values to be attached to the nodes.",
       ).optional(),
       sandboxConfig: z.object({
-        type: z.enum(["UNSPECIFIED", "GVISOR"]).describe(
+        type: z.enum(["UNSPECIFIED", "GVISOR", "MICROVM"]).describe(
           "Type of the sandbox to use for the node.",
         ).optional(),
       }).describe("Sandbox configuration for this node.").optional(),
@@ -3773,7 +3773,7 @@ const GlobalArgsSchema = z.object({
       enabled: z.boolean().describe("Whether the feature is enabled or not.")
         .optional(),
     }).describe(
-      "The desired configuration for the fine-grained cost management feature.",
+      "The desired configuration for the fine-grained cost allocation feature.",
     ).optional(),
     desiredDatabaseEncryption: z.object({
       currentState: z.enum([
@@ -6656,7 +6656,7 @@ const InputsSchema = z.object({
     costManagementConfig: z.object({
       enabled: z.boolean().describe("Whether the feature is enabled or not.")
         .optional(),
-    }).describe("Configuration for the fine-grained cost management feature.")
+    }).describe("Configuration for the fine-grained cost allocation feature.")
       .optional(),
     createTime: z.string().describe(
       "Output only. The time the cluster was created, in [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) text format.",
@@ -7832,7 +7832,7 @@ const InputsSchema = z.object({
         "A map of resource manager tag keys and values to be attached to the nodes.",
       ).optional(),
       sandboxConfig: z.object({
-        type: z.enum(["UNSPECIFIED", "GVISOR"]).describe(
+        type: z.enum(["UNSPECIFIED", "GVISOR", "MICROVM"]).describe(
           "Type of the sandbox to use for the node.",
         ).optional(),
       }).describe("Sandbox configuration for this node.").optional(),
@@ -9784,7 +9784,7 @@ const InputsSchema = z.object({
       enabled: z.boolean().describe("Whether the feature is enabled or not.")
         .optional(),
     }).describe(
-      "The desired configuration for the fine-grained cost management feature.",
+      "The desired configuration for the fine-grained cost allocation feature.",
     ).optional(),
     desiredDatabaseEncryption: z.object({
       currentState: z.enum([
@@ -10893,7 +10893,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.09.10.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -11142,6 +11142,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -772,7 +772,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Objects. Registered at `@swamp/gcp/storage/objects`. */
 export const model = {
   type: "@swamp/gcp/storage/objects",
-  version: "2026.09.29.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -926,6 +926,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2623,6 +2628,69 @@ export const model = {
               "generation": { "location": "query" },
               "object": { "location": "path", "required": true },
               "permissions": { "location": "query", "required": true },
+              "userProject": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    view_full_context: {
+      description: "view full context",
+      arguments: z.object({
+        contextKey: z.any().optional(),
+        generation: z.any().optional(),
+        userProject: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["object"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["contextKey"] !== undefined) {
+          params["contextKey"] = String(args["contextKey"]);
+        }
+        if (args["generation"] !== undefined) {
+          params["generation"] = String(args["generation"]);
+        }
+        if (args["userProject"] !== undefined) {
+          params["userProject"] = String(args["userProject"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "storage.objects.viewFullContext",
+            "path": "b/{bucket}/o/{object}/viewFullContext",
+            "httpMethod": "GET",
+            "parameterOrder": ["bucket", "object"],
+            "parameters": {
+              "bucket": { "location": "path", "required": true },
+              "contextKey": { "location": "query", "required": true },
+              "generation": { "location": "query" },
+              "object": { "location": "path", "required": true },
               "userProject": { "location": "query" },
             },
           },

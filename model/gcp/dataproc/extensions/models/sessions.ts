@@ -254,7 +254,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Optional. Runtime configuration for the session execution.")
     .optional(),
   sessionTemplate: z.string().describe(
-    "Optional. The session template used by the session.Only resource names, including project ID and location, are valid.Example: * https://www.googleapis.com/compute/v1/projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id] * projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id]The template must be in the same project and Dataproc region as the session.",
+    "Optional. The session template used by the session.Resource names and short template IDs are valid. Examples: * projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id] * [template_id]The template must be in the same project and Dataproc region as the session.",
   ).optional(),
   sparkConnectSession: z.object({}).describe(
     "Optional. Spark connect session config.",
@@ -481,7 +481,7 @@ const InputsSchema = z.object({
   }).describe("Optional. Runtime configuration for the session execution.")
     .optional(),
   sessionTemplate: z.string().describe(
-    "Optional. The session template used by the session.Only resource names, including project ID and location, are valid.Example: * https://www.googleapis.com/compute/v1/projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id] * projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id]The template must be in the same project and Dataproc region as the session.",
+    "Optional. The session template used by the session.Resource names and short template IDs are valid. Examples: * projects/[project_id]/locations/[dataproc_region]/sessionTemplates/[template_id] * [template_id]The template must be in the same project and Dataproc region as the session.",
   ).optional(),
   sparkConnectSession: z.object({}).describe(
     "Optional. Spark connect session config.",
@@ -526,7 +526,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Sessions. Registered at `@swamp/gcp/dataproc/sessions`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessions",
-  version: "2026.08.12.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -703,6 +703,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

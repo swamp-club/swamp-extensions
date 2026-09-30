@@ -96,8 +96,8 @@ const ResourceSchema = z.object({
     custom_database_name: z.string().optional(),
     database_branch_name: z.string().optional(),
     database_name: z.string().optional(),
-    integration: z.string().optional(),
     organization_name: z.string().optional(),
+    provider: z.string().optional(),
     scheme: z.string().optional(),
   }).optional(),
   modified_on: z.string().optional(),
@@ -158,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Configs. Registered at `@swamp/cloudflare/hyperdrive/configs`. */
 export const model = {
   type: "@swamp/cloudflare/hyperdrive/configs",
-  version: "2026.09.29.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -217,6 +217,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

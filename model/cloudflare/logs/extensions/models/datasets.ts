@@ -64,7 +64,10 @@ const GlobalArgsSchema = z.object({
     "Controls which fields the API ingests. Defaults to all available\nfields when absent.\n",
   ).optional(),
   filter: z.string().describe(
-    "Optional Logpush filter predicate to restrict which events are ingested.\nIf provided, replaces the dataset's default filter entirely.\nSee [Logpush filters](https://developers.cloudflare.com/logs/reference/filters/)\nfor syntax and examples.\n",
+    "Optional Logpush filter predicate to restrict which events are ingested.\nSee [Logpush filters](https://developers.cloudflare.com/logs/reference/filters/)\nfor syntax and examples.\n",
+  ).optional(),
+  filter_attack_traffic: z.boolean().describe(
+    "Whether to filter attack traffic from the Logpush job. Defaults to\n`true` for supported datasets when omitted. Supported datasets are\n`http_requests`, `firewall_events`, and `network_analytics_logs`.\n",
   ).optional(),
   dataset: z.string().describe(
     "Dataset type name to create (e.g. `http_requests`).",
@@ -94,6 +97,7 @@ const ResourceSchema = z.object({
     name: z.string().optional(),
   })).optional(),
   filter: z.string().optional(),
+  filter_attack_traffic: z.boolean().optional(),
   id: z.string(),
 }).passthrough();
 
@@ -110,6 +114,7 @@ const InputsSchema = z.object({
     name: z.string(),
   })).optional(),
   filter: z.string().optional(),
+  filter_attack_traffic: z.boolean().optional(),
   dataset: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -119,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Datasets. Registered at `@swamp/cloudflare/logs/datasets`. */
 export const model = {
   type: "@swamp/cloudflare/logs/datasets",
-  version: "2026.09.29.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -171,6 +176,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.30.1",
+      description: "Added: filter_attack_traffic",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -207,6 +217,9 @@ export const model = {
         if (g.dataset !== undefined) body.dataset = g.dataset;
         if (g.fields !== undefined) body.fields = g.fields;
         if (g.filter !== undefined) body.filter = g.filter;
+        if (g.filter_attack_traffic !== undefined) {
+          body.filter_attack_traffic = g.filter_attack_traffic;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -280,6 +293,12 @@ export const model = {
           filters.push(["enabled", String(g.enabled)]);
         }
         if (g.filter !== undefined) filters.push(["filter", String(g.filter)]);
+        if (g.filter_attack_traffic !== undefined) {
+          filters.push([
+            "filter_attack_traffic",
+            String(g.filter_attack_traffic),
+          ]);
+        }
         if (g.dataset !== undefined) {
           filters.push(["dataset", String(g.dataset)]);
         }
@@ -403,8 +422,16 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.fields !== undefined) body.fields = g.fields;
         if (g.filter !== undefined) body.filter = g.filter;
-        const unset = ["deletion_protection", "enabled", "fields", "filter"]
-          .filter((k) => body[k] === undefined);
+        if (g.filter_attack_traffic !== undefined) {
+          body.filter_attack_traffic = g.filter_attack_traffic;
+        }
+        const unset = [
+          "deletion_protection",
+          "enabled",
+          "fields",
+          "filter",
+          "filter_attack_traffic",
+        ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,

@@ -105,6 +105,7 @@ const GlobalArgsSchema = z.object({
       S3Configuration: S3ReportOutputConfigurationSchema.optional(),
     })).optional(),
   }).optional(),
+  ServiceQuotaChecksEnabled: z.boolean().optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).optional(),
   Triggers: z.array(TriggerSchema).optional(),
   Workflows: z.array(z.string()),
@@ -132,6 +133,7 @@ const StateSchema = z.object({
       S3Configuration: S3ReportOutputConfigurationSchema,
     })),
   }).optional(),
+  ServiceQuotaChecksEnabled: z.boolean().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
   Triggers: z.array(TriggerSchema).optional(),
   Version: z.string().optional(),
@@ -173,6 +175,7 @@ const InputsSchema = z.object({
       S3Configuration: S3ReportOutputConfigurationSchema.optional(),
     })).optional(),
   }).optional(),
+  ServiceQuotaChecksEnabled: z.boolean().optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).optional(),
   Triggers: z.array(TriggerSchema).optional(),
   Workflows: z.array(z.string()).optional(),
@@ -203,7 +206,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ARCRegionSwitch Plan. Registered at `@swamp/aws/arcregionswitch/plan`. */
 export const model = {
   type: "@swamp/aws/arcregionswitch/plan",
-  version: "2026.08.17.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +256,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description: "Added: ServiceQuotaChecksEnabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

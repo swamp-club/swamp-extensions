@@ -327,6 +327,12 @@ const GlobalArgsSchema = z.object({
         strValue: z.string().describe("String value.").optional(),
       }).describe("QaAnswer label used for Quality AI example conversations.")
         .optional(),
+      satisfiesPzi: z.boolean().describe(
+        "Output only. Whether this resource is zone isolated.",
+      ).optional(),
+      satisfiesPzs: z.boolean().describe(
+        "Output only. Whether this resource is zone separated.",
+      ).optional(),
       updateTime: z.string().describe("Output only. Update time of the label.")
         .optional(),
     })).describe(
@@ -467,6 +473,8 @@ const StateSchema = z.object({
     createTime: z.string(),
     name: z.string(),
     requestTime: z.string(),
+    satisfiesPzi: z.boolean(),
+    satisfiesPzs: z.boolean(),
   }).optional(),
   latestSummary: z.object({
     answerRecord: z.string(),
@@ -514,6 +522,8 @@ const StateSchema = z.object({
         skipValue: z.boolean(),
         strValue: z.string(),
       }),
+      satisfiesPzi: z.boolean(),
+      satisfiesPzs: z.boolean(),
       updateTime: z.string(),
     })),
     menuPath: z.string(),
@@ -602,6 +612,8 @@ const StateSchema = z.object({
       querySource: z.string(),
     }),
   })).optional(),
+  satisfiesPzi: z.boolean().optional(),
+  satisfiesPzs: z.boolean().optional(),
   startTime: z.string().optional(),
   transcript: z.object({
     transcriptSegments: z.array(z.object({
@@ -811,6 +823,12 @@ const InputsSchema = z.object({
         strValue: z.string().describe("String value.").optional(),
       }).describe("QaAnswer label used for Quality AI example conversations.")
         .optional(),
+      satisfiesPzi: z.boolean().describe(
+        "Output only. Whether this resource is zone isolated.",
+      ).optional(),
+      satisfiesPzs: z.boolean().describe(
+        "Output only. Whether this resource is zone separated.",
+      ).optional(),
       updateTime: z.string().describe("Output only. Update time of the label.")
         .optional(),
     })).describe(
@@ -870,7 +888,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Conversations. Registered at `@swamp/gcp/contactcenterinsights/conversations`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/conversations",
-  version: "2026.09.07.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1071,6 +1089,11 @@ export const model = {
       toVersion: "2026.09.07.1",
       description:
         "Added: allowMissing, conversationAutoLabelingUpdateConfig_allowAutoLabelingUpdate",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -47,7 +47,12 @@ const CloudWatchLogsInputConfigSchema = z.object({
     z.string().min(1).max(512).regex(new RegExp("^[.\\-_/#A-Za-z0-9]+$")),
   ).describe(
     "The list of CloudWatch log group names to monitor for agent traces.",
-  ),
+  ).optional(),
+  LogGroupNamePrefixes: z.array(
+    z.string().min(1).max(512).regex(new RegExp("^[.\\-_/#A-Za-z0-9]+$")),
+  ).describe(
+    "The list of CloudWatch log group name prefixes to monitor for agent traces. Mutually exclusive with LogGroupNames; specify exactly one of the two selectors.",
+  ).optional(),
   ServiceNames: z.array(
     z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9._-]+$")),
   ).describe(
@@ -105,9 +110,20 @@ const SessionConfigSchema = z.object({
 });
 
 const CloudWatchOutputConfigSchema = z.object({
-  LogGroupName: z.string().describe(
-    "The CloudWatch log group name for evaluation results.",
+  LogGroupName: z.string().min(1).max(512).regex(
+    new RegExp("^[.\\-_/#A-Za-z0-9]+$"),
+  ).describe(
+    "The CloudWatch log group name for evaluation results. Omit to use the service-managed default log group.",
   ).optional(),
+  MetricsNamespace: z.string().min(1).max(255).regex(
+    new RegExp("^[a-zA-Z0-9._#/:-]+$"),
+  ).describe(
+    "The CloudWatch metrics namespace for evaluation result metrics. Omit to use the service-managed default namespace.",
+  ).optional(),
+  ResultDestination: z.enum(["DEDICATED_LOG_GROUP", "SOURCE_LOG_GROUP"])
+    .describe(
+      "Where evaluation results are written. DEDICATED_LOG_GROUP, the default when omitted, writes to a dedicated result log group. SOURCE_LOG_GROUP writes results back to the trace source log group; LogGroupName must not be specified with SOURCE_LOG_GROUP.",
+    ).optional(),
 });
 
 const TagSchema = z.object({
@@ -317,7 +333,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.08.17.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -381,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

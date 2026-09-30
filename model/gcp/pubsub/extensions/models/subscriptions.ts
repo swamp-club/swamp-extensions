@@ -187,6 +187,23 @@ const GlobalArgsSchema = z.object({
     appProfileId: z.string().describe(
       'Optional. The app profile to use for the Bigtable writes. If not specified, the "default" application profile will be used. The app profile must use single-cluster routing.',
     ).optional(),
+    columnFamilyMapping: z.object({
+      delimitedKey: z.object({
+        delimiter: z.string().describe(
+          "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
+        ).optional(),
+        keyFields: z.array(z.string()).describe(
+          "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+        ).optional(),
+      }).describe(
+        "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
+      ).optional(),
+      rowKeySchema: z.object({}).describe(
+        "Optional. If set, the row key is constructed from the field names of the table's structured row key ({$universe.dns_names.final_documentation_domain}/bigtable/docs/manage-row-key-schemas). Note that if the field is nullable in the structured row key, then it need not be present in the message; null will be used instead.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration that allows writing row keys and/or columns based on fields in the input message. The input message format must be JSON if this field is set.",
+    ).optional(),
     serviceAccountEmail: z.string().describe(
       "Optional. The service account to use to write to Bigtable. The subscription creator or updater that specifies this field must have `iam.serviceAccounts.actAs` permission on the service account. If not specified, the Pub/Sub [service agent](https://cloud.google.com/iam/docs/service-agents), service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.",
     ).optional(),
@@ -451,6 +468,23 @@ const GlobalArgsSchema = z.object({
     bigtableConfig: z.object({
       appProfileId: z.string().describe(
         'Optional. The app profile to use for the Bigtable writes. If not specified, the "default" application profile will be used. The app profile must use single-cluster routing.',
+      ).optional(),
+      columnFamilyMapping: z.object({
+        delimitedKey: z.object({
+          delimiter: z.string().describe(
+            "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
+          ).optional(),
+          keyFields: z.array(z.unknown()).describe(
+            "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+          ).optional(),
+        }).describe(
+          "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
+        ).optional(),
+        rowKeySchema: z.object({}).describe(
+          "Optional. If set, the row key is constructed from the field names of the table's structured row key ({$universe.dns_names.final_documentation_domain}/bigtable/docs/manage-row-key-schemas). Note that if the field is nullable in the structured row key, then it need not be present in the message; null will be used instead.",
+        ).optional(),
+      }).describe(
+        "Optional. Configuration that allows writing row keys and/or columns based on fields in the input message. The input message format must be JSON if this field is set.",
       ).optional(),
       serviceAccountEmail: z.string().describe(
         "Optional. The service account to use to write to Bigtable. The subscription creator or updater that specifies this field must have `iam.serviceAccounts.actAs` permission on the service account. If not specified, the Pub/Sub [service agent](https://cloud.google.com/iam/docs/service-agents), service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.",
@@ -695,6 +729,13 @@ const StateSchema = z.object({
   }).optional(),
   bigtableConfig: z.object({
     appProfileId: z.string(),
+    columnFamilyMapping: z.object({
+      delimitedKey: z.object({
+        delimiter: z.string(),
+        keyFields: z.array(z.string()),
+      }),
+      rowKeySchema: z.object({}),
+    }),
     serviceAccountEmail: z.string(),
     state: z.string(),
     table: z.string(),
@@ -820,6 +861,23 @@ const InputsSchema = z.object({
   bigtableConfig: z.object({
     appProfileId: z.string().describe(
       'Optional. The app profile to use for the Bigtable writes. If not specified, the "default" application profile will be used. The app profile must use single-cluster routing.',
+    ).optional(),
+    columnFamilyMapping: z.object({
+      delimitedKey: z.object({
+        delimiter: z.string().describe(
+          "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
+        ).optional(),
+        keyFields: z.array(z.string()).describe(
+          "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+        ).optional(),
+      }).describe(
+        "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
+      ).optional(),
+      rowKeySchema: z.object({}).describe(
+        "Optional. If set, the row key is constructed from the field names of the table's structured row key ({$universe.dns_names.final_documentation_domain}/bigtable/docs/manage-row-key-schemas). Note that if the field is nullable in the structured row key, then it need not be present in the message; null will be used instead.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration that allows writing row keys and/or columns based on fields in the input message. The input message format must be JSON if this field is set.",
     ).optional(),
     serviceAccountEmail: z.string().describe(
       "Optional. The service account to use to write to Bigtable. The subscription creator or updater that specifies this field must have `iam.serviceAccounts.actAs` permission on the service account. If not specified, the Pub/Sub [service agent](https://cloud.google.com/iam/docs/service-agents), service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.",
@@ -1085,6 +1143,23 @@ const InputsSchema = z.object({
     bigtableConfig: z.object({
       appProfileId: z.string().describe(
         'Optional. The app profile to use for the Bigtable writes. If not specified, the "default" application profile will be used. The app profile must use single-cluster routing.',
+      ).optional(),
+      columnFamilyMapping: z.object({
+        delimitedKey: z.object({
+          delimiter: z.string().describe(
+            "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
+          ).optional(),
+          keyFields: z.array(z.unknown()).describe(
+            "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+          ).optional(),
+        }).describe(
+          "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
+        ).optional(),
+        rowKeySchema: z.object({}).describe(
+          "Optional. If set, the row key is constructed from the field names of the table's structured row key ({$universe.dns_names.final_documentation_domain}/bigtable/docs/manage-row-key-schemas). Note that if the field is nullable in the structured row key, then it need not be present in the message; null will be used instead.",
+        ).optional(),
+      }).describe(
+        "Optional. Configuration that allows writing row keys and/or columns based on fields in the input message. The input message format must be JSON if this field is set.",
       ).optional(),
       serviceAccountEmail: z.string().describe(
         "Optional. The service account to use to write to Bigtable. The subscription creator or updater that specifies this field must have `iam.serviceAccounts.actAs` permission on the service account. If not specified, the Pub/Sub [service agent](https://cloud.google.com/iam/docs/service-agents), service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com, is used.",
@@ -1338,7 +1413,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Subscriptions. Registered at `@swamp/gcp/pubsub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/pubsub/subscriptions",
-  version: "2026.09.07.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1594,6 +1669,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

@@ -169,6 +169,12 @@ const GlobalArgsSchema = z.object({
     name: z.string().describe(
       "Identifier. The scorecard name. Format: projects/{project}/locations/{location}/qaScorecards/{qa_scorecard}",
     ).optional(),
+    satisfiesPzi: z.boolean().describe(
+      "Output only. Whether this resource is zone isolated.",
+    ).optional(),
+    satisfiesPzs: z.boolean().describe(
+      "Output only. Whether this resource is zone separated.",
+    ).optional(),
     source: z.enum([
       "QA_SCORECARD_SOURCE_UNSPECIFIED",
       "QA_SCORECARD_SOURCE_CUSTOMER_DEFINED",
@@ -196,12 +202,16 @@ const StateSchema = z.object({
   alternateIds: z.array(z.string()).optional(),
   createTime: z.string().optional(),
   name: z.string(),
+  satisfiesPzi: z.boolean().optional(),
+  satisfiesPzs: z.boolean().optional(),
   snapshot: z.object({
     createTime: z.string(),
     description: z.string(),
     displayName: z.string(),
     isDefault: z.boolean(),
     name: z.string(),
+    satisfiesPzi: z.boolean(),
+    satisfiesPzs: z.boolean(),
     source: z.string(),
     updateTime: z.string(),
   }).optional(),
@@ -235,6 +245,12 @@ const InputsSchema = z.object({
     ).optional(),
     name: z.string().describe(
       "Identifier. The scorecard name. Format: projects/{project}/locations/{location}/qaScorecards/{qa_scorecard}",
+    ).optional(),
+    satisfiesPzi: z.boolean().describe(
+      "Output only. Whether this resource is zone isolated.",
+    ).optional(),
+    satisfiesPzs: z.boolean().describe(
+      "Output only. Whether this resource is zone separated.",
     ).optional(),
     source: z.enum([
       "QA_SCORECARD_SOURCE_UNSPECIFIED",
@@ -285,7 +301,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights QaScorecards.Revisions. Registered at `@swamp/gcp/contactcenterinsights/qascorecards-revisions`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/qascorecards-revisions",
-  version: "2026.08.12.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -414,6 +430,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -155,7 +155,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configuration for evaluation review settings of this evaluation form.",
   ).optional(),
-  AIVersion: z.string().min(1).max(256).optional(),
+  AIVersion: z.string().min(1).max(256).describe(
+    "The AI version to use for the evaluation form. This specifies which AI model version is used for automated evaluations.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     'The tags used to organize, track, or control access for this resource. For example, { "tags": {"key1":"value1", "key2":"value2"} }.',
   ).optional(),
@@ -263,7 +265,9 @@ const InputsSchema = z.object({
   }).describe(
     "Configuration for evaluation review settings of this evaluation form.",
   ).optional(),
-  AIVersion: z.string().min(1).max(256).optional(),
+  AIVersion: z.string().min(1).max(256).describe(
+    "The AI version to use for the evaluation form. This specifies which AI model version is used for automated evaluations.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     'The tags used to organize, track, or control access for this resource. For example, { "tags": {"key1":"value1", "key2":"value2"} }.',
   ).optional(),
@@ -288,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect EvaluationForm. Registered at `@swamp/aws/connect/evaluation-form`. */
 export const model = {
   type: "@swamp/aws/connect/evaluation-form",
-  version: "2026.09.24.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,6 +367,11 @@ export const model = {
     {
       toVersion: "2026.09.24.1",
       description: "Added: AIVersion",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -15,8 +15,8 @@ methods:
 - **sync** — refresh all resource properties from AWS
 
 Use
-`swamp model type describe @swamp/aws/observabilityadmin/organization_centralization_rule`
-to see the full list of configurable properties and available methods for this
+`swamp model type describe @swamp/aws/observabilityadmin/dataset_integration` to
+see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -49,17 +49,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new organization_centralization_rule model
-swamp model create @swamp/aws/observabilityadmin/organization_centralization_rule my-organization_centralization_rule
+# Create a new dataset_integration model
+swamp model create @swamp/aws/observabilityadmin/dataset_integration my-dataset_integration
 
 # Edit the model to configure its properties
-swamp model edit my-organization_centralization_rule
+swamp model edit my-dataset_integration
 
 # Create the resource in AWS
-swamp model method run my-organization_centralization_rule create
+swamp model method run my-dataset_integration create
 
 # Sync current state from AWS
-swamp model method run my-organization_centralization_rule sync
+swamp model method run my-dataset_integration sync
 ```
 
 ## License

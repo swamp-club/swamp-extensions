@@ -257,6 +257,8 @@ const StateSchema = z.object({
     createTime: z.string(),
     name: z.string(),
     requestTime: z.string(),
+    satisfiesPzi: z.boolean(),
+    satisfiesPzs: z.boolean(),
   }).optional(),
   latestSummary: z.object({
     answerRecord: z.string(),
@@ -304,6 +306,8 @@ const StateSchema = z.object({
         skipValue: z.boolean(),
         strValue: z.string(),
       }),
+      satisfiesPzi: z.boolean(),
+      satisfiesPzs: z.boolean(),
       updateTime: z.string(),
     })),
     menuPath: z.string(),
@@ -392,6 +396,8 @@ const StateSchema = z.object({
       querySource: z.string(),
     }),
   })).optional(),
+  satisfiesPzi: z.boolean().optional(),
+  satisfiesPzs: z.boolean().optional(),
   startTime: z.string().optional(),
   transcript: z.object({
     transcriptSegments: z.array(z.object({
@@ -489,7 +495,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews-conversations",
-  version: "2026.09.07.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -663,6 +669,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

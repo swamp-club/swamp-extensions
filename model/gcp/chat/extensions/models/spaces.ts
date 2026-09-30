@@ -373,7 +373,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   spaceDetails: z.object({
     description: z.string().describe(
-      "Optional. A description of the space. For example, describe the space's discussion topic, functional purpose, or participants. Supports up to 150 characters.",
+      "Optional. A description of the space. For example, describe the space's discussion topic, functional purpose, or participants. Supports up to 4,096 characters.",
     ).optional(),
     guidelines: z.string().describe(
       "Optional. The space's rules, expectations, and etiquette. Supports up to 5,000 characters.",
@@ -677,7 +677,7 @@ const InputsSchema = z.object({
   ).optional(),
   spaceDetails: z.object({
     description: z.string().describe(
-      "Optional. A description of the space. For example, describe the space's discussion topic, functional purpose, or participants. Supports up to 150 characters.",
+      "Optional. A description of the space. For example, describe the space's discussion topic, functional purpose, or participants. Supports up to 4,096 characters.",
     ).optional(),
     guidelines: z.string().describe(
       "Optional. The space's rules, expectations, and etiquette. Supports up to 5,000 characters.",
@@ -726,7 +726,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces. Registered at `@swamp/gcp/chat/spaces`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces",
-  version: "2026.09.17.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -913,6 +913,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

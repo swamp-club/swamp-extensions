@@ -449,7 +449,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase SQL Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.09.07.1",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -629,6 +629,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: allowMissing",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -981,6 +986,56 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    migrate: {
+      description: "migrate",
+      arguments: z.object({
+        executionMode: z.any().optional(),
+        migrationSteps: z.any().optional(),
+        validateOnly: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["executionMode"] !== undefined) {
+          body["executionMode"] = args["executionMode"];
+        }
+        if (args["migrationSteps"] !== undefined) {
+          body["migrationSteps"] = args["migrationSteps"];
+        }
+        if (args["validateOnly"] !== undefined) {
+          body["validateOnly"] = args["validateOnly"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "firebasedataconnect.projects.locations.services.schemas.migrate",
+            "path": "v1/{+name}:migrate",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
   },

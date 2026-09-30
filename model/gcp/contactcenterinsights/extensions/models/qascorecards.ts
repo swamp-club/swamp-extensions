@@ -190,6 +190,8 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   isDefault: z.boolean().optional(),
   name: z.string(),
+  satisfiesPzi: z.boolean().optional(),
+  satisfiesPzs: z.boolean().optional(),
   source: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -249,7 +251,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights QaScorecards. Registered at `@swamp/gcp/contactcenterinsights/qascorecards`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/qascorecards",
-  version: "2026.08.12.2",
+  version: "2026.09.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
