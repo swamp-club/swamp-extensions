@@ -552,6 +552,10 @@ export const EvidenceSpecSchema = z.strictObject({
   /** Required, except on the entry that restates the stage's resultEvidence
    * (which otherwise uses the built-in outcome contract). */
   schema: ObjectPayloadSchemaSchema.optional(),
+  /** Who records it. `person`: a person gives it (a person's feedback, say),
+   * so it is not part of the stage's work: the dispatch packet leaves it out
+   * and status names it. Absent: the stage's work records it. */
+  recordedBy: z.literal("person").optional(),
 });
 
 export type EvidenceSpec = z.infer<typeof EvidenceSpecSchema>;
@@ -730,6 +734,16 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
           ["stages", i, "evidence", j, "schema"],
           "every evidence declares a payload schema (only the stage's own " +
             "resultEvidence may omit it, to use the built-in outcome contract)",
+        );
+      }
+      if (
+        spec.recordedBy === "person" &&
+        spec.name === stage.work?.resultEvidence
+      ) {
+        fail(
+          ["stages", i, "evidence", j, "recordedBy"],
+          `evidence '${spec.name}' is the stage's resultEvidence, which its ` +
+            "work records; it cannot be recordedBy: person",
         );
       }
     });

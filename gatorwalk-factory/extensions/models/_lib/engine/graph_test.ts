@@ -281,6 +281,67 @@ stages:
   assert(finding.message.includes("no path to it produces"), finding.message);
 });
 
+Deno.test("graph: an inject produced only in the stage's own loop is context from an earlier pass, not a warning", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: plan
+    initial: true
+    maxCycles: 3
+    work:
+      mode: interactive
+      context: { inject: [plan, review, feedback] }
+    artifacts: [{ name: plan, schema: ${OBJECT} }]
+    transitions: [{ name: submit, to: review }]
+  - id: review
+    artifacts: [{ name: review, kind: findings, reviews: plan }]
+    evidence:
+      - { name: feedback, recordedBy: person, schema: ${OBJECT} }
+    transitions:
+      - { name: approve, to: done }
+      - name: revise
+        to: plan
+        manual: true
+        gates: [{ type: evidence-recorded, config: { name: feedback } }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(report.warnings, []);
+});
+
+Deno.test("graph: an inject whose producer is upstream, outside the stage's loop, still warns", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: start
+    initial: true
+    transitions:
+      - { name: long, to: design }
+      - { name: short, to: build, manual: true }
+  - id: design
+    artifacts: [{ name: spec, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: build }]
+  - id: build
+    maxCycles: 3
+    work:
+      mode: interactive
+      context: { inject: [spec, result] }
+    transitions: [{ name: check, to: check }]
+  - id: check
+    evidence: [{ name: result, schema: ${OBJECT} }]
+    transitions:
+      - { name: again, to: build, manual: true }
+      - { name: finish, to: done }
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  // spec is missing on the short path and comes from outside the loop;
+  // result is the loop's own, from the last check.
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.2.work.context.inject.0 [build]",
+  ]);
+});
+
 // --- cycle limits -------------------------------------------------------------
 
 Deno.test("graph: retry and escalate split by max-cycles are exclusive and bounded", () => {

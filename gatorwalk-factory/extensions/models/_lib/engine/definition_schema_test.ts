@@ -420,6 +420,28 @@ Deno.test("products: resultEvidence and its own evidence entry are one declarati
   assertValid(doc);
 });
 
+Deno.test("products: evidence may be recordedBy a person, but not the stage's resultEvidence", () => {
+  const doc = base();
+  set(doc, "stages.0.evidence", [{
+    name: "feedback",
+    recordedBy: "person",
+    schema: { type: "object" },
+  }]);
+  assertValid(doc);
+  set(doc, "stages.0.evidence.0.recordedBy", "agent");
+  assertRejects(doc, "stages.0.evidence.0.recordedBy");
+  set(doc, "stages.0.work", {
+    mode: "workflow",
+    workflow: { name: "@acme/tests" },
+    resultEvidence: "test-run",
+  });
+  set(doc, "stages.0.evidence", [{ name: "test-run", recordedBy: "person" }]);
+  assertRejects(
+    doc,
+    "stages.0.evidence.0.recordedBy: evidence 'test-run' is the stage's resultEvidence",
+  );
+});
+
 Deno.test("products: resultEvidence may not reuse another stage's evidence", () => {
   const doc = base();
   set(doc, "stages.0.evidence", [{

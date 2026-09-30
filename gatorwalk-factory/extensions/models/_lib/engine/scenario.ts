@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import { digestOf } from "./canonical.ts";
 import {
   type FactoryDefinition,
+  findStage,
   formatIssues,
   NameSchema,
   type ParseResult,
@@ -55,8 +56,8 @@ import {
 // will run them in the browser, so this module uses no Deno API.
 //
 // The clock moves one second per engine reading, plus each wait. Records and
-// automatic moves are an agent's; approvals, declines, overrides and manual
-// moves are a person's.
+// automatic moves are an agent's; approvals, declines, overrides, manual moves
+// and evidence a person records (recordedBy: person) are a person's.
 // ---------------------------------------------------------------------------
 
 /** Where a scenario says a step must be refused, or the run must be. */
@@ -314,14 +315,20 @@ export async function runScenario(
         ? "artifact"
         : "evidence";
       const name = (step.record.artifact ?? step.record.evidence) as string;
+      const at = await current();
+      // Evidence a person records (their feedback, say) is the person's.
+      const byPerson = kind === "evidence" &&
+        (findStage(definition, at.stage)?.evidence ?? []).some((spec) =>
+          spec.name === name && spec.recordedBy === "person"
+        );
       const result = await recordProduct(
         store,
         definition,
-        expectedOf(await current()),
+        expectedOf(at),
         kind,
         name,
         step.payload ?? {},
-        SCENARIO_AGENT,
+        byPerson ? SCENARIO_PERSON : SCENARIO_AGENT,
         env,
       );
       const outcome: Outcome = result.ok

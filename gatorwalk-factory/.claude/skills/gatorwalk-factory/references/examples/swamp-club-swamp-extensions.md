@@ -83,18 +83,18 @@ code's.
 
 ### Human stops
 
-| Stop                                                                           | gatorwalk                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit has a `match` gate needing confidence `high` or `medium`, so triage waits until the person answers and it is recorded again |
-| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when a `regressionVerdict` is recorded, whatever the verdict                                                                       |
-| A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                                                   |
-| Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                                                           |
-| Plan feedback (iterate)                                                        | `plan-review.revise`, manual                                                                                                                                                                                               |
-| Checklist: a person sees the green checklist and confirms before posting       | `verify.passed` needs `human-approval` `checklist-confirmed`                                                                                                                                                               |
-| Never open a PR without asking                                                 | `attest.attested` needs `human-approval` `open-pr`                                                                                                                                                                         |
-| PR failed: open a new PR or rework                                             | `merge.new-pr` and `merge.rework`, both manual                                                                                                                                                                             |
-| Contributor lookup failed: ask, then re-run, force or skip                     | `thank_author` fails closed and posts nothing; `notify` is interactive, so a person decides and the evidence records `posted` or `skipped` with the reason                                                                 |
-| (gatorwalk's own) declined approval must not leave abandon as the only way out | Manual `reclassify` from reproduce; manual `revise` after plan-review, the checklist and the open-pr decision; manual `rework` after conformance-review                                                                    |
+| Stop                                                                           | gatorwalk                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit has a `match` gate needing confidence `high` or `medium`, so triage waits until the person answers and it is recorded again                                                               |
+| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when a `regressionVerdict` is recorded, whatever the verdict                                                                                                                                     |
+| A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                                                                                                                 |
+| Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                                                                                                                         |
+| Plan feedback (iterate)                                                        | `plan-review.revise`, manual, needs `plan-feedback` evidence (the person's words, `recordedBy: person`) recorded in this pass; `plan` injects the last plan, its review and the feedback, and the revised plan keeps every round in `feedbackIncorporated`, which `plan_revised` carries |
+| Checklist: a person sees the green checklist and confirms before posting       | `verify.passed` needs `human-approval` `checklist-confirmed`                                                                                                                                                                                                                             |
+| Never open a PR without asking                                                 | `attest.attested` needs `human-approval` `open-pr`                                                                                                                                                                                                                                       |
+| PR failed: open a new PR or rework                                             | `merge.new-pr` and `merge.rework`, both manual                                                                                                                                                                                                                                           |
+| Contributor lookup failed: ask, then re-run, force or skip                     | `thank_author` fails closed and posts nothing; `notify` is interactive, so a person decides and the evidence records `posted` or `skipped` with the reason                                                                                                                               |
+| (gatorwalk's own) declined approval must not leave abandon as the only way out | Manual `reclassify` from reproduce; manual `revise` after plan-review, the checklist and the open-pr decision; manual `rework` after conformance-review                                                                                                                                  |
 
 ### Cycle limits
 
@@ -127,27 +127,27 @@ Lab's regression flag is set or cleared by every classification, and
 `classified` has two entries chosen by it, the regression one saying
 "(regression)".
 
-| Step                      | From                                         | Summary                               |
-| ------------------------- | -------------------------------------------- | ------------------------------------- |
-| `triage_started`          | entering `triage`                            | Same                                  |
-| `classified`              | `classification` recorded; sets the type     | Same                                  |
-| `plan_generated`          | `plan` recorded, first cycle                 | Same                                  |
-| `plan_revised`            | `plan` recorded, a later cycle               | Close: no version or feedback round   |
-| `adversarial_review`      | `plan-review` recorded                       | Close: no counts                      |
-| `plan_approved`           | `plan-approval` approved                     | Close: no version                     |
-| `implementation_started`  | entering `implement`                         | Same                                  |
-| `code_conformance_review` | `conformance` recorded                       | Close: no counts                      |
-| `verification_started`    | entering `verify`                            | Close: no commit or branch            |
-| `verification_passed`     | `verification` recorded, `succeeded`         | Close: the commit, not the step count |
-| `verification_failed`     | `verification` recorded, `failed`            | Close: the commit, not the reason     |
-| `attestation_posted`      | `attestation` recorded                       | Same                                  |
-| `pr_linked`               | `pull-request` recorded                      | Close: no attempt number              |
-| `pr_merged`, `pr_failed`  | `merge` recorded, `merged` or `failed`       | Close: no attempt number              |
-| `shipped`, `complete`     | `release` recorded, `shipped` or `completed` | Same (no release url)                 |
-| `contributor_notified`    | `notification` recorded, `posted`            | Same                                  |
-| `notification_skipped`    | `notification` recorded, `skipped`           | Close: gives the reason               |
-| `session_summarized`      | `summary` recorded                           | Same                                  |
-| `abandoned` (gatorwalk's) | entering `abandoned`                         | issue-lifecycle has none              |
+| Step                      | From                                         | Summary                                                                      |
+| ------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `triage_started`          | entering `triage`                            | Same                                                                         |
+| `classified`              | `classification` recorded; sets the type     | Same                                                                         |
+| `plan_generated`          | `plan` recorded, first cycle                 | Same                                                                         |
+| `plan_revised`            | `plan` recorded, a later cycle               | Close: no version; the feedback rounds are the plan's `feedbackIncorporated` |
+| `adversarial_review`      | `plan-review` recorded                       | Close: no counts                                                             |
+| `plan_approved`           | `plan-approval` approved                     | Close: no version                                                            |
+| `implementation_started`  | entering `implement`                         | Same                                                                         |
+| `code_conformance_review` | `conformance` recorded                       | Close: no counts                                                             |
+| `verification_started`    | entering `verify`                            | Close: no commit or branch                                                   |
+| `verification_passed`     | `verification` recorded, `succeeded`         | Close: the commit, not the step count                                        |
+| `verification_failed`     | `verification` recorded, `failed`            | Close: the commit, not the reason                                            |
+| `attestation_posted`      | `attestation` recorded                       | Same                                                                         |
+| `pr_linked`               | `pull-request` recorded                      | Close: no attempt number                                                     |
+| `pr_merged`, `pr_failed`  | `merge` recorded, `merged` or `failed`       | Close: no attempt number                                                     |
+| `shipped`, `complete`     | `release` recorded, `shipped` or `completed` | Same (no release url)                                                        |
+| `contributor_notified`    | `notification` recorded, `posted`            | Same                                                                         |
+| `notification_skipped`    | `notification` recorded, `skipped`           | Close: gives the reason                                                      |
+| `session_summarized`      | `summary` recorded                           | Same                                                                         |
+| `abandoned` (gatorwalk's) | entering `abandoned`                         | issue-lifecycle has none                                                     |
 
 "Close" summaries leave out what issue-lifecycle computes (counts, versions,
 attempt numbers): an entry's summary fills only fields of the recorded payload.

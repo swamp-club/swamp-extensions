@@ -11,7 +11,8 @@ plan → plan-review → implement → check → code-review → release → don
 Along the way:
 
 - a plan is rejected by its schema and recorded again;
-- the person declines the plan, and the work goes back by the manual `revise`;
+- the person declines the plan, and their feedback sends the work back by the
+  manual `revise`;
 - the person waives the quality score (the extension has no manifest yet);
 - the person approves the plan and the release.
 
@@ -249,14 +250,16 @@ build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
   exit rework -> plan: not ready: cel: rework needs an open critical or high finding
-  exit revise -> plan (manual): ready
+  exit revise -> plan (manual): not ready: evidence-recorded: evidence 'plan-feedback' has not been recorded
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: ...
+  a person records: plan-feedback
   work: dispatch; dispatches this cycle 1 of 2
 ```
 
 No finding blocks, so `rework` is not ready. `approve` needs the person
-(`[human: plan-approval]`) and `revise` is manual. Stop and ask, showing the
-plan and the review read fresh from the store:
+(`[human: plan-approval]`). `revise` is manual and needs `plan-feedback`, which
+a person records: their feedback on the plan, never the agent's own. Stop and
+ask, showing the plan and the review read fresh from the store:
 
 ```sh
 swamp data get <key> artifact-plan --json
@@ -268,13 +271,20 @@ swamp data get <key> artifact-plan-review --json
 > or decline it and send it back with `revise` to change the plan itself and
 > have it reviewed again?
 
-The person answers: "Decline. The README must be in the plan. Send it back."
-Record the decline with their reason, then take the manual exit they asked for:
+The person (`sam`) answers: "Decline. The README must be in the plan. Send it
+back." Record the decline with their reason, record their feedback in their
+words and on their behalf, then take the manual exit they asked for:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
   --input gateId=plan-approval \
   --input note="The README must be in the plan." \
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
+  --log
+swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
+  --input name=plan-feedback \
+  --input payload='{"feedback":"The README must be in the plan."}' \
+  --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
@@ -285,12 +295,15 @@ swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
 
 ```text
 declined 'plan-approval' (decision 1)
+recorded evidence 'plan-feedback' version 1
 took 'revise' to stage 'plan' cycle 2
 ```
 
 ## plan (cycle 2) and plan-review (cycle 2): the person approves
 
-The expectation now names cycle 2.
+The expectation now names cycle 2. The dispatch injects the last plan, its
+review and the feedback; the new plan answers the feedback and lists it in
+`feedbackIncorporated`.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
@@ -298,7 +311,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan \
-  --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]},{"description":"Document list","files":["README.md"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"}}' \
+  --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]},{"description":"Document list","files":["README.md"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"},"feedbackIncorporated":["The README must be in the plan."]}' \
   --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log

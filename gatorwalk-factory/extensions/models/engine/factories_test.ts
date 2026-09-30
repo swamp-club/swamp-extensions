@@ -34,7 +34,10 @@ import {
   type CelContext,
   evaluateCel,
 } from "../_lib/engine/cel_context.ts";
-import { buildDispatch } from "../_lib/engine/dispatch.ts";
+import {
+  buildDispatch,
+  buildSubagentPrompts,
+} from "../_lib/engine/dispatch.ts";
 import { analyzeDefinition } from "../_lib/engine/graph.ts";
 import type { RunRecord } from "../_lib/engine/run_record.ts";
 import { loadRun, type RunStore } from "../_lib/engine/run_store.ts";
@@ -115,6 +118,106 @@ function evidenceSchema(
 
 const BUILD = "build-swamp-extension.yaml";
 const SWX = "swamp-club-swamp-extensions.yaml";
+const STARTER = "starter.yaml";
+
+/** The evidence of a stage a person records. */
+function byPerson(definition: FactoryDefinition, id: string): string[] {
+  return (stage(definition, id).evidence ?? []).flatMap((e) =>
+    e.recordedBy === "person" ? [e.name] : []
+  );
+}
+
+// --- plan feedback, in every example with a plan loop ------------------------
+
+const PLAN_FEEDBACK: [string, string, string][] = [
+  [STARTER, "starter", "plan-feedback"],
+  [BUILD, "build-swamp-extension", "plan-churn"],
+  [SWX, "swamp-club-swamp-extensions", "plan-feedback"],
+];
+
+for (const [file, example, name] of PLAN_FEEDBACK) {
+  Deno.test(`${example}: revise needs the person's feedback, which the next plan is handed with the last plan and review`, async () => {
+    const definition = await load(file);
+    assertEquals(byPerson(definition, "plan-review"), ["plan-feedback"]);
+    const revise = (stage(definition, "plan-review").transitions ?? []).find(
+      (t) => t.name === "revise",
+    );
+    assertEquals(revise?.gates, [{
+      type: "evidence-recorded",
+      description: "The person's feedback on this plan is recorded.",
+      config: { name: "plan-feedback" },
+    }]);
+
+    const { result, store } = await scenario(definition, example, name);
+    const frames = result.frames;
+    // Every revise taken was opened by feedback recorded in that pass.
+    const taken = frames.filter((f) =>
+      f.moved?.transition === "revise" && f.moved.to === "plan"
+    );
+    assert(taken.length > 0);
+    for (const f of taken) {
+      const back = f.run.journal.findLast((e) => e.type === "advanced");
+      assert(back?.type === "advanced");
+      const feedback = f.run.journal.findLast((e) =>
+        e.type === "recorded" && e.name === "plan-feedback"
+      );
+      assert(feedback?.type === "recorded");
+      assertEquals(feedback.stage, "plan-review");
+      assertEquals([feedback.era, feedback.cycle], [back.era, back.cycle]);
+    }
+
+    // The next plan's packet injects the last plan, its review and the
+    // feedback, which the context holds.
+    const replanned = taken[0].run;
+    const context = await buildCelContext(replanned, store);
+    const packet = buildDispatch(definition, replanned, context);
+    assertEquals(packet.stage, "plan");
+    for (const product of ["plan", "plan-review", "plan-feedback"]) {
+      assert(packet.inject.includes(product), packet.inject.join());
+    }
+    assert(context.evidence["plan-feedback"] !== undefined);
+    assert(context.artifacts["plan"] !== undefined);
+
+    // The reviewer is never asked to write the person's feedback.
+    const inReview = frames.find((f) =>
+      f.moved?.transition === "submit" && f.moved.to === "plan-review"
+    )?.run;
+    assert(inReview !== undefined);
+    const review = buildDispatch(
+      definition,
+      inReview,
+      await buildCelContext(inReview, store),
+    );
+    assertEquals(review.products.map((p) => p.name), ["plan-review"]);
+    for (
+      const { prompt } of buildSubagentPrompts(definition, review, {
+        key: "wi-1",
+        dispatchId: 1,
+        resultDir: "/scratch",
+      })
+    ) {
+      assert(!prompt.includes("plan-feedback"), prompt);
+    }
+  });
+}
+
+Deno.test("plan feedback: after a declined plan, the person's feedback leaves approval declined and opens only revise", async () => {
+  for (const [file, example] of [PLAN_FEEDBACK[0], PLAN_FEEDBACK[2]]) {
+    const definition = await load(file);
+    const { result } = await scenario(definition, example, "plan-feedback");
+    const recorded = result.frames.find((f) =>
+      f.label.includes("plan-feedback") && !f.refused
+    );
+    assert(recorded !== undefined, example);
+    const awaiting = recorded.run.journal.at(-1);
+    assert(awaiting?.type === "awaiting", example);
+    assertEquals(awaiting.exits.map((e) => e.transition), ["revise"]);
+    assertEquals(
+      recorded.readiness.find((r) => r.name === "approve")?.ready,
+      false,
+    );
+  }
+});
 
 // --- build-swamp-extension -------------------------------------------------
 
@@ -191,10 +294,16 @@ Deno.test("build-swamp-extension: a person can always send the work back without
   // A declined approval with no blocking finding must not leave abandon as
   // the only exit (the #916 wedge). Each stage with a human approval has a
   // manual way back, and implement has a manual recheck for flaky checks.
+  // A gate on evidence a person records does not wedge it: the person can
+  // always record it (plan-review's revise needs their feedback).
   const definition = await load(BUILD);
   const manual = (stageId: string, to: string) =>
     (stage(definition, stageId).transitions ?? []).some((t) =>
-      t.manual === true && t.to === to && (t.gates ?? []).length === 0
+      t.manual === true && t.to === to &&
+      (t.gates ?? []).every((g) =>
+        g.type === "evidence-recorded" &&
+        byPerson(definition, stageId).includes(g.config.name)
+      )
     );
   assert(manual("plan-review", "plan"), "plan-review has no manual way back");
   assert(

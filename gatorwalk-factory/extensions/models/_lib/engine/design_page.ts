@@ -97,6 +97,8 @@ export interface ProductView {
   /** For an artifact: kind findings, and what it reviews. */
   findings?: boolean;
   reviews?: string;
+  /** For evidence: a person records it, not the stage's work. */
+  recordedBy?: "person";
 }
 
 export interface StageView {
@@ -299,6 +301,7 @@ export function designView(
         ...(s.evidence ?? []).map((e): ProductView => {
           const p: ProductView = { kind: "evidence", name: e.name };
           if (e.description !== undefined) p.description = e.description;
+          if (e.recordedBy !== undefined) p.recordedBy = e.recordedBy;
           return p;
         }),
       ],
@@ -591,6 +594,10 @@ function productsHtml(products: ProductView[]): string {
         p.findings === true ? ` <span class="tag">findings</span>` : ""
       }${
         p.reviews !== undefined ? ` reviews <code>${e(p.reviews)}</code>` : ""
+      }${
+        p.recordedBy === "person"
+          ? ` <span class="tag">recorded by a person</span>`
+          : ""
       }${
         p.description !== undefined
           ? ` <span class="desc">${e(p.description)}</span>`

@@ -18,6 +18,7 @@ import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
   type FactoryDefinition,
+  fakeSwamp,
   findStage,
   parseDefinition,
   type StageSpec,
@@ -36,6 +37,11 @@ import {
   type EntryEvent,
   renderEntry,
 } from "../_lib/tracker/core/projection.ts";
+import {
+  PROJECTED_ITEM,
+  projectedItem,
+} from "../_lib/tracker/core/test_support.ts";
+import { swampClubMethods } from "./swamp_club.ts";
 
 // ---------------------------------------------------------------------------
 // The example factory definitions the skill ships, as the Lab adapter sees
@@ -178,6 +184,74 @@ Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regres
     // On an issue never flagged, a downgraded claim leaves the flag clear.
     fake.issues[0].isRegression = undefined;
     assertEquals((await classify(downgraded)).flag, false);
+  } finally {
+    await fake.close();
+  }
+});
+
+Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab with the revised plan", async () => {
+  const raw = parseYaml(
+    await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
+  ) as Record<string, unknown>;
+  const fake = swampClubFake();
+  try {
+    const swamp = fakeSwamp();
+    swamp.globalArgs.set("lab", { apiKey: ADMIN_KEY, url: fake.url });
+    const item = await projectedItem(swamp, {
+      "swamp-club": String(LAB_ISSUE),
+    }, raw);
+    const plan = {
+      summary: "Add a list method",
+      scopeAnalysis: "One extension",
+      steps: [{ order: 1, description: "Add list", files: ["x.ts"] }],
+      testingStrategy: "A test against a mock server",
+    };
+    await item.record("evidence", "classification", {
+      type: "feature",
+      confidence: "high",
+      reasoning: "A new method",
+      isRegression: false,
+    });
+    await item.advance("feature");
+    await item.record("artifact", "plan", plan);
+    await item.advance("submit");
+    await item.record("artifact", "plan-review", { findings: [] });
+    await item.decline("plan-approval");
+    await item.record("evidence", "plan-feedback", {
+      feedback: "Page the results",
+    });
+    await item.advance("revise");
+    await item.record("artifact", "plan", {
+      ...plan,
+      summary: "Add a paged list method",
+      feedbackIncorporated: ["Page the results"],
+    });
+
+    const methods = swampClubMethods({
+      sources: {
+        env: () => undefined,
+        readAuthFile: () => Promise.resolve(null),
+      },
+    });
+    const publish = methods.publish.execute as (
+      args: unknown,
+      ctx: ReturnType<typeof swamp.context>,
+    ) => Promise<unknown>;
+    await publish(
+      methods.publish.arguments.parse({ workItem: PROJECTED_ITEM }),
+      swamp.context("lab"),
+    );
+    const planned = fake.entries.filter((e) =>
+      e.step === "plan_generated" || e.step === "plan_revised"
+    );
+    assertEquals(planned.map((e) => e.step), [
+      "plan_generated",
+      "plan_revised",
+    ]);
+    assertEquals(planned[0].payload.feedbackIncorporated, undefined);
+    assertEquals(planned[1].payload.feedbackIncorporated, [
+      "Page the results",
+    ]);
   } finally {
     await fake.close();
   }

@@ -245,3 +245,25 @@ export function stopsParsedDefinition(minApprovals = 1): FactoryDefinition {
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
+
+/** The stops definition with review's revise gated on feedback a person
+ * records (recordedBy: person). */
+export function stopsWithFeedbackDefinition(): FactoryDefinition {
+  const doc = stopsDefinition() as { stages: Record<string, unknown>[] };
+  const review = doc.stages[1] as {
+    evidence?: unknown[];
+    transitions: Record<string, unknown>[];
+  };
+  review.evidence = [{
+    name: "feedback",
+    recordedBy: "person",
+    schema: TEXT_SCHEMA,
+  }];
+  review.transitions[1].gates = [{
+    type: "evidence-recorded",
+    config: { name: "feedback" },
+  }];
+  const result = parseDefinition(doc);
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}

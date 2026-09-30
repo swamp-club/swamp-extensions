@@ -42,6 +42,15 @@ stages:
         Plan the change. Name the files each step touches, how it will be
         tested, and whether the manifest version needs a bump (any behaviour
         change to a published extension does).
+
+        On a later plan, read the injected plan (the last one), plan-review
+        (its review) and plan-feedback (the person's latest feedback); the
+        first plan has none of them. After rework, address the review's open
+        critical and high findings. After revise, address the feedback, and
+        record feedbackIncorporated: the last plan's list with the latest
+        feedback added, word for word.
+      context:
+        inject: [plan, plan-review, plan-feedback]
     artifacts:
       - name: plan
         schema:
@@ -67,6 +76,12 @@ stages:
               properties:
                 needed: { type: boolean }
                 reason: { type: string, minLength: 1 }
+            feedbackIncorporated:
+              description: >-
+                Every round of a person's plan feedback this plan answers,
+                oldest first.
+              type: array
+              items: { type: string, minLength: 1 }
     transitions:
       - name: submit
         to: plan-review
@@ -106,6 +121,18 @@ stages:
       - name: plan-review
         kind: findings
         reviews: plan
+    evidence:
+      - name: plan-feedback
+        description: >-
+          A person's feedback on the plan, in their words; revise needs it.
+          The round is the cycle it was recorded in.
+        recordedBy: person
+        schema:
+          type: object
+          required: [feedback]
+          additionalProperties: false
+          properties:
+            feedback: { type: string, minLength: 1 }
     transitions:
       - name: approve
         to: implement
@@ -136,7 +163,12 @@ stages:
           A person declined the plan without a blocking finding, to change
           the plan itself and have it reviewed again. To act on non-blocking
           findings during implement, approve instead. Manual, so it never
-          fires on its own.
+          fires on its own, and the person's feedback is recorded first, so
+          every revision carries its reason to the next plan.
+        gates:
+          - type: evidence-recorded
+            description: The person's feedback on this plan is recorded.
+            config: { name: plan-feedback }
 
   - id: implement
     projection: { status: in_progress }

@@ -496,7 +496,7 @@ Deno.test("status: a read method that logs where the work item is and what is re
   );
 });
 
-Deno.test("status: names each exit's human gates, global exits included", async () => {
+Deno.test("status: names each exit's human gates, global exits included, and the evidence a person records", async () => {
   const swamp = await started();
   await call(swamp, "record_artifact", {
     name: "plan",
@@ -532,7 +532,14 @@ Deno.test("status: names each exit's human gates, global exits included", async 
     summary.includes("exit approve -> implement [human: plan-approval]: "),
     summary,
   );
-  assert(summary.includes("exit revise -> plan (manual): "), summary);
+  assert(
+    summary.includes(
+      "exit revise -> plan (manual): not ready: evidence-recorded: evidence 'plan-feedback' has not been recorded",
+    ),
+    summary,
+  );
+  assert(summary.includes("\n  a person records: plan-feedback"), summary);
+  assertEquals(view.personRecords, ["plan-feedback"]);
   assert(
     summary.includes(
       "exit abandon -> abandoned [human: abandon-confirmation]: ",

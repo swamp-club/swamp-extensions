@@ -324,6 +324,15 @@ const REVIEWING = (() => {
           context: { inject: ["plan"] },
         },
         artifacts: [{ name: "plan-review", kind: "findings", reviews: "plan" }],
+        evidence: [{
+          name: "plan-feedback",
+          recordedBy: "person",
+          schema: {
+            type: "object",
+            required: ["feedback"],
+            properties: { feedback: { type: "string" } },
+          },
+        }],
         transitions: [{ name: "done", to: "done" }],
       },
       { id: "done", terminal: true },
@@ -454,6 +463,20 @@ Deno.test("dispatch: each subagent's prompt starts with the rendered prompt and 
   // Two reviewers join into one findings record, so their ids are kept apart.
   assert(prompts[0].prompt.includes("Start every finding id with S1-"));
   assert(prompts[1].prompt.includes("Start every finding id with S2-"));
+});
+
+Deno.test("dispatch: evidence a person records is not the work's: no product, no result file", async () => {
+  const packet = await reviewingPacket();
+  assertEquals(packet.products.map((p) => p.name), ["plan-review"]);
+  const prompts = buildSubagentPrompts(REVIEWING, packet, {
+    key: "wi-3",
+    dispatchId: 4,
+    resultDir: "/scratch",
+  });
+  for (const { prompt, resultPaths } of prompts) {
+    assertEquals(Object.keys(resultPaths), ["plan-review"]);
+    assert(!prompt.includes("plan-feedback"), prompt);
+  }
 });
 
 Deno.test("dispatch: only a dispatch stage gets subagent prompts", async () => {

@@ -27,8 +27,16 @@ stages:
       systemPrompt: |
         Plan the change with the person. Read the code it touches first.
         Record plan with a summary, the steps in order (each naming the files
-        it touches) and the testing strategy. After a review sends the plan
-        back, read the findings and record the plan again.
+        it touches) and the testing strategy.
+
+        On a later plan, read the injected plan (the last one), plan-review
+        (its review) and plan-feedback (the person's latest feedback); the
+        first plan has none of them. After a review sends the plan back,
+        address its findings. After revise, address the feedback, and record
+        feedbackIncorporated: the last plan's list with the latest feedback
+        added, word for word.
+      context:
+        inject: [plan, plan-review, plan-feedback]
     artifacts:
       - name: plan
         schema:
@@ -47,6 +55,12 @@ stages:
                   description: { type: string, minLength: 1 }
                   files: { type: array, items: { type: string, minLength: 1 } }
             testingStrategy: { type: string, minLength: 1 }
+            feedbackIncorporated:
+              description: >-
+                Every round of a person's plan feedback this plan answers,
+                oldest first.
+              type: array
+              items: { type: string, minLength: 1 }
     transitions:
       - name: submit
         to: plan-review
@@ -86,6 +100,18 @@ stages:
       - name: plan-review
         kind: findings
         reviews: plan
+    evidence:
+      - name: plan-feedback
+        description: >-
+          A person's feedback on the plan, in their words; revise needs it.
+          The round is the cycle it was recorded in.
+        recordedBy: person
+        schema:
+          type: object
+          required: [feedback]
+          additionalProperties: false
+          properties:
+            feedback: { type: string, minLength: 1 }
     transitions:
       - name: approve
         to: implement
@@ -110,7 +136,12 @@ stages:
           A person sent the plan back without a blocking finding, to change
           the plan itself and have it reviewed again. To act on non-blocking
           findings during implement, approve instead. Manual, so it never
-          fires on its own.
+          fires on its own, and the person's feedback is recorded first, so
+          every revision carries its reason to the next plan.
+        gates:
+          - type: evidence-recorded
+            description: The person's feedback on this plan is recorded.
+            config: { name: plan-feedback }
 
   - id: implement
     projection: { status: in_progress }

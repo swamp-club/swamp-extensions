@@ -42,10 +42,11 @@ import type { RunStore } from "./run_store.ts";
 // A manual exit with no gates is a way back a person may always take, and a
 // global transition is an escape hatch; neither is a stop. A gate declined in
 // this stage entry waits on rework, not on a person, until a product is
-// recorded after the decline. A conditional approval whose `when` is false
-// passes, so it is no stop; one whose `when` cannot be evaluated waits on a
-// fix to the run data or the factory definition, not on a person, even though
-// status lists it as required so the driver stops and asks.
+// recorded after the decline; evidence a person records (their feedback, say)
+// is not rework and does not count. A conditional approval whose `when` is
+// false passes, so it is no stop; one whose `when` cannot be evaluated waits
+// on a fix to the run data or the factory definition, not on a person, even
+// though status lists it as required so the driver stops and asks.
 // ---------------------------------------------------------------------------
 
 /** The exits of the current stage entry that only a person can open. */
@@ -87,7 +88,9 @@ async function heldBy(
     if (checks[i].pass) continue;
     if (gate.type === "human-approval") {
       if (checks[i].conditionError === true) return null;
-      if (declinedAwaitingRework(run, gate.config.id)) return null;
+      if (declinedAwaitingRework(run, definition, gate.config.id)) {
+        return null;
+      }
       pending.push(gate.config.id);
       continue;
     }
@@ -111,9 +114,14 @@ async function heldBy(
 /**
  * Whether a human-approval gate is blocked by a decline in this stage entry
  * with no product recorded since: the work goes back to whoever does the
- * rework, and a person is not yet being asked again.
+ * rework, and a person is not yet being asked again. Evidence a person
+ * records is not rework, so it does not count.
  */
-function declinedAwaitingRework(run: RunRecord, gateId: string): boolean {
+function declinedAwaitingRework(
+  run: RunRecord,
+  definition: FactoryDefinition,
+  gateId: string,
+): boolean {
   const cycle = currentCycle(run);
   const latest = new Map<string, { id: number; decline: boolean }>();
   for (const a of run.approvals) {
@@ -132,9 +140,14 @@ function declinedAwaitingRework(run: RunRecord, gateId: string): boolean {
   const index = run.journal.findIndex((e) =>
     e.type === "approval" && e.approvalId === lastDecline
   );
+  const byPerson = new Set(
+    (findStage(definition, run.stage)?.evidence ?? []).flatMap((spec) =>
+      spec.recordedBy === "person" ? [spec.name] : []
+    ),
+  );
   return !run.journal.slice(index + 1).some((e) =>
     e.type === "recorded" && e.era === run.era && e.stage === run.stage &&
-    e.cycle === cycle
+    e.cycle === cycle && !(e.kind === "evidence" && byPerson.has(e.name))
   );
 }
 

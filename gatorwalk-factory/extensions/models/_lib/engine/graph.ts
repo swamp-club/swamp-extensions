@@ -951,6 +951,8 @@ export function analyzeDefinition(
     structure.reached.has(id)
   );
   const inLoop = new Set<string>();
+  // Each looping stage's loop: its strongly connected component.
+  const loopOf = new Map<string, ReadonlySet<string>>();
   for (
     const component of components(reachedIds, (s) => liveTargets(s, false))
   ) {
@@ -964,7 +966,10 @@ export function analyzeDefinition(
       !e.global && members.has(e.from) && members.has(e.to)
     );
     if (loopEdges.length === 0) continue;
-    for (const s of sorted) inLoop.add(s);
+    for (const s of sorted) {
+      inLoop.add(s);
+      loopOf.set(s, members);
+    }
     if (
       sorted.every((s) => canFinish.has(s)) &&
       !sorted.some((s) => canFinishAlone.has(s))
@@ -1013,7 +1018,18 @@ export function analyzeDefinition(
 
   // Products a stage reads that one path to it produces and another does not.
   // A gate no path satisfies is already gate-never-passes; an inject no path
-  // satisfies is reported here too.
+  // satisfies is reported here too. An inject whose every producer is in the
+  // stage's own loop is context from an earlier pass (the last review, a
+  // person's feedback): absent on the first pass by design, so not reported.
+  const fromOwnLoop = (id: string, kind: ProductKind, name: string) => {
+    const loop = loopOf.get(id);
+    const producers =
+      (kind === "artifact" ? g.artifactProducers : g.evidenceProducers).get(
+        name,
+      );
+    return loop !== undefined && producers !== undefined &&
+      [...producers].every((p) => loop.has(p));
+  };
   const refsOf = (id: string) => {
     const stage = g.stages.get(id) as StageSpec;
     const index = g.stageIndex.get(id) as number;
@@ -1064,6 +1080,9 @@ export function analyzeDefinition(
         available(g, ref.kind, ref.name, structure.nodes[i].state)
       );
       if (ref.gate && !someHave) continue;
+      if (!ref.gate && someHave && fromOwnLoop(id, ref.kind, ref.name)) {
+        continue;
+      }
       report(
         warnings,
         "product-missing-on-path",

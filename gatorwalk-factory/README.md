@@ -149,8 +149,9 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   evidence another stage records). They fail `validate`. Warnings are logged:
   exits that can pass together with no person choosing, loops whose only way out
   is a global transition such as `abandon`, loops bounded only by the default
-  cycle limit, products that some path to a stage does not produce, and
-  transitions only a cycle override opens. Each finding gives its path, the
+  cycle limit, products that some path to a stage does not produce (except
+  context from an earlier pass: a product injected from the stage's own loop),
+  and transitions only a cycle override opens. Each finding gives its path, the
   stage it is judged from, and a trace of stages from the initial stage. See
   [DESIGN.md](DESIGN.md), "Graph validation".
 - **A stage may name a tracker status key**, `projection: { status: <key> }`,
@@ -226,7 +227,9 @@ plan → plan-review → implement → check → code-review → release → don
   score, releasing, and abandoning the work.
 - **Manual ways back:** a person can always send the work back by hand (`revise`
   after either review, `recheck` for a flaky check). So declining an approval
-  never leaves `abandon` as the only way out.
+  never leaves `abandon` as the only way out. `revise` after the plan review
+  needs the person's feedback, recorded as `plan-feedback` evidence, and the
+  next plan is handed it with the last plan and its review.
 - **Quality waiver:** `check` normally needs `swamp extension quality` to pass.
   An extension with no manifest yet can't be scored, so a person can waive the
   score instead. gatorwalk-factory itself needs this until go-live.

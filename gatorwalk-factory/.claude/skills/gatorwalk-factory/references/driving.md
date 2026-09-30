@@ -175,8 +175,9 @@ build-swamp-extension-r2ner2de: active at stage 'plan-review' cycle 1
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
   exit rework -> plan: not ready: cel: rework needs an open critical or high finding
-  exit revise -> plan (manual): ready
+  exit revise -> plan (manual): not ready: evidence-recorded: evidence 'plan-feedback' has not been recorded
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: ...
+  a person records: plan-feedback
   work: dispatch; dispatches this cycle 1 of 2
 ```
 
@@ -189,6 +190,7 @@ build-swamp-extension-r2ner2de: active at stage 'plan-review' cycle 1
 | `[human: <gate-id>, ...]`             | The exit has human-approval gates a person must decide now. A person decides them, even once they pass.                                           |
 | `[approval not required now: <id>]`   | A conditional approval whose `when` is false right now: it passes and no one is asked. It can become `[human: ...]` when the data changes.        |
 | `ready` / `not ready: ...`            | Whether `advance` would take it now. Each failure names the gate, what it needed and what it found; a cycle limit shows here too.                 |
+| `a person records: <name>, ...`       | Evidence of this stage that a person gives, such as their feedback. Never record it yourself: record the person's words, on their behalf.         |
 | `work: <mode>; dispatches this cycle` | The stage's work mode, and how many dispatches this stage and cycle has had of its cap.                                                           |
 | `dispatch not ready: ...`             | The stage's packet cannot be built: a binding failed or a prompt placeholder has no value. Fix the run data it names.                             |
 | `rejected <kind> '<name>' (...): ...` | The latest rejection of that product, kept as retry feedback until the product is recorded.                                                       |
@@ -206,7 +208,7 @@ swamp data get <key> artifact-<name> --json
 1. `status`.
 2. If the item is terminal, stop and report.
 3. `dispatch`, then do the stage's work.
-4. Record each product the stage declares.
+4. Record each product the stage's work records (the packet's `products`).
 5. `status` again, and apply the propulsion rule: advance, or stop and ask.
 6. Repeat.
 
@@ -224,9 +226,12 @@ It records the resolved inputs and prompt for later replay, counts toward the
 stage's dispatch cap, and prints the dispatch id and the packet: the rendered
 prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`,
 `products`, and for workflow and method stages `inputs` with the `workflow` or
-`method` to call). `products` lists every artifact and evidence the stage
-declares, each with the `schema` its payload must meet: record each one.
-Dispatch once per attempt at the work, not once per tool call.
+`method` to call). `products` lists every artifact and evidence the stage's work
+records, each with the `schema` its payload must meet: record each one. Evidence
+a person records (`recordedBy: person`, which `status` lists under
+`a person records:`) is not in it; see
+[Evidence a person records](#evidence-a-person-records). Dispatch once per
+attempt at the work, not once per tool call.
 
 For a dispatch stage, pass your scratch directory as `resultDir`. Leave it out
 and the engine makes a new temporary directory:
@@ -368,6 +373,26 @@ old version stops counting.
 Evidence is a fact about the world, such as a check run or a release. Record
 only what you observed, with the values you observed.
 
+### Evidence a person records
+
+Some evidence is a person's, not the work's: the factory definition declares it
+`recordedBy: person`, and `status` lists it under `a person records:`. The
+bundled definitions' `plan-feedback` is one: `revise` from plan-review needs the
+person's feedback on the plan, and the next plan is handed it. Never write it
+yourself, and never record it because a gate asks for it. Record it only when
+the person gives it, in their words, and on their behalf:
+
+```sh
+swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
+  --input name=plan-feedback --input payload='{"feedback":"<their words>"}' \
+  --input onBehalfOf=<person> \
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
+  --log
+```
+
+It counts for the pass it was recorded in, like any evidence a gate reads:
+feedback from an earlier pass does not open `revise` again.
+
 ## Advance: the propulsion rule
 
 After recording, read `status` and sort the `ready` exits into two kinds:
@@ -376,9 +401,9 @@ After recording, read `status` and sort the `ready` exits into two kinds:
   `[approval not required now: ...]` marker does not make an exit the person's.
 - **The person's**: ready and `(manual)`, or ready with `[human: ...]`.
 
-A manual exit with no gates, such as `recheck` or `revise`, shows `ready` all
-the time. It is a way back that is there for the person. Its being ready never
-counts as a reason to stop, and never as a reason to take it.
+A manual exit with no gates, such as `recheck`, shows `ready` all the time. It
+is a way back that is there for the person. Its being ready never counts as a
+reason to stop, and never as a reason to take it.
 
 Then:
 
@@ -456,7 +481,9 @@ swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
 ```
 
 A decline blocks the gate, and the note shows in `status`. To send the work back
-after a decline, take the manual exit the person names:
+after a decline, take the manual exit the person names. If it needs evidence a
+person records (`revise` needs their `plan-feedback`), record their feedback
+first, as in [Evidence a person records](#evidence-a-person-records):
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
@@ -548,7 +575,8 @@ dispatch, and grants add up.
   wherever work can be declined or blocked, so a decline never leaves `abandon`
   as the only exit. The bundled factory definition has `revise` after either
   review, `recheck` from implement, and `rework` from release. Take one only on
-  the person's word.
+  the person's word. `revise` after the plan review needs the person's feedback
+  recorded first, which a person can always give.
 - **Global exits** such as `abandon` are open from every stage, are never closed
   by a cycle limit, and need the person's approval.
 - **`reset`** is the last resort. It starts the item over at the initial stage

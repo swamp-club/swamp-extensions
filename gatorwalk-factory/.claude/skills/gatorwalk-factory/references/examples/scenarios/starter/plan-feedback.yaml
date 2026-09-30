@@ -1,0 +1,36 @@
+scenario: plan-feedback
+factory: starter
+description: >-
+  A person declines the plan without a blocking finding and sends it back with
+  feedback. revise is refused until the feedback is recorded, and the next plan
+  lists the feedback it answers.
+steps:
+  - record: { artifact: plan }
+    payload:
+      summary: Add list
+      steps: [{ description: Add list, files: [x.ts] }]
+      testingStrategy: Unit tests
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [] }
+  - decline: plan-approval
+    note: The person wants the plan split before any code is written
+  - move: revise
+    manual: true
+    expect: { refused: "evidence 'plan-feedback' has not been recorded" }
+  - record: { evidence: plan-feedback }
+    payload: { feedback: Split the list method from the pagination change }
+  - move: revise
+    manual: true
+  - expect: { stage: plan }
+  - record: { artifact: plan }
+    payload:
+      summary: Add list, then pagination
+      steps:
+        - { description: Add list, files: [x.ts] }
+        - { description: Add pagination, files: [x.ts] }
+      testingStrategy: Unit tests
+      feedbackIncorporated:
+        - Split the list method from the pagination change
+  - move: submit
+  - expect: { stage: plan-review }

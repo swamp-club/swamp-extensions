@@ -309,14 +309,20 @@ stages:
       systemPrompt: |
         Plan the change following agent-constraints/planning-conventions.md.
         Name the files each step touches, the scope and blast radius, how it
-        will be tested, and the challenges you expect. After rework, address
-        every open critical and high finding of the last review.
+        will be tested, and the challenges you expect.
+
+        On a later plan, read the injected plan (the last one), plan-review
+        (its review) and plan-feedback (the person's latest feedback); the
+        first plan has none of them. After rework, address every open
+        critical and high finding of the last review. After revise, address
+        the feedback, and record feedbackIncorporated: the last plan's list
+        with the latest feedback added, word for word.
 
         gatorwalk drives this issue: do not use the issue-lifecycle skill or
         run any @swamp/issue-lifecycle method, even when a request would
         trigger it.
       context:
-        inject: [classification]
+        inject: [classification, plan, plan-review, plan-feedback]
     artifacts:
       - name: plan
         schema:
@@ -340,6 +346,12 @@ stages:
                   risks: { type: string, minLength: 1 }
             testingStrategy: { type: string, minLength: 1 }
             potentialChallenges:
+              type: array
+              items: { type: string, minLength: 1 }
+            feedbackIncorporated:
+              description: >-
+                Every round of a person's plan feedback this plan answers,
+                oldest first. plan_revised carries it to the Lab.
               type: array
               items: { type: string, minLength: 1 }
     transitions:
@@ -395,6 +407,18 @@ stages:
             findings:
               type: array
               items: { type: object, required: [category] }
+    evidence:
+      - name: plan-feedback
+        description: >-
+          A person's feedback on the plan, in their words; revise needs it.
+          The round is the cycle it was recorded in.
+        recordedBy: person
+        schema:
+          type: object
+          required: [feedback]
+          additionalProperties: false
+          properties:
+            feedback: { type: string, minLength: 1 }
     transitions:
       - name: approve
         to: implement
@@ -423,7 +447,13 @@ stages:
         manual: true
         description: >-
           The person has feedback on the plan, or declined it without a
-          blocking finding. Manual, so it never fires on its own.
+          blocking finding. Manual, so it never fires on its own, and the
+          person's feedback is recorded first, so every revision carries its
+          reason to the next plan.
+        gates:
+          - type: evidence-recorded
+            description: The person's feedback on this plan is recorded.
+            config: { name: plan-feedback }
 
   - id: implement
     projection:

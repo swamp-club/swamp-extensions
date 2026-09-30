@@ -61,7 +61,9 @@ This skill covers **authoring** a factory and **driving** its work items.
    count, and you never take one unasked. `[approval not required now: ...]` is
    not a human gate: its condition is false right now, so it does not stop you.
 6. **Record only what happened.** Evidence is what you observed, with the real
-   commit, run id and outcome.
+   commit, run id and outcome. Evidence `status` lists under `a person records:`
+   (such as `plan-feedback`) is the person's: record it only in their words,
+   with `onBehalfOf` naming them, never on your own.
 
 ## The loop
 
@@ -73,9 +75,9 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 2. `dispatch`, then do the stage's work as its `mode` says: yourself
    (interactive), by subagents sent the prompts it prints, unchanged (dispatch),
    or by running the workflow or method the packet names.
-3. Record each artifact and piece of evidence the stage declares. When a
-   subagent hands back, `record_usage` for its dispatch with the token count the
-   harness reported for it (see `references/driving.md`).
+3. Record each product the packet lists (the stage's work). When a subagent
+   hands back, `record_usage` for its dispatch with the token count the harness
+   reported for it (see `references/driving.md`).
 4. Read `status` and apply rule 5: `advance`, or stop and ask the person.
 
 When a person must decide, read the products fresh with `swamp data get`, show
@@ -139,5 +141,6 @@ Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops
 and their controls".
 
 Nothing is ever half-written, and nothing wedges: a manual way back (such as
-`revise` or `recheck`) or, as a last resort, a `reset` on the person's word gets
-the item moving again. Never force past a refusal you do not understand.
+`revise`, once the person's feedback is recorded, or `recheck`) or, as a last
+resort, a `reset` on the person's word gets the item moving again. Never force
+past a refusal you do not understand.

@@ -1,0 +1,65 @@
+scenario: plan-feedback
+factory: swamp-club-swamp-extensions
+description: >-
+  A person sends the plan back twice with feedback (issue-lifecycle's iterate).
+  revise is refused until the feedback for this pass is recorded; feedback from
+  an earlier pass does not count. Each revised plan lists every round it
+  answers, which plan_revised carries to the Lab.
+steps:
+  - record: { evidence: classification }
+    payload: {
+      type: feature,
+      confidence: high,
+      reasoning: A new exit,
+      isRegression: false,
+    }
+  - move: feature
+  - record: { artifact: plan }
+    payload:
+      summary: Add a list method
+      scopeAnalysis: One extension; one file
+      steps: [{ order: 1, description: Add list, files: [x.ts] }]
+      testingStrategy: A test against a mock server
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [] }
+  - decline: plan-approval
+  - move: revise
+    manual: true
+    expect: { refused: "evidence 'plan-feedback' has not been recorded" }
+  - record: { evidence: plan-feedback }
+    payload: { feedback: Page the results }
+  - move: revise
+    manual: true
+  - record: { artifact: plan }
+    payload:
+      summary: Add a paged list method
+      scopeAnalysis: One extension; one file
+      steps: [{ order: 1, description: Add paged list, files: [x.ts] }]
+      testingStrategy: A test against a mock server
+      feedbackIncorporated: [Page the results]
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [] }
+  - decline: plan-approval
+  - move: revise
+    manual: true
+    expect: { refused: "record it again" }
+    note: The feedback from the first pass does not open this one
+  - record: { evidence: plan-feedback }
+    payload: { feedback: Cap the page size at 100 }
+  - move: revise
+    manual: true
+  - record: { artifact: plan }
+    payload:
+      summary: Add a paged list method, capped at 100
+      scopeAnalysis: One extension; one file
+      steps: [{ order: 1, description: Add paged list, files: [x.ts] }]
+      testingStrategy: A test against a mock server
+      feedbackIncorporated: [Page the results, Cap the page size at 100]
+  - move: submit
+  - record: { artifact: plan-review }
+    payload: { findings: [] }
+  - approve: plan-approval
+  - move: approve
+  - expect: { stage: implement }

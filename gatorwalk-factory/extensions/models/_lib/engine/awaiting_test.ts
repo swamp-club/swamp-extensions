@@ -40,12 +40,15 @@ import {
   expectNow,
   settableEnv,
   stopsParsedDefinition,
+  stopsWithFeedbackDefinition,
 } from "./test_support.ts";
 
 /** A work item on the stops factory definition, committing through
  * committingStore. */
-async function item(minApprovals = 1) {
-  const definition = stopsParsedDefinition(minApprovals);
+async function item(
+  minApprovals = 1,
+  definition = stopsParsedDefinition(minApprovals),
+) {
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const store = committingStore(memoryStore(), definition, env);
   assert(
@@ -190,6 +193,20 @@ Deno.test("awaiting: a decline waits on rework, then on a person again once a pr
     [],
     ["approve"],
     [],
+  ]);
+});
+
+Deno.test("awaiting: a person's feedback after a decline is not rework: only the manual exit it opens waits", async () => {
+  const wi = await item(1, stopsWithFeedbackDefinition());
+  await wi.record("artifact", "plan", { text: "the plan" });
+  await wi.move("submit");
+  await wi.decide("go", "decline");
+  await wi.record("evidence", "feedback", { text: "split step 2" });
+  const events = awaitings(await wi.run());
+  assertEquals(events.map((e) => names(e.exits)), [
+    ["approve"],
+    [],
+    ["revise"],
   ]);
 });
 

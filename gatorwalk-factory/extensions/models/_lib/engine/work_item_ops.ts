@@ -49,6 +49,7 @@ import {
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   type FactoryDefinition,
+  findStage,
   parseDefinition,
 } from "./definition_schema.ts";
 import {
@@ -1001,6 +1002,12 @@ export async function describeStatus(
         failures: t.failures,
       }))
       : [],
+    /** Evidence of this stage a person records, not its work. */
+    personRecords: active
+      ? (findStage(definition, run.stage)?.evidence ?? []).flatMap((spec) =>
+        spec.recordedBy === "person" ? [spec.name] : []
+      )
+      : [],
     validations: run.validations,
     products: run.products,
   };
@@ -1028,6 +1035,9 @@ export async function status(
       }: ${e.ready ? "ready" : `not ready: ${e.failures.join("; ")}`}`
     ),
   ];
+  if (view.personRecords.length > 0) {
+    lines.push(`  a person records: ${view.personRecords.join(", ")}`);
+  }
   if (view.dispatch !== null && view.dispatchCap !== null) {
     const cap = view.dispatchCap;
     lines.push(

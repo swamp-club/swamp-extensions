@@ -2,8 +2,9 @@ scenario: plan-churn
 factory: build-swamp-extension
 description: >-
   The plan keeps coming back. plan is entered once at the start and again on
-  each revise, and maxCycles defaults to 5, so the fifth revise is refused
-  until a person grants one more pass.
+  each revise, which the person's recorded feedback opens, and maxCycles
+  defaults to 5, so the fifth revise is refused until a person grants one more
+  pass.
 steps:
   - record: { artifact: plan }
     payload:
@@ -12,24 +13,36 @@ steps:
       testingStrategy: t
       versionBump: { needed: false, reason: none }
   - move: submit
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
   - move: submit
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
   - move: submit
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
   - move: submit
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
   - move: submit
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
     expect: { refused: "cycle override for 'plan'" }
   - wait: 3600
     note: The work item sits at the cycle limit until someone looks
   - override: { stage: plan, note: one more pass }
+  - record: { evidence: plan-feedback }
+    payload: { feedback: f }
   - move: revise
     manual: true
   - expect: { stage: plan }

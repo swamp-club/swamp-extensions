@@ -244,6 +244,37 @@ stages:
   assertEquals(embedded(html), view);
 });
 
+Deno.test("design page: evidence a person records is marked so", async () => {
+  const { view, html } = await render(definition(`
+schemaVersion: 1
+name: feedback
+stages:
+  - id: review
+    initial: true
+    evidence:
+      - name: feedback
+        recordedBy: person
+        schema: { type: object }
+      - name: checks
+        schema: { type: object }
+    transitions: [{ name: done, to: done }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(view.stages[0].products, [
+    { kind: "evidence", name: "feedback", recordedBy: "person" },
+    { kind: "evidence", name: "checks" },
+  ]);
+  assert(html.includes(
+    `<code>feedback</code> <span class="tag">recorded by a person</span>`,
+  ));
+  assertFalse(
+    html.includes(
+      `<code>checks</code> <span class="tag">recorded by a person</span>`,
+    ),
+  );
+});
+
 const FLAWED = `
 schemaVersion: 1
 name: flawed

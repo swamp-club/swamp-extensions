@@ -33,12 +33,13 @@ import { renderTemplate } from "./template.ts";
 // does the work (an agent following the skill, or later a driver) reads the
 // packet; recordDispatch stores its inputs and prompt for replay.
 //
-// The packet names the products the stage must record, each with the schema
-// its payload is checked against. A dispatch stage's subagents get prompts
-// the engine writes whole (buildSubagentPrompts): the rendered prompt, then
-// where to read injected products and where to write each result. The
-// driver sends them as they are and records the result files unedited, so
-// what is recorded is what was sent and what came back.
+// The packet names the products the stage's work must record, each with the
+// schema its payload is checked against; evidence a person records
+// (recordedBy: person) is not the work's and is left out. A dispatch stage's
+// subagents get prompts the engine writes whole (buildSubagentPrompts): the
+// rendered prompt, then where to read injected products and where to write
+// each result. The driver sends them as they are and records the result files
+// unedited, so what is recorded is what was sent and what came back.
 //
 // Problems (a binding that fails, a placeholder with no value, inputs that
 // break inputsSchema) are reported in the packet, and ready is false, rather
@@ -72,8 +73,10 @@ export interface DispatchPacket {
   command?: string;
   constraints?: string;
   inject: string[];
-  /** Every product the stage declares, in declaration order, its schema
-   * without notes (descriptions are for the definition's authors). */
+  /** Every product the stage's work records, in declaration order, its
+   * schema without notes (descriptions are for the definition's authors).
+   * Evidence a person records (recordedBy: person) is not the work's and is
+   * left out. */
   products: ProductContract[];
   problems: string[];
   ready: boolean;
@@ -168,6 +171,7 @@ function productsOf(
   }));
   const result = stage.work?.resultEvidence;
   for (const spec of stage.evidence ?? []) {
+    if (spec.recordedBy === "person") continue;
     products.push({
       kind: "evidence",
       name: spec.name,

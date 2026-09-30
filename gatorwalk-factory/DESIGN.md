@@ -252,6 +252,15 @@ A way back either reads the run data or waits for a person:
   without a blocking finding) and `recheck` (for a failure that was not the
   code's, such as a flaky test) are `manual: true`. The driver never takes a
   manual transition, even when its gates pass; a person says go.
+- **A revised plan carries its reason.** `revise` from `plan-review` also needs
+  `plan-feedback`, the person's feedback on the plan, recorded in this pass
+  (swamp-club #2770). The evidence is declared `recordedBy: person`: the
+  dispatch packet leaves it out, `status` lists it under `a person records:`,
+  and recording it after a decline is not rework (see "Why `awaiting` is
+  journaled"). `plan` injects the last plan, its review and the feedback, and
+  the revised plan lists every round it answers in `feedbackIncorporated`, so
+  the feedback reaches the next planning pass and the ticket's history. A
+  person can always record feedback, so the gate never wedges the work.
 
 ### The cycle limit
 
@@ -554,7 +563,13 @@ Warnings:
 - **`product-missing-on-path`:** a stage injects, or gates on, an artifact or
   evidence that some path to it does not produce. A product read only by CEL (a
   binding, a `cel` gate or an approval's `when`) is not checked yet; that is
-  swamp-club #2792.
+  swamp-club #2792. An inject is not reported when some path produces it and
+  every stage that produces it is in the injecting stage's own loop (its
+  strongly connected component over live, non-global edges): that is context
+  from an earlier pass, such as the last review and a person's feedback handed
+  to the next plan, absent on the first pass by design (swamp-club #2770). A
+  producer upstream of the stage but outside its loop is still reported, and
+  gates are judged as before.
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
@@ -657,6 +672,14 @@ The dispatch record held a prompt no subagent saw.
   recording applies, and a test pins that they accept and reject the same
   payloads. Schemas are shown without their `description` and `$comment`,
   which are for the definition's authors.
+- **Evidence a person records is not the work's.** An evidence spec with
+  `recordedBy: person` (a person's feedback on the plan, say) is left out of
+  `products`, so no subagent is asked to write it and no driver records it as
+  the stage's work. `status` names it (`a person records: <name>`), the design
+  page marks it, and a saved scenario records it as the person. Recording,
+  gates, injection and CEL treat it like any evidence. Declaring it on the
+  stage whose exit it gates is what lets `evidence-recorded` require it in the
+  current pass (swamp-club #2770).
 - **The engine writes the subagent prompt.** For a dispatch stage,
   `buildSubagentPrompts` gives each subagent the rendered prompt byte for
   byte. A fixed section follows it: the skill to follow, a `swamp data get`
@@ -866,12 +889,14 @@ one of its human-approval gates is pending, or it is manual and has gates, all
 passing. A conditional approval whose `when` is false passes, so it is no stop.
 Excluded, on purpose:
 
-- **A manual exit with no gates** (`revise`, `recheck`) is a way back a person
-  may always take. Counting it would make every stage a stop from the moment it
-  is entered.
+- **A manual exit with no gates** (`recheck`, `revise` on stages other than
+  `plan-review`) is a way back a person may always take. Counting it would make
+  every stage a stop from the moment it is entered.
 - **A global transition** (`abandon`) is an escape hatch, open everywhere.
 - **A freshly declined gate** waits on rework, not on a person, until a product
-  is recorded after the decline.
+  is recorded after the decline. Evidence a person records (`recordedBy:
+  person`, such as their feedback) is not rework and does not count: after a
+  declined plan and the person's feedback, only `revise` waits on them.
 - **A conditional approval whose `when` cannot be evaluated** waits on a fix to
   the run data or the factory definition, not on a person.
 
@@ -1743,6 +1768,25 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: a person's plan feedback is kept and handed to the next plan (swamp-club #2770)
+
+**Decided with Seth.** The feedback is evidence, `plan-feedback`, on
+`plan-review`, not a note on `advance`: `revise` gains an `evidence-recorded`
+gate on it, `plan` injects the last plan, its review and the feedback, and the
+plan's optional `feedbackIncorporated` carries it to the ticket with
+`plan_revised`. All three examples with a plan loop take it. The round is the
+cycle the feedback was recorded in, not a field. `revise` is gated even after a
+declined approval, and there is no gate on `submit` checking the plan quotes
+the feedback: `plan_revised` is published when the plan is recorded, before any
+`submit` gate could refuse it.
+
+**Hoists into the engine.** Declaring the evidence on `plan-review`, a dispatch
+stage, would have told every reviewer to write it, so evidence gains
+`recordedBy: person` (see "The dispatch contract"). Recording it after a
+decline is not rework ("Why `awaiting` is journaled"). Injecting products from
+the stage's own loop is not a graph warning ("Graph validation"): warnings
+about the first pass of a loop would teach authors to ignore warnings.
 
 ### 2026-09-30: the studio server, read-only, with its page embedded (swamp-club #2806)
 

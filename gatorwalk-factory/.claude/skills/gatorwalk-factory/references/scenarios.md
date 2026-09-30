@@ -67,10 +67,11 @@ the gate's message, so the scenario pins it; `""` accepts any refusal. Any step
 can carry a `note` saying why it is there.
 
 The clock moves one second per engine call, plus each `wait`. Records and
-automatic moves are an agent's; approvals, declines, overrides and manual moves
-are a person's. Payloads must pass the definition's schemas, as they would in a
-real work item. Write the steps from the definition: the transitions out of each
-stage, the gates on them, and the payload schemas.
+automatic moves are an agent's; approvals, declines, overrides, manual moves and
+evidence a person records (`recordedBy: person`) are a person's. Payloads must
+pass the definition's schemas, as they would in a real work item. Write the
+steps from the definition: the transitions out of each stage, the gates on them,
+and the payload schemas.
 
 ## After writing one
 

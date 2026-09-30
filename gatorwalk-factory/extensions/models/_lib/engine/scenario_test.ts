@@ -25,7 +25,10 @@ import {
   SCENARIO_PERSON,
   type ScenarioResult,
 } from "./scenario.ts";
-import { stopsParsedDefinition } from "./test_support.ts";
+import {
+  stopsParsedDefinition,
+  stopsWithFeedbackDefinition,
+} from "./test_support.ts";
 
 // ---------------------------------------------------------------------------
 // The scenario runner on the stops definition (test_support.ts): draft ->
@@ -146,6 +149,38 @@ Deno.test("scenario: records and automatic moves are an agent's; approvals, over
     result.frames.at(-1)?.run.approvals.map((a) => a.decision),
     ["decline"],
   );
+});
+
+Deno.test("scenario: evidence a person records is the person's, and opens the manual way back it gates", async () => {
+  const parsed = parseScenario({
+    scenario: "s",
+    factory: "team",
+    steps: [
+      ...TO_REVIEW,
+      { decline: "go" },
+      {
+        move: "revise",
+        manual: true,
+        expect: { refused: "evidence 'feedback' has not been recorded" },
+      },
+      { record: { evidence: "feedback" }, payload: { text: "Split step 2" } },
+      { move: "revise", manual: true },
+      { expect: { stage: "draft" } },
+    ],
+  });
+  if (!parsed.ok) throw new Error(parsed.errors.join("\n"));
+  const result = await runScenario(
+    stopsWithFeedbackDefinition(),
+    parsed.value,
+  );
+  assertEquals(result.failures, []);
+  const recorded = (result.frames.at(-1)?.run.journal ?? []).flatMap((e) =>
+    e.type === "recorded" ? [[e.name, e.actor.principal]] : []
+  );
+  assertEquals(recorded, [
+    ["plan", SCENARIO_AGENT.principal],
+    ["feedback", SCENARIO_PERSON.principal],
+  ]);
 });
 
 Deno.test("scenario: a manual transition without manual: true is refused", async () => {
