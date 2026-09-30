@@ -30,6 +30,8 @@ import type { TrackerIssue } from "./adapter.ts";
 import {
   type DataReadingContext,
   freshKey,
+  keyIsFree,
+  keySlug,
   loadFactoryDefinition,
   RUN_SPEC,
   type RunRecord,
@@ -70,6 +72,18 @@ export function externalRefsOf(
 // can break the printed command.
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+// The room a key's leading words may take: the work-item key rules cut the
+// lead at 55 characters anyway (DESIGN.md, "The model types").
+const LEAD_MAX = 55;
+
+/**
+ * A ticket's display id as a key's leading words: `#2734` gives `2734`,
+ * `ABC-12` gives `abc-12`. For reading only; externalRefs is the link.
+ */
+export function displayLead(display: string): string {
+  return keySlug("", LEAD_MAX, display);
 }
 
 /** The command that starts a claimed key, as claim prints it. */
@@ -117,6 +131,10 @@ export interface ClaimRequest {
   recordName: string;
   /** The factory, needed only when a new key is reserved. */
   factory?: string;
+  /** A new key's leading words: the display id's, or a built-in prefix. */
+  lead: string;
+  /** The name the ticket's first work item takes while it is free. */
+  first?: string;
   now: Date;
 }
 
@@ -181,9 +199,17 @@ export async function claimTicket(
         (prior === null ? "" : ` (its last one used '${prior.factory}')`),
     );
   }
-  const definition = await loadFactoryDefinition(ctx, req.factory);
-  // The display id leads the key for reading only; externalRefs is the link.
-  const key = await freshKey(ctx, definition.name, issue.title, issue.display);
+  // Checked in full before anything is reserved, though its name is no part
+  // of the key.
+  await loadFactoryDefinition(ctx, req.factory);
+  // The lead is for reading only; externalRefs is the link. A built-in
+  // ticket's first work item takes the ticket's own id.
+  const key = prior === null && req.first !== undefined &&
+      await keyIsFree(ctx, req.first)
+    ? req.first
+    // A title with no ASCII letters or digits leaves the lead alone
+    // (2800-k3xq): the ticket's id already says what the work is.
+    : await freshKey(ctx, req.lead, issue.title, "", { allowBare: true });
   // The index first: a crash before the work item starts leaves a
   // reservation that the next claim hands back.
   const handle = await ctx.writeResource(

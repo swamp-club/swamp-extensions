@@ -565,3 +565,20 @@ Deno.test("factory: init offers every example as a starter", () => {
     "swamp-club-swamp-extensions",
   ]);
 });
+
+Deno.test("generateKey: a title with no ASCII letters is refused, unless a bare key is allowed", () => {
+  assertThrows(
+    () => generateKey("build", "🔥🔥"),
+    Error,
+    "no letters or digits",
+  );
+  assertMatch(
+    generateKey("2800", "🔥🔥", "", { allowBare: true }),
+    /^2800-[a-z2-7]{4}$/,
+  );
+  // A title with words keeps its slug either way.
+  assertMatch(
+    generateKey("2800", "Fix login", "", { allowBare: true }),
+    /^2800-fix-login-[a-z2-7]{4}$/,
+  );
+});

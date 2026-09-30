@@ -22,6 +22,7 @@ import {
   type LinearFake,
   linearFake,
   OTHER_UUID,
+  TEAM_ID,
 } from "./linear_fake.ts";
 import { TrackerError, type TrackerErrorKind } from "../core/adapter.ts";
 import { assertTrackerConformance } from "../core/tracker_conformance.ts";
@@ -35,8 +36,10 @@ async function withFake(fn: (fake: LinearFake) => Promise<void>) {
   }
 }
 
+const TYPES = { bug: "Bug", feature: "Feature", chore: "Chore" };
+
 const adapterFor = (fake: LinearFake, apiToken = FAKE_TOKEN) =>
-  linearAdapter({ apiToken, apiUrl: fake.url });
+  linearAdapter({ apiToken, apiUrl: fake.url, teamId: TEAM_ID, types: TYPES });
 
 async function failsWith(
   kind: TrackerErrorKind,
@@ -65,6 +68,7 @@ Deno.test("linear: meets the tracker adapter contract", async () => {
       missing: OTHER_UUID,
       statusNames: ["In Progress", "In Review"],
       commentsPosted: () => fake.comments.length,
+      createType: "bug",
     });
   });
 });
@@ -277,5 +281,71 @@ Deno.test("linear: a body that fails after an error status keeps that status's k
       () => adapterFor(fake).fetchIssue(ISSUE_UUID),
       "HTTP 401: could not read the response",
     );
+  });
+});
+
+Deno.test("linear: create files in the team, labelled for its type, with a team or a workspace label", async () => {
+  await withFake(async (fake) => {
+    const bug = await adapterFor(fake).create({
+      title: "A new issue",
+      body: "Filed by gatorwalk.",
+      type: "bug",
+    });
+    assertEquals(bug.display, "GW-17");
+    // The label is looked up by name, not read from a page of all labels.
+    assert(
+      fake.requests.some((r) =>
+        r.query.includes("issueLabels") && r.variables.name === "Bug"
+      ),
+    );
+    assertEquals(bug.title, "A new issue");
+    assertEquals(bug.status.name, "Todo");
+    const stored = fake.issues.find((i) => i.id === bug.id);
+    assertEquals(stored?.labelIds, ["label-bug"]);
+    assertEquals(stored?.description, "Filed by gatorwalk.");
+    // A workspace label (no team) is one the team can use.
+    const feature = await adapterFor(fake).create({
+      title: "Another",
+      body: "b",
+      type: "feature",
+    });
+    assertEquals(
+      fake.issues.find((i) => i.id === feature.id)?.labelIds,
+      ["label-feature"],
+    );
+  });
+});
+
+Deno.test("linear: create is refused without a teamId, for an unmapped type, and for a label the team lacks", async () => {
+  await withFake(async (fake) => {
+    const draft = { title: "t", body: "b", type: "bug" };
+    await failsWith(
+      "invalid",
+      () =>
+        linearAdapter({ apiToken: FAKE_TOKEN, apiUrl: fake.url }).create(
+          draft,
+        ),
+      "no teamId",
+    );
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).create({ ...draft, type: "security" }),
+      "mapped: bug, feature, chore",
+    );
+    // Chore maps to a label no team or workspace has; Elsewhere is another
+    // team's label, which this team cannot use.
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).create({ ...draft, type: "chore" }),
+      "no label 'Chore'",
+    );
+    const elsewhere = linearAdapter({
+      apiToken: FAKE_TOKEN,
+      apiUrl: fake.url,
+      teamId: TEAM_ID,
+      types: { bug: "Elsewhere" },
+    });
+    await failsWith("invalid", () => elsewhere.create(draft), "no label");
+    assertEquals(fake.issues.length, 1, "nothing was filed");
   });
 });

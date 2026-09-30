@@ -34,6 +34,15 @@ export interface FakeIssue {
   identifier: string;
   title: string;
   stateId: string;
+  description?: string;
+  labelIds?: string[];
+}
+
+/** A label: a team's own, or the workspace's (team null). */
+export interface FakeLabel {
+  id: string;
+  name: string;
+  team: { id: string } | null;
 }
 
 export interface FakeRequest {
@@ -57,6 +66,7 @@ export interface LinearFake {
   token: string;
   issues: FakeIssue[];
   states: FakeState[];
+  labels: FakeLabel[];
   comments: { id: string; issueId: string; body: string }[];
   requests: FakeRequest[];
   /** Raw responses to send, in order, before answering normally again. */
@@ -67,6 +77,8 @@ export interface LinearFake {
 export const FAKE_TOKEN = "lin_api_fake_token_for_tests";
 export const ISSUE_UUID = "5b0e7a52-3f0c-4d8e-9a51-2c7d4a1e9b10";
 export const OTHER_UUID = "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0";
+/** The team the fake's issues belong to and create files in. */
+export const TEAM_ID = "team-gw";
 
 export function linearFake(token = FAKE_TOKEN): LinearFake {
   const states: FakeState[] = [
@@ -82,6 +94,11 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
       title: "Linear adapter",
       stateId: "state-todo",
     },
+  ];
+  const labels: FakeLabel[] = [
+    { id: "label-bug", name: "Bug", team: { id: TEAM_ID } },
+    { id: "label-feature", name: "Feature", team: null },
+    { id: "label-elsewhere", name: "Elsewhere", team: { id: "team-other" } },
   ];
   const comments: LinearFake["comments"] = [];
   const requests: FakeRequest[] = [];
@@ -143,6 +160,61 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
         return error("Authentication required", "AUTHENTICATION_ERROR", 400);
       }
       const query = raw.query;
+      if (query.includes("issueLabels")) {
+        const name = variables.name;
+        return json({
+          data: {
+            issueLabels: {
+              nodes: labels.filter((l) =>
+                name === undefined || l.name === name
+              ),
+            },
+          },
+        });
+      }
+      if (query.includes("issueCreate")) {
+        const input = (variables.input ?? {}) as {
+          teamId?: unknown;
+          title?: unknown;
+          description?: unknown;
+          labelIds?: unknown;
+        };
+        if (input.teamId !== TEAM_ID) {
+          return error("Entity not found: Team", "INVALID_INPUT", 200);
+        }
+        const labelIds = Array.isArray(input.labelIds) ? input.labelIds : [];
+        if (labelIds.some((id) => !labels.some((l) => l.id === id))) {
+          return error("Entity not found: IssueLabel", "INVALID_INPUT", 200);
+        }
+        if (typeof input.title !== "string" || input.title === "") {
+          return error("title must not be empty", "INVALID_INPUT", 400);
+        }
+        const issue: FakeIssue = {
+          id: crypto.randomUUID(),
+          identifier: `GW-${16 + issues.length}`,
+          title: input.title,
+          stateId: "state-todo",
+          description: typeof input.description === "string"
+            ? input.description
+            : undefined,
+          labelIds: labelIds as string[],
+        };
+        issues.push(issue);
+        return json({
+          data: {
+            issueCreate: {
+              success: true,
+              issue: {
+                id: issue.id,
+                identifier: issue.identifier,
+                title: issue.title,
+                url: urlOf(issue),
+                state: stateOf(issue),
+              },
+            },
+          },
+        });
+      }
       if (query.includes("commentCreate")) {
         const issue = find(variables.issueId);
         if (issue === undefined) return notFound();
@@ -194,6 +266,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     token,
     issues,
     states,
+    labels,
     comments,
     requests,
     queue,

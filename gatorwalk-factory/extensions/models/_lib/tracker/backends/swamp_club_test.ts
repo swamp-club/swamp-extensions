@@ -92,6 +92,7 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
       missing: String(MISSING_ISSUE),
       statusNames: ["triaged", "in_progress"],
       commentsPosted: () => fake.comments.length,
+      createType: "feature",
       history: {
         entriesPosted: () => fake.entries.length,
         statusName: "open",
@@ -158,12 +159,12 @@ Deno.test("swamp-club: an issue without the Lab-only fields reads them as empty"
 Deno.test("swamp-club: setType patches only when the type differs, and needs an admin", async () => {
   await withFake(async (fake) => {
     const adapter = adapterFor(fake);
-    assertEquals(await adapter.history.setType(ISSUE, "feature"), {
+    assertEquals(await adapter.capabilities.history.setType(ISSUE, "feature"), {
       changed: false,
       type: "feature",
     });
     assertEquals(fake.requests.filter((r) => r.method === "PATCH").length, 0);
-    assertEquals(await adapter.history.setType(ISSUE, "bug"), {
+    assertEquals(await adapter.capabilities.history.setType(ISSUE, "bug"), {
       changed: true,
       type: "bug",
     });
@@ -171,12 +172,16 @@ Deno.test("swamp-club: setType patches only when the type differs, and needs an 
     assertEquals(fake.requests.at(-1)?.body, { type: "bug" });
     await failsWith(
       "invalid",
-      () => adapter.history.setType(ISSUE, "chore"),
+      () => adapter.capabilities.history.setType(ISSUE, "chore"),
       "bug, feature, platform, security",
     );
     await failsWith(
       "auth",
-      () => adapterFor(fake, MEMBER_KEY).history.setType(ISSUE, "security"),
+      () =>
+        adapterFor(fake, MEMBER_KEY).capabilities.history.setType(
+          ISSUE,
+          "security",
+        ),
       "admin",
     );
   });
@@ -184,14 +189,17 @@ Deno.test("swamp-club: setType patches only when the type differs, and needs an 
 
 Deno.test("swamp-club: a lifecycle entry is posted as issue-lifecycle posts it", async () => {
   await withFake(async (fake) => {
-    const posted = await adapterFor(fake).history.postEntry(ISSUE, {
-      step: " classified ",
-      targetStatus: "triaged",
-      summary: "Classified as bug (high)",
-      emoji: "\u{1F4CB}",
-      payload: { type: "bug", isRegression: true },
-      isVerbose: false,
-    });
+    const posted = await adapterFor(fake).capabilities.history.postEntry(
+      ISSUE,
+      {
+        step: " classified ",
+        targetStatus: "triaged",
+        summary: "Classified as bug (high)",
+        emoji: "\u{1F4CB}",
+        payload: { type: "bug", isRegression: true },
+        isVerbose: false,
+      },
+    );
     assertEquals(posted.id, fake.entries[0].id);
     assertEquals(
       fake.requests[0].path,
@@ -225,33 +233,44 @@ Deno.test("swamp-club: a lifecycle entry's limits are checked before any call, a
     await failsWith(
       "invalid",
       () =>
-        adapter.history.postEntry(ISSUE, { ...entry, step: "s".repeat(101) }),
+        adapter.capabilities.history.postEntry(ISSUE, {
+          ...entry,
+          step: "s".repeat(101),
+        }),
       "step",
     );
     await failsWith(
       "invalid",
       () =>
-        adapter.history.postEntry(ISSUE, { ...entry, targetStatus: "done" }),
+        adapter.capabilities.history.postEntry(ISSUE, {
+          ...entry,
+          targetStatus: "done",
+        }),
       "not a Lab status",
     );
     await failsWith(
       "invalid",
-      () => adapter.history.postEntry(ISSUE, { ...entry, emoji: " " }),
+      () =>
+        adapter.capabilities.history.postEntry(ISSUE, { ...entry, emoji: " " }),
       "emoji",
     );
     await failsWith(
       "invalid",
-      () => adapter.history.postEntry(ISSUE, { ...entry, summary: "" }),
+      () =>
+        adapter.capabilities.history.postEntry(ISSUE, {
+          ...entry,
+          summary: "",
+        }),
       "summary",
     );
     assertEquals(fake.requests.length, 0);
-    await adapter.history.postEntry(ISSUE, {
+    await adapter.capabilities.history.postEntry(ISSUE, {
       ...entry,
       summary: "y".repeat(2500),
     });
     assertEquals(fake.entries[0].summary, `${"y".repeat(1997)}...`);
     // An emoji across the cut is dropped whole, never halved.
-    await adapter.history.postEntry(ISSUE, {
+    await adapter.capabilities.history.postEntry(ISSUE, {
       ...entry,
       summary: `${"y".repeat(1996)}\u{1F389}${"z".repeat(10)}`,
     });
@@ -271,13 +290,13 @@ Deno.test("swamp-club: a refused lifecycle entry is invalid with swamp-club's re
     };
     await failsWith(
       "invalid",
-      () => adapterFor(fake).history.postEntry(ISSUE, entry),
+      () => adapterFor(fake).capabilities.history.postEntry(ISSUE, entry),
       "must not start with $",
     );
     await failsWith(
       "auth",
       () =>
-        adapterFor(fake, MEMBER_KEY).history.postEntry(ISSUE, {
+        adapterFor(fake, MEMBER_KEY).capabilities.history.postEntry(ISSUE, {
           ...entry,
           payload: {},
         }),
@@ -952,4 +971,85 @@ Deno.test("swamp-club credentials: the key only goes to https, or to plain http 
   );
   assertEquals(refused.kind, "invalid");
   assert(!refused.message.includes("swamp_key"), "never the key");
+});
+
+Deno.test("swamp-club: create files a Lab issue and reports it from the reply", async () => {
+  await withFake(async (fake) => {
+    const created = await adapterFor(fake, MEMBER_KEY).create({
+      title: "A new issue",
+      body: "Filed by gatorwalk.",
+      type: "bug",
+    });
+    const number = LAB_ISSUE + 1;
+    assertEquals(created, {
+      id: String(number),
+      display: `#${number}`,
+      title: "A new issue",
+      url: `${fake.url}/lab/${number}`,
+      status: { id: "open", name: "open" },
+      details: {
+        body: "Filed by gatorwalk.",
+        type: "bug",
+        author: "member",
+        authorId: "user-member",
+        comments: [],
+      },
+    });
+    // One request: the issue is built from the reply, never read back.
+    assertEquals(fake.requests.length, 1);
+    assertEquals(fake.requests[0].method, "POST");
+    assertEquals(fake.requests[0].path, "/api/v1/lab/issues");
+  });
+});
+
+Deno.test("swamp-club: create refuses a type the Lab lacks before any request, and a refused one is invalid", async () => {
+  await withFake(async (fake) => {
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).create({ title: "t", body: "b", type: "chore" }),
+      "not a Lab issue type",
+    );
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).create({ title: "t", body: " ", type: "bug" }),
+      "a title and a body",
+    );
+    assertEquals(fake.requests.length, 0);
+    // Only an admin may file a platform issue.
+    await failsWith(
+      "invalid",
+      () =>
+        adapterFor(fake, MEMBER_KEY).create({
+          title: "t",
+          body: "b",
+          type: "platform",
+        }),
+      "Invalid type",
+    );
+    await failsWith(
+      "auth",
+      () =>
+        adapterFor(fake, "swamp_wrong_key").create({
+          title: "t",
+          body: "b",
+          type: "bug",
+        }),
+    );
+    assertEquals(fake.issues.length, 1);
+  });
+});
+
+Deno.test("swamp-club: a create reply without an issue number is upstream", async () => {
+  await withFake(async (fake) => {
+    fake.queue.push({
+      status: 201,
+      body: JSON.stringify({ issue: { title: "t" } }),
+      contentType: "application/json",
+    });
+    await failsWith(
+      "upstream",
+      () => adapterFor(fake).create({ title: "t", body: "b", type: "bug" }),
+      "without its number",
+    );
+  });
 });

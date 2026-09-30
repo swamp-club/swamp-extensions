@@ -263,6 +263,43 @@ export function swampClubFake(): SwampClubFake {
         attestations.push(stored);
         return json(stored, 201);
       }
+      if (pathname === "/api/v1/lab/issues" && request.method === "POST") {
+        // swamp-club's handleCreateIssue: any signed-in user may file a
+        // feature, bug or security issue; an admin may also file platform.
+        if (role === null) return error("Unauthorized", 401);
+        const draft =
+          (typeof body === "object" && body !== null ? body : {}) as Record<
+            string,
+            unknown
+          >;
+        if (
+          !("type" in draft) || !("title" in draft) || !("body" in draft)
+        ) {
+          return error("Missing required fields: type, title, body", 400);
+        }
+        const allowed = admin ? TYPES : TYPES.filter((t) => t !== "platform");
+        if (typeof draft.type !== "string" || !allowed.includes(draft.type)) {
+          return error("Invalid type. Must be feature, bug, or security.", 400);
+        }
+        if (typeof draft.title !== "string" || draft.title.trim() === "") {
+          return error("Title must be a non-empty string", 400);
+        }
+        if (typeof draft.body !== "string" || draft.body.trim() === "") {
+          return error("Body must be a non-empty string", 400);
+        }
+        const created: FakeLabIssue = {
+          number: Math.max(...issues.map((i) => i.number)) + 1,
+          title: draft.title.trim(),
+          status: "open",
+          assignees: [],
+          body: draft.body,
+          type: draft.type,
+          authorId: admin ? "user-seth" : "user-member",
+          authorUsername: admin ? "seth" : "member",
+        };
+        issues.push(created);
+        return json({ issue: created, audience: "public" }, 201);
+      }
       const match = /^\/api\/v1\/lab\/issues\/([^/]+)(\/comments|\/lifecycle)?$/
         .exec(
           pathname,

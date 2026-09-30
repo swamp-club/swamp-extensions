@@ -15,11 +15,12 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 // ---------------------------------------------------------------------------
-// The tracker adapter contract (DESIGN.md, "Trackers"). Swamp owns the facts
-// and a tracker is a view. An adapter is the only code that talks to its
-// tracker; the work-item state piece never makes a network call. Each
-// tracker model type (Linear here; swamp-club Lab next) is a thin shell that
-// supplies an adapter to the shared methods in tracker_methods.ts.
+// The tracker adapter contract (DESIGN.md, "Trackers"). Swamp owns the
+// lifecycle facts and a tracker is a view of them. An adapter is the only code
+// that talks to its tracker; the work-item state piece never makes a network
+// call. Each tracker model type (the built-in tracker, the swamp-club Lab and
+// Linear) is a thin shell that supplies an adapter to the shared methods in
+// tracker_methods.ts.
 // ---------------------------------------------------------------------------
 
 /** A ticket as every adapter reports it. */
@@ -29,7 +30,8 @@ export interface TrackerIssue {
   /** The human identifier, for display only; it may change (ABC-1). */
   display: string;
   title: string;
-  url: string;
+  /** Where a person reads the ticket; absent for a built-in issue. */
+  url?: string;
   status: TrackerStatus;
   /**
    * What only this tracker reports about the ticket (the Lab's body, type,
@@ -47,7 +49,8 @@ export interface TrackerStatus {
 /** What the tracker returned for a comment it accepted. */
 export interface TrackerComment {
   id: string;
-  url: string;
+  /** Where a person reads it; absent for a built-in ticket's comment. */
+  url?: string;
 }
 
 export interface StatusChange {
@@ -75,10 +78,10 @@ export interface PostedEntry {
 }
 
 /**
- * An optional capability beside the contract: a tracker that keeps a
- * structured history of each ticket, and a ticket type. An adapter that has
- * it is published in entry mode when the factory definition declares entries
- * (projection.ts); one without it is never asked for it.
+ * The history capability: a tracker that keeps a structured history of each
+ * ticket, and a ticket type. An adapter that has it is published in entry
+ * mode when the factory definition declares entries (projection.ts); publish
+ * never asks one without it.
  */
 export interface LifecycleEntryWriter {
   postEntry(issueId: string, entry: LifecycleEntry): Promise<PostedEntry>;
@@ -89,11 +92,45 @@ export interface LifecycleEntryWriter {
   ): Promise<{ changed: boolean; type: string }>;
 }
 
+/** A new ticket, as create takes it. */
+export interface IssueDraft {
+  title: string;
+  body: string;
+  /** The ticket's type, from the tracker's own set. */
+  type: string;
+}
+
+/**
+ * Who owns a ticket's facts (identity, title, type, status). `snapshot`: an
+ * external tracker does, and swamp keeps its last read of them. `builtin`:
+ * the adapter's own records are the facts, so nothing overwrites them with a
+ * read.
+ */
+export const ISSUE_ORIGINS = ["builtin", "snapshot"] as const;
+export type IssueOrigin = typeof ISSUE_ORIGINS[number];
+
+/**
+ * What a tracker offers beside the contract. A capability is present or
+ * absent; asking for an absent one is refused (requireCapability), never
+ * degraded silently.
+ */
+export interface TrackerCapabilities {
+  /** Lifecycle entries and the ticket type, where the tracker has them. */
+  readonly history?: LifecycleEntryWriter;
+}
+export type CapabilityName = keyof TrackerCapabilities;
+
 export interface TrackerAdapter {
   /** The tracker's name, which is also its externalRefs key. */
   readonly tracker: string;
-  /** Lifecycle entries and the ticket type, where the tracker has them. */
-  readonly history?: LifecycleEntryWriter;
+  readonly origin: IssueOrigin;
+  readonly capabilities: TrackerCapabilities;
+  /**
+   * File a new ticket. An external tracker files it first and its id is
+   * used. Not idempotent: a retry after the tracker accepted it but before
+   * the caller saw the reply files a second ticket.
+   */
+  create(draft: IssueDraft): Promise<TrackerIssue>;
   /** Fetch by stable id or by display identifier. */
   fetchIssue(ref: string): Promise<TrackerIssue>;
   /** Comment on a ticket, by stable id. */
@@ -134,6 +171,25 @@ export class TrackerError extends Error {
     super(`${tracker} ${kind}: ${detail}`);
     this.name = "TrackerError";
   }
+}
+
+/**
+ * The capability, or TrackerError `invalid` naming the tracker and the
+ * capability it lacks.
+ */
+export function requireCapability<K extends CapabilityName>(
+  adapter: TrackerAdapter,
+  name: K,
+): NonNullable<TrackerCapabilities[K]> {
+  const capability = adapter.capabilities[name];
+  if (capability === undefined) {
+    throw new TrackerError(
+      "invalid",
+      adapter.tracker,
+      `this tracker lacks the '${name}' capability`,
+    );
+  }
+  return capability as NonNullable<TrackerCapabilities[K]>;
 }
 
 /**

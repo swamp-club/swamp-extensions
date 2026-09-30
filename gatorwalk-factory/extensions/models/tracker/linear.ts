@@ -28,7 +28,9 @@ import { stringMapFrom } from "../_lib/engine/tracker.ts";
 
 // ---------------------------------------------------------------------------
 // The Linear adapter: one instance per Linear workspace, holding the API
-// token (from a vault) and the map from status keys to Linear status names.
+// token (from a vault), the map from status keys to Linear status names, and
+// for create the team new issues are filed in and the map from issue types
+// to labels.
 // It is the only gatorwalk code that talks to Linear; see DESIGN.md,
 // "Trackers".
 // ---------------------------------------------------------------------------
@@ -53,6 +55,16 @@ export const LinearArgumentsSchema = z.object({
       "Status keys to Linear status names (per team, matched exactly), e.g. " +
         '{"started": "In Progress"}: an object, or a JSON object as a string',
     ),
+  teamId: z.string().min(1).optional().describe(
+    "The id of the Linear team create files new issues in; create is " +
+      "refused without it",
+  ),
+  types: z.union([z.record(z.string(), z.string()), z.string()]).optional()
+    .describe(
+      "Issue types to Linear label names (the team's or the workspace's, " +
+        'matched exactly), e.g. {"bug": "Bug"}: an object, or a JSON object ' +
+        "as a string. Linear has no issue type, so create labels the issue",
+    ),
 });
 
 function argumentsOf(globalArgs: Record<string, unknown>) {
@@ -69,15 +81,22 @@ export const model = {
   resources: trackerResources,
   methods: trackerMethods({
     tracker: LINEAR,
-    adapter: (globalArgs) => {
-      const args = argumentsOf(globalArgs);
+    adapter: (ctx) => {
+      const args = argumentsOf(ctx.globalArgs ?? {});
       if (args.apiToken === undefined || args.apiToken === "") {
         throw new Error(
           "no apiToken: set the apiToken global argument to a " +
             "${{ vault.get(<vault>, <key>) }} expression",
         );
       }
-      return linearAdapter({ apiToken: args.apiToken, apiUrl: args.apiUrl });
+      return linearAdapter({
+        apiToken: args.apiToken,
+        apiUrl: args.apiUrl,
+        teamId: args.teamId,
+        types: args.types === undefined
+          ? undefined
+          : stringMapFrom("types", args.types),
+      });
     },
     statuses: (globalArgs) =>
       stringMapFrom("statuses", argumentsOf(globalArgs).statuses),

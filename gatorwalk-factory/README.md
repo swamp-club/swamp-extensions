@@ -34,6 +34,7 @@ extensions/models/
     factory.ts          the factory model type
     work_item.ts          the work-item model type
   tracker/
+    builtin.ts            the built-in tracker model type
     linear.ts             the Linear tracker adapter model type
     swamp_club.ts         the swamp-club Lab tracker adapter model type
   boundary_test.ts        the seam: engine and tracker code keep apart
@@ -72,6 +73,7 @@ extensions/models/
         projection.ts         what a ticket shows, from the journal
         test_support.ts       the projection tests' work item
       backends/
+        builtin.ts            the built-in tracker: tickets in swamp data
         linear.ts             the Linear GraphQL client
         linear_fake.ts        a local fake of Linear's API, for tests
         swamp_club.ts         the swamp-club Lab REST client
@@ -423,6 +425,35 @@ swamp model @swamp/gatorwalk-factory/work-item method run rebuild_metrics <key> 
 
 See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
 
+## Built-in tracker
+
+`@swamp/gatorwalk-factory/tracker` keeps tickets in swamp data, for a project
+with no external tracker. It makes no network call. Keep one instance per
+project. See [DESIGN.md](DESIGN.md), "The built-in tracker".
+
+```bash
+swamp model create @swamp/gatorwalk-factory/tracker board --json
+# In the printed definition file, set globalArguments:
+#   prefix: cue                 # required: ticket ids are cue-<slug>-<rnd>
+#   statuses: [open, in_progress, shipped, closed]   # the default
+#   types: [bug, feature, security]                  # the default
+swamp model method run board create --input title="Board shortcuts" \
+  --input body="Keys for the board." --input type=feature --log
+swamp model method run board claim --input issue=cue-board-shortcuts-r2ne \
+  --input factory=team --log
+swamp model method run board publish --input workItem=<key> --log
+```
+
+Ticket ids are lowercase, `<prefix>-<slug>-<4 random characters>` by the
+work-item key rules, with no counter. A ticket's `issue-<id>` record is the
+ticket itself. A new ticket starts in the first status, and a ticket may move
+between any two statuses; `statuses` keys are also the status names, so a
+factory definition's projection keys name them directly. It keeps lifecycle
+entries and the ticket type, like the Lab, so `publish` writes entries for a
+factory definition that declares them, and `set_type` sets a type by hand.
+`prefix`, `statuses` and `types` move into the factory definition with
+swamp-club #2795.
+
 ## Linear
 
 `@swamp/gatorwalk-factory/linear` connects a Linear workspace. Keep one instance
@@ -436,13 +467,20 @@ swamp model create @swamp/gatorwalk-factory/linear linear --json
 # In the printed definition file, set globalArguments:
 #   apiToken: ${{ vault.get(secrets, linear-token) }}
 #   statuses: { triaged: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
+#   teamId: <the team create files issues in>
+#   types: { bug: Bug, feature: Feature }
 swamp model method run linear fetch_issue --input issue=ABC-1 --log
+swamp model method run linear create --input title="A new issue" \
+  --input body="What and why." --input type=bug --log
 swamp model method run linear publish --input workItem=<key> --log
 ```
 
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
 item with. `comment` and `set_status` take the UUID; given `workItem` and
-`journalVersion`, a repeat of the same pair writes nothing to Linear.
+`journalVersion`, a repeat of the same pair writes nothing to Linear. `create`
+files an issue in the `teamId` team. Linear has no issue type, so `types` maps
+each type to a label name, matched exactly among the team's and the workspace's
+labels; an unmapped type, or a label the team cannot use, is refused.
 
 `publish` replays a work item's journal to the issue its `externalRefs` name (to
 a tracker that keeps lifecycle entries, with a factory definition that declares
@@ -464,6 +502,8 @@ admin key. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
 ```bash
 swamp model create @swamp/gatorwalk-factory/swamp-club lab --json
 swamp model method run lab fetch_issue --input issue=2631 --log
+swamp model method run lab create --input title="A new issue" \
+  --input body="What and why." --input type=bug --log
 swamp model method run lab set_status --input issue=2631 --input status=triaged --log
 swamp model method run lab assign --input issue=2631 --log
 swamp model method run lab post_attestation \
@@ -486,7 +526,9 @@ work item's status and type. `claim` refuses an issue that issue-lifecycle
 drives in the repository (an instance `issue-<N>`), even a finished one.
 `post_attestation` posts an attestation built elsewhere (`deno task
 build-attestation`), and posting the same one again for a commit writes nothing.
-`fetch_issue` records the issue's body, type, author and ripples too. `set_type`
+`create` files an issue of type feature, bug or security (platform needs an
+admin key) and records it from swamp-club's reply. `fetch_issue` records the
+issue's body, type, author and ripples too. `set_type`
 sets the type by hand. `team_member` says whether the issue's author is on
 swamp-club's team, failing rather than guessing when a lookup fails.
 `thank_author` posts issue-lifecycle's thank-you ripple to an author outside the
@@ -503,7 +545,9 @@ makes sure the same ticket never starts two at once:
 swamp model method run lab claim --input issue=2631 --input factory=team --log
 ```
 
-With no work item for the ticket, `claim` reserves a fresh key, records it in
+With no work item for the ticket, `claim` reserves a fresh key (the ticket's
+display id, then its title, then a random suffix: `2631-lab-adapter-r2ne`; a
+built-in ticket's first work item takes the ticket's own id), records it in
 the adapter's ticket index (`ticket-<stable id>`), and prints the work-item
 `start` command to run, with the ticket's `externalRefs`. The record is written
 before the work item starts, so if anything fails in between, `claim` again

@@ -110,23 +110,25 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 ## Start from a ticket
 
 When the work comes from a tracker ticket (a Linear issue, a swamp-club Lab
-issue), start it through the tracker's adapter instance, so the same ticket
-never starts twice:
+issue, or a built-in tracker's ticket), start it through the tracker's adapter
+instance, so the same ticket never starts twice:
 
 ```sh
 swamp model method run <tracker> claim --input issue=<ticket> \
   --input factory=<factory> --log
 ```
 
-`issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`). `claim`
-answers in one of three ways:
+`issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`,
+`cue-board-shortcuts-r2ne`). `claim` answers in one of these ways:
 
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
-  The key's slug starts with the ticket's display id, then its title (Lab:
-  `<definition>-2734-drive-lab-issue-k3xq`; Linear: `<definition>-abc-12-...`),
-  for reading only. Run the printed `start` command exactly as printed; it
-  carries the ticket's `externalRefs`.
+  The key starts with the ticket's display id, then its title (Lab:
+  `2734-drive-lab-issue-k3xq`; Linear: `abc-12-...`), for reading only. A
+  built-in ticket's first work item takes the ticket's id as its key
+  (`cue-board-shortcuts-r2ne`); a later one gets `cue-<slug>-<suffix>`. Run the
+  printed `start` command exactly as printed; it carries the ticket's
+  `externalRefs`.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
@@ -137,8 +139,21 @@ answers in one of three ways:
 If anything fails between `claim` and `start`, run `claim` again: it hands back
 the same key and command. `factory` is only needed when a new key is reserved;
 once a ticket's work item has finished, claiming it again reserves a new one.
-`claim` never comments on or moves the ticket. Never name a work item after its
-ticket.
+`claim` never comments on or moves the ticket. Never choose a key by hand for a
+ticket's work item; `claim` names it.
+
+To file a new ticket when the person asks for one, run `create` on the tracker's
+instance, then claim the id it prints:
+
+```sh
+swamp model method run <tracker> create --input 'title=<title>' \
+  --input 'body=<body>' --input 'type=<type>' --log
+```
+
+The type must be one the tracker has (the Lab: `feature`, `bug`, `security`; the
+built-in tracker: its `types`; Linear: a type its `types` argument maps to a
+label). Never re-run a `create` that may have gone through: check the tracker
+first, since a retry files a second ticket.
 
 ## Read status
 

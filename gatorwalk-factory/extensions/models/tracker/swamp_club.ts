@@ -255,8 +255,8 @@ function parseAttestation(
 }
 
 /**
- * The adapter's methods: the shared fetch_issue, claim, comment and
- * set_status, plus assign and post_attestation. Tests pass their own
+ * The adapter's methods: the shared create, fetch_issue, claim, comment,
+ * set_status and publish, plus assign and post_attestation. Tests pass their own
  * credential sources.
  */
 export function swampClubMethods(options: SwampClubMethodOptions = {}) {
@@ -274,7 +274,7 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
   const trackerOptions: TrackerModelOptions = {
     tracker: SWAMP_CLUB,
-    adapter: adapterOf,
+    adapter: (ctx) => adapterOf(argsOf(ctx)),
     statuses: (globalArgs) => labStatuses(argumentsOf(globalArgs).statuses),
     beforeClaim: refuseIssueLifecycle,
     now,
@@ -431,7 +431,7 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
           // with the status the issue is in (issue-lifecycle assigns only at
           // start, so it always says open).
           try {
-            await adapter.history.postEntry(args.issue, {
+            await adapter.capabilities.history.postEntry(args.issue, {
               step: "assigned",
               targetStatus: (LAB_STATUSES as readonly string[]).includes(
                   result.status,

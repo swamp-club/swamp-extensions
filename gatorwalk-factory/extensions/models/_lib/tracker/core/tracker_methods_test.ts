@@ -40,6 +40,9 @@ function scripted() {
   let status = { id: "s1", name: "Todo" };
   const adapter: TrackerAdapter = {
     tracker: "test",
+    origin: "snapshot",
+    capabilities: {},
+    create: () => Promise.reject(new Error("not used")),
     fetchIssue: (ref) => {
       calls.push(`fetch ${ref}`);
       return Promise.resolve({
@@ -258,6 +261,9 @@ function ticket() {
   let commentCalls = 0;
   const adapter: TrackerAdapter = {
     tracker: "test",
+    origin: "snapshot",
+    capabilities: {},
+    create: () => Promise.reject(new Error("not used")),
     fetchIssue: () => Promise.reject(new Error("not used")),
     comment: (issueId, body) => {
       commentCalls++;
@@ -445,6 +451,9 @@ Deno.test("publish: any other invalid status write fails, and an unmapped key na
 function adapterless(): TrackerAdapter {
   return {
     tracker: "test",
+    origin: "snapshot",
+    capabilities: {},
+    create: () => Promise.reject(new Error("not used")),
     fetchIssue: () => Promise.reject(new Error("not used")),
     comment: () => Promise.resolve({ id: "c", url: "u" }),
     setStatus: () => Promise.reject(new Error("no status write expected")),
@@ -762,6 +771,8 @@ function historyTicket() {
   };
   const adapter: TrackerAdapter = {
     tracker: "test",
+    origin: "snapshot",
+    create: () => Promise.reject(new Error("not used")),
     fetchIssue: () => {
       writes.push("fetch");
       return Promise.resolve({
@@ -782,27 +793,29 @@ function historyTicket() {
       state.status = name;
       return Promise.resolve({ changed, status: { id: name, name } });
     },
-    history: {
-      postEntry: (_issueId, entry) => {
-        if (entry.step === state.failEntry) {
-          return Promise.reject(
-            new TrackerError(state.failKind, "test", "boom"),
+    capabilities: {
+      history: {
+        postEntry: (_issueId, entry) => {
+          if (entry.step === state.failEntry) {
+            return Promise.reject(
+              new TrackerError(state.failKind, "test", "boom"),
+            );
+          }
+          writes.push(
+            `entry ${entry.step} [${entry.targetStatus}] ${entry.summary}` +
+              (entry.isVerbose ? " (verbose)" : "") +
+              (Object.keys(entry.payload).length === 0
+                ? ""
+                : ` ${JSON.stringify(entry.payload)}`),
           );
-        }
-        writes.push(
-          `entry ${entry.step} [${entry.targetStatus}] ${entry.summary}` +
-            (entry.isVerbose ? " (verbose)" : "") +
-            (Object.keys(entry.payload).length === 0
-              ? ""
-              : ` ${JSON.stringify(entry.payload)}`),
-        );
-        return Promise.resolve({ id: `e${writes.length}` });
-      },
-      setType: (_issueId, type) => {
-        writes.push(`type ${type}`);
-        const changed = state.type !== type;
-        state.type = type;
-        return Promise.resolve({ changed, type });
+          return Promise.resolve({ id: `e${writes.length}` });
+        },
+        setType: (_issueId, type) => {
+          writes.push(`type ${type}`);
+          const changed = state.type !== type;
+          state.type = type;
+          return Promise.resolve({ changed, type });
+        },
       },
     },
   };
@@ -1005,4 +1018,61 @@ Deno.test("publish, entries: an entry the tracker refuses outright is skipped an
   const count = writes.length;
   await publish(swamp, methods);
   assertEquals(writes.length, count);
+});
+
+Deno.test("create: an external tracker's new ticket is recorded as a snapshot, with the externalRefs to start from", async () => {
+  const drafts: unknown[] = [];
+  const adapter: TrackerAdapter = {
+    tracker: "test",
+    origin: "snapshot",
+    capabilities: {},
+    create: (draft) => {
+      drafts.push(draft);
+      return Promise.resolve({
+        id: "T9",
+        display: "T-9",
+        title: draft.title,
+        url: "https://tracker.example/T-9",
+        status: { id: "s1", name: "Todo" },
+      });
+    },
+    fetchIssue: () => Promise.reject(new Error("not used")),
+    comment: () => Promise.reject(new Error("not used")),
+    setStatus: () => Promise.reject(new Error("not used")),
+  };
+  const methods = trackerMethods({
+    tracker: "test",
+    adapter: () => adapter,
+    statuses: () => ({}),
+    now: () => NOW,
+  });
+  const swamp = fakeSwamp();
+  await methods.create.execute(
+    methods.create.arguments.parse({ title: "New", body: "b", type: "bug" }),
+    swamp.context(INSTANCE),
+  );
+  assertEquals(drafts, [{ title: "New", body: "b", type: "bug" }]);
+  assertEquals(swamp.resources.get(INSTANCE)?.get("issue-T9"), [{
+    origin: "snapshot",
+    tracker: "test",
+    id: "T9",
+    display: "T-9",
+    title: "New",
+    url: "https://tracker.example/T-9",
+    status: { id: "s1", name: "Todo" },
+    fetchedAt: NOW.toISOString(),
+  }]);
+  assertEquals(
+    swamp.logs.at(-1)?.props?.externalRefs,
+    JSON.stringify({ test: "T9", "test.display": "T-9" }),
+  );
+});
+
+Deno.test("create: every input is required", () => {
+  const { methods } = scripted();
+  for (const missing of ["title", "body", "type"]) {
+    const raw: Record<string, string> = { title: "t", body: "b", type: "bug" };
+    delete raw[missing];
+    assertEquals(methods.create.arguments.safeParse(raw).success, false);
+  }
 });

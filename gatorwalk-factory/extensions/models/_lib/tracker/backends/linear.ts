@@ -15,6 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import {
+  type IssueDraft,
   type StatusChange,
   type TrackerAdapter,
   type TrackerComment,
@@ -64,6 +65,13 @@ export interface LinearOptions {
   /** A Linear personal API key; sent as the Authorization header. */
   apiToken: string;
   apiUrl?: string;
+  /** The team create files new issues in; create is refused without it. */
+  teamId?: string;
+  /**
+   * Issue types to Linear label names. Linear has no issue type, so create
+   * labels the issue instead; an unmapped type is refused.
+   */
+  types?: Record<string, string>;
   timeoutMs?: number;
 }
 
@@ -208,8 +216,87 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
     };
   }
 
+  /**
+   * The label for an issue type: mapped by the types option, then matched
+   * exactly among the labels the team can use (its own and the
+   * workspace's).
+   */
+  async function labelFor(teamId: string, type: string): Promise<string> {
+    const types = options.types ?? {};
+    const name = types[type];
+    if (name === undefined) {
+      const known = Object.keys(types);
+      return fail(
+        "invalid",
+        `issue type '${type}' is not in the types global argument (${
+          known.length === 0 ? "it is empty" : `mapped: ${known.join(", ")}`
+        }); Linear has no issue type, so each type maps to a label`,
+      );
+    }
+    // Filtered by name on the server, so a large workspace's labels never
+    // push the mapped one past a page.
+    const data = await graphql<{
+      issueLabels: {
+        nodes: { id: string; name: string; team: { id: string } | null }[];
+      };
+    }>(
+      `query GatorwalkLabels($name: String!) {
+        issueLabels(filter: { name: { eq: $name } }, first: 250) {
+          nodes { id name team { id } }
+        }
+      }`,
+      { name },
+    );
+    const usable = data.issueLabels.nodes.filter((l) =>
+      l.team === null || l.team.id === teamId
+    );
+    const label = usable.find((l) => l.name === name);
+    if (label === undefined) {
+      return fail(
+        "invalid",
+        `the team has no label '${name}' for issue type '${type}', and ` +
+          "neither does the workspace",
+      );
+    }
+    return label.id;
+  }
+
   return {
     tracker: LINEAR,
+    origin: "snapshot",
+    capabilities: {},
+
+    async create(draft: IssueDraft): Promise<TrackerIssue> {
+      const teamId = options.teamId;
+      if (teamId === undefined || teamId === "") {
+        return fail(
+          "invalid",
+          "no teamId: set the teamId global argument to the team new " +
+            "issues are filed in",
+        );
+      }
+      const labelId = await labelFor(teamId, draft.type);
+      const data = await graphql<{
+        issueCreate: { success: boolean; issue: IssueNode | null };
+      }>(
+        `mutation GatorwalkCreate($input: IssueCreateInput!) {
+          issueCreate(input: $input) { success issue { ${ISSUE_FIELDS} } }
+        }`,
+        {
+          input: {
+            teamId,
+            title: draft.title,
+            description: draft.body,
+            labelIds: [labelId],
+          },
+        },
+      );
+      const created = data.issueCreate;
+      if (!created?.success || !created.issue) {
+        return fail("upstream", "issueCreate did not succeed");
+      }
+      return toIssue(created.issue, draft.title);
+    },
 
     async fetchIssue(ref: string): Promise<TrackerIssue> {
       const data = await graphql<{ issue: IssueNode | null }>(

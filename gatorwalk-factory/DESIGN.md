@@ -725,9 +725,17 @@ it says what the work is: `<definition>-<slug>-<suffix>`, for example
 - **The suffix** is 4 random base32 characters, about a million per slug. Only
   work with the same factory definition and slug can collide, in practice a
   ticket claimed again, and a key some definition already has is drawn again.
-- **From a ticket,** `claim` puts the ticket's display id first, all its words
-  kept: `2734-drive-lab-issue` for the Lab's `#2734`, `abc-12-...` for Linear's
-  `ABC-12`. The id there is for reading only (see "Tracker ids are data").
+- **From a ticket,** `claim` puts the ticket's display id where the factory
+  definition name would go, all its words kept: `2734-drive-lab-issue-r2ne` for
+  the Lab's `#2734`, `abc-12-...` for Linear's `ABC-12`. The id there is for
+  reading only (see "Tracker ids are data"). A built-in ticket's first work
+  item takes the ticket's own id (`cue-board-shortcuts-r2ne`), and a later one
+  on the same ticket is `<prefix>-<slug>-<suffix>` (see "The built-in
+  tracker"). Only the factory's `new_key`, which has no ticket, leads with the
+  factory definition name. A ticket whose title has no ASCII letters or digits
+  still claims: its key is the lead and the suffix alone (`2800-k3xq`), since
+  the ticket's id already says what the work is; `new_key` refuses such a
+  title, having nothing else to go on.
 - **A key never changes.** If the work changes meaning the key stays; a person
   may abandon the item and start a new one. `start` takes any unused name, so a
   person may also choose a key by hand.
@@ -972,19 +980,33 @@ the same way: it may not apply.
 
 ## Trackers
 
-**Decision.** A tracker (Linear, and the swamp-club Lab) is reached only through
-an **adapter**: its own model type, never part of the work item. The contract is
-written once, in `_lib/tracker/core/adapter.ts` and
+**Decision.** A tracker (the built-in tracker, Linear, and the swamp-club Lab)
+is reached only through an **adapter**: its own model type, never part of the
+work item. The contract is written once, in `_lib/tracker/core/adapter.ts` and
 `_lib/tracker/core/tracker_methods.ts`, and each tracker is a thin model over it
-(`extensions/models/tracker/linear.ts`, with its client in
-`_lib/tracker/backends/linear.ts`; `extensions/models/tracker/swamp_club.ts`,
-with its client in `_lib/tracker/backends/swamp_club.ts`).
+(`extensions/models/tracker/builtin.ts`, with its backend in
+`_lib/tracker/backends/builtin.ts`; `extensions/models/tracker/linear.ts`, with
+its client in `_lib/tracker/backends/linear.ts`;
+`extensions/models/tracker/swamp_club.ts`, with its client in
+`_lib/tracker/backends/swamp_club.ts`). Every project has a tracker: with no
+external one, the built-in tracker is it.
 
 The contract:
 
-- **Swamp owns the facts; the tracker is a view.** The work item's run record
-  and journal are the truth. What a ticket shows is written from them, never
-  read back into them.
+- **Swamp owns the lifecycle facts; the tracker is a view of them.** The work
+  item's run record and journal are the truth. What a ticket shows is written
+  from them, never read back into them.
+- **A ticket's own facts belong to its tracker, and each record says who
+  holds them.** A ticket's identity, title, type and status belong to the
+  tracker, and the adapter's `issue-<id>` record carries an `origin`. With an
+  external tracker (the Lab, Linear) it is `snapshot`: the tracker owns the
+  facts, and the record is its last read, stamped `fetchedAt`. `fetch_issue`,
+  `claim` and `create` write it, and it may be stale: a change made in the
+  tracker since is seen at the next of those reads, which is acceptable because
+  nothing gates on it. With the built-in tracker it is `builtin`: the record
+  is the ticket, with its body, type and timestamps, and no read overwrites
+  it. The adapter declares which it is (`origin`), and the shared methods write
+  a snapshot only for `snapshot`.
 - **The state piece makes no network calls.** Only adapters talk to a tracker.
   The work-item type and its runtime make no network call, so a tracker being
   down or slow never holds a work item's lock or fails one of its writes.
@@ -999,18 +1021,19 @@ The contract:
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
   `{"linear": "<issue UUID>", "linear.display": "ABC-1"}` or
-  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`. `claim` writes the
-  display id into the key's slug for a person to read, but no code reads it
-  back: `externalRefs` is the only link. It changes only through `start`, which
-  sets it, and `retarget`, which replaces it whole and journals a `retargeted`
-  event (the old and new maps, the reason and the actor). `retarget` is an
-  engine method: it has no gate, changes no stage, and is refused on a finished
-  work item and for a map that names no ticket (no non-empty stable id, only
-  `<tracker>.display` keys), which would silently detach the work item from
-  every tracker. It knows nothing of trackers or duplicates, and the projection
-  works out from the journal which ticket each event belongs to (see
-  "Retargeting" under "The projection publisher"). A Linear identifier that
-  changes when
+  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`, or
+  `{"builtin": "cue-board-shortcuts-r2ne", ...}` for a built-in ticket.
+  `claim` leads the key with the display id for a person to read, but no code
+  reads it back: `externalRefs` is the only link. It changes only through
+  `start`, which sets it, and `retarget`, which replaces it whole and journals a
+  `retargeted` event (the old and new maps, the reason and the actor).
+  `retarget` is an engine method: it has no gate, changes no stage, and is
+  refused on a finished work item and for a map that names no ticket (no
+  non-empty stable id, only `<tracker>.display` keys), which would silently
+  detach the work item from every tracker. It knows nothing of trackers or
+  duplicates, and the projection works out from the journal which ticket each
+  event belongs to (see "Retargeting" under "The projection publisher"). A
+  Linear identifier that changes when
   an issue moves team leaves that slug stale, which is accepted. Linear
   identifiers change when an issue moves team, so Linear keys on the UUID:
   `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
@@ -1051,22 +1074,38 @@ The contract:
   old and the new ticket. `publish` names the new ticket's note with an
   `-opening` suffix, so each ticket has its own key.
 
-Every adapter provides five operations, as swamp methods built by
+Every adapter provides six operations, as swamp methods built by
 `trackerMethods`:
 
 | Method        | Inputs                                             | Writes                                                    |
 | ------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| `create`      | `title`, `body`, `type`: all required              | `issue-<id>`: a snapshot, or the built-in ticket          |
 | `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot                                  |
 | `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed                             |
 | `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
 | `claim`       | `issue`: id or display, optional `factory`       | the snapshot, and the ticket index when it reserves a key |
 | `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 
-**An optional capability: history.** A tracker that keeps a structured history
-of each ticket and a ticket type (the Lab's lifecycle entries and issue type)
-offers it as the adapter's `history` (`postEntry`, `setType`). It sits beside
-the contract, not in it: Linear has neither, and the shared methods never ask an
-adapter without it. `publish` uses it when the factory definition declares
+**Create.** `create` files a new ticket. With an external tracker the ticket is
+filed there first and its id is used; swamp never mints an id for a ticket
+another tracker owns. The type is required and must be one the tracker has:
+the Lab's feature, bug or security (platform needs an admin key), the built-in
+tracker's `types`, or, for Linear, which has no issue type, a type the `types`
+argument maps to a label (matched exactly among the labels the `teamId` team
+can use: its own and the workspace's). Linear files in the `teamId` team and
+refuses `create` without one. `create` is not idempotent: see the known gaps.
+
+**Capabilities.** What a tracker offers beside the contract is an explicit
+`capabilities` object on the adapter. A capability is present or absent; asking
+an adapter for one it lacks is refused as `TrackerError` `invalid`, naming the
+capability (`requireCapability`), never degraded silently. `publish` decides
+entry mode from whether the capability is present, so it never asks for one an
+adapter lacks.
+
+**The history capability.** A tracker that keeps a structured history of each
+ticket and a ticket type (the Lab's lifecycle entries and issue type, and the
+built-in tracker's own records) offers it as `capabilities.history`
+(`postEntry`, `setType`). Linear has neither, so it lacks the capability. `publish` uses it when the factory definition declares
 projection entries; its writes go through the same ledger (actions
 `lifecycle_entry` and `set_type`). The conformance suite checks it for an
 adapter that declares it (an entry returns its id, a type move is a no-op the
@@ -1101,7 +1140,10 @@ accepted a write but before the ledger record landed repeats that one write on
 retry. For a comment that means a duplicate. A hidden marker in the comment
 body, searched on retry, would close it if that matters. Ledger records are kept
 by age for a year; a replay of a key older than that would write again. Linear
-status lookup reads up to 250 statuses per team, Linear's page limit.
+status lookup reads up to 250 statuses per team, Linear's page limit; label
+lookup filters by the mapped name on the server, so it has no such limit. `create` has no ledger key: a crash after the
+tracker accepted a new ticket but before swamp saw the reply, and a retry, file
+a second ticket. That is accepted for now; the duplicate is closed by hand.
 
 ### The seam
 
@@ -1354,6 +1396,47 @@ to it:
   `assign` reads the assignees and then writes their union, so an edit made in
   between is lost.
 
+### The built-in tracker
+
+**Decision.** `@swamp/gatorwalk-factory/tracker` keeps tickets in swamp data on
+the tracker instance, for a project with no external tracker. It implements the
+whole contract, `create` and the history capability included, and makes no
+network call. Its tracker name, the `externalRefs` key, is `builtin`.
+
+- **Ids.** A ticket's id is `<prefix>-<slug>-<suffix>` by the work-item key
+  rules ("The model types"): the `prefix` argument, required, lowercase, with a
+  trailing `-` dropped; the title's slug; four random base32 characters.
+  Lowercase, because it is also a record name and, for the ticket's first work
+  item, an instance name. The display id is the id, and any case finds it.
+  There is **no counter**: several people can file tickets without one place
+  minting numbers, and an id some ticket already has is drawn again (up to
+  five times). A central swamp serve would let a team share one built-in
+  tracker; nothing here depends on it.
+- **Records.** `issue-<id>` is the ticket (origin `builtin`), latest version
+  read, five kept. A comment is a `comment-<id>-<uuid>` record and a lifecycle
+  entry an `entry-<id>-<uuid>` record, each written once and kept by version
+  count, never by age, so a ticket's history outlives any retention window.
+- **Statuses and types are the instance's own lists.** `statuses` defaults to
+  `open`, `in_progress`, `shipped`, `closed`; each key is also the status
+  name, so the `statuses` map every tracker has is the identity. A new ticket
+  starts in the first; a ticket may move between any two, since the factory
+  decides the order, not the tracker. An entry must name a declared status.
+  `types` defaults to `bug`, `feature`, `security`.
+- **Claim.** A ticket's first work item takes the ticket's id as its key, when
+  no definition has that name yet; otherwise, and for every later work item on
+  the ticket, the key is `<prefix>-<slug>-<suffix>`.
+- **One method at a time.** `set_status`, `set_type` and `create` read a
+  ticket's record and write a whole new version, so, like the ledger, they
+  rely on swamp running one method at a time per tracker instance.
+- **Arguments for now.** `prefix`, `statuses` and `types` are the instance's
+  global arguments until the factory definition declares its tracker
+  (swamp-club #2795), as are Linear's `teamId` and `types`.
+
+**Why no counter.** A counter needs one place to mint numbers, which a repo
+shared by several people (or several worktrees) does not have, and it reuses
+numbers when an instance is recreated. The work-item key rules already give
+readable, collision-resistant names without one.
+
 ### Start from a ticket
 
 **Decision.** Every adapter has a `claim` method (`_lib/tracker/core/claim.ts`,
@@ -1367,9 +1450,10 @@ every instance.
 record, and reads the named work item's run through swamp's `readModelData`:
 
 - **No record:** it loads the factory (checked in full), generates a key no
-  definition uses from the ticket's display id and title, **writes the record
-  first**, and prints the work-item `start` command with the ticket's
-  `externalRefs`. The driver runs it.
+  definition uses from the ticket's display id and title (a built-in ticket's
+  first key is its own id), **writes the record first**, and prints the
+  work-item `start` command with the ticket's `externalRefs`. The driver runs
+  it.
 - **A record whose key has no run:** a reservation whose start never ran. The
   same key and command are printed again, and the index is not written. A
   different factory is refused.
@@ -1418,7 +1502,9 @@ whose `externalRefs` now name another ticket, so `claim` of the old ticket is
 refused as a disagreement, and `claim` of the new ticket finds no record and
 reserves a new key. A reserved key has no
 definition until it starts, so a fresh key only avoids existing definitions; a
-collision with a reservation is about 1 in 32^8 per key drawn. Two drivers
+collision with a reservation is about 1 in 32^8 per key drawn. The same holds
+for a built-in ticket's first key, its id: another ticket's reserved, unstarted
+key with the same slug and suffix would have the same name, at the same odds. Two drivers
 running the printed `start` at once race as any first start does (see "The model
 types").
 
@@ -1568,6 +1654,29 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: a built-in tracker core; Lab and Linear rebuilt on it (swamp-club #2794)
+
+**Decided.** Every project has a tracker: the built-in one
+(`@swamp/gatorwalk-factory/tracker`) when there is no external tracker. The
+adapter contract gains `create`, an explicit `capabilities` object (history is
+the first) and an `origin`; `issue-<id>` records carry `origin: builtin |
+snapshot`. The Lab and Linear implement `create`: an external tracker files the
+ticket and its id is used. A missing capability is refused as `invalid`. One
+conformance suite runs against all three backends.
+
+**Keys changed.** A claimed key no longer leads with the factory definition
+name: an external ticket's key is `<display id>-<slug>-<suffix>`
+(`2631-lab-adapter-r2ne`), and a built-in ticket's first work item takes the
+ticket's id. The factory definition name added length and no meaning once the
+ticket's id is there.
+
+**Decided with Seth.** Ids all lowercase; built-in statuses default to open,
+in_progress, shipped and closed, moving in any direction; the built-in tracker
+keeps history; `create` takes a required type; Linear files in a configured
+team and labels the type; a duplicate from a retried `create` is a known gap;
+the prefix is required. Where the configuration lives (the tracker instance's
+arguments for now) moves to the factory definition with #2795.
 
 ### 2026-09-30: saved scenarios, run by validate (swamp-club #2805)
 

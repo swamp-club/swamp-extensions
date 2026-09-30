@@ -16,6 +16,7 @@
 
 import { join } from "@std/path";
 import {
+  type IssueDraft,
   type LifecycleEntry,
   type LifecycleEntryWriter,
   type PostedEntry,
@@ -308,7 +309,7 @@ export interface PostedAttestation {
 
 /** The tracker contract plus what only the Lab has. */
 export interface SwampClubAdapter extends TrackerAdapter {
-  readonly history: LifecycleEntryWriter;
+  readonly capabilities: { readonly history: LifecycleEntryWriter };
   /**
    * Whether the issue's author is on swamp-club's team, from a fresh read
    * of the issue and the team roster. Fail-closed: a read that fails is an
@@ -329,6 +330,19 @@ export interface SwampClubAdapter extends TrackerAdapter {
 export interface SwampClubOptions {
   credentials(): Promise<LabCredentials>;
   timeoutMs?: number;
+}
+
+/** The Lab's reply to a new issue: the issue as stored. */
+interface LabCreatedBody {
+  issue?: {
+    number?: unknown;
+    title?: unknown;
+    status?: unknown;
+    body?: unknown;
+    type?: unknown;
+    authorId?: unknown;
+    authorUsername?: unknown;
+  };
 }
 
 interface LabIssueBody {
@@ -663,7 +677,58 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
 
   return {
     tracker: SWAMP_CLUB,
-    history,
+    origin: "snapshot",
+    capabilities: { history },
+
+    async create(draft: IssueDraft): Promise<TrackerIssue> {
+      if (!(LAB_TYPES as readonly string[]).includes(draft.type)) {
+        return fail(
+          "invalid",
+          `'${draft.type}' is not a Lab issue type (they are: ${
+            LAB_TYPES.join(", ")
+          })`,
+        );
+      }
+      if (draft.title.trim() === "" || draft.body.trim() === "") {
+        return fail("invalid", "a Lab issue needs a title and a body");
+      }
+      const created = await call("POST", "/api/v1/lab/issues", {
+        type: draft.type,
+        title: draft.title,
+        body: draft.body,
+      }) as LabCreatedBody | null;
+      // Built from the reply, not read back: a failed read after the Lab
+      // stored the issue would invite a retry that files it twice.
+      const found = created?.issue;
+      const issue = found?.number;
+      if (
+        typeof issue !== "number" || !Number.isSafeInteger(issue) ||
+        issue <= 0 || typeof found?.title !== "string" ||
+        typeof found.status !== "string"
+      ) {
+        return fail(
+          "upstream",
+          "the new Lab issue came back without its number",
+        );
+      }
+      const details: LabIssueDetails = {
+        body: typeof found.body === "string" ? found.body : draft.body,
+        type: typeof found.type === "string" ? found.type : draft.type,
+        author: typeof found.authorUsername === "string"
+          ? found.authorUsername
+          : "",
+        authorId: typeof found.authorId === "string" ? found.authorId : "",
+        comments: [],
+      };
+      return {
+        id: String(issue),
+        display: `#${issue}`,
+        title: found.title,
+        url: await labUrl(issue),
+        status: { id: found.status, name: found.status },
+        details: { ...details },
+      };
+    },
 
     async fetchIssue(ref: string): Promise<TrackerIssue> {
       const issue = numberFrom(ref, true);

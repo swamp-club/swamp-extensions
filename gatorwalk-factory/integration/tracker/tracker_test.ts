@@ -27,8 +27,10 @@ import {
   swampClubFake,
 } from "../../extensions/models/_lib/tracker/backends/swamp_club_fake.ts";
 import {
+  entriesDefinition,
   projectedDefinition,
 } from "../../extensions/models/_lib/tracker/core/test_support.ts";
+import { BUILTIN_TYPE } from "../../extensions/models/_lib/tracker/backends/builtin.ts";
 import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linear.ts";
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
 import {
@@ -377,7 +379,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       const command = printed(first.output);
       const index = await repo.data("lab", `ticket-${issue}`);
       const key = String(index.key);
-      assert(key.startsWith("minimal-"), key);
+      assert(key.startsWith(`${issue}-lab-adapter-`), key);
       assertEquals(index.factory, "team");
       assert(first.output.includes(`is claimed as '${key}'`), first.output);
 
@@ -725,4 +727,108 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
   } finally {
     await fake.close();
   }
+});
+
+// ---------------------------------------------------------------------------
+// The built-in tracker on the real engine, with no network: a ticket is
+// filed, claimed (its first work item takes the ticket's id), started with
+// the printed command and published in entry mode, so the entries, the type
+// and the status land on the ticket's own records. Once the work item
+// finishes, the ticket claims a new one under a <prefix>-<slug>-<rnd> key.
+// ---------------------------------------------------------------------------
+
+Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a work item's projection, with no network", async () => {
+  await withRepo(async (repo) => {
+    const { stdout } = await repo.swamp([
+      "model",
+      "create",
+      BUILTIN_TYPE,
+      "board",
+      "--json",
+    ]);
+    const path = (JSON.parse(stdout) as { path: string }).path;
+    const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+      string,
+      unknown
+    >;
+    definition.globalArguments = {
+      prefix: "cue",
+      statuses: ["open", "triaged", "in_progress", "in_review", "shipped"],
+      types: ["bug", "feature"],
+    };
+    await Deno.writeTextFile(path, stringifyYaml(definition));
+    await repo.factory("entries", entriesDefinition());
+
+    const board = (method: string, inputs: Record<string, string>) =>
+      repo.swamp([
+        "model",
+        "method",
+        "run",
+        "board",
+        method,
+        ...Object.entries(inputs).flatMap((
+          [k, v],
+        ) => ["--input", `${k}=${v}`]),
+        "--log",
+      ]);
+
+    const created = await board("create", {
+      title: "Board shortcuts",
+      body: "Keys for the board.",
+      type: "bug",
+    });
+    const id = created.output.match(/created (cue-board-shortcuts-[a-z2-7]{4})/)
+      ?.[1];
+    assert(id !== undefined, created.output);
+    assertEquals((await repo.data("board", `issue-${id}`)).origin, "builtin");
+
+    const claimed = await board("claim", { issue: id, factory: "entries" });
+    assert(claimed.output.includes(`is claimed as '${id}'`), claimed.output);
+    const command = claimed.output.match(/Start it: (swamp .* --log)/);
+    assert(command !== null, claimed.output);
+    await repo.swamp(splitWords(command[1]).slice(1));
+    const key = id;
+    assertEquals((await repo.run(key)).externalRefs, {
+      builtin: id,
+      "builtin.display": id,
+    });
+
+    await repo.workItem(key, "record_artifact", {
+      name: "note",
+      payload: JSON.stringify({ text: "a plan", type: "feature" }),
+      ...await repo.expected(key),
+    });
+    await repo.workItem(key, "advance", {
+      transition: "submit",
+      ...await repo.expected(key),
+    });
+    await board("publish", { workItem: key });
+    const ticket = await repo.data("board", `issue-${id}`);
+    assertEquals(ticket.type, "feature");
+    assertEquals(ticket.status, { id: "in_review", name: "in_review" });
+    const entries = Object.keys(await repo.versions("board")).filter((n) =>
+      n.startsWith(`entry-${id}-`)
+    );
+    // work_started, noted and review_started.
+    assertEquals(entries.length, 3, entries.join(", "));
+
+    const again = await board("publish", { workItem: key });
+    assert(again.output.includes("is up to date"), again.output);
+
+    await repo.workItem(key, "approve", {
+      gateId: "ship-approval",
+      ...await repo.expected(key),
+    });
+    await repo.workItem(key, "advance", {
+      transition: "ship",
+      ...await repo.expected(key),
+    });
+    const next = await board("claim", { issue: id, factory: "entries" });
+    const index = await repo.data("board", `ticket-${id}`);
+    const nextKey = String(index.key);
+    assert(/^cue-board-shortcuts-[a-z2-7]{4}$/.test(nextKey), nextKey);
+    assert(nextKey !== id, nextKey);
+    assertEquals(index.previous, [id]);
+    assert(next.output.includes(`'${id}', has finished`), next.output);
+  });
 });

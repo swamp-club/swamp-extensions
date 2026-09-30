@@ -31,6 +31,7 @@ import {
 import {
   type ClaimContext,
   claimTicket,
+  displayLead,
   TICKET_SPEC,
   TicketClaimSchema,
 } from "./claim.ts";
@@ -48,7 +49,7 @@ import {
 import {
   type DeliveryKey,
   type LifecycleEntry,
-  type LifecycleEntryWriter,
+  requireCapability,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
@@ -56,8 +57,8 @@ import {
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
-// contract: fetch_issue, comment, set_status and publish, and claim, which
-// starts from a ticket (claim.ts).
+// contract: create, fetch_issue, comment, set_status and publish, and claim,
+// which starts from a ticket (claim.ts).
 //
 // Delivery ledger: a comment, status, type or lifecycle-entry write that
 // carries a delivery key (workItem + journalVersion) records what the
@@ -98,18 +99,50 @@ export const DeliverySchema = z.object({
 });
 export type Delivery = z.infer<typeof DeliverySchema>;
 
-/** The issue snapshot fetch_issue records. */
-export const IssueSchema = z.object({
+const TrackerStatusSchema = z.object({ id: z.string(), name: z.string() });
+
+/**
+ * An external tracker's ticket as swamp last read it (fetch_issue, claim and
+ * create record it). The tracker owns these facts; the record may be stale.
+ */
+export const SnapshotIssueSchema = z.object({
+  origin: z.literal("snapshot"),
   tracker: z.string(),
   id: z.string(),
   display: z.string(),
   title: z.string(),
-  url: z.string(),
-  status: z.object({ id: z.string(), name: z.string() }),
+  url: z.string().optional(),
+  status: TrackerStatusSchema,
   /** What only this tracker reports (the Lab's body, type and author). */
   details: z.record(z.string(), z.unknown()).optional(),
   fetchedAt: z.string(),
 });
+
+/** A built-in ticket: the record is the ticket, and swamp owns its facts. */
+export const BuiltinIssueSchema = z.object({
+  origin: z.literal("builtin"),
+  tracker: z.string(),
+  id: z.string(),
+  display: z.string(),
+  title: z.string(),
+  body: z.string(),
+  type: z.string(),
+  status: TrackerStatusSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type BuiltinIssue = z.infer<typeof BuiltinIssueSchema>;
+
+/** A ticket's issue-<id> record, by who owns its facts. */
+export const IssueSchema = z.discriminatedUnion("origin", [
+  SnapshotIssueSchema,
+  BuiltinIssueSchema,
+]);
+
+/** The record name of a ticket's issue record. */
+export function issueName(issueId: string): string {
+  return `issue-${safePart("issue id", issueId)}`;
+}
 
 /**
  * How far publish has delivered a work item to its ticket: every journal
@@ -243,10 +276,20 @@ async function recordDelivery(
   return await resources(ctx).write(DELIVERY_SPEC, name, delivery);
 }
 
+/** How claim names a ticket's new work item (claim.ts). */
+export interface ClaimNaming {
+  /** The key's leading words. */
+  lead: string;
+  /** A name to take for the ticket's first work item, while it is free. */
+  first?: string;
+}
+
 /** How a tracker model builds its adapter and status names from its args. */
 export interface TrackerModelOptions {
   tracker: string;
-  adapter(globalArgs: Record<string, unknown>): TrackerAdapter;
+  /** The adapter, from the method context: its globalArgs, and its data for
+   * a tracker that keeps its own records. */
+  adapter(ctx: TrackerContext): TrackerAdapter;
   /** Status keys to the tracker's status names (from globalArgs). */
   statuses(globalArgs: Record<string, unknown>): Record<string, string>;
   /**
@@ -254,6 +297,14 @@ export interface TrackerModelOptions {
    * fetched and before anything is written: throws to refuse.
    */
   beforeClaim?(ctx: TrackerContext, issue: TrackerIssue): Promise<void>;
+  /**
+   * How claim names a new work item; by default the ticket's display id
+   * leads the key and there is no first name.
+   */
+  claimKey?(
+    globalArgs: Record<string, unknown>,
+    issue: TrackerIssue,
+  ): ClaimNaming;
   now?: () => Date;
 }
 
@@ -269,19 +320,6 @@ export interface Delivered {
   handles: unknown[];
   /** False when the ledger already held the key and nothing was written. */
   wrote: boolean;
-}
-
-/**
- * The adapter's history capability, or an error naming the tracker: a
- * method that needs it is only offered by an adapter that has it.
- */
-function historyOf(adapter: TrackerAdapter): LifecycleEntryWriter {
-  if (adapter.history === undefined) {
-    throw new Error(
-      `${adapter.tracker} keeps no lifecycle entries or ticket type`,
-    );
-  }
-  return adapter.history;
 }
 
 /**
@@ -374,7 +412,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       "set_type",
       { type: write.type },
       async () => ({
-        ...await historyOf(options.adapter(argsOf(ctx))).setType(
+        ...await requireCapability(options.adapter(ctx), "history").setType(
           write.issue,
           write.type,
         ),
@@ -395,7 +433,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       "lifecycle_entry",
       { ...write.entry },
       async () => ({
-        ...await historyOf(options.adapter(argsOf(ctx))).postEntry(
+        ...await requireCapability(options.adapter(ctx), "history").postEntry(
           write.issue,
           write.entry,
         ),
@@ -434,7 +472,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
         return { handles: [], wrote: false };
       }
     }
-    const adapter = options.adapter(argsOf(ctx));
+    const adapter = options.adapter(ctx);
     const posted = await adapter.comment(write.issue, write.body);
     const handles: unknown[] = [];
     if (key !== null && name !== null) {
@@ -500,7 +538,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
         })`,
       );
     }
-    const adapter = options.adapter(argsOf(ctx));
+    const adapter = options.adapter(ctx);
     let result: Record<string, unknown>;
     let summary: string;
     try {
@@ -706,6 +744,14 @@ async function readRecordedPayload(
   );
 }
 
+const createArguments = z.object({
+  title: z.string().min(1).describe("The new ticket's title"),
+  body: z.string().min(1).describe("The new ticket's description, as markdown"),
+  type: z.string().min(1).describe(
+    "The new ticket's type, from the tracker's own types",
+  ),
+});
+
 const fetchIssueArguments = z.object({
   issue: z.string().min(1).describe(
     "The ticket: its stable id, or its display identifier",
@@ -744,7 +790,7 @@ const claimArguments = z.object({
 export const trackerResources = {
   [ISSUE_SPEC]: {
     description:
-      "The last snapshot of a ticket fetch_issue read, one record per ticket",
+      "Each ticket: an external tracker's last snapshot (origin snapshot), or a built-in ticket itself (origin builtin); one record per ticket",
     schema: IssueSchema,
     lifetime: "infinite" as const,
     garbageCollection: 5,
@@ -776,27 +822,61 @@ export const trackerResources = {
   },
 };
 
-/** The fetch_issue, claim, comment, set_status and publish methods, over one
- * adapter. */
+/** The create, fetch_issue, claim, comment, set_status and publish methods,
+ * over one adapter. */
 export function trackerMethods(options: TrackerModelOptions) {
   const now = options.now ?? (() => new Date());
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
   const deliver = deliveries(options, now);
 
-  const fetch = (ctx: TrackerContext, ref: string): Promise<TrackerIssue> =>
-    options.adapter(argsOf(ctx)).fetchIssue(ref);
-  const recordSnapshot = (ctx: TrackerContext, issue: TrackerIssue) =>
-    resources(ctx).write(
-      ISSUE_SPEC,
-      `issue-${safePart("issue id", issue.id)}`,
-      {
+  // A snapshot only of an external tracker's ticket: a built-in ticket's
+  // record is the ticket, and a read never overwrites it.
+  const recordSnapshot = async (
+    ctx: TrackerContext,
+    adapter: TrackerAdapter,
+    issue: TrackerIssue,
+  ): Promise<unknown[]> => {
+    if (adapter.origin !== "snapshot") return [];
+    return [
+      await resources(ctx).write(ISSUE_SPEC, issueName(issue.id), {
+        origin: "snapshot",
         tracker: options.tracker,
         ...issue,
         fetchedAt: now().toISOString(),
-      },
-    );
+      }),
+    ];
+  };
+  const refsOf = (issue: TrackerIssue) =>
+    JSON.stringify({
+      [options.tracker]: issue.id,
+      [`${options.tracker}.display`]: issue.display,
+    });
 
   return {
+    create: {
+      description:
+        "File a new ticket (an external tracker files it and its id is used); a retry after the tracker accepted it files another",
+      arguments: createArguments,
+      execute: async (
+        args: z.infer<typeof createArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const adapter = options.adapter(ctx);
+        const issue = await adapter.create({
+          title: args.title,
+          body: args.body,
+          type: args.type,
+        });
+        const handles = await recordSnapshot(ctx, adapter, issue);
+        ctx.logger.info("{summary}", {
+          summary: `created ${issue.display} (${issue.id}): ${issue.title} ` +
+            `[${issue.status.name}]`,
+          ...(issue.url === undefined ? {} : { url: issue.url }),
+          externalRefs: refsOf(issue),
+        });
+        return { dataHandles: handles };
+      },
+    },
     fetch_issue: {
       description:
         "Fetch a ticket by stable id or display identifier and record a snapshot, with the externalRefs to start a work item from it",
@@ -805,18 +885,16 @@ export function trackerMethods(options: TrackerModelOptions) {
         args: z.infer<typeof fetchIssueArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        const issue = await fetch(ctx, args.issue);
-        const handle = await recordSnapshot(ctx, issue);
+        const adapter = options.adapter(ctx);
+        const issue = await adapter.fetchIssue(args.issue);
+        const handles = await recordSnapshot(ctx, adapter, issue);
         ctx.logger.info("{summary}", {
           summary: `${issue.display} (${issue.id}): ${issue.title} ` +
             `[${issue.status.name}]`,
-          url: issue.url,
-          externalRefs: JSON.stringify({
-            [options.tracker]: issue.id,
-            [`${options.tracker}.display`]: issue.display,
-          }),
+          ...(issue.url === undefined ? {} : { url: issue.url }),
+          externalRefs: refsOf(issue),
         });
-        return { dataHandles: [handle] };
+        return { dataHandles: handles };
       },
     },
     claim: {
@@ -827,19 +905,24 @@ export function trackerMethods(options: TrackerModelOptions) {
         args: z.infer<typeof claimArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        const issue = await fetch(ctx, args.issue);
+        const adapter = options.adapter(ctx);
+        const issue = await adapter.fetchIssue(args.issue);
         await options.beforeClaim?.(ctx, issue);
+        const naming = options.claimKey?.(argsOf(ctx), issue) ??
+          { lead: displayLead(issue.display) };
         const written = await claimTicket(ctx, {
           tracker: options.tracker,
           issue,
           recordName: ticketName(issue.id),
           factory: args.factory,
+          lead: naming.lead,
+          first: naming.first,
           now: now(),
         });
         // The snapshot only once the claim has succeeded: a refused claim
         // writes nothing.
-        const handle = await recordSnapshot(ctx, issue);
-        return { dataHandles: [...written, handle] };
+        const handles = await recordSnapshot(ctx, adapter, issue);
+        return { dataHandles: [...written, ...handles] };
       },
     },
     comment: {
@@ -944,10 +1027,10 @@ export function trackerMethods(options: TrackerModelOptions) {
           return { dataHandles: [] };
         }
 
-        const adapter = options.adapter(argsOf(ctx));
+        const adapter = options.adapter(ctx);
         // Entry mode: the factory definition says which events become which
         // entries, and the tracker keeps them. They replace the comments.
-        const entryMode = adapter.history !== undefined &&
+        const entryMode = adapter.capabilities.history !== undefined &&
           declaresEntries(definition);
         const handles: unknown[] = [];
         const ticketStatus = new Map<string, string>();

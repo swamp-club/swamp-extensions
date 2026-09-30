@@ -642,19 +642,43 @@ export function keySlug(title: string, budget: number, id = ""): string {
   return slug;
 }
 
+export interface KeyOptions {
+  /**
+   * When the title (and id) have no ASCII letters or digits, make a
+   * <prefix>-<suffix> key rather than refuse. Only for a prefix that already
+   * says what the work is: a ticket's display id or a tracker's prefix.
+   */
+  allowBare?: boolean;
+}
+
 /** A fresh work-item key: <factory definition>-<slug>-<4 base32 characters>. */
 export function generateKey(
   definitionName: string,
   title: string,
   id = "",
+  options: KeyOptions = {},
 ): string {
   const bytes = crypto.getRandomValues(new Uint8Array(KEY_SUFFIX_LENGTH));
   const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
   const prefix = definitionName.length > KEY_PREFIX_MAX_LENGTH
     ? definitionName.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
     : definitionName;
+  if (
+    options.allowBare === true && slugWords(title).length === 0 &&
+    slugWords(id).length === 0
+  ) {
+    return `${prefix}-${suffix}`;
+  }
   const budget = KEY_MAX_LENGTH - prefix.length - KEY_SUFFIX_LENGTH - 2;
   return `${prefix}-${keySlug(title, budget, id)}-${suffix}`;
+}
+
+/** Whether no definition uses this name yet, so a work item may take it. */
+export async function keyIsFree(
+  ctx: { definitionRepository?: DefinitionLookup },
+  name: string,
+): Promise<boolean> {
+  return await ctx.definitionRepository?.findByNameGlobal(name) == null;
 }
 
 /** A fresh work-item key that no definition uses yet. */
@@ -663,12 +687,11 @@ export async function freshKey(
   definitionName: string,
   title: string,
   id = "",
+  options: KeyOptions = {},
 ): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(definitionName, title, id);
-    if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
-      return key;
-    }
+    const key = generateKey(definitionName, title, id, options);
+    if (await keyIsFree(ctx, key)) return key;
   }
   throw new Error("could not find a free work-item key; try again");
 }

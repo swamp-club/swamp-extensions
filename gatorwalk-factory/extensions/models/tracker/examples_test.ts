@@ -148,7 +148,7 @@ Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regres
       const entry = chooseEntry(candidates, payload);
       assert(entry !== null, JSON.stringify(payload));
       const rendered = renderEntry(entry, event, payload);
-      await lab.history?.postEntry(String(LAB_ISSUE), {
+      await lab.capabilities.history.postEntry(String(LAB_ISSUE), {
         step: rendered.step,
         targetStatus: "triaged",
         summary: rendered.summary,

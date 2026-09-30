@@ -16,6 +16,7 @@
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
+import { model as builtin } from "./builtin.ts";
 import { model as linear } from "./linear.ts";
 import { model as swampClub } from "./swamp_club.ts";
 import {
@@ -52,6 +53,9 @@ function trackerWith(fetchIssue: TrackerAdapter["fetchIssue"]) {
   const writes: string[] = [];
   const adapter: TrackerAdapter = {
     tracker: "test",
+    origin: "snapshot",
+    capabilities: {},
+    create: () => Promise.reject(new Error("not used")),
     fetchIssue,
     comment: (issueId) => {
       writes.push(`comment ${issueId}`);
@@ -138,10 +142,15 @@ async function workItemCall(
 }
 
 /** Start the claimed key the way the printed command does. */
-async function start(swamp: FakeSwamp, key: string, factory = "team") {
+async function start(
+  swamp: FakeSwamp,
+  key: string,
+  factory = "team",
+  refs: Record<string, string> = REFS,
+) {
   await workItemCall(swamp, key, "start", {
     factory: factory,
-    externalRefs: JSON.stringify(REFS),
+    externalRefs: JSON.stringify(refs),
   });
 }
 
@@ -173,7 +182,7 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
     factory: "team",
   });
   const [record] = index(swamp);
-  assertMatch(record.key, /^minimal-t-1-ticket-[a-z2-7]{4}$/);
+  assertMatch(record.key, /^t-1-ticket-[a-z2-7]{4}$/);
   assertEquals(record, {
     tracker: "test",
     issue: "T1",
@@ -345,8 +354,71 @@ Deno.test("claim: a tracker failure writes nothing", async () => {
   assertEquals(swamp.resources.get(TRACKER), undefined);
 });
 
+/** A built-in tracker instance on the factories' swamp, with one ticket. */
+async function builtinTicket(swamp: FakeSwamp) {
+  swamp.globalArgs.set(TRACKER, { prefix: "cue" });
+  const run = async (
+    name: "create" | "claim",
+    raw: Record<string, unknown>,
+  ) => {
+    const method = builtin.methods[name];
+    const execute = method.execute as (
+      args: unknown,
+      ctx: ReturnType<FakeSwamp["context"]>,
+    ) => Promise<unknown>;
+    await execute(method.arguments.parse(raw), swamp.context(TRACKER));
+  };
+  await run("create", { title: "Board shortcuts", body: "b", type: "bug" });
+  const id = JSON.parse(String(swamp.logs.at(-1)?.props?.externalRefs))
+    .builtin as string;
+  const claimed = () =>
+    (swamp.resources.get(TRACKER)?.get(ticketName(id)) ?? []) as TicketClaim[];
+  const refs = { builtin: id, "builtin.display": id };
+  return { id, refs, claimed, run };
+}
+
+Deno.test("claim: a ticket title with no ASCII letters leaves the display id alone in the key", async () => {
+  const swamp = await withFactories();
+  const { methods } = trackerWith(() =>
+    Promise.resolve({
+      id: "T1",
+      display: "T-1",
+      title: "\u{1F525}\u{1F525}",
+      status: { id: "s1", name: "Todo" },
+    })
+  );
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  assertMatch(index(swamp)[0].key, /^t-1-[a-z2-7]{4}$/);
+});
+
+Deno.test("claim, built-in: the ticket's first work item takes the ticket's id; a later one gets a <prefix>-<slug>-<rnd> key", async () => {
+  const swamp = await withFactories();
+  const { id, refs, claimed, run } = await builtinTicket(swamp);
+  await run("claim", { issue: id, factory: "team" });
+  assertEquals(claimed()[0].key, id);
+  assert(lastSummary(swamp).includes(`is claimed as '${id}'`));
+
+  await start(swamp, id, "team", refs);
+  await finish(swamp, id);
+  await run("claim", { issue: id, factory: "team" });
+  const latest = claimed().at(-1);
+  assertMatch(String(latest?.key), /^cue-board-shortcuts-[a-z2-7]{4}$/);
+  assert(latest?.key !== id);
+  assertEquals(latest?.previous, [id]);
+});
+
+Deno.test("claim, built-in: a first key some definition already has falls back to a fresh one", async () => {
+  const swamp = await withFactories();
+  const { id, claimed, run } = await builtinTicket(swamp);
+  swamp.definitions.set(id, { globalArguments: {}, type: "other" });
+  await run("claim", { issue: id, factory: "team" });
+  const key = String(claimed()[0].key);
+  assertMatch(key, /^cue-board-shortcuts-[a-z2-7]{4}$/);
+  assert(key !== id);
+});
+
 Deno.test("claim: every tracker model has the method and declares the ticket index", () => {
-  for (const tracker of [linear, swampClub]) {
+  for (const tracker of [builtin, linear, swampClub]) {
     assert("claim" in tracker.methods, tracker.type);
     assert(TICKET_SPEC in tracker.resources, tracker.type);
   }
