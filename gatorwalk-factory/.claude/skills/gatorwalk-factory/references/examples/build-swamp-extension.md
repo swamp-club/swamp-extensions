@@ -185,8 +185,15 @@ packet: {
 You are an adversarial reviewer. Try to refute this plan:
 Add a list method
 Check its steps against the code, its testing strategy against the
-risks, and whether the version bump call is right. Report findings
-with severities; do not soften them.
+risks, and whether the version bump call is right.
+Rate a finding critical or high only if the plan would ship a
+defect, lose data, break a stated rule, or make the declared checks
+meaningless. Gaps in process, logistics or manual verification that
+the automated checks already cover are medium at most. Judge the
+plan against the size of the change: do not ask for verification
+machinery bigger than the change, and give the smallest adequate fix
+for each finding. Report findings with severities, and do not soften
+the severity of a real defect.
 
 ---
 
@@ -256,7 +263,9 @@ swamp data get <key> artifact-plan-review --json
 ```
 
 > Plan-review found one medium finding (README not updated). Approve the plan
-> and move to implement, or decline it and send it back with `revise`?
+> and move to implement, which receives plan-review and so carries the finding,
+> or decline it and send it back with `revise` to change the plan itself and
+> have it reviewed again?
 
 The person answers: "Decline. The README must be in the plan. Send it back."
 Record the decline with their reason, then take the manual exit they asked for:

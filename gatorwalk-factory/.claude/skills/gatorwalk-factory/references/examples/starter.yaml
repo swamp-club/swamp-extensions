@@ -58,7 +58,10 @@ stages:
     projection: { status: triaged }
     description: >-
       Adversarial review of the current plan. Open blocking findings send it
-      back; none lets it through.
+      back; none lets it through. With nothing blocking, approving carries the
+      open medium and low findings into implement, which receives
+      plan-review; revise is for when the person wants the plan itself
+      changed and reviewed again.
     work:
       mode: dispatch
       skills: [adversarial-review]
@@ -66,7 +69,15 @@ stages:
         You are an adversarial reviewer. Try to refute this plan:
         {{planSummary}}
         Check its steps against the code and its testing strategy against the
-        risks. Report findings with severities; do not soften them.
+        risks.
+        Rate a finding critical or high only if the plan would ship a
+        defect, lose data, break a stated rule, or make the declared checks
+        meaningless. Gaps in process, logistics or manual verification that
+        the automated checks already cover are medium at most. Judge the
+        plan against the size of the change: do not ask for verification
+        machinery bigger than the change, and give the smallest adequate fix
+        for each finding. Report findings with severities, and do not soften
+        the severity of a real defect.
       bindings:
         planSummary: artifacts["plan"].payload.summary
       context:
@@ -96,8 +107,10 @@ stages:
         to: plan
         manual: true
         description: >-
-          A person sent the plan back without a blocking finding. Manual, so
-          it never fires on its own.
+          A person sent the plan back without a blocking finding, to change
+          the plan itself and have it reviewed again. To act on non-blocking
+          findings during implement, approve instead. Manual, so it never
+          fires on its own.
 
   - id: implement
     projection: { status: in_progress }
@@ -111,7 +124,7 @@ stages:
         open a pull request. After a check or review sends the work back, fix
         it, commit, and record change-summary again for the new commit.
       context:
-        inject: [plan]
+        inject: [plan, plan-review]
     artifacts:
       - name: change-summary
         schema:
@@ -202,8 +215,15 @@ stages:
       systemPrompt: |
         You are an adversarial reviewer. Review commit {{commit}}:
         {{changeSummary}}
-        Check it against the plan. Report findings with severities; do not
-        soften them.
+        Check it against the plan.
+        Rate a finding critical or high only if the change would ship a
+        defect, lose data, break a stated rule, or make the declared checks
+        meaningless. Gaps in process, logistics or manual verification that
+        the automated checks already cover are medium at most. Judge the
+        change against the size of the change: do not ask for verification
+        machinery bigger than the change, and give the smallest adequate fix
+        for each finding. Report findings with severities, and do not soften
+        the severity of a real defect.
       bindings:
         commit: artifacts["change-summary"].payload.commit
         changeSummary: artifacts["change-summary"].payload.summary

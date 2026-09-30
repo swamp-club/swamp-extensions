@@ -79,15 +79,25 @@ stages:
     description: >-
       Adversarial review of the current plan. Approval needs a fresh review
       with no open critical or high findings and a person's sign-off; open
-      critical or high findings send the plan back.
+      critical or high findings send the plan back. Approving carries the open
+      medium and low findings into implement, which receives plan-review;
+      revise is for when the person wants the plan itself changed and
+      reviewed again.
     work:
       mode: dispatch
       systemPrompt: |
         You are an adversarial reviewer. Try to refute this plan:
         {{planSummary}}
         Check its steps against the code, its testing strategy against the
-        risks, and whether the version bump call is right. Report findings
-        with severities; do not soften them.
+        risks, and whether the version bump call is right.
+        Rate a finding critical or high only if the plan would ship a
+        defect, lose data, break a stated rule, or make the declared checks
+        meaningless. Gaps in process, logistics or manual verification that
+        the automated checks already cover are medium at most. Judge the
+        plan against the size of the change: do not ask for verification
+        machinery bigger than the change, and give the smallest adequate fix
+        for each finding. Report findings with severities, and do not soften
+        the severity of a real defect.
       bindings:
         planSummary: artifacts["plan"].payload.summary
       context:
@@ -123,8 +133,10 @@ stages:
         to: plan
         manual: true
         description: >-
-          A person declined the plan without a blocking finding; revise it.
-          Manual, so it never fires on its own.
+          A person declined the plan without a blocking finding, to change
+          the plan itself and have it reviewed again. To act on non-blocking
+          findings during implement, approve instead. Manual, so it never
+          fires on its own.
 
   - id: implement
     projection: { status: in_progress }
@@ -298,8 +310,15 @@ stages:
       systemPrompt: |
         You are an adversarial reviewer. Review commit {{commit}}:
         {{changeSummary}}
-        Check it against the approved plan. Report findings with severities;
-        do not soften them.
+        Check it against the approved plan.
+        Rate a finding critical or high only if the change would ship a
+        defect, lose data, break a stated rule, or make the declared checks
+        meaningless. Gaps in process, logistics or manual verification that
+        the automated checks already cover are medium at most. Judge the
+        change against the size of the change: do not ask for verification
+        machinery bigger than the change, and give the smallest adequate fix
+        for each finding. Report findings with severities, and do not soften
+        the severity of a real defect.
       bindings:
         commit: artifacts["change-summary"].payload.commit
         changeSummary: artifacts["change-summary"].payload.summary

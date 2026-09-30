@@ -416,6 +416,14 @@ When a person must decide:
 4. Do exactly what the answer says. Put the person's reason in `note`, in their
    words.
 
+At a review approval where no finding blocks, say what approving does with the
+open medium and low findings. When the next stage injects the review (as
+implement injects `plan-review` in the bundled examples), approving carries them
+into that stage, where they are acted on. A manual way back such as `revise` is
+for when the person wants the reviewed product itself changed, and it costs a
+new version and a full new review. So when the person wants the non-blocking
+findings folded in, approving is the way to do it.
+
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=<gate-id> --input note="<their words>" \

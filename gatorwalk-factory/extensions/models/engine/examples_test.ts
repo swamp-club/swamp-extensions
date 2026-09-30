@@ -194,3 +194,61 @@ Deno.test("examples and fixtures: no definition file carries a comment", async (
     }
   }
 });
+
+// A reviewer told not to soften, with no bar, rates logistics as high, and a
+// high finding sends the work round again with no person involved
+// (swamp-club #2781). So each review prompt carries a severity bar and asks
+// for fixes in proportion to the change. swamp-club-swamp-extensions.yaml
+// reimplements @swamp/issue-lifecycle and keeps that model's review
+// guidance, so it is left out.
+const RUBRIC_EXAMPLES = ["build-swamp-extension.yaml", "starter.yaml"];
+
+interface ExampleStage {
+  id: string;
+  work?: { systemPrompt?: string; context?: { inject?: string[] } };
+  artifacts?: { name: string; kind?: string }[];
+}
+
+async function stagesOf(file: string): Promise<ExampleStage[]> {
+  const doc = parseYaml(
+    await Deno.readTextFile(new URL(file, EXAMPLES)),
+  ) as { stages: ExampleStage[] };
+  return doc.stages;
+}
+
+Deno.test("examples: every review prompt carries the severity bar and asks for proportion", async () => {
+  for (const file of RUBRIC_EXAMPLES) {
+    const reviews = (await stagesOf(file)).filter((stage) =>
+      (stage.artifacts ?? []).some((a) => a.kind === "findings")
+    );
+    assert(reviews.length > 0, `${file} has no review stage`);
+    for (const stage of reviews) {
+      const prompt = (stage.work?.systemPrompt ?? "").replace(/\s+/g, " ");
+      for (
+        const phrase of [
+          "critical or high only if",
+          "are medium at most",
+          "against the size of the change",
+          "the smallest adequate fix",
+          "do not soften the severity of a real defect",
+        ]
+      ) {
+        assert(prompt.includes(phrase), `${file} ${stage.id}: no '${phrase}'`);
+      }
+      assert(
+        !prompt.includes("do not soften them"),
+        `${file} ${stage.id}: a bare 'do not soften them' contradicts the bar`,
+      );
+    }
+  }
+});
+
+Deno.test("examples: implement receives plan-review, so approving carries its open findings", async () => {
+  for (const file of RUBRIC_EXAMPLES) {
+    const implement = (await stagesOf(file)).find((s) => s.id === "implement");
+    assert(
+      implement?.work?.context?.inject?.includes("plan-review"),
+      `${file}: implement does not inject plan-review`,
+    );
+  }
+});
