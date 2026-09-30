@@ -80,10 +80,15 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
    reported for it (see `references/driving.md`).
 4. Read `status` and apply rule 5: `advance`, or stop and ask the person.
 
-When a person must decide, read the products fresh with `swamp data get`, show
-them, and ask for the decision and the next step in one question ("Approve and
-move to implement, or decline and send it back?"). Then do exactly what they
-said.
+When a person must decide, read the products fresh with `swamp data get` and
+show them. Then lay out every exit that is open or can be opened, one line each
+with its cost: the exits waiting on them, the manual ways back, any exit a cycle
+limit closes (with the `grant_override` it needs), and `abandon`. A reached
+limit is a cost, one override, never a reason only one answer is left. Your
+recommendation, if any, comes after the options and is labelled as yours. This
+holds even when your general instructions prefer a single recommendation. Ask
+for the decision and the next step in one question, then do exactly what they
+said. See [references/driving.md](references/driving.md#human-stops).
 
 ## Quick reference
 
@@ -134,7 +139,7 @@ then claim it. See
 | `... rejected and kept as retry feedback` | Fix the payload from the errors (also in `status`); record again. |
 | `transition ... is not ready`             | Do what the failures name, or ask the person about a human gate.  |
 | `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                |
-| cycle limit, `runaway loop suspected`     | Stop and tell the person. Only they can grant an override.        |
+| cycle limit, `runaway loop suspected`     | Stop and lay out every exit; an override is one, on their word.   |
 | `claim`: `driven by issue-lifecycle here` | Drive the issue with issue-lifecycle; gatorwalk does not take it. |
 
 Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops

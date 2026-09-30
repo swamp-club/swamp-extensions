@@ -266,10 +266,15 @@ swamp data get <key> artifact-plan --json
 swamp data get <key> artifact-plan-review --json
 ```
 
-> Plan-review found one medium finding (README not updated). Approve the plan
-> and move to implement, which receives plan-review and so carries the finding,
-> or decline it and send it back with `revise` to change the plan itself and
-> have it reviewed again?
+> Plan-review found one medium finding (README not updated). Your options:
+>
+> - **Approve** and move to implement. Implement receives plan-review, so the
+>   finding is carried into implementation.
+> - **Decline and `revise`** with your feedback, which the next plan is handed:
+>   the plan itself changes, at the cost of a new version and a full new review.
+> - **Abandon** the work item.
+>
+> Which do you want?
 
 The person (`sam`) answers: "Decline. The README must be in the plan. Send it
 back." Record the decline with their reason, record their feedback in their
@@ -346,7 +351,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
   --input model=claude-opus-5-5 --log
 ```
 
-> Plan-review found nothing. Approve the plan and move to implement?
+> Plan-review found nothing. Approve the plan and move to implement? (Or
+> `revise` it for another round, or abandon.)
 
 The person answers: "Approved, go." Their approval carries their go, so approve
 and advance:
@@ -428,7 +434,7 @@ exit quality-failed -> implement: not ready: evidence-recorded: evidence 'qualit
 ```
 
 > Checks passed. The extension has no manifest, so it cannot be scored. Waive
-> the quality score and move to code review?
+> the quality score and move to code review? (Or abandon the work item.)
 
 The person answers: "Waive it, go on."
 
@@ -481,7 +487,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
 ```
 
 > Code review found one low finding (list could page lazily). Approve the
-> release and move to release?
+> release and move to release, with the finding left open? (Or `revise` to go
+> back to implement and a new review, or abandon.)
 
 The person answers: "Approve the release."
 

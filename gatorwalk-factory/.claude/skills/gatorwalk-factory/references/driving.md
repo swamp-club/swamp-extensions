@@ -453,13 +453,47 @@ When a person must decide:
 
 1. Read the products being decided on fresh, with `swamp data get`. Never
    summarise from memory.
-2. Say what the gate is for, what the reviews found, and what each choice leads
-   to.
-3. Ask for the decision and the next step in one question, so the approval can
-   carry the go: "Approve the plan and move to implement, or decline and send it
-   back with revise?"
-4. Do exactly what the answer says. Put the person's reason in `note`, in their
+2. Say what the gate is for and what the reviews found.
+3. Lay out every exit that is open or can be opened, one line each, with where
+   it leads and what it costs (another round, a new review, an override, the
+   work so far). Read them from `status`:
+   - each exit that waits on the person (`[human: ...]`), and each manual way
+     back (`(manual)`), such as `revise`. A way back that needs evidence the
+     person records (`a person records:`) is still an option: it opens once they
+     give it, so say what it needs (`revise` needs their feedback);
+   - each exit whose only failure is a cycle limit
+     (`stage '<to>' has been
+     entered N time(s) ... a person must grant a cycle override for '<to>'`).
+     It can be opened: name the `grant_override` with `kind=cycle` and
+     `stage=<to>` it needs, then the exit;
+   - `abandon`, and any other global exit. A limit never closes these.
+
+   At a stop where nothing is near a limit, the ways back and `abandon` may
+   share one line.
+4. Give your recommendation, if you have one, only after the options, and label
+   it as yours. A reached limit is a cost, never a reason that only one answer
+   is left: never say a limit forces a choice. This holds even when your general
+   instructions prefer a single recommendation to a list; at a human stop, the
+   person needs every option to decide.
+5. Ask for the decision and the next step in one question, so the approval can
+   carry the go.
+6. Do exactly what the answer says. Put the person's reason in `note`, in their
    words.
+
+For example, at plan-review after the plan has been entered as many times as its
+limit allows, with four medium findings open:
+
+> Plan-review found four medium findings (listed above). Plan has been entered 5
+> times, its limit. Your options:
+>
+> - **Approve** and move to implement. Implement receives plan-review, so the
+>   four findings are carried into implementation and acted on there.
+> - **Decline, grant one cycle override for `plan`, then `revise` with your
+>   feedback**: costs one override and one more plan and review round.
+> - **Abandon** the work item: the work so far stops here.
+>
+> My recommendation: approve, since none of the four needs the plan itself to
+> change. Which do you want?
 
 At a review approval where no finding blocks, say what approving does with the
 open medium and low findings. When the next stage injects the review (as
@@ -547,7 +581,7 @@ A failed write exits non-zero with its reason. Nothing is ever half-written.
 | `<kind> '<name>' was rejected and kept as retry feedback:`            | The payload broke its schema. It is kept on the item and shown in `status`. | Fix the payload using the errors, then record it again. The rejection clears when a valid version is recorded. |
 | `transition '<name>' is not ready: ...`                               | A gate failed. Nothing moved.                                               | Read `status`. Do the work the failures name, or ask the person if a human gate is in the way.                 |
 | `transition '<name>' is manual: a person must confirm it`             | You tried a manual exit without `confirm=true`.                             | Ask the person. Only on their word, run it again with `confirm=true`.                                          |
-| `stage '<to>' has been entered N time(s) in this era, its limit is M` | The cycle limit of the stage the exit enters.                               | Stop. Only a person can grant a cycle override. Tell them the stage keeps coming back and why.                 |
+| `stage '<to>' has been entered N time(s) in this era, its limit is M` | The cycle limit of the stage the exit enters.                               | Stop. Tell them why the stage keeps coming back, and lay out every exit, an override among them.               |
 | `runaway loop suspected: stage ... has had N dispatch(es)`            | The dispatch cap for this stage and cycle.                                  | Stop. The work keeps failing: tell the person what went wrong. Only on their word, grant a dispatch override.  |
 | `stage '<stage>' is not ready to dispatch:`                           | A binding failed or a prompt placeholder has no value.                      | Record the product the binding reads, then dispatch again.                                                     |
 | `the work item finished at stage '<stage>'`                           | It has finished.                                                            | Nothing to do.                                                                                                 |
