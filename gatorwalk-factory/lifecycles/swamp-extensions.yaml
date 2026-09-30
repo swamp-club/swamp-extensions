@@ -59,7 +59,6 @@ stages:
       anything else to planning.
     work:
       mode: interactive
-      skills: [issue-lifecycle]
       systemPrompt: |
         Read the issue and the code it touches, following
         agent-constraints/triage-conventions.md. Classify it as bug, feature,
@@ -70,6 +69,10 @@ stages:
         If you cannot classify it
         confidently, record confidence low with your questions, and record the
         classification again once the person has answered.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
     evidence:
       - name: classification
         schema:
@@ -185,6 +188,10 @@ stages:
         the commands, what you observed verbatim, what was expected, the scope
         the fix belongs in and the blast radius. If it does not reproduce,
         say so and ask the person how to proceed.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       context:
         inject: [classification]
     evidence:
@@ -246,12 +253,15 @@ stages:
     maxCycles: 5
     work:
       mode: interactive
-      skills: [issue-lifecycle]
       systemPrompt: |
         Plan the change following agent-constraints/planning-conventions.md.
         Name the files each step touches, the scope and blast radius, how it
         will be tested, and the challenges you expect. After rework, address
         every open critical and high finding of the last review.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       context:
         inject: [classification]
     artifacts:
@@ -314,6 +324,10 @@ stages:
         agent-constraints/adversarial-dimensions.md and verify each step
         against the code. Record findings with a severity and the dimension
         as category; do not soften them.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         planSummary: artifacts["plan"].payload.summary
       context:
@@ -374,13 +388,16 @@ stages:
     maxCycles: 5
     work:
       mode: interactive
-      skills: [issue-lifecycle]
       systemPrompt: |
         Implement the approved plan following
         agent-constraints/implementation-conventions.md. Commit the work, with
         the co-author trailer in the original commit, then record
         change-summary with the full SHA and the branch. After rework, record
         it again for the new commit.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       context:
         inject: [plan, plan-review]
     artifacts:
@@ -445,10 +462,17 @@ stages:
     work:
       mode: dispatch
       systemPrompt: |
-        Compare commit {{commit}} with the approved plan, following
-        .claude/skills/issue-lifecycle/references/code-conformance-review.md.
-        Give every plan step a status, add a step for each unplanned change,
-        and justify each one that is not implemented as planned.
+        Compare commit {{commit}} with the approved plan. Fetch origin main,
+        then read git diff origin/main...{{commit}}. Check each plan step
+        against the diff and give it a status: implemented, deviated,
+        partially_implemented or missing. Add a step numbered 100 or more,
+        with status added, for each change no plan step covers. Justify
+        every step not implemented as planned, and judge the code against
+        agent-constraints/code-conformance-dimensions.md.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         commit: artifacts["change-summary"].payload.commit
       context:
@@ -628,6 +652,10 @@ stages:
         <adapter> post_attestation --input attestation=<the JSON>) and record
         the id it logs. Never change the commit after this: the attestation is
         bound to it. Ask the person before opening the pull request.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         commit: artifacts["change-summary"].payload.commit
         buildRun: evidence["verification"].payload.buildRunId
@@ -726,6 +754,10 @@ stages:
       systemPrompt: |
         Open the pull request for commit {{commit}} with
         fj -H git.swamp-club.com pr create, then record its url.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         commit: artifacts["change-summary"].payload.commit
     evidence:
@@ -774,6 +806,10 @@ stages:
       systemPrompt: |
         Check the pull request {{url}}. When it has merged, record the merge
         commit. If it failed (CI, or it was closed), record why.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         url: evidence["pull-request"].payload.url
     evidence:
@@ -899,6 +935,10 @@ stages:
         Check the release build for merge commit {{mergeCommit}}. Record
         shipped with the published version once it is in the registry, or
         completed when nothing was published.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         mergeCommit: evidence["merge"].payload.mergeCommit
     evidence:
@@ -955,6 +995,10 @@ stages:
         fails it posts nothing: ask the person whether to re-run it, run it
         with force set to true, or skip, and record skipped with their
         reason.
+
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       bindings:
         issue: item.externalRefs["swamp-club"]
         summary: artifacts["plan"].payload.summary
@@ -1001,6 +1045,10 @@ stages:
       the outcome met the problem.
     work:
       mode: interactive
+      systemPrompt: |
+        gatorwalk drives this issue: do not use the issue-lifecycle skill or
+        run any @swamp/issue-lifecycle method, even when a request would
+        trigger it.
       context:
         inject: [plan, change-summary]
     artifacts:

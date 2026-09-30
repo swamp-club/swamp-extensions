@@ -796,6 +796,49 @@ Deno.test("swamp-extensions: the stages, in order", async () => {
   ]);
 });
 
+// issue-lifecycle's skill and references tell an agent to run its methods on
+// an issue-<N> instance, and under gatorwalk none exists, so following them
+// starts a second driver on the Lab issue (swamp-club #2768). The cited files
+// are read from the repository root: this holds only while gatorwalk-factory
+// lives inside swamp-extensions, so revisit it at go-live.
+const REPO_ROOT = new URL("../../../", import.meta.url);
+const CITED =
+  /(?:agent-constraints|\.claude|verification)\/[\w./-]+\.(?:md|ya?ml)/g;
+const ONE_DRIVER = "gatorwalk drives this issue: do not use the " +
+  "issue-lifecycle skill or run any @swamp/issue-lifecycle method, even " +
+  "when a request would trigger it.";
+const collapse = (text: string) => text.replace(/\s+/g, " ").trim();
+
+Deno.test("swamp-extensions: no stage hands its agent issue-lifecycle's driver", async () => {
+  const lifecycle = await load(SWX);
+  for (const s of lifecycle.stages) {
+    assert(
+      !(s.work?.skills ?? []).includes("issue-lifecycle"),
+      `${s.id} lists the issue-lifecycle skill`,
+    );
+    for (const cited of s.work?.systemPrompt?.match(CITED) ?? []) {
+      const text = await Deno.readTextFile(new URL(cited, REPO_ROOT));
+      assert(
+        !text.includes("@swamp/issue-lifecycle") && !text.includes("issue-<N>"),
+        `${s.id} cites ${cited}, which drives issue-lifecycle`,
+      );
+    }
+  }
+});
+
+Deno.test("swamp-extensions: every agent-run stage tells the agent not to drive issue-lifecycle", async () => {
+  const agentRun = (await load(SWX)).stages.filter((s) =>
+    s.work?.mode === "interactive" || s.work?.mode === "dispatch"
+  );
+  assertEquals(agentRun.length, 12);
+  for (const s of agentRun) {
+    assert(
+      collapse(s.work?.systemPrompt ?? "").includes(ONE_DRIVER),
+      `${s.id}'s prompt lacks the one-driver guard`,
+    );
+  }
+});
+
 Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
   // Measured at 159 structural and 159 count states at the default cycle
   // limit of 5. Without the count pass pruning dominated states it needs

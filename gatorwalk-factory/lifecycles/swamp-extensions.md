@@ -15,7 +15,10 @@ lifecycle entries under the same step names, the type set at triage, the
 attestation posted and the contributor thanked. issue-lifecycle stays and drives
 every other issue; the adapter's `claim` refuses an issue that has an
 issue-lifecycle instance (`issue-<N>`) in the repository, so one issue never has
-two drivers. See [Lifecycle entries](#lifecycle-entries).
+two drivers. No stage loads the issue-lifecycle skill or cites a file that runs
+its methods, and every stage an agent works tells it not to drive
+issue-lifecycle; `lifecycles_test.ts` pins both. See
+[Lifecycle entries](#lifecycle-entries).
 
 ## The process, stage by stage
 
