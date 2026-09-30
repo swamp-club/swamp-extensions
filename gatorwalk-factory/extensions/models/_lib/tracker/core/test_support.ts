@@ -22,6 +22,7 @@ import {
   type FakeSwamp,
   type ProductKind,
   recordProductMethod,
+  retargetMethod,
   startWorkItem,
   testEnv,
 } from "../../engine/tracker_testing.ts";
@@ -207,6 +208,12 @@ export async function projectedItem(
         ctx(),
         kind,
         { name, payload, ...(await expected()) },
+        env,
+      ),
+    retarget: async (externalRefs: Record<string, string>, reason = "moved") =>
+      await retargetMethod(
+        ctx(),
+        { externalRefs, reason, ...(await expected()) },
         env,
       ),
   };

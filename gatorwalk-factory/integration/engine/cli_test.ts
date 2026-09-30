@@ -261,6 +261,31 @@ Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640
   });
 });
 
+Deno.test("cli: retarget replaces externalRefs from a JSON string and journals the move", async () => {
+  await withRepo(async (repo) => {
+    await repo.factory("team", await buildDefinition());
+    const key = await repo.newKey("team", "Integration work");
+    await repo.workItem(key, "start", {
+      factory: "team",
+      externalRefs: JSON.stringify({ "swamp-club": "2630" }),
+    });
+    const before = await repo.run(key);
+    const refs = { "swamp-club": "2631", "swamp-club.display": "#2631" };
+    await repo.workItem(key, "retarget", {
+      externalRefs: JSON.stringify(refs),
+      reason: "2630 duplicates 2631",
+      ...await repo.expected(key),
+    });
+    const after = await repo.run(key);
+    assertEquals(after.externalRefs, refs);
+    assertEquals([after.stage, after.era], [before.stage, before.era]);
+    const moved = after.journal.at(-1);
+    assert(moved?.type === "retargeted");
+    assertEquals(moved.from, { "swamp-club": "2630" });
+    assertEquals(moved.reason, "2630 duplicates 2631");
+  });
+});
+
 Deno.test("cli: record, advance and approve; reset keeps the pin, reset with repin adopts an edited factory", async () => {
   await withRepo(async (repo) => {
     const key = await started(repo);

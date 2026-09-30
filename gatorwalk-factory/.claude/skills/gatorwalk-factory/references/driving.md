@@ -390,6 +390,26 @@ ticket falls behind until it succeeds, and on the Lab that ticket is the audit
 trail: after a failure, run it again before moving on. An entry the tracker
 refuses outright is skipped and logged as a warning; tell the person which one.
 
+When the work belongs to another ticket (for example the ticket turned out to
+duplicate another), a person may move the work item there, on their word:
+
+```sh
+swamp model @swamp/gatorwalk-factory/work-item method run retarget <key> \
+  --input 'externalRefs={"swamp-club":"<id>","swamp-club.display":"#<id>"}' \
+  --input reason="<their words>" \
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
+  --log
+```
+
+`retarget` replaces the whole `externalRefs` map and records who moved it and
+why. Nothing else changes: the stage, cycle, products and approvals stay as they
+were. The next `publish` finishes the old ticket (what it had not been sent yet,
+then a note saying where the work went) and carries on at the new one (a note
+saying where it came from, the status, then every later event). The earlier
+history stays on the old ticket. The reason is kept in the work item, not posted
+on either ticket. After a retarget, `claim` on the old ticket is refused, since
+its index still names this work item.
+
 ## When something fails
 
 A failed write exits non-zero with its reason. Nothing is ever half-written.

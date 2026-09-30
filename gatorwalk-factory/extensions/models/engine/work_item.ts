@@ -38,6 +38,7 @@ import {
   recordProductMethod,
   recordUsageMethod,
   resetMethod,
+  retargetMethod,
   startWorkItem,
   status,
   summary,
@@ -311,6 +312,27 @@ export const model = {
         },
         context: MethodContextLike,
       ) => resetMethod(context, args, systemEnv),
+    },
+    retarget: {
+      description:
+        "Point the work item at other tracker tickets: replace externalRefs and journal why; no stage change",
+      arguments: z.object({
+        externalRefs: ExternalRefsInput,
+        reason: z.string().min(1).describe("Why the work moves ticket"),
+        ...ExpectedInputs,
+        ...ActorInputs,
+      }),
+      execute: (
+        args: {
+          externalRefs: Record<string, string> | string;
+          reason: string;
+          expectedStage: string;
+          expectedCycle: number;
+          expectedEra: string;
+          onBehalfOf?: string;
+        },
+        context: MethodContextLike,
+      ) => retargetMethod(context, args, systemEnv),
     },
   },
 };

@@ -38,6 +38,7 @@ import {
   smallDefinition,
 } from "../_lib/engine/tracker_testing.ts";
 import {
+  entriesDefinition,
   PROJECTED_ITEM,
   projectedItem,
 } from "../_lib/tracker/core/test_support.ts";
@@ -349,6 +350,110 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
       assertEquals(cursor?.status, "in_progress");
 
       // Nothing new: nothing is read or written on the Lab.
+      const requests = fake.requests.length;
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      assertEquals(fake.requests.length, requests);
+    },
+  );
+});
+
+/** A second Lab issue, the primary a duplicate's work moves to. */
+const PRIMARY = LAB_ISSUE + 1;
+
+function withPrimary(fake: SwampClubFake): void {
+  fake.issues.push({
+    number: PRIMARY,
+    title: "The primary",
+    status: "open",
+    assignees: [],
+    type: "feature",
+  });
+}
+
+/** projectedDefinition's status keys, mapped onto Lab statuses. */
+const STATUSES = JSON.stringify({
+  in_progress: "in_progress",
+  in_review: "triaged",
+  shipped: "shipped",
+});
+
+Deno.test("swamp-club model: publish after a retarget writes new events to the new issue only", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url, statuses: STATUSES }),
+    async (swamp, fake) => {
+      withPrimary(fake);
+      const item = await projectedItem(swamp, {
+        "swamp-club": ISSUE,
+        "swamp-club.display": `#${ISSUE}`,
+      });
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      const before = fake.comments.length;
+      assertEquals(fake.comments.every((c) => c.issue === LAB_ISSUE), true);
+
+      await item.retarget({
+        "swamp-club": String(PRIMARY),
+        "swamp-club.display": `#${PRIMARY}`,
+      }, `#${ISSUE} duplicates #${PRIMARY}`);
+      await item.advance("submit");
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      const onOld = fake.comments.slice(before).filter((c) =>
+        c.issue === LAB_ISSUE
+      );
+      const onNew = fake.comments.filter((c) => c.issue === PRIMARY);
+      assertEquals(onOld.map((c) => c.body), [
+        `**${PROJECTED_ITEM}** moved to #${PRIMARY}; its updates continue there.`,
+      ]);
+      assertEquals(onNew.map((c) => c.body.split("\n")[0]), [
+        `**${PROJECTED_ITEM}** continued here from #${ISSUE}, at stage **write**.`,
+        `**${PROJECTED_ITEM}** entered **review** (cycle 1) by \`submit\`.`,
+        `**${PROJECTED_ITEM}** is waiting on a person in **review**:`,
+      ]);
+      // The old issue keeps the status of the stage at the retarget.
+      assertEquals(fake.issues[0].status, "in_progress");
+      assertEquals(fake.issues[1].status, "triaged");
+      // Nothing about the reason reaches either issue.
+      assert(!fake.comments.some((c) => c.body.includes("duplicates")));
+    },
+  );
+});
+
+Deno.test("swamp-club model: publish in entry mode writes entries per issue and the retarget's notes as ripples", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    // entriesDefinition's entry labels and its stages' status keys.
+    (fake) => ({
+      apiKey: ADMIN_KEY,
+      url: fake.url,
+      statuses: JSON.stringify({
+        open: "open",
+        triaged: "triaged",
+        in_review: "triaged",
+        shipped: "shipped",
+      }),
+    }),
+    async (swamp, fake) => {
+      withPrimary(fake);
+      const item = await projectedItem(
+        swamp,
+        { "swamp-club": ISSUE },
+        entriesDefinition(),
+      );
+      await item.record("artifact", "note", { text: "first", type: "bug" });
+      await item.retarget({ "swamp-club": String(PRIMARY) });
+      await item.advance("submit");
+      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      const steps = (issue: number) =>
+        fake.entries.filter((e) => e.issue === issue).map((e) => e.step);
+      assertEquals(steps(LAB_ISSUE), ["work_started", "noted"]);
+      assertEquals(steps(PRIMARY), ["review_started"]);
+      assertEquals(fake.issues[0].type, "bug");
+      assertEquals(
+        fake.comments.map((c) => [c.issue, c.body.split(" ").slice(1, 3)]),
+        [[LAB_ISSUE, ["moved", "to"]], [PRIMARY, ["continued", "here"]]],
+      );
+
+      // A re-run writes nothing on either issue.
       const requests = fake.requests.length;
       await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
       assertEquals(fake.requests.length, requests);

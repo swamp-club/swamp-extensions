@@ -46,7 +46,7 @@ extensions/models/
       journal.ts            journal events and actors
       run_record.ts         the per-work-item run record
       run_ops.ts            pure operations: start, record, dispatch, approve,
-                            advance, reset
+                            advance, reset, retarget
       run_store.ts          storage and the commit protocol
       awaiting.ts           which exits only a person can open, journaled
       metrics.ts            per-work-item metrics from the run and journal
@@ -321,10 +321,10 @@ failures and the ids of its human-approval gates (`[human: plan-approval]`, or
 whose `when` is false); the stage's work mode and dispatch count; and any
 payload rejections. `dispatch` prints the whole dispatch packet. Writes are
 `record_artifact`, `record_evidence`, `dispatch`, `record_usage`, `approve`,
-`decline`, `grant_override`, `advance` and `reset`. A refused write fails with
-its reason and writes nothing. A payload that breaks its schema also fails, but
-is kept on the work item as retry feedback. Method output goes to the log, so
-pass `--log`.
+`decline`, `grant_override`, `advance`, `reset` and `retarget`. A refused write
+fails with its reason and writes nothing. A payload that breaks its schema also
+fails, but is kept on the work item as retry feedback. Method output goes to the
+log, so pass `--log`.
 
 ## Summary and metrics
 

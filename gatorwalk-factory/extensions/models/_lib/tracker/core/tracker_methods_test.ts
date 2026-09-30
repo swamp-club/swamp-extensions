@@ -247,6 +247,9 @@ Deno.test("set_status: a delivered key stays a no-op after its status key is unm
 function ticket() {
   const posted: string[] = [];
   const moves: string[] = [];
+  // Which ticket each comment and status write went to, beside them.
+  const postedTo: string[] = [];
+  const movedOn: string[] = [];
   const state = {
     status: "Todo",
     failComment: 0,
@@ -256,17 +259,19 @@ function ticket() {
   const adapter: TrackerAdapter = {
     tracker: "test",
     fetchIssue: () => Promise.reject(new Error("not used")),
-    comment: (_issueId, body) => {
+    comment: (issueId, body) => {
       commentCalls++;
       if (commentCalls === state.failComment) {
         return Promise.reject(new TrackerError("upstream", "test", "boom"));
       }
       posted.push(body);
+      postedTo.push(issueId);
       return Promise.resolve({ id: `c${posted.length}`, url: "u" });
     },
-    setStatus: (_issueId, name) => {
+    setStatus: (issueId, name) => {
       if (state.statusError !== null) return Promise.reject(state.statusError);
       moves.push(name);
+      movedOn.push(issueId);
       const changed = state.status !== name;
       state.status = name;
       return Promise.resolve({ changed, status: { id: name, name } });
@@ -282,7 +287,7 @@ function ticket() {
     }),
     now: () => NOW,
   });
-  return { posted, moves, state, methods };
+  return { posted, moves, postedTo, movedOn, state, methods };
 }
 
 async function publish(
@@ -507,6 +512,140 @@ Deno.test("publish: refuses a work item with no ticket, another ticket than befo
     Error,
     `no work item '${PROJECTED_ITEM}'`,
   );
+});
+
+Deno.test("publish: after a retarget, earlier events stay on the old ticket and later ones go to the new, each with a note", async () => {
+  const swamp = fakeSwamp();
+  const { posted, moves, postedTo, movedOn, methods } = ticket();
+  const item = await projectedItem(swamp, {
+    test: "T1",
+    "test.display": "T-1",
+  });
+  await item.advance("submit");
+  await publish(swamp, methods);
+  assertEquals(postedTo, ["T1", "T1", "T1"]);
+  assertEquals(movedOn, ["T1"]);
+
+  // The approval is not yet published when the work moves ticket.
+  await item.approve("ship-approval");
+  await item.retarget({ test: "T2", "test.display": "T-2" });
+  await item.advance("ship");
+  await publish(swamp, methods);
+  assertEquals(postedTo.slice(3), ["T1", "T1", "T2", "T2"]);
+  assert(posted[3].includes("approved `ship-approval`"), posted[3]);
+  assertEquals(
+    posted[4],
+    `**${PROJECTED_ITEM}** moved to T-2; its updates continue there.`,
+  );
+  assertEquals(
+    posted[5],
+    `**${PROJECTED_ITEM}** continued here from T-1, at stage **review**.`,
+  );
+  assert(posted[6].includes("finished at **done** by `ship`"), posted[6]);
+  // The old ticket was already in review at the retarget; the new one gets
+  // the current status whatever the old one had.
+  assertEquals(moves, ["In Review", "Done"]);
+  assertEquals(movedOn, ["T1", "T2"]);
+  assertEquals(cursorOf(swamp)?.issue, "T2");
+  assertEquals(cursorOf(swamp)?.status, "shipped");
+
+  const written = swamp.versionsWritten(INSTANCE);
+  const again = await publish(swamp, methods);
+  assertEquals(again.dataHandles, []);
+  assertEquals(posted.length, 7);
+  assertEquals(swamp.versionsWritten(INSTANCE), written);
+});
+
+Deno.test("publish: a cursor behind the retarget flushes the old ticket first, and the new ticket's status is written even when it matches", async () => {
+  const swamp = fakeSwamp();
+  const { posted, moves, postedTo, movedOn, methods } = ticket();
+  const item = await projectedItem(swamp, { test: "T1" });
+  await item.advance("submit");
+  // Retarget as the newest event: both status writes share no ledger key.
+  await item.retarget({ test: "T2" });
+  await publish(swamp, methods);
+  assertEquals(postedTo, ["T1", "T1", "T1", "T1", "T2"]);
+  assert(posted[3].includes("moved to T2"), posted[3]);
+  assert(posted[4].includes("continued here from T1"), posted[4]);
+  assertEquals(moves, ["In Review", "In Review"]);
+  assertEquals(movedOn, ["T1", "T2"]);
+  // Journal: started, advanced, awaiting, retargeted. The old ticket's
+  // status is keyed before the retarget, the new one's on the journal.
+  const ledger = swamp.resources.get(INSTANCE);
+  assert(ledger?.has(`delivery-publish-set_status-${PROJECTED_ITEM}-3`));
+  assert(ledger?.has(`delivery-publish-set_status-${PROJECTED_ITEM}-4`));
+  assert(ledger?.has(`delivery-publish-comment-${PROJECTED_ITEM}-4`));
+  assert(ledger?.has(`delivery-publish-comment-${PROJECTED_ITEM}-4-opening`));
+
+  await item.approve("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(postedTo.at(-1), "T2");
+  assertEquals(cursorOf(swamp)?.issue, "T2");
+  assert(Number(cursorOf(swamp)?.journalVersion) > 4);
+});
+
+Deno.test("publish: two retargets in a row each move the ticket; a retarget of another tracker's ref does not", async () => {
+  const swamp = fakeSwamp();
+  const { posted, postedTo, movedOn, methods } = ticket();
+  const item = await projectedItem(swamp, { test: "T1" });
+  await item.retarget({ test: "T1", other: "X1" });
+  await item.retarget({ test: "T2", other: "X1" });
+  await item.retarget({ test: "T3", other: "X1" });
+  await publish(swamp, methods);
+  // T1: started, moved; T2: continued, moved; T3: continued.
+  assertEquals(postedTo, ["T1", "T1", "T2", "T2", "T3"]);
+  assert(posted[1].includes("moved to T2"));
+  assert(posted[2].includes("continued here from T1"));
+  assert(posted[3].includes("moved to T3"));
+  assert(posted[4].includes("continued here from T2"));
+  assertEquals(movedOn, ["T1", "T2", "T3"]);
+  assertEquals(cursorOf(swamp)?.issue, "T3");
+});
+
+Deno.test("publish: a ref a retarget adds links its ticket; one it removes tells the old ticket", async () => {
+  const swamp = fakeSwamp();
+  const { posted, postedTo, methods } = ticket();
+  const item = await projectedItem(swamp, { other: "X1" });
+  await item.retarget({ test: "T1" });
+  await publish(swamp, methods);
+  // The events before the ref was added name no ticket and are skipped.
+  assertEquals(postedTo, ["T1"]);
+  assert(
+    posted[0].includes("was linked to this ticket at stage **write**"),
+    posted[0],
+  );
+
+  await item.retarget({ other: "X2" });
+  await publish(swamp, methods);
+  assertEquals(postedTo, ["T1", "T1"]);
+  assert(posted[1].includes("no longer reports to this ticket"), posted[1]);
+  // Nothing is left to deliver anywhere: up to date, and nothing written.
+  const written = swamp.versionsWritten(INSTANCE);
+  const again = await publish(swamp, methods);
+  assertEquals(postedTo.length, 2);
+  assertEquals(again.dataHandles, []);
+  assertEquals(swamp.versionsWritten(INSTANCE), written);
+  assertEquals(
+    swamp.logs.at(-1)?.props?.summary,
+    `${PROJECTED_ITEM} is up to date on T1; later events name no test ticket`,
+  );
+});
+
+Deno.test("publish: a failure on the new ticket keeps the old ticket's delivery, and the re-run finishes", async () => {
+  const swamp = fakeSwamp();
+  const { postedTo, movedOn, state, methods } = ticket();
+  const item = await projectedItem(swamp, { test: "T1" });
+  await item.retarget({ test: "T2" });
+  state.failComment = 3; // started and moved land; the opening note fails
+  await assertRejects(() => publish(swamp, methods), TrackerError, "boom");
+  assertEquals(postedTo, ["T1", "T1"]);
+  assertEquals(cursorOf(swamp)?.issue, "T1");
+
+  state.failComment = 0;
+  await publish(swamp, methods);
+  assertEquals(postedTo, ["T1", "T1", "T2"]);
+  assertEquals(movedOn, ["T1", "T2"]);
+  assertEquals(cursorOf(swamp)?.issue, "T2");
 });
 
 Deno.test("publish: needs readModelData", async () => {

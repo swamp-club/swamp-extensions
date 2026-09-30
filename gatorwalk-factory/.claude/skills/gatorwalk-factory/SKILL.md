@@ -94,6 +94,7 @@ Work-item methods run by type, with the key as the instance:
 | `decline`         | `gateId`, `note`, expect                                        | yes              |
 | `grant_override`  | `kind=cycle` with `stage`, or `kind=dispatch`; `note`, expect   | yes              |
 | `reset`           | `confirm=reset`, `repin` (optional), expect                     | yes              |
+| `retarget`        | `externalRefs` (a JSON object), `reason`, expect                | yes              |
 
 Factory methods run by instance name:
 `swamp model method run <factory> validate --log` checks a factory definition in

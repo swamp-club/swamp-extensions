@@ -150,6 +150,14 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
       version: z.number().int().positive().optional(),
     }).optional(),
   }),
+  z.strictObject({
+    ...EVENT_BASE,
+    type: z.literal("retargeted"),
+    /** The externalRefs before and after: retarget replaces the whole map. */
+    from: z.record(z.string(), z.string()),
+    to: z.record(z.string(), z.string()),
+    reason: z.string().min(1),
+  }),
 ]);
 
 export type JournalEvent = z.infer<typeof JournalEventSchema>;

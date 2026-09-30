@@ -30,6 +30,7 @@ import {
   recordUsage,
   rejectProduct,
   reset,
+  retarget,
   start,
 } from "./run_ops.ts";
 import { currentCycle, type RunRecord } from "./run_record.ts";
@@ -846,5 +847,122 @@ Deno.test("cycle limit: a global escape transition is never closed by it", async
     run.entries.hold,
     2,
     "hold was entered past its maxCycles of 1 through the escape hatch",
+  );
+});
+
+Deno.test("retarget: replaces externalRefs whole and journals the move; nothing else changes", async () => {
+  const env = testEnv();
+  let run = start(
+    DEFINITION,
+    {
+      key: "wi-1",
+      externalRefs: { "swamp-club": "12", "swamp-club.display": "#12" },
+      definitionDigest: "sha256:l",
+    },
+    ALICE,
+    env,
+  );
+  run = acceptProduct(
+    run,
+    "artifact",
+    "summary",
+    { version: 1, digest: "sha256:s" },
+    ALICE,
+    env,
+  );
+  run = await toReview(run, env);
+  const result = retarget(
+    run,
+    expectedOf(run),
+    {
+      externalRefs: { "swamp-club": "7", "swamp-club.display": "#7" },
+      reason: "12 duplicates 7",
+    },
+    NOBODY,
+    env,
+  );
+  assert(result.ok, result.ok ? "" : result.reason);
+  assertEquals(result.run.externalRefs, {
+    "swamp-club": "7",
+    "swamp-club.display": "#7",
+  });
+  const { externalRefs: _after, journal: after, ...restAfter } = result.run;
+  const { externalRefs: _before, journal: before, ...restBefore } = run;
+  assertEquals(restAfter, restBefore);
+  assertEquals(after.slice(0, before.length), before);
+  assertEquals(after.length, before.length + 1);
+  const last = after[after.length - 1];
+  assert(last.type === "retargeted");
+  assertEquals(last.from, { "swamp-club": "12", "swamp-club.display": "#12" });
+  assertEquals(last.to, { "swamp-club": "7", "swamp-club.display": "#7" });
+  assertEquals(last.reason, "12 duplicates 7");
+  assertEquals(last.actor, NOBODY);
+  assertEquals([last.stage, last.cycle, last.era], ["review", 1, "era-1"]);
+});
+
+Deno.test("retarget: refused when finished, stale, naming no ticket, unchanged or without a reason", async () => {
+  const env = testEnv();
+  const run = start(
+    DEFINITION,
+    {
+      key: "wi-1",
+      externalRefs: { linear: "a" },
+      definitionDigest: "sha256:l",
+    },
+    ALICE,
+    env,
+  );
+  const refused = (
+    r: RunRecord,
+    input: { externalRefs: Record<string, string>; reason: string },
+    expected = expectedOf(r),
+  ): string => {
+    const result = retarget(r, expected, input, ALICE, env);
+    assert(!result.ok);
+    return result.reason;
+  };
+  const ok = { externalRefs: { linear: "b" }, reason: "moved" };
+  assert(
+    refused(run, ok, { ...expectedOf(run), cycle: 2 }).startsWith("stale:"),
+  );
+  for (
+    const externalRefs of [
+      {} as Record<string, string>,
+      { "linear.display": "A-2" },
+      { linear: "" },
+      { linear: "", "linear.display": "A-2" },
+    ]
+  ) {
+    assert(
+      refused(run, { ...ok, externalRefs }).includes("at least one ticket"),
+      JSON.stringify(externalRefs),
+    );
+  }
+  assert(
+    refused(run, { ...ok, externalRefs: { linear: "a" } }).includes(
+      "already has",
+    ),
+  );
+  assert(refused(run, { ...ok, reason: "  " }).includes("reason"));
+  const aborted = await advance(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { transition: "abort" },
+    PASS,
+    ALICE,
+    env,
+  );
+  assert(aborted.ok);
+  assert(refused(aborted.run, ok).includes("finished"));
+  // A different map, even one that only adds a key, is a retarget.
+  assert(
+    retarget(
+      run,
+      expectedOf(run),
+      { externalRefs: { linear: "a", "linear.display": "A-1" }, reason: "r" },
+      ALICE,
+      env,
+    ).ok,
   );
 });

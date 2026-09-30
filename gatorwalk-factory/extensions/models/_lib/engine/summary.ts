@@ -122,7 +122,17 @@ function detail(event: JournalEvent, run: RunRecord): string {
         (event.repinned !== undefined
           ? `, definition repinned (${event.repinned.digest.slice(0, 19)})`
           : "");
+    case "retargeted":
+      return `retargeted from ${refsText(event.from)} to ` +
+        `${refsText(event.to)}: ${event.reason}`;
   }
+}
+
+function refsText(refs: Record<string, string>): string {
+  const entries = Object.entries(refs);
+  return entries.length === 0
+    ? "(none)"
+    : entries.map(([k, v]) => `${k} ${v}`).join(", ");
 }
 
 function summaryLines(summary: Summary): string[] {
@@ -162,6 +172,10 @@ function summaryLines(summary: Summary): string[] {
 
 function renderMarkdown(run: RunRecord, metrics: Metrics): string {
   const refs = Object.entries(run.externalRefs);
+  // Every map the work item pointed at before, oldest first.
+  const previous = run.journal.flatMap((e) =>
+    e.type === "retargeted" ? [e.from] : []
+  );
   const lines = [
     `# Work item ${run.key}`,
     "",
@@ -175,7 +189,10 @@ function renderMarkdown(run: RunRecord, metrics: Metrics): string {
       ? ` (${formatDuration(metrics.durationMs)})`
       : ""),
     ...(refs.length > 0
-      ? [`- **Tracker:** ${refs.map(([k, v]) => `${k} ${v}`).join(", ")}`]
+      ? [`- **Tracker:** ${refsText(run.externalRefs)}`]
+      : []),
+    ...(previous.length > 0
+      ? [`- **Previously:** ${previous.map(refsText).join("; then ")}`]
       : []),
     `- **Journal version:** ${metrics.journalVersion}`,
     "",

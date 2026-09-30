@@ -28,7 +28,9 @@ import {
   FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,
+  retargetMethod,
   startWorkItem,
+  summary,
   WORK_ITEM_TYPE,
 } from "../_lib/engine/work_item_ops.ts";
 
@@ -522,7 +524,7 @@ Deno.test("status: a run naming no pinned definition version fails clearly", asy
   );
 });
 
-Deno.test("swamp-extensions: a feature from triage to done through the work-item operations, with CLI string inputs", async () => {
+Deno.test("swamp-extensions: a feature from triage to done through the work-item operations, with CLI string inputs, retargeted on the way", async () => {
   // The methods run on the system clock, and merge waits three minutes
   // after the pull request. So this calls the operations the methods wrap,
   // with the methods' own argument schemas and a clock the test moves.
@@ -591,7 +593,10 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     ctx(),
     methods.start.arguments.parse({
       factory: "team",
-      externalRefs: { lab: "2630" },
+      externalRefs: JSON.stringify({
+        "swamp-club": "2630",
+        "swamp-club.display": "#2630",
+      }),
     }),
     env,
   );
@@ -612,6 +617,53 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await record("artifact", "plan-review", { findings: [] });
   await approve("plan-approval");
   await go("approve");
+
+  // Retarget mid-lifecycle (a duplicate's work moving to its primary): the
+  // refs and the journal change, and nothing a gate or a cycle reads does.
+  const before = await loadRun(contextStore(ctx()));
+  assert(before !== null);
+  const exitsBefore = (await describeStatus(ctx(), env)).exits;
+  await retargetMethod(
+    ctx(),
+    methods.retarget.arguments.parse({
+      externalRefs: '{"swamp-club": "2631", "swamp-club.display": "#2631"}',
+      reason: "2630 duplicates 2631",
+      onBehalfOf: "seth",
+      ...await expectation(),
+    }),
+    env,
+  );
+  const after = await loadRun(contextStore(ctx()));
+  assert(after !== null);
+  assertEquals(after.externalRefs, {
+    "swamp-club": "2631",
+    "swamp-club.display": "#2631",
+  });
+  for (
+    const field of [
+      "stage",
+      "status",
+      "era",
+      "entries",
+      "products",
+      "approvals",
+      "dispatches",
+      "overrides",
+    ] as const
+  ) {
+    assertEquals(after[field], before[field], field);
+  }
+  assertEquals((await describeStatus(ctx(), env)).exits, exitsBefore);
+  const moved = after.journal.at(-1);
+  assert(moved?.type === "retargeted");
+  assertEquals(moved.from, {
+    "swamp-club": "2630",
+    "swamp-club.display": "#2630",
+  });
+  assertEquals(moved.reason, "2630 duplicates 2631");
+  assertEquals(moved.actor.asserted, "seth");
+  assertEquals([moved.stage, moved.cycle], ["implement", 1]);
+
   await record("artifact", "change-summary", {
     summary: "Added the definition",
     commit: SHA,
@@ -656,6 +708,11 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await go("merged");
   await record("evidence", "release", { outcome: "completed" });
   await go("released");
+  // The notify stage reads the ticket from item.externalRefs: the new one.
+  assertEquals(
+    (await describeStatus(ctx(), env)).dispatch?.values.issue,
+    "2631",
+  );
   await record("evidence", "notification", {
     action: "skipped",
     author: "skunk-ape",
@@ -673,5 +730,70 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   assert(run !== null);
   assertEquals(run.stage, "done");
   assertEquals(run.status, "terminal");
-  assertEquals(run.externalRefs, { lab: "2630" });
+  assertEquals(run.externalRefs, {
+    "swamp-club": "2631",
+    "swamp-club.display": "#2631",
+  });
+  await summary(ctx(), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  for (
+    const expected of [
+      "- **Tracker:** swamp-club 2631, swamp-club.display #2631",
+      "- **Previously:** swamp-club 2630, swamp-club.display #2630",
+    ]
+  ) {
+    assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
+  }
+});
+
+Deno.test("retarget: refused on a finished work item, and needs a reason and new refs", async () => {
+  const swamp = await started();
+  const refs = '{"linear": "b"}';
+  await assertRejects(
+    async () =>
+      await call(swamp, "retarget", {
+        externalRefs: "{}",
+        reason: "moved",
+        ...await expected(swamp),
+      }),
+    Error,
+    "at least one",
+  );
+  await assertRejects(
+    async () =>
+      await call(swamp, "retarget", {
+        externalRefs: refs,
+        ...await expected(swamp),
+      }),
+  );
+  await assertRejects(
+    async () =>
+      await call(swamp, "retarget", {
+        externalRefs: refs,
+        reason: "moved",
+        ...await expected(swamp),
+        expectedCycle: "9",
+      }),
+    Error,
+    "stale",
+  );
+  await call(swamp, "approve", {
+    gateId: "abandon-confirmation",
+    ...await expected(swamp),
+  });
+  await call(swamp, "advance", {
+    transition: "abandon",
+    ...await expected(swamp),
+  });
+  await assertRejects(
+    async () =>
+      await call(swamp, "retarget", {
+        externalRefs: refs,
+        reason: "moved",
+        ...await expected(swamp),
+      }),
+    Error,
+    "finished",
+  );
+  assertEquals((await runOf(swamp)).externalRefs, {});
 });

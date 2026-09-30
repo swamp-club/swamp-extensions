@@ -44,7 +44,8 @@ import { jsonSafe } from "./canonical.ts";
 //
 // Every write the caller makes on the strength of what it last read takes
 // the caller's expectation of the current stage, cycle and era, and refuses
-// a mismatch as stale: products, dispatches, approvals, advance and reset.
+// a mismatch as stale: products, dispatches, approvals, advance, reset and
+// retarget.
 // Only recordUsage does not, because usage arrives after the run moves on.
 // The per-instance lock serialises writers; the expectation stops a writer
 // acting on a view that was already out of date.
@@ -224,6 +225,74 @@ export function reset(
     ...(repinned !== undefined ? { repinned } : {}),
   }));
   return { ok: true, run: next, value: next.era };
+}
+
+export interface RetargetInput {
+  externalRefs: Record<string, string>;
+  reason: string;
+}
+
+function sameRefs(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length &&
+    keys.every((k) => Object.hasOwn(b, k) && a[k] === b[k]);
+}
+
+/**
+ * Point the work item at other tracker tickets: replace externalRefs whole
+ * and journal the move. No gate and no stage change; gates, products and
+ * cycles are untouched. It knows nothing of trackers: which ticket each
+ * event belongs to is the projection's to work out from the journal.
+ */
+export function retarget(
+  run: RunRecord,
+  expected: Expected,
+  input: RetargetInput,
+  actor: Actor,
+  env: Env,
+): OpResult<Record<string, string>> {
+  const inactive = requireActive(run);
+  if (inactive !== null) return refuse(inactive);
+  const stale = checkExpected(run, expected);
+  if (stale !== null) return refuse(stale);
+  // A ticket is a non-empty stable id: a `<tracker>.display` key alone
+  // names none, and would detach the work item from every tracker.
+  const names = Object.entries(input.externalRefs).some(([key, value]) =>
+    !key.endsWith(".display") && value !== ""
+  );
+  if (!names) {
+    return refuse(
+      "retarget needs externalRefs naming at least one ticket: a non-empty " +
+        "stable id under a tracker's name, not only <tracker>.display",
+    );
+  }
+  if (sameRefs(run.externalRefs, input.externalRefs)) {
+    return refuse("the work item already has these externalRefs");
+  }
+  if (input.reason.trim() === "") {
+    return refuse("retarget needs a reason");
+  }
+  const to = { ...input.externalRefs };
+  return {
+    ok: true,
+    value: to,
+    run: {
+      ...run,
+      externalRefs: to,
+      journal: [
+        ...run.journal,
+        journal(run, actor, env, {
+          type: "retargeted",
+          from: { ...run.externalRefs },
+          to: { ...to },
+          reason: input.reason,
+        }),
+      ],
+    },
+  };
 }
 
 // --- products ----------------------------------------------------------------

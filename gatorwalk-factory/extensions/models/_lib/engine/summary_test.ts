@@ -28,6 +28,7 @@ import {
   decide,
   describeStatus,
   recordProductMethod,
+  retargetMethod,
   startWorkItem,
   summary,
 } from "./work_item_ops.ts";
@@ -71,7 +72,7 @@ async function reviewed() {
     { gateId: "go", note: "needs tests | and more", ...await expected() },
     env,
   );
-  return { swamp, env, ctx };
+  return { swamp, env, ctx, expected };
 }
 
 Deno.test("summary: the method logs the timeline and metrics, with no payload contents", async () => {
@@ -97,6 +98,32 @@ Deno.test("summary: the method logs the timeline and metrics, with no payload co
     assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
   }
   assert(!markdown.includes("a secret plan"));
+});
+
+Deno.test("summary: a retargeted work item shows its current refs and the ones before", async () => {
+  const { swamp, env, ctx, expected } = await reviewed();
+  await retargetMethod(
+    ctx(),
+    {
+      externalRefs: { linear: "uuid-9", "linear.display": "ABC-9" },
+      reason: "ABC-1 duplicates ABC-9",
+      ...await expected(),
+    },
+    env,
+  );
+  await summary(ctx(), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  for (
+    const expected of [
+      "- **Tracker:** linear uuid-9, linear.display ABC-9",
+      "- **Previously:** linear.display ABC-1",
+      "retargeted from linear.display ABC-1 to linear uuid-9, " +
+      "linear.display ABC-9: " +
+      "ABC-1 duplicates ABC-9",
+    ]
+  ) {
+    assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
+  }
 });
 
 Deno.test("summary: the same run always renders the same summary", async () => {

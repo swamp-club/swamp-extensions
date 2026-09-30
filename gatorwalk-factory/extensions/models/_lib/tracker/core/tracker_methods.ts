@@ -38,9 +38,12 @@ import {
   chooseEntry,
   declaresEntries,
   type EntryProduct,
+  type PlannedComment,
   project,
   projectEntries,
   renderEntry,
+  type TicketSegment,
+  ticketSegments,
 } from "./projection.ts";
 import {
   type DeliveryKey,
@@ -150,11 +153,14 @@ export function deliveryName(
   action: Delivery["action"],
   key: DeliveryKey,
   by: "method" | "publish" = "method",
+  /** Set for a second write on one journal version: a retarget's note to
+   * the new ticket, beside its note to the old one. */
+  suffix?: string,
 ): string {
   const prefix = by === "publish" ? "delivery-publish" : "delivery";
   return `${prefix}-${action}-${safePart("workItem", key.workItem)}-${
     String(key.journalVersion)
-  }`;
+  }${suffix === undefined ? "" : `-${safePart("suffix", suffix)}`}`;
 }
 
 export const DeliveryInputs = {
@@ -402,12 +408,15 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
 
   const comment = async (
     ctx: TrackerContext,
-    write: Write & { body: string },
+    write: Write & { body: string; suffix?: string },
   ): Promise<Delivered> => {
     const { key } = write;
-    const name = key === null
-      ? null
-      : deliveryName("comment", key, write.replay ? "publish" : "method");
+    const name = key === null ? null : deliveryName(
+      "comment",
+      key,
+      write.replay ? "publish" : "method",
+      write.suffix,
+    );
     const request = await digestOf({ body: write.body });
     if (name !== null) {
       const prior = await priorDelivery(
@@ -878,8 +887,10 @@ export function trackerMethods(options: TrackerModelOptions) {
       ): Promise<MethodOutput> => {
         const workItem = safePart("workItem", args.workItem);
         const { run, definition } = await readWorkItem(ctx, workItem);
-        const issue = run.externalRefs[options.tracker];
-        if (issue === undefined || issue === "") {
+        // One segment per ticket: a retarget moves the rest of the journal
+        // to another ticket (DESIGN.md, "The projection publisher").
+        const segments = ticketSegments(run, definition, options.tracker);
+        if (segments.every((s) => s.issue === null)) {
           throw new Error(
             `work item '${workItem}' has no externalRefs.${options.tracker}; ` +
               "start it with the ticket's stable id to publish it",
@@ -890,12 +901,6 @@ export function trackerMethods(options: TrackerModelOptions) {
         const cursor = rawCursor === null
           ? null
           : CursorSchema.parse(rawCursor);
-        if (cursor !== null && cursor.issue !== issue) {
-          throw new Error(
-            `work item '${workItem}' was published to ${cursor.issue}, and ` +
-              `now names ${issue}; one work item projects to one ticket`,
-          );
-        }
         const journalVersion = run.journal.length;
         const since = cursor?.journalVersion ?? 0;
         if (since > journalVersion) {
@@ -904,33 +909,61 @@ export function trackerMethods(options: TrackerModelOptions) {
               `past the run's ${journalVersion}; the journal only grows`,
           );
         }
+        // The cursor's ticket must be the one its journal version belongs
+        // to: another ticket is only reached through a retarget.
+        const resume = cursor === null
+          ? 0
+          : segments.findIndex((s) =>
+            s.issue === cursor.issue && s.after <= since && since <= s.through
+          );
+        if (cursor !== null && resume === -1) {
+          throw new Error(
+            `work item '${workItem}' was published to ${cursor.issue}, and ` +
+              `now names ${segments.at(-1)?.issue ?? "no ticket"} with no ` +
+              "retarget between; one work item projects to one ticket at a time",
+          );
+        }
+        const moveOf = (segment: TicketSegment, lastStatus: string | null) =>
+          segment.status !== null && segment.status !== lastStatus
+            ? segment.status
+            : null;
+        // Segments after the last ticket (a retarget removed this tracker's
+        // ref) have nowhere to go, so they are never pending.
+        const lastTicket = segments.findLastIndex((s) => s.issue !== null);
+        const resumed = segments[resume];
+        if (
+          resume === lastTicket && since === resumed.through &&
+          moveOf(resumed, cursor?.status ?? null) === null
+        ) {
+          ctx.logger.info("{summary}", {
+            summary: `${workItem} is up to date on ${resumed.issue}` +
+              (lastTicket < segments.length - 1
+                ? `; later events name no ${options.tracker} ticket`
+                : ""),
+          });
+          return { dataHandles: [] };
+        }
+
         const adapter = options.adapter(argsOf(ctx));
         // Entry mode: the factory definition says which events become which
         // entries, and the tracker keeps them. They replace the comments.
         const entryMode = adapter.history !== undefined &&
           declaresEntries(definition);
-        const projection = project(run, definition, since);
-        const lastStatus = cursor?.status ?? null;
-        const moveTo = projection.status !== null &&
-            projection.status !== lastStatus
-          ? projection.status
-          : null;
-        if (since === journalVersion && moveTo === null) {
-          ctx.logger.info("{summary}", {
-            summary: `${workItem} is up to date on ${issue}`,
-          });
-          return { dataHandles: [] };
-        }
-
         const handles: unknown[] = [];
-        let posted = 0;
-        let ticketStatus: string | undefined;
-        const statusNameOf = async (key: string | null): Promise<string> => {
+        const ticketStatus = new Map<string, string>();
+        const statusNameOf = async (
+          issue: string,
+          key: string | null,
+        ): Promise<string> => {
           if (key === null) {
             // Nothing names a label yet (a first stage without a key): the
             // status the ticket has, which is what the entry happened in.
-            ticketStatus ??= (await adapter.fetchIssue(issue)).status.name;
-            return ticketStatus;
+            let name = ticketStatus.get(issue);
+            if (name === undefined) {
+              name = (await adapter.fetchIssue(issue)).status.name;
+              ticketStatus.set(issue, name);
+            }
+            return name;
           }
           const name = options.statuses(argsOf(ctx))[key];
           if (name === undefined) {
@@ -943,79 +976,122 @@ export function trackerMethods(options: TrackerModelOptions) {
           }
           return name;
         };
-        for (
-          const event of entryMode ? projectEntries(run, definition, since) : []
-        ) {
-          const payload = event.product === undefined
-            ? {}
-            : await readRecordedPayload(ctx, workItem, event.product);
-          const chosen = chooseEntry(event.candidates, payload);
-          if (chosen === null) continue;
-          const entry = renderEntry(chosen, event, payload);
-          const key = { workItem, journalVersion: event.journalVersion };
-          // issue-lifecycle's order: the type, then the entry saying so.
-          if (entry.type !== undefined) {
-            const done = await deliver.setType(ctx, {
+
+        for (let k = resume; k <= lastTicket; k++) {
+          const segment = segments[k];
+          const issue = segment.issue;
+          const first = k === resume;
+          // The resumed segment's opening note went out with its cursor.
+          const from = first ? since : segment.after;
+          const lastStatus = first ? cursor?.status ?? null : null;
+          if (issue === null) {
+            ctx.logger.info("{summary}", {
+              summary: `journal versions ${from + 1} to ${segment.through} ` +
+                `of ${workItem} name no ${options.tracker} ticket; skipped`,
+            });
+            continue;
+          }
+          const moveTo = moveOf(segment, lastStatus);
+          if (first && from === segment.through && moveTo === null) continue;
+          let posted = 0;
+          const note = async (planned: PlannedComment, suffix?: string) => {
+            const done = await deliver.comment(ctx, {
               issue,
-              type: entry.type,
+              body: planned.body,
+              key: { workItem, journalVersion: planned.journalVersion },
+              replay: true,
+              ...(suffix === undefined ? {} : { suffix }),
+            });
+            handles.push(...done.handles);
+            if (done.wrote) posted++;
+          };
+          if (!first && segment.opening !== undefined) {
+            await note(segment.opening, "opening");
+          }
+          const inSegment = (e: { journalVersion: number }) =>
+            e.journalVersion <= segment.through;
+          for (
+            const event of entryMode
+              ? projectEntries(run, definition, from).filter(inSegment)
+              : []
+          ) {
+            const payload = event.product === undefined
+              ? {}
+              : await readRecordedPayload(ctx, workItem, event.product);
+            const chosen = chooseEntry(event.candidates, payload);
+            if (chosen === null) continue;
+            const entry = renderEntry(chosen, event, payload);
+            const key = { workItem, journalVersion: event.journalVersion };
+            // issue-lifecycle's order: the type, then the entry saying so.
+            if (entry.type !== undefined) {
+              const done = await deliver.setType(ctx, {
+                issue,
+                type: entry.type,
+                key,
+                replay: true,
+              });
+              handles.push(...done.handles);
+            }
+            const done = await deliver.entry(ctx, {
+              issue,
               key,
               replay: true,
+              entry: {
+                step: entry.step,
+                targetStatus: await statusNameOf(issue, entry.status),
+                summary: entry.summary,
+                emoji: entry.emoji,
+                payload: entry.payload,
+                isVerbose: entry.isVerbose,
+              },
+            });
+            handles.push(...done.handles);
+            if (done.wrote) posted++;
+          }
+          for (
+            const planned of entryMode
+              ? []
+              : project(run, definition, from).comments.filter(inSegment)
+          ) {
+            await note(planned);
+          }
+          // The retarget is the segment's last event. Its notes are comments
+          // in entry mode too: no entry answers a retarget.
+          if (
+            segment.closing !== undefined &&
+            segment.closing.journalVersion > from
+          ) {
+            await note(segment.closing);
+          }
+          if (moveTo !== null) {
+            const done = await deliver.setStatus(ctx, {
+              issue,
+              status: moveTo,
+              key: { workItem, journalVersion: segment.statusVersion },
+              replay: true,
+              skipUnreachable: true,
             });
             handles.push(...done.handles);
           }
-          const done = await deliver.entry(ctx, {
-            issue,
-            key,
-            replay: true,
-            entry: {
-              step: entry.step,
-              targetStatus: await statusNameOf(entry.status),
-              summary: entry.summary,
-              emoji: entry.emoji,
-              payload: entry.payload,
-              isVerbose: entry.isVerbose,
-            },
+          // Last for each ticket: a failure above leaves the cursor where it
+          // was, and the re-run's replay finds each landed write in the
+          // ledger.
+          handles.push(
+            await resources(ctx).write(CURSOR_SPEC, cursorName, {
+              workItem,
+              issue,
+              journalVersion: segment.through,
+              status: moveTo ?? lastStatus,
+              at: now().toISOString(),
+            }),
+          );
+          ctx.logger.info("{summary}", {
+            summary: `published ${workItem} to ${issue} through journal ` +
+              `version ${segment.through}: ${posted} ` +
+              (entryMode ? "entry(ies) or note(s)" : "comment(s)") +
+              (moveTo === null ? "" : `, status '${moveTo}'`),
           });
-          handles.push(...done.handles);
-          if (done.wrote) posted++;
         }
-        for (const planned of entryMode ? [] : projection.comments) {
-          const done = await deliver.comment(ctx, {
-            issue,
-            body: planned.body,
-            key: { workItem, journalVersion: planned.journalVersion },
-            replay: true,
-          });
-          handles.push(...done.handles);
-          if (done.wrote) posted++;
-        }
-        if (moveTo !== null) {
-          const done = await deliver.setStatus(ctx, {
-            issue,
-            status: moveTo,
-            key: { workItem, journalVersion },
-            replay: true,
-            skipUnreachable: true,
-          });
-          handles.push(...done.handles);
-        }
-        // Last: a failure above leaves the cursor where it was, and the
-        // re-run's replay finds each landed write in the ledger.
-        handles.push(
-          await resources(ctx).write(CURSOR_SPEC, cursorName, {
-            workItem,
-            issue,
-            journalVersion,
-            status: moveTo ?? lastStatus,
-            at: now().toISOString(),
-          }),
-        );
-        ctx.logger.info("{summary}", {
-          summary: `published ${workItem} to ${issue} through journal ` +
-            `version ${journalVersion}: ${posted} ` +
-            (entryMode ? "entry(ies)" : "comment(s)") +
-            (moveTo === null ? "" : `, status '${moveTo}'`),
-        });
         return { dataHandles: handles };
       },
     },

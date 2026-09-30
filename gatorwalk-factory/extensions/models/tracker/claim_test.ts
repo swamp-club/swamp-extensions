@@ -279,6 +279,28 @@ Deno.test("claim: refuses when the index and the work item disagree about the ti
   assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
 });
 
+Deno.test("claim: a retargeted work item leaves its old ticket's index behind, so claiming the old ticket is refused (#2799 moves the index)", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const { key } = index(swamp)[0];
+  await start(swamp, key);
+  const view = await describeStatus(swamp.context(key), systemEnv);
+  await workItemCall(swamp, key, "retarget", {
+    externalRefs: JSON.stringify({ test: "T2", "test.display": "T-2" }),
+    reason: "T-1 duplicates T-2",
+    expectedStage: view.expected.expectedStage,
+    expectedCycle: String(view.expected.expectedCycle),
+    expectedEra: view.expected.expectedEra,
+  });
+  const before = trackerWrites(swamp);
+  const error = await assertRejects(() =>
+    claim(swamp, methods, { issue: "T1" })
+  );
+  assert(String(error).includes("records test 'T2'"), String(error));
+  assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
+});
+
 Deno.test("claim: a run record with another key under the claimed name is not the claimed work item", async () => {
   const swamp = await withFactories();
   const { methods } = oneTicket();

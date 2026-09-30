@@ -111,8 +111,116 @@ export function commentFor(
     case "recorded":
     case "rejected":
     case "override":
+    // Said by the notes of each ticket's segment (ticketSegments), since
+    // what to say depends on the tracker.
+    case "retargeted":
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Retargeting: which ticket each journal event belongs to. A retarget that
+// changes this tracker's ref ends one ticket's segment and starts the next;
+// events before it belong to the old ticket, later ones to the new. Both
+// tickets get a note, keyed on the retarget's journal version.
+// ---------------------------------------------------------------------------
+
+/** One ticket's share of a work item's journal, for one tracker. */
+export interface TicketSegment {
+  /** The ticket's stable id, or null when the refs named none for this
+   * tracker then. */
+  issue: string | null;
+  /** Its events are the journal versions after `after`, through `through`.
+   * A segment a retarget ends runs through that retarget. */
+  after: number;
+  through: number;
+  /** The status key of the stage the work item was in at the segment's end,
+   * or null when that stage leaves the ticket's status alone. */
+  status: string | null;
+  /** The journal version its status write is keyed on: the journal length
+   * for the last segment, and the version before the retarget for one a
+   * retarget ends (the stage is the same there). Distinct across segments,
+   * since a delivery key names one ticket. */
+  statusVersion: number;
+  /** Where the work item came from, for a segment a retarget starts. */
+  opening?: PlannedComment;
+  /** Where it went, for a segment a retarget ends. */
+  closing?: PlannedComment;
+}
+
+function ticketIn(
+  refs: Record<string, string>,
+  tracker: string,
+): string | null {
+  const id = refs[tracker];
+  return id === undefined || id === "" ? null : id;
+}
+
+function displayIn(refs: Record<string, string>, tracker: string): string {
+  return refs[`${tracker}.display`] || (refs[tracker] ?? "");
+}
+
+/**
+ * The journal split into one segment per ticket, in journal order: one
+ * segment when no retarget changed this tracker's ref. Ref values are free
+ * input and go into the notes as given; the reason is free text and is left
+ * out, as an asserted actor is (swamp-club#2284).
+ */
+export function ticketSegments(
+  run: RunRecord,
+  definition: FactoryDefinition,
+  tracker: string,
+): TicketSegment[] {
+  const statusOf = (stage: string) =>
+    definition.stages.find((s) => s.id === stage)?.projection?.status ?? null;
+  const item = `**${run.key}**`;
+  const firstMove = run.journal.find((e) => e.type === "retargeted");
+  const segments: TicketSegment[] = [];
+  let current: Pick<TicketSegment, "issue" | "after" | "opening"> = {
+    issue: ticketIn(
+      firstMove?.type === "retargeted" ? firstMove.from : run.externalRefs,
+      tracker,
+    ),
+    after: 0,
+  };
+  run.journal.forEach((event, index) => {
+    if (event.type !== "retargeted") return;
+    const from = ticketIn(event.from, tracker);
+    const to = ticketIn(event.to, tracker);
+    if (from === to) return;
+    const version = index + 1;
+    segments.push({
+      ...current,
+      through: version,
+      status: statusOf(event.stage),
+      statusVersion: version - 1,
+      closing: {
+        journalVersion: version,
+        body: to === null
+          ? `${item} no longer reports to this ticket.`
+          : `${item} moved to ${displayIn(event.to, tracker)}; its ` +
+            "updates continue there.",
+      },
+    });
+    current = {
+      issue: to,
+      after: version,
+      opening: {
+        journalVersion: version,
+        body: from === null
+          ? `${item} was linked to this ticket at stage **${event.stage}**.`
+          : `${item} continued here from ` +
+            `${displayIn(event.from, tracker)}, at stage **${event.stage}**.`,
+      },
+    };
+  });
+  segments.push({
+    ...current,
+    through: run.journal.length,
+    status: statusOf(run.stage),
+    statusVersion: run.journal.length,
+  });
+  return segments;
 }
 
 function exitLine(exit: AwaitingExit): string {

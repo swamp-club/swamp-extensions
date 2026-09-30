@@ -130,11 +130,12 @@ the run record indexes each one's version and digest. Code:
   that write. Every write the caller makes on the strength of what it last read
   also takes the caller's expected stage, cycle and era, and refuses a mismatch,
   so a writer acting on an out-of-date view fails instead of applying (#1998,
-  #2343): recording a product, dispatching, approvals, overrides, `advance` and
-  `reset`. Only recording usage does not, because usage arrives after the run
-  has moved on. The lock does not cover the first run that auto-creates an
-  instance (`model_method_run.ts:431` in swamp), so two concurrent first starts
-  can still race; that is accepted for solo use until swamp fixes it.
+  #2343): recording a product, dispatching, approvals, overrides, `advance`,
+  `reset` and `retarget`. Only recording usage does not, because usage arrives
+  after the run has moved on. The lock does not cover the first run that
+  auto-creates an instance (`model_method_run.ts:431` in swamp), so two
+  concurrent first starts can still race; that is accepted for solo use until
+  swamp fixes it.
 - **Rejections are returned, not thrown.** A product that fails its schema is
   kept on the run as retry feedback and returned to the caller. Throwing would
   let a rollback delete the feedback a retry needs.
@@ -966,7 +967,16 @@ The contract:
   `{"linear": "<issue UUID>", "linear.display": "ABC-1"}` or
   `{"swamp-club": "2631", "swamp-club.display": "#2631"}`. `claim` writes the
   display id into the key's slug for a person to read, but no code reads it
-  back: `externalRefs` is the only link. A Linear identifier that changes when
+  back: `externalRefs` is the only link. It changes only through `start`, which
+  sets it, and `retarget`, which replaces it whole and journals a `retargeted`
+  event (the old and new maps, the reason and the actor). `retarget` is an
+  engine method: it has no gate, changes no stage, and is refused on a finished
+  work item and for a map that names no ticket (no non-empty stable id, only
+  `<tracker>.display` keys), which would silently detach the work item from
+  every tracker. It knows nothing of trackers or duplicates, and the projection
+  works out from the journal which ticket each event belongs to (see
+  "Retargeting" under "The projection publisher"). A Linear identifier that
+  changes when
   an issue moves team leaves that slug stale, which is accepted. Linear
   identifiers change when an issue moves team, so Linear keys on the UUID:
   `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
@@ -1002,7 +1012,10 @@ The contract:
   key finds that record and writes nothing to the tracker, even if the
   `statuses` mapping has changed since. The record keeps a digest of what was
   asked (the comment body or the status key), so the same key for a different
-  ticket or a different request is refused rather than silently skipped.
+  ticket or a different request is refused rather than silently skipped. One
+  journal version can need a write on two tickets: a retarget's notes to the
+  old and the new ticket. `publish` names the new ticket's note with an
+  `-opening` suffix, so each ticket has its own key.
 
 Every adapter provides five operations, as swamp methods built by
 `trackerMethods`:
@@ -1104,10 +1117,14 @@ published as entries instead, below):
    latest), and otherwise, or if that query fails (logged), the latest copy. The
    query is not limited to this repository's namespace, so a candidate is used
    only if its digest is the one the run recorded. The ticket is
-   `externalRefs[<tracker>]`; a work item without one is refused.
+   `externalRefs[<tracker>]`, one ticket per segment of the journal (see
+   "Retargeting" below); a work item that never had one is refused.
 2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
-   version delivered so far, the ticket, and the last status key written. A
-   cursor for another ticket is refused: one work item projects to one ticket.
+   version delivered so far, the ticket, and the last status key written. The
+   cursor's ticket must be the one its journal version belongs to: a cursor for
+   an older ticket is where the publish resumes, and one for a ticket no
+   retarget explains is refused, since one work item projects to one ticket at
+   a time.
 3. **Posts a comment for each event after the cursor** that a person on the
    ticket needs, keyed on (work item, that event's journal version). publish
    keeps its own ledger records, `delivery-publish-<action>-<key>-<version>`, so
@@ -1118,7 +1135,8 @@ published as entries instead, below):
    as the journal records it; an asserted actor is free text and left out),
    `awaiting` with exits (each exit and what it needs), and `reset`.
    `dispatched`, `usage`, `recorded`, `rejected`, `override` and an empty
-   `awaiting` post nothing.
+   `awaiting` post nothing; `retargeted` is said by the two tickets' notes
+   (see "Retargeting").
 4. **Writes the status once**, keyed on (work item, journal length), and only
    when the current stage's status key differs from the last one written. A
    person who moves the ticket in the tracker is not undone by a publish that
@@ -1170,6 +1188,36 @@ use the Lab's own status names as keys (`triaged`, `in_progress`, `shipped`,
 `closed`), so the Lab adapter's default map needs no configuration and Linear
 maps the same keys to its team's names. A stage without a key leaves the status
 alone.
+
+**Retargeting.** A `retargeted` event whose old and new maps name different
+tickets for this tracker ends one segment of the journal and starts the next
+(`ticketSegments` in `projection.ts`). A retarget of another tracker's ref does
+not split this tracker's journal. Events up to and including the retarget
+belong to the old ticket, later ones to the new. `publish` walks the segments
+from the cursor, doing steps 3 to 5 for each ticket in turn:
+
+- The old ticket gets what it had not been sent yet, then a note naming the new
+  ticket (by its display id, else its stable id), and its status only up to the
+  stage the work item was in at the retarget. A publish whose cursor was behind
+  the retarget therefore finishes the old ticket before touching the new one.
+- The new ticket gets a note naming the old one and the stage, then every later
+  event, and the current stage's status whatever the old ticket had: its first
+  status write is unconditional.
+- A ref the retarget adds (no old ticket) gets a "linked" note instead. A ref
+  it removes leaves the old ticket a note that the work item no longer reports
+  to it. The events after that have no ticket for this tracker, so they are
+  never pending: once the old ticket has its note, `publish` reports the work
+  item up to date.
+- The notes are comments in entry mode too, since no entry answers a retarget.
+  The new ticket's history starts at the retarget; the earlier entries stay on
+  the old ticket, and the note says where they are.
+- The reason is free text and is left out of both notes, as an asserted actor
+  is. Ref values go into the notes as given: refs from `claim` are safe, but a
+  hand-typed one that swamp-club refuses (swamp-club#2284) stops the publish.
+- The cursor is written after each ticket, so a failure on the new ticket keeps
+  the old ticket's delivery. The old ticket's status write is keyed on the
+  journal version before the retarget (the stage is the same there), and the
+  new ticket's on the journal length, so no status key names two tickets.
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different
@@ -1330,7 +1378,11 @@ is the claimed key.
 
 **Known gaps.** The index lives per adapter instance, like the ledger, so keep
 one instance per tracker workspace. A work item started directly with
-`externalRefs`, not through `claim`, is not in the index. A reserved key has no
+`externalRefs`, not through `claim`, is not in the index. A retarget does not
+move the index (#2799 does): the old ticket's record still names the work item,
+whose `externalRefs` now name another ticket, so `claim` of the old ticket is
+refused as a disagreement, and `claim` of the new ticket finds no record and
+reserves a new key. A reserved key has no
 definition until it starts, so a fresh key only avoids existing definitions; a
 collision with a reservation is about 1 in 32^8 per key drawn. Two drivers
 running the printed `start` at once race as any first start does (see "The model

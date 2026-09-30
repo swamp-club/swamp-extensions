@@ -54,6 +54,7 @@ import {
   recordDispatch,
   recordUsage,
   reset,
+  retarget,
 } from "./run_ops.ts";
 import { computeMetrics } from "./metrics.ts";
 import { buildSummary } from "./summary.ts";
@@ -1234,6 +1235,39 @@ export async function resetMethod(
     summary: `reset: new era ${result.value} at stage '${result.run.stage}'` +
       (repinned !== undefined ? ` with definition ${repinned.digest}` : ""),
     ...expectationProps(result.run),
+  });
+  return { dataHandles: handles };
+}
+
+export async function retargetMethod(
+  ctx: MethodContextLike,
+  args: {
+    externalRefs: Record<string, string> | string;
+    reason: string;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const externalRefs = externalRefsFrom(args.externalRefs);
+  // Commits through the committing store like every write: CEL reads
+  // item.externalRefs, so the awaiting event and metrics are recomputed.
+  const { store, handles } = await open(ctx, env);
+  const moved = unwrap(
+    await update(store, (run) =>
+      retarget(
+        run,
+        expectedFrom(args),
+        { externalRefs, reason: args.reason },
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary: `retargeted to ${JSON.stringify(moved.value)}`,
+    ...expectationProps(moved.run),
   });
   return { dataHandles: handles };
 }

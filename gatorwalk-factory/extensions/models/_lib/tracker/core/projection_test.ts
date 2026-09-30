@@ -34,6 +34,7 @@ import {
   project,
   projectEntries,
   renderEntry,
+  ticketSegments,
   withoutDollarKeys,
 } from "./projection.ts";
 
@@ -378,5 +379,96 @@ Deno.test("projection entries: payload keys starting with $ are dropped at any d
       nested: { $gt: 1, ok: [{ $x: 1, y: 2 }] },
     }),
     { text: "$5 is fine as a value", nested: { ok: [{ y: 2 }] } },
+  );
+});
+
+Deno.test("ticketSegments: one segment without a retarget; each retarget of this tracker's ref starts the next", () => {
+  const started: JournalEvent = {
+    ...BASE,
+    stage: "write",
+    type: "started",
+    definition: { name: "small", digest: "sha256:x", version: 1 },
+  };
+  const plain = { ...runWith("write", [started]), externalRefs: { t: "A" } };
+  assertEquals(ticketSegments(plain, definition(), "t"), [
+    {
+      issue: "A",
+      after: 0,
+      through: 1,
+      status: "in_progress",
+      statusVersion: 1,
+    },
+  ]);
+
+  const moved = (
+    from: Record<string, string>,
+    to: Record<string, string>,
+    stage = "write",
+  ): JournalEvent => ({
+    ...BASE,
+    stage,
+    type: "retargeted",
+    from,
+    to,
+    reason: "a free-text reason",
+    actor: NOBODY,
+  });
+  const run = {
+    ...runWith("review", [
+      started,
+      moved({ t: "A", "t.display": "A-1" }, { t: "B", "t.display": "B-1" }),
+      // Another tracker's ref only: no new segment for t.
+      moved({ t: "B", "t.display": "B-1" }, {
+        t: "B",
+        "t.display": "B-1",
+        u: "X",
+      }),
+      {
+        ...BASE,
+        stage: "write",
+        type: "advanced",
+        transition: "submit",
+        to: "review",
+        toCycle: 1,
+      },
+      moved({ t: "B", "t.display": "B-1", u: "X" }, { u: "X" }, "review"),
+    ]),
+    externalRefs: { u: "X" },
+  };
+  const segments = ticketSegments(run, definition(), "t");
+  assertEquals(
+    segments.map((s) => [s.issue, s.after, s.through, s.status]),
+    [["A", 0, 2, "in_progress"], ["B", 2, 5, "in_review"], [
+      null,
+      5,
+      5,
+      "in_review",
+    ]],
+  );
+  assertEquals(segments.map((s) => s.statusVersion), [1, 4, 5]);
+  assertEquals(
+    segments[0].closing?.body,
+    `**${KEY}** moved to B-1; its updates continue there.`,
+  );
+  assertEquals(
+    segments[1].opening?.body,
+    `**${KEY}** continued here from A-1, at stage **write**.`,
+  );
+  assertEquals(
+    segments[1].closing?.body,
+    `**${KEY}** no longer reports to this ticket.`,
+  );
+  assertEquals(segments[1].opening?.journalVersion, 2);
+  assert(
+    !segments.some((s) =>
+      `${s.opening?.body}${s.closing?.body}`.includes("reason")
+    ),
+  );
+  // The comments leave the retarget to the segments' notes.
+  assertEquals(commentFor(KEY, run.journal[1], definition()), null);
+  // A ticket the refs gain is linked, not continued.
+  assertEquals(
+    ticketSegments(run, definition(), "u")[1].opening?.body,
+    `**${KEY}** was linked to this ticket at stage **write**.`,
   );
 });

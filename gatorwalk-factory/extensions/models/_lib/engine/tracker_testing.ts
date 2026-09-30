@@ -44,6 +44,7 @@ export {
   FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,
+  retargetMethod,
   startWorkItem,
 } from "./work_item_ops.ts";
 // claim_test drives the real work_item model, so the model entrypoint is
