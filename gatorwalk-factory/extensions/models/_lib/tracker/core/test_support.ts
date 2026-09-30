@@ -19,7 +19,6 @@ import {
   contextStore,
   decide,
   expectNow,
-  FACTORY_TYPE,
   type FakeSwamp,
   type ProductKind,
   recordProductMethod,
@@ -173,10 +172,7 @@ export async function projectedItem(
   definition: Record<string, unknown> = projectedDefinition(),
 ) {
   const env = testEnv();
-  swamp.definitions.set("projected-factory", {
-    globalArguments: definition,
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("projected-factory", definition);
   const ctx = () => swamp.context(PROJECTED_ITEM);
   await startWorkItem(
     ctx(),

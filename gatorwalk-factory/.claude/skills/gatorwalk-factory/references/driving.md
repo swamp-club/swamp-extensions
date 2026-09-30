@@ -28,12 +28,13 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 ## The two model types
 
 - **`@swamp/gatorwalk-factory/factory`**, the factory: one instance whose
-  `globalArguments` are a factory definition (stages, work, products,
-  transitions, gates). Methods: `validate`, `design_page`, `new_key`.
+  `globalArguments` name its factory definition file (stages, work, products,
+  transitions, gates), `{ definition: factories/<factory>.yaml }`. Methods:
+  `init`, `validate`, `design_page`, `new_key`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
-  named by a key from `new_key`. `start` pins a copy of the factory's
-  definition, so editing the factory never changes a running item. Every other
-  method works on that copy.
+  named by a key from `new_key`. `start` reads the definition file and pins a
+  copy, so editing the file never changes a running item; `reset` with
+  `repin=true` adopts the edited file. Every other method works on that copy.
 
 Work-item methods are run by type, with the key as the instance name:
 
@@ -46,20 +47,23 @@ only that the method succeeded.
 
 ## Set up a factory
 
-Once per factory, in the swamp repo:
+Once per factory, in the swamp repo. A factory names its definition file, a YAML
+path relative to the repo, `factories/<factory>.yaml` by convention. That file
+is the one copy of the definition: edit it there, never in the factory's model
+definition.
 
 ```sh
-swamp model create @swamp/gatorwalk-factory/factory <factory> --json
+swamp model create @swamp/gatorwalk-factory/factory <factory> \
+  --global-arg definition=factories/<factory>.yaml --json
+swamp model method run <factory> init --input from=starter --log
 ```
 
-The output's `path` is the factory's definition file. Set its `globalArguments`
-to the factory definition by editing that file: paste the contents of the
-closest example in [examples/](examples/) (for instance `examples/starter.yaml`)
-under `globalArguments:`, indented, and change what its description's "Change
-first" paragraph names; then rewrite the description for your process. Do not
-use `swamp model edit`, which opens an editor, and do not try `--global-arg`,
-which cannot carry a nested factory definition. swamp does not check the factory
-definition when the file is saved, so check it:
+`init` copies a starter to the definition file and never overwrites one. The
+starters are the examples in [examples/](examples/): `minimal`, `starter`,
+`build-swamp-extension` and `swamp-club-swamp-extensions`. Pick the closest.
+Then edit the file: change what its description's "Change first" paragraph
+names, and rewrite the description for your process. swamp does not check the
+file when it is saved, so check it:
 
 ```sh
 swamp model method run <factory> validate --log

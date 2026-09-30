@@ -24,12 +24,14 @@ work:
 ### Why software-factory's `${{ }}` could not be kept
 
 software-factory interpolated `${{ expr }}` anywhere in a definition, at
-`status` time. That syntax belongs to swamp: a factory definition lives in a
-model's `globalArguments`, and swamp evaluates every `${{ }}` there when the
-definition is saved, before any run data exists (`expression_parser.ts` in swamp
-matches `\$\{\{\s*(.+?)\s*\}\}`). software-factory worked around this by keeping
-the platform-facing schema loose and re-parsing the raw definition itself. The
-result:
+`status` time. That syntax belongs to swamp: software-factory's definition lived
+in a model's `globalArguments`, and swamp evaluates every `${{ }}` there when
+the definition is saved, before any run data exists (`expression_parser.ts` in
+swamp matches `\$\{\{\s*(.+?)\s*\}\}`). gatorwalk's factory definition started
+out there too; it now lives in its own file (see "Where a factory definition
+lives"), which swamp does not evaluate, but the syntax is still swamp's.
+software-factory worked around this by keeping the platform-facing schema loose
+and re-parsing the raw definition itself. The result:
 
 - A definition could not be fully validated when it was saved (#1236).
 - The same syntax meant two different things, and which one depended on where it
@@ -66,7 +68,7 @@ prompt.
 | `{{` around anything else (`{{ .Values.x }}`, `{{#each}}`, `{{ a.b }}`) | Literal text, so most Helm, Handlebars and Go template snippets pass through unescaped.                                              |
 | `{{` directly after `{` (`{{{body}}}`)                                  | Literal text, so Handlebars triple-stash passes through.                                                                             |
 | `\{{`                                                                   | A literal `{{`, for text that would otherwise be a placeholder.                                                                      |
-| `${{`                                                                   | Rejected anywhere in a factory definition. swamp would evaluate it on save, and it has no escape, so a prompt cannot contain a literal `${{`. |
+| `${{`                                                                   | Rejected anywhere in a factory definition. It is swamp's syntax, with no escape; swamp no longer evaluates the definition's file, but the rejection is kept until go-live (see "Where a factory definition lives"), so a prompt cannot yet contain a literal `${{`. |
 
 Bare-word template tags such as Go's `{{end}}` or Handlebars' `{{else}}` look
 exactly like placeholders. They are rejected when the factory definition is
@@ -642,13 +644,13 @@ their own, that the wrapper waits for both, and that it fails when either does.
 **Decision.** Two model types (`extensions/models/engine/factory.ts`,
 `work_item.ts`, logic in `_lib/engine/work_item_ops.ts`):
 
-- A **factory** is an instance whose `globalArguments` are a team's
-  factory definition.
+- A **factory** is an instance whose `globalArguments` name a team's factory
+  definition file, `{ definition: factories/<factory>.yaml }`.
 - A **work item** is one instance per piece of work, named by a key. `start`
-  reads the factory and **pins a copy** of its factory definition with its
-  digest. Every later method uses that copy, so editing the factory never
-  changes a running work item. `reset` keeps the pinned copy unless `repin=true`
-  adopts the factory's current one.
+  reads the factory's definition file and **pins a copy** of it with its
+  digest. Every later method uses that copy, so editing the file never changes
+  a running work item. `reset` keeps the pinned copy unless `repin=true` adopts
+  the file's current contents.
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
@@ -658,14 +660,13 @@ copy, never a mismatch. Pinned copies are kept by age for ten years, not by
 count: they are small and rarely written, and retention must never collect the
 one a run reads.
 
-**The factory's schema is plain, on purpose.** swamp validates a model's
-`globalArguments` on every run with `schema.partial()`, and zod refuses
-`.partial()` on a schema with refinements, which the full factory definition
-schema is made of. So the factory's schema only names the top-level fields, and
-the full check is gatorwalk's own: the factory's `validate` method, and every
-`start`. Both read the factory's **raw** definition through the definition
-repository, never swamp's evaluated `globalArguments`, so a `${{ }}` reaches the
-factory definition schema's own error. On a remote worker that definition
+**The factory's schema is only the path.** swamp validates a model's
+`globalArguments` on every run with `schema.partial()`, so the schema is a plain
+string: the path's rules are checked when the file is read, and `init` runs
+before the file exists. The full check of the definition is gatorwalk's own:
+the factory's `validate` method, and every `start`. Both find the path in the
+factory's **raw** model definition through the definition repository, never
+swamp's evaluated `globalArguments`. On a remote worker that model definition
 arrives as a plain object with `_globalArguments`; both shapes are read.
 
 **Keys are gatorwalk's.** swamp cannot generate instance names, so the factory's
@@ -726,6 +727,55 @@ check each equals the constant the code compares against.
 **Known gap.** The first `start` of a new work item takes no per-instance lock
 (swamp only locks an instance once its definition exists), so two concurrent
 first starts can race. That is accepted for solo use until swamp fixes it.
+
+### Where a factory definition lives
+
+**Decision** (swamp-club #2803, option B in the studio proposal). A factory
+definition lives in one file in the repo, `factories/<factory>.yaml` by
+convention, and the factory's `globalArguments` are only its repo-relative path:
+`{ definition: factories/team.yaml }`. Before, the definition was pasted by
+hand into the factory's `globalArguments`, and the same definition was often
+kept as a file as well; nothing synced the two, and they drifted from the first
+edit. There were no users before go-live, so the inline form was removed, not
+kept beside the path.
+
+**Who reads the file.** `start` pins the parsed definition and its digest, and
+every later method reads the pinned copy, so only the methods that pin or check
+read the file: `validate`, `design_page`, `new_key`, `start`, `reset` with
+`repin=true`, and the tracker's `claim`, which starts a work item. The studio
+reads it too, and does not hand-edit it: edits come from the agent. Editing the
+file never changes a running work item.
+
+**The path's rules** (`_lib/engine/definition_file.ts`). The path is resolved
+against the method context's `repoDir`, and refused, with the path in the
+message, when it is absolute, does not end in `.yaml` or `.yml`, resolves
+outside the repo (lexically, or after following symlinks), or names no file.
+File access goes through a small `RepoFiles` interface, so the unit tests, which
+may only read, run the same rules on an in-memory repo.
+
+**Remote factories are later.** A remote worker runs a method in a scratch
+directory with no repo checkout, so the file is not there. `start` fails there
+with a message to start the work item where the repo is: when the missing
+file's directory has no `.swamp`, the message says it is likely a remote
+worker. swamp gives a method no flag saying it runs remotely, so this is a
+heuristic; at worst the error is a plain missing-file error that names the
+path. Remote factories wait until someone needs them.
+
+**`init` and the starters.** `init --input from=<starter>` copies a starter to
+the factory's path and never overwrites a file. The starters are the skill's
+examples (#2767), embedded in `_lib/engine/starters.ts` by
+`deno task gen:starters`, and `scripts/gen_starters_test.ts` fails when that
+module drifts from the examples. They cannot be read beside the model at run
+time: swamp bundles a model before importing it, so `import.meta.url` points
+into `.swamp/`, not at the source, and `context.extensionFile()` needs a
+manifest, which gatorwalk-factory has none of until go-live. Embedding works in
+source mode, on a remote worker and after go-live alike.
+
+**`${{` stays rejected.** swamp evaluated `${{ }}` in `globalArguments`, which
+is why a definition rejects `${{`. It no longer evaluates the definition's
+text, so the reason is gone, but the rejection is kept: loosening it later
+breaks no one, while loosening it now and tightening it again after go-live
+would.
 
 ## Summary and metrics
 
@@ -1380,6 +1430,22 @@ that shape is still unconfirmed against the real engine. The driving skill is
 GW-8. Dispatch and usage run through the CLI in the summary test.
 
 ## Decision log
+
+### 2026-09-30: a factory definition lives in a file the factory names (swamp-club #2803)
+
+**Decision.** The factory's `globalArguments` became `{ definition: <path> }`,
+a repo-relative YAML file (`factories/<factory>.yaml` by convention), and the
+inline definition was removed. A new `init` method copies a starter, one of the
+skill's examples embedded in the engine, to that path. See "Where a factory
+definition lives".
+
+**Why.** One copy of each definition, where people look for it. The inline copy
+and the file drifted, and pasting a definition under `globalArguments` by hand
+was the skill's most error-prone step. The issue named the key `lifecycle` and
+the directory `lifecycles/`; #2785 renamed the vocabulary first, so they are
+`definition` and `factories/`. The issue also asked for the starters to be
+resolved beside the model module; swamp bundles models, so they are embedded
+instead. No model version was bumped: the extension has never been published.
 
 ### 2026-09-30: stage templates and apply cut; examples in the skill instead (swamp-club #2767)
 

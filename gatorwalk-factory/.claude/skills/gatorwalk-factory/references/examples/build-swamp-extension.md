@@ -24,31 +24,20 @@ run a subagent.
 
 ## Set up
 
-In a swamp repo, add gatorwalk-factory as an extension source and create a
-factory:
+In a swamp repo, add gatorwalk-factory as an extension source, create a factory
+that names its definition file, and copy this example into that file:
 
 ```sh
 swamp extension source add <gatorwalk-factory>
-swamp model create @swamp/gatorwalk-factory/factory team --json
+swamp model create @swamp/gatorwalk-factory/factory team \
+  --global-arg definition=factories/team.yaml --json
+swamp model method run team init --input from=build-swamp-extension --log
 ```
 
-`model create` prints the definition file's `path`. Open that file and set its
-`globalArguments` to the factory definition, the contents of
-[build-swamp-extension.yaml](build-swamp-extension.yaml), beside this file:
-
-```yaml
-globalArguments:
-  schemaVersion: 1
-  name: build-swamp-extension
-  description: |-
-    Build a swamp extension from plan to release: plan it, have the plan
-    ...
-  stages:
-    - id: plan
-      # ... the rest of the definition file, indented under globalArguments
-```
-
-Then check it, get a key, and start the work item under that key:
+`init` copies [build-swamp-extension.yaml](build-swamp-extension.yaml), beside
+this file, to `factories/team.yaml`; it never overwrites a file. That file is
+the one copy of the definition: edit it there. Then check it, get a key, and
+start the work item under that key:
 
 ```sh
 swamp model method run team validate --log
@@ -58,9 +47,9 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 ```
 
 ```text
-definition 'build-swamp-extension' in 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
+definition 'build-swamp-extension' in factories/team.yaml is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 build-swamp-extension-add-list-method-r2ne
-started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team')
+started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team', factories/team.yaml)
 ```
 
 ## plan (cycle 1)

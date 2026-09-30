@@ -15,11 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
-import {
-  FACTORY_TYPE,
-  fakeSwamp,
-  smallDefinition,
-} from "../../engine/tracker_testing.ts";
+import { fakeSwamp, smallDefinition } from "../../engine/tracker_testing.ts";
 import { PROJECTED_ITEM, projectedItem } from "./test_support.ts";
 import {
   type TrackerAdapter,
@@ -190,10 +186,7 @@ export async function assertTrackerConformance(
   // Claim: the display identifier and the stable id find one index record,
   // named by the stable id, and the start command carries both ids.
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: smallDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", smallDefinition());
   const claim = (issue: string) =>
     methods.claim.execute(
       methods.claim.arguments.parse({ issue, factory: "team" }),

@@ -25,7 +25,6 @@ import {
 import {
   advanceMethod,
   describeStatus,
-  FACTORY_TYPE,
   recordProductMethod,
   startWorkItem,
   summary,
@@ -37,10 +36,7 @@ const ITEM = "stops-abcdefgh";
 /** A work item waiting in review, driven through the work-item operations. */
 async function inReview(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: stopsDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", stopsDefinition());
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const ctx = () => swamp.context(ITEM);
   const expected = async () => {

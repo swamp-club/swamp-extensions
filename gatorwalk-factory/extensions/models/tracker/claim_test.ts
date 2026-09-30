@@ -20,7 +20,6 @@ import { model as linear } from "./linear.ts";
 import { model as swampClub } from "./swamp_club.ts";
 import {
   describeStatus,
-  FACTORY_TYPE,
   type FakeSwamp,
   fakeSwamp,
   type MethodContextLike,
@@ -92,10 +91,7 @@ async function withFactories(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
   const definition = parseYaml(await Deno.readTextFile(MINIMAL));
   for (const name of ["team", "other"]) {
-    swamp.definitions.set(name, {
-      globalArguments: definition,
-      type: FACTORY_TYPE,
-    });
+    swamp.factory(name, definition);
   }
   return swamp;
 }
@@ -301,10 +297,7 @@ Deno.test("claim: a run record with another key under the claimed name is not th
 
 Deno.test("claim: needs a factory for a new key, and an invalid factory writes nothing", async () => {
   const swamp = await withFactories();
-  swamp.definitions.set("broken", {
-    globalArguments: { name: "broken" },
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("broken", { name: "broken" });
   const { methods } = oneTicket();
   const missing = await assertRejects(() =>
     claim(swamp, methods, { issue: "T1" })

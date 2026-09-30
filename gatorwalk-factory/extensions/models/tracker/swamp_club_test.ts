@@ -33,7 +33,6 @@ import {
   swampClubFake,
 } from "../_lib/tracker/backends/swamp_club_fake.ts";
 import {
-  FACTORY_TYPE,
   type FakeSwamp,
   fakeSwamp,
   smallDefinition,
@@ -504,10 +503,7 @@ Deno.test("swamp-club model: assign records issue-lifecycle's assigned entry, an
 });
 
 async function claimIn(swamp: FakeSwamp, methods: Methods) {
-  swamp.definitions.set("team", {
-    globalArguments: smallDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", smallDefinition());
   return await call(methods, swamp, "claim", {
     issue: ISSUE,
     factory: "team",

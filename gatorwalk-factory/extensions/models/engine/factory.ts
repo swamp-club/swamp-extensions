@@ -18,38 +18,41 @@ import { z } from "npm:zod@4.3.6";
 import {
   DESIGN_PAGE_SPEC,
   designPageMethod,
+  initFactory,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
   validateFactory,
 } from "../_lib/engine/work_item_ops.ts";
+import { STARTERS } from "../_lib/engine/starters.ts";
 
 // ---------------------------------------------------------------------------
-// The factory: a model instance whose globalArguments are a team's
-// factory definition. Work items read it when they start and pin a copy.
+// The factory: a model instance whose globalArguments name a team's factory
+// definition file, a repo-relative YAML path (factories/<name>.yaml by
+// convention). There is one copy of the definition, in the repo. Work items
+// read it when they start and pin a copy, so editing the file never changes
+// a running work item.
 //
-// The globalArguments schema here is deliberately plain. swamp validates
-// globalArguments on every run with schema.partial(), and zod refuses
-// .partial() on a schema with refinements, which the full factory definition
-// schema is made of. So this schema only names the top-level fields; the full
-// check is the validate method (schema, then graph analysis), and its schema
-// check runs again whenever a work item starts.
+// The globalArguments schema is only the path. Its rules (relative, .yaml or
+// .yml, inside the repo, existing) are checked when the file is read
+// (definition_file.ts), since init runs before the file exists. The full
+// check of the definition is the validate method (schema, then graph
+// analysis), and its schema check runs again whenever a work item starts.
+//
+// init copies a bundled starter to the definition path; it never overwrites.
 //
 // design_page renders the factory definition, with its graph findings, as a
 // static HTML page stored as the factory's design-page file.
 // ---------------------------------------------------------------------------
 
 export const FactoryArgumentsSchema = z.object({
-  schemaVersion: z.number().describe("The definition format version (1)"),
-  name: z.string().describe("The definition's name"),
-  description: z.string().optional(),
-  stages: z.array(z.unknown()).describe(
-    "The stages; checked in full by the validate method",
-  ),
-  globalTransitions: z.array(z.unknown()).optional().describe(
-    "Escape hatches available from any non-terminal stage",
+  definition: z.string().min(1).describe(
+    "The factory definition file: a YAML path relative to the repo, " +
+      "e.g. factories/team.yaml",
   ),
 });
+
+const STARTER_NAMES = Object.keys(STARTERS) as [string, ...string[]];
 
 export const model = {
   // A string literal: swamp reads the type from the source without running
@@ -78,6 +81,18 @@ export const model = {
     },
   },
   methods: {
+    init: {
+      description:
+        "Copy a starter factory definition to this factory's definition file; never overwrites",
+      // Not a read method: it writes the file.
+      arguments: z.object({
+        from: z.enum(STARTER_NAMES).describe(
+          "The starter to copy: one of the skill's example factory definitions",
+        ),
+      }),
+      execute: (args: { from: string }, context: MethodContextLike) =>
+        initFactory(context, args.from),
+    },
     validate: {
       description:
         "Check the definition in full, analyse it as a graph, and report every problem with its path",

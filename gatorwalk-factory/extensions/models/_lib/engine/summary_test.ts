@@ -27,7 +27,6 @@ import {
   advanceMethod,
   decide,
   describeStatus,
-  FACTORY_TYPE,
   recordProductMethod,
   startWorkItem,
   summary,
@@ -37,10 +36,7 @@ const ITEM = "stops-abcdefgh";
 
 async function reviewed() {
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: stopsDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", stopsDefinition());
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const ctx = () => swamp.context(ITEM);
   const expected = async () => {

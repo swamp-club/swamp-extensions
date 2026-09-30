@@ -221,9 +221,12 @@ export function checkCommand(words: string[]): string | null {
     return checkInputs(method, rest, ["--log"]);
   }
   if (is("model", "create")) {
-    return args[2] === FACTORY_TYPE && args.length === 5 && args[4] === "--json"
+    return args[2] === FACTORY_TYPE && args.length === 7 &&
+        args[4] === "--global-arg" &&
+        /^definition=[^/].*\.ya?ml$/.test(args[5]) && args[6] === "--json"
       ? null
-      : `model create must be: model create ${FACTORY_TYPE} <name> --json`;
+      : `model create must be: model create ${FACTORY_TYPE} <name> ` +
+        "--global-arg definition=<path>.yaml --json";
   }
   if (is("extension", "source", "add")) {
     return args.length === 4 ? null : "extension source add takes one path";
@@ -256,18 +259,16 @@ interface RepoLike {
 /**
  * Run the example's commands in order, as written, filling <key> from the
  * key record new_key writes, <era> from the first expectation status prints, and
- * <gatorwalk-factory> with the extension's directory. After `model create`
- * of a factory, write `factory definition` into the definition file it names:
- * the file edit the example describes. A command runs with allowFailure only
+ * <gatorwalk-factory> with the extension's directory. The example's own `init`
+ * writes the factory definition file. A command runs with allowFailure only
  * when it is marked `# fails:`; a marked command that succeeds is an error.
  */
 export async function runExample(
   repo: RepoLike,
   commands: SkillCommand[],
-  context: { extensionRoot: string; definition: unknown },
+  context: { extensionRoot: string },
   onStep: (step: ExampleStep) => void = () => {},
 ): Promise<ExampleStep[]> {
-  const { parse, stringify } = await import("@std/yaml");
   const values: Record<string, string> = {
     "<gatorwalk-factory>": context.extensionRoot,
   };
@@ -325,15 +326,6 @@ export async function runExample(
     // The latest era status printed: a reset starts a new one.
     const era = result.output.match(/--input expectedEra=([0-9a-f-]+)/);
     if (era !== null) values["<era>"] = era[1];
-    if (ran[0] === "model" && ran[1] === "create" && ran[2] === FACTORY_TYPE) {
-      const path = (JSON.parse(result.stdout) as { path: string }).path;
-      const definition = parse(await Deno.readTextFile(path)) as Record<
-        string,
-        unknown
-      >;
-      definition.globalArguments = context.definition;
-      await Deno.writeTextFile(path, stringify(definition));
-    }
   }
   return steps;
 }

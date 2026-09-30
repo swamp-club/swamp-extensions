@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { fromFileUrl } from "@std/path";
-import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
+import { fromFileUrl, join } from "@std/path";
+import { stringify as stringifyYaml } from "@std/yaml";
 import { expectedOf } from "../extensions/models/_lib/engine/run_ops.ts";
 import {
   parseRun,
@@ -104,9 +104,12 @@ export interface SwampRepo {
   swamp(args: string[], options?: { allowFailure?: boolean }): Promise<
     SwampResult
   >;
-  /** Create a factory whose globalArguments are `factory definition`. */
+  /**
+   * Write `definition` (YAML text as is, anything else as YAML) to
+   * factories/<name>.yaml and create a factory naming that file.
+   */
   factory(name: string, definition: unknown): Promise<void>;
-  /** Replace a factory's definition, as `swamp model edit` would. */
+  /** Replace a factory's definition file, as an edit would. */
   editFactory(name: string, definition: unknown): Promise<void>;
   /** Run a factory method by name. */
   factoryMethod(
@@ -218,23 +221,27 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   await swamp(["init", "--tool", "none"]);
   await swamp(["extension", "source", "add", EXTENSION_ROOT]);
 
-  const factoryFiles = new Map<string, string>();
+  const definitionPath = (name: string) => `factories/${name}.yaml`;
 
-  const writeFactory = async (name: string, factoryDefinition: unknown) => {
-    const path = factoryFiles.get(name);
-    if (path === undefined) throw new Error(`no factory '${name}' created`);
-    const definition = parseYaml(await Deno.readTextFile(path)) as Record<
-      string,
-      unknown
-    >;
-    definition.globalArguments = factoryDefinition;
-    await Deno.writeTextFile(path, stringifyYaml(definition));
+  const writeFactory = async (name: string, definition: unknown) => {
+    await Deno.mkdir(join(dir, "factories"), { recursive: true });
+    await Deno.writeTextFile(
+      join(dir, definitionPath(name)),
+      typeof definition === "string" ? definition : stringifyYaml(definition),
+    );
   };
 
-  const createFactory = async (type: string, name: string, doc: unknown) => {
-    const { stdout } = await swamp(["model", "create", type, name, "--json"]);
-    factoryFiles.set(name, (JSON.parse(stdout) as { path: string }).path);
-    await writeFactory(name, doc);
+  const createFactory = async (name: string, definition: unknown) => {
+    await writeFactory(name, definition);
+    await swamp([
+      "model",
+      "create",
+      FACTORY_TYPE,
+      name,
+      "--global-arg",
+      `definition=${definitionPath(name)}`,
+      "--json",
+    ]);
   };
 
   const data: SwampRepo["data"] = async (instance, name, version) => {
@@ -256,8 +263,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   return {
     dir,
     swamp,
-    factory: (name, definition) =>
-      createFactory(FACTORY_TYPE, name, definition),
+    factory: createFactory,
     editFactory: writeFactory,
     factoryMethod: (name, method, options = {}) =>
       swamp(

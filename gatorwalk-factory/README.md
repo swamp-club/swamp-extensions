@@ -8,12 +8,14 @@ It is **not published**, and its public name is chosen at go-live.
 ## Vocabulary
 
 - **factory**: a model of type `@swamp/gatorwalk-factory/factory`, created
-  once and named, for example `team`. You run `validate`, `design_page` and
-  `new_key` on it, and start work items on it.
-- **factory definition**: the YAML document a factory keeps as its
-  `globalArguments`: stages, work, transitions and gates. `validate` checks
-  it, and a work item pins a copy of it when it starts. In code and data it is
-  `definition`.
+  once and named, for example `team`. You run `init`, `validate`, `design_page`
+  and `new_key` on it, and start work items on it.
+- **factory definition**: the YAML document of a factory's stages, work,
+  transitions and gates. It lives in one file in the repo,
+  `factories/<factory>.yaml` by convention, which the factory's
+  `globalArguments` name (`definition: factories/team.yaml`). `validate`
+  checks it, and a work item pins a copy of it when it starts. In code and data
+  it is `definition`.
 - **work item**: one piece of work moving through a factory, a model of type
   `@swamp/gatorwalk-factory/work-item` named by a key from `new_key`.
 
@@ -108,10 +110,12 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   and nothing is fetched.
 - **Runtime values are bare CEL**, in `work.bindings`, `cel` gates and a
   `human-approval` gate's `when` (the gate applies only while it is true). Never
-  use `${{ }}`: a factory definition lives in a model's `globalArguments`, where
-  the platform evaluates `${{ }}` when the definition is saved. This also means
-  a prompt cannot contain a literal `${{` (a GitHub Actions snippet, say); the
-  platform has no escape for it.
+  use `${{ }}`, swamp's own expression syntax: a factory definition rejects
+  `${{` anywhere. swamp no longer evaluates the definition's text, since it
+  lives in its own file rather than in `globalArguments`, but the rejection
+  stays until go-live settles it (see DESIGN.md, "Where a factory definition
+  lives"), so a prompt cannot yet contain a literal `${{` (a GitHub Actions
+  snippet, say).
 - **Prompts refer to bindings as `{{name}}`**, in `systemPrompt` and `command`.
   A placeholder holds a binding name, never an expression, and an undeclared
   name is an error when the factory definition is checked. `{{` around anything
@@ -291,10 +295,12 @@ In a swamp repo, without publishing anything:
 ```bash
 swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 
-# A factory. create prints the definition file's path; set that
-# file's globalArguments to a definition, e.g. the contents of
-# .claude/skills/gatorwalk-factory/references/examples/starter.yaml.
-swamp model create @swamp/gatorwalk-factory/factory team --json
+# A factory, naming its definition file (a repo-relative YAML path), and
+# that file, copied from a starter: one of the skill's examples. Edit the
+# file itself; it is the one copy of the definition.
+swamp model create @swamp/gatorwalk-factory/factory team \
+  --global-arg definition=factories/team.yaml --json
+swamp model method run team init --input from=starter --log
 swamp model method run team validate --log
 swamp model method run team design_page --log    # the definition as a page
 swamp data get team design-page --json | jq -r .content > team.html

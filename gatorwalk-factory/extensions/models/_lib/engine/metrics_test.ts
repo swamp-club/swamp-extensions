@@ -24,7 +24,6 @@ import {
   decide,
   describeStatus,
   dispatch,
-  FACTORY_TYPE,
   grantOverrideMethod,
   type MethodContextLike,
   rebuildMetrics,
@@ -46,10 +45,7 @@ const MINUTE = 60_000;
  * operations on a clock the test sets. */
 async function driven() {
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: stopsDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", stopsDefinition());
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const failing = { metrics: false };
   const ctx = (): MethodContextLike => {

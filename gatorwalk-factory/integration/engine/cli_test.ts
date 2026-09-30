@@ -20,6 +20,7 @@ import {
   assertMatch,
   assertNotEquals,
 } from "@std/assert";
+import { join } from "@std/path";
 import { parse as parseYaml } from "@std/yaml";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
 import { parseDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
@@ -27,6 +28,7 @@ import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
 import { stopsDefinition } from "../../extensions/models/_lib/engine/test_support.ts";
 import {
   BUILD_DEFINITION,
+  FACTORY_TYPE,
   SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
   withRepo,
@@ -92,7 +94,7 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
     const ok = await repo.factoryMethod("team", "validate");
     assert(
       ok.output.includes(
-        "definition 'build-swamp-extension' in 'team' is valid",
+        "definition 'build-swamp-extension' in factories/team.yaml is valid",
       ),
       ok.output,
     );
@@ -157,7 +159,7 @@ Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a 
     const ok = await repo.factoryMethod("process", "validate");
     assert(
       ok.output.includes(
-        "definition 'swamp-club-swamp-extensions' in 'process' is valid",
+        "definition 'swamp-club-swamp-extensions' in factories/process.yaml is valid",
       ),
       ok.output,
     );
@@ -486,5 +488,150 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
       results: { content: Metrics }[];
     }).results.map((r) => [r.content.key, r.content.status]).sort();
     assertEquals(found, [[key, "terminal"], [other, "active"]].sort());
+  });
+});
+
+Deno.test("cli: a factory names its definition file; init copies a starter, then validate, design_page and start read it", async () => {
+  await withRepo(async (repo) => {
+    await repo.swamp([
+      "model",
+      "create",
+      FACTORY_TYPE,
+      "team",
+      "--global-arg",
+      "definition=factories/team.yaml",
+      "--json",
+    ]);
+    const init = await repo.factoryMethod("team", "init", {
+      inputs: { from: "build-swamp-extension" },
+    });
+    assert(
+      init.output.includes(
+        "wrote the 'build-swamp-extension' starter to factories/team.yaml",
+      ),
+      init.output,
+    );
+    assertEquals(
+      await Deno.readTextFile(join(repo.dir, "factories/team.yaml")),
+      await Deno.readTextFile(BUILD_DEFINITION),
+    );
+    const again = await repo.factoryMethod("team", "init", {
+      inputs: { from: "minimal" },
+      allowFailure: true,
+    });
+    assertNotEquals(again.code, 0);
+    assert(
+      again.output.includes("'factories/team.yaml' already exists"),
+      again.output,
+    );
+
+    const valid = await repo.factoryMethod("team", "validate");
+    assert(
+      valid.output.includes(
+        "definition 'build-swamp-extension' in factories/team.yaml is valid",
+      ),
+      valid.output,
+    );
+    const page = await repo.factoryMethod("team", "design_page");
+    assert(
+      page.output.includes(
+        "design page for definition 'build-swamp-extension' in 'team'",
+      ),
+      page.output,
+    );
+
+    const key = await repo.newKey("team", "From a file");
+    const start = await repo.workItem(key, "start", { factory: "team" });
+    assert(start.output.includes("factories/team.yaml"), start.output);
+    assertEquals(
+      (await repo.run(key)).definition.digest,
+      await digestOf(await buildDefinition()),
+    );
+  });
+});
+
+Deno.test("cli: a definition path outside the repo, through a symlink out, missing, or not YAML is refused, naming the path", async () => {
+  await withRepo(async (repo) => {
+    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
+    try {
+      const text = await Deno.readTextFile(BUILD_DEFINITION);
+      await Deno.writeTextFile(join(outside, "out.yaml"), text);
+      await Deno.mkdir(join(repo.dir, "factories"), { recursive: true });
+      await Deno.symlink(
+        join(outside, "out.yaml"),
+        join(repo.dir, "factories/link.yaml"),
+      );
+      await Deno.writeTextFile(join(repo.dir, "factories/team.json"), "{}");
+      const cases: [string, string, string][] = [
+        ["up", "../out.yaml", "'../out.yaml' is outside the repo"],
+        [
+          "linked",
+          "factories/link.yaml",
+          "'factories/link.yaml' resolves outside the repo",
+        ],
+        [
+          "missing",
+          "factories/missing.yaml",
+          "'factories/missing.yaml' does not exist",
+        ],
+        [
+          "json",
+          "factories/team.json",
+          "'factories/team.json' is not a YAML file",
+        ],
+      ];
+      for (const [name, path, message] of cases) {
+        await repo.swamp([
+          "model",
+          "create",
+          FACTORY_TYPE,
+          name,
+          "--global-arg",
+          `definition=${path}`,
+          "--json",
+        ]);
+        const result = await repo.factoryMethod(name, "validate", {
+          allowFailure: true,
+        });
+        assertNotEquals(result.code, 0, `${name}: ${result.output}`);
+        assert(result.output.includes(message), `${name}: ${result.output}`);
+      }
+      // A regular file where a directory should be: refused with the path,
+      // not the OS's raw "Not a directory".
+      await Deno.writeTextFile(join(repo.dir, "plain"), "");
+      await repo.swamp([
+        "model",
+        "create",
+        FACTORY_TYPE,
+        "under-file",
+        "--global-arg",
+        "definition=plain/new.yaml",
+        "--json",
+      ]);
+      const underFile = await repo.factoryMethod("under-file", "init", {
+        inputs: { from: "minimal" },
+        allowFailure: true,
+      });
+      assertNotEquals(underFile.code, 0);
+      assert(
+        underFile.output.includes(
+          "'plain/new.yaml' cannot be created: " +
+            `${join(repo.dir, "plain")} is not a directory`,
+        ),
+        underFile.output,
+      );
+      const start = await repo.workItem(
+        "missing-file-item",
+        "start",
+        { factory: "missing" },
+        { allowFailure: true },
+      );
+      assert(
+        start.output.includes("'factories/missing.yaml' does not exist"),
+        start.output,
+      );
+    } finally {
+      await Deno.remove(outside, { recursive: true });
+    }
   });
 });

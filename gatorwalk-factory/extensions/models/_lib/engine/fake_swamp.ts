@@ -15,14 +15,152 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { evaluate } from "npm:@marcbachmann/cel-js@7.6.1";
-import type { DataReadingContext, ModelDataRecord } from "./work_item_ops.ts";
+import * as posix from "@std/path/posix";
+import { stringify as stringifyYaml } from "@std/yaml";
+import type { PathKind, RepoFiles } from "./definition_file.ts";
+import {
+  type DataReadingContext,
+  FACTORY_TYPE,
+  type ModelDataRecord,
+} from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
 // instance, readModelData across instances, a definition repository,
-// globalArgs per instance, tagOverrides, file writers and a logger. Not used
-// by production code.
+// globalArgs per instance, tagOverrides, file writers, a logger, and an
+// in-memory repo for factory definition files. Not used by production code.
 // ---------------------------------------------------------------------------
+
+/** An in-memory repo: files, directories and symlinks under `dir`. */
+export interface MemoryRepo {
+  /** The repo's absolute path; it holds a .swamp directory. */
+  dir: string;
+  files: RepoFiles;
+  /** Write a file at a repo-relative or absolute path, making directories. */
+  write(path: string, text: string): void;
+  /** A symlink at `path` to `target` (absolute, or relative to its directory). */
+  symlink(path: string, target: string): void;
+  remove(path: string): void;
+  read(path: string): string | undefined;
+}
+
+type Entry =
+  | { kind: "file"; text: string }
+  | { kind: "dir" }
+  | { kind: "link"; target: string };
+
+function notFound(path: string): Error {
+  return new Deno.errors.NotFound(`no such file or directory: ${path}`);
+}
+
+export function memoryRepo(dir = "/repo"): MemoryRepo {
+  const entries = new Map<string, Entry>([["/", { kind: "dir" }]]);
+  const abs = (path: string) => posix.resolve(dir, path);
+  const mkdirs = (path: string) => {
+    let cur = "/";
+    for (const part of path.split("/").filter((p) => p !== "")) {
+      cur = posix.join(cur, part);
+      if (!entries.has(cur)) entries.set(cur, { kind: "dir" });
+    }
+  };
+  // Every symlink followed, as realpath(3) does; throws when nothing is there.
+  const real = (path: string, depth = 0): string => {
+    if (depth > 32) throw new Error(`too many symlinks: ${path}`);
+    let cur = "/";
+    for (const part of path.split("/").filter((p) => p !== "")) {
+      const next = posix.join(cur, part);
+      const entry = entries.get(next);
+      if (entry === undefined) throw notFound(path);
+      cur = entry.kind === "link"
+        ? real(posix.resolve(cur, entry.target), depth + 1)
+        : next;
+    }
+    return cur;
+  };
+  // The entry itself, with symlinks followed above it but not at it.
+  const entryAt = (path: string): [string, Entry] | null => {
+    let parent: string;
+    try {
+      parent = real(posix.dirname(path));
+    } catch {
+      return null;
+    }
+    const at = posix.join(parent, posix.basename(path));
+    const entry = entries.get(at);
+    return entry === undefined ? null : [at, entry];
+  };
+  const files: RepoFiles = {
+    realPath: (path) => {
+      try {
+        return Promise.resolve(real(path));
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    lstat: (path) => {
+      const found = entryAt(path);
+      if (found === null) return Promise.resolve(null);
+      const kind: PathKind = {
+        isFile: found[1].kind === "file",
+        isDirectory: found[1].kind === "dir",
+        isSymlink: found[1].kind === "link",
+      };
+      return Promise.resolve(kind);
+    },
+    readTextFile: (path) => {
+      try {
+        const entry = entries.get(real(path));
+        if (entry?.kind !== "file") throw notFound(path);
+        return Promise.resolve(entry.text);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    },
+    mkdir: (path) => {
+      // Like mkdir -p: follows symlinks on the way, creates what is missing.
+      let cur = "/";
+      for (const part of path.split("/").filter((p) => p !== "")) {
+        const next = posix.join(cur, part);
+        const entry = entries.get(next);
+        if (entry === undefined) entries.set(next, { kind: "dir" });
+        cur = entry?.kind === "link"
+          ? real(posix.resolve(cur, entry.target))
+          : next;
+      }
+      return Promise.resolve();
+    },
+    writeNewTextFile: (path, text) => {
+      if (entryAt(path) !== null) {
+        return Promise.reject(new Deno.errors.AlreadyExists(path));
+      }
+      entries.set(posix.join(real(posix.dirname(path)), posix.basename(path)), {
+        kind: "file",
+        text,
+      });
+      return Promise.resolve();
+    },
+  };
+  mkdirs(posix.join(dir, ".swamp"));
+  return {
+    dir,
+    files,
+    write(path, text) {
+      mkdirs(posix.dirname(abs(path)));
+      entries.set(abs(path), { kind: "file", text });
+    },
+    symlink(path, target) {
+      mkdirs(posix.dirname(abs(path)));
+      entries.set(abs(path), { kind: "link", target });
+    },
+    remove(path) {
+      entries.delete(abs(path));
+    },
+    read(path) {
+      const entry = entries.get(abs(path));
+      return entry?.kind === "file" ? entry.text : undefined;
+    },
+  };
+}
 
 export interface FakeSwamp {
   /** Definitions by name: raw globalArguments plus the model type. */
@@ -37,6 +175,18 @@ export interface FakeSwamp {
   /** Files per instance: "<spec>/<name>" -> the text of each version. */
   files: Map<string, Map<string, string[]>>;
   logs: { message: string; props?: Record<string, unknown> }[];
+  /** The repo factory definition files are read from. */
+  repo: MemoryRepo;
+  /**
+   * Define a factory whose definition file is factories/<name>.yaml, holding
+   * `definition` (YAML text as is, anything else as YAML). `remote` gives the
+   * definition the shape a remote worker receives.
+   */
+  factory(
+    name: string,
+    definition: unknown,
+    options?: { remote?: boolean },
+  ): void;
   context(
     name: string,
     initiatedBy?: string,
@@ -57,6 +207,7 @@ export function fakeSwamp(): FakeSwamp {
   const resources: FakeSwamp["resources"] = new Map();
   const files: FakeSwamp["files"] = new Map();
   const logs: FakeSwamp["logs"] = [];
+  const repo = memoryRepo();
   // The spec each resource was written under, per instance.
   const specs = new Map<string, Map<string, string>>();
   const of = (instance: string) => {
@@ -73,12 +224,27 @@ export function fakeSwamp(): FakeSwamp {
     resources,
     files,
     logs,
+    repo,
+    factory(name, definition, options = {}) {
+      const path = `factories/${name}.yaml`;
+      repo.write(
+        path,
+        typeof definition === "string" ? definition : stringifyYaml(definition),
+      );
+      definitions.set(name, {
+        globalArguments: { definition: path },
+        type: FACTORY_TYPE,
+        remote: options.remote,
+      });
+    },
     versionsWritten: (instance) =>
       [...of(instance).values()].reduce((n, v) => n + v.length, 0),
     context: (name, initiatedBy = "user:alice") => ({
       definition: { name },
       globalArgs: structuredClone(globalArgs.get(name) ?? {}),
       tagOverrides: { initiatedBy },
+      repoDir: repo.dir,
+      repoFiles: repo.files,
       logger: {
         info: (message, props) => {
           logs.push({ message, props });

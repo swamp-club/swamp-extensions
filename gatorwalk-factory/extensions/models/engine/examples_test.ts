@@ -18,7 +18,6 @@ import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
-import { FACTORY_TYPE } from "../_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // The example factory definitions the skill points agents at, under its
@@ -68,16 +67,15 @@ Deno.test("examples: the set of examples is the one listed here", async () => {
 Deno.test("examples: each passes the factory's validate method, with only the explained warnings", async () => {
   for (const file of await examples()) {
     const swamp = fakeSwamp();
-    swamp.definitions.set("team", {
-      globalArguments: parseYaml(
-        await Deno.readTextFile(new URL(file, EXAMPLES)),
-      ),
-      type: FACTORY_TYPE,
-    });
+    // The example's text, as init would copy it.
+    swamp.factory("team", await Deno.readTextFile(new URL(file, EXAMPLES)));
     // validate throws on a schema or graph error, or a truncated analysis.
     await factory.methods.validate.execute({}, swamp.context("team"));
     const summary = String(swamp.logs.at(-1)?.props?.summary);
-    assert(summary.includes("' in 'team' is valid: "), `${file}: ${summary}`);
+    assert(
+      summary.includes("' in factories/team.yaml is valid: "),
+      `${file}: ${summary}`,
+    );
     const warnings = swamp.logs
       .filter((l) => l.message === "{warning}")
       .map((l) => `${l.props?.code} ${String(l.props?.warning).split(":")[0]}`);
