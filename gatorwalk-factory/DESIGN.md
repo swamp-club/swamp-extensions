@@ -9,7 +9,8 @@ the code that carries it out.
 CEL expressions under a stage's `work.bindings`. Prose fields (`systemPrompt`,
 `command`) refer to them by name with `{{name}}` placeholders, which are filled
 when the stage is dispatched. Carried out in
-`extensions/models/_lib/template.ts` and checked in `lifecycle_schema.ts`.
+`extensions/models/_lib/engine/template.ts` and checked in
+`lifecycle_schema.ts`.
 
 ```yaml
 work:
@@ -106,8 +107,8 @@ the work item lives in a single record under the fixed name `run`: current
 stage, entries per stage, the index of recorded products, dispatches, approvals
 and the journal. Product payloads live in their own records (`artifact-<name>`,
 `evidence-<name>`, where `<name>` is declared by the lifecycle), and the run
-record indexes each one's version and digest. Code: `_lib/run_record.ts`,
-`_lib/run_ops.ts`, `_lib/run_store.ts`.
+record indexes each one's version and digest. Code: `_lib/engine/run_record.ts`,
+`_lib/engine/run_ops.ts`, `_lib/engine/run_store.ts`.
 
 ### Why
 
@@ -167,7 +168,8 @@ wrong data.
 
 ## The CEL vocabulary
 
-Bindings, `cel` gates and an approval's `when` see (`_lib/cel_context.ts`):
+Bindings, `cel` gates and an approval's `when` see
+(`_lib/engine/cel_context.ts`):
 
 | Name          | Value                                                       |
 | ------------- | ----------------------------------------------------------- |
@@ -188,10 +190,10 @@ These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...) or
 `evidence` or `validations`; the lifecycle schema rejects it. CEL allows it, and
 the variable would hide the context's value for the rest of the expression,
 which is almost always a mistake. The rule also lets tools that read CEL take
-these names to mean the context's. The list is
-`CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when it
-compiles. Putting the vocabulary under a single prefix would also do this, at
-the cost of changing every lifecycle; that is left for later.
+these names to mean the context's. The list is `CEL_VOCABULARY` in
+`lifecycle_schema.ts`, checked against `CelContext` when it compiles. Putting
+the vocabulary under a single prefix would also do this, at the cost of changing
+every lifecycle; that is left for later.
 
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
@@ -251,8 +253,9 @@ A way back either reads the run data or waits for a person:
 
 A stage may be entered `maxCycles` times, 5 by default, plus once per cycle
 override granted for it. `advance` refuses the entry past that. In
-`swamp-club-swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan` and
-`implement` set 3; `build-swamp-extension.yaml` keeps the default everywhere.
+`swamp-club-swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan`
+and `implement` set 3; `build-swamp-extension.yaml` keeps the default
+everywhere.
 
 Cycle overrides (`grant_override` with `kind=cycle`) are granted by a person.
 They accumulate: every grant in the era counts, and none resets the count. A
@@ -335,14 +338,14 @@ the cycle and dispatch **overrides** granted.
 
 ## Gates and limits
 
-Gates are evaluated by `_lib/gates.ts`. Every gate of a transition is evaluated
-and every failure is returned, each naming the gate, what it needed and what it
-found, so everything in the way is visible at once. Run data that cannot be read
-(a payload failing its digest check) becomes a failure on each gate that needs
-it, never an exception. The status view (`evaluateTransitions`) reports each
-exit's gates **and** the cycle limit of the stage it enters, so it never shows
-as ready a transition that `advance` would refuse; that mismatch is how a
-driving agent gets stuck (#916).
+Gates are evaluated by `_lib/engine/gates.ts`. Every gate of a transition is
+evaluated and every failure is returned, each naming the gate, what it needed
+and what it found, so everything in the way is visible at once. Run data that
+cannot be read (a payload failing its digest check) becomes a failure on each
+gate that needs it, never an exception. The status view (`evaluateTransitions`)
+reports each exit's gates **and** the cycle limit of the stage it enters, so it
+never shows as ready a transition that `advance` would refuse; that mismatch is
+how a driving agent gets stuck (#916).
 
 ### Evidence values: `requireField` and `match`
 
@@ -422,11 +425,11 @@ shell word (#2290). A reset starts a new era, and with it fresh counts.
 ## Graph validation
 
 **Decision.** The schema checks a lifecycle's shape and references when it is
-saved. `_lib/graph.ts` then analyses it as a graph, so an author finds a design
-problem before a work item hits it. The holder's `validate` method runs both:
-graph errors fail it, and warnings are logged one by one. Starting a work item
-runs the schema check only, so a warning, or an error the author has accepted,
-never stops a work item from loading its lifecycle.
+saved. `_lib/engine/graph.ts` then analyses it as a graph, so an author finds a
+design problem before a work item hits it. The holder's `validate` method runs
+both: graph errors fail it, and warnings are logged one by one. Starting a work
+item runs the schema check only, so a warning, or an error the author has
+accepted, never stops a work item from loading its lifecycle.
 
 ### The propulsion rule
 
@@ -495,10 +498,10 @@ one entry, so the breadth-first order always reaches the state with fewer
 entries first. This is exact, not an approximation: the findings are those of
 the full exploration, which the tests keep as the reference. It also bounds the
 count pass by the structural pass, times the counts an inverted gate's stage can
-take. `swamp-club-swamp-extensions.yaml` at the default limits takes 159 count states
-instead of 716,220. A `needs-cycle-override` finding gives the refusal seen in
-the state with the fewest entries, so its message does not depend on the order
-states are explored in.
+take. `swamp-club-swamp-extensions.yaml` at the default limits takes 159 count
+states instead of 716,220. A `needs-cycle-override` finding gives the refusal
+seen in the state with the fewest entries, so its message does not depend on the
+order states are explored in.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration. The
@@ -512,9 +515,8 @@ Errors:
 
 - **`unreachable-stage`:** no path from the initial stage enters the stage.
 - **`dead-end`:** a reachable non-terminal stage from which no transition that
-  can pass leads to a terminal stage.
-  Global transitions count as a way out only if the stage they lead to can
-  itself finish.
+  can pass leads to a terminal stage. Global transitions count as a way out only
+  if the stage they lead to can itself finish.
 - **`gate-never-passes`:** a transition from a reachable stage that no path can
   satisfy, with the gate and the reason. A global transition is judged from each
   stage separately, and the finding names the stage. This includes a transition
@@ -545,9 +547,9 @@ Warnings:
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
   transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
 - **`product-missing-on-path`:** a stage injects, or gates on, an artifact or
-  evidence that some path to it does not produce. A product read only by CEL
-  (a binding, a `cel` gate or an approval's `when`) is not checked yet; that
-  is swamp-club #2792.
+  evidence that some path to it does not produce. A product read only by CEL (a
+  binding, a `cel` gate or an approval's `when`) is not checked yet; that is
+  swamp-club #2792.
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
@@ -629,14 +631,14 @@ Checked on swamp 20260929.151817.0 and in its source at c48ef142
   beside the workflows it nests, which is why swamp-extensions keeps it in
   `verification/`.
 
-`integration/verify_workflow_test.ts` runs the real wrapper on the real engine
-with stub children. It checks that the children overlap and are runs of their
-own, that the wrapper waits for both, and that it fails when either does.
+`integration/engine/verify_workflow_test.ts` runs the real wrapper on the real
+engine with stub children. It checks that the children overlap and are runs of
+their own, that the wrapper waits for both, and that it fails when either does.
 
 ## The model types: a lifecycle holder and work items
 
-**Decision.** Two model types (`extensions/models/lifecycle.ts`, `work_item.ts`,
-logic in `_lib/work_item_ops.ts`):
+**Decision.** Two model types (`extensions/models/engine/lifecycle.ts`,
+`work_item.ts`, logic in `_lib/engine/work_item_ops.ts`):
 
 - A **lifecycle holder** is an instance whose `globalArguments` are a team's
   lifecycle.
@@ -726,11 +728,11 @@ first starts can race. That is accepted for solo use until swamp fixes it.
 ## Summary and metrics
 
 **Decision.** Metrics are a pure function of the run record and its journal
-(`_lib/metrics.ts`), stored as a `metrics` record after every commit. The
+(`_lib/engine/metrics.ts`), stored as a `metrics` record after every commit. The
 `summary` method and the `@swamp/gatorwalk-factory/work-item-summary` report
-render the same data as markdown (`_lib/summary.ts`,
+render the same data as markdown (`_lib/engine/summary.ts`,
 `extensions/reports/work_item_summary_report.ts`). One thing is newly recorded:
-the `awaiting` journal event (`_lib/awaiting.ts`).
+the `awaiting` journal event (`_lib/engine/awaiting.ts`).
 
 ### Why a stored record, not only the report
 
@@ -741,16 +743,16 @@ is written on every commit with no trigger, and one `swamp data query` over
 `name == "metrics"` returns it for every work item. It is derived, so it keeps
 five versions and can always be rebuilt from the run.
 
-It is written after the run record, in `committingStore` (`_lib/run_store.ts`).
-A crash in between leaves it one commit behind, never ahead of the run; it names
-the `journalVersion` it was computed from, and the next commit brings it level.
-A failed metrics write is logged, not thrown, because the change it follows is
-already committed. A terminal work item has no next commit, and one that has not
-committed since metrics were introduced has no record at all, so the
-`rebuild_metrics` method rewrites the record from the run whenever it is missing
-or behind, and writes nothing when it is level. Nothing in it reads the clock: a
-stage or wait still running has a start and a null end, so the same run always
-gives the same metrics.
+It is written after the run record, in `committingStore`
+(`_lib/engine/run_store.ts`). A crash in between leaves it one commit behind,
+never ahead of the run; it names the `journalVersion` it was computed from, and
+the next commit brings it level. A failed metrics write is logged, not thrown,
+because the change it follows is already committed. A terminal work item has no
+next commit, and one that has not committed since metrics were introduced has no
+record at all, so the `rebuild_metrics` method rewrites the record from the run
+whenever it is missing or behind, and writes nothing when it is level. Nothing
+in it reads the clock: a stage or wait still running has a start and a null end,
+so the same run always gives the same metrics.
 
 ### Why `awaiting` is journaled
 
@@ -816,7 +818,7 @@ as one static HTML page and stores it as the holder's `design-page` file
 (`text/html`). The page shows the stage graph, each transition's gates, the
 human stops, each stage's handoff (work mode, what it calls, skills, injected
 context, bindings, result evidence, prompts) and products, and the graph
-analysis's findings with their traces (`_lib/design_page.ts`).
+analysis's findings with their traces (`_lib/engine/design_page.ts`).
 
 **Descriptions, not comments.** The lifecycle, its stages, transitions, gates,
 work, artifacts and evidence each take an optional `description`, and the page
@@ -885,10 +887,11 @@ the same way: it may not apply.
 
 **Decision.** A tracker (Linear, and the swamp-club Lab) is reached only through
 an **adapter**: its own model type, never part of the work item. The contract is
-written once, in `_lib/tracker.ts` and `_lib/tracker_methods.ts`, and each
-tracker is a thin model over it (`extensions/models/linear.ts`, with its client
-in `_lib/linear.ts`; `extensions/models/swamp_club.ts`, with its client in
-`_lib/swamp_club.ts`).
+written once, in `_lib/tracker/core/adapter.ts` and
+`_lib/tracker/core/tracker_methods.ts`, and each tracker is a thin model over it
+(`extensions/models/tracker/linear.ts`, with its client in
+`_lib/tracker/backends/linear.ts`; `extensions/models/tracker/swamp_club.ts`,
+with its client in `_lib/tracker/backends/swamp_club.ts`).
 
 The contract:
 
@@ -985,10 +988,11 @@ get there from where it is (the Lab only moves forward, and a shipped issue
 cannot be closed). A ticket in a status the adapter does not know is plain
 `invalid`, so publish reports it rather than skipping the move. Nothing is
 retried: every write is idempotent through the ledger or by being a no-op, so
-the caller re-runs. `_lib/tracker_conformance.ts` checks this contract the same
-way for every adapter, against that adapter's local fake of its tracker. It
-checks a bad credential on a write (`comment`), not a read: swamp-club serves
-reads to anyone, so a bad key only shows once the adapter writes.
+the caller re-runs. `_lib/tracker/core/tracker_conformance.ts` checks this
+contract the same way for every adapter, against that adapter's local fake of
+its tracker. It checks a bad credential on a write (`comment`), not a read:
+swamp-club serves reads to anyone, so a bad key only shows once the adapter
+writes.
 
 **Known gaps.** The ledger is read, then the tracker is written, then the
 ledger. That relies on swamp running one method at a time per adapter instance,
@@ -999,13 +1003,44 @@ body, searched on retry, would close it if that matters. Ledger records are kept
 by age for a year; a replay of a key older than that would write again. Linear
 status lookup reads up to 250 statuses per team, Linear's page limit.
 
+### The seam
+
+**Decision.** Tracker code lives in gatorwalk-factory, apart from the engine,
+and a test keeps the two apart. The engine is the lifecycle holder, the work
+item and everything under `_lib/engine/`. The tracker is the adapter models in
+`extensions/models/tracker/`, the contract in `_lib/tracker/core/`, and the
+clients and their fakes in `_lib/tracker/backends/`. `boundary_test.ts` holds
+the rules:
+
+- Engine code imports no tracker code. Nothing in the engine knows a tracker
+  exists.
+- Tracker code imports the engine only through `_lib/engine/tracker.ts`, which
+  re-exports exactly what tracker code uses: the run record, the journal types,
+  the pinned lifecycle, the template renderer and a few work-item helpers.
+  Tracker tests may also use `_lib/engine/tracker_testing.ts` (the fakes and the
+  work-item operations they drive) and `integration/harness.ts`.
+- Tracker core imports no backend, so the contract never depends on one tracker.
+- Production code imports no test code, and the surface exports nothing that
+  tracker code does not import.
+
+The same split holds for tests: the integration suite has `engine/`, `tracker/`
+and `extension/`, and only `extension/`, which checks the extension as a whole,
+imports from both sides. Each rule is shown failing on a planted import.
+
+**Why a test, not a package.** A separate tracker extension would have one
+consumer, gatorwalk. It would also have to publish the run record, the journal
+and the pinned lifecycle as a cross-package API, because the tracker reads all
+three. A test gives the same isolation with none of that: an import that crosses
+the line fails the build, and the surface shows in one file exactly what the
+tracker depends on.
+
 ### The projection publisher
 
 **Decision.** `publish` replays one work item's journal to its ticket. It is one
-of the shared methods in `_lib/tracker_methods.ts`, so every adapter has it
-unchanged, and what it says is a pure function of the run and its pinned
-lifecycle (`_lib/projection.ts`). An explicit method now: a scheduled sweep or a
-driver tick can call the same thing later.
+of the shared methods in `_lib/tracker/core/tracker_methods.ts`, so every
+adapter has it unchanged, and what it says is a pure function of the run and its
+pinned lifecycle (`_lib/tracker/core/projection.ts`). An explicit method now: a
+scheduled sweep or a driver tick can call the same thing later.
 
 What it does, in order (step 3 is comments; a lifecycle with entries is
 published as entries instead, below):
@@ -1162,19 +1197,19 @@ to it:
   over. The check is gatorwalk's alone and read-only (`beforeClaim`, a hook the
   shared `claim` calls once the ticket is fetched).
 - **Forked, not shared.** The client is a fork of issue-lifecycle's
-  (`extensions/models/_lib/swamp_club.ts` at the repository root). The two are
-  published as separate packages, so neither can import the other, and
-  issue-lifecycle is left unchanged for now. The fork keeps the endpoints,
-  Bearer auth, the one-step status order, the `auth.json` reader (with its
-  `swamp.club` to `swamp-club.com` rewrite), the credential precedence and the
-  assignee lookup. It differs where the contract asks: the issue number is per
-  call, failures are `TrackerError`s rather than best-effort nulls and warnings,
-  there is no `/healthz` probe, assignment fails loudly, and the stored key
-  stays with its own server. "Own server" compares parsed origins, so case and a
-  default port do not matter. An `auth.json` that is not a JSON object, or has a
-  `serverUrl`, `apiKey` or `username` that is not a string, is an `auth` error;
-  any url on the `swamp.club` host is rewritten. A reply that stalls or breaks
-  off after its headers is `upstream` too.
+  (`extensions/models/_lib/tracker/backends/swamp_club.ts` at the repository
+  root). The two are published as separate packages, so neither can import the
+  other, and issue-lifecycle is left unchanged for now. The fork keeps the
+  endpoints, Bearer auth, the one-step status order, the `auth.json` reader
+  (with its `swamp.club` to `swamp-club.com` rewrite), the credential precedence
+  and the assignee lookup. It differs where the contract asks: the issue number
+  is per call, failures are `TrackerError`s rather than best-effort nulls and
+  warnings, there is no `/healthz` probe, assignment fails loudly, and the
+  stored key stays with its own server. "Own server" compares parsed origins, so
+  case and a default port do not matter. An `auth.json` that is not a JSON
+  object, or has a `serverUrl`, `apiKey` or `username` that is not a string, is
+  an `auth` error; any url on the `swamp.club` host is rewritten. A reply that
+  stalls or breaks off after its headers is `upstream` too.
 - **Known gaps.** swamp-club refuses some payload text (swamp-club#2284: a
   string that begins with a dollar sign, among others). The adapter does not
   guess at those rules; the refusal arrives as `invalid` with swamp-club's own
@@ -1184,11 +1219,12 @@ to it:
 
 ### Start from a ticket
 
-**Decision.** Every adapter has a `claim` method (`_lib/claim.ts`, exposed by
-`trackerMethods`). It keeps a **ticket index** on the adapter instance: one
-`ticket-<stable id>` record per ticket, naming the ticket's current work-item
-key, the lifecycle holder it starts under, and the keys of its earlier, finished
-work items. A ticket finds its work item without scanning every instance.
+**Decision.** Every adapter has a `claim` method (`_lib/tracker/core/claim.ts`,
+exposed by `trackerMethods`). It keeps a **ticket index** on the adapter
+instance: one `ticket-<stable id>` record per ticket, naming the ticket's
+current work-item key, the lifecycle holder it starts under, and the keys of its
+earlier, finished work items. A ticket finds its work item without scanning
+every instance.
 
 `claim` fetches the ticket (by stable id or display identifier), reads its
 record, and reads the named work item's run through swamp's `readModelData`:
@@ -1248,16 +1284,16 @@ types").
 ## Tests on the real engine
 
 **Decision.** Besides the unit tests, which run against fakes
-(`_lib/fake_swamp.ts`, `memoryStore`), an integration suite drives gatorwalk
-through the installed swamp CLI. Each test gets a throwaway repo
+(`_lib/engine/fake_swamp.ts`, `memoryStore`), an integration suite drives
+gatorwalk through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution with `--log`, and reads results back from
 swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
-`integration/cli_test.ts`; `integration/skill_test.ts`, which checks every
-command the driving skill shows and runs its worked example as written; and
-`integration/tracker_test.ts`, which runs the Linear and swamp-club adapters
-with their credentials in a vault made inside the temp repo, against their local
-fakes.
+`integration/engine/cli_test.ts`; `integration/extension/skill_test.ts`, which
+checks every command the driving skill shows and runs its worked example as
+written; and `integration/tracker/tracker_test.ts`, which runs the Linear and
+swamp-club adapters with their credentials in a vault made inside the temp repo,
+against their local fakes.
 
 ### Why
 
@@ -1278,9 +1314,11 @@ flags, so that tests of the pure runtime keep their guarantee: they read files
 and nothing else.
 
 Both commands also have `--allow-net=127.0.0.1`, only because the tracker tests
-serve a local fake of each tracker's API (`_lib/linear_fake.ts`,
-`_lib/swamp_club_fake.ts`) on a free port. Nothing reaches a live service. The
-state piece still makes no network calls; its tests would pass without the flag.
+serve a local fake of each tracker's API
+(`_lib/tracker/backends/linear_fake.ts`,
+`_lib/tracker/backends/swamp_club_fake.ts`) on a free port. Nothing reaches a
+live service. The state piece still makes no network calls; its tests would pass
+without the flag.
 
 What those flags do not limit:
 
@@ -1341,41 +1379,39 @@ GW-8. Dispatch and usage run through the CLI in the summary test.
 ### 2026-09-30: stage templates and apply cut; examples in the skill instead (swamp-club #2767)
 
 **Cut.** The template model type (`@swamp/gatorwalk-factory/template`), the
-lifecycle holder's `apply` method and its `applied-lifecycle` record, the
-stage template format (a `contract` of inputs, outputs, exits and parameters,
-`exit:` transitions, `{ $param }` placeholders), the five starter stage
-templates under `templates/`, and the graph checks only stage templates used
+lifecycle holder's `apply` method and its `applied-lifecycle` record, the stage
+template format (a `contract` of inputs, outputs, exits and parameters, `exit:`
+transitions, `{ $param }` placeholders), the five starter stage templates under
+`templates/`, and the graph checks only stage templates used
 (`exit-unreachable`, contract inputs present from the start).
 
-**Why.** Once triage narrowed it to copy-and-own (#2663, renamed in #2717),
-the feature was one-time scaffolding, and an agent does the same by copying
-YAML and running `validate`. Nothing used it: neither
-`build-swamp-extension.yaml` nor `swamp-club-swamp-extensions.yaml` used a
-template, `apply`, a contract or a `$param`, and the starter templates were
-extracted from those lifecycles, not used to build them. It was about 1,400
-lines of source and 1,800 of tests, plus a public model type and a method
-that would have become API at go-live. Removing it before go-live costs users
-nothing; after go-live it would be a breaking change. No model version was
-bumped: the extension has never been published, so there is nothing to
-upgrade.
+**Why.** Once triage narrowed it to copy-and-own (#2663, renamed in #2717), the
+feature was one-time scaffolding, and an agent does the same by copying YAML and
+running `validate`. Nothing used it: neither `build-swamp-extension.yaml` nor
+`swamp-club-swamp-extensions.yaml` used a template, `apply`, a contract or a
+`$param`, and the starter templates were extracted from those lifecycles, not
+used to build them. It was about 1,400 lines of source and 1,800 of tests, plus
+a public model type and a method that would have become API at go-live. Removing
+it before go-live costs users nothing; after go-live it would be a breaking
+change. No model version was bumped: the extension has never been published, so
+there is nothing to upgrade.
 
 **What replaced it.** Example lifecycles in the skill, under
 `.claude/skills/gatorwalk-factory/references/examples/`: `minimal`, `starter`,
 `build-swamp-extension`, and `swamp-club-swamp-extensions` as a real-world
 example. The skill tells an agent to copy the closest one and run `validate`,
-and `examples_test.ts` runs `validate` on each so none can rot. They live in
-the skill rather than in an `examples/` directory at the extension root
-because the skill is what reaches an agent: `swamp extension pull` installs a
-skill into the skill directory of every agent tool the repository uses, so a
-path relative to the skill works in all of them, whereas files at the
-extension root land under the pulled extension's `files/` directory, which
-the skill cannot name. Push refuses symlinks, so linking one place to the
-other is not an option. `lifecycles/` is gone too: gatorwalk-factory ships
-no lifecycle of its own.
+and `examples_test.ts` runs `validate` on each so none can rot. They live in the
+skill rather than in an `examples/` directory at the extension root because the
+skill is what reaches an agent: `swamp extension pull` installs a skill into the
+skill directory of every agent tool the repository uses, so a path relative to
+the skill works in all of them, whereas files at the extension root land under
+the pulled extension's `files/` directory, which the skill cannot name. Push
+refuses symlinks, so linking one place to the other is not an option.
+`lifecycles/` is gone too: gatorwalk-factory ships no lifecycle of its own.
 
 **What was not kept.** One check only `apply` made: that a contract input read
 only by a CEL binding is produced on every path into the stage template
-(`productsMissingOnEntry`). Its general form, for any lifecycle, is to warn
-when a product only CEL reads is not produced on every path to the reading
-stage. That needs design of its own (which guarded reads count as tolerant)
-and shares a CEL reference walker with #2680, so it is swamp-club #2792.
+(`productsMissingOnEntry`). Its general form, for any lifecycle, is to warn when
+a product only CEL reads is not produced on every path to the reading stage.
+That needs design of its own (which guarded reads count as tolerant) and shares
+a CEL reference walker with #2680, so it is swamp-club #2792.

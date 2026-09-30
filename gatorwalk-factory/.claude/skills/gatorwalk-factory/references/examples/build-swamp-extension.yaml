@@ -26,7 +26,7 @@ description: |-
   equal.
 
   The CEL vocabulary in bindings and cel gates is defined in
-  extensions/models/_lib/cel_context.ts. This lifecycle relies on one rule of
+  extensions/models/_lib/engine/cel_context.ts. This lifecycle relies on one rule of
   it: in CEL, evidence["x"] is the latest record of x in the era from any
   stage, unlike the evidence-recorded gate, which only accepts evidence from
   the current stage and cycle. implement.submit depends on it.

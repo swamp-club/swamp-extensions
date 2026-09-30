@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "check": "deno check extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts integration/*.ts",
+    "check": "deno check extensions/models/ extensions/reports/ integration/",
     "lint": "deno lint extensions/models/ extensions/reports/ integration/",
     "fmt": "deno fmt extensions/models/ extensions/reports/ integration/ testdata/ .claude/skills/",
     "fmt:check": "deno fmt --check extensions/models/ extensions/reports/ integration/ testdata/ .claude/skills/",

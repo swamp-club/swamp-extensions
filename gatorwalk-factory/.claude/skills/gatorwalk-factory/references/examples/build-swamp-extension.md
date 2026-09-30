@@ -16,8 +16,8 @@ Along the way:
 - the person approves the plan and the release.
 
 Every command here is run, in this order and as written, by
-`integration/skill_test.ts` against a real swamp repo. Output is from such a
-run, trimmed to the lines that matter. `<key>` and `<era>` stand for the
+`integration/extension/skill_test.ts` against a real swamp repo. Output is from
+such a run, trimmed to the lines that matter. `<key>` and `<era>` stand for the
 generated work-item key and era; everything else is literal. A reviewer's work
 at the two review stages is shown as the findings it records: the test cannot
 run a subagent.

@@ -16,43 +16,58 @@ adds the manifest and deletes that test.
 
 ```
 extensions/models/
-  lifecycle.ts            the lifecycle holder model type
-  work_item.ts            the work-item model type
-  linear.ts               the Linear tracker adapter model type
-  swamp_club.ts           the swamp-club Lab tracker adapter model type
+  engine/
+    lifecycle.ts          the lifecycle holder model type
+    work_item.ts          the work-item model type
+  tracker/
+    linear.ts             the Linear tracker adapter model type
+    swamp_club.ts         the swamp-club Lab tracker adapter model type
+  boundary_test.ts        the seam: engine and tracker code keep apart
   _lib/
-    lifecycle_schema.ts   the lifecycle meta-schema
-    payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
-    template.ts           {{name}} placeholders in prompts
-    canonical.ts          JSON safety (CEL integers) and content digests
-    journal.ts            journal events and actors
-    run_record.ts         the per-work-item run record
-    run_ops.ts            pure operations: start, record, dispatch, approve,
-                          advance, reset
-    run_store.ts          storage and the commit protocol
-    awaiting.ts           which exits only a person can open, journaled
-    metrics.ts            per-work-item metrics from the run and journal
-    summary.ts            the summary: timeline and metrics as markdown
-    cel_context.ts        the CEL vocabulary for bindings, cel gates and when
-    dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
-    gates.ts              gate evaluation and transition readiness
-    graph.ts              graph analysis of a lifecycle
-    design_page.ts        a lifecycle as a static HTML page
-    work_item_ops.ts      the methods of the holder and work-item types
-    tracker.ts            the tracker adapter contract
-    tracker_methods.ts    the methods every tracker model has, and its ledger
-    tracker_conformance.ts  the contract, checked the same way per adapter
-    claim.ts              start from a ticket: the ticket index and claim
-    linear.ts             the Linear GraphQL client
-    linear_fake.ts        a local fake of Linear's API, for tests
-    swamp_club.ts         the swamp-club Lab REST client
-    swamp_club_fake.ts    a local fake of the Lab API, for tests
-    test_support.ts       shared test fixtures
-    fake_swamp.ts         a fake swamp method context for tests
+    engine/
+      lifecycle_schema.ts   the lifecycle meta-schema
+      payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
+      template.ts           {{name}} placeholders in prompts
+      canonical.ts          JSON safety (CEL integers) and content digests
+      journal.ts            journal events and actors
+      run_record.ts         the per-work-item run record
+      run_ops.ts            pure operations: start, record, dispatch, approve,
+                            advance, reset
+      run_store.ts          storage and the commit protocol
+      awaiting.ts           which exits only a person can open, journaled
+      metrics.ts            per-work-item metrics from the run and journal
+      summary.ts            the summary: timeline and metrics as markdown
+      cel_context.ts        the CEL vocabulary for bindings, cel gates and when
+      dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
+      gates.ts              gate evaluation and transition readiness
+      graph.ts              graph analysis of a lifecycle
+      design_page.ts        a lifecycle as a static HTML page
+      work_item_ops.ts      the methods of the holder and work-item types
+      tracker.ts            the engine as tracker code sees it (the seam)
+      tracker_testing.ts    the same, plus what tracker tests drive
+      test_support.ts       shared test fixtures
+      fake_swamp.ts         a fake swamp method context for tests
+    tracker/
+      core/
+        adapter.ts            the tracker adapter contract
+        tracker_methods.ts    the methods every tracker model has, and its ledger
+        tracker_conformance.ts  the contract, checked the same way per adapter
+        claim.ts              start from a ticket: the ticket index and claim
+        projection.ts         what a ticket shows, from the journal
+        test_support.ts       the projection tests' work item
+      backends/
+        linear.ts             the Linear GraphQL client
+        linear_fake.ts        a local fake of Linear's API, for tests
+        swamp_club.ts         the swamp-club Lab REST client
+        swamp_club_fake.ts    a local fake of the Lab API, for tests
 extensions/reports/
   work_item_summary_report.ts  the summary report, run after `summary`
 integration/              the real-engine suite: gatorwalk through the swamp CLI
-  skill_commands.ts       the skill's commands, pulled out to check and run
+  harness.ts              a throwaway swamp repo per test
+  engine/                 the lifecycle holder and work item
+  tracker/                the adapters against local fakes
+  extension/              the whole extension: model registration and the skill
+    skill_commands.ts     the skill's commands, pulled out to check and run
 .claude/skills/gatorwalk-factory/
   SKILL.md                the skill: how an agent drives a work item
   references/             driving in full
@@ -100,13 +115,13 @@ artifacts, evidence, transitions and gates. Three things change:
 - **The lifecycle is analysed as a graph** by `validate`. Errors are stages that
   cannot be reached, stages with no way to a terminal stage, transitions whose
   gates can never pass (such as `evidence-recorded` on evidence another stage
-  records). They fail `validate`.
-  Warnings are logged: exits that can pass together with no person choosing,
-  loops whose only way out is a global transition such as `abandon`, loops
-  bounded only by the default cycle limit, products that some path to a stage
-  does not produce, and transitions only a cycle override opens. Each finding
-  gives its path, the stage it is judged from, and a trace of stages from the
-  initial stage. See [DESIGN.md](DESIGN.md), "Graph validation".
+  records). They fail `validate`. Warnings are logged: exits that can pass
+  together with no person choosing, loops whose only way out is a global
+  transition such as `abandon`, loops bounded only by the default cycle limit,
+  products that some path to a stage does not produce, and transitions only a
+  cycle override opens. Each finding gives its path, the stage it is judged
+  from, and a trace of stages from the initial stage. See
+  [DESIGN.md](DESIGN.md), "Graph validation".
 - **A stage may name a tracker status key**, `projection: { status: <key> }`,
   new in gatorwalk. When a work item enters the stage, the projection publisher
   moves its ticket to the status the tracker adapter's `statuses` argument maps
@@ -161,15 +176,15 @@ copy into a holder and change, under
 `.claude/skills/gatorwalk-factory/references/examples/`, so they reach every
 agent the skill is installed for. Each opens with a comment saying what it is
 for and what to change first, and each passes `validate`
-(`extensions/models/examples_test.ts`):
+(`extensions/models/engine/examples_test.ts`):
 
 - `minimal.yaml`: one stage of work, then done.
 - `starter.yaml`: a general change, from plan through plan review, implement,
   verify and code review to release.
 - `build-swamp-extension.yaml` and `swamp-club-swamp-extensions.yaml`, below.
 
-`build-swamp-extension.yaml` takes a change to a swamp extension from
-plan to release:
+`build-swamp-extension.yaml` takes a change to a swamp extension from plan to
+release:
 
 ```
 plan → plan-review → implement → check → code-review → release → done
@@ -194,9 +209,8 @@ plan → plan-review → implement → check → code-review → release → don
 This is the tier 1 lifecycle and gatorwalk-factory's own process.
 
 `swamp-club-swamp-extensions.yaml` is a real-world example, to read rather than
-copy whole: the process this repository runs with
-`@swamp/issue-lifecycle` and its verification conventions, from a Lab issue to
-the session summary:
+copy whole: the process this repository runs with `@swamp/issue-lifecycle` and
+its verification conventions, from a Lab issue to the session summary:
 
 ```
 triage → [reproduce] → plan → plan-review → implement → conformance-review
@@ -225,12 +239,11 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
 
 These two and `starter.yaml` name a status key on their stages, using the Lab's
 own status names: the planning stages are `triaged`
-(swamp-club-swamp-extensions' `triage` stage has
-no key, so the issue's status is left alone while it is triaged), the work
-through release is `in_progress`, `done` is `shipped` (in
-swamp-club-swamp-extensions, also
-`notify` and `summary`), and `abandoned` is `closed`. The Lab adapter maps them
-as they are; a Linear instance maps them to its team's names.
+(swamp-club-swamp-extensions' `triage` stage has no key, so the issue's status
+is left alone while it is triaged), the work through release is `in_progress`,
+`done` is `shipped` (in swamp-club-swamp-extensions, also `notify` and
+`summary`), and `abandoned` is `closed`. The Lab adapter maps them as they are;
+a Linear instance maps them to its team's names.
 
 `swamp-club-swamp-extensions.md` is not a lifecycle. It maps every phase, gate
 and human stop of today's process onto the format, and lists what the format
@@ -426,7 +439,7 @@ must stop for a person, and what to do when a write is refused. It is tracked
 here and ships with the extension at go-live. To use it in another repo before
 then, link the directory into that repo's `.claude/skills/`.
 
-`integration/skill_test.ts` keeps it honest: every command the skill shows must
-name a real method with inputs it accepts, and the worked example
+`integration/extension/skill_test.ts` keeps it honest: every command the skill
+shows must name a real method with inputs it accepts, and the worked example
 (`references/examples/build-swamp-extension.md`) runs, as written, from start to
 done on the real engine.

@@ -36,7 +36,7 @@ description: |-
   bound to the commit named in change-summary, the commit that was reviewed
   and verified. Commits are full 40-character SHAs.
 
-  The CEL vocabulary is in extensions/models/_lib/cel_context.ts. In CEL,
+  The CEL vocabulary is in extensions/models/_lib/engine/cel_context.ts. In CEL,
   evidence["x"] is the latest record of x in the era from any stage, unlike
   the evidence-recorded gate, which only accepts evidence from the current
   stage and cycle. implement.submit and attest.attested depend on it.

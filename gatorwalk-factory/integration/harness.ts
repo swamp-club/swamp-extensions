@@ -16,17 +16,15 @@
 
 import { fromFileUrl } from "@std/path";
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
-import { expectedOf } from "../extensions/models/_lib/run_ops.ts";
+import { expectedOf } from "../extensions/models/_lib/engine/run_ops.ts";
 import {
   parseRun,
   type RunRecord,
-} from "../extensions/models/_lib/run_record.ts";
-import { LINEAR_TYPE } from "../extensions/models/_lib/linear.ts";
-import { SWAMP_CLUB_TYPE } from "../extensions/models/_lib/swamp_club.ts";
+} from "../extensions/models/_lib/engine/run_record.ts";
 import {
   HOLDER_TYPE,
   WORK_ITEM_TYPE,
-} from "../extensions/models/_lib/work_item_ops.ts";
+} from "../extensions/models/_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // A harness that drives gatorwalk-factory through the installed swamp CLI,
@@ -59,7 +57,7 @@ export const VERIFY_WORKFLOW = new URL(
   import.meta.url,
 );
 
-export { HOLDER_TYPE, LINEAR_TYPE, SWAMP_CLUB_TYPE, WORK_ITEM_TYPE };
+export { HOLDER_TYPE, WORK_ITEM_TYPE };
 
 // The only inherited SWAMP_ variable kept. SWAMP_HOME relocates swamp's user
 // directory (config, stored login, and the runtime that loads extensions),
@@ -331,4 +329,56 @@ async function openRepo(dir: string): Promise<SwampRepo> {
       };
     },
   };
+}
+
+// --- commands as the skill writes them -------------------------------------
+
+const PLACEHOLDER = /^<[a-z][a-z0-9-]*>/;
+
+/** Split one command into words; throws on shell syntax the skill must not use. */
+export function splitWords(text: string): string[] {
+  const words: string[] = [];
+  let word: string | null = null;
+  let i = 0;
+  const append = (s: string) => {
+    word = (word ?? "") + s;
+  };
+  while (i < text.length) {
+    const c = text[i];
+    if (c === " " || c === "\t" || c === "\n") {
+      if (word !== null) words.push(word);
+      word = null;
+      i++;
+    } else if (c === "'") {
+      const end = text.indexOf("'", i + 1);
+      if (end < 0) throw new Error("unterminated single quote");
+      append(text.slice(i + 1, end));
+      i = end + 1;
+    } else if (c === '"') {
+      let j = i + 1;
+      let s = "";
+      while (j < text.length && text[j] !== '"') {
+        if (text[j] === "$" || text[j] === "`") {
+          throw new Error(`'${text[j]}' inside double quotes needs a shell`);
+        }
+        if (text[j] === "\\" && '"\\'.includes(text[j + 1] ?? "")) j++;
+        s += text[j];
+        j++;
+      }
+      if (j >= text.length) throw new Error("unterminated double quote");
+      append(s);
+      i = j + 1;
+    } else if (c === "<" && PLACEHOLDER.test(text.slice(i))) {
+      const m = text.slice(i).match(PLACEHOLDER)!;
+      append(m[0]);
+      i += m[0].length;
+    } else if ("$`|&;<>()\\*?".includes(c)) {
+      throw new Error(`'${c}' needs a shell; the skill's commands must not`);
+    } else {
+      append(c);
+      i++;
+    }
+  }
+  if (word !== null) words.push(word);
+  return words;
 }

@@ -70,7 +70,7 @@ groups:
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
       - dir: gatorwalk-factory
         vars:
-          check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts integration/*.ts
+          check: extensions/models/ extensions/reports/ integration/
           paths: extensions/models/ extensions/reports/ integration/
         commands:
           # The skill's markdown is format-checked too. It has its own

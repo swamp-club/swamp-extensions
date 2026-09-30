@@ -1,8 +1,8 @@
 # Driving a gatorwalk work item
 
 How to take a work item from start to done with the two gatorwalk-factory model
-types. Every command here is checked by `integration/skill_test.ts`: each names
-a real method with inputs its schema accepts. The worked example,
+types. Every command here is checked by `integration/extension/skill_test.ts`:
+each names a real method with inputs its schema accepts. The worked example,
 [examples/build-swamp-extension.md](examples/build-swamp-extension.md), runs a
 whole work item as written.
 

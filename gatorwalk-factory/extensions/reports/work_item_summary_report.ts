@@ -26,15 +26,15 @@
  * @module
  */
 
-import { parseRun } from "../models/_lib/run_record.ts";
-import { buildSummary } from "../models/_lib/summary.ts";
+import { parseRun } from "../models/_lib/engine/run_record.ts";
+import { buildSummary } from "../models/_lib/engine/summary.ts";
 import {
   checkPinned,
   LIFECYCLE_NAME,
   typeNameOf,
   WORK_ITEM_TYPE,
-} from "../models/_lib/work_item_ops.ts";
-import { RUN_NAME } from "../models/_lib/run_store.ts";
+} from "../models/_lib/engine/work_item_ops.ts";
+import { RUN_NAME } from "../models/_lib/engine/run_store.ts";
 
 /** The slice of swamp's MethodReportContext this report reads. */
 export interface ReportContext {

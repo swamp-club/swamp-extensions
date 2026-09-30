@@ -16,9 +16,12 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { report, type ReportContext } from "./work_item_summary_report.ts";
-import { model } from "../models/work_item.ts";
-import { type FakeSwamp, fakeSwamp } from "../models/_lib/fake_swamp.ts";
-import { settableEnv, stopsDefinition } from "../models/_lib/test_support.ts";
+import { model } from "../models/engine/work_item.ts";
+import { type FakeSwamp, fakeSwamp } from "../models/_lib/engine/fake_swamp.ts";
+import {
+  settableEnv,
+  stopsDefinition,
+} from "../models/_lib/engine/test_support.ts";
 import {
   advanceMethod,
   describeStatus,
@@ -27,7 +30,7 @@ import {
   startWorkItem,
   summary,
   WORK_ITEM_TYPE,
-} from "../models/_lib/work_item_ops.ts";
+} from "../models/_lib/engine/work_item_ops.ts";
 
 const ITEM = "stops-abcdefgh";
 
