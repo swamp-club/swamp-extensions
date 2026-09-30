@@ -28,8 +28,9 @@ triage ─┬─ bug ─────────→ reproduce ─┐
 
 Loops back: reproduce to triage (reclassify); plan-review to plan (rework,
 revise); conformance-review, verify, attest and merge to implement; merge to
-pull-request (a new PR); implement straight to verify (recheck). `abandon` is
-open from every stage.
+pull-request (a new PR); implement straight to verify (recheck). Forward: attest
+and merge straight to notify (`complete`, a person's choice). `abandon` is open
+from every stage.
 
 ### Phases
 
@@ -48,7 +49,9 @@ open from every stage.
 | `post_attestation`                                   | `attest` stage: posted through the adapter's `post_attestation`, `attestation` evidence carrying the id it returns | Fits; CI checks the attestation, as today      |
 | `link_pr` → `pr_open`                                | `pull-request` stage, `pull-request` evidence                                                                      | Fits                                           |
 | `pr_merged` → `releasing`, `pr_failed` → `pr_failed` | `merge` stage, `merge` evidence `merged` or `failed`; failed has two manual exits, a new PR or back to `implement` | Fits                                           |
-| `ship`, `complete` → `notify`                        | `release` stage, `release` evidence `shipped` or `completed`                                                       | Partial: `complete` from other phases (gap 6)  |
+| `ship`, `complete` → `notify`                        | `release` stage, `release` evidence `shipped` or `completed`; `complete` from other phases: see below              | Fits                                           |
+| `complete` from `implementing` → `notify`            | `attest.complete`, manual: conformance and verification clear at the `change-summary` commit                       | Fits (gap 6); posts no `complete` entry        |
+| `complete` from `pr_open` → `notify`                 | `merge.complete`, manual: the same gates, and no merge outcome recorded for the open pull request                  | Fits (gap 6); posts no `complete` entry        |
 | `notify`, `skip_notify` → `summarizing`              | `notify` stage: the adapter's `thank_author`, `notification` evidence `posted` or `skipped`                        | Fits                                           |
 | `summarize` → `done`                                 | `summary` stage, `summary` artifact, then `done`                                                                   | Fits                                           |
 | `start` from any phase (a restart)                   | `reset`                                                                                                            | Partial (gap 7)                                |
@@ -56,16 +59,16 @@ open from every stage.
 
 ### Gates (issue-lifecycle's pre-flight checks)
 
-| Check                      | Where it applies         | gatorwalk                                                                                                                                                                  |
-| -------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `valid-transition`         | every method             | The stage graph: a transition exists only from its stage                                                                                                                   |
-| `plan-exists`              | `approve`                | `plan.submit` needs `artifact-exists` `plan`                                                                                                                               |
-| `adversarial-review-clear` | `approve`                | `artifact-fresh` `plan-review` (recorded this cycle, so it reviews the current plan) plus `findings-clear` on critical and high                                            |
-| `plan-approved`            | `implement`              | `human-approval` `plan-approval` on the only way into `implement` from planning                                                                                            |
-| `code-conformance-clear`   | `link_pr`, `complete`    | `conformance-review.conforms`: a fresh review, and a `cel` gate that every step not `implemented` has a justification. Checked before verification, as the skill orders it |
-| `verification-clear`       | `link_pr`, `complete`    | `verify.passed`: `evidence-recorded` `status: succeeded`, and `cel` gates binding it to the `change-summary` commit and requiring both children to have succeeded          |
-| `attestation-clear`        | `link_pr`                | `attest.attested`: `evidence-recorded` `attestation`, bound by `cel` to the commit and to both child verify runs                                                           |
-| `pr-cooldown` (3 minutes)  | `pr_merged`, `pr_failed` | `cooldown` of 180 seconds after the `pull-request` evidence, on every `merge` exit                                                                                         |
+| Check                      | Where it applies         | gatorwalk                                                                                                                                                                                                                                |
+| -------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `valid-transition`         | every method             | The stage graph: a transition exists only from its stage                                                                                                                                                                                 |
+| `plan-exists`              | `approve`                | `plan.submit` needs `artifact-exists` `plan`                                                                                                                                                                                             |
+| `adversarial-review-clear` | `approve`                | `artifact-fresh` `plan-review` (recorded this cycle, so it reviews the current plan) plus `findings-clear` on critical and high                                                                                                          |
+| `plan-approved`            | `implement`              | `human-approval` `plan-approval` on the only way into `implement` from planning                                                                                                                                                          |
+| `code-conformance-clear`   | `link_pr`, `complete`    | `conformance-review.conforms`: a fresh review, and a `cel` gate that every step not `implemented` has a justification. Checked before verification, as the skill orders it. `attest.complete` and `merge.complete` repeat the `cel` gate |
+| `verification-clear`       | `link_pr`, `complete`    | `verify.passed`: `evidence-recorded` `status: succeeded`, and `cel` gates binding it to the `change-summary` commit and requiring both children to have succeeded. `attest.complete` and `merge.complete` repeat the `cel` gates         |
+| `attestation-clear`        | `link_pr`                | `attest.attested`: `evidence-recorded` `attestation`, bound by `cel` to the commit and to both child verify runs                                                                                                                         |
+| `pr-cooldown` (3 minutes)  | `pr_merged`, `pr_failed` | `cooldown` of 180 seconds after the `pull-request` evidence, on every `merge` exit but `complete`, as issue-lifecycle's `complete` has none                                                                                              |
 
 Every exit past `implement` is bound to the commit named in `change-summary`,
 the commit that was reviewed. `implement.submit` refuses a commit that
@@ -145,7 +148,14 @@ issue-lifecycle's `assigned` comes from the adapter's `assign`, not the journal.
 It has no entry for entering `reproduce`, for waiting on a person, for a reset
 or for a declined approval, and none of those posts one here.
 `findings_resolved` and `deviations_justified` have no gatorwalk event: a
-finding is resolved by recording the review again.
+finding is resolved by recording the review again. `attest.complete` and
+`merge.complete` post no `complete` entry: an entry comes from entering a stage
+or recording a product, never from taking a transition, and neither exit records
+anything. Entering `notify` still moves the issue to `shipped`, as
+issue-lifecycle's `complete` does. The thank-you links a pull request only when
+it is for the `change-summary` commit, so after `attest.complete` it links none,
+even when an earlier round's pull request failed; issue-lifecycle links
+whichever it has.
 
 ## Format gaps
 
@@ -184,11 +194,21 @@ Candidates for issues. A resolved gap says so and keeps its number.
    `not` of those. Triage keeps one exit per type, as issue-lifecycle names
    them, and "confidence is not low" is a `match` gate carrying the old message.
    Kept here so the numbering the other gaps are cited by stays.
-6. **The `complete` shortcut.** issue-lifecycle's `complete` goes straight to
-   `notify` from `implementing`, `pr_open` or `releasing`. Only the `releasing`
-   case is kept (`release` evidence `completed`). A shortcut from several stages
-   to one would be a global transition, and a global transition cannot require
-   stage-specific evidence.
+6. **The `complete` shortcut.** Resolved by swamp-club #2732, as decided on
+   #2668: one manual exit per stage, with no new format construct.
+   issue-lifecycle's `complete` goes straight to `notify` from `implementing`,
+   `pr_open` or `releasing`. A global transition cannot require stage-specific
+   evidence, so each case is its own exit, gated by `cel` on conformance and
+   verification being clear at the `change-summary` commit. `implementing`
+   covers what gatorwalk splits into `implement`, `conformance-review` and
+   `verify`; the exit is `attest.complete`, the first stage where both are clear
+   and the person has confirmed the checklist. `pr_open` is `merge`, entered
+   when the `pull-request` evidence (issue-lifecycle's `link_pr`) is recorded;
+   `merge.complete` also needs no merge outcome recorded yet, since a merged or
+   failed pull request has left `pr_open`. `releasing` stays `release.released`
+   with `completed`. The exits post no `complete` entry (see
+   [Lifecycle entries](#lifecycle-entries)). Kept here so the numbering the
+   other gaps are cited by stays.
 7. **Restarting is not the same.** issue-lifecycle's `start` puts any phase back
    to triaging and keeps what was recorded. gatorwalk's `reset` starts a new
    era, in which nothing recorded before is visible. Going back to triage with
@@ -202,5 +222,6 @@ Candidates for issues. A resolved gap says so and keeps its number.
    for 11,132 states. The count pass now drops a state when another at the same
    stage, with the same stages entered, has no more entries into any stage
    (DESIGN.md, "What the analysis assumes"). It finishes this lifecycle at the
-   default limits in 119 states, with the same findings. Kept here so the
-   numbering the other gaps are cited by stays.
+   default limits in 119 states, with the same findings (159 once gap 6 added
+   the `complete` exits). Kept here so the numbering the other gaps are cited by
+   stays.

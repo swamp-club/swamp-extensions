@@ -1099,7 +1099,7 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on eve
 });
 
 Deno.test("graph: swamp-extensions at the default cycle limits finishes under the cap", async () => {
-  // Without pruning this is 506,220 count states, past the 100,000 cap.
+  // Without pruning this is 716,220 count states, past the 100,000 cap.
   const raw = parseYaml(
     await Deno.readTextFile(new URL("lifecycles/swamp-extensions.yaml", ROOT)),
   ) as { stages: { maxCycles?: number }[] };

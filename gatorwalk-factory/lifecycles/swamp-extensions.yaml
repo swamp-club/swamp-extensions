@@ -18,7 +18,8 @@
 #
 # People decide at: a bug that cannot be reproduced, plan approval, the
 # verification checklist, opening the pull request, what to do after a
-# failed pull request, and abandoning the work. Every exit past implement is
+# failed pull request, completing the work early (issue-lifecycle's complete,
+# from attest or merge), and abandoning the work. Every exit past implement is
 # bound to the commit named in change-summary, the commit that was reviewed
 # and verified. Commits are full 40-character SHAs.
 #
@@ -668,6 +669,46 @@ stages:
         description: >-
           The person did not want the pull request opened for this commit.
           Manual, so it never fires on its own.
+      - name: complete
+        to: notify
+        manual: true
+        description: >-
+          issue-lifecycle's complete from implementing: the work is done
+          without a pull request. A person decides. issue-lifecycle requires
+          conformance and verification to be clear, which here they are once
+          the checklist is confirmed; the gates check them again at the
+          change-summary commit.
+        gates:
+          - type: cel
+            config:
+              expr: >-
+                "conformance" in artifacts &&
+                artifacts["conformance"].payload.steps.all(s,
+                s.status == "implemented" || has(s.justification))
+              message: >-
+                complete needs a conformance review in which every step not
+                implemented as planned has a justification
+          - type: cel
+            config:
+              expr: >-
+                "verification" in evidence && "change-summary" in artifacts &&
+                evidence["verification"].payload.status == "succeeded" &&
+                evidence["verification"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: >-
+                complete needs verification to have passed on the
+                change-summary commit
+          - type: cel
+            config:
+              expr: >-
+                "verification" in evidence &&
+                evidence["verification"].payload.buildStatus == "succeeded" &&
+                evidence["verification"].payload.reviewsStatus == "succeeded"
+                && "buildRunId" in evidence["verification"].payload &&
+                "reviewsRunId" in evidence["verification"].payload
+              message: >-
+                complete needs both verify-build and verify-reviews to have
+                succeeded, with their run ids
 
   - id: pull-request
     projection:
@@ -782,6 +823,55 @@ stages:
             config: { name: merge, requireField: { status: failed } }
           - type: cooldown
             config: { afterEvidence: pull-request, seconds: 180 }
+      - name: complete
+        to: notify
+        manual: true
+        description: >-
+          issue-lifecycle's complete from pr_open: the pull request is open
+          and a person decides the work is done. Not once a merge outcome is
+          recorded for it: issue-lifecycle has left pr_open by then (a merged
+          one goes on to release, a failed one to new-pr or rework). No
+          cooldown, as issue-lifecycle's complete checks no pull request
+          status.
+        gates:
+          - type: cel
+            config:
+              expr: >-
+                !("merge" in evidence) || evidence["merge"].stage != "merge"
+                || evidence["merge"].cycle != stage.cycle
+              message: >-
+                complete is for an open pull request; a merge outcome is
+                already recorded for this one
+          - type: cel
+            config:
+              expr: >-
+                "conformance" in artifacts &&
+                artifacts["conformance"].payload.steps.all(s,
+                s.status == "implemented" || has(s.justification))
+              message: >-
+                complete needs a conformance review in which every step not
+                implemented as planned has a justification
+          - type: cel
+            config:
+              expr: >-
+                "verification" in evidence && "change-summary" in artifacts &&
+                evidence["verification"].payload.status == "succeeded" &&
+                evidence["verification"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: >-
+                complete needs verification to have passed on the
+                change-summary commit
+          - type: cel
+            config:
+              expr: >-
+                "verification" in evidence &&
+                evidence["verification"].payload.buildStatus == "succeeded" &&
+                evidence["verification"].payload.reviewsStatus == "succeeded"
+                && "buildRunId" in evidence["verification"].payload &&
+                "reviewsRunId" in evidence["verification"].payload
+              message: >-
+                complete needs both verify-build and verify-reviews to have
+                succeeded, with their run ids
 
   - id: release
     projection:
@@ -853,7 +943,9 @@ stages:
       mode: interactive
       systemPrompt: |
         Run the swamp-club adapter's thank_author with the issue, summary
-        and prUrl values you are given. The summary is free text, so never
+        and prUrl values you are given; leave prUrl out when it is null (no
+        pull request for this commit, after complete from attest). The
+        summary is free text, so never
         paste it into a shell line: write the three as a JSON object to a
         file with your file tool and run swamp model method run <adapter>
         thank_author --input-file <that file> --log. It checks the author
@@ -866,7 +958,13 @@ stages:
       bindings:
         issue: item.externalRefs["swamp-club"]
         summary: artifacts["plan"].payload.summary
-        prUrl: evidence["pull-request"].payload.url
+        # Only the pull request for the change-summary commit: attest.complete
+        # reaches notify with none, or with one from an earlier, failed round.
+        prUrl: >-
+          "pull-request" in evidence && "change-summary" in artifacts &&
+          evidence["pull-request"].payload.commit ==
+          artifacts["change-summary"].payload.commit
+          ? evidence["pull-request"].payload.url : null
     evidence:
       - name: notification
         schema:

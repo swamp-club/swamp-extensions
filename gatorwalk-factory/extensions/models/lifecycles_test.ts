@@ -29,7 +29,12 @@ import {
   validatePayload,
 } from "./_lib/payload_schema.ts";
 import type { Json } from "./_lib/canonical.ts";
-import { buildCelContext, evaluateCel } from "./_lib/cel_context.ts";
+import {
+  buildCelContext,
+  type CelContext,
+  evaluateCel,
+} from "./_lib/cel_context.ts";
+import { buildDispatch } from "./_lib/dispatch.ts";
 import { makeGateEvaluator } from "./_lib/gates.ts";
 import { analyzeLifecycle, formatFinding } from "./_lib/graph.ts";
 import {
@@ -792,9 +797,9 @@ Deno.test("swamp-extensions: the stages, in order", async () => {
 });
 
 Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
-  // Measured at 119 structural and 119 count states at the default cycle
-  // limit of 5. Before the count pass pruned dominated states it needed
-  // 506,220 there, past its cap (swamp-extensions.md, gap 8).
+  // Measured at 159 structural and 159 count states at the default cycle
+  // limit of 5. Without the count pass pruning dominated states it needs
+  // 716,220 there, past its cap (swamp-extensions.md, gap 8).
   const report = analyzeLifecycle(await load(SWX));
   assert(!report.truncated);
   assert(
@@ -913,6 +918,8 @@ Deno.test("swamp-extensions: every exit from verification to the merge is bound 
   bound("verify", "passed");
   bound("attest", "attested");
   bound("pull-request", "opened");
+  bound("attest", "complete");
+  bound("merge", "complete");
 });
 
 Deno.test("swamp-extensions: a person can always send the work back without abandoning it", async () => {
@@ -1316,6 +1323,8 @@ Deno.test("swamp-extensions: a bug walks triage to done through the real gates, 
   assertEquals(results.get("verify.passed"), true);
   assertEquals(results.get("attest.attested"), true);
   assertEquals(results.get("pull-request.opened"), true);
+  assertEquals(results.get("attest.complete"), true);
+  assertEquals(results.get("merge.complete"), true);
 });
 
 Deno.test("swamp-extensions: a regression claim waits for regression-review whatever its verdict; a plain bug does not", async () => {
@@ -1376,7 +1385,10 @@ Deno.test("swamp-extensions: a failed pull request goes to a new PR or back to i
       ),
     );
   }
-  for (const t of merge) {
+  // The exits that act on the merge outcome wait for CI. complete does not:
+  // it is for an open pull request, and issue-lifecycle's complete checks no
+  // pull request status.
+  for (const t of merge.filter((t) => t.name !== "complete")) {
     assert(
       (t.gates ?? []).some((g) =>
         g.type === "cooldown" && g.config.seconds === 180 &&
@@ -1384,5 +1396,288 @@ Deno.test("swamp-extensions: a failed pull request goes to a new PR or back to i
       ),
       `${t.name} does not wait for CI`,
     );
+  }
+});
+
+// issue-lifecycle's complete from implementing and from pr_open (gap 6): a
+// manual exit to notify from attest and from merge.
+
+/** Walk a feature to attest through the real gates, verified at SHA. */
+async function walkToAttest(lifecycle: Lifecycle, env: Env) {
+  const driven = await drive(lifecycle, env);
+  const move = async (transition: string, manual = false) => {
+    assertEquals(await driven.tryMove(transition, manual), null, transition);
+  };
+  await driven.record("evidence", "classification", {
+    type: "feature",
+    confidence: "high",
+    reasoning: "A new exit",
+  });
+  await move("feature");
+  await driven.record("artifact", "plan", SWX_PLAN);
+  await move("submit");
+  await driven.record("artifact", "plan-review", {
+    findings: [{
+      id: "ADV-1",
+      severity: "low",
+      category: "test-fidelity",
+      description: "Naming",
+    }],
+  });
+  await driven.approve("plan-approval");
+  await move("approve");
+  await driven.record("artifact", "change-summary", changeSummary(SHA));
+  await move("submit");
+  await driven.record("artifact", "conformance", {
+    steps: [{
+      order: 1,
+      status: "deviated",
+      description: "Retry on 5xx",
+      justification: "502 fails the same way",
+    }],
+  });
+  await move("conforms");
+  await driven.record("evidence", "verification", {
+    status: "succeeded",
+    runId: "w1",
+    commit: SHA,
+    buildStatus: "succeeded",
+    buildRunId: "b1",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "v1",
+  });
+  await driven.approve("checklist-confirmed");
+  await move("passed");
+  return { ...driven, move };
+}
+
+/** The prUrl notify dispatches with; the packet must be ready. */
+async function notifyPrUrl(
+  lifecycle: Lifecycle,
+  store: ReturnType<typeof memoryStore>,
+): Promise<Json | undefined> {
+  const run = await loadRun(store);
+  assert(run !== null);
+  assertEquals(run.stage, "notify");
+  const packet = buildDispatch(
+    lifecycle,
+    run,
+    await buildCelContext(run, store),
+  );
+  assert(packet.ready, JSON.stringify(packet));
+  return packet.values.prUrl;
+}
+
+Deno.test("swamp-extensions: complete from attest after a failed pull request links no pull request", async () => {
+  // The failed pull request was for an earlier commit; the thank-you must not
+  // call it merged.
+  const lifecycle = await load(SWX);
+  const { env, wait } = movableEnv();
+  const { store, record, approve, move } = await walkToAttest(lifecycle, env);
+  await record("evidence", "attestation", {
+    attestationId: "a-1",
+    commit: SHA,
+    buildRunId: "b1",
+    reviewsRunId: "v1",
+  });
+  await approve("open-pr");
+  await move("attested");
+  await record("evidence", "pull-request", { url: PR_URL, commit: SHA });
+  await move("opened");
+  await record("evidence", "merge", { status: "failed", reason: "The code" });
+  wait(180);
+  await move("rework", true);
+  await record("artifact", "change-summary", changeSummary(SHA_2));
+  await move("submit");
+  await record("artifact", "conformance", {
+    steps: [{ order: 1, status: "implemented", description: "Retry added" }],
+  });
+  await move("conforms");
+  await record("evidence", "verification", {
+    status: "succeeded",
+    runId: "w2",
+    commit: SHA_2,
+    buildStatus: "succeeded",
+    buildRunId: "b2",
+    reviewsStatus: "succeeded",
+    reviewsRunId: "v2",
+  });
+  await approve("checklist-confirmed");
+  await move("passed");
+  await move("complete", true);
+  assertEquals(await notifyPrUrl(lifecycle, store), null);
+});
+
+Deno.test("swamp-extensions: complete leaves attest and merge for notify, by a person's choice, and the release case stays", async () => {
+  const lifecycle = await load(SWX);
+  for (const stageId of ["attest", "merge"]) {
+    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+      t.name === "complete"
+    );
+    assert(t !== undefined, `no ${stageId}.complete`);
+    assertEquals([t.to, t.manual], ["notify", true], stageId);
+    const gates = t.gates ?? [];
+    const cel = gates.flatMap((g) => g.type === "cel" ? [g.config.expr] : []);
+    assert(
+      cel.some((e) => e.includes('artifacts["conformance"]')),
+      `${stageId}.complete does not require conformance`,
+    );
+    assert(
+      cel.some((e) => e.includes('evidence["verification"].payload.status')),
+      `${stageId}.complete does not require verification`,
+    );
+    // Manual is the person's decision; issue-lifecycle's complete has no
+    // approval and no cooldown.
+    assertEquals(
+      gates.filter((g) => g.type === "human-approval" || g.type === "cooldown"),
+      [],
+      stageId,
+    );
+  }
+  assertEquals(
+    (stage(lifecycle, "release").transitions ?? []).map((t) => [t.name, t.to]),
+    [["released", "notify"]],
+  );
+});
+
+Deno.test("swamp-extensions: complete from attest goes to notify and on to done, once a person confirms it", async () => {
+  const lifecycle = await load(SWX);
+  const { store, record, tryMove, move } = await walkToAttest(
+    lifecycle,
+    movableEnv().env,
+  );
+  assert(
+    (await tryMove("complete"))?.includes("a person must confirm it"),
+    "complete moved without a person",
+  );
+  await move("complete", true);
+  // notify dispatches with no pull request to link.
+  assertEquals(await notifyPrUrl(lifecycle, store), null);
+  await record("evidence", "notification", {
+    action: "skipped",
+    author: "swamp-team",
+    reason: "on the swamp-club team",
+  });
+  await move("notified");
+  await record("artifact", "summary", {
+    originalProblem: "No complete shortcut",
+    deliveredOutcome: "Completed without a pull request",
+    outcomeMet: true,
+  });
+  await move("finish");
+  assertEquals((await loadRun(store))?.stage, "done");
+});
+
+Deno.test("swamp-extensions: complete from merge is for an open pull request, with no cooldown", async () => {
+  const lifecycle = await load(SWX);
+  const toMerge = async () => {
+    const { env, wait } = movableEnv();
+    const driven = await walkToAttest(lifecycle, env);
+    await driven.record("evidence", "attestation", {
+      attestationId: "a-1",
+      commit: SHA,
+      buildRunId: "b1",
+      reviewsRunId: "v1",
+    });
+    await driven.approve("open-pr");
+    await driven.move("attested");
+    await driven.record("evidence", "pull-request", {
+      url: PR_URL,
+      commit: SHA,
+    });
+    await driven.move("opened");
+    return { ...driven, wait };
+  };
+
+  // A failed pull request is no longer open. After a new one opens, complete
+  // passes again, although the failed merge is still the latest merge
+  // evidence, and without waiting out the cooldown.
+  const failed = await toMerge();
+  await failed.record("evidence", "merge", { status: "failed", reason: "CI" });
+  assert(
+    (await failed.tryMove("complete", true))?.includes(
+      "a merge outcome is already recorded",
+    ),
+    "complete after a failed pull request",
+  );
+  failed.wait(180);
+  await failed.move("new-pr", true);
+  await failed.record("evidence", "pull-request", { url: PR_URL, commit: SHA });
+  await failed.move("opened");
+  await failed.move("complete", true);
+  assertEquals(await notifyPrUrl(lifecycle, failed.store), PR_URL);
+
+  // A merged pull request goes on to release, not complete.
+  const merged = await toMerge();
+  await merged.record("evidence", "merge", {
+    status: "merged",
+    mergeCommit: SHA_2,
+  });
+  assert(
+    (await merged.tryMove("complete", true))?.includes(
+      "a merge outcome is already recorded",
+    ),
+    "complete after a merged pull request",
+  );
+});
+
+Deno.test("swamp-extensions: complete refuses when conformance or verification is not clear", async () => {
+  // A run cannot reach attest or merge with conformance or verification not
+  // clear: conforms and passed check them, and a stage records only its own
+  // products. So each complete exit's own cel gates, as the yaml has them,
+  // are evaluated on a walked run's real context with one product changed.
+  const lifecycle = await load(SWX);
+  const { store } = await walkToAttest(lifecycle, movableEnv().env);
+  const run = await loadRun(store);
+  assert(run !== null);
+  const context = await buildCelContext(run, store);
+  const verification = (ctx: CelContext) =>
+    ctx.evidence["verification"].payload as Record<string, Json>;
+  const cases: [string, (ctx: CelContext) => void, string][] = [
+    ["no conformance", (ctx) => {
+      delete ctx.artifacts["conformance"];
+    }, "conformance review"],
+    ["an unjustified deviation", (ctx) => {
+      ctx.artifacts["conformance"].payload = {
+        steps: [{ order: 1, status: "deviated", description: "Retry on 5xx" }],
+      };
+    }, "conformance review"],
+    ["no verification", (ctx) => {
+      delete ctx.evidence["verification"];
+    }, "verification to have passed"],
+    ["failed verification", (ctx) => {
+      verification(ctx).status = "failed";
+    }, "verification to have passed"],
+    ["verification of another commit", (ctx) => {
+      verification(ctx).commit = SHA_2;
+    }, "verification to have passed"],
+    ["a failed child", (ctx) => {
+      verification(ctx).reviewsStatus = "failed";
+    }, "both verify-build and verify-reviews"],
+    ["a child without its run id", (ctx) => {
+      delete verification(ctx).buildRunId;
+    }, "both verify-build and verify-reviews"],
+  ];
+  for (const stageId of ["attest", "merge"]) {
+    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+      t.name === "complete"
+    );
+    assert(t !== undefined);
+    const refusals = (ctx: CelContext) =>
+      (t.gates ?? []).flatMap((g) =>
+        g.type === "cel" && evaluateCel(g.config.expr, ctx) !== true
+          ? [g.config.message ?? g.config.expr]
+          : []
+      );
+    assertEquals(refusals(context), [], `${stageId}: the walked run`);
+    for (const [label, change, expected] of cases) {
+      const changed = structuredClone(context);
+      change(changed);
+      const refused = refusals(changed);
+      assert(
+        refused.some((m) => m.includes(expected)),
+        `${stageId}, ${label}: ${JSON.stringify(refused)}`,
+      );
+    }
   }
 });

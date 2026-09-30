@@ -495,8 +495,8 @@ one entry, so the breadth-first order always reaches the state with fewer
 entries first. This is exact, not an approximation: the findings are those of
 the full exploration, which the tests keep as the reference. It also bounds the
 count pass by the structural pass, times the counts an inverted gate's stage can
-take. `swamp-extensions.yaml` at the default limits takes 119 count states
-instead of 506,220. A `needs-cycle-override` finding gives the refusal seen in
+take. `swamp-extensions.yaml` at the default limits takes 159 count states
+instead of 716,220. A `needs-cycle-override` finding gives the refusal seen in
 the state with the fewest entries, so its message does not depend on the order
 states are explored in.
 
