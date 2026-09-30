@@ -11,6 +11,7 @@
     "jsr:@std/yaml@1.0.10": "1.0.10",
     "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
     "npm:@aws-sdk/client-secrets-manager@3.1053.0": "3.1053.0",
+    "npm:fast-check@3.23.2": "3.23.2",
     "npm:zod@4.3.6": "4.3.6"
   },
   "jsr": {
@@ -356,6 +357,12 @@
     "bowser@2.14.1": {
       "integrity": "sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg=="
     },
+    "fast-check@3.23.2": {
+      "integrity": "sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==",
+      "dependencies": [
+        "pure-rand"
+      ]
+    },
     "fast-xml-builder@1.2.0": {
       "integrity": "sha512-00aAWieqff+ZJhsXA4g1g7M8k+7AYoMUUHF+/zFb5U6Uv/P0Vl4QZo84/IcufzYalLuEj9928bXN9PbbFzMF0Q==",
       "dependencies": [
@@ -375,6 +382,9 @@
     },
     "path-expression-matcher@1.5.0": {
       "integrity": "sha512-cbrerZV+6rvdQrrD+iGMcZFEiiSrbv9Tfdkvnusy6y0x0GKBXREFg/Y65GhIfm0tnLntThhzCnfKwp1WRjeCyQ=="
+    },
+    "pure-rand@6.1.0": {
+      "integrity": "sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA=="
     },
     "strnum@2.3.0": {
       "integrity": "sha512-ums3KNd42PGyx5xaoVTO1mjU1bH3NpY4vsrVlnv9PNGqQj8wd7rJ6nEypLrJ7z5vxK5RP0yMLo6J/Gsm62DI5Q=="
@@ -397,6 +407,7 @@
       "jsr:@std/path@1",
       "jsr:@std/yaml@1.0.10",
       "jsr:@systeminit/swamp-testing@0.20260331.5",
+      "npm:fast-check@3.23.2",
       "npm:zod@4.3.6"
     ]
   }

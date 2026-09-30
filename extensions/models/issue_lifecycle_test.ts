@@ -475,8 +475,8 @@ Deno.test("model: exposes the new post_attestation method definition", () => {
   );
 });
 
-Deno.test("model: version is 2026.09.28.1", () => {
-  assertEquals(model.version, "2026.09.28.1");
+Deno.test("model: version is 2026.09.30.1", () => {
+  assertEquals(model.version, "2026.09.30.1");
 });
 
 // ---------------------------------------------------------------------------
@@ -1340,6 +1340,16 @@ Deno.test("buildNotifyMessage: includes PR link and plan summary", () => {
   );
   assertStringIncludes(msg, "Fix the widget alignment");
   assertStringIncludes(msg, "@external-user");
+});
+
+Deno.test("buildNotifyMessage: does not link a PR URL that is not http(s)", () => {
+  const msg = buildNotifyMessage("external-user", {
+    url: "javascript:alert(1)",
+    attempt: 1,
+    linkedAt: "2026-01-01T00:00:00Z",
+  }, null);
+  assertEquals(msg.includes("javascript"), false);
+  assertStringIncludes(msg, "has been merged");
 });
 
 Deno.test("buildNotifyMessage: includes PR link without plan summary when plan is missing", () => {
@@ -2291,6 +2301,9 @@ Deno.test("issue_lifecycle: rollbackOnFailure matches the pinned method set", ()
     "complete",
     "skip_notify",
     "summarize",
+    "link_issue",
+    "unlink_issue",
+    "mark_duplicate",
   ];
   const doesNotRollBack = ["review", "post_attestation", "notify"];
 
