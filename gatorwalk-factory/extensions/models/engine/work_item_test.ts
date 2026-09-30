@@ -599,6 +599,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     type: "feature",
     confidence: "high",
     reasoning: "New definition",
+    isRegression: false,
   });
   await go("feature");
   await record("artifact", "plan", {

@@ -595,6 +595,7 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
         type: "bug",
         confidence: "high",
         reasoning: "503 is never retried",
+        isRegression: false,
       });
       await go("bug");
       await record("evidence", "reproduction", {

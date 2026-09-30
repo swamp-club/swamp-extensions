@@ -22,7 +22,20 @@ import {
   parseDefinition,
   type StageSpec,
 } from "../_lib/engine/tracker_testing.ts";
-import { LAB_STATUSES } from "../_lib/tracker/backends/swamp_club.ts";
+import {
+  LAB_STATUSES,
+  swampClubAdapter,
+} from "../_lib/tracker/backends/swamp_club.ts";
+import {
+  ADMIN_KEY,
+  LAB_ISSUE,
+  swampClubFake,
+} from "../_lib/tracker/backends/swamp_club_fake.ts";
+import {
+  chooseEntry,
+  type EntryEvent,
+  renderEntry,
+} from "../_lib/tracker/core/projection.ts";
 
 // ---------------------------------------------------------------------------
 // The example factory definitions the skill ships, as the Lab adapter sees
@@ -82,5 +95,90 @@ Deno.test("every projecting example's status keys are Lab statuses, so the Lab a
     );
     assertEquals(stage(definition, "done").projection?.status, "shipped");
     assertEquals(stage(definition, "abandoned").projection?.status, "closed");
+  }
+});
+
+Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regression flag only for a confirmed regression, and clears it otherwise", async () => {
+  const definition = await load(SWX);
+  const candidates = (stage(definition, "triage").projection?.entries ?? [])
+    .filter((e) => e.step === "classified");
+  assertEquals(candidates.length, 2);
+  const claim = {
+    type: "bug",
+    confidence: "high",
+    reasoning: "r",
+    regressionEvidence: "e",
+    regressionCounterEvidence: "c",
+    regressionVerdictReasoning: "v",
+  };
+  const confirmed = {
+    ...claim,
+    isRegression: true,
+    regressionVerdict: "confirmed",
+    regressionIntroducedIn: "2026.09.21.1",
+  };
+  const downgraded = {
+    ...claim,
+    isRegression: false,
+    regressionVerdict: "downgraded",
+  };
+  const plain = {
+    type: "bug",
+    confidence: "high",
+    reasoning: "r",
+    isRegression: false,
+  };
+  const fake = swampClubFake();
+  try {
+    const lab = swampClubAdapter({
+      credentials: () => Promise.resolve({ url: fake.url, apiKey: ADMIN_KEY }),
+    });
+    const classify = async (payload: Record<string, unknown>) => {
+      const event: EntryEvent = {
+        journalVersion: 1,
+        candidates,
+        status: "triaged",
+        product: {
+          kind: "evidence",
+          name: "classification",
+          version: 1,
+          digest: "d",
+        },
+      };
+      const entry = chooseEntry(candidates, payload);
+      assert(entry !== null, JSON.stringify(payload));
+      const rendered = renderEntry(entry, event, payload);
+      await lab.history?.postEntry(String(LAB_ISSUE), {
+        step: rendered.step,
+        targetStatus: "triaged",
+        summary: rendered.summary,
+        emoji: rendered.emoji,
+        payload: rendered.payload,
+        isVerbose: rendered.isVerbose,
+      });
+      return {
+        summary: fake.entries[fake.entries.length - 1].summary,
+        flag: fake.issues[0].isRegression,
+      };
+    };
+    assertEquals(await classify(confirmed), {
+      summary: "Classified as bug (regression) (high)",
+      flag: true,
+    });
+    // A downgraded claim clears a flag set earlier, as after a reclassify.
+    assertEquals(await classify(downgraded), {
+      summary: "Classified as bug (high)",
+      flag: false,
+    });
+    await classify(confirmed);
+    assertEquals(await classify(plain), {
+      summary: "Classified as bug (high)",
+      flag: false,
+    });
+    // On an issue never flagged, a downgraded claim leaves the flag clear.
+    fake.issues[0].isRegression = undefined;
+    assertEquals((await classify(downgraded)).flag, false);
+  } finally {
+    await fake.close();
   }
 });

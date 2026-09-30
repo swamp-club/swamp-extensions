@@ -86,7 +86,7 @@ code's.
 | Stop                                                                           | gatorwalk                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Low confidence: ask the person before classifying                              | `classification` needs `clarifyingQuestions` when `confidence` is `low`, and every triage exit has a `match` gate needing confidence `high` or `medium`, so triage waits until the person answers and it is recorded again |
-| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when `isRegression` is true, whatever the verdict                                                                                  |
+| Present the regression evidence and verdict before classifying                 | `triage.bug` needs `human-approval` `regression-review`, with `when` so it applies only when a `regressionVerdict` is recorded, whatever the verdict                                                                       |
 | A bug that cannot be reproduced: ask how to proceed                            | `reproduce.not-reproduced` needs `human-approval` `proceed-unreproduced`                                                                                                                                                   |
 | Plan approval                                                                  | `human-approval` `plan-approval`                                                                                                                                                                                           |
 | Plan feedback (iterate)                                                        | `plan-review.revise`, manual                                                                                                                                                                                               |
@@ -121,12 +121,16 @@ lifecycle entries, and `publish` writes them in place of comments. Every step
 name is issue-lifecycle's, with its emoji and its `targetStatus` label (an entry
 names its own `status` where the stage's differs, as `classified` and
 `plan_approved` do). The `classified` entry sets the issue type first, as
-issue-lifecycle's triage does.
+issue-lifecycle's triage does. `classification` records `isRegression` as
+issue-lifecycle's triage computes it, true only with a confirmed verdict, so the
+Lab's regression flag is set or cleared by every classification, and
+`classified` has two entries chosen by it, the regression one saying
+"(regression)".
 
 | Step                      | From                                         | Summary                               |
 | ------------------------- | -------------------------------------------- | ------------------------------------- |
 | `triage_started`          | entering `triage`                            | Same                                  |
-| `classified`              | `classification` recorded; sets the type     | Same, but no "(regression)"           |
+| `classified`              | `classification` recorded; sets the type     | Same                                  |
 | `plan_generated`          | `plan` recorded, first cycle                 | Same                                  |
 | `plan_revised`            | `plan` recorded, a later cycle               | Close: no version or feedback round   |
 | `adversarial_review`      | `plan-review` recorded                       | Close: no counts                      |
@@ -189,9 +193,10 @@ Candidates for issues. A resolved gap says so and keeps its number.
 4. **No conditional human approval.** Resolved by swamp-club #2666: a
    `human-approval` gate's `when` makes it apply only while a CEL condition
    holds. `triage.bug` now carries `regression-review` with
-   `when: ... isRegression`, so a person sees the regression analysis and
-   verdict before a regression claim goes on, and any other bug goes ahead
-   without them. Kept here so the numbering the other gaps are cited by stays.
+   `when: ... has(...regressionVerdict)`, so a person sees the regression
+   analysis and verdict before a regression claim goes on, confirmed or
+   downgraded, and any other bug goes ahead without them. Kept here so the
+   numbering the other gaps are cited by stays.
 5. **`requireField` only matches equal values.** Resolved by swamp-club #2667:
    an `evidence-recorded` gate's `match` holds a JSON Schema fragment per field,
    and the graph analysis proves exits exclusive through its `const`, `enum` and

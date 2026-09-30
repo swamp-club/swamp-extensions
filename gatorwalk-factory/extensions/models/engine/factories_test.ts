@@ -861,6 +861,7 @@ Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and m
       type,
       confidence: "low",
       reasoning: "Unsure",
+      isRegression: false,
       clarifyingQuestions: ["Which is it?"],
     });
     for (const exit of ["bug", "feature", "platform", "security"]) {
@@ -876,6 +877,7 @@ Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and m
         type,
         confidence,
         reasoning: "Clear",
+        isRegression: false,
       });
       assertEquals(await sure.tryMove(type), null, `${type} ${confidence}`);
     }
@@ -947,9 +949,20 @@ Deno.test("swamp-club-swamp-extensions: realistic payloads validate", async () =
     regressionIntroducedIn: "2026.09.21.1",
   });
   evidence("classification", {
+    type: "bug",
+    confidence: "high",
+    reasoning: "The retry never fires",
+    isRegression: false,
+    regressionEvidence: "Passed at 2026.09.20.1",
+    regressionCounterEvidence: "The test never covered 503",
+    regressionVerdict: "downgraded",
+    regressionVerdictReasoning: "503 was never retried",
+  });
+  evidence("classification", {
     type: "feature",
     confidence: "low",
     reasoning: "Unclear whether this is new",
+    isRegression: false,
     clarifyingQuestions: ["Did this ever work?"],
   });
   evidence("reproduction", {
@@ -1024,6 +1037,16 @@ Deno.test("swamp-club-swamp-extensions: realistic payloads validate", async () =
   });
 });
 
+/** A regression claim's argument, without the flag or the verdict. */
+const REGRESSION_CLAIM = {
+  type: "bug",
+  confidence: "high",
+  reasoning: "r",
+  regressionEvidence: "e",
+  regressionCounterEvidence: "c",
+  regressionVerdictReasoning: "v",
+};
+
 Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async () => {
   const definition = await load(SWX);
   const rejects = (
@@ -1039,6 +1062,7 @@ Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async ()
       type: "bug",
       confidence: "low",
       reasoning: "r",
+      isRegression: false,
     }],
     ["a regression without its argument", "evidence", "classification", {
       type: "bug",
@@ -1056,6 +1080,43 @@ Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async ()
       regressionCounterEvidence: "c",
       regressionVerdict: "confirmed",
       regressionVerdictReasoning: "v",
+    }],
+    ["a classification without isRegression", "evidence", "classification", {
+      type: "bug",
+      confidence: "high",
+      reasoning: "r",
+    }],
+    [
+      "a downgraded claim recorded as a regression",
+      "evidence",
+      "classification",
+      {
+        ...REGRESSION_CLAIM,
+        isRegression: true,
+        regressionVerdict: "downgraded",
+      },
+    ],
+    ["a confirmed regression recorded as none", "evidence", "classification", {
+      ...REGRESSION_CLAIM,
+      isRegression: false,
+      regressionVerdict: "confirmed",
+    }],
+    ["a regression without a verdict", "evidence", "classification", {
+      ...REGRESSION_CLAIM,
+      isRegression: true,
+    }],
+    ["a downgraded claim introduced somewhere", "evidence", "classification", {
+      ...REGRESSION_CLAIM,
+      isRegression: false,
+      regressionVerdict: "downgraded",
+      regressionIntroducedIn: "2026.09.21.1",
+    }],
+    ["a plain bug introduced somewhere", "evidence", "classification", {
+      type: "bug",
+      confidence: "high",
+      reasoning: "r",
+      isRegression: false,
+      regressionIntroducedIn: "2026.09.21.1",
     }],
     ["a finding without a category", "artifact", "plan-review", {
       findings: [{ id: "ADV-1", severity: "low", description: "d" }],
@@ -1120,6 +1181,7 @@ Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the r
     type: "bug",
     confidence: "low",
     reasoning: "Maybe a bug",
+    isRegression: false,
     clarifyingQuestions: ["Is a 503 retried today?"],
   });
   assert((await tryMove("bug"))?.includes("waits for the person's answers"));
@@ -1127,6 +1189,7 @@ Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the r
     type: "bug",
     confidence: "high",
     reasoning: "The person says 503 was never retried",
+    isRegression: false,
   });
   assert((await tryMove("feature")) !== null, "a bug took the feature exit");
   await move("bug");
@@ -1315,11 +1378,12 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
     type: "bug",
     confidence: "high",
     reasoning: "The retry stopped firing",
-    isRegression: true,
     regressionEvidence: "Passed at 2026.09.20.1",
     regressionCounterEvidence: "The test never covered 503",
     regressionVerdictReasoning: "A bisect lands on the refactor",
   };
+  // A downgraded claim records the effective flag, false, and is still
+  // reviewed: the gate keys on the verdict.
   for (const verdict of ["confirmed", "downgraded"]) {
     const definition = await load(SWX);
     const { record, approve, tryMove } = await drive(
@@ -1328,6 +1392,7 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
     );
     await record("evidence", "classification", {
       ...regression,
+      isRegression: verdict === "confirmed",
       regressionVerdict: verdict,
     });
     const refused = await tryMove("bug");
@@ -1338,21 +1403,15 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
     await approve("regression-review");
     assertEquals(await tryMove("bug"), null, verdict);
   }
-  for (
-    const classification of [
-      { type: "bug", confidence: "high", reasoning: "r", isRegression: false },
-      { type: "bug", confidence: "high", reasoning: "r" },
-    ]
-  ) {
-    const definition = await load(SWX);
-    const { record, tryMove } = await drive(definition, movableEnv().env);
-    await record("evidence", "classification", classification);
-    assertEquals(
-      await tryMove("bug"),
-      null,
-      JSON.stringify(classification),
-    );
-  }
+  const definition = await load(SWX);
+  const { record, tryMove } = await drive(definition, movableEnv().env);
+  await record("evidence", "classification", {
+    type: "bug",
+    confidence: "high",
+    reasoning: "r",
+    isRegression: false,
+  });
+  assertEquals(await tryMove("bug"), null);
 });
 
 Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
@@ -1395,6 +1454,7 @@ async function walkToAttest(definition: FactoryDefinition, env: Env) {
     type: "feature",
     confidence: "high",
     reasoning: "A new exit",
+    isRegression: false,
   });
   await move("feature");
   await driven.record("artifact", "plan", SWX_PLAN);

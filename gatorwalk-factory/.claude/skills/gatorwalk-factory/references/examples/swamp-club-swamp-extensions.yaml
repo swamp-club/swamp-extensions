@@ -53,6 +53,14 @@ stages:
           summary: "Triage started"
           status: open
         - on: { record: classification }
+          match: { isRegression: true }
+          step: classified
+          emoji: "📋"
+          summary: "Classified as {{type}} (regression) ({{confidence}})"
+          status: triaged
+          setsType: type
+        - on: { record: classification }
+          match: { isRegression: false }
           step: classified
           emoji: "📋"
           summary: "Classified as {{type}} ({{confidence}})"
@@ -61,8 +69,12 @@ stages:
     description: >-
       Classify the issue. A low-confidence classification carries the
       questions for the person and stops here until it is recorded again with
-      their answers. A classification claiming a regression waits for a
-      person to approve regression-review. A bug goes to reproduction;
+      their answers. A classification with a regression verdict, confirmed
+      or downgraded, waits for a person to approve regression-review. The
+      classification records the effective flag, as issue-lifecycle's triage
+      sends it: isRegression is true only with a confirmed verdict, so the
+      Lab's regression flag is set, cleared or left as the verdict says, and
+      the classified entry says "(regression)" only then. A bug goes to reproduction;
       anything else to planning. There is one exit per type, named as
       issue-lifecycle's classifications are; the confidence check is a gate of
       its own, so a type mismatch on a sibling exit never shows its message.
@@ -77,6 +89,9 @@ stages:
         evidence for it, argue against it, reach a verdict, record it, and
         show both sides and the verdict to the person, who approves
         regression-review (confirmed or downgraded) before the bug moves on.
+        Always record isRegression: true only with a confirmed verdict, and
+        false otherwise, including with a downgraded verdict. Record
+        regressionIntroducedIn only with a confirmed verdict.
         If you cannot classify it
         confidently, record confidence low with your questions, and record the
         classification again once the person has answered.
@@ -88,7 +103,7 @@ stages:
       - name: classification
         schema:
           type: object
-          required: [type, confidence, reasoning]
+          required: [type, confidence, reasoning, isRegression]
           additionalProperties: false
           properties:
             type: { enum: [bug, feature, platform, security] }
@@ -110,18 +125,43 @@ stages:
               then:
                 required: [clarifyingQuestions]
             - $comment: >-
-                A regression is a bug with both sides of the argument and a
-                verdict.
+                A regression claim is a bug with both sides of the argument
+                and a verdict.
               if:
-                required: [isRegression]
-                properties: { isRegression: { const: true } }
+                required: [regressionVerdict]
               then:
                 required:
                   - regressionEvidence
                   - regressionCounterEvidence
-                  - regressionVerdict
                   - regressionVerdictReasoning
                 properties: { type: { const: bug } }
+            - $comment: >-
+                isRegression is the effective flag, as issue-lifecycle's
+                triage computes it: true only with a confirmed verdict.
+              if:
+                required: [isRegression]
+                properties: { isRegression: { const: true } }
+              then:
+                required: [regressionVerdict]
+                properties: { regressionVerdict: { const: confirmed } }
+            - $comment: A confirmed claim is a regression.
+              if:
+                required: [regressionVerdict]
+                properties: { regressionVerdict: { const: confirmed } }
+              then:
+                properties: { isRegression: { const: true } }
+            - $comment: A downgraded claim is not a regression.
+              if:
+                required: [regressionVerdict]
+                properties: { regressionVerdict: { const: downgraded } }
+              then:
+                properties: { isRegression: { const: false } }
+            - $comment: Only a confirmed regression was introduced somewhere.
+              if:
+                required: [regressionIntroducedIn]
+              then:
+                required: [regressionVerdict]
+                properties: { regressionVerdict: { const: confirmed } }
     transitions:
       - name: bug
         to: reproduce
@@ -139,14 +179,15 @@ stages:
             description: >-
               A person sees the regression evidence, the counter-argument and
               the verdict before a regression claim goes on, whichever way the
-              verdict went. The guard keeps when false, not an error, before a
-              classification exists or when isRegression is absent.
+              verdict went. It keys on the verdict, not on isRegression, which
+              is false for a downgraded claim. The guard keeps when false, not
+              an error, before a classification exists or when it has no
+              verdict.
             config:
               id: regression-review
               when: >-
                 "classification" in evidence &&
-                has(evidence.classification.payload.isRegression) &&
-                evidence.classification.payload.isRegression
+                has(evidence.classification.payload.regressionVerdict)
       - name: feature
         to: plan
         gates:
