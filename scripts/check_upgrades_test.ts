@@ -22,6 +22,7 @@ import {
   isModelFile,
   type ModelDefinition,
   parseModel,
+  pathTestTarget,
 } from "./check_upgrades.ts";
 
 const SOURCE = `
@@ -129,4 +130,38 @@ Deno.test("isModelFile / extensionDirOf: generated and hand-written alike", () =
   );
   // The repository's own working copy is not a published extension.
   assertEquals(extensionDirOf("extensions/models/issue_lifecycle.ts"), null);
+});
+
+const MANIFEST =
+  `manifest_version: 1\nname: "@swamp/ssh"\nversion: 2026.09.25.1\n`;
+
+Deno.test("pathTestTarget: no manifest at HEAD or base is never published, skipped", () => {
+  assertEquals(pathTestTarget(null, null).kind, "skip");
+});
+
+Deno.test("pathTestTarget: a manifest removed from a published extension fails", () => {
+  const target = pathTestTarget(null, MANIFEST);
+  assertEquals(target.kind, "error");
+  if (target.kind === "error") assertStringIncludes(target.message, "removed");
+});
+
+Deno.test("pathTestTarget: a manifest without a name fails", () => {
+  for (const base of [null, MANIFEST]) {
+    const target = pathTestTarget("version: 2026.09.25.1\n", base);
+    assertEquals(target.kind, "error");
+    if (target.kind === "error") {
+      assertStringIncludes(target.message, "no manifest name");
+    }
+  }
+});
+
+Deno.test("pathTestTarget: a manifest new in this change is skipped", () => {
+  assertEquals(pathTestTarget(MANIFEST, null).kind, "skip");
+});
+
+Deno.test("pathTestTarget: a published extension is pulled by name", () => {
+  assertEquals(pathTestTarget(MANIFEST, MANIFEST), {
+    kind: "pull",
+    name: "@swamp/ssh",
+  });
 });

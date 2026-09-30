@@ -137,6 +137,38 @@ export function isModelFile(path: string): boolean {
     !path.endsWith("_test.ts");
 }
 
+export type PathTestTarget =
+  | { kind: "skip"; reason: string }
+  | { kind: "error"; message: string }
+  | { kind: "pull"; name: string };
+
+/**
+ * Whether an extension's upgrade path can be tested, from its manifest at HEAD
+ * and at the merge base. An extension with a manifest at neither has never been
+ * published, so there is nothing to pull.
+ */
+export function pathTestTarget(
+  headManifest: string | null,
+  baseManifest: string | null,
+): PathTestTarget {
+  if (headManifest === null) {
+    return baseManifest === null
+      ? { kind: "skip", reason: "no manifest, never published" }
+      : {
+        kind: "error",
+        message: "manifest.yaml removed from a published extension",
+      };
+  }
+  const name = headManifest.match(/^name:\s*["']?([^"'\s]+)["']?/m)?.[1];
+  if (!name) {
+    return { kind: "error", message: "no manifest name, cannot pull it" };
+  }
+  if (baseManifest === null) {
+    return { kind: "skip", reason: "not published before this change" };
+  }
+  return { kind: "pull", name };
+}
+
 // -- I/O ------------------------------------------------------------------------
 
 async function run(
@@ -176,14 +208,16 @@ async function pathTest(
 ): Promise<string | null> {
   const manifest = await Deno.readTextFile(join(extDir, "manifest.yaml"))
     .catch(() => null);
-  const name = manifest?.match(/^name:\s*["']?([^"'\s]+)["']?/m)?.[1];
-  if (!name) return `${extDir}: no manifest name, cannot pull it`;
-  if (!(await showAt(mergeBase, `${extDir}/manifest.yaml`))) {
-    console.log(
-      `  ${extDir}: not published before this change, path test skipped`,
-    );
+  const target = pathTestTarget(
+    manifest,
+    await showAt(mergeBase, `${extDir}/manifest.yaml`),
+  );
+  if (target.kind === "error") return `${extDir}: ${target.message}`;
+  if (target.kind === "skip") {
+    console.log(`  ${extDir}: ${target.reason}, path test skipped`);
     return null;
   }
+  const { name } = target;
 
   const scratch = await Deno.makeTempDir({ prefix: "upgrade-path-" });
   try {
