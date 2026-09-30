@@ -311,7 +311,7 @@ Deno.test("publish: comments on each event a person needs, sets the status, and 
 
   await publish(swamp, methods);
   assertEquals(posted.length, 3, posted.join("\n"));
-  assert(posted[0].includes("started on lifecycle `projected`"));
+  assert(posted[0].includes("started on definition `projected`"));
   assert(posted[1].includes("entered **review** (cycle 1) by `submit`"));
   assert(posted[2].includes("is waiting on a person in **review**"));
   assertEquals(moves, ["In Review"]);
@@ -526,14 +526,14 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
   const { posted, methods } = ticket();
   await projectedItem(swamp, { test: "T1" });
   // A repinning reset cut short: a newer copy the run does not name.
-  const versions = swamp.resources.get(PROJECTED_ITEM)?.get("lifecycle");
+  const versions = swamp.resources.get(PROJECTED_ITEM)?.get("definition");
   assert(versions !== undefined);
   const pinned = structuredClone(versions[0]);
   versions.push({
     ...pinned,
     digest: "sha256:unused",
-    lifecycle: {
-      ...(pinned.lifecycle as Record<string, unknown>),
+    definition: {
+      ...(pinned.definition as Record<string, unknown>),
       name: "unused",
     },
   });
@@ -559,17 +559,17 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
         // does not match, so it is passed over. Content that is not JSON,
         // and no content, are passed over too. The pinned copy arrives as
         // JSON text, which a query result may carry instead of an object.
-        { name: "lifecycle", version: 1, content: versions[1] },
-        { name: "lifecycle", version: 1, content: "not json" },
-        { name: "lifecycle", version: 1 },
-        { name: "lifecycle", version: 1, content: JSON.stringify(pinned) },
+        { name: "definition", version: 1, content: versions[1] },
+        { name: "definition", version: 1, content: "not json" },
+        { name: "definition", version: 1 },
+        { name: "definition", version: 1, content: JSON.stringify(pinned) },
       ]);
     },
   };
   await publish(swamp, methods, ctx);
   assertEquals(queries, [
-    `modelName == "${PROJECTED_ITEM}" && specName == "lifecycle" && ` +
-    'name == "lifecycle" && version == 1',
+    `modelName == "${PROJECTED_ITEM}" && specName == "definition" && ` +
+    'name == "definition" && version == 1',
   ]);
   assertEquals(posted.length, 1);
 });
@@ -590,10 +590,10 @@ Deno.test("publish: keeps its own ledger records, so a hand-keyed comment neithe
   );
   await publish(swamp, methods);
   assertEquals(posted.length, 2, posted.join("\n"));
-  assert(posted[1].includes("started on lifecycle"), posted[1]);
+  assert(posted[1].includes("started on definition"), posted[1]);
 });
 
-Deno.test("publish: a failing version query falls back to the latest copy of the pinned lifecycle", async () => {
+Deno.test("publish: a failing version query falls back to the latest copy of the pinned definition", async () => {
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
   await projectedItem(swamp, { test: "T1" });
@@ -826,7 +826,7 @@ Deno.test("publish, entries: without a label anywhere, an entry carries the tick
   assertEquals(writes, ["fetch", "entry work_started [Todo] Work started"]);
 });
 
-Deno.test("publish, entries: a lifecycle without entries, or a tracker without history, still gets comments", async () => {
+Deno.test("publish, entries: a definition without entries, or a tracker without history, still gets comments", async () => {
   const plain = fakeSwamp();
   const lab = historyTicket();
   await projectedItem(plain, { test: "T1" }, projectedDefinition());

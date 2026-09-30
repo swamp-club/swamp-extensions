@@ -1,12 +1,13 @@
-# swamp-extensions as a gatorwalk lifecycle: the mapping
+# swamp-extensions as a gatorwalk factory definition: the mapping
 
 This is the paper check that swamp-club #2630 asked for before
 `swamp-club-swamp-extensions.yaml` (first named `swamp-extensions.yaml`) was
 written. It takes the process this repository runs today,
 `@swamp/issue-lifecycle` plus `agent-constraints/verification-conventions.md`,
-and maps every phase, gate and human stop onto the lifecycle format. Anything
-the format could not express is listed under [Format gaps](#format-gaps) at the
-end. Each gap is a finding about the format; none was worked around silently.
+and maps every phase, gate and human stop onto the factory definition format.
+Anything the format could not express is listed under
+[Format gaps](#format-gaps) at the end. Each gap is a finding about the format;
+none was worked around silently.
 
 A work item on `swamp-club-swamp-extensions.yaml` drives a Lab issue end to end
 through the swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), so the
@@ -17,7 +18,7 @@ every other issue; the adapter's `claim` refuses an issue that has an
 issue-lifecycle instance (`issue-<N>`) in the repository, so one issue never has
 two drivers. No stage loads the issue-lifecycle skill or cites a file that runs
 its methods, and every stage an agent works tells it not to drive
-issue-lifecycle; `lifecycles_test.ts` pins both. See
+issue-lifecycle; `factories_test.ts` pins both. See
 [Lifecycle entries](#lifecycle-entries).
 
 ## The process, stage by stage
@@ -173,9 +174,9 @@ Candidates for issues. A resolved gap says so and keeps its number.
    other gaps are cited by stays.
 2. **No parallel stages (resolved inside one stage).** verify-build and
    verify-reviews run at the same time today and are judged together as one
-   checklist. A lifecycle is in one stage at a time, so the first version ran
-   them as two stages one after the other, and a reviews failure showed only
-   after the build passed. The `verify` stage now runs
+   checklist. A factory definition is in one stage at a time, so the first
+   version ran them as two stages one after the other, and a reviews failure
+   showed only after the build passed. The `verify` stage now runs
    `verification/workflow-verify.yaml`, a wrapper whose two jobs each nest one
    verify workflow and run concurrently, and records both outcomes in one
    `verification` evidence. Parallel stages themselves remain deferred
@@ -224,7 +225,7 @@ Candidates for issues. A resolved gap says so and keeps its number.
    past its 100,000-state cap, so the limits here had been lowered to 2 and 3,
    for 11,132 states. The count pass now drops a state when another at the same
    stage, with the same stages entered, has no more entries into any stage
-   (DESIGN.md, "What the analysis assumes"). It finishes this lifecycle at the
-   default limits in 119 states, with the same findings (159 once gap 6 added
-   the `complete` exits). Kept here so the numbering the other gaps are cited by
-   stays.
+   (DESIGN.md, "What the analysis assumes"). It finishes this factory definition
+   at the default limits in 119 states, with the same findings (159 once gap 6
+   added the `complete` exits). Kept here so the numbering the other gaps are
+   cited by stays.

@@ -17,12 +17,12 @@
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
+  type FactoryDefinition,
   findStage,
-  type Lifecycle,
-  parseLifecycle,
+  parseDefinition,
   type StageSpec,
   type TransitionSpec,
-} from "../_lib/engine/lifecycle_schema.ts";
+} from "../_lib/engine/definition_schema.ts";
 import {
   type PayloadSchema,
   validateArtifactPayload,
@@ -36,7 +36,7 @@ import {
 } from "../_lib/engine/cel_context.ts";
 import { buildDispatch } from "../_lib/engine/dispatch.ts";
 import { makeGateEvaluator } from "../_lib/engine/gates.ts";
-import { analyzeLifecycle } from "../_lib/engine/graph.ts";
+import { analyzeDefinition } from "../_lib/engine/graph.ts";
 import {
   advance,
   type Env,
@@ -54,41 +54,44 @@ import {
 import { expectNow, testEnv } from "../_lib/engine/test_support.ts";
 
 // ---------------------------------------------------------------------------
-// The example lifecycles the skill ships, under its references/examples/.
-// examples_test.ts checks that every one validates; this file tests how each
-// behaves.
+// The example factory definitions the skill ships, under its
+// references/examples/. examples_test.ts checks that every one validates; this
+// file tests how each behaves.
 // ---------------------------------------------------------------------------
 
-const LIFECYCLES = new URL(
+const DEFINITIONS = new URL(
   "../../../.claude/skills/gatorwalk-factory/references/examples/",
   import.meta.url,
 );
 
-async function load(file: string): Promise<Lifecycle> {
-  const raw = parseYaml(await Deno.readTextFile(new URL(file, LIFECYCLES)));
-  const result = parseLifecycle(raw);
+async function load(file: string): Promise<FactoryDefinition> {
+  const raw = parseYaml(await Deno.readTextFile(new URL(file, DEFINITIONS)));
+  const result = parseDefinition(raw);
   if (!result.ok) {
     throw new Error(`${file} is invalid:\n${result.errors.join("\n")}`);
   }
   return result.value;
 }
 
-function stage(lifecycle: Lifecycle, id: string): StageSpec {
-  const found = findStage(lifecycle, id);
+function stage(definition: FactoryDefinition, id: string): StageSpec {
+  const found = findStage(definition, id);
   if (found === undefined) throw new Error(`no stage '${id}'`);
   return found;
 }
 
-function artifactSchema(lifecycle: Lifecycle, name: string) {
-  for (const s of lifecycle.stages) {
+function artifactSchema(definition: FactoryDefinition, name: string) {
+  for (const s of definition.stages) {
     const spec = (s.artifacts ?? []).find((a) => a.name === name);
     if (spec !== undefined) return spec;
   }
   throw new Error(`no artifact '${name}'`);
 }
 
-function evidenceSchema(lifecycle: Lifecycle, name: string): PayloadSchema {
-  for (const s of lifecycle.stages) {
+function evidenceSchema(
+  definition: FactoryDefinition,
+  name: string,
+): PayloadSchema {
+  for (const s of definition.stages) {
     const spec = (s.evidence ?? []).find((e) => e.name === name);
     if (spec?.schema !== undefined) return spec.schema;
   }
@@ -104,8 +107,8 @@ const SWX = "swamp-club-swamp-extensions.yaml";
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
 Deno.test("build-swamp-extension: the stages, in order", async () => {
-  const lifecycle = await load(BUILD);
-  assertEquals(lifecycle.stages.map((s) => s.id), [
+  const definition = await load(BUILD);
+  assertEquals(definition.stages.map((s) => s.id), [
     "plan",
     "plan-review",
     "implement",
@@ -121,7 +124,7 @@ Deno.test("build-swamp-extension: graph analysis stays small", async () => {
   // Measured at 20 structural and 20 count states (1345 before the count pass
   // pruned dominated states). Without an inverted max-cycles gate the count
   // pass is no bigger than the structural one; see DESIGN.md.
-  const report = analyzeLifecycle(await load(BUILD));
+  const report = analyzeDefinition(await load(BUILD));
   assert(!report.truncated);
   assert(
     report.statesExplored.structural <= 100 &&
@@ -131,11 +134,11 @@ Deno.test("build-swamp-extension: graph analysis stays small", async () => {
 });
 
 Deno.test("build-swamp-extension: people decide at plan, quality waiver, release and abandon", async () => {
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   const approvals = new Set<string>();
   for (
-    const t of lifecycle.stages.flatMap((s) => s.transitions ?? [])
-      .concat(lifecycle.globalTransitions ?? [])
+    const t of definition.stages.flatMap((s) => s.transitions ?? [])
+      .concat(definition.globalTransitions ?? [])
   ) {
     for (const gate of t.gates ?? []) {
       if (gate.type === "human-approval") approvals.add(gate.config.id);
@@ -150,10 +153,10 @@ Deno.test("build-swamp-extension: people decide at plan, quality waiver, release
 });
 
 Deno.test("build-swamp-extension: every exit to code-review and done is bound to the reviewed commit", async () => {
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   const bound = (stageId: string, to: string) => {
     let matched = 0;
-    for (const t of stage(lifecycle, stageId).transitions ?? []) {
+    for (const t of stage(definition, stageId).transitions ?? []) {
       if (t.to !== to) continue;
       matched++;
       assert(
@@ -174,9 +177,9 @@ Deno.test("build-swamp-extension: a person can always send the work back without
   // A declined approval with no blocking finding must not leave abandon as
   // the only exit (the #916 wedge). Each stage with a human approval has a
   // manual way back, and implement has a manual recheck for flaky checks.
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   const manual = (stageId: string, to: string) =>
-    (stage(lifecycle, stageId).transitions ?? []).some((t) =>
+    (stage(definition, stageId).transitions ?? []).some((t) =>
       t.manual === true && t.to === to && (t.gates ?? []).length === 0
     );
   assert(manual("plan-review", "plan"), "plan-review has no manual way back");
@@ -212,9 +215,9 @@ Deno.test("build-swamp-extension: implement cannot resubmit the commit already c
 });
 
 Deno.test("build-swamp-extension: realistic artifacts validate", async () => {
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   assertEquals(
-    validateArtifactPayload(artifactSchema(lifecycle, "plan"), {
+    validateArtifactPayload(artifactSchema(definition, "plan"), {
       summary: "Add a list method",
       steps: [{ description: "Add list", files: ["extensions/models/x.ts"] }],
       testingStrategy: "Unit test against an in-memory client",
@@ -223,7 +226,7 @@ Deno.test("build-swamp-extension: realistic artifacts validate", async () => {
     null,
   );
   assertEquals(
-    validateArtifactPayload(artifactSchema(lifecycle, "change-summary"), {
+    validateArtifactPayload(artifactSchema(definition, "change-summary"), {
       summary: "Added list",
       commit: SHA,
       files: ["extensions/models/x.ts"],
@@ -232,7 +235,7 @@ Deno.test("build-swamp-extension: realistic artifacts validate", async () => {
     null,
   );
   assertEquals(
-    validateArtifactPayload(artifactSchema(lifecycle, "code-review"), {
+    validateArtifactPayload(artifactSchema(definition, "code-review"), {
       findings: [{ id: "F1", severity: "low", description: "Naming" }],
     }),
     null,
@@ -240,8 +243,8 @@ Deno.test("build-swamp-extension: realistic artifacts validate", async () => {
 });
 
 Deno.test("build-swamp-extension: drifted artifacts are rejected", async () => {
-  const lifecycle = await load(BUILD);
-  const errors = validateArtifactPayload(artifactSchema(lifecycle, "plan"), {
+  const definition = await load(BUILD);
+  const errors = validateArtifactPayload(artifactSchema(definition, "plan"), {
     summary: "Add a list method",
     steps: [{ description: "Add list", file: "x.ts" }],
     testingStrategy: "Unit test",
@@ -255,7 +258,7 @@ Deno.test("build-swamp-extension: drifted artifacts are rejected", async () => {
   );
   for (const commit of ["HEAD", "c5aaad329"]) {
     assert(
-      validateArtifactPayload(artifactSchema(lifecycle, "change-summary"), {
+      validateArtifactPayload(artifactSchema(definition, "change-summary"), {
         summary: "s",
         commit,
         files: ["x.ts"],
@@ -405,14 +408,14 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
   // every binding and cel gate against the context the runtime builds. It
   // shows every gate on the path can pass on a realistic run, and catches
   // expressions cel-js parses but cannot run (has() on an indexed path).
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   const store = memoryStore();
   const env = testEnv();
   const actor = { principal: "user:alice", source: "platform" as const };
   await startRun(
     store,
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     actor,
     env,
   );
@@ -423,7 +426,7 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
   ) => {
     const result = await recordProduct(
       store,
-      lifecycle,
+      definition,
       await expectNow(store),
       kind,
       name,
@@ -433,12 +436,12 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
     );
     assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
   };
-  const gates = makeGateEvaluator(lifecycle, store, env);
+  const gates = makeGateEvaluator(definition, store, env);
   const move = async (transition: string) => {
     const result = await update(store, (run) =>
       advance(
         run,
-        lifecycle,
+        definition,
         expectedOf(run),
         { transition },
         gates,
@@ -451,7 +454,7 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
     const result = await update(store, (run) =>
       recordApproval(
         run,
-        lifecycle,
+        definition,
         expectedOf(run),
         { gateId, decision: "approve" },
         actor,
@@ -515,14 +518,14 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
     }
   };
   let bindings = 0;
-  for (const s of lifecycle.stages) {
+  for (const s of definition.stages) {
     for (const expr of Object.values(s.work?.bindings ?? {})) {
       evaluateCel(expr, context);
       bindings++;
     }
     celGates(s.id, s.transitions ?? []);
   }
-  celGates("global", lifecycle.globalTransitions ?? []);
+  celGates("global", definition.globalTransitions ?? []);
   assert(
     bindings >= 5 && results.size >= 5,
     `${bindings} bindings, ${results.size} gates`,
@@ -537,21 +540,21 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
 });
 
 Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at the cycle limit, and continues after an override", async () => {
-  const lifecycle = await load(BUILD);
+  const definition = await load(BUILD);
   const store = memoryStore();
   const env = testEnv();
   const actor = { principal: "user:alice", source: "platform" as const };
   await startRun(
     store,
-    lifecycle,
-    { key: "wi-2", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-2", definitionDigest: "sha256:l" },
     actor,
     env,
   );
-  const gates = makeGateEvaluator(lifecycle, store, env);
+  const gates = makeGateEvaluator(definition, store, env);
   await recordProduct(
     store,
-    lifecycle,
+    definition,
     await expectNow(store),
     "artifact",
     "plan",
@@ -570,7 +573,7 @@ Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at t
       (run) =>
         advance(
           run,
-          lifecycle,
+          definition,
           expectedOf(run),
           { transition, manualConfirmed },
           gates,
@@ -596,7 +599,7 @@ Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at t
     (run) =>
       grantOverride(
         run,
-        lifecycle,
+        definition,
         expectedOf(run),
         { kind: "cycle", stage: "plan", note: "one more pass" },
         actor,
@@ -631,22 +634,22 @@ function movableEnv(): { env: Env; wait: (seconds: number) => void } {
 }
 
 /** Record, approve and advance on a fresh run, through the real gates. */
-async function drive(lifecycle: Lifecycle, env: Env) {
+async function drive(definition: FactoryDefinition, env: Env) {
   const store = memoryStore();
   const actor = { principal: "user:alice", source: "platform" as const };
   await startRun(
     store,
-    lifecycle,
+    definition,
     // A Lab issue, as a claimed work item has: notify binds it.
     {
       key: "wi-swx",
-      lifecycleDigest: "sha256:l",
+      definitionDigest: "sha256:l",
       externalRefs: { "swamp-club": "2734", "swamp-club.display": "#2734" },
     },
     actor,
     env,
   );
-  const gates = makeGateEvaluator(lifecycle, store, env);
+  const gates = makeGateEvaluator(definition, store, env);
   return {
     store,
     record: async (
@@ -656,7 +659,7 @@ async function drive(lifecycle: Lifecycle, env: Env) {
     ) => {
       const result = await recordProduct(
         store,
-        lifecycle,
+        definition,
         await expectNow(store),
         kind,
         name,
@@ -670,7 +673,7 @@ async function drive(lifecycle: Lifecycle, env: Env) {
       const result = await update(store, (run) =>
         recordApproval(
           run,
-          lifecycle,
+          definition,
           expectedOf(run),
           { gateId, decision: "approve" },
           actor,
@@ -683,7 +686,7 @@ async function drive(lifecycle: Lifecycle, env: Env) {
       const result = await update(store, (run) =>
         advance(
           run,
-          lifecycle,
+          definition,
           expectedOf(run),
           { transition, manualConfirmed },
           gates,
@@ -713,8 +716,8 @@ function changeSummary(commit: string) {
 }
 
 Deno.test("swamp-club-swamp-extensions: the stages, in order", async () => {
-  const lifecycle = await load(SWX);
-  assertEquals(lifecycle.stages.map((s) => s.id), [
+  const definition = await load(SWX);
+  assertEquals(definition.stages.map((s) => s.id), [
     "triage",
     "reproduce",
     "plan",
@@ -747,8 +750,8 @@ const ONE_DRIVER = "gatorwalk drives this issue: do not use the " +
 const collapse = (text: string) => text.replace(/\s+/g, " ").trim();
 
 Deno.test("swamp-club-swamp-extensions: no stage hands its agent issue-lifecycle's driver", async () => {
-  const lifecycle = await load(SWX);
-  for (const s of lifecycle.stages) {
+  const definition = await load(SWX);
+  for (const s of definition.stages) {
     assert(
       !(s.work?.skills ?? []).includes("issue-lifecycle"),
       `${s.id} lists the issue-lifecycle skill`,
@@ -780,7 +783,7 @@ Deno.test("swamp-club-swamp-extensions: graph analysis finishes, and stays small
   // Measured at 159 structural and 159 count states at the default cycle
   // limit of 5. Without the count pass pruning dominated states it needs
   // 716,220 there, past its cap (swamp-club-swamp-extensions.md, gap 8).
-  const report = analyzeLifecycle(await load(SWX));
+  const report = analyzeDefinition(await load(SWX));
   assert(!report.truncated);
   assert(
     report.statesExplored.structural <= 200 &&
@@ -790,11 +793,11 @@ Deno.test("swamp-club-swamp-extensions: graph analysis finishes, and stays small
 });
 
 Deno.test("swamp-club-swamp-extensions: people decide at a regression claim, an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const approvals = new Set<string>();
   for (
-    const t of lifecycle.stages.flatMap((s) => s.transitions ?? [])
-      .concat(lifecycle.globalTransitions ?? [])
+    const t of definition.stages.flatMap((s) => s.transitions ?? [])
+      .concat(definition.globalTransitions ?? [])
   ) {
     for (const gate of t.gates ?? []) {
       if (gate.type === "human-approval") approvals.add(gate.config.id);
@@ -843,7 +846,7 @@ Deno.test("swamp-club-swamp-extensions: triage has one exit per type, and none w
   }
   // The type gates prove the four exits exclusive.
   assertEquals(
-    analyzeLifecycle(await load(SWX)).warnings.filter((w) =>
+    analyzeDefinition(await load(SWX)).warnings.filter((w) =>
       w.code === "ambiguous-exit" && w.stage === "triage"
     ),
     [],
@@ -851,9 +854,9 @@ Deno.test("swamp-club-swamp-extensions: triage has one exit per type, and none w
 });
 
 Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and medium through and holds low", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   for (const type of ["bug", "feature", "platform", "security"]) {
-    const low = await drive(lifecycle, movableEnv().env);
+    const low = await drive(definition, movableEnv().env);
     await low.record("evidence", "classification", {
       type,
       confidence: "low",
@@ -868,7 +871,7 @@ Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and m
       );
     }
     for (const confidence of ["high", "medium"]) {
-      const sure = await drive(lifecycle, movableEnv().env);
+      const sure = await drive(definition, movableEnv().env);
       await sure.record("evidence", "classification", {
         type,
         confidence,
@@ -880,9 +883,9 @@ Deno.test("swamp-club-swamp-extensions: triage's confidence gate lets high and m
 });
 
 Deno.test("swamp-club-swamp-extensions: every exit from verification to the merge is bound to the change-summary commit", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const bound = (stageId: string, name: string) => {
-    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+    const t = (stage(definition, stageId).transitions ?? []).find((t) =>
       t.name === name
     );
     assert(t !== undefined, `no ${stageId}.${name}`);
@@ -903,9 +906,9 @@ Deno.test("swamp-club-swamp-extensions: every exit from verification to the merg
 });
 
 Deno.test("swamp-club-swamp-extensions: a person can always send the work back without abandoning it", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const manual = (stageId: string, name: string, to: string) =>
-    (stage(lifecycle, stageId).transitions ?? []).some((t) =>
+    (stage(definition, stageId).transitions ?? []).some((t) =>
       t.name === name && t.manual === true && t.to === to
     );
   assert(manual("reproduce", "reclassify", "triage"));
@@ -919,16 +922,16 @@ Deno.test("swamp-club-swamp-extensions: a person can always send the work back w
 });
 
 Deno.test("swamp-club-swamp-extensions: realistic payloads validate", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const evidence = (name: string, payload: Json) =>
     assertEquals(
-      validatePayload(evidenceSchema(lifecycle, name), payload),
+      validatePayload(evidenceSchema(definition, name), payload),
       null,
       name,
     );
   const artifact = (name: string, payload: Json) =>
     assertEquals(
-      validateArtifactPayload(artifactSchema(lifecycle, name), payload),
+      validateArtifactPayload(artifactSchema(definition, name), payload),
       null,
       name,
     );
@@ -1022,15 +1025,15 @@ Deno.test("swamp-club-swamp-extensions: realistic payloads validate", async () =
 });
 
 Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const rejects = (
     kind: "artifact" | "evidence",
     name: string,
     payload: Json,
   ) =>
     kind === "artifact"
-      ? validateArtifactPayload(artifactSchema(lifecycle, name), payload)
-      : validatePayload(evidenceSchema(lifecycle, name), payload);
+      ? validateArtifactPayload(artifactSchema(definition, name), payload)
+      : validatePayload(evidenceSchema(definition, name), payload);
   const cases: [string, "artifact" | "evidence", string, Json][] = [
     ["low confidence without questions", "evidence", "classification", {
       type: "bug",
@@ -1102,12 +1105,12 @@ Deno.test("swamp-club-swamp-extensions: drifted payloads are rejected", async ()
 });
 
 Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the real gates, and every CEL expression evaluates on it", async () => {
-  // As build-swamp-extension's run, plus the stops this lifecycle adds: low
-  // confidence holds triage, a failed verification needs a new commit, and
-  // the merge waits out the cooldown.
-  const lifecycle = await load(SWX);
+  // As build-swamp-extension's run, plus the stops this factory definition
+  // adds: low confidence holds triage, a failed verification needs a new
+  // commit, and the merge waits out the cooldown.
+  const definition = await load(SWX);
   const { env, wait } = movableEnv();
-  const { store, record, approve, tryMove } = await drive(lifecycle, env);
+  const { store, record, approve, tryMove } = await drive(definition, env);
   const move = async (transition: string, manual = false) => {
     const refused = await tryMove(transition, manual);
     assertEquals(refused, null, transition);
@@ -1272,7 +1275,7 @@ Deno.test("swamp-club-swamp-extensions: a bug walks triage to done through the r
   const context = await buildCelContext(run, store);
   const results = new Map<string, Json>();
   let bindings = 0;
-  for (const s of lifecycle.stages) {
+  for (const s of definition.stages) {
     for (const expr of Object.values(s.work?.bindings ?? {})) {
       evaluateCel(expr, context);
       bindings++;
@@ -1318,9 +1321,9 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
     regressionVerdictReasoning: "A bisect lands on the refactor",
   };
   for (const verdict of ["confirmed", "downgraded"]) {
-    const lifecycle = await load(SWX);
+    const definition = await load(SWX);
     const { record, approve, tryMove } = await drive(
-      lifecycle,
+      definition,
       movableEnv().env,
     );
     await record("evidence", "classification", {
@@ -1341,8 +1344,8 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
       { type: "bug", confidence: "high", reasoning: "r" },
     ]
   ) {
-    const lifecycle = await load(SWX);
-    const { record, tryMove } = await drive(lifecycle, movableEnv().env);
+    const definition = await load(SWX);
+    const { record, tryMove } = await drive(definition, movableEnv().env);
     await record("evidence", "classification", classification);
     assertEquals(
       await tryMove("bug"),
@@ -1353,8 +1356,8 @@ Deno.test("swamp-club-swamp-extensions: a regression claim waits for regression-
 });
 
 Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
-  const lifecycle = await load(SWX);
-  const merge = stage(lifecycle, "merge").transitions ?? [];
+  const definition = await load(SWX);
+  const merge = stage(definition, "merge").transitions ?? [];
   for (const name of ["new-pr", "rework"]) {
     const t = merge.find((t) => t.name === name);
     assert(t?.manual === true, `${name} is not manual`);
@@ -1383,8 +1386,8 @@ Deno.test("swamp-club-swamp-extensions: a failed pull request goes to a new PR o
 // manual exit to notify from attest and from merge.
 
 /** Walk a feature to attest through the real gates, verified at SHA. */
-async function walkToAttest(lifecycle: Lifecycle, env: Env) {
-  const driven = await drive(lifecycle, env);
+async function walkToAttest(definition: FactoryDefinition, env: Env) {
+  const driven = await drive(definition, env);
   const move = async (transition: string, manual = false) => {
     assertEquals(await driven.tryMove(transition, manual), null, transition);
   };
@@ -1433,14 +1436,14 @@ async function walkToAttest(lifecycle: Lifecycle, env: Env) {
 
 /** The prUrl notify dispatches with; the packet must be ready. */
 async function notifyPrUrl(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   store: ReturnType<typeof memoryStore>,
 ): Promise<Json | undefined> {
   const run = await loadRun(store);
   assert(run !== null);
   assertEquals(run.stage, "notify");
   const packet = buildDispatch(
-    lifecycle,
+    definition,
     run,
     await buildCelContext(run, store),
   );
@@ -1451,9 +1454,9 @@ async function notifyPrUrl(
 Deno.test("swamp-club-swamp-extensions: complete from attest after a failed pull request links no pull request", async () => {
   // The failed pull request was for an earlier commit; the thank-you must not
   // call it merged.
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const { env, wait } = movableEnv();
-  const { store, record, approve, move } = await walkToAttest(lifecycle, env);
+  const { store, record, approve, move } = await walkToAttest(definition, env);
   await record("evidence", "attestation", {
     attestationId: "a-1",
     commit: SHA,
@@ -1485,13 +1488,13 @@ Deno.test("swamp-club-swamp-extensions: complete from attest after a failed pull
   await approve("checklist-confirmed");
   await move("passed");
   await move("complete", true);
-  assertEquals(await notifyPrUrl(lifecycle, store), null);
+  assertEquals(await notifyPrUrl(definition, store), null);
 });
 
 Deno.test("swamp-club-swamp-extensions: complete leaves attest and merge for notify, by a person's choice, and the release case stays", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   for (const stageId of ["attest", "merge"]) {
-    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+    const t = (stage(definition, stageId).transitions ?? []).find((t) =>
       t.name === "complete"
     );
     assert(t !== undefined, `no ${stageId}.complete`);
@@ -1515,15 +1518,15 @@ Deno.test("swamp-club-swamp-extensions: complete leaves attest and merge for not
     );
   }
   assertEquals(
-    (stage(lifecycle, "release").transitions ?? []).map((t) => [t.name, t.to]),
+    (stage(definition, "release").transitions ?? []).map((t) => [t.name, t.to]),
     [["released", "notify"]],
   );
 });
 
 Deno.test("swamp-club-swamp-extensions: complete from attest goes to notify and on to done, once a person confirms it", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const { store, record, tryMove, move } = await walkToAttest(
-    lifecycle,
+    definition,
     movableEnv().env,
   );
   assert(
@@ -1532,7 +1535,7 @@ Deno.test("swamp-club-swamp-extensions: complete from attest goes to notify and 
   );
   await move("complete", true);
   // notify dispatches with no pull request to link.
-  assertEquals(await notifyPrUrl(lifecycle, store), null);
+  assertEquals(await notifyPrUrl(definition, store), null);
   await record("evidence", "notification", {
     action: "skipped",
     author: "swamp-team",
@@ -1549,10 +1552,10 @@ Deno.test("swamp-club-swamp-extensions: complete from attest goes to notify and 
 });
 
 Deno.test("swamp-club-swamp-extensions: complete from merge is for an open pull request, with no cooldown", async () => {
-  const lifecycle = await load(SWX);
+  const definition = await load(SWX);
   const toMerge = async () => {
     const { env, wait } = movableEnv();
-    const driven = await walkToAttest(lifecycle, env);
+    const driven = await walkToAttest(definition, env);
     await driven.record("evidence", "attestation", {
       attestationId: "a-1",
       commit: SHA,
@@ -1585,7 +1588,7 @@ Deno.test("swamp-club-swamp-extensions: complete from merge is for an open pull 
   await failed.record("evidence", "pull-request", { url: PR_URL, commit: SHA });
   await failed.move("opened");
   await failed.move("complete", true);
-  assertEquals(await notifyPrUrl(lifecycle, failed.store), PR_URL);
+  assertEquals(await notifyPrUrl(definition, failed.store), PR_URL);
 
   // A merged pull request goes on to release, not complete.
   const merged = await toMerge();
@@ -1606,8 +1609,8 @@ Deno.test("swamp-club-swamp-extensions: complete refuses when conformance or ver
   // clear: conforms and passed check them, and a stage records only its own
   // products. So each complete exit's own cel gates, as the yaml has them,
   // are evaluated on a walked run's real context with one product changed.
-  const lifecycle = await load(SWX);
-  const { store } = await walkToAttest(lifecycle, movableEnv().env);
+  const definition = await load(SWX);
+  const { store } = await walkToAttest(definition, movableEnv().env);
   const run = await loadRun(store);
   assert(run !== null);
   const context = await buildCelContext(run, store);
@@ -1639,7 +1642,7 @@ Deno.test("swamp-club-swamp-extensions: complete refuses when conformance or ver
     }, "both verify-build and verify-reviews"],
   ];
   for (const stageId of ["attest", "merge"]) {
-    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+    const t = (stage(definition, stageId).transitions ?? []).find((t) =>
       t.name === "complete"
     );
     assert(t !== undefined);
@@ -1674,7 +1677,7 @@ Deno.test("starter: a run walks from plan to done through the real gates, with a
   await startRun(
     store,
     core,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    { key: "wi-1", definitionDigest: "sha256:l" },
     actor,
     env,
   );

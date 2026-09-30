@@ -16,9 +16,9 @@
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import {
+  FACTORY_TYPE,
   fakeSwamp,
-  HOLDER_TYPE,
-  smallLifecycle,
+  smallDefinition,
 } from "../../engine/tracker_testing.ts";
 import { PROJECTED_ITEM, projectedItem } from "./test_support.ts";
 import {
@@ -191,12 +191,12 @@ export async function assertTrackerConformance(
   // named by the stable id, and the start command carries both ids.
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: smallLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: smallDefinition(),
+    type: FACTORY_TYPE,
   });
   const claim = (issue: string) =>
     methods.claim.execute(
-      methods.claim.arguments.parse({ issue, lifecycle: "team" }),
+      methods.claim.arguments.parse({ issue, factory: "team" }),
       swamp.context("tracker"),
     );
   await claim(f.issue.display);

@@ -16,8 +16,8 @@
 
 import {
   type AwaitingExit,
+  type FactoryDefinition,
   type JournalEvent,
-  type Lifecycle,
   parseTemplate,
   type ProductKind,
   type ProjectionEntry,
@@ -50,41 +50,41 @@ export interface Projection {
 
 /**
  * The comments for the journal events after `since` (a journal version),
- * and the status key of the current stage in the pinned lifecycle.
+ * and the status key of the current stage in the pinned factory definition.
  */
 export function project(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   since: number,
 ): Projection {
   const comments: PlannedComment[] = [];
   for (let i = since; i < run.journal.length; i++) {
-    const body = commentFor(run.key, run.journal[i], lifecycle);
+    const body = commentFor(run.key, run.journal[i], definition);
     if (body !== null) comments.push({ journalVersion: i + 1, body });
   }
-  const stage = lifecycle.stages.find((s) => s.id === run.stage);
+  const stage = definition.stages.find((s) => s.id === run.stage);
   return { comments, status: stage?.projection?.status ?? null };
 }
 
 /**
  * The comment a person on the ticket needs for one event, or null. Stage,
- * transition, gate and lifecycle names are all NameSchema (lowercase, no
- * quotes or dollar signs), so no body trips swamp-club's payload rules
+ * transition, gate and factory definition names are all NameSchema (lowercase,
+ * no quotes or dollar signs), so no body trips swamp-club's payload rules
  * (swamp-club#2284). An asserted actor is free text and is left out.
  */
 export function commentFor(
   key: string,
   event: JournalEvent,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
 ): string | null {
   const item = `**${key}**`;
   switch (event.type) {
     case "started":
-      return `${item} started on lifecycle \`${event.lifecycle.name}\`, ` +
+      return `${item} started on definition \`${event.definition.name}\`, ` +
         `at stage **${event.stage}**.`;
     case "advanced": {
       const terminal =
-        lifecycle.stages.find((s) => s.id === event.to)?.terminal === true;
+        definition.stages.find((s) => s.id === event.to)?.terminal === true;
       return terminal
         ? `${item} finished at **${event.to}** by \`${event.transition}\`.`
         : `${item} entered **${event.to}** (cycle ${event.toCycle}) by ` +
@@ -103,7 +103,9 @@ export function commentFor(
     case "reset":
       return `${item} was reset: era \`${event.previousEra}\` ended, and ` +
         `era \`${event.era}\` starts at **${event.stage}**` +
-        (event.repinned === undefined ? "." : ", on a newly pinned lifecycle.");
+        (event.repinned === undefined
+          ? "."
+          : ", on a newly pinned definition.");
     case "dispatched":
     case "usage":
     case "recorded":
@@ -123,14 +125,16 @@ function exitLine(exit: AwaitingExit): string {
 
 // ---------------------------------------------------------------------------
 // Entries: the journal as structured ticket history (the Lab's lifecycle
-// entries), for a lifecycle whose stages declare projection.entries. Which
-// event becomes which step is the lifecycle's to say, pinned with the rest
-// of it. An event no entry answers posts nothing.
+// entries), for a factory definition whose stages declare projection.entries.
+// Which event becomes which step is the factory definition's to say, pinned
+// with the rest of it. An event no entry answers posts nothing.
 // ---------------------------------------------------------------------------
 
-/** Whether a lifecycle declares any projection entries. */
-export function declaresEntries(lifecycle: Lifecycle): boolean {
-  return lifecycle.stages.some((s) => (s.projection?.entries?.length ?? 0) > 0);
+/** Whether a factory definition declares any projection entries. */
+export function declaresEntries(definition: FactoryDefinition): boolean {
+  return definition.stages.some((s) =>
+    (s.projection?.entries?.length ?? 0) > 0
+  );
 }
 
 /** A recorded product an entry reads its payload from. */
@@ -145,8 +149,9 @@ export interface EntryProduct {
 export interface EntryEvent {
   /** The journal's length once this event was written (its index + 1). */
   journalVersion: number;
-  /** The candidates in the lifecycle's order: those on the event's trigger
-   * and cycle. A match decides between them once the payload is read. */
+  /** The candidates in the factory definition's order: those on the event's
+   * trigger and cycle. A match decides between them once the payload is read.
+   */
   candidates: ProjectionEntry[];
   /** The status key labelling the entry unless it names its own: the
    * stage's, else the last one entered before it, else null. */
@@ -162,10 +167,10 @@ export interface EntryEvent {
  */
 export function projectEntries(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   since: number,
 ): EntryEvent[] {
-  const stages = new Map(lifecycle.stages.map((s) => [s.id, s]));
+  const stages = new Map(definition.stages.map((s) => [s.id, s]));
   const out: EntryEvent[] = [];
   let status: string | null = null;
   for (let i = 0; i < run.journal.length; i++) {

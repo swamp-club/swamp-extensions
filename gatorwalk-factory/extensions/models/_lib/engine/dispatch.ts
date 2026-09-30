@@ -16,7 +16,7 @@
 
 import { type Json, jsonSafe } from "./canonical.ts";
 import { type CelContext, evaluateCel } from "./cel_context.ts";
-import { findStage, type Lifecycle } from "./lifecycle_schema.ts";
+import { type FactoryDefinition, findStage } from "./definition_schema.ts";
 import { validatePayload } from "./payload_schema.ts";
 import type { RunRecord } from "./run_record.ts";
 import { renderTemplate } from "./template.ts";
@@ -56,11 +56,11 @@ export interface DispatchPacket {
 
 /** Build the dispatch packet for the run's current stage. */
 export function buildDispatch(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   run: RunRecord,
   context: CelContext,
 ): DispatchPacket {
-  const stage = findStage(lifecycle, run.stage);
+  const stage = findStage(definition, run.stage);
   if (stage === undefined) throw new Error(`no stage '${run.stage}'`);
   const work = stage.work ?? { mode: "interactive" as const };
   const problems: string[] = [];

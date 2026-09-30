@@ -24,8 +24,8 @@ import {
   decide,
   describeStatus,
   dispatch,
+  FACTORY_TYPE,
   grantOverrideMethod,
-  HOLDER_TYPE,
   type MethodContextLike,
   rebuildMetrics,
   recordProductMethod,
@@ -36,19 +36,19 @@ import {
 import {
   settableEnv,
   stopsDefinition,
-  stopsLifecycle,
+  stopsParsedDefinition,
 } from "./test_support.ts";
 
 const ITEM = "stops-abcdefgh";
 const MINUTE = 60_000;
 
-/** A work item on the stops lifecycle, driven through the work-item
+/** A work item on the stops factory definition, driven through the work-item
  * operations on a clock the test sets. */
 async function driven() {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
     globalArguments: stopsDefinition(),
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const failing = { metrics: false };
@@ -71,7 +71,7 @@ async function driven() {
       expectedEra: view.expected.expectedEra,
     };
   };
-  await startWorkItem(ctx(), { lifecycle: "team" }, env);
+  await startWorkItem(ctx(), { factory: "team" }, env);
   return {
     swamp,
     failing,
@@ -170,7 +170,7 @@ async function toDone() {
 Deno.test("metrics: stage times, waits, rework, dispatches, overrides and usage of a finished item", async () => {
   const { swamp } = await toDone();
   const run = await runOf(swamp);
-  const m = computeMetrics(run, stopsLifecycle());
+  const m = computeMetrics(run, stopsParsedDefinition());
   assertEquals(m.status, "terminal");
   assertEquals(m.startedAt, "2026-09-29T10:00:00.000Z");
   assertEquals(m.endedAt, "2026-09-29T11:31:00.000Z");
@@ -238,7 +238,7 @@ Deno.test("metrics: the stored record is written after every commit and matches 
   assertEquals(records.get("metrics")?.length, records.get("run")?.length);
   const stored = storedMetrics(swamp);
   assertEquals(stored.journalVersion, run.journal.length);
-  assertEquals(stored, computeMetrics(run, stopsLifecycle()));
+  assertEquals(stored, computeMetrics(run, stopsParsedDefinition()));
 });
 
 Deno.test("metrics: an active item has open stages and waits, measured against nothing", async () => {
@@ -300,7 +300,7 @@ Deno.test("metrics: a run from before awaiting was journaled has no waits, not g
     ...run,
     journal: run.journal.filter((e) => e.type !== "awaiting"),
   };
-  const m = computeMetrics(old, stopsLifecycle());
+  const m = computeMetrics(old, stopsParsedDefinition());
   assertEquals(m.summary.waits, { count: 0, open: 0, timeMs: 0 });
   assertEquals(m.durationMs, 91 * MINUTE);
 });
@@ -368,7 +368,10 @@ Deno.test("metrics: a failed metrics write is logged, not thrown; rebuild_metric
 
   wi.failing.metrics = false;
   await wi.rebuild();
-  assertEquals(storedMetrics(wi.swamp), computeMetrics(run, stopsLifecycle()));
+  assertEquals(
+    storedMetrics(wi.swamp),
+    computeMetrics(run, stopsParsedDefinition()),
+  );
   const versions = wi.swamp.resources.get(ITEM)!.get("metrics")!.length;
   await wi.rebuild(); // level: writes nothing
   assertEquals(wi.swamp.resources.get(ITEM)!.get("metrics")!.length, versions);
@@ -383,6 +386,6 @@ Deno.test("metrics: rebuild_metrics writes the record for an item that has none"
   await wi.rebuild();
   assertEquals(
     storedMetrics(wi.swamp),
-    computeMetrics(await runOf(wi.swamp), stopsLifecycle()),
+    computeMetrics(await runOf(wi.swamp), stopsParsedDefinition()),
   );
 });

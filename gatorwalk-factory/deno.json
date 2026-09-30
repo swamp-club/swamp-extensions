@@ -1,10 +1,10 @@
 {
   "tasks": {
-    "check": "deno check extensions/models/ extensions/reports/ integration/",
-    "lint": "deno lint extensions/models/ extensions/reports/ integration/",
-    "fmt": "deno fmt extensions/models/ extensions/reports/ integration/ testdata/ .claude/skills/",
-    "fmt:check": "deno fmt --check extensions/models/ extensions/reports/ integration/ testdata/ .claude/skills/",
-    "test": "deno test --allow-read --allow-net=127.0.0.1 extensions/models/ extensions/reports/",
+    "check": "deno check extensions/models/ extensions/reports/ integration/ scripts/",
+    "lint": "deno lint extensions/models/ extensions/reports/ integration/ scripts/",
+    "fmt": "deno fmt extensions/models/ extensions/reports/ integration/ scripts/ testdata/ .claude/skills/",
+    "fmt:check": "deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ testdata/ .claude/skills/",
+    "test": "deno test --allow-read --allow-net=127.0.0.1 extensions/models/ extensions/reports/ scripts/",
     "test:integration": "deno test --allow-run=swamp --allow-read --allow-write --allow-env --allow-net=127.0.0.1 integration/"
   },
   "lint": {

@@ -30,17 +30,18 @@ import {
 } from "./template.ts";
 
 // ---------------------------------------------------------------------------
-// The lifecycle meta-schema: what a gatorwalk lifecycle looks like as data. Ported from @swamp/software-factory's definition
-// schema, with three changes:
+// The factory definition meta-schema: what a gatorwalk factory definition looks
+// like as data. Ported from @swamp/software-factory's definition schema, with
+// three changes:
 //
 // - Payload schemas are standard JSON Schema 2020-12 (payload_schema.ts),
 //   not a home-grown dialect.
 // - Runtime values are bare CEL strings in `work.bindings`, cel gates and a
-//   human-approval gate's `when`, never `${{ }}`. A lifecycle is stored in a model's globalArguments, where
-//   the platform would evaluate `${{ }}` when the definition is saved. Prose
-//   fields refer to bindings by name with `{{name}}` placeholders
-//   (template.ts).
-// - Referential integrity is part of the schema, so a lifecycle with a
+//   human-approval gate's `when`, never `${{ }}`. A factory definition is
+//   stored in a model's globalArguments, where the platform would evaluate
+//   `${{ }}` when the definition is saved. Prose fields refer to bindings by
+//   name with `{{name}}` placeholders (template.ts).
+// - Referential integrity is part of the schema, so a factory definition with a
 //   dangling reference fails when it is saved, not when a work item reaches
 //   the broken stage. Graph analysis (reachability, dead ends, ambiguous
 //   exits) is in graph.ts.
@@ -50,10 +51,10 @@ import {
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
-export const LIFECYCLE_SCHEMA_VERSION = 1;
+export const DEFINITION_SCHEMA_VERSION = 1;
 
-/** Names for lifecycles, stages, transitions, artifacts, evidence, gates.
- * Safe as path segments and shell words on every platform (#2290). */
+/** Names for factory definitions, stages, transitions, artifacts, evidence,
+ * gates. Safe as path segments and shell words on every platform (#2290). */
 const NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 export const NameSchema = z.string().regex(
@@ -76,7 +77,8 @@ export const SeveritySchema = z.enum(SEVERITIES);
 // Payload schemas and CEL
 // ---------------------------------------------------------------------------
 
-/** A JSON Schema 2020-12 document, checked when the lifecycle is saved. */
+/** A JSON Schema 2020-12 document, checked when the factory definition is
+ * saved. */
 export const PayloadSchemaSchema: z.ZodType<PayloadSchema> = z.record(
   z.string(),
   z.unknown(),
@@ -168,13 +170,14 @@ function boundVariables(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
-/** A bare CEL expression, syntax-checked when the lifecycle is saved. */
+/** A bare CEL expression, syntax-checked when the factory definition is saved.
+ */
 export const CelExpressionSchema = z.string().min(1).superRefine(
   (expr, ctx) => {
     if (expr.includes(TEMPLATE_OPEN)) {
       ctx.addIssue({
         code: "custom",
-        message: "write bare CEL without ${{ }}: the lifecycle is data, and " +
+        message: "write bare CEL without ${{ }}: the definition is data, and " +
           "the platform would evaluate ${{ }} when the definition is saved",
       });
       return;
@@ -210,8 +213,8 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
 // ---------------------------------------------------------------------------
 
 /**
- * Prose for the lifecycle's authors: why the gate is there. Shown on the
- * design page and in the studio; no engine path sends it to an agent.
+ * Prose for the factory definition's authors: why the gate is there. Shown on
+ * the design page and in the studio; no engine path sends it to an agent.
  */
 const GateDescriptionSchema = z.string().optional();
 
@@ -407,9 +410,9 @@ export const WORK_MODES = [
 export const WorkSchema = z.strictObject({
   mode: z.enum(WORK_MODES),
   /**
-   * Prose for the lifecycle's authors: what the work is and why. Shown on the
-   * design page and in the studio; never sent to whoever does the work (that
-   * is systemPrompt and command).
+   * Prose for the factory definition's authors: what the work is and why. Shown
+   * on the design page and in the studio; never sent to whoever does the work
+   * (that is systemPrompt and command).
    */
   description: z.string().optional(),
   skills: z.array(z.string().min(1)).optional(),
@@ -632,8 +635,8 @@ export const StageSchema = z.strictObject({
      * ticket's status alone. */
     status: NameSchema.optional(),
     /** Journal events this stage turns into ticket history entries. A
-     * lifecycle that declares any is published as entries, not comments,
-     * to a tracker that keeps them. */
+     * factory definition that declares any is published as entries, not
+     * comments, to a tracker that keeps them. */
     entries: z.array(ProjectionEntrySchema).optional(),
   }).optional(),
 });
@@ -645,11 +648,11 @@ export type StageSpec = z.infer<typeof StageSchema>;
 // ---------------------------------------------------------------------------
 
 /**
- * A lifecycle: the state machine a work item runs, copied into the work item
- * at start so the run is pinned to it.
+ * A factory definition: the state machine a work item runs, copied into the
+ * work item at start so the run is pinned to it.
  */
-export const LifecycleSchema = z.strictObject({
-  schemaVersion: z.literal(LIFECYCLE_SCHEMA_VERSION),
+export const DefinitionSchema = z.strictObject({
+  schemaVersion: z.literal(DEFINITION_SCHEMA_VERSION),
   name: NameSchema,
   description: z.string().optional(),
   stages: z.array(StageSchema).min(1),
@@ -657,7 +660,7 @@ export const LifecycleSchema = z.strictObject({
   globalTransitions: z.array(TransitionSchema).optional(),
 }).superRefine((doc, ctx) => checkDocument(doc, ctx));
 
-export type Lifecycle = z.infer<typeof LifecycleSchema>;
+export type FactoryDefinition = z.infer<typeof DefinitionSchema>;
 
 type Doc = {
   stages: StageSpec[];
@@ -666,7 +669,7 @@ type Doc = {
 
 type Path = (string | number)[];
 
-/** Cross-reference checks over a whole lifecycle. */
+/** Cross-reference checks over a whole factory definition. */
 function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
   const fail = (path: Path, message: string) =>
     ctx.addIssue({ code: "custom", path, message });
@@ -706,7 +709,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (artifacts.has(spec.name)) {
         fail(
           ["stages", i, "artifacts", j, "name"],
-          `artifact '${spec.name}' is declared more than once; artifact names are unique across the lifecycle`,
+          `artifact '${spec.name}' is declared more than once; artifact names are unique across the definition`,
         );
       }
       artifacts.set(spec.name, spec);
@@ -716,7 +719,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (evidence.has(spec.name) || own.has(spec.name)) {
         fail(
           ["stages", i, "evidence", j, "name"],
-          `evidence '${spec.name}' is declared more than once; evidence names are unique across the lifecycle`,
+          `evidence '${spec.name}' is declared more than once; evidence names are unique across the definition`,
         );
       }
       own.add(spec.name);
@@ -735,7 +738,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       if (evidence.has(result)) {
         fail(
           ["stages", i, "work", "resultEvidence"],
-          `evidence '${result}' is declared more than once; evidence names are unique across the lifecycle`,
+          `evidence '${result}' is declared more than once; evidence names are unique across the definition`,
         );
       }
       own.add(result);
@@ -1129,8 +1132,8 @@ export type ParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; errors: string[] };
 
-export function parseLifecycle(raw: unknown): ParseResult<Lifecycle> {
-  const result = LifecycleSchema.safeParse(raw);
+export function parseDefinition(raw: unknown): ParseResult<FactoryDefinition> {
+  const result = DefinitionSchema.safeParse(raw);
   return result.success
     ? { ok: true, value: result.data }
     : { ok: false, errors: formatIssues(result.error) };
@@ -1146,7 +1149,7 @@ export function findStage(
 export function initialStage(doc: { stages: StageSpec[] }): StageSpec {
   const stage = doc.stages.find((s) => s.initial === true);
   if (stage === undefined) {
-    throw new Error("lifecycle has no initial stage (it was not parsed)");
+    throw new Error("definition has no initial stage (it was not parsed)");
   }
   return stage;
 }
@@ -1161,9 +1164,12 @@ export function maxDispatchesFor(stage: StageSpec): number {
 
 /** Transitions available from a stage, including global transitions. */
 export function transitionsFrom(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   stage: StageSpec,
 ): TransitionSpec[] {
   if (stage.terminal === true) return [];
-  return [...(stage.transitions ?? []), ...(lifecycle.globalTransitions ?? [])];
+  return [
+    ...(stage.transitions ?? []),
+    ...(definition.globalTransitions ?? []),
+  ];
 }

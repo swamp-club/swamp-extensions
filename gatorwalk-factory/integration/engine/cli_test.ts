@@ -22,12 +22,12 @@ import {
 } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
-import { parseLifecycle } from "../../extensions/models/_lib/engine/lifecycle_schema.ts";
+import { parseDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
 import { stopsDefinition } from "../../extensions/models/_lib/engine/test_support.ts";
 import {
-  BUILD_LIFECYCLE,
-  SWAMP_EXTENSIONS_LIFECYCLE,
+  BUILD_DEFINITION,
+  SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
   withRepo,
   WORK_ITEM_TYPE,
@@ -41,18 +41,19 @@ import {
 
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
-async function buildLifecycle(): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(BUILD_LIFECYCLE)) as Record<
+async function buildDefinition(): Promise<Record<string, unknown>> {
+  return parseYaml(await Deno.readTextFile(BUILD_DEFINITION)) as Record<
     string,
     unknown
   >;
 }
 
-/** A holder named team on build-swamp-extension, and a work item started on it. */
+/** A factory named team on build-swamp-extension, and a work item started on
+ * it. */
 async function started(repo: SwampRepo): Promise<string> {
-  await repo.holder("team", await buildLifecycle());
+  await repo.factory("team", await buildDefinition());
   const key = await repo.newKey("team", "Integration work");
-  await repo.workItem(key, "start", { lifecycle: "team" });
+  await repo.workItem(key, "start", { factory: "team" });
   return key;
 }
 
@@ -85,13 +86,13 @@ const PLAN = {
   versionBump: { needed: true, reason: "New method" },
 };
 
-Deno.test("cli: holder validate reports a valid lifecycle, every schema error and graph errors, and new_key makes a key", async () => {
+Deno.test("cli: factory validate reports a valid definition, every schema error and graph errors, and new_key makes a key", async () => {
   await withRepo(async (repo) => {
-    await repo.holder("team", await buildLifecycle());
-    const ok = await repo.holderMethod("team", "validate");
+    await repo.factory("team", await buildDefinition());
+    const ok = await repo.factoryMethod("team", "validate");
     assert(
       ok.output.includes(
-        "lifecycle 'build-swamp-extension' in 'team' is valid",
+        "definition 'build-swamp-extension' in 'team' is valid",
       ),
       ok.output,
     );
@@ -101,20 +102,21 @@ Deno.test("cli: holder validate reports a valid lifecycle, every schema error an
     );
     // start takes any unused name, so a person can choose a key by hand.
     const chosen = await repo.workItem("my-chosen-key", "start", {
-      lifecycle: "team",
+      factory: "team",
     });
     assert(chosen.output.includes("started 'my-chosen-key'"), chosen.output);
 
-    const broken = await buildLifecycle();
+    const broken = await buildDefinition();
     const stages = broken.stages as {
       work: Record<string, unknown>;
       transitions: unknown[];
     }[];
-    // A platform expression: swamp must leave it to the lifecycle schema.
+    // A platform expression: swamp must leave it to the factory definition
+    // schema.
     stages[0].work.systemPrompt = "Plan ${{ model.x }}";
     stages[1].transitions.push({ name: "nowhere", to: "missing" });
-    await repo.holder("broken", broken);
-    const bad = await repo.holderMethod("broken", "validate", {
+    await repo.factory("broken", broken);
+    const bad = await repo.factoryMethod("broken", "validate", {
       allowFailure: true,
     });
     assertNotEquals(bad.code, 0);
@@ -126,14 +128,14 @@ Deno.test("cli: holder validate reports a valid lifecycle, every schema error an
 
     // A design error the schema accepts: plan can never see the check
     // stage's evidence, so graph analysis fails validate.
-    const unsound = await buildLifecycle();
+    const unsound = await buildDefinition();
     (unsound.stages as { transitions: unknown[] }[])[0].transitions.push({
       name: "shortcut",
       to: "code-review",
       gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
     });
-    await repo.holder("unsound", unsound);
-    const design = await repo.holderMethod("unsound", "validate", {
+    await repo.factory("unsound", unsound);
+    const design = await repo.factoryMethod("unsound", "validate", {
       allowFailure: true,
     });
     assertNotEquals(design.code, 0);
@@ -148,33 +150,33 @@ Deno.test("cli: holder validate reports a valid lifecycle, every schema error an
 
 Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a work item starts on it", async () => {
   await withRepo(async (repo) => {
-    const lifecycle = parseYaml(
-      await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+    const definition = parseYaml(
+      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
     ) as Record<string, unknown>;
-    await repo.holder("process", lifecycle);
-    const ok = await repo.holderMethod("process", "validate");
+    await repo.factory("process", definition);
+    const ok = await repo.factoryMethod("process", "validate");
     assert(
       ok.output.includes(
-        "lifecycle 'swamp-club-swamp-extensions' in 'process' is valid",
+        "definition 'swamp-club-swamp-extensions' in 'process' is valid",
       ),
       ok.output,
     );
     const key = await repo.newKey("process", "Integration work");
-    await repo.workItem(key, "start", { lifecycle: "process" });
+    await repo.workItem(key, "start", { factory: "process" });
     assertEquals((await repo.expected(key)).expectedStage, "triage");
   });
 });
 
-Deno.test("cli: design_page stores the swamp-club-swamp-extensions lifecycle as an HTML file", async () => {
+Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as an HTML file", async () => {
   await withRepo(async (repo) => {
-    const lifecycle = parseYaml(
-      await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+    const definition = parseYaml(
+      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
     ) as Record<string, unknown>;
-    await repo.holder("process", lifecycle);
-    const run = await repo.holderMethod("process", "design_page");
+    await repo.factory("process", definition);
+    const run = await repo.factoryMethod("process", "design_page");
     assert(
       run.output.includes(
-        "design page for lifecycle 'swamp-club-swamp-extensions' in 'process'",
+        "design page for definition 'swamp-club-swamp-extensions' in 'process'",
       ),
       run.output,
     );
@@ -205,7 +207,7 @@ Deno.test("cli: start, status, a rejected payload and a stale write", async () =
     const run = await repo.run(key);
     assertEquals(run.key, key);
     assertEquals(run.stage, "plan");
-    assertEquals(run.lifecycle.version, 1);
+    assertEquals(run.definition.version, 1);
 
     const status = await repo.workItem(key, "status");
     assert(status.output.includes("stage 'plan'"), status.output);
@@ -243,21 +245,21 @@ Deno.test("cli: start, status, a rejected payload and a stale write", async () =
 
 Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640)", async () => {
   await withRepo(async (repo) => {
-    await repo.holder("team", await buildLifecycle());
+    await repo.factory("team", await buildDefinition());
     const key = await repo.newKey("team", "Integration work");
     const refs = {
       linear: "5b0e7a52-3f0c-4d8e-9a51-2c7d4a1e9b10",
       "linear.display": "GW-16",
     };
     await repo.workItem(key, "start", {
-      lifecycle: "team",
+      factory: "team",
       externalRefs: JSON.stringify(refs),
     });
     assertEquals((await repo.run(key)).externalRefs, refs);
   });
 });
 
-Deno.test("cli: record, advance and approve; reset keeps the pin, reset with repin adopts an edited holder", async () => {
+Deno.test("cli: record, advance and approve; reset keeps the pin, reset with repin adopts an edited factory", async () => {
   await withRepo(async (repo) => {
     const key = await started(repo);
     const { record, go, approve } = driver(repo, key);
@@ -270,10 +272,10 @@ Deno.test("cli: record, advance and approve; reset keeps the pin, reset with rep
     assertEquals(moved.stage, "implement");
     assertEquals(moved.approvals.length, 1);
 
-    const pinned = moved.lifecycle.digest;
-    const edited = await buildLifecycle();
+    const pinned = moved.definition.digest;
+    const edited = await buildDefinition();
     edited.description = "edited after start";
-    await repo.editHolder("team", edited);
+    await repo.editFactory("team", edited);
 
     await repo.workItem(key, "reset", {
       confirm: "reset",
@@ -282,9 +284,9 @@ Deno.test("cli: record, advance and approve; reset keeps the pin, reset with rep
     const kept = await repo.run(key);
     assertEquals(kept.stage, "plan");
     assertEquals(
-      kept.lifecycle.digest,
+      kept.definition.digest,
       pinned,
-      "reset keeps the pinned lifecycle",
+      "reset keeps the pinned definition",
     );
 
     await repo.workItem(key, "reset", {
@@ -293,11 +295,11 @@ Deno.test("cli: record, advance and approve; reset keeps the pin, reset with rep
       ...await repo.expected(key),
     });
     const repinned = await repo.run(key);
-    assertNotEquals(repinned.lifecycle.digest, pinned);
-    assertEquals(repinned.lifecycle.version, 2);
-    const copy = await repo.data(key, "lifecycle", 2);
+    assertNotEquals(repinned.definition.digest, pinned);
+    assertEquals(repinned.definition.version, 2);
+    const copy = await repo.data(key, "definition", 2);
     assertEquals(
-      (copy.lifecycle as Record<string, unknown>).description,
+      (copy.definition as Record<string, unknown>).description,
       "edited after start",
     );
   });
@@ -374,29 +376,30 @@ Deno.test("cli: build-swamp-extension from start to release, with every stored v
     assertEquals(quality.earnedPoints, Number.MAX_SAFE_INTEGER);
     assertEquals(quality.percentage, 87.5);
 
-    // And so does the pinned lifecycle.
-    assert(run.lifecycle.version !== undefined);
-    const pin = await repo.data(key, "lifecycle", run.lifecycle.version);
-    assertEquals(pin.digest, run.lifecycle.digest);
-    const parsed = parseLifecycle(pin.lifecycle);
+    // And so does the pinned factory definition.
+    assert(run.definition.version !== undefined);
+    const pin = await repo.data(key, "definition", run.definition.version);
+    assertEquals(pin.digest, run.definition.digest);
+    const parsed = parseDefinition(pin.definition);
     assert(parsed.ok);
-    assertEquals(await digestOf(parsed.value), run.lifecycle.digest);
+    assertEquals(await digestOf(parsed.value), run.definition.digest);
   });
 });
 
 Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the report, the metrics record and a query across items", async () => {
   await withRepo(async (repo) => {
-    // The stops lifecycle, with its cooldown cut to a second.
-    const lifecycle = stopsDefinition();
-    const ship = (lifecycle.stages as { id: string; transitions?: unknown[] }[])
-      .find((s) => s.id === "ship");
+    // The stops factory definition, with its cooldown cut to a second.
+    const definition = stopsDefinition();
+    const ship =
+      (definition.stages as { id: string; transitions?: unknown[] }[])
+        .find((s) => s.id === "ship");
     const release = ship?.transitions?.[0] as {
       gates: { type: string; config: Record<string, unknown> }[];
     };
     release.gates[0].config.seconds = 1;
-    await repo.holder("team", lifecycle);
+    await repo.factory("team", definition);
     const key = await repo.newKey("team", "Integration work");
-    await repo.workItem(key, "start", { lifecycle: "team" });
+    await repo.workItem(key, "start", { factory: "team" });
     const wi = driver(repo, key);
 
     await repo.workItem(key, "dispatch", await repo.expected(key));
@@ -472,7 +475,7 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
 
     // The dashboard case: every work item's metrics in one query.
     const other = await repo.newKey("team", "Integration work");
-    await repo.workItem(other, "start", { lifecycle: "team" });
+    await repo.workItem(other, "start", { factory: "team" });
     const query = await repo.swamp([
       "data",
       "query",

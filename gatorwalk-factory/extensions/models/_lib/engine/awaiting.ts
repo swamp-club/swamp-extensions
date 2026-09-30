@@ -18,12 +18,12 @@ import { buildCelContext } from "./cel_context.ts";
 import { evaluateGates } from "./gates.ts";
 import type { AwaitingExit, JournalEvent } from "./journal.ts";
 import {
+  type FactoryDefinition,
   findStage,
   type GateSpec,
-  type Lifecycle,
   transitionsFrom,
   type TransitionSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 import { cycleLimitFor, type Env } from "./run_ops.ts";
 import { currentCycle, type RunRecord } from "./run_record.ts";
 import type { RunStore } from "./run_store.ts";
@@ -44,26 +44,26 @@ import type { RunStore } from "./run_store.ts";
 // this stage entry waits on rework, not on a person, until a product is
 // recorded after the decline. A conditional approval whose `when` is false
 // passes, so it is no stop; one whose `when` cannot be evaluated waits on a
-// fix to the run data or the lifecycle, not on a person, even though status
-// lists it as required so the driver stops and asks.
+// fix to the run data or the factory definition, not on a person, even though
+// status lists it as required so the driver stops and asks.
 // ---------------------------------------------------------------------------
 
 /** The exits of the current stage entry that only a person can open. */
 export async function personHeldExits(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   store: RunStore,
   env: Env,
   at: string,
 ): Promise<AwaitingExit[]> {
   if (run.status !== "active") return [];
-  const stage = findStage(lifecycle, run.stage);
+  const stage = findStage(definition, run.stage);
   if (stage === undefined) return [];
-  const globals = lifecycle.globalTransitions ?? [];
+  const globals = definition.globalTransitions ?? [];
   const held: AwaitingExit[] = [];
-  for (const transition of transitionsFrom(lifecycle, stage)) {
+  for (const transition of transitionsFrom(definition, stage)) {
     if (globals.includes(transition)) continue;
-    const exit = await heldBy(run, lifecycle, transition, store, env, at);
+    const exit = await heldBy(run, definition, transition, store, env, at);
     if (exit !== null) held.push(exit);
   }
   return held;
@@ -71,16 +71,16 @@ export async function personHeldExits(
 
 async function heldBy(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   transition: TransitionSpec,
   store: RunStore,
   env: Env,
   at: string,
 ): Promise<AwaitingExit | null> {
-  const limit = cycleLimitFor(run, lifecycle, transition);
+  const limit = cycleLimitFor(run, definition, transition);
   if (limit !== null && !limit.allowed) return null;
   const gates = transition.gates ?? [];
-  const checks = await evaluateGates(run, lifecycle, transition, store, env);
+  const checks = await evaluateGates(run, definition, transition, store, env);
   const pending: string[] = [];
   let readyAt: number | null = null;
   for (const [i, gate] of gates.entries()) {
@@ -195,7 +195,7 @@ export function lastAwaiting(run: RunRecord): AwaitingExit[] {
  */
 export async function noteAwaiting(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   store: RunStore,
   env: Env,
 ): Promise<RunRecord> {
@@ -205,7 +205,7 @@ export async function noteAwaiting(
   );
   if (!readable) return run;
   const at = env.now();
-  const exits = await personHeldExits(run, lifecycle, store, env, at);
+  const exits = await personHeldExits(run, definition, store, env, at);
   if (keyOf(exits, at) === keyOf(lastAwaiting(run), at)) return run;
   const cause = run.journal[run.journal.length - 1];
   const event: JournalEvent = {

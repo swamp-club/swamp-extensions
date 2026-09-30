@@ -80,7 +80,7 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
     ...EVENT_BASE,
     type: z.literal("started"),
-    lifecycle: z.strictObject({
+    definition: z.strictObject({
       name: z.string(),
       digest: z.string(),
       version: z.number().int().positive().optional(),
@@ -144,7 +144,7 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
     ...EVENT_BASE,
     type: z.literal("reset"),
     previousEra: z.string().min(1),
-    /** Set when the reset adopted a newly pinned lifecycle. */
+    /** Set when the reset adopted a newly pinned factory definition. */
     repinned: z.strictObject({
       digest: z.string().min(1),
       version: z.number().int().positive().optional(),

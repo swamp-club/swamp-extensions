@@ -16,17 +16,17 @@
 
 import { canonicalJson, fieldAt, type Json } from "./canonical.ts";
 import {
+  type FactoryDefinition,
   type GateSpec,
-  type Lifecycle,
   maxCyclesFor,
   type StageSpec,
   type TransitionSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 
 // ---------------------------------------------------------------------------
-// Graph analysis of a parsed lifecycle: the design problems a work item would
-// otherwise hit at run time. The schema (lifecycle_schema.ts)
-// has already checked shape and references, so every name here resolves.
+// Graph analysis of a parsed factory definition: the design problems a work
+// item would otherwise hit at run time. The schema (definition_schema.ts) has
+// already checked shape and references, so every name here resolves.
 //
 // Two explorations of abstract run states, both breadth-first so each state
 // keeps its shortest trace from the initial stage:
@@ -120,7 +120,7 @@ interface Graph {
   reviews: Map<string, string>;
 }
 
-function buildGraph(doc: Lifecycle): Graph {
+function buildGraph(doc: FactoryDefinition): Graph {
   const stages = new Map<string, StageSpec>();
   const stageIndex = new Map<string, number>();
   const artifactProducers = new Map<string, Set<string>>();
@@ -801,11 +801,11 @@ function components(
 }
 
 /**
- * Analyse a parsed lifecycle. Errors are problems a work item will hit;
- * warnings are designs worth a second look.
+ * Analyse a parsed factory definition. Errors are problems a work item will
+ * hit; warnings are designs worth a second look.
  */
-export function analyzeLifecycle(
-  doc: Lifecycle,
+export function analyzeDefinition(
+  doc: FactoryDefinition,
   options: AnalyzeOptions = {},
 ): GraphReport {
   const maxStates = options.maxStates ?? DEFAULT_MAX_STATES;

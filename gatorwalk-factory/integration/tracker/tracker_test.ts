@@ -33,7 +33,7 @@ import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linea
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
 import {
   splitWords,
-  SWAMP_EXTENSIONS_LIFECYCLE,
+  SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
   withRepo,
 } from "../harness.ts";
@@ -236,10 +236,10 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
   const fake = linearFake();
   try {
     await withRepo(async (repo) => {
-      await repo.holder("projected", projectedDefinition());
+      await repo.factory("projected", projectedDefinition());
       const key = await repo.newKey("projected", "Projected work");
       await repo.workItem(key, "start", {
-        lifecycle: "projected",
+        factory: "projected",
         externalRefs: JSON.stringify({ linear: ISSUE_UUID }),
       });
       await repo.workItem(key, "advance", {
@@ -285,7 +285,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
       assertEquals(
         fake.comments.map((c) => c.body.split("\n")[0]),
         [
-          `**${key}** started on lifecycle \`projected\`, at stage **write**.`,
+          `**${key}** started on definition \`projected\`, at stage **write**.`,
           `**${key}** entered **review** (cycle 1) by \`submit\`.`,
           `**${key}** is waiting on a person in **review**:`,
         ],
@@ -351,7 +351,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
   try {
     await withRepo(async (repo) => {
       await labAdapter(repo, fake.url);
-      await repo.holder(
+      await repo.factory(
         "team",
         parseYaml(await Deno.readTextFile(MINIMAL)),
       );
@@ -373,12 +373,12 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
         return match[1];
       };
 
-      const first = await claim({ issue: `#${issue}`, lifecycle: "team" });
+      const first = await claim({ issue: `#${issue}`, factory: "team" });
       const command = printed(first.output);
       const index = await repo.data("lab", `ticket-${issue}`);
       const key = String(index.key);
       assert(key.startsWith("minimal-"), key);
-      assertEquals(index.holder, "team");
+      assertEquals(index.factory, "team");
       assert(first.output.includes(`is claimed as '${key}'`), first.output);
 
       // The start never ran: claiming again hands back the same key.
@@ -395,7 +395,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       });
 
       // Read across models on the real engine: the ticket finds its item.
-      const started = await claim({ issue: `#${issue}`, lifecycle: "team" });
+      const started = await claim({ issue: `#${issue}`, factory: "team" });
       assert(
         started.output.includes(
           `is already started: '${key}' at stage 'work'`,
@@ -415,8 +415,8 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
 // @swamp/issue-lifecycle, added as a second extension source, is run by
 // direct type execution as the real one is, so claim's guard is checked
 // against the auto-definition swamp writes. Then a work item on the bundled
-// swamp-club-swamp-extensions lifecycle goes from claim to notify against the Lab fake,
-// published after each move.
+// swamp-club-swamp-extensions factory definition goes from claim to notify
+// against the Lab fake, published after each move.
 // ---------------------------------------------------------------------------
 
 const ISSUE_LIFECYCLE_STUB = `import { z } from "npm:zod@4.3.6";
@@ -468,7 +468,7 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
     await withRepo(async (repo) => {
       await repo.swamp(["extension", "source", "add", stub]);
       await labAdapter(repo, fake.url);
-      await repo.holder(
+      await repo.factory(
         "team",
         parseYaml(await Deno.readTextFile(MINIMAL)),
       );
@@ -491,7 +491,7 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
         "--input",
         `issue=${issue}`,
         "--input",
-        "lifecycle=team",
+        "factory=team",
         "--log",
       ], { allowFailure: true });
       assert(refused.code !== 0, refused.output);
@@ -523,11 +523,11 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
   try {
     await withRepo(async (repo) => {
       await labAdapter(repo, fake.url);
-      // The bundled lifecycle, with merge's cooldown cut to a second.
-      const lifecycle = parseYaml(
-        await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+      // The bundled factory definition, with merge's cooldown cut to a second.
+      const definition = parseYaml(
+        await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
       ) as { stages: { id: string; transitions?: unknown[] }[] };
-      const merge = lifecycle.stages.find((s) => s.id === "merge");
+      const merge = definition.stages.find((s) => s.id === "merge");
       for (const t of merge?.transitions ?? []) {
         for (
           const g of (t as {
@@ -537,7 +537,7 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
           if (g.type === "cooldown") g.config.seconds = 1;
         }
       }
-      await repo.holder("process", lifecycle);
+      await repo.factory("process", definition);
 
       const lab = (method: string, inputs: Record<string, string>) =>
         repo.swamp([
@@ -553,7 +553,7 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
         ]);
       const claimed = await lab("claim", {
         issue: `#${issue}`,
-        lifecycle: "process",
+        factory: "process",
       });
       const command = claimed.output.match(/Start it: (swamp .* --log)/);
       assert(command !== null, claimed.output);

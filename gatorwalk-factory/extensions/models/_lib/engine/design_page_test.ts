@@ -27,22 +27,25 @@ import {
   MERMAID_URL,
   renderDesignPage,
 } from "./design_page.ts";
-import { analyzeLifecycle } from "./graph.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import { analyzeDefinition } from "./graph.ts";
+import {
+  type FactoryDefinition,
+  parseDefinition,
+} from "./definition_schema.ts";
 
 async function render(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
 ): Promise<{ view: DesignView; html: string }> {
   const view = designView(
-    lifecycle,
-    analyzeLifecycle(lifecycle),
-    await digestOf(lifecycle),
+    definition,
+    analyzeDefinition(definition),
+    await digestOf(definition),
   );
   return { view, html: renderDesignPage(view) };
 }
 
-function lifecycle(yaml: string): Lifecycle {
-  const result = parseLifecycle(parseYaml(yaml));
+function definition(yaml: string): FactoryDefinition {
+  const result = parseDefinition(parseYaml(yaml));
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
@@ -100,25 +103,25 @@ const SHIPPED = [
     "../../../../.claude/skills/gatorwalk-factory/references/examples/",
     import.meta.url,
   ),
-  new URL("../../../../testdata/lifecycles/", import.meta.url),
+  new URL("../../../../testdata/factories/", import.meta.url),
 ];
 
-async function shippedLifecycles(): Promise<[string, Lifecycle][]> {
-  const found: [string, Lifecycle][] = [];
+async function shippedDefinitions(): Promise<[string, FactoryDefinition][]> {
+  const found: [string, FactoryDefinition][] = [];
   for (const dir of SHIPPED) {
     for await (const entry of Deno.readDir(dir)) {
       if (!entry.name.endsWith(".yaml")) continue;
       const text = await Deno.readTextFile(new URL(entry.name, dir));
-      found.push([entry.name, lifecycle(text)]);
+      found.push([entry.name, definition(text)]);
     }
   }
   return found.sort(([a], [b]) => a.localeCompare(b));
 }
 
-Deno.test("design page: every shipped lifecycle renders its stages, transitions, gates and human stops", async () => {
-  const lifecycles = await shippedLifecycles();
-  assert(lifecycles.length >= 7, `found ${lifecycles.length}`);
-  for (const [file, lc] of lifecycles) {
+Deno.test("design page: every shipped definition renders its stages, transitions, gates and human stops", async () => {
+  const definitions = await shippedDefinitions();
+  assert(definitions.length >= 7, `found ${definitions.length}`);
+  for (const [file, lc] of definitions) {
     const { view, html } = await render(lc);
     const nodes = declaredNodes(view.diagrams.all);
     const edges = drawnEdges(view.diagrams.all);
@@ -183,11 +186,11 @@ Deno.test("design page: findings-clear and findings-open read as opposites", () 
   );
 });
 
-Deno.test("design page: the swamp-club-swamp-extensions lifecycle shows its handoffs", async () => {
+Deno.test("design page: the swamp-club-swamp-extensions definition shows its handoffs", async () => {
   const text = await Deno.readTextFile(
     new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
   );
-  const lc = lifecycle(text);
+  const lc = definition(text);
   const { view, html } = await render(lc);
   const worked = lc.stages.filter((s) => s.work !== undefined);
   assert(worked.length > 0);
@@ -201,7 +204,7 @@ Deno.test("design page: the swamp-club-swamp-extensions lifecycle shows its hand
 });
 
 Deno.test("design page: gate and work descriptions are shown", async () => {
-  const { view, html } = await render(lifecycle(`
+  const { view, html } = await render(definition(`
 schemaVersion: 1
 name: described
 stages:
@@ -244,7 +247,7 @@ stages:
 const FLAWED = `
 schemaVersion: 1
 name: flawed
-description: A lifecycle with design errors.
+description: A definition with design errors.
 stages:
   - id: plan
     initial: true
@@ -275,8 +278,8 @@ stages:
     terminal: true
 `;
 
-Deno.test("design page: a lifecycle with graph findings shows each one with its trace", async () => {
-  const { view, html } = await render(lifecycle(FLAWED));
+Deno.test("design page: a definition with graph findings shows each one with its trace", async () => {
+  const { view, html } = await render(definition(FLAWED));
   assertEquals(
     view.findings.map((f) => `${f.severity} ${f.code} ${f.path}`),
     [
@@ -313,10 +316,10 @@ Deno.test("design page: a lifecycle with graph findings shows each one with its 
 });
 
 Deno.test("design page: a truncated analysis says so", async () => {
-  const lc = lifecycle(FLAWED);
+  const lc = definition(FLAWED);
   const view = designView(
     lc,
-    analyzeLifecycle(lc, { maxStates: 1 }),
+    analyzeDefinition(lc, { maxStates: 1 }),
     await digestOf(lc),
   );
   assert(view.truncated);
@@ -324,7 +327,7 @@ Deno.test("design page: a truncated analysis says so", async () => {
 });
 
 Deno.test("design page: loops back and global transitions are layers, both off at first", async () => {
-  for (const [file, lc] of await shippedLifecycles()) {
+  for (const [file, lc] of await shippedDefinitions()) {
     const { view, html } = await render(lc);
     const forward = drawnEdges(view.diagrams.forward);
     const loops = drawnEdges(view.diagrams.loops);
@@ -364,7 +367,7 @@ Deno.test("design page: loops back and global transitions are layers, both off a
 });
 
 Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first", async () => {
-  const lc = lifecycle(
+  const lc = definition(
     await Deno.readTextFile(
       new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
     ),
@@ -425,8 +428,8 @@ stages:
     terminal: true
 `;
 
-Deno.test("design page: lifecycle text is escaped in the HTML, the diagram and the embedded view", async () => {
-  const { view, html } = await render(lifecycle(HOSTILE));
+Deno.test("design page: definition text is escaped in the HTML, the diagram and the embedded view", async () => {
+  const { view, html } = await render(definition(HOSTILE));
   // Exactly the page's own three script elements and no injected tags.
   assertEquals(html.match(/<script\b/g)?.length, 3);
   assertEquals(html.match(/<\/script>/g)?.length, 3);
@@ -455,8 +458,8 @@ Deno.test("design page: lifecycle text is escaped in the HTML, the diagram and t
   }
 });
 
-Deno.test("design page: the same lifecycle renders the same bytes", async () => {
-  const lc = lifecycle(FLAWED);
+Deno.test("design page: the same definition renders the same bytes", async () => {
+  const lc = definition(FLAWED);
   const first = await render(lc);
   const second = await render(structuredClone(lc));
   assertEquals(first.html, second.html);

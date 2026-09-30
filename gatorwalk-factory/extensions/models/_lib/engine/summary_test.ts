@@ -21,13 +21,13 @@ import { buildSummary, formatDuration } from "./summary.ts";
 import {
   settableEnv,
   stopsDefinition,
-  stopsLifecycle,
+  stopsParsedDefinition,
 } from "./test_support.ts";
 import {
   advanceMethod,
   decide,
   describeStatus,
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   recordProductMethod,
   startWorkItem,
   summary,
@@ -39,7 +39,7 @@ async function reviewed() {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
     globalArguments: stopsDefinition(),
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const ctx = () => swamp.context(ITEM);
@@ -53,7 +53,7 @@ async function reviewed() {
   };
   await startWorkItem(
     ctx(),
-    { lifecycle: "team", externalRefs: { "linear.display": "ABC-1" } },
+    { factory: "team", externalRefs: { "linear.display": "ABC-1" } },
     env,
   );
   env.at("2026-09-29T10:10:00.000Z");
@@ -108,8 +108,8 @@ Deno.test("summary: the same run always renders the same summary", async () => {
   const run = await loadRun(contextStore(swamp.context(ITEM)));
   assert(run !== null);
   assertEquals(
-    buildSummary(run, stopsLifecycle()),
-    buildSummary(structuredClone(run), stopsLifecycle()),
+    buildSummary(run, stopsParsedDefinition()),
+    buildSummary(structuredClone(run), stopsParsedDefinition()),
   );
 });
 

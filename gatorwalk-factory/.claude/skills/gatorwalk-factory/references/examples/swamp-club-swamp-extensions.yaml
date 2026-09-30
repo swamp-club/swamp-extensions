@@ -16,12 +16,12 @@ description: |-
 
   This is the process swamp-extensions runs with @swamp/issue-lifecycle and
   agent-constraints/verification-conventions.md, written as a gatorwalk
-  lifecycle. A work item on it drives a Lab issue end to end through the
-  swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue reads
-  the same as one issue-lifecycle drives. issue-lifecycle stays, and drives
-  every other issue: the adapter's claim refuses an issue it already drives.
-  swamp-club-swamp-extensions.md maps every phase, gate and human stop onto
-  this lifecycle and lists what the format could not express.
+  factory definition. A work item on it drives a Lab issue end to end through
+  the swamp-club adapter (@swamp/gatorwalk-factory/swamp-club), so the issue
+  reads the same as one issue-lifecycle drives. issue-lifecycle stays, and
+  drives every other issue: the adapter's claim refuses an issue it already
+  drives. swamp-club-swamp-extensions.md maps every phase, gate and human stop
+  onto this factory definition and lists what the format could not express.
 
   The work item never talks to swamp-club itself. The adapter's publish
   replays its journal to the issue: each stage's projection names the Lab
@@ -561,8 +561,8 @@ stages:
       the agent reviews the change's paths call for. The wrapper fails if
       either fails, and waits for both. A person then sees the combined
       checklist of both runs and confirms it before the attestation is
-      posted. A lifecycle is in one stage at a time, so this is how the two
-      run in parallel; see DESIGN.md, "Parallel work inside one stage".
+      posted. A factory definition is in one stage at a time, so this is how the
+      two run in parallel; see DESIGN.md, "Parallel work inside one stage".
     work:
       mode: workflow
       workflow: { name: verify }

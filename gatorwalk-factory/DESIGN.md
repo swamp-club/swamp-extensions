@@ -1,7 +1,7 @@
 # gatorwalk-factory design decisions
 
-Decisions about the lifecycle format, with the reasoning behind them. Each names
-the code that carries it out.
+Decisions about the factory definition format, with the reasoning behind them.
+Each names the code that carries it out.
 
 ## Runtime values in prompts: bindings plus `{{name}}` placeholders
 
@@ -10,7 +10,7 @@ CEL expressions under a stage's `work.bindings`. Prose fields (`systemPrompt`,
 `command`) refer to them by name with `{{name}}` placeholders, which are filled
 when the stage is dispatched. Carried out in
 `extensions/models/_lib/engine/template.ts` and checked in
-`lifecycle_schema.ts`.
+`definition_schema.ts`.
 
 ```yaml
 work:
@@ -24,11 +24,11 @@ work:
 ### Why software-factory's `${{ }}` could not be kept
 
 software-factory interpolated `${{ expr }}` anywhere in a definition, at
-`status` time. That syntax belongs to swamp: a lifecycle lives in a model's
-`globalArguments`, and swamp evaluates every `${{ }}` there when the definition
-is saved, before any run data exists (`expression_parser.ts` in swamp matches
-`\$\{\{\s*(.+?)\s*\}\}`). software-factory worked around this by keeping the
-platform-facing schema loose and re-parsing the raw definition itself. The
+`status` time. That syntax belongs to swamp: a factory definition lives in a
+model's `globalArguments`, and swamp evaluates every `${{ }}` there when the
+definition is saved, before any run data exists (`expression_parser.ts` in swamp
+matches `\$\{\{\s*(.+?)\s*\}\}`). software-factory worked around this by keeping
+the platform-facing schema loose and re-parsing the raw definition itself. The
 result:
 
 - A definition could not be fully validated when it was saved (#1236).
@@ -49,7 +49,7 @@ below handle the common clashes.
 A placeholder holds a binding name, never CEL. Every expression lives in one
 place, `work.bindings`, where:
 
-- it is syntax-checked when the lifecycle is checked;
+- it is syntax-checked when the factory definition is checked;
 - its resolved value is recorded on the dispatch, typed, so a stage can later be
   replayed and evaluated against a changed prompt;
 - it can also feed a workflow's or method's inputs and be handed to an agent as
@@ -62,17 +62,17 @@ prompt.
 
 | Text                                                                    | Meaning                                                                                                                              |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared binding, or the lifecycle is rejected when checked, with the error's path.                    |
+| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared binding, or the factory definition is rejected when checked, with the error's path.                    |
 | `{{` around anything else (`{{ .Values.x }}`, `{{#each}}`, `{{ a.b }}`) | Literal text, so most Helm, Handlebars and Go template snippets pass through unescaped.                                              |
 | `{{` directly after `{` (`{{{body}}}`)                                  | Literal text, so Handlebars triple-stash passes through.                                                                             |
 | `\{{`                                                                   | A literal `{{`, for text that would otherwise be a placeholder.                                                                      |
-| `${{`                                                                   | Rejected anywhere in a lifecycle. swamp would evaluate it on save, and it has no escape, so a prompt cannot contain a literal `${{`. |
+| `${{`                                                                   | Rejected anywhere in a factory definition. swamp would evaluate it on save, and it has no escape, so a prompt cannot contain a literal `${{`. |
 
 Bare-word template tags such as Go's `{{end}}` or Handlebars' `{{else}}` look
-exactly like placeholders. They are rejected when the lifecycle is checked, as
-undeclared bindings, and are written `\{{end}}`. The failure is loud and the
-error names the escape. There is no way to write a literal `\` directly before a
-live placeholder.
+exactly like placeholders. They are rejected when the factory definition is
+checked, as undeclared bindings, and are written `\{{end}}`. The failure is loud
+and the error names the escape. There is no way to write a literal `\` directly
+before a live placeholder.
 
 Binding names are identifiers (letters, digits and `_`, not starting with a
 digit), so every binding can be used as a placeholder.
@@ -106,9 +106,10 @@ audited afterwards.
 the work item lives in a single record under the fixed name `run`: current
 stage, entries per stage, the index of recorded products, dispatches, approvals
 and the journal. Product payloads live in their own records (`artifact-<name>`,
-`evidence-<name>`, where `<name>` is declared by the lifecycle), and the run
-record indexes each one's version and digest. Code: `_lib/engine/run_record.ts`,
-`_lib/engine/run_ops.ts`, `_lib/engine/run_store.ts`.
+`evidence-<name>`, where `<name>` is declared by the factory definition), and
+the run record indexes each one's version and digest. Code:
+`_lib/engine/run_record.ts`, `_lib/engine/run_ops.ts`,
+`_lib/engine/run_store.ts`.
 
 ### Why
 
@@ -187,13 +188,13 @@ the latest?". A reset starts a new era, so nothing from before it is visible.
 
 These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...) or
 `cel.bind` may not bind a variable called `item`, `stage`, `artifacts`,
-`evidence` or `validations`; the lifecycle schema rejects it. CEL allows it, and
-the variable would hide the context's value for the rest of the expression,
-which is almost always a mistake. The rule also lets tools that read CEL take
-these names to mean the context's. The list is `CEL_VOCABULARY` in
-`lifecycle_schema.ts`, checked against `CelContext` when it compiles. Putting
+`evidence` or `validations`; the factory definition schema rejects it. CEL
+allows it, and the variable would hide the context's value for the rest of the
+expression, which is almost always a mistake. The rule also lets tools that read
+CEL take these names to mean the context's. The list is `CEL_VOCABULARY` in
+`definition_schema.ts`, checked against `CelContext` when it compiles. Putting
 the vocabulary under a single prefix would also do this, at the cost of changing
-every lifecycle; that is left for later.
+every factory definition; that is left for later.
 
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
@@ -201,8 +202,8 @@ with integer literals works (`version >= 2`), but arithmetic needs a double
 
 ## Loops and their controls
 
-**Decision.** A lifecycle is a directed graph that contains cycles. It is
-deliberately not a DAG: rework, re-checking and revision are loops back to
+**Decision.** A factory definition is a directed graph that contains cycles. It
+is deliberately not a DAG: rework, re-checking and revision are loops back to
 earlier stages, and every loop is bounded by the controls below.
 
 The swamp workflows that do a stage's work are acyclic (they have no loops),
@@ -268,15 +269,15 @@ The cycle limit bounds loops between stages. The dispatch cap bounds a runaway
 loop within one pass: a stage entry may take `maxDispatchesPerCycle` dispatches,
 2 by default, plus once per dispatch override granted for that stage and cycle.
 Past that, `dispatch` is refused as a suspected runaway loop. Neither bundled
-lifecycle sets it.
+factory definition sets it.
 
 ### Routing on the loop count
 
 A `max-cycles` gate reads how many times a stage has been entered in the era: it
 passes while the count is below `limit`, or, with `invert: true`, once it has
 reached `limit`. A pair of them routes on the count, for example to stop
-reworking and escalate after three passes. No bundled lifecycle does this yet;
-this is an illustration:
+reworking and escalate after three passes. No bundled factory definition does
+this yet; this is an illustration:
 
 ```yaml
 - id: code-review
@@ -286,7 +287,7 @@ this is an illustration:
       gates:
         - type: max-cycles
           config: { stage: implement, limit: 3 }
-        # ...and the open-finding cel gate, as in the bundled lifecycles
+        # ...and the open-finding cel gate, as in the bundled definitions
     - name: escalate # after the third
       to: redesign
       gates:
@@ -313,7 +314,7 @@ A loop can never wedge a run:
 
 ### Design-time checks
 
-The holder's `validate` analyses the graph (see "Graph validation"), and three
+The factory's `validate` analyses the graph (see "Graph validation"), and three
 of its warnings are about loops:
 
 - **`escape-only`:** a loop whose only way out is a global transition such as
@@ -327,7 +328,7 @@ of its warnings are about loops:
 Loops do not multiply the states the analysis explores, except where an inverted
 `max-cycles` gate counts a stage (see "What the analysis assumes"). `validate`
 fails if either pass stops at the 100,000-state cap without finishing, because a
-partial exploration cannot show that the lifecycle is sound.
+partial exploration cannot show that the factory definition is sound.
 
 ### Measurement
 
@@ -356,9 +357,9 @@ gate may use both (every condition must hold):
   compared as canonical JSON.
 - **`match`** maps a dotted field path to a JSON Schema 2020-12 fragment the
   value there must satisfy, such as `{ not: { const: bug } }` or
-  `{ enum: [high, medium] }`. Fragments are checked when the lifecycle is saved
-  and validated by the same engine as payload schemas, so there is no second
-  dialect. A fragment for one field has nothing to point into, so `$ref`,
+  `{ enum: [high, medium] }`. Fragments are checked when the factory definition
+  is saved and validated by the same engine as payload schemas, so there is no
+  second dialect. A fragment for one field has nothing to point into, so `$ref`,
   `$dynamicRef`, `$defs`, `$id`, `$anchor` and `$dynamicAnchor` are refused.
 
 A missing field fails both, even under `not`: a condition is about a value that
@@ -396,8 +397,8 @@ false the gate passes and is not required, whatever decisions were recorded;
 once the condition holds in the same stage entry. A `when` that cannot be
 evaluated, or is not true or false, fails the gate with the error and counts as
 required, so the driver stops and asks; it is not a human stop in the journal,
-since the fix is to the run data or the lifecycle. CEL has no value for a
-missing key, so a `when` that reads evidence which may not exist yet guards it
+since the fix is to the run data or the factory definition. CEL has no value for
+a missing key, so a `when` that reads evidence which may not exist yet guards it
 (`"x" in evidence && ...`, `has(evidence.x.payload.field)`). A conditional gate
 is only as strong as the data it reads, and the driving agent records that data:
 `when` should read something a person sees anyway, such as the classification
@@ -424,12 +425,13 @@ shell word (#2290). A reset starts a new era, and with it fresh counts.
 
 ## Graph validation
 
-**Decision.** The schema checks a lifecycle's shape and references when it is
-saved. `_lib/engine/graph.ts` then analyses it as a graph, so an author finds a
-design problem before a work item hits it. The holder's `validate` method runs
-both: graph errors fail it, and warnings are logged one by one. Starting a work
-item runs the schema check only, so a warning, or an error the author has
-accepted, never stops a work item from loading its lifecycle.
+**Decision.** The schema checks a factory definition's shape and references when
+it is saved. `_lib/engine/graph.ts` then analyses it as a graph, so an author
+finds a design problem before a work item hits it. The factory's `validate`
+method runs both: graph errors fail it, and warnings are logged one by one.
+Starting a work item runs the schema check only, so a warning, or an error the
+author has accepted, never stops a work item from loading its factory
+definition.
 
 ### The propulsion rule
 
@@ -505,9 +507,9 @@ order states are explored in.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration. The
-holder's `validate` fails whenever either pass stops at the cap: a partial
-exploration cannot show the lifecycle is sound. It names the cap and the pass
-that stopped, and still lists the partial findings as warnings.
+factory's `validate` fails whenever either pass stops at the cap: a partial
+exploration cannot show the factory definition is sound. It names the cap and
+the pass that stopped, and still lists the partial findings as warnings.
 
 ### Findings
 
@@ -592,7 +594,7 @@ a nested step (`task: { type: workflow, workflowIdOrName, inputs }`,
 run. It carries whatever later stages need from each part, and its exits gate on
 it as usual.
 
-The swamp-extensions lifecycle does this for verification.
+The swamp-extensions factory definition does this for verification.
 `verification/workflow-verify.yaml` runs verify-build and verify-reviews as two
 nested runs at the same time. The `verify` stage records `verification`: the
 wrapper's status and run id, and each child's status and run id. `passed`
@@ -635,18 +637,18 @@ Checked on swamp 20260929.151817.0 and in its source at c48ef142
 engine with stub children. It checks that the children overlap and are runs of
 their own, that the wrapper waits for both, and that it fails when either does.
 
-## The model types: a lifecycle holder and work items
+## The model types: a factory and work items
 
-**Decision.** Two model types (`extensions/models/engine/lifecycle.ts`,
+**Decision.** Two model types (`extensions/models/engine/factory.ts`,
 `work_item.ts`, logic in `_lib/engine/work_item_ops.ts`):
 
-- A **lifecycle holder** is an instance whose `globalArguments` are a team's
-  lifecycle.
+- A **factory** is an instance whose `globalArguments` are a team's
+  factory definition.
 - A **work item** is one instance per piece of work, named by a key. `start`
-  reads the holder and **pins a copy** of its lifecycle with its digest. Every
-  later method uses that copy, so editing the holder never changes a running
-  work item. `reset` keeps the pinned copy unless `repin=true` adopts the
-  holder's current one.
+  reads the factory and **pins a copy** of its factory definition with its
+  digest. Every later method uses that copy, so editing the factory never
+  changes a running work item. `reset` keeps the pinned copy unless `repin=true`
+  adopts the factory's current one.
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
@@ -656,21 +658,21 @@ copy, never a mismatch. Pinned copies are kept by age for ten years, not by
 count: they are small and rarely written, and retention must never collect the
 one a run reads.
 
-**The holder's schema is plain, on purpose.** swamp validates a model's
+**The factory's schema is plain, on purpose.** swamp validates a model's
 `globalArguments` on every run with `schema.partial()`, and zod refuses
-`.partial()` on a schema with refinements, which the full lifecycle schema is
-made of. So the holder's schema only names the top-level fields, and the full
-check is gatorwalk's own: the holder's `validate` method, and every `start`.
-Both read the holder's **raw** definition through the definition repository,
-never swamp's evaluated `globalArguments`, so a `${{ }}` reaches the lifecycle
-schema's own error. On a remote worker that definition arrives as a plain object
-with `_globalArguments`; both shapes are read.
+`.partial()` on a schema with refinements, which the full factory definition
+schema is made of. So the factory's schema only names the top-level fields, and
+the full check is gatorwalk's own: the factory's `validate` method, and every
+`start`. Both read the factory's **raw** definition through the definition
+repository, never swamp's evaluated `globalArguments`, so a `${{ }}` reaches the
+factory definition schema's own error. On a remote worker that definition
+arrives as a plain object with `_globalArguments`; both shapes are read.
 
-**Keys are gatorwalk's.** swamp cannot generate instance names, so the holder's
+**Keys are gatorwalk's.** swamp cannot generate instance names, so the factory's
 `new_key` generates an unused key from the work's title (a required `title`
 input), and the work item is created under it. A key is how a person refers to a
 work item everywhere (`status`, the summary report, commands, conversation), so
-it says what the work is: `<lifecycle>-<slug>-<suffix>`, for example
+it says what the work is: `<definition>-<slug>-<suffix>`, for example
 `build-swamp-extension-add-list-method-r2ne`.
 
 - **The slug** is the title with accents removed, lowercased, and split into
@@ -682,11 +684,11 @@ it says what the work is: `<lifecycle>-<slug>-<suffix>`, for example
 - **The length** is swamp's: an instance name is at most 64 characters matching
   `^[a-z0-9][a-z0-9_-]*$` (`DEFINITION_NAME_MAX_LENGTH` and
   `DEFINITION_NAME_PATTERN` in swamp's `src/domain/definitions/definition.ts`).
-  The lifecycle prefix is cut at 55 characters (and any trailing separator
-  dropped), so the slug always keeps at least 3.
+  The factory definition prefix is cut at 55 characters (and any trailing
+  separator dropped), so the slug always keeps at least 3.
 - **The suffix** is 4 random base32 characters, about a million per slug. Only
-  work with the same lifecycle and slug can collide, in practice a ticket
-  claimed again, and a key some definition already has is drawn again.
+  work with the same factory definition and slug can collide, in practice a
+  ticket claimed again, and a key some definition already has is drawn again.
 - **From a ticket,** `claim` puts the ticket's display id first, all its words
   kept: `2734-drive-lab-issue` for the Lab's `#2734`, `abc-12-...` for Linear's
   `ABC-12`. The id there is for reading only (see "Tracker ids are data").
@@ -694,13 +696,13 @@ it says what the work is: `<lifecycle>-<slug>-<suffix>`, for example
   may abandon the item and start a new one. `start` takes any unused name, so a
   person may also choose a key by hand.
 - **Not a sequence** (`cue-7`): that needs one counter minted in one place,
-  reuses numbers when a holder is recreated, and reads like a tracker id. **Not
+  reuses numbers when a factory is recreated, and reads like a tracker id. **Not
   calver:** it is long, hard to say, and repeats what the journal records. Order
   does not matter, since work is often picked up out of order.
 
-`new_key` logs the key and also records it as the holder's `key` data, so a
+`new_key` logs the key and also records it as the factory's `key` data, so a
 program reads it from `--json` output (`dataArtifacts`) instead of parsing log
-text; it is therefore not a `read` method, and the write takes the holder's
+text; it is therefore not a `read` method, and the write takes the factory's
 lock.
 
 **Output and failure.** Methods report through the log, as
@@ -776,7 +778,7 @@ Excluded, on purpose:
 - **A freshly declined gate** waits on rework, not on a person, until a product
   is recorded after the decline.
 - **A conditional approval whose `when` cannot be evaluated** waits on a fix to
-  the run data or the lifecycle, not on a person.
+  the run data or the factory definition, not on a person.
 
 A cooldown gate counts as passing from when it lifts; the event carries that
 time as `readyAt`. Recording the product it counts from again restarts it, and
@@ -798,7 +800,7 @@ Per era, and summed over every era:
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                            |
 | Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
-| Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the lifecycle declares with `reviews`, using the currently pinned lifecycle's links), declines, and rejected payloads.                                    |
+| Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                    |
 | Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. |
 | Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
 | Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
@@ -813,36 +815,36 @@ roll-ups are out of scope: they are a query over these records.
 
 ## The design page
 
-**Decision.** The lifecycle holder's `design_page` method renders the lifecycle
-as one static HTML page and stores it as the holder's `design-page` file
+**Decision.** The factory's `design_page` method renders the factory definition
+as one static HTML page and stores it as the factory's `design-page` file
 (`text/html`). The page shows the stage graph, each transition's gates, the
 human stops, each stage's handoff (work mode, what it calls, skills, injected
 context, bindings, result evidence, prompts) and products, and the graph
 analysis's findings with their traces (`_lib/engine/design_page.ts`).
 
-**Descriptions, not comments.** The lifecycle, its stages, transitions, gates,
-work, artifacts and evidence each take an optional `description`, and the page
-shows every one. A description is for the lifecycle's authors: no engine path
-sends one to whoever does the work, which gets `systemPrompt`, `command` and
-`constraints` (`dispatch_test.ts` pins this). Lifecycle files carry no YAML
-comments: agents rewrite the YAML, which drops them, and the read-only studio
-and this page show descriptions, not comments. A note inside a payload schema
-uses JSON Schema's own `description` or `$comment`.
+**Descriptions, not comments.** The factory definition, its stages, transitions,
+gates, work, artifacts and evidence each take an optional `description`, and the
+page shows every one. A description is for the factory definition's authors: no
+engine path sends one to whoever does the work, which gets `systemPrompt`,
+`command` and `constraints` (`dispatch_test.ts` pins this). Factory definition
+files carry no YAML comments: agents rewrite the YAML, which drops them, and the
+read-only studio and this page show descriptions, not comments. A note inside a
+payload schema uses JSON Schema's own `description` or `$comment`.
 
 **A method, not a report.** A swamp report produces markdown and JSON, is kept
 for 30 days and five versions, and only exists once a run triggers it. The page
 is HTML an author asks for when they want to look, so it is a file the method
-writes on demand, kept like the holder's other records. A report could wrap the
+writes on demand, kept like the factory's other records. A report could wrap the
 same renderer later. swamp stores the file without an extension, so the page is
 saved for a browser with
-`swamp data get <holder> design-page --json | jq -r .content > <name>.html`, the
-command the method logs.
+`swamp data get <factory> design-page --json | jq -r .content > <name>.html`,
+the command the method logs.
 
-**It renders what `validate` refuses.** A lifecycle the schema rejects fails the
-method with every error, as `validate` does. Graph errors and a truncated
-analysis do not: the page is where an author sees them. A finding that has a
-trace can be selected, and the page walks the trace across the graph one stage
-at a time.
+**It renders what `validate` refuses.** A factory definition the schema rejects
+fails the method with every error, as `validate` does. Graph errors and a
+truncated analysis do not: the page is where an author sees them. A finding that
+has a trace can be selected, and the page walks the trace across the graph one
+stage at a time.
 
 **Mermaid from a CDN, pinned.** The issue asked for no network at view time; in
 triage it was agreed that loading a standard JS dependency is fine, and that the
@@ -858,11 +860,11 @@ page shows the Mermaid source as text, and every table still renders.
 (`designView`), embedded in the page as JSON and read by the page's own script.
 A later view, such as an animated d3 one, reads the same data rather than
 re-deriving the graph. Diagram nodes are `s<index>` rather than stage ids,
-because a stage id can be a Mermaid keyword (`end`); lifecycle text never
-reaches the diagram, only names, and every piece of text is escaped in the HTML
-and the embedded JSON. Global transitions are drawn once, from an "any
+because a stage id can be a Mermaid keyword (`end`); factory definition text
+never reaches the diagram, only names, and every piece of text is escaped in the
+HTML and the embedded JSON. Global transitions are drawn once, from an "any
 non-terminal stage" node, when that layer is on. The page reads no clock, so the
-same lifecycle always gives the same bytes.
+same factory definition always gives the same bytes.
 
 **The forward flow first; loops and escapes are layers.** A real process has
 many rework edges, and drawn all at once they bury the main line. The graph
@@ -920,8 +922,8 @@ The contract:
   `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
   accepts either, reports the UUID and the `externalRefs` to start a work item
   with.
-- **Credentials never come from lifecycle data or method inputs.** An adapter's
-  credential is a sensitive global argument, which can be wired with
+- **Credentials never come from factory definition data or method inputs.** An
+  adapter's credential is a sensitive global argument, which can be wired with
   `${{ vault.get(<vault>, <key>) }}` so swamp resolves it at run time and
   redacts it from logs. The Linear adapter reads that argument only. The Lab
   adapter resolves its key as issue-lifecycle does: the `apiKey` argument, then
@@ -960,19 +962,20 @@ Every adapter provides five operations, as swamp methods built by
 | `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot                                  |
 | `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed                             |
 | `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
-| `claim`       | `issue`: id or display, optional `lifecycle`       | the snapshot, and the ticket index when it reserves a key |
+| `claim`       | `issue`: id or display, optional `factory`       | the snapshot, and the ticket index when it reserves a key |
 | `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 
 **An optional capability: history.** A tracker that keeps a structured history
 of each ticket and a ticket type (the Lab's lifecycle entries and issue type)
 offers it as the adapter's `history` (`postEntry`, `setType`). It sits beside
 the contract, not in it: Linear has neither, and the shared methods never ask an
-adapter without it. `publish` uses it when the lifecycle declares projection
-entries; its writes go through the same ledger (actions `lifecycle_entry` and
-`set_type`). The conformance suite checks it for an adapter that declares it (an
-entry returns its id, a type move is a no-op the second time, bad credentials
-are `auth`) and skips it otherwise. A snapshot may also carry the tracker's own
-`details` (the Lab's body, type, author and ripples).
+adapter without it. `publish` uses it when the factory definition declares
+projection entries; its writes go through the same ledger (actions
+`lifecycle_entry` and `set_type`). The conformance suite checks it for an
+adapter that declares it (an entry returns its id, a type move is a no-op the
+second time, bad credentials are `auth`) and skips it otherwise. A snapshot may
+also carry the tracker's own `details` (the Lab's body, type, author and
+ripples).
 
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
@@ -1006,7 +1009,7 @@ status lookup reads up to 250 statuses per team, Linear's page limit.
 ### The seam
 
 **Decision.** Tracker code lives in gatorwalk-factory, apart from the engine,
-and a test keeps the two apart. The engine is the lifecycle holder, the work
+and a test keeps the two apart. The engine is the factory, the work
 item and everything under `_lib/engine/`. The tracker is the adapter models in
 `extensions/models/tracker/`, the contract in `_lib/tracker/core/`, and the
 clients and their fakes in `_lib/tracker/backends/`. `boundary_test.ts` holds
@@ -1016,9 +1019,9 @@ the rules:
   exists.
 - Tracker code imports the engine only through `_lib/engine/tracker.ts`, which
   re-exports exactly what tracker code uses: the run record, the journal types,
-  the pinned lifecycle, the template renderer and a few work-item helpers.
-  Tracker tests may also use `_lib/engine/tracker_testing.ts` (the fakes and the
-  work-item operations they drive) and `integration/harness.ts`.
+  the pinned factory definition, the template renderer and a few work-item
+  helpers. Tracker tests may also use `_lib/engine/tracker_testing.ts` (the
+  fakes and the work-item operations they drive) and `integration/harness.ts`.
 - Tracker core imports no backend, so the contract never depends on one tracker.
 - Production code imports no test code, and the surface exports nothing that
   tracker code does not import.
@@ -1029,29 +1032,29 @@ imports from both sides. Each rule is shown failing on a planted import.
 
 **Why a test, not a package.** A separate tracker extension would have one
 consumer, gatorwalk. It would also have to publish the run record, the journal
-and the pinned lifecycle as a cross-package API, because the tracker reads all
-three. A test gives the same isolation with none of that: an import that crosses
-the line fails the build, and the surface shows in one file exactly what the
-tracker depends on.
+and the pinned factory definition as a cross-package API, because the tracker
+reads all three. A test gives the same isolation with none of that: an import
+that crosses the line fails the build, and the surface shows in one file exactly
+what the tracker depends on.
 
 ### The projection publisher
 
 **Decision.** `publish` replays one work item's journal to its ticket. It is one
 of the shared methods in `_lib/tracker/core/tracker_methods.ts`, so every
 adapter has it unchanged, and what it says is a pure function of the run and its
-pinned lifecycle (`_lib/tracker/core/projection.ts`). An explicit method now: a
-scheduled sweep or a driver tick can call the same thing later.
+pinned factory definition (`_lib/tracker/core/projection.ts`). An explicit
+method now: a scheduled sweep or a driver tick can call the same thing later.
 
-What it does, in order (step 3 is comments; a lifecycle with entries is
+What it does, in order (step 3 is comments; a factory definition with entries is
 published as entries instead, below):
 
 1. **Reads the work item** through `context.readModelData(<key>, "run")`, and
-   its pinned lifecycle: by exact version through `context.queryData` (a query
-   naming `version` reaches history; `readModelData` gives only the latest), and
-   otherwise, or if that query fails (logged), the latest copy. The query is not
-   limited to this repository's namespace, so a candidate is used only if its
-   digest is the one the run recorded. The ticket is `externalRefs[<tracker>]`;
-   a work item without one is refused.
+   its pinned factory definition: by exact version through `context.queryData`
+   (a query naming `version` reaches history; `readModelData` gives only the
+   latest), and otherwise, or if that query fails (logged), the latest copy. The
+   query is not limited to this repository's namespace, so a candidate is used
+   only if its digest is the one the run recorded. The ticket is
+   `externalRefs[<tracker>]`; a work item without one is refused.
 2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
    version delivered so far, the ticket, and the last status key written. A
    cursor for another ticket is refused: one work item projects to one ticket.
@@ -1079,42 +1082,44 @@ published as entries instead, below):
 **Entries instead of comments.** A stage's `projection.entries` says which of
 its journal events become structured entries in the ticket's history: entering
 the stage (or starting in it), a product it declares being recorded, or one of
-its human-approval gates being approved. When the pinned lifecycle declares any
-and the adapter has the history capability, `publish` writes those entries and
-no comments: one event, one entry, or none if no entry answers it (a decline, a
-wait, a reset, a stage without entries). This is how a work item's Lab issue
-reads like one issue-lifecycle drives: the bundled `swamp-extensions` lifecycle
-reuses issue-lifecycle's step names, emoji and status labels. Which event is
-which step belongs to the lifecycle, pinned with it, for the same reason as the
-status key. For a recorded product, `publish` reads the payload at the version
-the journal names (by query, falling back to the latest copy) and accepts it
-only if its digest is the one the journal recorded, so an entry never describes
-a later version. `match` picks between entries on one trigger, `{{field}}` fills
-the summary from the payload (an absent field is empty text), and `setsType`
-names a payload field whose value is written as the ticket type first, under its
-own ledger key, as issue-lifecycle writes the type before its `classified`
-entry. An entry's `targetStatus` is a label only (swamp-club never moves the
-issue for it): the entry's own `status` key, else its stage's, else the last
-stage's before it, else the ticket's current status. Summaries are a template
-over the payload, not CEL, so what issue-lifecycle computes (counts, versions,
-attempts) is left out; `swamp-club-swamp-extensions.md` lists where. A summary
-needs fixed text besides its placeholders, and names only scalar fields. The
-payload sent is the recorded one without keys that start with `$`, which
-swamp-club refuses. An entry or type the tracker still refuses outright
-(`invalid`) is recorded in the ledger as skipped and logged, and the replay
-moves past it: its request comes from a digest-pinned payload, so no re-run
-could ever land it, and stalling there would freeze the ticket's status and
-every later entry. Other failures stop the publish for a re-run.
+its human-approval gates being approved. When the pinned factory definition
+declares any and the adapter has the history capability, `publish` writes those
+entries and no comments: one event, one entry, or none if no entry answers it (a
+decline, a wait, a reset, a stage without entries). This is how a work item's
+Lab issue reads like one issue-lifecycle drives: the bundled `swamp-extensions`
+factory definition reuses issue-lifecycle's step names, emoji and status labels.
+Which event is which step belongs to the factory definition, pinned with it, for
+the same reason as the status key. For a recorded product, `publish` reads the
+payload at the version the journal names (by query, falling back to the latest
+copy) and accepts it only if its digest is the one the journal recorded, so an
+entry never describes a later version. `match` picks between entries on one
+trigger, `{{field}}` fills the summary from the payload (an absent field is
+empty text), and `setsType` names a payload field whose value is written as the
+ticket type first, under its own ledger key, as issue-lifecycle writes the type
+before its `classified` entry. An entry's `targetStatus` is a label only
+(swamp-club never moves the issue for it): the entry's own `status` key, else
+its stage's, else the last stage's before it, else the ticket's current status.
+Summaries are a template over the payload, not CEL, so what issue-lifecycle
+computes (counts, versions, attempts) is left out;
+`swamp-club-swamp-extensions.md` lists where. A summary needs fixed text besides
+its placeholders, and names only scalar fields. The payload sent is the recorded
+one without keys that start with `$`, which swamp-club refuses. An entry or type
+the tracker still refuses outright (`invalid`) is recorded in the ledger as
+skipped and logged, and the replay moves past it: its request comes from a
+digest-pinned payload, so no re-run could ever land it, and stalling there would
+freeze the ticket's status and every later entry. Other failures stop the
+publish for a re-run.
 
 **Where the stage-to-status mapping lives: both places.** A stage names a
 gatorwalk status key (`projection: { status: in_progress }`), and the adapter's
 `statuses` argument maps keys to the tracker's own names. The key belongs in the
-lifecycle because only its author knows what a stage means, and there it is
-pinned by digest with the rest of the run. The tracker's names belong to whoever
-runs the workspace, and differ per team. The example lifecycles use the Lab's
-own status names as keys (`triaged`, `in_progress`, `shipped`, `closed`), so the
-Lab adapter's default map needs no configuration and Linear maps the same keys
-to its team's names. A stage without a key leaves the status alone.
+factory definition because only its author knows what a stage means, and there
+it is pinned by digest with the rest of the run. The tracker's names belong to
+whoever runs the workspace, and differ per team. The example factory definitions
+use the Lab's own status names as keys (`triaged`, `in_progress`, `shipped`,
+`closed`), so the Lab adapter's default map needs no configuration and Linear
+maps the same keys to its team's names. A stage without a key leaves the status
+alone.
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different
@@ -1222,20 +1227,20 @@ to it:
 **Decision.** Every adapter has a `claim` method (`_lib/tracker/core/claim.ts`,
 exposed by `trackerMethods`). It keeps a **ticket index** on the adapter
 instance: one `ticket-<stable id>` record per ticket, naming the ticket's
-current work-item key, the lifecycle holder it starts under, and the keys of its
+current work-item key, the factory it starts under, and the keys of its
 earlier, finished work items. A ticket finds its work item without scanning
 every instance.
 
 `claim` fetches the ticket (by stable id or display identifier), reads its
 record, and reads the named work item's run through swamp's `readModelData`:
 
-- **No record:** it loads the holder (checked in full), generates a key no
+- **No record:** it loads the factory (checked in full), generates a key no
   definition uses from the ticket's display id and title, **writes the record
   first**, and prints the work-item `start` command with the ticket's
   `externalRefs`. The driver runs it.
 - **A record whose key has no run:** a reservation whose start never ran. The
   same key and command are printed again, and the index is not written. A
-  different holder is refused.
+  different factory is refused.
 - **An active run:** reported with its stage; the index is not written.
 - **A terminal run** (done or abandoned): the ticket may start a new work item.
   A new key is reserved, and the old one goes to the front of `previous`.
@@ -1251,7 +1256,7 @@ the first one's reservation.
 A claim that succeeds also refreshes the ticket's `issue-<id>` snapshot, as
 `fetch_issue` does, after the index is settled. A refused claim writes nothing.
 
-`lifecycle` is only needed when a new key is reserved. `claim` never comments,
+`factory` is only needed when a new key is reserved. `claim` never comments,
 moves or assigns the ticket; that is the projection's (GW-17).
 
 **Why write the index first.** A crash between reserving and starting then
@@ -1301,8 +1306,8 @@ Fakes can only show what their author believed about the engine. The GW-6 smoke
 run showed the gap: swamp reads a model's type from the source without running
 it, so a type given as a constant never registered, and no unit test could see
 that. The first suite automates that smoke run. It also closes a GW-4 question
-by checking that every payload version and the pinned lifecycle read back from
-swamp's storage still have the digest taken before they were written.
+by checking that every payload version and the pinned factory definition read
+back from swamp's storage still have the digest taken before they were written.
 
 ### How it runs in verification
 
@@ -1369,7 +1374,7 @@ the suite logs. Code: `swampEnv` in `integration/harness.ts`. That includes
 the host's key; its test also sets `apiKey` and `url`, so the host's stored
 login is not read either.
 
-**Out of scope.** Remote workers and `swamp serve` are not covered. A holder
+**Out of scope.** Remote workers and `swamp serve` are not covered. A factory
 read on a remote worker arrives as a plain object with `_globalArguments`, and
 that shape is still unconfirmed against the real engine. The driving skill is
 GW-8. Dispatch and usage run through the CLI in the summary test.
@@ -1379,7 +1384,7 @@ GW-8. Dispatch and usage run through the CLI in the summary test.
 ### 2026-09-30: stage templates and apply cut; examples in the skill instead (swamp-club #2767)
 
 **Cut.** The template model type (`@swamp/gatorwalk-factory/template`), the
-lifecycle holder's `apply` method and its `applied-lifecycle` record, the stage
+factory's `apply` method and its `applied-definition` record, the stage
 template format (a `contract` of inputs, outputs, exits and parameters, `exit:`
 transitions, `{ $param }` placeholders), the five starter stage templates under
 `templates/`, and the graph checks only stage templates used
@@ -1389,14 +1394,14 @@ transitions, `{ $param }` placeholders), the five starter stage templates under
 feature was one-time scaffolding, and an agent does the same by copying YAML and
 running `validate`. Nothing used it: neither `build-swamp-extension.yaml` nor
 `swamp-club-swamp-extensions.yaml` used a template, `apply`, a contract or a
-`$param`, and the starter templates were extracted from those lifecycles, not
-used to build them. It was about 1,400 lines of source and 1,800 of tests, plus
-a public model type and a method that would have become API at go-live. Removing
-it before go-live costs users nothing; after go-live it would be a breaking
-change. No model version was bumped: the extension has never been published, so
-there is nothing to upgrade.
+`$param`, and the starter templates were extracted from those factory
+definitions, not used to build them. It was about 1,400 lines of source and
+1,800 of tests, plus a public model type and a method that would have become API
+at go-live. Removing it before go-live costs users nothing; after go-live it
+would be a breaking change. No model version was bumped: the extension has never
+been published, so there is nothing to upgrade.
 
-**What replaced it.** Example lifecycles in the skill, under
+**What replaced it.** Example factory definitions in the skill, under
 `.claude/skills/gatorwalk-factory/references/examples/`: `minimal`, `starter`,
 `build-swamp-extension`, and `swamp-club-swamp-extensions` as a real-world
 example. The skill tells an agent to copy the closest one and run `validate`,
@@ -1407,11 +1412,12 @@ skill directory of every agent tool the repository uses, so a path relative to
 the skill works in all of them, whereas files at the extension root land under
 the pulled extension's `files/` directory, which the skill cannot name. Push
 refuses symlinks, so linking one place to the other is not an option.
-`lifecycles/` is gone too: gatorwalk-factory ships no lifecycle of its own.
+The top-level directory of examples is gone too: gatorwalk-factory ships no
+factory definition of its own.
 
 **What was not kept.** One check only `apply` made: that a contract input read
 only by a CEL binding is produced on every path into the stage template
-(`productsMissingOnEntry`). Its general form, for any lifecycle, is to warn when
-a product only CEL reads is not produced on every path to the reading stage.
-That needs design of its own (which guarded reads count as tolerant) and shares
-a CEL reference walker with #2680, so it is swamp-club #2792.
+(`productsMissingOnEntry`). Its general form, for any factory definition, is to
+warn when a product only CEL reads is not produced on every path to the reading
+stage. That needs design of its own (which guarded reads count as tolerant) and
+shares a CEL reference walker with #2680, so it is swamp-club #2792.

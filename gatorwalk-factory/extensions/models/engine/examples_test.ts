@@ -16,15 +16,15 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
-import { model as holder } from "./lifecycle.ts";
+import { model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
-import { HOLDER_TYPE } from "../_lib/engine/work_item_ops.ts";
+import { FACTORY_TYPE } from "../_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
-// The example lifecycles the skill points agents at, under its
-// references/examples/. Each must pass the holder's validate method, the
+// The example factory definitions the skill points agents at, under its
+// references/examples/. Each must pass the factory's validate method, the
 // check a person runs after copying one, so an example cannot rot. How each
-// behaves is tested in lifecycles_test.ts.
+// behaves is tested in factories_test.ts.
 // ---------------------------------------------------------------------------
 
 const EXAMPLES = new URL(
@@ -65,17 +65,17 @@ Deno.test("examples: the set of examples is the one listed here", async () => {
   assertEquals(await examples(), Object.keys(EXPECTED).sort());
 });
 
-Deno.test("examples: each passes the holder's validate method, with only the explained warnings", async () => {
+Deno.test("examples: each passes the factory's validate method, with only the explained warnings", async () => {
   for (const file of await examples()) {
     const swamp = fakeSwamp();
     swamp.definitions.set("team", {
       globalArguments: parseYaml(
         await Deno.readTextFile(new URL(file, EXAMPLES)),
       ),
-      type: HOLDER_TYPE,
+      type: FACTORY_TYPE,
     });
     // validate throws on a schema or graph error, or a truncated analysis.
-    await holder.methods.validate.execute({}, swamp.context("team"));
+    await factory.methods.validate.execute({}, swamp.context("team"));
     const summary = String(swamp.logs.at(-1)?.props?.summary);
     assert(summary.includes("' in 'team' is valid: "), `${file}: ${summary}`);
     const warnings = swamp.logs
@@ -103,13 +103,13 @@ Deno.test("examples: each description says what it is for and what to change fir
   }
 });
 
-// Agents rewrite lifecycle YAML, which drops comments, and the studio and the
-// design page show descriptions, not comments; so what is worth keeping goes
-// in a description, and no lifecycle file carries a comment.
-Deno.test("examples and fixtures: no lifecycle file carries a comment", async () => {
+// Agents rewrite factory definition YAML, which drops comments, and the studio
+// and the design page show descriptions, not comments; so what is worth keeping
+// goes in a description, and no factory definition file carries a comment.
+Deno.test("examples and fixtures: no definition file carries a comment", async () => {
   const dirs = [
     EXAMPLES,
-    new URL("../../../testdata/lifecycles/", import.meta.url),
+    new URL("../../../testdata/factories/", import.meta.url),
   ];
   for (const dir of dirs) {
     for await (const entry of Deno.readDir(dir)) {

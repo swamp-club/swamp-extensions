@@ -25,12 +25,15 @@ import {
 } from "./gates.ts";
 import { designView, renderDesignPage } from "./design_page.ts";
 import {
-  analyzeLifecycle,
+  analyzeDefinition,
   DEFAULT_MAX_STATES,
   formatFinding,
 } from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  type FactoryDefinition,
+  parseDefinition,
+} from "./definition_schema.ts";
 import {
   advance,
   dispatchCap,
@@ -70,21 +73,22 @@ import {
 // survives and the caller still gets a non-zero exit.
 // ---------------------------------------------------------------------------
 
-export const HOLDER_TYPE = "@swamp/gatorwalk-factory/lifecycle";
+export const FACTORY_TYPE = "@swamp/gatorwalk-factory/factory";
 export const WORK_ITEM_TYPE = "@swamp/gatorwalk-factory/work-item";
 
-/** The resource spec and fixed name of a work item's pinned lifecycle. */
-export const LIFECYCLE_SPEC = "lifecycle";
-export const LIFECYCLE_NAME = "lifecycle";
+/** The resource spec and fixed name of a work item's pinned factory definition.
+ */
+export const DEFINITION_SPEC = "definition";
+export const DEFINITION_NAME = "definition";
 
 /**
- * The resource spec and fixed name of the holder's latest generated key, so a
+ * The resource spec and fixed name of the factory's latest generated key, so a
  * program reads the key from --json output rather than the log text.
  */
 export const KEY_SPEC = "key";
 export const KEY_NAME = "key";
 
-/** The file spec and fixed name of a holder's design page. */
+/** The file spec and fixed name of a factory's design page. */
 export const DESIGN_PAGE_SPEC = "design-page";
 export const DESIGN_PAGE_NAME = "design-page";
 
@@ -242,7 +246,7 @@ function actorOf(ctx: MethodContextLike, onBehalfOf?: string): Actor {
   return actorFrom(ctx, onBehalfOf);
 }
 
-// --- the lifecycle holder -----------------------------------------------------
+// --- the factory ----------------------------------------------------------------
 
 /** A model type as swamp passes it (a string, or raw and normalized). */
 export function typeNameOf(type: unknown): string {
@@ -256,12 +260,12 @@ export function typeNameOf(type: unknown): string {
 }
 
 /**
- * The raw, unevaluated globalArguments of a lifecycle holder. Read through
- * the definition repository, never the evaluated context.globalArgs, so a ${{ }} reaches the lifecycle schema's
- * own error. On a remote worker the definition arrives as a plain object
- * with _globalArguments.
+ * The raw, unevaluated globalArguments of a factory. Read through
+ * the definition repository, never the evaluated context.globalArgs, so a
+ * ${{ }} reaches the factory definition schema's own error. On a remote worker
+ * the definition arrives as a plain object with _globalArguments.
  */
-export async function readHolderArguments(
+export async function readFactoryArguments(
   ctx: MethodContextLike,
   name: string,
 ): Promise<unknown> {
@@ -269,11 +273,11 @@ export async function readHolderArguments(
     throw new Error("this method context cannot read model definitions");
   }
   const found = await ctx.definitionRepository.findByNameGlobal(name);
-  if (found === null) throw new Error(`no lifecycle holder named '${name}'`);
+  if (found === null) throw new Error(`no factory named '${name}'`);
   const type = typeNameOf(found.type);
-  if (type !== HOLDER_TYPE) {
+  if (type !== FACTORY_TYPE) {
     throw new Error(
-      `'${name}' is a ${type}, not a lifecycle holder (${HOLDER_TYPE})`,
+      `'${name}' is a ${type}, not a factory (${FACTORY_TYPE})`,
     );
   }
   const definition = found.definition as {
@@ -283,15 +287,15 @@ export async function readHolderArguments(
   return definition.globalArguments ?? definition._globalArguments ?? {};
 }
 
-/** A holder's lifecycle, validated in full; throws with every error. */
-export async function loadHolderLifecycle(
+/** A factory's definition, validated in full; throws with every error. */
+export async function loadFactoryDefinition(
   ctx: MethodContextLike,
   name: string,
-): Promise<Lifecycle> {
-  const parsed = parseLifecycle(await readHolderArguments(ctx, name));
+): Promise<FactoryDefinition> {
+  const parsed = parseDefinition(await readFactoryArguments(ctx, name));
   if (!parsed.ok) {
     throw new Error(
-      `lifecycle holder '${name}' is not a valid lifecycle:\n${
+      `factory '${name}' is not a valid definition:\n${
         parsed.errors.join("\n")
       }`,
     );
@@ -300,33 +304,33 @@ export async function loadHolderLifecycle(
 }
 
 /**
- * The holder's validate method: the schema's errors, then the graph
+ * The factory's validate method: the schema's errors, then the graph
  * analysis (graph.ts). Graph errors, or an analysis that stopped at the
  * state cap, fail the method with every finding; otherwise warnings are
  * logged one by one before the summary. Work items load the
- * lifecycle with the schema check alone.
+ * factory definition with the schema check alone.
  */
-export async function validateHolder(
+export async function validateFactory(
   ctx: MethodContextLike,
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
-  const lifecycle = await loadHolderLifecycle(ctx, name);
+  const definition = await loadFactoryDefinition(ctx, name);
   const maxStates = DEFAULT_MAX_STATES;
-  const graph = analyzeLifecycle(lifecycle, { maxStates });
+  const graph = analyzeDefinition(definition, { maxStates });
   // A partial exploration proves nothing, so it fails validation too. The
   // exploration-truncated warnings name the pass that stopped.
   if (graph.errors.length > 0 || graph.truncated) {
     const parts: string[] = [];
     if (graph.errors.length > 0) {
       parts.push(
-        `lifecycle holder '${name}' has design errors:\n${
+        `factory '${name}' has design errors:\n${
           graph.errors.map(formatFinding).join("\n")
         }`,
       );
     }
     if (graph.truncated) {
       parts.push(
-        `lifecycle holder '${name}' could not be checked in full: the graph ` +
+        `factory '${name}' could not be checked in full: the graph ` +
           `analysis stopped at its cap of ${maxStates} states, so ` +
           `its findings rest on a partial exploration. Reduce the ` +
           `stages or the branching between them.`,
@@ -344,43 +348,45 @@ export async function validateHolder(
     });
   }
   ctx.logger.info("{summary}", {
-    summary: `lifecycle '${lifecycle.name}' in '${name}' is valid: ` +
-      `${lifecycle.stages.length} stages (${
-        lifecycle.stages.map((s) => s.id).join(", ")
+    summary: `definition '${definition.name}' in '${name}' is valid: ` +
+      `${definition.stages.length} stages (${
+        definition.stages.map((s) => s.id).join(", ")
       }), ${graph.warnings.length} warning(s)`,
-    lifecycle: lifecycle.name,
-    digest: await digestOf(lifecycle),
+    definition: definition.name,
+    digest: await digestOf(definition),
   });
   return { dataHandles: [] };
 }
 
 /**
- * The holder's design_page method: the lifecycle as a static HTML page
- * (design_page.ts), stored as the holder's design-page file. A lifecycle the
- * schema rejects fails as validate does; graph errors and a truncated analysis
- * do not, because the page is where they are shown.
+ * The factory's design_page method: the factory definition as a static HTML
+ * page (design_page.ts), stored as the factory's design-page file. A factory
+ * definition the schema rejects fails as validate does; graph errors and a
+ * truncated analysis do not, because the page is where they are shown.
  */
 export async function designPageMethod(
   ctx: MethodContextLike,
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
-  const lifecycle = await loadHolderLifecycle(ctx, name);
+  const definition = await loadFactoryDefinition(ctx, name);
   if (ctx.createFileWriter === undefined) {
     throw new Error("this method context cannot write files");
   }
-  const graph = analyzeLifecycle(lifecycle, { maxStates: DEFAULT_MAX_STATES });
-  const digest = await digestOf(lifecycle);
-  const html = renderDesignPage(designView(lifecycle, graph, digest));
+  const graph = analyzeDefinition(definition, {
+    maxStates: DEFAULT_MAX_STATES,
+  });
+  const digest = await digestOf(definition);
+  const html = renderDesignPage(designView(definition, graph, digest));
   const handle = await ctx.createFileWriter(DESIGN_PAGE_SPEC, DESIGN_PAGE_NAME)
     .writeText(html);
   ctx.logger.info("{summary}", {
-    summary: `design page for lifecycle '${lifecycle.name}' in '${name}': ` +
-      `${lifecycle.stages.length} stages, ${graph.errors.length} error(s), ` +
+    summary: `design page for definition '${definition.name}' in '${name}': ` +
+      `${definition.stages.length} stages, ${graph.errors.length} error(s), ` +
       `${graph.warnings.length} warning(s)` +
       (graph.truncated ? ", analysis truncated" : "") +
       `; save it with: swamp data get ${name} ${DESIGN_PAGE_NAME} --json ` +
-      `| jq -r .content > ${lifecycle.name}.html`,
-    lifecycle: lifecycle.name,
+      `| jq -r .content > ${definition.name}.html`,
+    definition: definition.name,
     digest,
     errors: graph.errors.length,
     warnings: graph.warnings.length,
@@ -395,11 +401,11 @@ const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 // ^[a-z0-9][a-z0-9_-]*$ (DEFINITION_NAME_MAX_LENGTH and
 // DEFINITION_NAME_PATTERN in swamp's src/domain/definitions/definition.ts).
 const KEY_MAX_LENGTH = 64;
-// The random tail: 32^4 keys per slug. Only work with the same lifecycle and
-// slug can collide, and freshKey retries when it does.
+// The random tail: 32^4 keys per slug. Only work with the same factory
+// definition and slug can collide, and freshKey retries when it does.
 const KEY_SUFFIX_LENGTH = 4;
-// Today's cap on the lifecycle prefix, so the slug always keeps at least
-// 64 - 55 - 2 - 4 = 3 characters.
+// Today's cap on the factory definition prefix, so the slug always keeps at
+// least 64 - 55 - 2 - 4 = 3 characters.
 const KEY_PREFIX_MAX_LENGTH = 55;
 
 // Words a title's slug leaves out. A ticket's display id keeps all its words.
@@ -458,17 +464,17 @@ export function keySlug(title: string, budget: number, id = ""): string {
   return slug;
 }
 
-/** A fresh work-item key: <lifecycle>-<slug>-<4 base32 characters>. */
+/** A fresh work-item key: <factory definition>-<slug>-<4 base32 characters>. */
 export function generateKey(
-  lifecycleName: string,
+  definitionName: string,
   title: string,
   id = "",
 ): string {
   const bytes = crypto.getRandomValues(new Uint8Array(KEY_SUFFIX_LENGTH));
   const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
-  const prefix = lifecycleName.length > KEY_PREFIX_MAX_LENGTH
-    ? lifecycleName.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
-    : lifecycleName;
+  const prefix = definitionName.length > KEY_PREFIX_MAX_LENGTH
+    ? definitionName.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
+    : definitionName;
   const budget = KEY_MAX_LENGTH - prefix.length - KEY_SUFFIX_LENGTH - 2;
   return `${prefix}-${keySlug(title, budget, id)}-${suffix}`;
 }
@@ -476,12 +482,12 @@ export function generateKey(
 /** A fresh work-item key that no definition uses yet. */
 export async function freshKey(
   ctx: { definitionRepository?: DefinitionLookup },
-  lifecycleName: string,
+  definitionName: string,
   title: string,
   id = "",
 ): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(lifecycleName, title, id);
+    const key = generateKey(definitionName, title, id);
     if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
       return key;
     }
@@ -489,13 +495,14 @@ export async function freshKey(
   throw new Error("could not find a free work-item key; try again");
 }
 
-/** The holder's new_key method: a key for the work's title no definition uses yet. */
+/** The factory's new_key method: a key for the work's title no definition uses
+ * yet. */
 export async function newKey(
   ctx: MethodContextLike,
   title: string,
 ): Promise<MethodOutput> {
-  const lifecycle = await loadHolderLifecycle(ctx, selfName(ctx));
-  const key = await freshKey(ctx, lifecycle.name, title);
+  const definition = await loadFactoryDefinition(ctx, selfName(ctx));
+  const key = await freshKey(ctx, definition.name, title);
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
   }
@@ -503,7 +510,7 @@ export async function newKey(
   ctx.logger.info("{key}", {
     key,
     next:
-      `swamp model @swamp/gatorwalk-factory/work-item method run start ${key} --input lifecycle=${
+      `swamp model @swamp/gatorwalk-factory/work-item method run start ${key} --input factory=${
         selfName(ctx)
       }`,
   });
@@ -518,57 +525,57 @@ function selfName(ctx: MethodContextLike): string {
   return name;
 }
 
-// --- the pinned lifecycle ------------------------------------------------------
+// --- the pinned factory definition ----------------------------------------------
 
 export interface Pinned {
-  holder: string;
+  factory: string;
   digest: string;
-  lifecycle: Lifecycle;
+  definition: FactoryDefinition;
 }
 
-/** Pin a lifecycle to the work item; returns the version written. */
+/** Pin a factory definition to the work item; returns the version written. */
 async function pin(
   ctx: MethodContextLike,
   handles: unknown[],
-  holder: string,
-  lifecycle: Lifecycle,
+  factory: string,
+  definition: FactoryDefinition,
 ): Promise<{ digest: string; version: number }> {
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
   }
-  const digest = await digestOf(lifecycle);
-  const handle = await ctx.writeResource(LIFECYCLE_SPEC, LIFECYCLE_NAME, {
-    holder,
+  const digest = await digestOf(definition);
+  const handle = await ctx.writeResource(DEFINITION_SPEC, DEFINITION_NAME, {
+    factory,
     digest,
-    lifecycle: jsonSafe(lifecycle),
+    definition: jsonSafe(definition),
   });
   handles.push(handle);
   return { digest, version: handle.version };
 }
 
 /**
- * The lifecycle this run is pinned to: exactly the version its run record
- * names, checked against its digest. A copy pinned by an interrupted reset
- * is never used by mistake.
+ * The factory definition this run is pinned to: exactly the version its run
+ * record names, checked against its digest. A copy pinned by an interrupted
+ * reset is never used by mistake.
  */
 async function readPinned(
   ctx: MethodContextLike,
   run: RunRecord,
 ): Promise<Pinned> {
-  if (run.lifecycle.version === undefined) {
+  if (run.definition.version === undefined) {
     // Every run the model types start names its pinned version; reading the
     // latest copy instead could pick up an unused one.
-    throw new Error("the run names no pinned lifecycle version to read");
+    throw new Error("the run names no pinned definition version to read");
   }
   return checkPinned(
-    await ctx.readResource?.(LIFECYCLE_NAME, run.lifecycle.version) ?? null,
+    await ctx.readResource?.(DEFINITION_NAME, run.definition.version) ?? null,
     run,
   );
 }
 
 /**
- * A pinned lifecycle record, parsed and checked against the digest the run
- * recorded. Shared with the summary report, which reads the record through
+ * A pinned factory definition record, parsed and checked against the digest the
+ * run recorded. Shared with the summary report, which reads the record through
  * swamp's data repository rather than a method context.
  */
 export async function checkPinned(
@@ -576,30 +583,30 @@ export async function checkPinned(
   run: RunRecord,
 ): Promise<Pinned> {
   if (record === null) {
-    throw new Error("the work item's pinned lifecycle is missing");
+    throw new Error("the work item's pinned definition is missing");
   }
-  const parsed = parseLifecycle(record.lifecycle);
+  const parsed = parseDefinition(record.definition);
   if (!parsed.ok) {
     throw new Error(
-      `the pinned lifecycle is invalid:\n${parsed.errors.join("\n")}`,
+      `the pinned definition is invalid:\n${parsed.errors.join("\n")}`,
     );
   }
-  if (await digestOf(parsed.value) !== run.lifecycle.digest) {
+  if (await digestOf(parsed.value) !== run.definition.digest) {
     throw new Error(
-      "the pinned lifecycle does not match the digest the run recorded",
+      "the pinned definition does not match the digest the run recorded",
     );
   }
   return {
-    holder: String(record.holder),
-    digest: run.lifecycle.digest,
-    lifecycle: parsed.value,
+    factory: String(record.factory),
+    digest: run.definition.digest,
+    definition: parsed.value,
   };
 }
 
 interface Session {
   /** Commits through committingStore: awaiting events and metrics. */
   store: RunStore;
-  /** The plain store, for a commit under a different lifecycle. */
+  /** The plain store, for a commit under a different factory definition. */
   base: RunStore;
   handles: unknown[];
   run: RunRecord;
@@ -611,7 +618,7 @@ async function writeMetrics(
   ctx: MethodContextLike,
   handles: unknown[],
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
 ): Promise<void> {
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
@@ -620,7 +627,7 @@ async function writeMetrics(
     await ctx.writeResource(
       METRICS_SPEC,
       METRICS_NAME,
-      computeMetrics(run, lifecycle) as unknown as Record<string, unknown>,
+      computeMetrics(run, definition) as unknown as Record<string, unknown>,
     ),
   );
 }
@@ -635,12 +642,12 @@ function committing(
   ctx: MethodContextLike,
   base: RunStore,
   handles: unknown[],
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   env: Env,
 ): RunStore {
-  return committingStore(base, lifecycle, env, async (run) => {
+  return committingStore(base, definition, env, async (run) => {
     try {
-      await writeMetrics(ctx, handles, run, lifecycle);
+      await writeMetrics(ctx, handles, run, definition);
     } catch (error) {
       ctx.logger.info("{warning}", {
         warning: `the metrics record was not written (${
@@ -657,12 +664,12 @@ async function open(ctx: MethodContextLike, env: Env): Promise<Session> {
   const run = await loadRun(base);
   if (run === null) {
     throw new Error(
-      "the work item has not started; run start with --input lifecycle=<holder>",
+      "the work item has not started; run start with --input factory=<factory>",
     );
   }
   const pinned = await readPinned(ctx, run);
   return {
-    store: committing(ctx, base, handles, pinned.lifecycle, env),
+    store: committing(ctx, base, handles, pinned.definition, env),
     base,
     handles,
     run,
@@ -680,7 +687,7 @@ function unwrap<T>(result: OpResult<T>): { run: RunRecord; value: T } {
 export async function startWorkItem(
   ctx: MethodContextLike,
   args: {
-    lifecycle: string;
+    factory: string;
     externalRefs?: Record<string, string> | string;
     onBehalfOf?: string;
   },
@@ -697,18 +704,18 @@ export async function startWorkItem(
       `work item '${key}' has already started; run status to see where it is`,
     );
   }
-  const lifecycle = await loadHolderLifecycle(ctx, args.lifecycle);
+  const definition = await loadFactoryDefinition(ctx, args.factory);
   // Pin first, then commit the run that names the pinned version.
-  const pinned = await pin(ctx, handles, args.lifecycle, lifecycle);
+  const pinned = await pin(ctx, handles, args.factory, definition);
   const started = unwrap(
     await startRun(
-      committing(ctx, base, handles, lifecycle, env),
-      lifecycle,
+      committing(ctx, base, handles, definition, env),
+      definition,
       {
         key,
         externalRefs,
-        lifecycleDigest: pinned.digest,
-        lifecycleVersion: pinned.version,
+        definitionDigest: pinned.digest,
+        definitionVersion: pinned.version,
       },
       actorOf(ctx, args.onBehalfOf),
       env,
@@ -716,7 +723,7 @@ export async function startWorkItem(
   );
   ctx.logger.info("{summary}", {
     summary: `started '${key}' at stage '${started.run.stage}' ` +
-      `(lifecycle '${lifecycle.name}' from '${args.lifecycle}')`,
+      `(definition '${definition.name}' from '${args.factory}')`,
     ...expectationProps(started.run),
   });
   return { dataHandles: handles };
@@ -756,14 +763,14 @@ export async function describeStatus(
   env: Env,
 ) {
   const { store, run, pinned } = await open(ctx, env);
-  const lifecycle = pinned.lifecycle;
+  const definition = pinned.definition;
   const context = await buildCelContext(run, store);
   const active = run.status === "active";
   return {
     key: run.key,
-    lifecycle: {
-      name: lifecycle.name,
-      holder: pinned.holder,
+    definition: {
+      name: definition.name,
+      factory: pinned.factory,
       digest: pinned.digest,
     },
     status: run.status,
@@ -771,10 +778,10 @@ export async function describeStatus(
     cycle: currentCycle(run),
     era: run.era,
     expected: expectationProps(run),
-    dispatch: active ? buildDispatch(lifecycle, run, context) : null,
-    dispatchCap: active ? dispatchCap(run, lifecycle) : null,
+    dispatch: active ? buildDispatch(definition, run, context) : null,
+    dispatchCap: active ? dispatchCap(run, definition) : null,
     exits: active
-      ? (await evaluateTransitions(run, lifecycle, store, env)).map((t) => ({
+      ? (await evaluateTransitions(run, definition, store, env)).map((t) => ({
         name: t.name,
         to: t.to,
         manual: t.manual,
@@ -853,7 +860,7 @@ export async function recordProductMethod(
   const { store, handles, pinned } = await open(ctx, env);
   const result = await recordProduct(
     store,
-    pinned.lifecycle,
+    pinned.definition,
     expectedFrom(args),
     kind,
     args.name,
@@ -889,7 +896,7 @@ export async function dispatch(
 ): Promise<MethodOutput> {
   const { store, handles, run, pinned } = await open(ctx, env);
   const packet = buildDispatch(
-    pinned.lifecycle,
+    pinned.definition,
     run,
     await buildCelContext(run, store),
   );
@@ -904,7 +911,7 @@ export async function dispatch(
     await update(store, (current) =>
       recordDispatch(
         current,
-        pinned.lifecycle,
+        pinned.definition,
         expectedFrom(args),
         {
           inputs: packet.inputs ?? packet.values,
@@ -978,7 +985,7 @@ export async function decide(
     await update(store, (run) =>
       recordApproval(
         run,
-        pinned.lifecycle,
+        pinned.definition,
         expectedFrom(args),
         {
           gateId: args.gateId,
@@ -1023,7 +1030,7 @@ export async function grantOverrideMethod(
     await update(store, (run) =>
       grantOverride(
         run,
-        pinned.lifecycle,
+        pinned.definition,
         expectedFrom(args),
         input,
         actorOf(ctx, args.onBehalfOf),
@@ -1049,12 +1056,12 @@ export async function advanceMethod(
   env: Env,
 ): Promise<MethodOutput> {
   const { store, handles, pinned } = await open(ctx, env);
-  const gates = makeGateEvaluator(pinned.lifecycle, store, env);
+  const gates = makeGateEvaluator(pinned.definition, store, env);
   const moved = unwrap(
     await update(store, (run) =>
       advance(
         run,
-        pinned.lifecycle,
+        pinned.definition,
         expectedFrom(args),
         { transition: args.transition, manualConfirmed: args.confirm === true },
         gates,
@@ -1100,21 +1107,21 @@ export async function resetMethod(
     unwrap(
       reset(
         run,
-        pinned.lifecycle,
+        pinned.definition,
         expected,
         actorOf(ctx, args.onBehalfOf),
         env,
       ),
     );
   }
-  let lifecycle = pinned.lifecycle;
+  let definition = pinned.definition;
   let repinned: { digest: string; version: number } | undefined;
   let commitStore = store;
   if (args.repin === true) {
-    lifecycle = await loadHolderLifecycle(ctx, pinned.holder);
-    repinned = await pin(ctx, handles, pinned.holder, lifecycle);
-    // The reset commits under the newly pinned lifecycle.
-    commitStore = committing(ctx, base, handles, lifecycle, env);
+    definition = await loadFactoryDefinition(ctx, pinned.factory);
+    repinned = await pin(ctx, handles, pinned.factory, definition);
+    // The reset commits under the newly pinned factory definition.
+    commitStore = committing(ctx, base, handles, definition, env);
   }
   const result = unwrap(
     await update(
@@ -1122,7 +1129,7 @@ export async function resetMethod(
       (latest) =>
         reset(
           latest,
-          lifecycle,
+          definition,
           expected,
           actorOf(ctx, args.onBehalfOf),
           env,
@@ -1132,7 +1139,7 @@ export async function resetMethod(
   );
   ctx.logger.info("{summary}", {
     summary: `reset: new era ${result.value} at stage '${result.run.stage}'` +
-      (repinned !== undefined ? ` with lifecycle ${repinned.digest}` : ""),
+      (repinned !== undefined ? ` with definition ${repinned.digest}` : ""),
     ...expectationProps(result.run),
   });
   return { dataHandles: handles };
@@ -1140,15 +1147,15 @@ export async function resetMethod(
 
 /**
  * The summary method: the work item's timeline and metrics as markdown,
- * rendered from the run and its pinned lifecycle. A read; the summary report
- * persists the same rendering after it.
+ * rendered from the run and its pinned factory definition. A read; the summary
+ * report persists the same rendering after it.
  */
 export async function summary(
   ctx: MethodContextLike,
   env: Env,
 ): Promise<MethodOutput> {
   const { run, pinned } = await open(ctx, env);
-  const built = buildSummary(run, pinned.lifecycle);
+  const built = buildSummary(run, pinned.definition);
   ctx.logger.info("{summary}", {
     summary: built.markdown,
     metrics: built.metrics,
@@ -1167,7 +1174,7 @@ export async function rebuildMetrics(
 ): Promise<MethodOutput> {
   const { handles, run, pinned } = await open(ctx, env);
   const stored = await ctx.readResource?.(METRICS_NAME) ?? null;
-  const current = computeMetrics(run, pinned.lifecycle);
+  const current = computeMetrics(run, pinned.definition);
   if (
     stored !== null && stored.schemaVersion === current.schemaVersion &&
     stored.journalVersion === current.journalVersion
@@ -1178,7 +1185,7 @@ export async function rebuildMetrics(
     });
     return { dataHandles: [] };
   }
-  await writeMetrics(ctx, handles, run, pinned.lifecycle);
+  await writeMetrics(ctx, handles, run, pinned.definition);
   ctx.logger.info("{summary}", {
     summary: `rebuilt metrics at journal version ${current.journalVersion}` +
       (stored === null

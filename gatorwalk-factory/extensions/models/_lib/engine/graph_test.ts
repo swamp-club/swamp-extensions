@@ -17,15 +17,18 @@
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
-  analyzeLifecycle,
+  analyzeDefinition,
   formatFinding,
   type GraphFinding,
   type GraphReport,
 } from "./graph.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  type FactoryDefinition,
+  parseDefinition,
+} from "./definition_schema.ts";
 
-function lifecycle(yaml: string): Lifecycle {
-  const result = parseLifecycle(
+function definition(yaml: string): FactoryDefinition {
+  const result = parseDefinition(
     parseYaml(`schemaVersion: 1\nname: test\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
@@ -52,7 +55,7 @@ const OBJECT = "{ type: object }";
 // --- reachability and dead ends ---------------------------------------------
 
 Deno.test("graph: a stage behind a gate that can never pass is unreachable", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -84,7 +87,7 @@ stages:
 });
 
 Deno.test("graph: evidence recorded by the stage itself passes", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -103,7 +106,7 @@ stages:
 });
 
 Deno.test("graph: a loop with no way to a terminal stage is a dead end", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -135,7 +138,7 @@ stages:
 Deno.test("graph: a global transition to a stage that cannot finish is no way out", () => {
   // escalate leads to triage, which only loops on itself, so it rescues
   // nothing: a and b are still dead ends.
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -163,7 +166,7 @@ globalTransitions:
 });
 
 Deno.test("graph: a loop left only through a global transition is escape-only", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -187,7 +190,7 @@ globalTransitions:
 
 Deno.test("graph: artifact-fresh recordedThisCycle needs the stage to declare the artifact", () => {
   const doc = (declaredBy: "a" | "b") =>
-    lifecycle(`
+    definition(`
 stages:
   - id: a
     initial: true
@@ -218,17 +221,17 @@ ${
     terminal: true
 `);
   // finish is the only way to done, so the never-passing gate cascades.
-  assertEquals(codes(analyzeLifecycle(doc("b")).errors), [
+  assertEquals(codes(analyzeDefinition(doc("b")).errors), [
     "dead-end stages.0 [a]",
     "gate-never-passes stages.0.transitions.1 [a]",
     "dead-end stages.1 [b]",
     "unreachable-stage stages.2 [done]",
   ]);
-  assertEquals(analyzeLifecycle(doc("a")).errors, []);
+  assertEquals(analyzeDefinition(doc("a")).errors, []);
 });
 
 Deno.test("graph: a gate on an artifact one path skips warns with that path", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: start
     initial: true
@@ -260,7 +263,7 @@ stages:
 });
 
 Deno.test("graph: an inject no path produces is a warning", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -281,7 +284,7 @@ stages:
 // --- cycle limits -------------------------------------------------------------
 
 Deno.test("graph: retry and escalate split by max-cycles are exclusive and bounded", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: work
     initial: true
@@ -310,7 +313,7 @@ Deno.test("graph: a transition only a cycle override opens is a warning, and its
   // escalate needs 9 entries into work, but work's limit is 5: only a cycle
   // override gets there. That is a design choice a person can make, not an
   // error, and escalated is not unreachable.
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: work
     initial: true
@@ -346,7 +349,7 @@ stages:
 
 Deno.test("graph: a loop with maxCycles on a stage is not default-bound", () => {
   const doc = (limit: string) =>
-    lifecycle(`
+    definition(`
 stages:
   - id: a
     initial: true
@@ -358,16 +361,16 @@ ${limit}
     terminal: true
 `);
   assertEquals(
-    codes(analyzeLifecycle(doc("")).warnings),
+    codes(analyzeDefinition(doc("")).warnings),
     ["default-cycle-bound stages.0 [a]"],
   );
-  assertEquals(analyzeLifecycle(doc("    maxCycles: 5")).warnings, []);
+  assertEquals(analyzeDefinition(doc("    maxCycles: 5")).warnings, []);
 });
 
 // --- ambiguous exits ----------------------------------------------------------
 
 Deno.test("graph: sibling transitions told apart only by cel are ambiguous", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -400,7 +403,7 @@ stages:
 
 Deno.test("graph: a conditional approval is not a person choosing; an unconditional one is", () => {
   const siblings = (when: string) =>
-    analyzeLifecycle(lifecycle(`
+    analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -429,7 +432,7 @@ stages:
 
 Deno.test("graph: findings-clear and findings-open on the same findings are exclusive when open's severities all block clear", () => {
   const siblings = (clear: string, open: string, artifact = "review") =>
-    analyzeLifecycle(lifecycle(`
+    analyzeDefinition(definition(`
 stages:
   - id: write
     initial: true
@@ -479,7 +482,7 @@ stages:
 });
 
 Deno.test("graph: requireField values that differ make siblings exclusive", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: check
     initial: true
@@ -510,7 +513,7 @@ stages:
 
 /** Two sibling exits gated on the same evidence, one requireField each. */
 function siblings(left: string, right: string): GraphReport {
-  return analyzeLifecycle(lifecycle(`
+  return analyzeDefinition(definition(`
 stages:
   - id: check
     initial: true
@@ -570,7 +573,7 @@ Deno.test("graph: requireField paths that can both hold stay ambiguous", () => {
 
 /** A stage that can always finish, plus one transition gated by `gates`. */
 function guarded(gates: string): GraphReport {
-  return analyzeLifecycle(lifecycle(`
+  return analyzeDefinition(definition(`
 stages:
   - id: check
     initial: true
@@ -631,7 +634,7 @@ Deno.test("graph: requireField entries that can all hold do not block", () => {
 });
 
 Deno.test("graph: a global transition that contradicts itself gives a finding per stage", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -670,7 +673,7 @@ globalTransitions:
 // --- global transitions ------------------------------------------------------
 
 Deno.test("graph: a global transition that fails from two stages gives a finding per stage", () => {
-  const report = analyzeLifecycle(lifecycle(`
+  const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
@@ -706,7 +709,7 @@ globalTransitions:
 // --- truncation -----------------------------------------------------------------
 
 Deno.test("graph: a truncated exploration demotes its errors to warnings", () => {
-  const doc = lifecycle(`
+  const doc = definition(`
 stages:
   - id: a
     initial: true
@@ -716,8 +719,8 @@ stages:
   - id: done
     terminal: true
 `);
-  assertEquals(analyzeLifecycle(doc).errors, []);
-  const report = analyzeLifecycle(doc, { maxStates: 1 });
+  assertEquals(analyzeDefinition(doc).errors, []);
+  const report = analyzeDefinition(doc, { maxStates: 1 });
   assert(report.truncated);
   assertEquals(report.errors, []);
   assertEquals(codes(report.warnings), [
@@ -752,24 +755,24 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
   // implement <-> test without maxCycles, as the originals did: they rely on
   // the default cycle limit, which is the warning, not a defect.
   const expected: Record<string, string[]> = {
-    "lifecycles/feature-factory.yaml": [
+    "factories/feature-factory.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
-    "lifecycles/retry-feedback.yaml": [],
-    "lifecycles/sdlc-classic.yaml": [
+    "factories/retry-feedback.yaml": [],
+    "factories/sdlc-classic.yaml": [
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
   };
   const seen: string[] = [];
-  for (const file of await fixtures("lifecycles/")) {
-    const name = `lifecycles/${file}`;
+  for (const file of await fixtures("factories/")) {
+    const name = `factories/${file}`;
     seen.push(name);
     const raw = parseYaml(await Deno.readTextFile(new URL(name, TESTDATA)));
-    const parsed = parseLifecycle(raw);
+    const parsed = parseDefinition(raw);
     if (!parsed.ok) throw new Error(`${name}: ${parsed.errors.join("\n")}`);
-    const report = analyzeLifecycle(parsed.value);
+    const report = analyzeDefinition(parsed.value);
     assertEquals(codes(report.errors), [], name);
     assertEquals(codes(report.warnings), expected[name], name);
   }
@@ -781,7 +784,7 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
 /** Two sibling exits gated on the same evidence, each with the given config
  * beside the evidence name (requireField, match or both). */
 function matchSiblings(left: string, right: string): GraphReport {
-  return analyzeLifecycle(lifecycle(`
+  return analyzeDefinition(definition(`
 stages:
   - id: check
     initial: true
@@ -928,11 +931,11 @@ const FULL = { pruneCounts: false, maxStates: 2_000_000 };
  * Returns both, so callers do not explore again.
  */
 function assertPruningExact(
-  doc: Lifecycle,
+  doc: FactoryDefinition,
   label: string,
 ): { pruned: GraphReport; full: GraphReport } {
-  const pruned = analyzeLifecycle(doc);
-  const full = analyzeLifecycle(doc, FULL);
+  const pruned = analyzeDefinition(doc);
+  const full = analyzeDefinition(doc, FULL);
   assert(!full.truncated, `${label}: the reference exploration stopped`);
   assert(!pruned.truncated, `${label}: the pruned exploration stopped`);
   assertEquals(pruned.errors, full.errors, label);
@@ -959,8 +962,8 @@ async function yamlFiles(dir: URL): Promise<URL[]> {
   return files.sort((a, b) => a.href.localeCompare(b.href));
 }
 
-function parsed(raw: unknown, label: string): Lifecycle {
-  const result = parseLifecycle(raw);
+function parsed(raw: unknown, label: string): FactoryDefinition {
+  const result = parseDefinition(raw);
   if (!result.ok) throw new Error(`${label}: ${result.errors.join("\n")}`);
   return result.value;
 }
@@ -969,7 +972,7 @@ const ROOT = new URL("../../../../", import.meta.url);
 const EXAMPLES = ".claude/skills/gatorwalk-factory/references/examples/";
 
 Deno.test("graph: pruning the count pass agrees with the full exploration on every shipped document", async () => {
-  const dirs = [EXAMPLES, "testdata/lifecycles/"];
+  const dirs = [EXAMPLES, "testdata/factories/"];
   let checked = 0;
   for (const dir of dirs) {
     for (const file of await yamlFiles(new URL(dir, ROOT))) {
@@ -1018,13 +1021,13 @@ function prng(seed: number): () => number {
 }
 
 /**
- * A small random lifecycle: forward and back transitions, cycle limits,
- * max-cycles gates (some inverted), artifact gates that make the stages entered
- * matter, and global transitions to the terminal stage. Globals never lead back
- * into the loop, since globals are exempt from the cycle limit and the full
- * exploration would never finish.
+ * A small random factory definition: forward and back transitions, cycle
+ * limits, max-cycles gates (some inverted), artifact gates that make the stages
+ * entered matter, and global transitions to the terminal stage. Globals never
+ * lead back into the loop, since globals are exempt from the cycle limit and
+ * the full exploration would never finish.
  */
-function generated(seed: number): Lifecycle {
+function generated(seed: number): FactoryDefinition {
   const rand = prng(seed);
   const int = (lo: number, hi: number) =>
     lo + Math.floor(rand() * (hi - lo + 1));
@@ -1090,10 +1093,10 @@ function generated(seed: number): Lifecycle {
         : {}),
     }];
   }
-  return parsed(doc, `seed ${seed}`) as Lifecycle;
+  return parsed(doc, `seed ${seed}`) as FactoryDefinition;
 }
 
-Deno.test("graph: pruning the count pass agrees with the full exploration on generated lifecycles", () => {
+Deno.test("graph: pruning the count pass agrees with the full exploration on generated definitions", () => {
   let overrides = 0;
   let inverted = 0;
   let pruned = 0;
@@ -1107,15 +1110,15 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on gen
     if (report.statesExplored.counts < full.statesExplored.counts) pruned++;
   }
   // The generator must exercise what pruning has to get right.
-  assert(overrides >= 20, `${overrides} lifecycles need a cycle override`);
-  assert(inverted >= 50, `${inverted} lifecycles have an inverted gate`);
-  assert(pruned >= 100, `${pruned} lifecycles were pruned`);
+  assert(overrides >= 20, `${overrides} definitions need a cycle override`);
+  assert(inverted >= 50, `${inverted} definitions have an inverted gate`);
+  assert(pruned >= 100, `${pruned} definitions were pruned`);
 });
 
 Deno.test("graph: a stage an inverted max-cycles gate counts is tracked exactly", () => {
   // escalate opens only on the third entry into work. More entries are better
   // for it, so pruning must not drop a state for having more of them.
-  const doc = lifecycle(`
+  const doc = definition(`
 stages:
   - id: work
     initial: true
@@ -1148,7 +1151,7 @@ stages:
 Deno.test("graph: a global transition back into the loop no longer runs the count pass to its cap", () => {
   // Globals are exempt from the cycle limit, so without pruning every restart
   // is a new state and the count pass never finishes.
-  const doc = lifecycle(`
+  const doc = definition(`
 stages:
   - id: a
     initial: true
@@ -1162,11 +1165,11 @@ globalTransitions:
     to: a
     manual: true
 `);
-  const report = analyzeLifecycle(doc);
+  const report = analyzeDefinition(doc);
   assert(!report.truncated);
   // a, b and done, then a again once b has been entered.
   assertEquals(report.statesExplored.counts, 4);
   assert(
-    analyzeLifecycle(doc, { pruneCounts: false, maxStates: 1000 }).truncated,
+    analyzeDefinition(doc, { pruneCounts: false, maxStates: 1000 }).truncated,
   );
 });

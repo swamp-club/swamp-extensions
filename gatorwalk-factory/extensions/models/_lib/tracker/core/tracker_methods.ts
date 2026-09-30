@@ -17,9 +17,9 @@
 import { z } from "npm:zod@4.3.6";
 import {
   checkPinned,
+  DEFINITION_NAME,
+  DEFINITION_SPEC,
   digestOf,
-  LIFECYCLE_NAME,
-  LIFECYCLE_SPEC,
   type MethodOutput,
   type ModelDataRecord,
   parseRun,
@@ -571,7 +571,8 @@ function latestNamed(
     named.reduce((a, b) => (b.version > a.version ? b : a));
 }
 
-/** A work item's run and pinned lifecycle, read across model instances. */
+/** A work item's run and pinned factory definition, read across model
+ * instances. */
 async function readWorkItem(ctx: TrackerContext, workItem: string) {
   if (ctx.readModelData === undefined) {
     throw new Error(
@@ -604,22 +605,22 @@ async function readWorkItem(ctx: TrackerContext, workItem: string) {
   // which is that one unless a repinning reset was cut short, so ask for the
   // exact version first. A query is not limited to this repository's
   // namespace; checkPinned accepts only a copy with the digest the run
-  // recorded, so whichever candidate passes is the pinned lifecycle.
+  // recorded, so whichever candidate passes is the pinned factory definition.
   const candidates: unknown[] = [];
-  if (ctx.queryData !== undefined && run.lifecycle.version !== undefined) {
+  if (ctx.queryData !== undefined && run.definition.version !== undefined) {
     // workItem has passed safePart, so it cannot break out of the string.
     try {
       candidates.push(
         ...await ctx.queryData(
-          `modelName == "${workItem}" && specName == "${LIFECYCLE_SPEC}" && ` +
-            `name == "${LIFECYCLE_NAME}" && ` +
-            `version == ${run.lifecycle.version}`,
+          `modelName == "${workItem}" && specName == "${DEFINITION_SPEC}" && ` +
+            `name == "${DEFINITION_NAME}" && ` +
+            `version == ${run.definition.version}`,
         ),
       );
     } catch (error) {
       // The latest copy is almost always the pinned one; try it instead.
       ctx.logger.info("{summary}", {
-        summary: `could not query the pinned lifecycle of '${workItem}' ` +
+        summary: `could not query the pinned definition of '${workItem}' ` +
           `by version (${
             error instanceof Error ? error.message : String(error)
           }); trying the latest copy`,
@@ -627,21 +628,21 @@ async function readWorkItem(ctx: TrackerContext, workItem: string) {
     }
   }
   const latest = latestNamed(
-    await ctx.readModelData(workItem, LIFECYCLE_SPEC),
-    LIFECYCLE_NAME,
+    await ctx.readModelData(workItem, DEFINITION_SPEC),
+    DEFINITION_NAME,
   );
   if (latest !== null) candidates.push(latest);
   let refusal: unknown = null;
   for (const candidate of candidates) {
     try {
       const pinned = await checkPinned(recordObject(candidate), run);
-      return { run, lifecycle: pinned.lifecycle };
+      return { run, definition: pinned.definition };
     } catch (error) {
       refusal = error;
     }
   }
   if (refusal !== null) throw refusal;
-  return { run, lifecycle: (await checkPinned(null, run)).lifecycle };
+  return { run, definition: (await checkPinned(null, run)).definition };
 }
 
 /**
@@ -724,8 +725,8 @@ const claimArguments = z.object({
   issue: z.string().min(1).describe(
     "The ticket: its stable id, or its display identifier",
   ),
-  lifecycle: z.string().min(1).optional().describe(
-    "The lifecycle holder to start a new work item under; needed only when " +
+  factory: z.string().min(1).optional().describe(
+    "The factory to start a new work item under; needed only when " +
       "the ticket has no work item, or its last one has finished",
   ),
 });
@@ -823,7 +824,7 @@ export function trackerMethods(options: TrackerModelOptions) {
           tracker: options.tracker,
           issue,
           recordName: ticketName(issue.id),
-          lifecycle: args.lifecycle,
+          factory: args.factory,
           now: now(),
         });
         // The snapshot only once the claim has succeeded: a refused claim
@@ -876,7 +877,7 @@ export function trackerMethods(options: TrackerModelOptions) {
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
         const workItem = safePart("workItem", args.workItem);
-        const { run, lifecycle } = await readWorkItem(ctx, workItem);
+        const { run, definition } = await readWorkItem(ctx, workItem);
         const issue = run.externalRefs[options.tracker];
         if (issue === undefined || issue === "") {
           throw new Error(
@@ -904,11 +905,11 @@ export function trackerMethods(options: TrackerModelOptions) {
           );
         }
         const adapter = options.adapter(argsOf(ctx));
-        // Entry mode: the lifecycle says which events become which entries,
-        // and the tracker keeps them. They replace the comments.
+        // Entry mode: the factory definition says which events become which
+        // entries, and the tracker keeps them. They replace the comments.
         const entryMode = adapter.history !== undefined &&
-          declaresEntries(lifecycle);
-        const projection = project(run, lifecycle, since);
+          declaresEntries(definition);
+        const projection = project(run, definition, since);
         const lastStatus = cursor?.status ?? null;
         const moveTo = projection.status !== null &&
             projection.status !== lastStatus
@@ -943,7 +944,7 @@ export function trackerMethods(options: TrackerModelOptions) {
           return name;
         };
         for (
-          const event of entryMode ? projectEntries(run, lifecycle, since) : []
+          const event of entryMode ? projectEntries(run, definition, since) : []
         ) {
           const payload = event.product === undefined
             ? {}

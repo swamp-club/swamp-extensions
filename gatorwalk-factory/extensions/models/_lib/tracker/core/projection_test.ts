@@ -17,14 +17,14 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   ALICE,
+  type FactoryDefinition,
   type JournalEvent,
-  type Lifecycle,
   NOBODY,
-  parseLifecycle,
+  parseDefinition,
   type ProjectionEntry,
   RUN_SCHEMA_VERSION,
   type RunRecord,
-  smallLifecycle,
+  smallDefinition,
 } from "../../engine/tracker_testing.ts";
 import { entriesDefinition } from "./test_support.ts";
 import {
@@ -45,9 +45,9 @@ const BASE = {
   actor: ALICE,
 };
 
-/** The small lifecycle, with status keys on write and review. */
-function lifecycle(): Lifecycle {
-  const doc = smallLifecycle();
+/** The small factory definition, with status keys on write and review. */
+function definition(): FactoryDefinition {
+  const doc = smallDefinition();
   doc.stages[0].projection = { status: "in_progress" };
   doc.stages[1].projection = { status: "in_review" };
   doc.stages[2].projection = { status: "shipped" };
@@ -59,7 +59,7 @@ function runWith(stage: string, journal: JournalEvent[]): RunRecord {
     schemaVersion: RUN_SCHEMA_VERSION,
     key: KEY,
     externalRefs: {},
-    lifecycle: { name: "small", digest: "sha256:x", version: 1 },
+    definition: { name: "small", digest: "sha256:x", version: 1 },
     era: "era-1",
     status: "active",
     stage,
@@ -77,7 +77,7 @@ const STARTED: JournalEvent = {
   ...BASE,
   stage: "write",
   type: "started",
-  lifecycle: { name: "small", digest: "sha256:x", version: 1 },
+  definition: { name: "small", digest: "sha256:x", version: 1 },
 };
 const DISPATCHED: JournalEvent = {
   ...BASE,
@@ -95,10 +95,10 @@ const SUBMITTED: JournalEvent = {
 };
 
 Deno.test("projection: each event a person needs gets a comment", () => {
-  const doc = lifecycle();
+  const doc = definition();
   assertEquals(
     commentFor(KEY, STARTED, doc),
-    `**${KEY}** started on lifecycle \`small\`, at stage **write**.`,
+    `**${KEY}** started on definition \`small\`, at stage **write**.`,
   );
   assertEquals(
     commentFor(KEY, SUBMITTED, doc),
@@ -139,12 +139,12 @@ Deno.test("projection: each event a person needs gets a comment", () => {
       repinned: { digest: "sha256:y", version: 2 },
     }, doc),
     `**${KEY}** was reset: era \`era-1\` ended, and era \`era-2\` starts at ` +
-      "**write**, on a newly pinned lifecycle.",
+      "**write**, on a newly pinned definition.",
   );
 });
 
 Deno.test("projection: entering a terminal stage is finishing, whichever it is", () => {
-  const doc = lifecycle();
+  const doc = definition();
   for (const [transition, to] of [["ship", "done"], ["abort", "aborted"]]) {
     assertEquals(
       commentFor(KEY, {
@@ -161,7 +161,7 @@ Deno.test("projection: entering a terminal stage is finishing, whichever it is",
 });
 
 Deno.test("projection: a human stop lists each exit and what it needs; an empty one says nothing", () => {
-  const doc = lifecycle();
+  const doc = definition();
   assertEquals(
     commentFor(KEY, {
       ...BASE,
@@ -194,7 +194,7 @@ Deno.test("projection: a human stop lists each exit and what it needs; an empty 
 });
 
 Deno.test("projection: bookkeeping events get no comment", () => {
-  const doc = lifecycle();
+  const doc = definition();
   const quiet: JournalEvent[] = [
     DISPATCHED,
     { ...BASE, stage: "write", type: "usage", dispatchId: 1 },
@@ -229,29 +229,29 @@ Deno.test("projection: bookkeeping events get no comment", () => {
 
 Deno.test("projection: comments after the cursor, keyed on their journal version", () => {
   const run = runWith("review", [STARTED, DISPATCHED, SUBMITTED]);
-  assertEquals(project(run, lifecycle(), 0), {
+  assertEquals(project(run, definition(), 0), {
     comments: [
-      { journalVersion: 1, body: commentFor(KEY, STARTED, lifecycle()) ?? "" },
+      { journalVersion: 1, body: commentFor(KEY, STARTED, definition()) ?? "" },
       {
         journalVersion: 3,
-        body: commentFor(KEY, SUBMITTED, lifecycle()) ?? "",
+        body: commentFor(KEY, SUBMITTED, definition()) ?? "",
       },
     ],
     status: "in_review",
   });
   assertEquals(
-    project(run, lifecycle(), 1).comments.map((c) => c.journalVersion),
+    project(run, definition(), 1).comments.map((c) => c.journalVersion),
     [3],
   );
-  assertEquals(project(run, lifecycle(), 3).comments, []);
+  assertEquals(project(run, definition(), 3).comments, []);
 });
 
 Deno.test("projection: the status is the current stage's key, or none", () => {
   const run = runWith("write", [STARTED]);
-  assertEquals(project(run, lifecycle(), 1).status, "in_progress");
-  assertEquals(project(run, smallLifecycle(), 1).status, null);
+  assertEquals(project(run, definition(), 1).status, "in_progress");
+  assertEquals(project(run, smallDefinition(), 1).status, null);
   assertEquals(
-    project(runWith("gone", [STARTED]), lifecycle(), 1).status,
+    project(runWith("gone", [STARTED]), definition(), 1).status,
     null,
     "a stage a repin removed has no key",
   );
@@ -259,8 +259,8 @@ Deno.test("projection: the status is the current stage's key, or none", () => {
 
 Deno.test("projection: the same run gives the same bodies, none starting with a dollar sign or holding two double quotes", () => {
   const run = runWith("review", [STARTED, SUBMITTED]);
-  const first = project(run, lifecycle(), 0);
-  assertEquals(project(structuredClone(run), lifecycle(), 0), first);
+  const first = project(run, definition(), 0);
+  assertEquals(project(structuredClone(run), definition(), 0), first);
   for (const { body } of first.comments) {
     assert(!body.startsWith("$") && !body.includes('""'), body);
   }
@@ -268,8 +268,8 @@ Deno.test("projection: the same run gives the same bodies, none starting with a 
 
 // --- entries -----------------------------------------------------------------
 
-function entriesLifecycle(): Lifecycle {
-  const result = parseLifecycle(entriesDefinition());
+function entriesParsedDefinition(): FactoryDefinition {
+  const result = parseDefinition(entriesDefinition());
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
@@ -284,13 +284,13 @@ const RECORDED: JournalEvent = {
   digest: "sha256:n",
 };
 
-Deno.test("projection entries: only a lifecycle that declares entries is in entry mode", () => {
-  assertEquals(declaresEntries(lifecycle()), false);
-  assertEquals(declaresEntries(entriesLifecycle()), true);
+Deno.test("projection entries: only a definition that declares entries is in entry mode", () => {
+  assertEquals(declaresEntries(definition()), false);
+  assertEquals(declaresEntries(entriesParsedDefinition()), true);
 });
 
 Deno.test("projection entries: events map to their stage's entries, with the product to read", () => {
-  const doc = entriesLifecycle();
+  const doc = entriesParsedDefinition();
   const events = projectEntries(
     runWith("review", [STARTED, DISPATCHED, RECORDED, SUBMITTED]),
     doc,
@@ -317,7 +317,7 @@ Deno.test("projection entries: events map to their stage's entries, with the pro
 });
 
 Deno.test("projection entries: a declined approval answers nothing; an approved one its gate's entry", () => {
-  const doc = entriesLifecycle();
+  const doc = entriesParsedDefinition();
   const approval = (decision: "approve" | "decline"): JournalEvent => ({
     ...BASE,
     stage: "review",

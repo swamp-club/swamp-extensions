@@ -16,7 +16,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import { ActorSchema, JournalEventSchema } from "./journal.ts";
-import { formatIssues, type ParseResult } from "./lifecycle_schema.ts";
+import { formatIssues, type ParseResult } from "./definition_schema.ts";
 
 // ---------------------------------------------------------------------------
 // The run record: everything about one work item, in one record under a
@@ -138,9 +138,9 @@ export const RunRecordSchema = z.strictObject({
   key: z.string().min(1),
   /** Tracker ids (a Linear UUID, a display identifier), kept as data. */
   externalRefs: z.record(z.string(), z.string()),
-  /** The lifecycle pinned at start: its name, content digest, and the
+  /** The factory definition pinned at start: its name, content digest, and the
    * version of the pinned copy the run uses. */
-  lifecycle: z.strictObject({
+  definition: z.strictObject({
     name: z.string().min(1),
     digest: z.string().min(1),
     version: z.number().int().positive().optional(),

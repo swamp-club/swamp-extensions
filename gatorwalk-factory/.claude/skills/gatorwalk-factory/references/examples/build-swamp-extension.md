@@ -25,15 +25,15 @@ run a subagent.
 ## Set up
 
 In a swamp repo, add gatorwalk-factory as an extension source and create a
-lifecycle holder:
+factory:
 
 ```sh
 swamp extension source add <gatorwalk-factory>
-swamp model create @swamp/gatorwalk-factory/lifecycle team --json
+swamp model create @swamp/gatorwalk-factory/factory team --json
 ```
 
 `model create` prints the definition file's `path`. Open that file and set its
-`globalArguments` to the lifecycle, the contents of
+`globalArguments` to the factory definition, the contents of
 [build-swamp-extension.yaml](build-swamp-extension.yaml), beside this file:
 
 ```yaml
@@ -45,7 +45,7 @@ globalArguments:
     ...
   stages:
     - id: plan
-      # ... the rest of the lifecycle file, indented under globalArguments
+      # ... the rest of the definition file, indented under globalArguments
 ```
 
 Then check it, get a key, and start the work item under that key:
@@ -54,13 +54,13 @@ Then check it, get a key, and start the work item under that key:
 swamp model method run team validate --log
 swamp model method run team new_key --input 'title=Add a list method' --log
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input lifecycle=team --log
+  --input factory=team --log
 ```
 
 ```text
-lifecycle 'build-swamp-extension' in 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
+definition 'build-swamp-extension' in 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 build-swamp-extension-add-list-method-r2ne
-started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (lifecycle 'build-swamp-extension' from 'team')
+started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team')
 ```
 
 ## plan (cycle 1)

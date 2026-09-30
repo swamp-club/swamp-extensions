@@ -36,7 +36,7 @@ import { stringMapFrom } from "../_lib/engine/tracker.ts";
 export const LinearArgumentsSchema = z.object({
   apiToken: z.string().min(1).meta({ sensitive: true }).describe(
     "A Linear personal API key. Wire it from a vault: " +
-      "${{ vault.get(<vault>, <key>) }}. It is never read from lifecycle " +
+      "${{ vault.get(<vault>, <key>) }}. It is never read from definition " +
       "data, method inputs or the environment.",
   ),
   apiUrl: z.string().url().superRefine((url, ctx) => {

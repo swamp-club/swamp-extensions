@@ -15,7 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import type { AwaitingExit, JournalEvent } from "./journal.ts";
-import { findStage, type Lifecycle } from "./lifecycle_schema.ts";
+import { type FactoryDefinition, findStage } from "./definition_schema.ts";
 import type { RunRecord } from "./run_record.ts";
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ export interface Metrics {
   schemaVersion: typeof METRICS_SCHEMA_VERSION;
   key: string;
   externalRefs: Record<string, string>;
-  lifecycle: RunRecord["lifecycle"];
+  definition: RunRecord["definition"];
   status: RunRecord["status"];
   stage: string;
   /** The length of the journal these metrics were computed from. */
@@ -168,10 +168,11 @@ interface EraState {
   rejections: number;
 }
 
-/** The artifacts the lifecycle declares as reviewing another, by name. */
-function reviewLinks(lifecycle: Lifecycle): Map<string, string> {
+/** The artifacts the factory definition declares as reviewing another, by name.
+ */
+function reviewLinks(definition: FactoryDefinition): Map<string, string> {
   const links = new Map<string, string>();
-  for (const stage of lifecycle.stages) {
+  for (const stage of definition.stages) {
     for (const artifact of stage.artifacts ?? []) {
       if (artifact.reviews !== undefined) {
         links.set(artifact.name, artifact.reviews);
@@ -182,14 +183,17 @@ function reviewLinks(lifecycle: Lifecycle): Map<string, string> {
 }
 
 /**
- * The metrics of a work item. Review rounds use the lifecycle's `reviews`
- * links; pass the lifecycle the run is pinned to. An era from before a
- * repinning reset is read with the current pin's links.
+ * The metrics of a work item. Review rounds use the factory definition's
+ * `reviews` links; pass the factory definition the run is pinned to. An era
+ * from before a repinning reset is read with the current pin's links.
  */
-export function computeMetrics(run: RunRecord, lifecycle: Lifecycle): Metrics {
-  const links = reviewLinks(lifecycle);
+export function computeMetrics(
+  run: RunRecord,
+  definition: FactoryDefinition,
+): Metrics {
+  const links = reviewLinks(definition);
   const isTerminal = (stage: string) =>
-    findStage(lifecycle, stage)?.terminal === true;
+    findStage(definition, stage)?.terminal === true;
   const eras: EraState[] = [];
   let current: EraState | undefined;
 
@@ -379,7 +383,7 @@ export function computeMetrics(run: RunRecord, lifecycle: Lifecycle): Metrics {
     schemaVersion: METRICS_SCHEMA_VERSION,
     key: run.key,
     externalRefs: run.externalRefs,
-    lifecycle: run.lifecycle,
+    definition: run.definition,
     status: run.status,
     stage: run.stage,
     journalVersion: run.journal.length,

@@ -17,7 +17,7 @@
 import { assertEquals } from "@std/assert";
 import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linear.ts";
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
-import { HOLDER_TYPE, withRepo, WORK_ITEM_TYPE } from "../harness.ts";
+import { FACTORY_TYPE, withRepo, WORK_ITEM_TYPE } from "../harness.ts";
 
 // ---------------------------------------------------------------------------
 // The whole extension through the installed swamp CLI: every model type,
@@ -39,7 +39,7 @@ Deno.test("cli: every model type registers from the extension source", async () 
     assertEquals(
       types,
       [
-        HOLDER_TYPE,
+        FACTORY_TYPE,
         LINEAR_TYPE,
         SWAMP_CLUB_TYPE,
         WORK_ITEM_TYPE,

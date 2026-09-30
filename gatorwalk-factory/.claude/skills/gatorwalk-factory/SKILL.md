@@ -1,36 +1,36 @@
 ---
 name: gatorwalk-factory
 description: >
-  Drive a work item through a gatorwalk-factory lifecycle
+  Drive a work item through a gatorwalk factory
   (@swamp/gatorwalk-factory): start it, read its status, dispatch and do each
   stage's work, record artifacts and evidence, advance, and stop for a person
   at every human gate. Use only when the user names gatorwalk: "gatorwalk",
   "gatorwalk-factory", "gatorwalk work item", "gatorwalk status", "drive a
   gatorwalk work item", "start a gatorwalk work item". Not for
-  @swamp/software-factory runs, factory definitions, or @swamp/issue-lifecycle.
+  @swamp/software-factory runs or definitions, or @swamp/issue-lifecycle.
 ---
 
 # gatorwalk-factory
 
-gatorwalk-factory holds a software process as data: a **lifecycle** of stages,
-the work each stage does, the products it records, and gated transitions between
-them. Each piece of work is a **work item**, one model instance that enforces
-the gates, limits and human stops and writes a journal. You drive it; it never
-does the work itself.
+gatorwalk-factory holds a software process as data: a **factory definition** of
+stages, the work each stage does, the products it records, and gated transitions
+between them. Each piece of work is a **work item**, one model instance that
+enforces the gates, limits and human stops and writes a journal. You drive it;
+it never does the work itself.
 
-This skill covers **driving** a work item. Designing and authoring lifecycles is
-not covered yet.
+This skill covers **driving** a work item. Designing and authoring factory
+definitions is not covered yet.
 
 - Driving in full: [references/driving.md](references/driving.md)
 - A whole work item, start to done:
   [references/examples/build-swamp-extension.md](references/examples/build-swamp-extension.md)
-- A lifecycle to start from: copy the closest example in
-  [references/examples/](references/examples/) into a holder, then run
+- A factory definition to start from: copy the closest example in
+  [references/examples/](references/examples/) into a factory, then run
   `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general change
   from plan to release; `build-swamp-extension.yaml` builds a swamp extension;
   `swamp-club-swamp-extensions.yaml` is a real repository's process, to read
-  rather than copy whole. Each lifecycle's description says what it is for and
-  what to change first.
+  rather than copy whole. Each factory definition's description says what it is
+  for and what to change first.
 
 ## Rules
 
@@ -81,7 +81,7 @@ Work-item methods run by type, with the key as the instance:
 
 | Method            | Inputs                                                          | Needs the person |
 | ----------------- | --------------------------------------------------------------- | ---------------- |
-| `start`           | `lifecycle=<holder>` (and `externalRefs`, a JSON object)        |                  |
+| `start`           | `factory=<factory>` (and `externalRefs`, a JSON object)         |                  |
 | `status`          | none (a read; no lock)                                          |                  |
 | `summary`         | none (a read; the timeline and metrics)                         |                  |
 | `dispatch`        | expect                                                          |                  |
@@ -95,14 +95,14 @@ Work-item methods run by type, with the key as the instance:
 | `grant_override`  | `kind=cycle` with `stage`, or `kind=dispatch`; `note`, expect   | yes              |
 | `reset`           | `confirm=reset`, `repin` (optional), expect                     | yes              |
 
-Holder methods run by instance name:
-`swamp model method run <holder> validate --log` checks a lifecycle in full;
-`swamp model method run <holder> new_key --input 'title=<title>' --log` makes a
-key from the work's title to start a work item under; `start` also takes any
-unused name chosen by hand.
+Factory methods run by instance name:
+`swamp model method run <factory> validate --log` checks a factory definition in
+full; `swamp model method run <factory> new_key --input 'title=<title>' --log`
+makes a key from the work's title to start a work item under; `start` also takes
+any unused name chosen by hand.
 
 Work from a tracker ticket starts through the tracker's adapter instance:
-`swamp model method run <tracker> claim --input issue=<ticket> --input lifecycle=<holder> --log`
+`swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory> --log`
 reserves a key for the ticket and prints the `start` command to run, or names
 the work item the ticket already has. Re-run it after any failure. See
 [references/driving.md](references/driving.md#start-from-a-ticket).

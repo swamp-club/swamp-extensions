@@ -22,14 +22,14 @@ import {
   assertThrows,
 } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
-import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
+import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
 import {
   DESIGN_PAGE_NAME,
   DESIGN_PAGE_SPEC,
+  FACTORY_TYPE,
   freshKey,
   generateKey,
-  HOLDER_TYPE,
   keySlug,
 } from "../_lib/engine/work_item_ops.ts";
 
@@ -38,42 +38,42 @@ const BUILD = new URL(
   import.meta.url,
 );
 
-async function buildLifecycle(): Promise<Record<string, unknown>> {
+async function buildDefinition(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
 }
 
-Deno.test("holder: the globalArguments schema survives swamp's .partial() and accepts a lifecycle", async () => {
+Deno.test("factory: the globalArguments schema survives swamp's .partial() and accepts a definition", async () => {
   // swamp validates globalArguments with schema.partial() on every run; zod
   // throws on .partial() of a refined schema. This guards against adding one.
-  const partial = HolderArgumentsSchema.partial();
-  const lifecycle = await buildLifecycle();
-  assert(partial.safeParse(lifecycle).success);
-  assert(HolderArgumentsSchema.safeParse(lifecycle).success);
+  const partial = FactoryArgumentsSchema.partial();
+  const definition = await buildDefinition();
+  assert(partial.safeParse(definition).success);
+  assert(FactoryArgumentsSchema.safeParse(definition).success);
 });
 
-Deno.test("holder: validate reports a valid lifecycle", async () => {
+Deno.test("factory: validate reports a valid definition", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
   });
-  await holder.methods.validate.execute({}, swamp.context("team"));
+  await factory.methods.validate.execute({}, swamp.context("team"));
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "lifecycle 'build-swamp-extension' in 'team' is valid: 8 stages",
+      "definition 'build-swamp-extension' in 'team' is valid: 8 stages",
     ),
     summary,
   );
 });
 
-Deno.test("holder: validate logs each graph warning", async () => {
+Deno.test("factory: validate logs each graph warning", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
   });
-  await holder.methods.validate.execute({}, swamp.context("team"));
+  await factory.methods.validate.execute({}, swamp.context("team"));
   const warnings = swamp.logs.filter((l) => l.message === "{warning}");
   assertEquals(
     warnings.map((l) => l.props?.code),
@@ -87,10 +87,10 @@ Deno.test("holder: validate logs each graph warning", async () => {
   assert(String(swamp.logs.at(-1)?.props?.summary).endsWith("2 warning(s)"));
 });
 
-Deno.test("holder: validate fails on a graph error, listing it with its path", async () => {
+Deno.test("factory: validate fails on a graph error, listing it with its path", async () => {
   const swamp = fakeSwamp();
-  const lifecycle = await buildLifecycle();
-  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  const definition = await buildDefinition();
+  const stages = definition.stages as { transitions: unknown[] }[];
   // checks is recorded by the check stage, so plan can never see it.
   stages[0].transitions.push({
     name: "shortcut",
@@ -98,14 +98,14 @@ Deno.test("holder: validate fails on a graph error, listing it with its path", a
     gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
   });
   swamp.definitions.set("team", {
-    globalArguments: lifecycle,
-    type: HOLDER_TYPE,
+    globalArguments: definition,
+    type: FACTORY_TYPE,
   });
   const error = await assertRejects(() =>
-    holder.methods.validate.execute({}, swamp.context("team"))
+    factory.methods.validate.execute({}, swamp.context("team"))
   );
   const text = (error as Error).message;
-  assert(text.includes("lifecycle holder 'team' has design errors:"), text);
+  assert(text.includes("factory 'team' has design errors:"), text);
   assert(
     text.includes(
       "stages.0.transitions.1 (from stage 'plan'): transition 'shortcut' (to 'code-review') can never pass",
@@ -115,7 +115,7 @@ Deno.test("holder: validate fails on a graph error, listing it with its path", a
   assert(text.includes("warnings:\nstages.0 (from stage 'plan')"), text);
 });
 
-Deno.test("holder: validate fails when the graph analysis stops at the state cap", async () => {
+Deno.test("factory: validate fails when the graph analysis stops at the state cap", async () => {
   // 15 stages, each with a manual transition to every other and to done: the
   // structural pass meets 15 * 2^14 (stage, entered set) states, past the
   // default cap of 100,000. Nothing enters the orphan stage.
@@ -135,15 +135,15 @@ Deno.test("holder: validate fails when the graph analysis stops at the state cap
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
     globalArguments: { schemaVersion: 1, name: "wide", stages },
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const error = await assertRejects(() =>
-    holder.methods.validate.execute({}, swamp.context("team"))
+    factory.methods.validate.execute({}, swamp.context("team"))
   );
   const text = (error as Error).message;
   assert(
     text.includes(
-      "lifecycle holder 'team' could not be checked in full: the graph analysis stopped at its cap of 100000 states",
+      "factory 'team' could not be checked in full: the graph analysis stopped at its cap of 100000 states",
     ),
     text,
   );
@@ -152,34 +152,34 @@ Deno.test("holder: validate fails when the graph analysis stops at the state cap
   assert(!swamp.logs.some((l) => l.message === "{summary}"));
 });
 
-Deno.test("holder: validate reads the raw definition, so a platform expression gets the schema's own error", async () => {
+Deno.test("factory: validate reads the raw definition, so a platform expression gets the schema's own error", async () => {
   const swamp = fakeSwamp();
-  const lifecycle = await buildLifecycle();
-  const stages = lifecycle.stages as {
+  const definition = await buildDefinition();
+  const stages = definition.stages as {
     work: Record<string, unknown>;
     transitions: unknown[];
   }[];
   stages[0].work.systemPrompt = "Plan ${{ model.x }}";
   stages[1].transitions.push({ name: "nowhere", to: "missing" });
   swamp.definitions.set("team", {
-    globalArguments: lifecycle,
-    type: HOLDER_TYPE,
+    globalArguments: definition,
+    type: FACTORY_TYPE,
   });
   const error = await assertRejects(() =>
-    holder.methods.validate.execute({}, swamp.context("team"))
+    factory.methods.validate.execute({}, swamp.context("team"))
   );
   const text = (error as Error).message;
   assert(text.includes("stages.0.work.systemPrompt: contains ${{ }}"), text);
   assert(text.includes("targets unknown stage 'missing'"), text);
 });
 
-Deno.test("holder: design_page stores the lifecycle as an HTML page", async () => {
+Deno.test("factory: design_page stores the definition as an HTML page", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
   });
-  const out = await holder.methods.design_page.execute(
+  const out = await factory.methods.design_page.execute(
     {},
     swamp.context("team"),
   );
@@ -191,20 +191,20 @@ Deno.test("holder: design_page stores the lifecycle as an HTML page", async () =
   const html = pages?.[0] ?? "";
   assert(html.startsWith("<!doctype html>"));
   assert(html.includes("<h1>build-swamp-extension</h1>"));
-  assertEquals(holder.files[DESIGN_PAGE_SPEC].contentType, "text/html");
+  assertEquals(factory.files[DESIGN_PAGE_SPEC].contentType, "text/html");
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "design page for lifecycle 'build-swamp-extension' in 'team': 8 stages, 0 error(s), 2 warning(s)",
+      "design page for definition 'build-swamp-extension' in 'team': 8 stages, 0 error(s), 2 warning(s)",
     ),
     summary,
   );
 });
 
-Deno.test("holder: design_page renders a lifecycle whose graph has errors", async () => {
+Deno.test("factory: design_page renders a definition whose graph has errors", async () => {
   const swamp = fakeSwamp();
-  const lifecycle = await buildLifecycle();
-  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  const definition = await buildDefinition();
+  const stages = definition.stages as { transitions: unknown[] }[];
   // The same unpassable shortcut validate fails on.
   stages[0].transitions.push({
     name: "shortcut",
@@ -212,10 +212,10 @@ Deno.test("holder: design_page renders a lifecycle whose graph has errors", asyn
     gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
   });
   swamp.definitions.set("team", {
-    globalArguments: lifecycle,
-    type: HOLDER_TYPE,
+    globalArguments: definition,
+    type: FACTORY_TYPE,
   });
-  await holder.methods.design_page.execute({}, swamp.context("team"));
+  await factory.methods.design_page.execute({}, swamp.context("team"));
   const html =
     swamp.files.get("team")?.get(`${DESIGN_PAGE_SPEC}/${DESIGN_PAGE_NAME}`)
       ?.[0] ??
@@ -225,34 +225,34 @@ Deno.test("holder: design_page renders a lifecycle whose graph has errors", asyn
   assertEquals(swamp.logs.at(-1)?.props?.errors, 1);
 });
 
-Deno.test("holder: design_page fails with every schema error, writing nothing", async () => {
+Deno.test("factory: design_page fails with every schema error, writing nothing", async () => {
   const swamp = fakeSwamp();
-  const lifecycle = await buildLifecycle();
-  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  const definition = await buildDefinition();
+  const stages = definition.stages as { transitions: unknown[] }[];
   stages[1].transitions.push({ name: "nowhere", to: "missing" });
   stages[2].transitions.push({ name: "elsewhere", to: "absent" });
   swamp.definitions.set("team", {
-    globalArguments: lifecycle,
-    type: HOLDER_TYPE,
+    globalArguments: definition,
+    type: FACTORY_TYPE,
   });
   const error = await assertRejects(() =>
-    holder.methods.design_page.execute({}, swamp.context("team"))
+    factory.methods.design_page.execute({}, swamp.context("team"))
   );
   const text = (error as Error).message;
-  assert(text.includes("lifecycle holder 'team' is not a valid lifecycle"));
+  assert(text.includes("factory 'team' is not a valid definition"));
   assert(text.includes("targets unknown stage 'missing'"), text);
   assert(text.includes("targets unknown stage 'absent'"), text);
   assertEquals(swamp.files.size, 0);
 });
 
-Deno.test("holder: new_key logs and records an unused key for this lifecycle", async () => {
+Deno.test("factory: new_key logs and records an unused key for this factory", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
   });
-  const output = await holder.methods.new_key.execute(
-    holder.methods.new_key.arguments.parse({
+  const output = await factory.methods.new_key.execute(
+    factory.methods.new_key.arguments.parse({
       title: "Add JSON output to status",
     }),
     swamp.context("team"),
@@ -268,14 +268,14 @@ Deno.test("holder: new_key logs and records an unused key for this lifecycle", a
   assert(!swamp.definitions.has(key));
   assert(
     String(swamp.logs.at(-1)?.props?.next).includes(
-      `run start ${key} --input lifecycle=team`,
+      `run start ${key} --input factory=team`,
     ),
   );
 });
 
-Deno.test("holder: new_key needs a title", () => {
-  assert(!holder.methods.new_key.arguments.safeParse({}).success);
-  assert(!holder.methods.new_key.arguments.safeParse({ title: "" }).success);
+Deno.test("factory: new_key needs a title", () => {
+  assert(!factory.methods.new_key.arguments.safeParse({}).success);
+  assert(!factory.methods.new_key.arguments.safeParse({ title: "" }).success);
 });
 
 Deno.test("keySlug: punctuation and separators become single hyphens", () => {
@@ -330,15 +330,15 @@ Deno.test("keySlug: a long title is cut at a word boundary", () => {
   assertEquals(keySlug("Supercalifragilistic", 5), "super");
 });
 
-Deno.test("generateKey: fits swamp's instance-name rules with a long lifecycle name", () => {
+Deno.test("generateKey: fits swamp's instance-name rules with a long definition name", () => {
   const title = "Implement retries with exponential backoff for every call";
-  for (const lifecycle of ["team", "x".repeat(50), "x".repeat(80)]) {
-    const key = generateKey(lifecycle, title);
+  for (const definition of ["team", "x".repeat(50), "x".repeat(80)]) {
+    const key = generateKey(definition, title);
     assert(key.length <= 64, key);
     assertMatch(key, /^[a-z0-9][a-z0-9_-]*$/);
     assertMatch(key, /-[a-z2-7]{4}$/);
   }
-  // The lifecycle name stays whole when it fits.
+  // The factory definition name stays whole when it fits.
   assertMatch(
     generateKey("team", title),
     /^team-implement-retries-exponential-backoff-every-call-[a-z2-7]{4}$/,
@@ -378,21 +378,21 @@ Deno.test("freshKey: retries a key another definition has, and gives up after fi
   assertEquals(seen.length, 5);
 });
 
-Deno.test("holder: validate refuses a definition of another type", async () => {
+Deno.test("factory: validate refuses a definition of another type", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
+    globalArguments: await buildDefinition(),
     type: "@acme/other",
   });
   await assertRejects(
-    () => holder.methods.validate.execute({}, swamp.context("team")),
+    () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,
-    "is a @acme/other, not a lifecycle holder",
+    "is a @acme/other, not a factory",
   );
 });
 
-Deno.test("holder: the model's literal type is HOLDER_TYPE", () => {
+Deno.test("factory: the model's literal type is FACTORY_TYPE", () => {
   // swamp reads `type` from the source as a string literal, so it cannot be
   // the constant itself; this keeps the two in step.
-  assert(holder.type === HOLDER_TYPE);
+  assert(factory.type === FACTORY_TYPE);
 });

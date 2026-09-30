@@ -15,16 +15,17 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import type { Actor, JournalEvent } from "./journal.ts";
-import type { Lifecycle } from "./lifecycle_schema.ts";
+import type { FactoryDefinition } from "./definition_schema.ts";
 import { computeMetrics, type Metrics, type Summary } from "./metrics.ts";
 import type { RunRecord } from "./run_record.ts";
 
 // ---------------------------------------------------------------------------
 // The work-item summary: the journal as a timeline, per era, with the
-// metrics. Rendered statically from the run record and the pinned lifecycle,
-// so the same run always renders the same summary. Product payloads are not
-// shown, only their versions and digests. Shared by the `summary` method and
-// the summary report, which is why it takes plain values and no context.
+// metrics. Rendered statically from the run record and the pinned factory
+// definition, so the same run always renders the same summary. Product payloads
+// are not shown, only their versions and digests. Shared by the `summary`
+// method and the summary report, which is why it takes plain values and no
+// context.
 // ---------------------------------------------------------------------------
 
 export interface WorkItemSummary {
@@ -35,9 +36,9 @@ export interface WorkItemSummary {
 
 export function buildSummary(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
 ): WorkItemSummary {
-  const metrics = computeMetrics(run, lifecycle);
+  const metrics = computeMetrics(run, definition);
   return {
     markdown: renderMarkdown(run, metrics),
     metrics,
@@ -78,7 +79,7 @@ function actorText(actor: Actor): string {
 function detail(event: JournalEvent, run: RunRecord): string {
   switch (event.type) {
     case "started":
-      return `started on lifecycle '${event.lifecycle.name}'`;
+      return `started on definition '${event.definition.name}'`;
     case "dispatched":
       return `dispatch ${event.dispatchId}`;
     case "usage": {
@@ -119,7 +120,7 @@ function detail(event: JournalEvent, run: RunRecord): string {
     case "reset":
       return `reset from era ${event.previousEra}` +
         (event.repinned !== undefined
-          ? `, lifecycle repinned (${event.repinned.digest.slice(0, 19)})`
+          ? `, definition repinned (${event.repinned.digest.slice(0, 19)})`
           : "");
   }
 }
@@ -164,8 +165,8 @@ function renderMarkdown(run: RunRecord, metrics: Metrics): string {
   const lines = [
     `# Work item ${run.key}`,
     "",
-    `- **Lifecycle:** ${run.lifecycle.name} (${
-      run.lifecycle.digest.slice(0, 19)
+    `- **FactoryDefinition:** ${run.definition.name} (${
+      run.definition.digest.slice(0, 19)
     })`,
     `- **Status:** ${run.status} at stage '${run.stage}'`,
     `- **Started:** ${metrics.startedAt}`,

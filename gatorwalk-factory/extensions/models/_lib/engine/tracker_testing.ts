@@ -26,14 +26,14 @@ export {
   ALICE,
   expectNow,
   NOBODY,
-  smallLifecycle,
+  smallDefinition,
   testEnv,
 } from "./test_support.ts";
 export {
   findStage,
-  parseLifecycle,
+  parseDefinition,
   type StageSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 export { RUN_SCHEMA_VERSION } from "./run_record.ts";
 export { systemEnv } from "./run_ops.ts";
 export { contextStore } from "./run_store.ts";
@@ -41,7 +41,7 @@ export {
   advanceMethod,
   decide,
   describeStatus,
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,
   startWorkItem,

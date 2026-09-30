@@ -31,16 +31,16 @@ import {
   startRun,
   update,
 } from "./run_store.ts";
-import { ALICE, expectNow, smallLifecycle, testEnv } from "./test_support.ts";
+import { ALICE, expectNow, smallDefinition, testEnv } from "./test_support.ts";
 
-const LIFECYCLE = smallLifecycle();
-const START = { key: "wi-1", lifecycleDigest: "sha256:l" };
+const DEFINITION = smallDefinition();
+const START = { key: "wi-1", definitionDigest: "sha256:l" };
 
 Deno.test("startRun: writes the run record once; a second start is refused", async () => {
   const store = memoryStore();
   const env = testEnv();
-  assert((await startRun(store, LIFECYCLE, START, ALICE, env)).ok);
-  const again = await startRun(store, LIFECYCLE, START, ALICE, env);
+  assert((await startRun(store, DEFINITION, START, ALICE, env)).ok);
+  const again = await startRun(store, DEFINITION, START, ALICE, env);
   assert(!again.ok && again.reason.includes("already started"));
   assertEquals(store.runVersions.length, 1);
 });
@@ -48,10 +48,10 @@ Deno.test("startRun: writes the run record once; a second start is refused", asy
 Deno.test("recordProduct: writes the payload, then commits the run referencing it", async () => {
   const store = memoryStore();
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -71,10 +71,10 @@ Deno.test("recordProduct: writes the payload, then commits the run referencing i
 Deno.test("recordProduct: an invalid payload is returned as a rejection, kept on the run, and not written", async () => {
   const store = memoryStore();
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -95,10 +95,10 @@ Deno.test("recordProduct: an invalid payload is returned as a rejection, kept on
 Deno.test("recordProduct: a product the stage does not declare writes nothing", async () => {
   const store = memoryStore();
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "evidence",
     "test-run",
@@ -114,7 +114,7 @@ Deno.test("recordProduct: a product the stage does not declare writes nothing", 
 Deno.test("commit protocol: a crash after the payload write leaves the run unchanged; the orphan is ignored", async () => {
   const inner = memoryStore();
   const env = testEnv();
-  await startRun(inner, LIFECYCLE, START, ALICE, env);
+  await startRun(inner, DEFINITION, START, ALICE, env);
   let crash = true;
   const crashing: RunStore = {
     ...inner,
@@ -127,7 +127,7 @@ Deno.test("commit protocol: a crash after the payload write leaves the run uncha
   await assertRejects(() =>
     recordProduct(
       crashing,
-      LIFECYCLE,
+      DEFINITION,
       expected,
       "artifact",
       "summary",
@@ -142,7 +142,7 @@ Deno.test("commit protocol: a crash after the payload write leaves the run uncha
   crash = false;
   const retried = await recordProduct(
     crashing,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(crashing),
     "artifact",
     "summary",
@@ -170,7 +170,7 @@ Deno.test("update: commits only when the operation succeeds", async () => {
       (run) =>
         recordDispatch(
           run,
-          LIFECYCLE,
+          DEFINITION,
           expectedOf(run),
           { inputs: {} },
           ALICE,
@@ -178,13 +178,13 @@ Deno.test("update: commits only when the operation succeeds", async () => {
         ),
     )).ok,
   );
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const ok = await update(
     store,
     (run) =>
       recordDispatch(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { inputs: {} },
         ALICE,
@@ -224,10 +224,10 @@ Deno.test("contextStore: fixed record names and the declared spec names", async 
   };
   const store = contextStore(context);
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -237,7 +237,7 @@ Deno.test("contextStore: fixed record names and the declared spec names", async 
   );
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "evidence",
     "pr",
@@ -265,11 +265,11 @@ Deno.test("contextStore: a context without data access is refused", () => {
 Deno.test("recordProduct: a stale view is refused and nothing is written", async () => {
   const store = memoryStore();
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const expected = await expectNow(store);
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     { ...expected, era: "era-0" },
     "artifact",
     "summary",
@@ -285,10 +285,10 @@ Deno.test("recordProduct: a stale view is refused and nothing is written", async
 Deno.test("recordProduct: a payload with no JSON form is refused, not thrown", async () => {
   const store = memoryStore();
   const env = testEnv();
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -308,7 +308,7 @@ Deno.test("committingStore: the run is written first, then afterCommit sees exac
   const order: string[] = [];
   const store = committingStore(
     { ...inner, writeRun: (run) => (order.push("run"), inner.writeRun(run)) },
-    LIFECYCLE,
+    DEFINITION,
     env,
     (run) => {
       order.push("metrics");
@@ -316,7 +316,7 @@ Deno.test("committingStore: the run is written first, then afterCommit sees exac
       return Promise.resolve();
     },
   );
-  const started = await startRun(store, LIFECYCLE, START, ALICE, env);
+  const started = await startRun(store, DEFINITION, START, ALICE, env);
   assert(started.ok);
   assertEquals(order, ["run", "metrics"]);
 });
@@ -326,17 +326,17 @@ Deno.test("committingStore: a crash after the run write leaves metrics one commi
   const env = testEnv();
   const metrics: number[] = [];
   let crash = false;
-  const store = committingStore(inner, LIFECYCLE, env, (run) => {
+  const store = committingStore(inner, DEFINITION, env, (run) => {
     if (crash) return Promise.reject(new Error("process died"));
     metrics.push(run.journal.length);
     return Promise.resolve();
   });
-  await startRun(store, LIFECYCLE, START, ALICE, env);
+  await startRun(store, DEFINITION, START, ALICE, env);
   crash = true;
   await assertRejects(() =>
     recordProduct(
       store,
-      LIFECYCLE,
+      DEFINITION,
       expectedOf(inner.runVersions.at(-1)!),
       "artifact",
       "summary",
@@ -353,7 +353,7 @@ Deno.test("committingStore: a crash after the run write leaves metrics one commi
   await update(store, (run) =>
     recordDispatch(
       run,
-      LIFECYCLE,
+      DEFINITION,
       expectedOf(run),
       { inputs: {} },
       ALICE,

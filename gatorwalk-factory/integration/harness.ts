@@ -22,7 +22,7 @@ import {
   type RunRecord,
 } from "../extensions/models/_lib/engine/run_record.ts";
 import {
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   WORK_ITEM_TYPE,
 } from "../extensions/models/_lib/engine/work_item_ops.ts";
 
@@ -40,12 +40,12 @@ import {
 /** The gatorwalk-factory directory, added to each repo as an extension source. */
 export const EXTENSION_ROOT = fromFileUrl(new URL("../", import.meta.url));
 
-export const BUILD_LIFECYCLE = new URL(
+export const BUILD_DEFINITION = new URL(
   "../.claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
   import.meta.url,
 );
 
-export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
+export const SWAMP_EXTENSIONS_DEFINITION = new URL(
   "../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
   import.meta.url,
 );
@@ -57,7 +57,7 @@ export const VERIFY_WORKFLOW = new URL(
   import.meta.url,
 );
 
-export { HOLDER_TYPE, WORK_ITEM_TYPE };
+export { FACTORY_TYPE, WORK_ITEM_TYPE };
 
 // The only inherited SWAMP_ variable kept. SWAMP_HOME relocates swamp's user
 // directory (config, stored login, and the runtime that loads extensions),
@@ -104,12 +104,12 @@ export interface SwampRepo {
   swamp(args: string[], options?: { allowFailure?: boolean }): Promise<
     SwampResult
   >;
-  /** Create a lifecycle holder whose globalArguments are `lifecycle`. */
-  holder(name: string, lifecycle: unknown): Promise<void>;
-  /** Replace a holder's lifecycle, as `swamp model edit` would. */
-  editHolder(name: string, lifecycle: unknown): Promise<void>;
-  /** Run a holder method by name. */
-  holderMethod(
+  /** Create a factory whose globalArguments are `factory definition`. */
+  factory(name: string, definition: unknown): Promise<void>;
+  /** Replace a factory's definition, as `swamp model edit` would. */
+  editFactory(name: string, definition: unknown): Promise<void>;
+  /** Run a factory method by name. */
+  factoryMethod(
     name: string,
     method: string,
     options?: { allowFailure?: boolean; inputs?: Record<string, string> },
@@ -121,8 +121,8 @@ export interface SwampRepo {
     inputs?: Record<string, string>,
     options?: { allowFailure?: boolean },
   ): Promise<SwampResult>;
-  /** Generate a key for a title with the holder's new_key. */
-  newKey(holder: string, title: string): Promise<string>;
+  /** Generate a key for a title with the factory's new_key. */
+  newKey(factory: string, title: string): Promise<string>;
   /** A stored record's content, the latest version unless one is given. */
   data(
     instance: string,
@@ -218,23 +218,23 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   await swamp(["init", "--tool", "none"]);
   await swamp(["extension", "source", "add", EXTENSION_ROOT]);
 
-  const holderFiles = new Map<string, string>();
+  const factoryFiles = new Map<string, string>();
 
-  const writeHolder = async (name: string, lifecycle: unknown) => {
-    const path = holderFiles.get(name);
-    if (path === undefined) throw new Error(`no holder '${name}' created`);
+  const writeFactory = async (name: string, factoryDefinition: unknown) => {
+    const path = factoryFiles.get(name);
+    if (path === undefined) throw new Error(`no factory '${name}' created`);
     const definition = parseYaml(await Deno.readTextFile(path)) as Record<
       string,
       unknown
     >;
-    definition.globalArguments = lifecycle;
+    definition.globalArguments = factoryDefinition;
     await Deno.writeTextFile(path, stringifyYaml(definition));
   };
 
-  const createHolder = async (type: string, name: string, doc: unknown) => {
+  const createFactory = async (type: string, name: string, doc: unknown) => {
     const { stdout } = await swamp(["model", "create", type, name, "--json"]);
-    holderFiles.set(name, (JSON.parse(stdout) as { path: string }).path);
-    await writeHolder(name, doc);
+    factoryFiles.set(name, (JSON.parse(stdout) as { path: string }).path);
+    await writeFactory(name, doc);
   };
 
   const data: SwampRepo["data"] = async (instance, name, version) => {
@@ -256,9 +256,10 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   return {
     dir,
     swamp,
-    holder: (name, lifecycle) => createHolder(HOLDER_TYPE, name, lifecycle),
-    editHolder: writeHolder,
-    holderMethod: (name, method, options = {}) =>
+    factory: (name, definition) =>
+      createFactory(FACTORY_TYPE, name, definition),
+    editFactory: writeFactory,
+    factoryMethod: (name, method, options = {}) =>
       swamp(
         [
           "model",
@@ -285,14 +286,14 @@ async function openRepo(dir: string): Promise<SwampRepo> {
         ],
         options,
       ),
-    async newKey(holder, title) {
+    async newKey(factory, title) {
       // The key record new_key writes, as this call's --json output lists
       // it, rather than the log text, whose format is swamp's to change.
       const { stdout } = await swamp([
         "model",
         "method",
         "run",
-        holder,
+        factory,
         "new_key",
         "--input",
         `title=${title}`,

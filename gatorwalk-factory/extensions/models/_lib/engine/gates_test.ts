@@ -21,7 +21,10 @@ import {
   makeGateEvaluator,
 } from "./gates.ts";
 import type { Actor } from "./journal.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  type FactoryDefinition,
+  parseDefinition,
+} from "./definition_schema.ts";
 import {
   advance,
   type Env,
@@ -43,8 +46,8 @@ import { ALICE, expectNow, NOBODY, PASS, testEnv } from "./test_support.ts";
 const BOB: Actor = { principal: "user:bob", source: "platform" };
 
 /** One transition per gate type, all from `draft`. */
-function gateLifecycle(): Lifecycle {
-  const result = parseLifecycle({
+function gateDefinition(): FactoryDefinition {
+  const result = parseDefinition({
     schemaVersion: 1,
     name: "gates",
     stages: [
@@ -238,14 +241,14 @@ function gateLifecycle(): Lifecycle {
   return result.value;
 }
 
-const LIFECYCLE = gateLifecycle();
+const DEFINITION = gateDefinition();
 
 async function setup(env: Env = testEnv()) {
   const store = memoryStore();
   await startRun(
     store,
-    LIFECYCLE,
-    { key: "wi-1", lifecycleDigest: "sha256:g" },
+    DEFINITION,
+    { key: "wi-1", definitionDigest: "sha256:g" },
     ALICE,
     env,
   );
@@ -267,7 +270,7 @@ async function record(
 ) {
   const result = await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     kind,
     name,
@@ -290,7 +293,7 @@ async function approve(
     (run) =>
       recordApproval(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { gateId: "ship", decision, ...(note ? { note } : {}) },
         actor,
@@ -303,11 +306,11 @@ async function approve(
 /** The gate result of a named transition. */
 async function gate(store: RunStore, env: Env, name: string) {
   const run = await current(store);
-  const transition = LIFECYCLE.stages[0].transitions?.find((t) =>
+  const transition = DEFINITION.stages[0].transitions?.find((t) =>
     t.name === name
   );
   assert(transition !== undefined);
-  const [check] = await evaluateGates(run, LIFECYCLE, transition, store, env);
+  const [check] = await evaluateGates(run, DEFINITION, transition, store, env);
   return check;
 }
 
@@ -354,7 +357,7 @@ Deno.test("artifact-fresh: a review recorded in an earlier cycle is not fresh", 
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "again" },
         PASS,
@@ -587,7 +590,7 @@ Deno.test("evidence-recorded: this stage and cycle, with required fields", async
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "again" },
         PASS,
@@ -628,7 +631,7 @@ Deno.test("max-cycles: a routing gate on entries into a stage", async () => {
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "again" },
         PASS,
@@ -674,13 +677,13 @@ Deno.test("gates: run data that fails its digest check becomes a failure, not an
     readPayload: () => Promise.resolve({ text: "edited" }),
   };
   const run = await current(store);
-  const transition = LIFECYCLE.stages[0].transitions?.find((t) =>
+  const transition = DEFINITION.stages[0].transitions?.find((t) =>
     t.name === "said-go"
   );
   assert(transition !== undefined);
   const [check] = await evaluateGates(
     run,
-    LIFECYCLE,
+    DEFINITION,
     transition,
     tampered,
     env,
@@ -689,13 +692,13 @@ Deno.test("gates: run data that fails its digest check becomes a failure, not an
     !check.pass && check.reason?.startsWith("run data could not be read"),
     check.reason,
   );
-  const conditional = LIFECYCLE.stages[0].transitions?.find((t) =>
+  const conditional = DEFINITION.stages[0].transitions?.find((t) =>
     t.name === "approved-if-go"
   );
   assert(conditional !== undefined);
   const [approval] = await evaluateGates(
     run,
-    LIFECYCLE,
+    DEFINITION,
     conditional,
     tampered,
     env,
@@ -712,13 +715,13 @@ Deno.test("gates: run data that fails its digest check becomes a failure, not an
 
 Deno.test("makeGateEvaluator: advance moves only when every gate passes, and says why not", async () => {
   const { store, env } = await setup();
-  const gates = makeGateEvaluator(LIFECYCLE, store, env);
+  const gates = makeGateEvaluator(DEFINITION, store, env);
   const refused = await update(
     store,
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "exists" },
         gates,
@@ -738,7 +741,7 @@ Deno.test("makeGateEvaluator: advance moves only when every gate passes, and say
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "exists" },
         gates,
@@ -758,7 +761,7 @@ Deno.test("evaluateTransitions: reports each exit's gates and the cycle limit of
       (run) =>
         advance(
           run,
-          LIFECYCLE,
+          DEFINITION,
           expectedOf(run),
           { transition: "again" },
           PASS,
@@ -769,7 +772,7 @@ Deno.test("evaluateTransitions: reports each exit's gates and the cycle limit of
   }
   const run = await current(store);
   assertEquals(run.entries.draft, 3);
-  const exits = await evaluateTransitions(run, LIFECYCLE, store, env);
+  const exits = await evaluateTransitions(run, DEFINITION, store, env);
   const again = exits.find((t) => t.name === "again");
   assert(again !== undefined && !again.ready);
   assert(
@@ -790,7 +793,7 @@ Deno.test("evaluateTransitions: reports each exit's gates and the cycle limit of
     (r) =>
       grantOverride(
         r,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(r),
         { kind: "cycle", stage: "draft" },
         ALICE,
@@ -798,7 +801,7 @@ Deno.test("evaluateTransitions: reports each exit's gates and the cycle limit of
       ),
   );
   const after =
-    (await evaluateTransitions(await current(store), LIFECYCLE, store, env))
+    (await evaluateTransitions(await current(store), DEFINITION, store, env))
       .find((t) => t.name === "again");
   assert(after?.ready, after?.failures.join());
 });
@@ -902,11 +905,11 @@ Deno.test("cooldown: an unreadable record time fails with a clear message", asyn
   await record(store, env, "evidence", "ci", { status: "green" });
   const run = structuredClone(await current(store));
   run.products.evidence.ci.at = "not a time";
-  const transition = LIFECYCLE.stages[0].transitions?.find((t) =>
+  const transition = DEFINITION.stages[0].transitions?.find((t) =>
     t.name === "cooled"
   );
   assert(transition !== undefined);
-  const [check] = await evaluateGates(run, LIFECYCLE, transition, store, env);
+  const [check] = await evaluateGates(run, DEFINITION, transition, store, env);
   assert(
     !check.pass &&
       check.reason ===
@@ -917,7 +920,7 @@ Deno.test("cooldown: an unreadable record time fails with a clear message", asyn
 
 Deno.test("evidence-recorded: a requireField path reads own fields only, never the prototype", async () => {
   const withField = (requireField: Record<string, unknown>) =>
-    parseLifecycle({
+    parseDefinition({
       schemaVersion: 1,
       name: "proto",
       stages: [
@@ -956,7 +959,7 @@ Deno.test("evidence-recorded: a requireField path reads own fields only, never t
   await startRun(
     store,
     ctor.value,
-    { key: "wi-1", lifecycleDigest: "sha256:p" },
+    { key: "wi-1", definitionDigest: "sha256:p" },
     ALICE,
     env,
   );

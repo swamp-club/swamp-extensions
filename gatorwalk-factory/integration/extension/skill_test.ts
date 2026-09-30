@@ -17,7 +17,7 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
-  BUILD_LIFECYCLE,
+  BUILD_DEFINITION,
   EXTENSION_ROOT,
   splitWords,
   withRepo,
@@ -149,11 +149,11 @@ Deno.test("skill: the worked example runs as written, from start to done", async
     EXAMPLE,
     await Deno.readTextFile(`${SKILL_DIR}/${EXAMPLE}`),
   );
-  const lifecycle = parseYaml(await Deno.readTextFile(BUILD_LIFECYCLE));
+  const definition = parseYaml(await Deno.readTextFile(BUILD_DEFINITION));
   await withRepo(async (repo) => {
     const steps = await runExample(repo, commands, {
       extensionRoot: EXTENSION_ROOT,
-      lifecycle,
+      definition,
     });
     assertEquals(
       steps.filter((s) => s.code !== 0 && s.command.fails).length,

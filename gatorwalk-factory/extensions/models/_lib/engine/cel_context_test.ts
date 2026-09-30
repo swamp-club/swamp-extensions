@@ -30,11 +30,11 @@ import {
   ALICE,
   expectNow,
   PASS,
-  smallLifecycle,
+  smallDefinition,
   testEnv,
 } from "./test_support.ts";
 
-const LIFECYCLE = smallLifecycle();
+const DEFINITION = smallDefinition();
 
 async function started(): Promise<
   { store: RunStore; env: ReturnType<typeof testEnv> }
@@ -43,11 +43,11 @@ async function started(): Promise<
   const env = testEnv();
   await startRun(
     store,
-    LIFECYCLE,
+    DEFINITION,
     {
       key: "wi-7",
       externalRefs: { linear: "ENG-1" },
-      lifecycleDigest: "sha256:l",
+      definitionDigest: "sha256:l",
     },
     ALICE,
     env,
@@ -65,7 +65,7 @@ Deno.test("context: item, stage, and each product's latest payload and version",
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -75,7 +75,7 @@ Deno.test("context: item, stage, and each product's latest payload and version",
   );
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -105,7 +105,7 @@ Deno.test("context: numbers from run data are CEL doubles; comparisons with ints
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -130,7 +130,7 @@ Deno.test("context: evidence recorded on an earlier stage is visible later (the 
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "evidence",
     "pr",
@@ -140,7 +140,7 @@ Deno.test("context: evidence recorded on an earlier stage is visible later (the 
   );
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -153,7 +153,7 @@ Deno.test("context: evidence recorded on an earlier stage is visible later (the 
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "submit" },
         PASS,
@@ -171,7 +171,7 @@ Deno.test("context: nothing from before a reset is visible", async () => {
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "evidence",
     "pr",
@@ -181,7 +181,7 @@ Deno.test("context: nothing from before a reset is visible", async () => {
   );
   await update(
     store,
-    (run) => reset(run, LIFECYCLE, expectedOf(run), ALICE, env),
+    (run) => reset(run, DEFINITION, expectedOf(run), ALICE, env),
   );
   const context = await buildCelContext(await current(store), store);
   assertEquals(evaluateCel('"pr" in evidence', context), false);
@@ -191,7 +191,7 @@ Deno.test("context: rejections are visible under validations by kind", async () 
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -214,7 +214,7 @@ Deno.test("context: a payload version the run references but storage lost is an 
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -244,7 +244,7 @@ Deno.test("context: a payload changed outside the runtime fails its digest check
   const { store, env } = await started();
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",

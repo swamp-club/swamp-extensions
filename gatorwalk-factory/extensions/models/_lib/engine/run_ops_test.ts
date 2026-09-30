@@ -15,7 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "@std/assert";
-import { parseLifecycle } from "./lifecycle_schema.ts";
+import { parseDefinition } from "./definition_schema.ts";
 import {
   acceptProduct,
   advance,
@@ -38,16 +38,16 @@ import {
   FAIL,
   NOBODY,
   PASS,
-  smallLifecycle,
+  smallDefinition,
   testEnv,
 } from "./test_support.ts";
 
-const LIFECYCLE = smallLifecycle();
+const DEFINITION = smallDefinition();
 
 function fresh(env: Env = testEnv()): RunRecord {
   return start(
-    LIFECYCLE,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    DEFINITION,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -56,7 +56,7 @@ function fresh(env: Env = testEnv()): RunRecord {
 async function toReview(run: RunRecord, env: Env): Promise<RunRecord> {
   const moved = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "submit" },
     PASS,
@@ -75,7 +75,7 @@ Deno.test("start: at the initial stage, cycle 1, in a new era, journaled", () =>
   assertEquals(run.entries, { write: 1 });
   assertEquals(run.era, "era-1");
   assertEquals(run.status, "active");
-  assertEquals(run.lifecycle, { name: "small", digest: "sha256:l" });
+  assertEquals(run.definition, { name: "small", digest: "sha256:l" });
   assertEquals(run.journal.map((e) => e.type), ["started"]);
   assertEquals(run.journal[0].actor, ALICE);
 });
@@ -85,10 +85,10 @@ Deno.test("start: at the initial stage, cycle 1, in a new era, journaled", () =>
 Deno.test("checkProduct: only products the current stage declares", () => {
   const run = fresh();
   assertEquals(
-    checkProduct(run, LIFECYCLE, "artifact", "summary", { text: "t" }),
+    checkProduct(run, DEFINITION, "artifact", "summary", { text: "t" }),
     { declared: true, errors: null },
   );
-  const elsewhere = checkProduct(run, LIFECYCLE, "evidence", "test-run", {});
+  const elsewhere = checkProduct(run, DEFINITION, "evidence", "test-run", {});
   assert(!elsewhere.declared);
   assert(elsewhere.reason.includes("does not declare evidence 'test-run'"));
 });
@@ -97,13 +97,13 @@ Deno.test("checkProduct: a stage's resultEvidence uses the outcome contract", as
   const env = testEnv();
   const run = await toReview(fresh(env), env);
   assertEquals(
-    checkProduct(run, LIFECYCLE, "evidence", "test-run", {
+    checkProduct(run, DEFINITION, "evidence", "test-run", {
       status: "succeeded",
       runId: "r1",
     }),
     { declared: true, errors: null },
   );
-  const bad = checkProduct(run, LIFECYCLE, "evidence", "test-run", {
+  const bad = checkProduct(run, DEFINITION, "evidence", "test-run", {
     status: "ok",
   });
   assert(bad.declared && bad.errors !== null);
@@ -112,7 +112,7 @@ Deno.test("checkProduct: a stage's resultEvidence uses the outcome contract", as
 Deno.test("products: a rejection is kept as feedback until a valid record clears it", () => {
   const env = testEnv();
   let run = fresh(env);
-  const check = checkProduct(run, LIFECYCLE, "artifact", "summary", {
+  const check = checkProduct(run, DEFINITION, "artifact", "summary", {
     text: "",
   });
   assert(check.declared && check.errors !== null);
@@ -152,7 +152,7 @@ Deno.test("recordDispatch: ids never repeat, inputs are stored as plain JSON", (
   const run = fresh(env);
   const first = recordDispatch(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { inputs: { n: 3n }, prompt: "p" },
     ALICE,
@@ -163,7 +163,7 @@ Deno.test("recordDispatch: ids never repeat, inputs are stored as plain JSON", (
   assertEquals(first.run.dispatches[0].inputs, { n: 3 });
   const second = recordDispatch(
     first.run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(first.run),
     { inputs: {} },
     ALICE,
@@ -178,7 +178,7 @@ Deno.test("recordUsage: attaches to a named dispatch after the run moved on, onc
   const run = fresh(env);
   const dispatched = recordDispatch(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -228,7 +228,7 @@ Deno.test("recordApproval: bound to every product in the era, including earlier 
   run = await toReview(run, env);
   const approved = recordApproval(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { gateId: "ship-approval", decision: "approve", note: "ok" },
     ALICE,
@@ -242,7 +242,7 @@ Deno.test("recordApproval: bound to every product in the era, including earlier 
   assertEquals(approved.run.approvals[0].stage, "review");
   const declined = recordApproval(
     approved.run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(approved.run),
     { gateId: "ship-approval", decision: "decline" },
     NOBODY,
@@ -260,7 +260,7 @@ Deno.test("recordApproval: an unknown gate or a stale view is refused", async ()
   const run = await toReview(fresh(env), env);
   const unknown = recordApproval(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { gateId: "plan-approval", decision: "approve" },
     ALICE,
@@ -272,7 +272,7 @@ Deno.test("recordApproval: an unknown gate or a stale view is refused", async ()
   );
   const stale = recordApproval(
     run,
-    LIFECYCLE,
+    DEFINITION,
     { ...expectedOf(run), stage: "write" },
     { gateId: "ship-approval", decision: "approve" },
     ALICE,
@@ -282,7 +282,7 @@ Deno.test("recordApproval: an unknown gate or a stale view is refused", async ()
 });
 
 Deno.test("recordApproval: a conditional gate takes decisions while its when is false", () => {
-  const parsed = parseLifecycle({
+  const parsed = parseDefinition({
     schemaVersion: 1,
     name: "conditional",
     stages: [
@@ -305,7 +305,7 @@ Deno.test("recordApproval: a conditional gate takes decisions while its when is 
   const env = testEnv();
   let run = start(
     parsed.value,
-    { key: "wi-c", lifecycleDigest: "sha256:c" },
+    { key: "wi-c", definitionDigest: "sha256:c" },
     ALICE,
     env,
   );
@@ -333,7 +333,7 @@ Deno.test("advance: moves, counts entries, and journals", async () => {
   assertEquals(run.entries, { write: 1, review: 1 });
   const back = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "again" },
     PASS,
@@ -353,7 +353,7 @@ Deno.test("advance: a stale view is refused and changes nothing", async () => {
   const run = fresh(env);
   const stale = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     { ...expectedOf(run), cycle: 2 },
     { transition: "submit" },
     PASS,
@@ -363,7 +363,7 @@ Deno.test("advance: a stale view is refused and changes nothing", async () => {
   assert(!stale.ok && stale.reason.startsWith("stale:"));
   const otherEra = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     { ...expectedOf(run), era: "era-0" },
     { transition: "submit" },
     PASS,
@@ -378,7 +378,7 @@ Deno.test("advance: unknown transitions and failing gates are refused with reaso
   const run = fresh(env);
   const unknown = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "ship" },
     PASS,
@@ -391,7 +391,7 @@ Deno.test("advance: unknown transitions and failing gates are refused with reaso
   );
   const blocked = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "submit" },
     FAIL,
@@ -406,7 +406,7 @@ Deno.test("advance: a manual transition needs a person's confirmation", async ()
   const run = await toReview(fresh(env), env);
   const unconfirmed = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "force" },
     PASS,
@@ -416,7 +416,7 @@ Deno.test("advance: a manual transition needs a person's confirmation", async ()
   assert(!unconfirmed.ok && unconfirmed.reason.includes("manual"));
   const confirmed = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "force", manualConfirmed: true },
     PASS,
@@ -432,7 +432,7 @@ Deno.test("advance: global transitions are available; a finished run refuses eve
   const run = fresh(env);
   const aborted = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "abort" },
     PASS,
@@ -444,7 +444,7 @@ Deno.test("advance: global transitions are available; a finished run refuses eve
   assertEquals(aborted.run.status, "terminal");
   const after = await advance(
     aborted.run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(aborted.run),
     { transition: "abort" },
     PASS,
@@ -455,7 +455,7 @@ Deno.test("advance: global transitions are available; a finished run refuses eve
   assert(
     !recordDispatch(
       aborted.run,
-      LIFECYCLE,
+      DEFINITION,
       expectedOf(aborted.run),
       { inputs: {} },
       ALICE,
@@ -478,7 +478,7 @@ Deno.test("reset: a new era at the initial stage; old records kept but out of er
   );
   const dispatched = recordDispatch(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -486,7 +486,7 @@ Deno.test("reset: a new era at the initial stage; old records kept but out of er
   );
   assert(dispatched.ok);
   run = await toReview(dispatched.run, env);
-  const result = reset(run, LIFECYCLE, expectedOf(run), ALICE, env);
+  const result = reset(run, DEFINITION, expectedOf(run), ALICE, env);
   assert(result.ok);
   assertEquals(result.value, "era-2");
   assertEquals(result.run.stage, "write");
@@ -503,7 +503,7 @@ Deno.test("reset: a new era at the initial stage; old records kept but out of er
   assertEquals(result.run.journal.slice(0, run.journal.length), run.journal);
   assertEquals(result.run.journal.length, run.journal.length + 1);
   assert(
-    !reset(run, LIFECYCLE, { ...expectedOf(run), stage: "write" }, ALICE, env)
+    !reset(run, DEFINITION, { ...expectedOf(run), stage: "write" }, ALICE, env)
       .ok,
   );
 });
@@ -513,7 +513,7 @@ Deno.test("recordDispatch: a stale view is refused", () => {
   const run = fresh(env);
   const stale = recordDispatch(
     run,
-    LIFECYCLE,
+    DEFINITION,
     { ...expectedOf(run), cycle: 2 },
     { inputs: {} },
     ALICE,
@@ -527,7 +527,7 @@ Deno.test("recordApproval: a finished run takes no decisions", async () => {
   const run = await toReview(fresh(env), env);
   const done = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "force", manualConfirmed: true },
     PASS,
@@ -537,7 +537,7 @@ Deno.test("recordApproval: a finished run takes no decisions", async () => {
   assert(done.ok);
   const late = recordApproval(
     done.run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(done.run),
     { gateId: "ship-approval", decision: "approve" },
     ALICE,
@@ -551,7 +551,7 @@ Deno.test("reset: a finished run can be started over", async () => {
   const run = fresh(env);
   const aborted = await advance(
     run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(run),
     { transition: "abort" },
     PASS,
@@ -561,7 +561,7 @@ Deno.test("reset: a finished run can be started over", async () => {
   assert(aborted.ok);
   const again = reset(
     aborted.run,
-    LIFECYCLE,
+    DEFINITION,
     expectedOf(aborted.run),
     ALICE,
     env,
@@ -575,7 +575,7 @@ Deno.test("reset: a finished run can be started over", async () => {
 
 /** loop <-> back, loop entered at most twice, one dispatch per cycle. */
 function limited() {
-  const result = parseLifecycle({
+  const result = parseDefinition({
     schemaVersion: 1,
     name: "limited",
     stages: [
@@ -598,14 +598,14 @@ function limited() {
 }
 
 async function take(
-  lifecycle: ReturnType<typeof limited>,
+  definition: ReturnType<typeof limited>,
   run: RunRecord,
   transition: string,
   env: Env,
 ) {
   return await advance(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { transition },
     PASS,
@@ -615,26 +615,26 @@ async function take(
 }
 
 Deno.test("cycle limit: entering a stage past maxCycles is refused, and says who can unblock it", async () => {
-  const lifecycle = limited();
+  const definition = limited();
   const env = testEnv();
   let run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   for (const t of ["out", "in", "out"]) {
-    const moved = await take(lifecycle, run, t, env);
+    const moved = await take(definition, run, t, env);
     assert(moved.ok, moved.ok ? "" : moved.reason);
     run = moved.run;
   }
-  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+  assertEquals(cycleLimit(run, definition, "loop"), {
     count: 2,
     limit: 2,
     granted: 0,
     allowed: false,
   });
-  const refused = await take(lifecycle, run, "in", env);
+  const refused = await take(definition, run, "in", env);
   assert(!refused.ok);
   assert(
     refused.reason.includes(
@@ -648,23 +648,23 @@ Deno.test("cycle limit: entering a stage past maxCycles is refused, and says who
 });
 
 Deno.test("cycle overrides accumulate: each grant allows one more entry, none resets the count", async () => {
-  const lifecycle = limited();
+  const definition = limited();
   const env = testEnv();
   let run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   const go = async (t: string) => {
-    const moved = await take(lifecycle, run, t, env);
+    const moved = await take(definition, run, t, env);
     assert(moved.ok, moved.ok ? "" : moved.reason);
     run = moved.run;
   };
   const grant = () => {
     const granted = grantOverride(
       run,
-      lifecycle,
+      definition,
       expectedOf(run),
       { kind: "cycle", stage: "loop", note: "one more" },
       ALICE,
@@ -682,13 +682,13 @@ Deno.test("cycle overrides accumulate: each grant allows one more entry, none re
   await go("out");
   await go("in"); // fourth entry: second grant
   await go("out");
-  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+  assertEquals(cycleLimit(run, definition, "loop"), {
     count: 4,
     limit: 2,
     granted: 2,
     allowed: false,
   });
-  assert(!(await take(lifecycle, run, "in", env)).ok);
+  assert(!(await take(definition, run, "in", env)).ok);
   assertEquals(run.overrides.map((o) => [o.id, o.kind, o.stage]), [[
     1,
     "cycle",
@@ -698,17 +698,17 @@ Deno.test("cycle overrides accumulate: each grant allows one more entry, none re
 });
 
 Deno.test("overrides belong to their era: a reset starts the counts afresh", () => {
-  const lifecycle = limited();
+  const definition = limited();
   const env = testEnv();
   let run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   const granted = grantOverride(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { kind: "cycle", stage: "loop" },
     ALICE,
@@ -717,14 +717,14 @@ Deno.test("overrides belong to their era: a reset starts the counts afresh", () 
   assert(granted.ok);
   const fresh = reset(
     granted.run,
-    lifecycle,
+    definition,
     expectedOf(granted.run),
     ALICE,
     env,
   );
   assert(fresh.ok);
   run = fresh.run;
-  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+  assertEquals(cycleLimit(run, definition, "loop"), {
     count: 1,
     limit: 2,
     granted: 0,
@@ -733,17 +733,17 @@ Deno.test("overrides belong to their era: a reset starts the counts afresh", () 
 });
 
 Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop until a person grants more", () => {
-  const lifecycle = limited();
+  const definition = limited();
   const env = testEnv();
   let run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   const first = recordDispatch(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -753,7 +753,7 @@ Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop 
   run = first.run;
   const second = recordDispatch(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -768,7 +768,7 @@ Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop 
   );
   const granted = grantOverride(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { kind: "dispatch" },
     ALICE,
@@ -778,24 +778,24 @@ Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop 
   assertEquals(granted.run.overrides[0].cycle, 1);
   run = granted.run;
   assert(
-    recordDispatch(run, lifecycle, expectedOf(run), { inputs: {} }, ALICE, env)
+    recordDispatch(run, definition, expectedOf(run), { inputs: {} }, ALICE, env)
       .ok,
   );
-  assertEquals(dispatchCap(run, lifecycle).granted, 1);
+  assertEquals(dispatchCap(run, definition).granted, 1);
 });
 
 Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
-  const lifecycle = limited();
+  const definition = limited();
   const env = testEnv();
   const run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   const stale = grantOverride(
     run,
-    lifecycle,
+    definition,
     { ...expectedOf(run), cycle: 9 },
     { kind: "dispatch" },
     ALICE,
@@ -804,7 +804,7 @@ Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
   assert(!stale.ok && stale.reason.startsWith("stale:"));
   const unknown = grantOverride(
     run,
-    lifecycle,
+    definition,
     expectedOf(run),
     { kind: "cycle", stage: "nowhere" },
     ALICE,
@@ -814,7 +814,7 @@ Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
 });
 
 Deno.test("cycle limit: a global escape transition is never closed by it", async () => {
-  const result = parseLifecycle({
+  const result = parseDefinition({
     schemaVersion: 1,
     name: "escape",
     stages: [
@@ -829,16 +829,16 @@ Deno.test("cycle limit: a global escape transition is never closed by it", async
     globalTransitions: [{ name: "escalate", to: "hold" }],
   });
   assert(result.ok);
-  const lifecycle = result.value;
+  const definition = result.value;
   const env = testEnv();
   let run = start(
-    lifecycle,
-    { key: "wi-1", lifecycleDigest: "sha256:e" },
+    definition,
+    { key: "wi-1", definitionDigest: "sha256:e" },
     ALICE,
     env,
   );
   for (const t of ["escalate", "resume", "escalate"]) {
-    const moved = await take(lifecycle, run, t, env);
+    const moved = await take(definition, run, t, env);
     assert(moved.ok, moved.ok ? "" : moved.reason);
     run = moved.run;
   }

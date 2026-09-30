@@ -17,12 +17,12 @@
 import { assert, assertEquals } from "@std/assert";
 import { start } from "./run_ops.ts";
 import { currentCycle, parseRun } from "./run_record.ts";
-import { ALICE, smallLifecycle, testEnv } from "./test_support.ts";
+import { ALICE, smallDefinition, testEnv } from "./test_support.ts";
 
 function started() {
   return start(
-    smallLifecycle(),
-    { key: "wi-1", lifecycleDigest: "sha256:abc" },
+    smallDefinition(),
+    { key: "wi-1", definitionDigest: "sha256:abc" },
     ALICE,
     testEnv(),
   );

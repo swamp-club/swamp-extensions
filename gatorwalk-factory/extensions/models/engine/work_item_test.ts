@@ -25,7 +25,7 @@ import {
   advanceMethod,
   decide,
   describeStatus,
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,
   startWorkItem,
@@ -39,7 +39,7 @@ const BUILD = new URL(
 const ITEM = "build-swamp-extension-abcdefgh";
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
-async function buildLifecycle(): Promise<Record<string, unknown>> {
+async function buildDefinition(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
 }
 
@@ -80,25 +80,25 @@ async function runOf(swamp: FakeSwamp): Promise<RunRecord> {
 async function started(remote = false): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
     remote,
   });
-  await call(swamp, "start", { lifecycle: "team" });
+  await call(swamp, "start", { factory: "team" });
   return swamp;
 }
 
-// --- start and the pinned lifecycle ---------------------------------------------
+// --- start and the pinned factory definition ------------------------------------
 
-Deno.test("start: pins the holder's lifecycle and starts at its initial stage", async () => {
+Deno.test("start: pins the factory's definition and starts at its initial stage", async () => {
   const swamp = await started();
   const run = await runOf(swamp);
   assertEquals(run.key, ITEM);
   assertEquals(run.stage, "plan");
-  assertEquals(run.lifecycle.version, 1);
-  const pinned = swamp.resources.get(ITEM)?.get("lifecycle")?.[0];
-  assertEquals(pinned?.holder, "team");
-  assertEquals(pinned?.digest, run.lifecycle.digest);
+  assertEquals(run.definition.version, 1);
+  const pinned = swamp.resources.get(ITEM)?.get("definition")?.[0];
+  assertEquals(pinned?.factory, "team");
+  assertEquals(pinned?.digest, run.definition.digest);
   assertEquals(run.journal[0].actor, {
     principal: "user:alice",
     source: "platform",
@@ -107,41 +107,44 @@ Deno.test("start: pins the holder's lifecycle and starts at its initial stage", 
   assert(summary.startsWith(`started '${ITEM}' at stage 'plan'`), summary);
 });
 
-Deno.test("start: reads a holder in the remote-worker shape too", async () => {
+Deno.test("start: reads a factory in the remote-worker shape too", async () => {
   const swamp = await started(true);
   assertEquals((await runOf(swamp)).stage, "plan");
 });
 
-Deno.test("start: a second start, a missing holder, or an invalid lifecycle is refused and writes nothing", async () => {
+Deno.test("start: a second start, a missing factory, or an invalid definition is refused and writes nothing", async () => {
   const swamp = await started();
   await assertRejects(
-    () => call(swamp, "start", { lifecycle: "team" }),
+    () => call(swamp, "start", { factory: "team" }),
     Error,
     "has already started",
   );
 
   const fresh = fakeSwamp();
   await assertRejects(
-    () => call(fresh, "start", { lifecycle: "team" }),
+    () => call(fresh, "start", { factory: "team" }),
     Error,
-    "no lifecycle holder named 'team'",
+    "no factory named 'team'",
   );
-  const broken = await buildLifecycle();
+  const broken = await buildDefinition();
   delete broken.name;
-  fresh.definitions.set("team", { globalArguments: broken, type: HOLDER_TYPE });
+  fresh.definitions.set("team", {
+    globalArguments: broken,
+    type: FACTORY_TYPE,
+  });
   await assertRejects(
-    () => call(fresh, "start", { lifecycle: "team" }),
+    () => call(fresh, "start", { factory: "team" }),
     Error,
-    "is not a valid lifecycle",
+    "is not a valid definition",
   );
   assertEquals(fresh.versionsWritten(ITEM), 0);
 });
 
-async function holderOnly(): Promise<FakeSwamp> {
+async function factoryOnly(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: await buildLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: await buildDefinition(),
+    type: FACTORY_TYPE,
   });
   return swamp;
 }
@@ -149,8 +152,8 @@ async function holderOnly(): Promise<FakeSwamp> {
 Deno.test("start: externalRefs as an object (--input-file) or a JSON string (--input) (#2640)", async () => {
   const refs = { linear: "7d2b8c4e-0000-4000-8000-000000000001" };
   for (const externalRefs of [refs, JSON.stringify(refs)]) {
-    const swamp = await holderOnly();
-    await call(swamp, "start", { lifecycle: "team", externalRefs });
+    const swamp = await factoryOnly();
+    await call(swamp, "start", { factory: "team", externalRefs });
     assertEquals((await runOf(swamp)).externalRefs, refs);
   }
 });
@@ -163,9 +166,9 @@ Deno.test("start: externalRefs that are not a JSON object of strings are refused
       ['{"linear":1}', "externalRefs values must be strings; not: linear"],
     ]
   ) {
-    const swamp = await holderOnly();
+    const swamp = await factoryOnly();
     await assertRejects(
-      () => call(swamp, "start", { lifecycle: "team", externalRefs }),
+      () => call(swamp, "start", { factory: "team", externalRefs }),
       Error,
       message,
     );
@@ -173,18 +176,21 @@ Deno.test("start: externalRefs that are not a JSON object of strings are refused
   }
 });
 
-Deno.test("pinning: editing the holder does not change a running work item; reset with repin adopts the edit", async () => {
+Deno.test("pinning: editing the factory does not change a running work item; reset with repin adopts the edit", async () => {
   const swamp = await started();
-  const before = (await runOf(swamp)).lifecycle.digest;
-  const edited = await buildLifecycle();
+  const before = (await runOf(swamp)).definition.digest;
+  const edited = await buildDefinition();
   edited.description = "edited after start";
-  swamp.definitions.set("team", { globalArguments: edited, type: HOLDER_TYPE });
+  swamp.definitions.set("team", {
+    globalArguments: edited,
+    type: FACTORY_TYPE,
+  });
 
   await call(swamp, "reset", { confirm: "reset", ...await expected(swamp) });
   assertEquals(
-    (await runOf(swamp)).lifecycle.digest,
+    (await runOf(swamp)).definition.digest,
     before,
-    "reset keeps the pinned lifecycle",
+    "reset keeps the pinned definition",
   );
 
   await call(swamp, "reset", {
@@ -193,10 +199,10 @@ Deno.test("pinning: editing the holder does not change a running work item; rese
     ...await expected(swamp),
   });
   const run = await runOf(swamp);
-  assert(run.lifecycle.digest !== before);
-  assertEquals(run.lifecycle.version, 2);
+  assert(run.definition.digest !== before);
+  assertEquals(run.definition.version, 2);
   const view = await describeStatus(swamp.context(ITEM), systemEnv);
-  assertEquals(view.lifecycle.digest, run.lifecycle.digest);
+  assertEquals(view.definition.digest, run.definition.digest);
   const last = run.journal.at(-1);
   assert(
     last?.type === "reset" && last.repinned?.version === 2,
@@ -377,9 +383,9 @@ Deno.test("status: names each exit's human gates, global exits included", async 
         { id: "done", terminal: true },
       ],
     },
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
-  await call(conditional, "start", { lifecycle: "team" }, "conditional-a");
+  await call(conditional, "start", { factory: "team" }, "conditional-a");
   const gates = await describeStatus(
     conditional.context("conditional-a"),
     systemEnv,
@@ -484,19 +490,19 @@ Deno.test("work item: the model's literal type is WORK_ITEM_TYPE", () => {
   assertEquals(model.type, WORK_ITEM_TYPE);
 });
 
-Deno.test("status: a run naming no pinned lifecycle version fails clearly", async () => {
+Deno.test("status: a run naming no pinned definition version fails clearly", async () => {
   const swamp = await started();
   const runs = swamp.resources.get(ITEM)?.get("run");
   assert(runs !== undefined);
   const latest = structuredClone(runs.at(-1)) as {
-    lifecycle: Record<string, unknown>;
+    definition: Record<string, unknown>;
   };
-  delete latest.lifecycle.version;
+  delete latest.definition.version;
   runs.push(latest);
   await assertRejects(
     () => call(swamp, "status"),
     Error,
-    "the run names no pinned lifecycle version",
+    "the run names no pinned definition version",
   );
 });
 
@@ -520,7 +526,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
         ),
       ),
     ),
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const ctx = () => swamp.context(item);
   const { methods } = model;
@@ -568,7 +574,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await startWorkItem(
     ctx(),
     methods.start.arguments.parse({
-      lifecycle: "team",
+      factory: "team",
       externalRefs: { lab: "2630" },
     }),
     env,
@@ -576,21 +582,21 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await record("evidence", "classification", {
     type: "feature",
     confidence: "high",
-    reasoning: "New lifecycle",
+    reasoning: "New definition",
   });
   await go("feature");
   await record("artifact", "plan", {
-    summary: "Add the lifecycle",
+    summary: "Add the definition",
     scopeAnalysis: "gatorwalk-factory only",
     steps: [{ order: 1, description: "Write it", files: ["x.yaml"] }],
-    testingStrategy: "Lifecycle tests",
+    testingStrategy: "FactoryDefinition tests",
   });
   await go("submit");
   await record("artifact", "plan-review", { findings: [] });
   await approve("plan-approval");
   await go("approve");
   await record("artifact", "change-summary", {
-    summary: "Added the lifecycle",
+    summary: "Added the definition",
     commit: SHA,
     branch: "gw",
     files: ["x.yaml"],
@@ -640,7 +646,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   });
   await go("notified");
   await record("artifact", "summary", {
-    originalProblem: "No lifecycle for this repo",
+    originalProblem: "No definition for this repo",
     deliveredOutcome: "swamp-club-swamp-extensions.yaml",
     outcomeMet: true,
   });

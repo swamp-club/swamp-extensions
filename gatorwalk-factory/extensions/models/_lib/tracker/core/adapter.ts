@@ -77,7 +77,7 @@ export interface PostedEntry {
 /**
  * An optional capability beside the contract: a tracker that keeps a
  * structured history of each ticket, and a ticket type. An adapter that has
- * it is published in entry mode when the lifecycle declares entries
+ * it is published in entry mode when the factory definition declares entries
  * (projection.ts); one without it is never asked for it.
  */
 export interface LifecycleEntryWriter {

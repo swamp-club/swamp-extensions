@@ -6,13 +6,13 @@ each names a real method with inputs its schema accepts. The worked example,
 [examples/build-swamp-extension.md](examples/build-swamp-extension.md), runs a
 whole work item as written.
 
-Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
+Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 `<era>` and so on. Replace them, and nothing else.
 
 ## Contents
 
 1. [The two model types](#the-two-model-types)
-2. [Set up a lifecycle holder](#set-up-a-lifecycle-holder)
+2. [Set up a factory](#set-up-a-factory)
 3. [Start a work item](#start-a-work-item)
 4. [Start from a ticket](#start-from-a-ticket)
 5. [Read status](#read-status)
@@ -27,13 +27,13 @@ Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
 
 ## The two model types
 
-- **`@swamp/gatorwalk-factory/lifecycle`**, the holder: one instance whose
-  `globalArguments` are a lifecycle (stages, work, products, transitions,
-  gates). Methods: `validate`, `design_page`, `new_key`.
+- **`@swamp/gatorwalk-factory/factory`**, the factory: one instance whose
+  `globalArguments` are a factory definition (stages, work, products,
+  transitions, gates). Methods: `validate`, `design_page`, `new_key`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
-  named by a key from `new_key`. `start` pins a copy of the holder's lifecycle,
-  so editing the holder never changes a running item. Every other method works
-  on that copy.
+  named by a key from `new_key`. `start` pins a copy of the factory's
+  definition, so editing the factory never changes a running item. Every other
+  method works on that copy.
 
 Work-item methods are run by type, with the key as the instance name:
 
@@ -44,59 +44,60 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 Pass `--log` on every call. Methods report through the log; without it you see
 only that the method succeeded.
 
-## Set up a lifecycle holder
+## Set up a factory
 
-Once per lifecycle, in the swamp repo:
+Once per factory, in the swamp repo:
 
 ```sh
-swamp model create @swamp/gatorwalk-factory/lifecycle <holder> --json
+swamp model create @swamp/gatorwalk-factory/factory <factory> --json
 ```
 
-The output's `path` is the holder's definition file. Set its `globalArguments`
-to the lifecycle by editing that file: paste the contents of the closest example
-in [examples/](examples/) (for instance `examples/starter.yaml`) under
-`globalArguments:`, indented, and change what its description's "Change first"
-paragraph names; then rewrite the description for your process. Do not use
-`swamp model edit`, which opens an editor, and do not try `--global-arg`, which
-cannot carry a nested lifecycle. swamp does not check the lifecycle when the
-file is saved, so check it:
+The output's `path` is the factory's definition file. Set its `globalArguments`
+to the factory definition by editing that file: paste the contents of the
+closest example in [examples/](examples/) (for instance `examples/starter.yaml`)
+under `globalArguments:`, indented, and change what its description's "Change
+first" paragraph names; then rewrite the description for your process. Do not
+use `swamp model edit`, which opens an editor, and do not try `--global-arg`,
+which cannot carry a nested factory definition. swamp does not check the factory
+definition when the file is saved, so check it:
 
 ```sh
-swamp model method run <holder> validate --log
+swamp model method run <factory> validate --log
 ```
 
 `validate` reports every problem with its path. Fix them all before starting
 work.
 
-To see the lifecycle as a page (the stage graph, gates, human stops, handoffs
-and the graph findings with their traces), render it, then save the `content`
-field of the stored page to an `.html` file and open that in a browser:
+To see the factory definition as a page (the stage graph, gates, human stops,
+handoffs and the graph findings with their traces), render it, then save the
+`content` field of the stored page to an `.html` file and open that in a
+browser:
 
 ```sh
-swamp model method run <holder> design_page --log
-swamp data get <holder> design-page --json
+swamp model method run <factory> design_page --log
+swamp data get <factory> design-page --json
 ```
 
 ## Start a work item
 
 ```sh
-swamp model method run <holder> new_key --input 'title=<title>' --log
+swamp model method run <factory> new_key --input 'title=<title>' --log
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input lifecycle=<holder> --log
+  --input factory=<factory> --log
 ```
 
 `new_key` prints an unused key made from the work's title, such as
-`build-swamp-extension-add-list-method-r2ne`: the lifecycle name, a slug of the
-title, and a short random suffix. Use it as the work item's name from then on;
-it does not change if the work does. A title with no ASCII letters or digits is
-refused. `start` takes any unused name, so a person may choose a key by hand
-instead. To link a tracker ticket, pass `externalRefs` as a JSON object mapping
-tracker to id; the code links a work item to a ticket only through
-`externalRefs`.
+`build-swamp-extension-add-list-method-r2ne`: the factory definition name, a
+slug of the title, and a short random suffix. Use it as the work item's name
+from then on; it does not change if the work does. A title with no ASCII letters
+or digits is refused. `start` takes any unused name, so a person may choose a
+key by hand instead. To link a tracker ticket, pass `externalRefs` as a JSON
+object mapping tracker to id; the code links a work item to a ticket only
+through `externalRefs`.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input lifecycle=<holder> \
+  --input factory=<factory> \
   --input 'externalRefs={"linear":"<issue UUID>"}' --log
 ```
 
@@ -108,7 +109,7 @@ never starts twice:
 
 ```sh
 swamp model method run <tracker> claim --input issue=<ticket> \
-  --input lifecycle=<holder> --log
+  --input factory=<factory> --log
 ```
 
 `issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`). `claim`
@@ -117,7 +118,7 @@ answers in one of three ways:
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
   The key's slug starts with the ticket's display id, then its title (Lab:
-  `<lifecycle>-2734-drive-lab-issue-k3xq`; Linear: `<lifecycle>-abc-12-...`),
+  `<definition>-2734-drive-lab-issue-k3xq`; Linear: `<definition>-abc-12-...`),
   for reading only. Run the printed `start` command exactly as printed; it
   carries the ticket's `externalRefs`.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
@@ -128,7 +129,7 @@ answers in one of three ways:
   issue-lifecycle; do not delete its instance unless the person says to.
 
 If anything fails between `claim` and `start`, run `claim` again: it hands back
-the same key and command. `lifecycle` is only needed when a new key is reserved;
+the same key and command. `factory` is only needed when a new key is reserved;
 once a ticket's work item has finished, claiming it again reserves a new one.
 `claim` never comments on or moves the ticket. Never name a work item after its
 ticket.
@@ -207,14 +208,14 @@ Then, by `mode`:
 - **workflow** or **method**: run the workflow or model method the packet names,
   with the packet's `inputs`. Then record the stage's result evidence with the
   real run id and outcome: `{"status":"succeeded","runId":"<run id>"}`, or
-  `failed`. Never record a run you did not see finish. (The bundled lifecycle
-  has no such stage.)
+  `failed`. Never record a run you did not see finish. (The bundled factory
+  definition has no such stage.)
 
-A lifecycle is in one stage at a time, so work that runs in parallel does so
-inside one stage. Such a stage names a wrapper workflow whose jobs run at once,
-often each nesting another workflow. swamp-extensions' `verify` stage is one: it
-runs verify-build and verify-reviews together. Its result evidence records each
-part, not only the wrapper:
+A factory definition is in one stage at a time, so work that runs in parallel
+does so inside one stage. Such a stage names a wrapper workflow whose jobs run
+at once, often each nesting another workflow. swamp-extensions' `verify` stage
+is one: it runs verify-build and verify-reviews together. Its result evidence
+records each part, not only the wrapper:
 
 - The wrapper's own run id and status are `runId` and `status`. The wrapper
   fails if any part failed.
@@ -325,7 +326,7 @@ A conditional approval shows as `[human: ...]` only while its condition holds,
 so read `status` again after recording: recording can turn a stop on (a
 classification that claims a regression) or off. A condition that cannot be
 evaluated also shows as `[human: ...]`, with the CEL error among the failures;
-tell the person, since the run data or the lifecycle needs fixing.
+tell the person, since the run data or the factory definition needs fixing.
 
 When a person must decide:
 
@@ -375,15 +376,15 @@ swamp model method run <tracker> publish --input workItem=<key> --log
 ```
 
 `publish` posts a comment for each new event a person on the ticket needs, and
-moves the ticket when the stage's status key changes. When the lifecycle
-declares projection entries and the tracker keeps them (the Lab), it writes
-those lifecycle entries instead of comments, and sets the ticket type an entry
-names. It is the only thing that writes the ticket's status and type: never call
-`set_status` or `set_type` for a work item yourself. Running it again delivers
-only what is new. A failed publish never blocks the work item, but the ticket
-falls behind until it succeeds, and on the Lab that ticket is the audit trail:
-after a failure, run it again before moving on. An entry the tracker refuses
-outright is skipped and logged as a warning; tell the person which one.
+moves the ticket when the stage's status key changes. When the factory
+definition declares projection entries and the tracker keeps them (the Lab), it
+writes those lifecycle entries instead of comments, and sets the ticket type an
+entry names. It is the only thing that writes the ticket's status and type:
+never call `set_status` or `set_type` for a work item yourself. Running it again
+delivers only what is new. A failed publish never blocks the work item, but the
+ticket falls behind until it succeeds, and on the Lab that ticket is the audit
+trail: after a failure, run it again before moving on. An entry the tracker
+refuses outright is skipped and logged as a warning; tell the person which one.
 
 ## When something fails
 
@@ -419,16 +420,17 @@ dispatch, and grants add up.
 
 ### Ways back, so nothing wedges
 
-- **Manual exits.** A well-made lifecycle gives a person a way back wherever
-  work can be declined or blocked, so a decline never leaves `abandon` as the
-  only exit. The bundled lifecycle has `revise` after either review, `recheck`
-  from implement, and `rework` from release. Take one only on the person's word.
+- **Manual exits.** A well-made factory definition gives a person a way back
+  wherever work can be declined or blocked, so a decline never leaves `abandon`
+  as the only exit. The bundled factory definition has `revise` after either
+  review, `recheck` from implement, and `rework` from release. Take one only on
+  the person's word.
 - **Global exits** such as `abandon` are open from every stage, are never closed
   by a cycle limit, and need the person's approval.
 - **`reset`** is the last resort. It starts the item over at the initial stage
   in a new era: every product, approval and count from before stops counting,
   though the history is kept. It needs `confirm=reset` and the person's word.
-  `repin=true` also adopts the holder's current lifecycle.
+  `repin=true` also adopts the factory's current definition.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run reset <key> \

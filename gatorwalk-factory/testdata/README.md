@@ -1,10 +1,10 @@
 # Test fixtures
 
-`lifecycles/` holds three of @swamp/software-factory's example definitions,
-ported to the gatorwalk lifecycle format. They are the evidence that the port
-still expresses every lifecycle the old format could. They name placeholder
-`@acme` models and workflows, so they are test fixtures, not examples to copy;
-the fourth, `minimal.yaml`, is one of the skill's examples
+`factories/` holds three of @swamp/software-factory's example definitions,
+ported to the gatorwalk factory definition format. They are the evidence that
+the port still expresses every factory definition the old format could. They
+name placeholder `@acme` models and workflows, so they are test fixtures, not
+examples to copy; the fourth, `minimal.yaml`, is one of the skill's examples
 (`../.claude/skills/gatorwalk-factory/references/examples/`). `auth/` holds
 stored swamp logins (`<dir>/swamp/auth.json`) for the swamp-club adapter's
 credential tests; the key in them is not a real one.

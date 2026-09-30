@@ -30,7 +30,7 @@ import type { TrackerIssue } from "./adapter.ts";
 import {
   type DataReadingContext,
   freshKey,
-  loadHolderLifecycle,
+  loadFactoryDefinition,
   RUN_SPEC,
   type RunRecord,
   RunRecordSchema,
@@ -47,8 +47,8 @@ export const TicketClaimSchema = z.object({
   display: z.string(),
   /** The ticket's current work item, reserved or started. */
   key: z.string(),
-  /** The lifecycle holder the key is started under. */
-  holder: z.string(),
+  /** The factory the key is started under. */
+  factory: z.string(),
   claimedAt: z.string(),
   /** Keys of the ticket's earlier, finished work items, newest first. */
   previous: z.array(z.string()),
@@ -66,7 +66,7 @@ export function externalRefsOf(
   return { [tracker]: issue.id, [`${tracker}.display`]: issue.display };
 }
 
-// Single-quoted for a POSIX shell, so no holder name or display identifier
+// Single-quoted for a POSIX shell, so no factory name or display identifier
 // can break the printed command.
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
@@ -75,11 +75,11 @@ function shellQuote(value: string): string {
 /** The command that starts a claimed key, as claim prints it. */
 export function startCommand(
   key: string,
-  holder: string,
+  factory: string,
   externalRefs: Record<string, string>,
 ): string {
   return `swamp model ${WORK_ITEM_TYPE} method run start ${key} ` +
-    `--input ${shellQuote(`lifecycle=${holder}`)} ` +
+    `--input ${shellQuote(`factory=${factory}`)} ` +
     `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)} ` +
     "--log";
 }
@@ -115,8 +115,8 @@ export interface ClaimRequest {
   issue: TrackerIssue;
   /** The index record's name for this ticket. */
   recordName: string;
-  /** The lifecycle holder, needed only when a new key is reserved. */
-  lifecycle?: string;
+  /** The factory, needed only when a new key is reserved. */
+  factory?: string;
   now: Date;
 }
 
@@ -142,16 +142,16 @@ export async function claimTicket(
     const run = await readClaimedRun(ctx, prior.key);
     if (run === null) {
       // Reserved, never started: the same key and command again.
-      if (req.lifecycle !== undefined && req.lifecycle !== prior.holder) {
+      if (req.factory !== undefined && req.factory !== prior.factory) {
         throw new Error(
-          `${label} is claimed as '${prior.key}' under lifecycle holder ` +
-            `'${prior.holder}', not '${req.lifecycle}'; start it with ` +
-            `'${prior.holder}'`,
+          `${label} is claimed as '${prior.key}' under factory ` +
+            `'${prior.factory}', not '${req.factory}'; start it with ` +
+            `'${prior.factory}'`,
         );
       }
       ctx.logger.info("{summary}", {
         summary: `${label} is claimed as '${prior.key}', not started yet. ` +
-          `Start it: ${startCommand(prior.key, prior.holder, refs)}`,
+          `Start it: ${startCommand(prior.key, prior.factory, refs)}`,
         key: prior.key,
       });
       return [];
@@ -175,15 +175,15 @@ export async function claimTicket(
     previous = [prior.key, ...prior.previous];
   }
 
-  if (req.lifecycle === undefined) {
+  if (req.factory === undefined) {
     throw new Error(
-      `${label} needs a new work item; pass --input lifecycle=<holder>` +
-        (prior === null ? "" : ` (its last one used '${prior.holder}')`),
+      `${label} needs a new work item; pass --input factory=<factory>` +
+        (prior === null ? "" : ` (its last one used '${prior.factory}')`),
     );
   }
-  const lifecycle = await loadHolderLifecycle(ctx, req.lifecycle);
+  const definition = await loadFactoryDefinition(ctx, req.factory);
   // The display id leads the key for reading only; externalRefs is the link.
-  const key = await freshKey(ctx, lifecycle.name, issue.title, issue.display);
+  const key = await freshKey(ctx, definition.name, issue.title, issue.display);
   // The index first: a crash before the work item starts leaves a
   // reservation that the next claim hands back.
   const handle = await ctx.writeResource(
@@ -194,7 +194,7 @@ export async function claimTicket(
       issue: issue.id,
       display: issue.display,
       key,
-      holder: req.lifecycle,
+      factory: req.factory,
       claimedAt: req.now.toISOString(),
       previous,
     } satisfies TicketClaim,
@@ -204,7 +204,7 @@ export async function claimTicket(
       (previous.length === 0
         ? ""
         : ` (its last work item, '${previous[0]}', has finished)`) +
-      `. Start it: ${startCommand(key, req.lifecycle, refs)}`,
+      `. Start it: ${startCommand(key, req.factory, refs)}`,
     key,
   });
   return [handle];

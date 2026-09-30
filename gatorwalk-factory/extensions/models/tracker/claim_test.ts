@@ -20,9 +20,9 @@ import { model as linear } from "./linear.ts";
 import { model as swampClub } from "./swamp_club.ts";
 import {
   describeStatus,
+  FACTORY_TYPE,
   type FakeSwamp,
   fakeSwamp,
-  HOLDER_TYPE,
   type MethodContextLike,
   systemEnv,
   workItemModel as workItem,
@@ -88,13 +88,13 @@ function oneTicket() {
   });
 }
 
-async function withHolders(): Promise<FakeSwamp> {
+async function withFactories(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
-  const lifecycle = parseYaml(await Deno.readTextFile(MINIMAL));
+  const definition = parseYaml(await Deno.readTextFile(MINIMAL));
   for (const name of ["team", "other"]) {
     swamp.definitions.set(name, {
-      globalArguments: lifecycle,
-      type: HOLDER_TYPE,
+      globalArguments: definition,
+      type: FACTORY_TYPE,
     });
   }
   return swamp;
@@ -142,9 +142,9 @@ async function workItemCall(
 }
 
 /** Start the claimed key the way the printed command does. */
-async function start(swamp: FakeSwamp, key: string, holder = "team") {
+async function start(swamp: FakeSwamp, key: string, factory = "team") {
   await workItemCall(swamp, key, "start", {
-    lifecycle: holder,
+    factory: factory,
     externalRefs: JSON.stringify(REFS),
   });
 }
@@ -170,11 +170,11 @@ async function finish(swamp: FakeSwamp, key: string) {
 }
 
 Deno.test("claim: reserves a key in the index before any work item exists, and prints its start command", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods, writes } = oneTicket();
   const output = await claim(swamp, methods, {
     issue: "T-1",
-    lifecycle: "team",
+    factory: "team",
   });
   const [record] = index(swamp);
   assertMatch(record.key, /^minimal-t-1-ticket-[a-z2-7]{4}$/);
@@ -183,7 +183,7 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
     issue: "T1",
     display: "T-1",
     key: record.key,
-    holder: "team",
+    factory: "team",
     claimedAt: NOW.toISOString(),
     previous: [],
   });
@@ -198,14 +198,14 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
 });
 
 Deno.test("claim: a crash before start leaves a reservation that the next claim hands back, by id or display", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const [record] = index(swamp);
-  // Again with the same holder, and again with no holder at all.
+  // Again with the same factory, and again with no factory at all.
   const again = await claim(swamp, methods, {
     issue: "T-1",
-    lifecycle: "team",
+    factory: "team",
   });
   await claim(swamp, methods, { issue: "T1" });
   assertEquals(index(swamp).length, 1, "the index is not written again");
@@ -215,25 +215,25 @@ Deno.test("claim: a crash before start leaves a reservation that the next claim 
   assert(summary.endsWith(startCommand(record.key, "team", REFS)), summary);
 });
 
-Deno.test("claim: a reservation under one holder refuses another", async () => {
-  const swamp = await withHolders();
+Deno.test("claim: a reservation under one factory refuses another", async () => {
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const before = trackerWrites(swamp);
   const error = await assertRejects(() =>
-    claim(swamp, methods, { issue: "T1", lifecycle: "other" })
+    claim(swamp, methods, { issue: "T1", factory: "other" })
   );
   assert(String(error).includes("start it with 'team'"), String(error));
   assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
 });
 
 Deno.test("claim: a started work item is reported, not started twice", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const { key } = index(swamp)[0];
   await start(swamp, key);
-  for (const raw of [{ issue: "T-1", lifecycle: "team" }, { issue: "T1" }]) {
+  for (const raw of [{ issue: "T-1", factory: "team" }, { issue: "T1" }]) {
     await claim(swamp, methods, raw);
     assertEquals(
       lastSummary(swamp),
@@ -244,9 +244,9 @@ Deno.test("claim: a started work item is reported, not started twice", async () 
 });
 
 Deno.test("claim: a finished work item lets the ticket claim a new one, keeping the old key", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const first = index(swamp)[0].key;
   await start(swamp, first);
   await finish(swamp, first);
@@ -258,21 +258,21 @@ Deno.test("claim: a finished work item lets the ticket claim a new one, keeping 
   assert(String(refused).includes("its last one used 'team'"), String(refused));
   assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
 
-  await claim(swamp, methods, { issue: "T1", lifecycle: "other" });
+  await claim(swamp, methods, { issue: "T1", factory: "other" });
   const latest = index(swamp).at(-1);
   assert(latest !== undefined && latest.key !== first);
   assertEquals(latest.previous, [first]);
-  assertEquals(latest.holder, "other");
+  assertEquals(latest.factory, "other");
   assert(lastSummary(swamp).includes(`'${first}', has finished`));
 });
 
 Deno.test("claim: refuses when the index and the work item disagree about the ticket", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const { key } = index(swamp)[0];
   await workItemCall(swamp, key, "start", {
-    lifecycle: "team",
+    factory: "team",
     externalRefs: JSON.stringify({ test: "T9" }),
   });
   const before = trackerWrites(swamp);
@@ -284,12 +284,12 @@ Deno.test("claim: refuses when the index and the work item disagree about the ti
 });
 
 Deno.test("claim: a run record with another key under the claimed name is not the claimed work item", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
-  await claim(swamp, methods, { issue: "T1", lifecycle: "team" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
   const { key } = index(swamp)[0];
   // Data swamp attributes to the name from elsewhere (an earlier definition).
-  const stray = await withHolders();
+  const stray = await withFactories();
   await start(stray, "minimal-strayrun");
   const run = stray.resources.get("minimal-strayrun")?.get("run")?.[0];
   assert(run !== undefined);
@@ -299,31 +299,31 @@ Deno.test("claim: a run record with another key under the claimed name is not th
   assert(lastSummary(swamp).includes("not started yet"), lastSummary(swamp));
 });
 
-Deno.test("claim: needs a holder for a new key, and an invalid holder writes nothing", async () => {
-  const swamp = await withHolders();
+Deno.test("claim: needs a factory for a new key, and an invalid factory writes nothing", async () => {
+  const swamp = await withFactories();
   swamp.definitions.set("broken", {
     globalArguments: { name: "broken" },
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const { methods } = oneTicket();
   const missing = await assertRejects(() =>
     claim(swamp, methods, { issue: "T1" })
   );
-  assert(String(missing).includes("--input lifecycle=<holder>"));
+  assert(String(missing).includes("--input factory=<factory>"));
   await assertRejects(() =>
-    claim(swamp, methods, { issue: "T1", lifecycle: "broken" })
+    claim(swamp, methods, { issue: "T1", factory: "broken" })
   );
   await assertRejects(() =>
-    claim(swamp, methods, { issue: "T1", lifecycle: "nobody" })
+    claim(swamp, methods, { issue: "T1", factory: "nobody" })
   );
   assertEquals(trackerWrites(swamp), 0, "no index record and no snapshot");
 });
 
 Deno.test("claim: a tracker failure writes nothing", async () => {
-  const swamp = await withHolders();
+  const swamp = await withFactories();
   const { methods } = oneTicket();
   const error = await assertRejects(
-    () => claim(swamp, methods, { issue: "T-404", lifecycle: "team" }),
+    () => claim(swamp, methods, { issue: "T-404", factory: "team" }),
     TrackerError,
   );
   assertEquals(error.kind, "not_found");

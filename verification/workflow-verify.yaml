@@ -3,7 +3,7 @@ name: verify
 description: |
   verify-build and verify-reviews at the same commit, run concurrently as one
   run that fails if either fails. The gatorwalk swamp-club-swamp-extensions
-  example lifecycle, at
+  example factory definition, at
   gatorwalk-factory/.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml,
   runs this as its one verify stage; see gatorwalk-factory/DESIGN.md,
   "Parallel work inside one stage". It is not a verification workflow of

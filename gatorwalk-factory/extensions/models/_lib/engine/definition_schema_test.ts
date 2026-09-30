@@ -17,10 +17,10 @@
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
-  type Lifecycle,
-  parseLifecycle,
+  type FactoryDefinition,
+  parseDefinition,
   transitionsFrom,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 
 const TESTDATA = new URL("../../../../testdata/", import.meta.url);
 
@@ -30,7 +30,7 @@ async function fixture(path: string): Promise<unknown> {
 
 type Raw = Record<string, unknown>;
 
-/** A valid two-stage lifecycle to mutate in each test. */
+/** A valid two-stage factory definition to mutate in each test. */
 function base(): Raw {
   return {
     schemaVersion: 1,
@@ -93,7 +93,7 @@ function push(doc: unknown, path: string, value: unknown): void {
 }
 
 function errorsOf(raw: unknown): string[] {
-  const result = parseLifecycle(raw);
+  const result = parseDefinition(raw);
   return result.ok ? [] : result.errors;
 }
 
@@ -103,7 +103,7 @@ function assertValid(raw: unknown) {
 
 function assertRejects(raw: unknown, ...needles: string[]) {
   const errors = errorsOf(raw);
-  assert(errors.length > 0, "expected the lifecycle to be rejected");
+  assert(errors.length > 0, "expected the definition to be rejected");
   for (const needle of needles) {
     assert(
       errors.some((e) => e.includes(needle)),
@@ -124,11 +124,11 @@ for (
   ]
 ) {
   Deno.test(`fixture: software-factory's ${name} example ports cleanly`, async () => {
-    assertValid(await fixture(`lifecycles/${name}.yaml`));
+    assertValid(await fixture(`factories/${name}.yaml`));
   });
 }
 
-Deno.test("base lifecycle is valid", () => assertValid(base()));
+Deno.test("base definition is valid", () => assertValid(base()));
 
 // --- document ----------------------------------------------------------------
 
@@ -571,7 +571,7 @@ Deno.test("gates: references resolve to declared things of the right kind", () =
   );
 });
 
-Deno.test("gates and work: every gate type and work take a description, kept on the parsed lifecycle", () => {
+Deno.test("gates and work: every gate type and work take a description, kept on the parsed definition", () => {
   const doc = base();
   push(doc, "stages.0.artifacts", {
     name: "review",
@@ -601,7 +601,7 @@ Deno.test("gates and work: every gate type and work take a description, kept on 
     { type: "cel", config: { expr: "true" } },
   ].map((g) => ({ ...g, description: `Why ${g.type} is here.` }));
   set(doc, "stages.0.transitions.0.gates", gates);
-  const result = parseLifecycle(doc);
+  const result = parseDefinition(doc);
   if (!result.ok) throw new Error(result.errors.join("\n"));
   assertEquals(
     result.value.stages[0].transitions?.[0].gates?.map((g) => g.description),
@@ -636,19 +636,19 @@ Deno.test("gates: workflow-succeeded is not in the launch library", () => {
 // --- lookup ----------------------------------------------------------------
 
 Deno.test("transitionsFrom: stage transitions plus globals; none from terminals", async () => {
-  const result = parseLifecycle(
-    await fixture("lifecycles/feature-factory.yaml"),
+  const result = parseDefinition(
+    await fixture("factories/feature-factory.yaml"),
   );
   assert(result.ok);
-  const lifecycle: Lifecycle = result.value;
-  const review = lifecycle.stages.find((s) => s.id === "plan-review");
-  const done = lifecycle.stages.find((s) => s.id === "done");
+  const definition: FactoryDefinition = result.value;
+  const review = definition.stages.find((s) => s.id === "plan-review");
+  const done = definition.stages.find((s) => s.id === "done");
   assert(review !== undefined && done !== undefined);
   assertEquals(
-    transitionsFrom(lifecycle, review).map((t) => t.name),
+    transitionsFrom(definition, review).map((t) => t.name),
     ["approve", "rework", "abort"],
   );
-  assertEquals(transitionsFrom(lifecycle, done), []);
+  assertEquals(transitionsFrom(definition, done), []);
 });
 
 // --- projection hints ----------------------------------------------------------
@@ -667,7 +667,7 @@ Deno.test("projection: the status key is a name, and nothing else is accepted", 
 });
 
 Deno.test("projection: a stage without one parses without the key, so its digest does not move", () => {
-  const result = parseLifecycle(base());
+  const result = parseDefinition(base());
   assert(result.ok);
   assert(result.value.stages.every((s) => !("projection" in s)));
 });
@@ -820,7 +820,7 @@ Deno.test("evidence-recorded: match and message are accepted beside requireField
     match: { confidence: { enum: ["high", "medium"] }, "a.b": false },
     message: "waits for answers",
   });
-  const result = parseLifecycle(doc);
+  const result = parseDefinition(doc);
   assert(result.ok, result.ok ? "" : result.errors.join("\n"));
   const gate = result.value.stages[0].transitions![0].gates![0];
   // Compiling a fragment to lint it must not leave marks on the parsed one.
@@ -835,7 +835,7 @@ Deno.test("evidence-recorded: match and message are accepted beside requireField
   assertEquals(Reflect.ownKeys(match?.confidence as object), ["enum"]);
 });
 
-Deno.test("payload schemas: a parsed lifecycle parses again (#2704)", () => {
+Deno.test("payload schemas: a parsed definition parses again (#2704)", () => {
   const doc = base();
   set(doc, "stages.0.evidence", [{
     name: "out",
@@ -846,14 +846,14 @@ Deno.test("payload schemas: a parsed lifecycle parses again (#2704)", () => {
       },
     },
   }]);
-  const first = parseLifecycle(doc);
+  const first = parseDefinition(doc);
   assert(first.ok, first.ok ? "" : first.errors.join("\n"));
   // assertEquals ignores non-enumerable keys, which compiling adds.
   const schema = first.value.stages[0].evidence![0].schema!;
   assertEquals(Reflect.ownKeys(schema), ["type", "properties"]);
   const run = (schema.properties as Raw).run as object;
   assertEquals(Reflect.ownKeys(run), ["type", "properties"]);
-  const second = parseLifecycle(first.value);
+  const second = parseDefinition(first.value);
   assert(second.ok, second.ok ? "" : second.errors.join("\n"));
 });
 

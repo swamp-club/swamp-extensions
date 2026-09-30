@@ -19,8 +19,8 @@ import {
   contextStore,
   decide,
   expectNow,
+  FACTORY_TYPE,
   type FakeSwamp,
-  HOLDER_TYPE,
   type ProductKind,
   recordProductMethod,
   startWorkItem,
@@ -173,14 +173,14 @@ export async function projectedItem(
   definition: Record<string, unknown> = projectedDefinition(),
 ) {
   const env = testEnv();
-  swamp.definitions.set("projected-holder", {
+  swamp.definitions.set("projected-factory", {
     globalArguments: definition,
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const ctx = () => swamp.context(PROJECTED_ITEM);
   await startWorkItem(
     ctx(),
-    { lifecycle: "projected-holder", externalRefs },
+    { factory: "projected-factory", externalRefs },
     env,
   );
   const expected = async () => {

@@ -18,17 +18,17 @@ import type { GraphFinding, GraphReport } from "./graph.ts";
 import {
   DEFAULT_MAX_CYCLES,
   DEFAULT_MAX_DISPATCHES,
+  type FactoryDefinition,
   type GateSpec,
-  type Lifecycle,
   type TransitionSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 
 // ---------------------------------------------------------------------------
-// The design page: a lifecycle as one static HTML page, for its author to
-// read before a work item runs on it. designView derives what the page shows
-// from the lifecycle and its graph report; renderDesignPage turns that into
-// HTML. Both are pure and read no clock, so the same lifecycle always gives
-// the same bytes.
+// The design page: a factory definition as one static HTML page, for its author
+// to read before a work item runs on it. designView derives what the page shows
+// from the factory definition and its graph report; renderDesignPage turns that
+// into HTML. Both are pure and read no clock, so the same factory definition
+// always gives the same bytes.
 //
 // The stage graph is drawn by Mermaid, loaded from a CDN at one pinned
 // version with a Subresource Integrity hash. Loops back and global
@@ -246,14 +246,14 @@ function transitionView(t: TransitionSpec, path: string): TransitionView {
  * its current path. Leaving them out leaves a graph with no cycles in which
  * every stage keeps the edge the walk entered it by.
  */
-function loopPaths(lifecycle: Lifecycle): Set<string> {
-  const index = new Map(lifecycle.stages.map((s, i) => [s.id, i]));
+function loopPaths(definition: FactoryDefinition): Set<string> {
+  const index = new Map(definition.stages.map((s, i) => [s.id, i]));
   const loops = new Set<string>();
   const done = new Set<number>();
   const onPath = new Set<number>();
   const walk = (i: number) => {
     onPath.add(i);
-    (lifecycle.stages[i].transitions ?? []).forEach((t, k) => {
+    (definition.stages[i].transitions ?? []).forEach((t, k) => {
       const to = index.get(t.to);
       if (to === undefined) return;
       if (onPath.has(to)) loops.add(`stages.${i}.transitions.${k}`);
@@ -262,23 +262,24 @@ function loopPaths(lifecycle: Lifecycle): Set<string> {
     onPath.delete(i);
     done.add(i);
   };
-  const initial = lifecycle.stages.findIndex((s) => s.initial === true);
+  const initial = definition.stages.findIndex((s) => s.initial === true);
   if (initial >= 0) walk(initial);
-  lifecycle.stages.forEach((_, i) => {
+  definition.stages.forEach((_, i) => {
     if (!done.has(i)) walk(i);
   });
   return loops;
 }
 
-/** Everything the page shows, derived from the lifecycle and its report. */
+/** Everything the page shows, derived from the factory definition and its
+ * report. */
 export function designView(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   report: GraphReport,
   digest: string,
 ): DesignView {
-  const nodes = new Map(lifecycle.stages.map((s, i) => [s.id, `s${i}`]));
-  const loops = loopPaths(lifecycle);
-  const stages = lifecycle.stages.map((s, i): StageView => {
+  const nodes = new Map(definition.stages.map((s, i) => [s.id, `s${i}`]));
+  const loops = loopPaths(definition);
+  const stages = definition.stages.map((s, i): StageView => {
     const view: StageView = {
       id: s.id,
       node: `s${i}`,
@@ -334,7 +335,7 @@ export function designView(
     }
     return view;
   });
-  const globalTransitions = (lifecycle.globalTransitions ?? []).map((t, k) =>
+  const globalTransitions = (definition.globalTransitions ?? []).map((t, k) =>
     transitionView(t, `globalTransitions.${k}`)
   );
   const findings: FindingView[] = [
@@ -356,7 +357,7 @@ export function designView(
       global,
     });
   const view: DesignView = {
-    name: lifecycle.name,
+    name: definition.name,
     digest,
     stages,
     globalTransitions,
@@ -370,8 +371,8 @@ export function designView(
       all: diagram(true, true),
     },
   };
-  if (lifecycle.description !== undefined) {
-    view.description = lifecycle.description;
+  if (definition.description !== undefined) {
+    view.description = definition.description;
   }
   return view;
 }
@@ -724,7 +725,7 @@ const SCRIPT = `
     clear();
     const layer = loops.checked ? (global.checked ? "all" : "loops") : (global.checked ? "global" : "forward");
     renders += 1;
-    return mermaid.render("lifecycle-graph-" + renders, view.diagrams[layer]).then(({ svg }) => {
+    return mermaid.render("definition-graph-" + renders, view.diagrams[layer]).then(({ svg }) => {
       graph.innerHTML = svg;
       graph.querySelectorAll("g.node").forEach((g) => {
         const m = /(?:^|-)flowchart-(s\\d+)-\\d+$/.exec(g.id);
@@ -795,7 +796,7 @@ export function renderDesignPage(view: DesignView): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="@swamp/gatorwalk-factory design_page">
-<title>${e(view.name)} lifecycle</title>
+<title>${e(view.name)} definition</title>
 <style>${STYLE}</style>
 </head>
 <body>
@@ -803,7 +804,7 @@ export function renderDesignPage(view: DesignView): string {
 <header>
 <h1>${e(view.name)}</h1>
 ${view.description !== undefined ? `<p>${e(view.description)}</p>` : ""}
-<p class="meta">lifecycle digest <code>${e(view.digest)}</code></p>
+<p class="meta">definition digest <code>${e(view.digest)}</code></p>
 <div class="summary"><span>${view.stages.length} stages</span><span>${
     view.stages.reduce((n, s) => n + s.transitions.length, 0) +
     view.globalTransitions.length

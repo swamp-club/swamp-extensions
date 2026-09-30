@@ -15,12 +15,12 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { fromFileUrl } from "@std/path";
-import { model as holderModel } from "../../extensions/models/engine/lifecycle.ts";
+import { model as factoryModel } from "../../extensions/models/engine/factory.ts";
 import { model as linearModel } from "../../extensions/models/tracker/linear.ts";
 import { model as swampClubModel } from "../../extensions/models/tracker/swamp_club.ts";
 import { model as workItemModel } from "../../extensions/models/engine/work_item.ts";
 import {
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   WORK_ITEM_TYPE,
 } from "../../extensions/models/_lib/engine/work_item_ops.ts";
 
@@ -137,7 +137,7 @@ export async function skillCommands(): Promise<SkillCommand[]> {
 const SAMPLE: Record<string, string> = {
   "<key>": "build-swamp-extension-add-list-method-abcd",
   "<era>": "00000000-0000-0000-0000-000000000000",
-  "<holder>": "team",
+  "<factory>": "team",
   "<ticket>": "ABC-1",
   "<cycle>": "1",
   "<dispatch-id>": "1",
@@ -213,17 +213,17 @@ export function checkCommand(words: string[]): string | null {
     }
     return checkInputs(method, rest, ["--log"]);
   }
-  // Holder methods, by instance name.
+  // Factory methods, by instance name.
   if (is("model", "method", "run")) {
-    const [_holder, name, ...rest] = args.slice(3);
-    const method = (holderModel.methods as Record<string, MethodLike>)[name];
-    if (method === undefined) return `no holder method '${name}'`;
+    const [_factory, name, ...rest] = args.slice(3);
+    const method = (factoryModel.methods as Record<string, MethodLike>)[name];
+    if (method === undefined) return `no factory method '${name}'`;
     return checkInputs(method, rest, ["--log"]);
   }
   if (is("model", "create")) {
-    return args[2] === HOLDER_TYPE && args.length === 5 && args[4] === "--json"
+    return args[2] === FACTORY_TYPE && args.length === 5 && args[4] === "--json"
       ? null
-      : `model create must be: model create ${HOLDER_TYPE} <name> --json`;
+      : `model create must be: model create ${FACTORY_TYPE} <name> --json`;
   }
   if (is("extension", "source", "add")) {
     return args.length === 4 ? null : "extension source add takes one path";
@@ -257,14 +257,14 @@ interface RepoLike {
  * Run the example's commands in order, as written, filling <key> from the
  * key record new_key writes, <era> from the first expectation status prints, and
  * <gatorwalk-factory> with the extension's directory. After `model create`
- * of a holder, write `lifecycle` into the definition file it names: the file
- * edit the example describes. A command runs with allowFailure only when it
- * is marked `# fails:`; a marked command that succeeds is an error.
+ * of a factory, write `factory definition` into the definition file it names:
+ * the file edit the example describes. A command runs with allowFailure only
+ * when it is marked `# fails:`; a marked command that succeeds is an error.
  */
 export async function runExample(
   repo: RepoLike,
   commands: SkillCommand[],
-  context: { extensionRoot: string; lifecycle: unknown },
+  context: { extensionRoot: string; definition: unknown },
   onStep: (step: ExampleStep) => void = () => {},
 ): Promise<ExampleStep[]> {
   const { parse, stringify } = await import("@std/yaml");
@@ -306,7 +306,7 @@ export async function runExample(
     steps.push(step);
     onStep(step);
 
-    // The key new_key recorded on the holder (`model method run <holder>
+    // The key new_key recorded on the factory (`model method run <factory>
     // new_key`), rather than its log line, whose format is swamp's to change.
     if (
       result.code === 0 && ran[0] === "model" && ran[1] === "method" &&
@@ -325,13 +325,13 @@ export async function runExample(
     // The latest era status printed: a reset starts a new one.
     const era = result.output.match(/--input expectedEra=([0-9a-f-]+)/);
     if (era !== null) values["<era>"] = era[1];
-    if (ran[0] === "model" && ran[1] === "create" && ran[2] === HOLDER_TYPE) {
+    if (ran[0] === "model" && ran[1] === "create" && ran[2] === FACTORY_TYPE) {
       const path = (JSON.parse(result.stdout) as { path: string }).path;
       const definition = parse(await Deno.readTextFile(path)) as Record<
         string,
         unknown
       >;
-      definition.globalArguments = context.lifecycle;
+      definition.globalArguments = context.definition;
       await Deno.writeTextFile(path, stringify(definition));
     }
   }

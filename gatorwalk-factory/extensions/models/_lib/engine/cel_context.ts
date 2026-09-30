@@ -34,7 +34,7 @@ import type { RunStore } from "./run_store.ts";
 // era, from whichever stage recorded it. That differs on purpose from the
 // evidence-recorded gate, which only accepts evidence from the current stage
 // and cycle: a gate asks "did this stage produce it?", while a binding or
-// cel gate asks "what is the latest?". Lifecycles rely on this (see
+// cel gate asks "what is the latest?". Factory definitions rely on this (see
 // build-swamp-extension's implement.submit). A reset starts a new era, so
 // nothing from before it is visible.
 //

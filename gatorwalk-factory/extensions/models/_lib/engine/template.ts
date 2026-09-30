@@ -21,10 +21,11 @@ import { jsonSafe } from "./canonical.ts";
 // (systemPrompt, command), filled from the stage's resolved bindings when it
 // is dispatched. A placeholder holds a binding name, never an expression:
 // expressions live only in `work.bindings`, where they are checked when the
-// lifecycle is saved and their resolved values are recorded.
+// factory definition is saved and their resolved values are recorded.
 //
 // - `{{name}}` (spaces inside allowed) is a placeholder. `name` must be a
-//   declared binding; anything else is an error when the lifecycle is saved.
+//   declared binding; anything else is an error when the factory definition is
+//   saved.
 // - `{{` followed by anything that is not a bare name (`{{ .Values.x }}`,
 //   `{{#each}}`) is literal text, so most template snippets pass through.
 // - `{{` directly after `{` is literal, so Handlebars `{{{raw}}}` passes

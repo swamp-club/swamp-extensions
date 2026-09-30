@@ -21,27 +21,27 @@ import {
   KEY_SPEC,
   type MethodContextLike,
   newKey,
-  validateHolder,
+  validateFactory,
 } from "../_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
-// The lifecycle holder: a model instance whose globalArguments are a team's
-// lifecycle. Work items read it when they start and pin a copy.
+// The factory: a model instance whose globalArguments are a team's
+// factory definition. Work items read it when they start and pin a copy.
 //
 // The globalArguments schema here is deliberately plain. swamp validates
 // globalArguments on every run with schema.partial(), and zod refuses
-// .partial() on a schema with refinements, which the full lifecycle schema is
-// made of. So this schema only names the top-level fields; the full check is
-// the validate method (schema, then graph analysis), and its schema check runs
-// again whenever a work item starts.
+// .partial() on a schema with refinements, which the full factory definition
+// schema is made of. So this schema only names the top-level fields; the full
+// check is the validate method (schema, then graph analysis), and its schema
+// check runs again whenever a work item starts.
 //
-// design_page renders the lifecycle, with its graph findings, as a static
-// HTML page stored as the holder's design-page file.
+// design_page renders the factory definition, with its graph findings, as a
+// static HTML page stored as the factory's design-page file.
 // ---------------------------------------------------------------------------
 
-export const HolderArgumentsSchema = z.object({
-  schemaVersion: z.number().describe("The lifecycle format version (1)"),
-  name: z.string().describe("The lifecycle's name"),
+export const FactoryArgumentsSchema = z.object({
+  schemaVersion: z.number().describe("The definition format version (1)"),
+  name: z.string().describe("The definition's name"),
   description: z.string().optional(),
   stages: z.array(z.unknown()).describe(
     "The stages; checked in full by the validate method",
@@ -53,10 +53,10 @@ export const HolderArgumentsSchema = z.object({
 
 export const model = {
   // A string literal: swamp reads the type from the source without running
-  // it. lifecycle_test checks it equals HOLDER_TYPE.
-  type: "@swamp/gatorwalk-factory/lifecycle",
+  // it. factory_test checks it equals FACTORY_TYPE.
+  type: "@swamp/gatorwalk-factory/factory",
   version: "2026.09.28.1",
-  globalArguments: HolderArgumentsSchema,
+  globalArguments: FactoryArgumentsSchema,
   resources: {
     [KEY_SPEC]: {
       description:
@@ -70,7 +70,7 @@ export const model = {
   files: {
     [DESIGN_PAGE_SPEC]: {
       description:
-        "The lifecycle as a static HTML page: the stage graph, gates, human " +
+        "The definition as a static HTML page: the stage graph, gates, human " +
         "stops, handoffs and graph findings",
       contentType: "text/html",
       lifetime: "infinite" as const,
@@ -80,15 +80,15 @@ export const model = {
   methods: {
     validate: {
       description:
-        "Check the lifecycle in full, analyse it as a graph, and report every problem with its path",
+        "Check the definition in full, analyse it as a graph, and report every problem with its path",
       kind: "read" as const,
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
-        validateHolder(context),
+        validateFactory(context),
     },
     design_page: {
       description:
-        "Render the lifecycle, with its graph findings, as a static HTML page stored as the design-page file",
+        "Render the definition, with its graph findings, as a static HTML page stored as the design-page file",
       // Not a read method: it stores the page.
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
@@ -96,8 +96,8 @@ export const model = {
     },
     new_key: {
       description:
-        "Generate an unused work-item key for this lifecycle, to start a work item under",
-      // Not a read method: it records the key, under the holder's lock.
+        "Generate an unused work-item key for this factory, to start a work item under",
+      // Not a read method: it records the key, under the factory's lock.
       arguments: z.object({
         title: z.string().min(1).describe(
           "The work's title, slugged into the key",

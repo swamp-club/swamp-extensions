@@ -1,7 +1,7 @@
 schemaVersion: 1
 name: minimal
 description: |-
-  The smallest useful lifecycle: one stage of work, then done.
+  The smallest useful factory definition: one stage of work, then done.
 
   For: a first look at gatorwalk-factory. Start a work item, record the
   summary, advance, and the item is done. It has no reviews, approvals or

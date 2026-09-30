@@ -21,12 +21,12 @@ import {
   evaluateCel,
 } from "./cel_context.ts";
 import {
+  type FactoryDefinition,
   findStage,
   type GateSpec,
-  type Lifecycle,
   transitionsFrom,
   type TransitionSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 import { validateField } from "./payload_schema.ts";
 import {
   cycleLimitFor,
@@ -59,14 +59,14 @@ export interface GateCheck {
    * only while its `when` is false. */
   required?: boolean;
   /** A human-approval gate whose `when` could not be evaluated. It counts as
-   * required, but the fix is to the run data or the lifecycle, not a
+   * required, but the fix is to the run data or the factory definition, not a
    * person's decision. */
   conditionError?: true;
 }
 
 interface GateInputs {
   run: RunRecord;
-  lifecycle: Lifecycle;
+  definition: FactoryDefinition;
   context: CelContext | Error;
   now: Date;
 }
@@ -74,7 +74,7 @@ interface GateInputs {
 /** Evaluate every gate of a transition against a run. */
 export async function evaluateGates(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   transition: TransitionSpec,
   store: RunStore,
   env: Env,
@@ -86,7 +86,7 @@ export async function evaluateGates(
   );
   const inputs: GateInputs = {
     run,
-    lifecycle,
+    definition,
     context,
     now: new Date(env.now()),
   };
@@ -95,12 +95,12 @@ export async function evaluateGates(
 
 /** The evaluator GW-4's advance takes. */
 export function makeGateEvaluator(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   store: RunStore,
   env: Env,
 ): GateEvaluator {
   return async (run, transition) => {
-    const checks = await evaluateGates(run, lifecycle, transition, store, env);
+    const checks = await evaluateGates(run, definition, transition, store, env);
     const failures = checks.flatMap((c) =>
       c.pass ? [] : [`${c.type}: ${c.reason}`]
     );
@@ -130,17 +130,17 @@ export interface TransitionReadiness {
  */
 export async function evaluateTransitions(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   store: RunStore,
   env: Env,
 ): Promise<TransitionReadiness[]> {
   if (run.status !== "active") return [];
-  const stage = findStage(lifecycle, run.stage);
+  const stage = findStage(definition, run.stage);
   if (stage === undefined) throw new Error(`no stage '${run.stage}'`);
   const out: TransitionReadiness[] = [];
-  for (const transition of transitionsFrom(lifecycle, stage)) {
-    const gates = await evaluateGates(run, lifecycle, transition, store, env);
-    const limit = cycleLimitFor(run, lifecycle, transition);
+  for (const transition of transitionsFrom(definition, stage)) {
+    const gates = await evaluateGates(run, definition, transition, store, env);
+    const limit = cycleLimitFor(run, definition, transition);
     const failures = gates.flatMap((c) =>
       c.pass ? [] : [`${c.type}: ${c.reason}`]
     );
@@ -169,7 +169,7 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
     reason,
   });
   const pass: GateCheck = { type: gate.type, pass: true };
-  const { run, lifecycle, context, now } = inputs;
+  const { run, definition, context, now } = inputs;
   const cycle = currentCycle(run);
   const needContext = (): CelContext | GateCheck =>
     context instanceof Error
@@ -190,7 +190,7 @@ function evaluateGate(gate: GateSpec, inputs: GateInputs): GateCheck {
       if (ref === undefined) {
         return fail(`artifact '${name}' has not been recorded`);
       }
-      const reviews = lifecycle.stages.flatMap((s) => s.artifacts ?? [])
+      const reviews = definition.stages.flatMap((s) => s.artifacts ?? [])
         .find((a) => a.name === name)?.reviews;
       if (reviews === undefined) {
         return fail(`artifact '${name}' declares no reviews: subject`);

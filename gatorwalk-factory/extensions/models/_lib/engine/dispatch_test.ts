@@ -17,7 +17,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch } from "./dispatch.ts";
-import { parseLifecycle } from "./lifecycle_schema.ts";
+import { parseDefinition } from "./definition_schema.ts";
 import { advance, expectedOf } from "./run_ops.ts";
 import {
   loadRun,
@@ -30,25 +30,25 @@ import {
   ALICE,
   expectNow,
   PASS,
-  smallLifecycle,
+  smallDefinition,
   testEnv,
 } from "./test_support.ts";
 
-const LIFECYCLE = smallLifecycle();
+const DEFINITION = smallDefinition();
 
 async function atReview(text: string) {
   const store = memoryStore();
   const env = testEnv();
   await startRun(
     store,
-    LIFECYCLE,
-    { key: "wi-9", lifecycleDigest: "sha256:l" },
+    DEFINITION,
+    { key: "wi-9", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   await recordProduct(
     store,
-    LIFECYCLE,
+    DEFINITION,
     await expectNow(store),
     "artifact",
     "summary",
@@ -61,7 +61,7 @@ async function atReview(text: string) {
     (run) =>
       advance(
         run,
-        LIFECYCLE,
+        DEFINITION,
         expectedOf(run),
         { transition: "submit" },
         PASS,
@@ -79,15 +79,15 @@ Deno.test("dispatch: an interactive stage gets its prompt rendered from bindings
   const env = testEnv();
   await startRun(
     store,
-    LIFECYCLE,
-    { key: "wi-9", lifecycleDigest: "sha256:l" },
+    DEFINITION,
+    { key: "wi-9", definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
   const run = await loadRun(store);
   assert(run !== null);
   const packet = buildDispatch(
-    LIFECYCLE,
+    DEFINITION,
     run,
     await buildCelContext(run, store),
   );
@@ -100,14 +100,14 @@ Deno.test("dispatch: an interactive stage gets its prompt rendered from bindings
 
 Deno.test("dispatch: a workflow stage merges literal inputs with bindings and checks inputsSchema", async () => {
   const { run, context } = await atReview("long enough");
-  const packet = buildDispatch(LIFECYCLE, run, context);
+  const packet = buildDispatch(DEFINITION, run, context);
   assertEquals(packet.workflow, "@acme/tests");
   assertEquals(packet.inputs, { suite: "all", text: "long enough" });
   assertEquals(packet.problems, []);
   assert(packet.ready);
 
   const short = await atReview("no");
-  const invalid = buildDispatch(LIFECYCLE, short.run, short.context);
+  const invalid = buildDispatch(DEFINITION, short.run, short.context);
   assert(!invalid.ready);
   assert(
     invalid.problems.some((p) => p.startsWith("inputs: text:")),
@@ -116,7 +116,7 @@ Deno.test("dispatch: a workflow stage merges literal inputs with bindings and ch
 });
 
 Deno.test("dispatch: a failing binding and its unfilled placeholder are reported, not thrown", async () => {
-  const lifecycle = parseLifecycle({
+  const definition = parseDefinition({
     schemaVersion: 1,
     name: "reviewing",
     stages: [
@@ -133,20 +133,20 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
       { id: "done", terminal: true },
     ],
   });
-  assert(lifecycle.ok);
+  assert(definition.ok);
   const store = memoryStore();
   const env = testEnv();
   await startRun(
     store,
-    lifecycle.value,
-    { key: "wi-1", lifecycleDigest: "sha256:r" },
+    definition.value,
+    { key: "wi-1", definitionDigest: "sha256:r" },
     ALICE,
     env,
   );
   const run = await loadRun(store);
   assert(run !== null);
   const packet = buildDispatch(
-    lifecycle.value,
+    definition.value,
     run,
     await buildCelContext(run, store),
   );
@@ -162,7 +162,7 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
 });
 
 Deno.test("dispatch: a binding whose value has no JSON form is reported as a problem", async () => {
-  const lifecycle = parseLifecycle({
+  const definition = parseDefinition({
     schemaVersion: 1,
     name: "bytes",
     stages: [
@@ -175,20 +175,20 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
       { id: "done", terminal: true },
     ],
   });
-  assert(lifecycle.ok);
+  assert(definition.ok);
   const store = memoryStore();
   const env = testEnv();
   await startRun(
     store,
-    lifecycle.value,
-    { key: "wi-1", lifecycleDigest: "sha256:b" },
+    definition.value,
+    { key: "wi-1", definitionDigest: "sha256:b" },
     ALICE,
     env,
   );
   const run = await loadRun(store);
   assert(run !== null);
   const packet = buildDispatch(
-    lifecycle.value,
+    definition.value,
     run,
     await buildCelContext(run, store),
   );
@@ -202,7 +202,7 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
 });
 
 Deno.test("dispatch: no description reaches whoever does the work, in any mode", async () => {
-  // Descriptions are for the lifecycle's authors (the design page, the
+  // Descriptions are for the factory definition's authors (the design page, the
   // studio). Each carries a marker; none may appear in a packet, which is
   // what the agent reads and what recordDispatch stores.
   const marker = (where: string) => `DESCRIPTION-MARKER-${where}`;
@@ -215,10 +215,10 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
     },
   } as const;
   for (const [mode, call] of Object.entries(calls)) {
-    const lifecycle = parseLifecycle({
+    const definition = parseDefinition({
       schemaVersion: 1,
       name: "described",
-      description: marker("lifecycle"),
+      description: marker("definition"),
       stages: [
         {
           id: "work",
@@ -269,19 +269,19 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
         description: marker("global"),
       }],
     });
-    if (!lifecycle.ok) throw new Error(lifecycle.errors.join("\n"));
+    if (!definition.ok) throw new Error(definition.errors.join("\n"));
     const store = memoryStore();
     await startRun(
       store,
-      lifecycle.value,
-      { key: "wi-1", lifecycleDigest: "sha256:d" },
+      definition.value,
+      { key: "wi-1", definitionDigest: "sha256:d" },
       ALICE,
       testEnv(),
     );
     const run = await loadRun(store);
     assert(run !== null);
     const packet = buildDispatch(
-      lifecycle.value,
+      definition.value,
       run,
       await buildCelContext(run, store),
     );

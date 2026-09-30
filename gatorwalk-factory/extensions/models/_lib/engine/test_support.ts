@@ -17,7 +17,10 @@
 import type { Actor } from "./journal.ts";
 import { type Expected, expectedOf } from "./run_ops.ts";
 import { loadRun, type RunStore } from "./run_store.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  type FactoryDefinition,
+  parseDefinition,
+} from "./definition_schema.ts";
 import type { Env, GateEvaluator } from "./run_ops.ts";
 
 // ---------------------------------------------------------------------------
@@ -56,8 +59,8 @@ export const FAIL: GateEvaluator = () =>
  * resultEvidence and a human approval to ship; ship is also reachable by a
  * manual transition.
  */
-export function smallLifecycle(): Lifecycle {
-  const result = parseLifecycle({
+export function smallDefinition(): FactoryDefinition {
+  const result = parseDefinition({
     schemaVersion: 1,
     name: "small",
     stages: [
@@ -151,7 +154,7 @@ const TEXT_SCHEMA = {
 };
 
 /**
- * Every kind of human stop, as a raw holder definition:
+ * Every kind of human stop, as a raw factory definition:
  * draft -> review -> ship -> done, a global abandon behind an approval.
  * review: `approve` needs the `go` approval (minApprovals as given); `revise`
  * is a manual way back with no gates, which is never a stop. ship: `release`
@@ -237,8 +240,8 @@ export function stopsDefinition(minApprovals = 1): Record<string, unknown> {
   };
 }
 
-export function stopsLifecycle(minApprovals = 1): Lifecycle {
-  const result = parseLifecycle(stopsDefinition(minApprovals));
+export function stopsParsedDefinition(minApprovals = 1): FactoryDefinition {
+  const result = parseDefinition(stopsDefinition(minApprovals));
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }

@@ -16,14 +16,14 @@
 
 import type { Actor, JournalEvent, ProductKind } from "./journal.ts";
 import {
+  type FactoryDefinition,
   findStage,
-  type Lifecycle,
   maxCyclesFor,
   maxDispatchesFor,
   type StageSpec,
   transitionsFrom,
   type TransitionSpec,
-} from "./lifecycle_schema.ts";
+} from "./definition_schema.ts";
 import {
   OUTCOME_SCHEMA,
   validateArtifactPayload,
@@ -126,11 +126,11 @@ export function checkExpected(
     `(era ${expected.era}); read its status and try again`;
 }
 
-function stageOf(lifecycle: Lifecycle, run: RunRecord): StageSpec {
-  const stage = findStage(lifecycle, run.stage);
+function stageOf(definition: FactoryDefinition, run: RunRecord): StageSpec {
+  const stage = findStage(definition, run.stage);
   if (stage === undefined) {
     throw new Error(
-      `run is at stage '${run.stage}', which its lifecycle does not declare`,
+      `run is at stage '${run.stage}', which its definition does not declare`,
     );
   }
   return stage;
@@ -141,29 +141,29 @@ function stageOf(lifecycle: Lifecycle, run: RunRecord): StageSpec {
 export interface StartInput {
   key: string;
   externalRefs?: Record<string, string>;
-  lifecycleDigest: string;
-  /** The version of the pinned lifecycle copy the run uses. */
-  lifecycleVersion?: number;
+  definitionDigest: string;
+  /** The version of the pinned factory definition copy the run uses. */
+  definitionVersion?: number;
 }
 
-/** A new run at the lifecycle's initial stage. */
+/** A new run at the factory definition's initial stage. */
 export function start(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   input: StartInput,
   actor: Actor,
   env: Env,
 ): RunRecord {
-  const initial = lifecycle.stages.find((s) => s.initial === true);
-  if (initial === undefined) throw new Error("lifecycle has no initial stage");
+  const initial = definition.stages.find((s) => s.initial === true);
+  if (initial === undefined) throw new Error("definition has no initial stage");
   const run: RunRecord = {
     schemaVersion: RUN_SCHEMA_VERSION,
     key: input.key,
     externalRefs: input.externalRefs ?? {},
-    lifecycle: {
-      name: lifecycle.name,
-      digest: input.lifecycleDigest,
-      ...(input.lifecycleVersion !== undefined
-        ? { version: input.lifecycleVersion }
+    definition: {
+      name: definition.name,
+      digest: input.definitionDigest,
+      ...(input.definitionVersion !== undefined
+        ? { version: input.definitionVersion }
         : {}),
     },
     era: env.newEra(),
@@ -179,7 +179,7 @@ export function start(
   };
   run.journal.push(journal(run, actor, env, {
     type: "started",
-    lifecycle: { ...run.lifecycle },
+    definition: { ...run.definition },
   }));
   return run;
 }
@@ -192,23 +192,23 @@ export function start(
  */
 export function reset(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   actor: Actor,
   env: Env,
-  /** The pinned copy of `lifecycle` when the reset adopts a new one;
-   * omitted, the run keeps the lifecycle it was pinned to. */
+  /** The pinned copy of `factory definition` when the reset adopts a new one;
+   * omitted, the run keeps the factory definition it was pinned to. */
   repinned?: { digest: string; version?: number },
 ): OpResult<string> {
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const initial = lifecycle.stages.find((s) => s.initial === true);
-  if (initial === undefined) throw new Error("lifecycle has no initial stage");
+  const initial = definition.stages.find((s) => s.initial === true);
+  if (initial === undefined) throw new Error("definition has no initial stage");
   const previousEra = run.era;
   const next: RunRecord = {
     ...run,
     ...(repinned !== undefined
-      ? { lifecycle: { name: lifecycle.name, ...repinned } }
+      ? { definition: { name: definition.name, ...repinned } }
       : {}),
     era: env.newEra(),
     status: "active",
@@ -237,7 +237,7 @@ const PLURAL = { artifact: "artifacts", evidence: "evidence" } as const;
  */
 export function checkProduct(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   kind: ProductKind,
   name: string,
   payload: unknown,
@@ -247,7 +247,7 @@ export function checkProduct(
 } {
   const inactive = requireActive(run);
   if (inactive !== null) return { declared: false, reason: inactive };
-  const stage = stageOf(lifecycle, run);
+  const stage = stageOf(definition, run);
   if (kind === "artifact") {
     const spec = (stage.artifacts ?? []).find((a) => a.name === name);
     if (spec === undefined) {
@@ -266,8 +266,9 @@ export function checkProduct(
     return { declared: true, errors: validatePayload(OUTCOME_SCHEMA, payload) };
   }
   if (spec !== undefined) {
-    // Unreachable for a lifecycle that passed its schema, which requires a
-    // payload schema on every evidence except the stage's resultEvidence.
+    // Unreachable for a factory definition that passed its schema, which
+    // requires a payload schema on every evidence except the stage's
+    // resultEvidence.
     return {
       declared: false,
       reason: `evidence '${name}' on stage '${stage.id}' has no payload schema`,
@@ -376,7 +377,7 @@ export interface DispatchInput {
  */
 export function recordDispatch(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   input: DispatchInput,
   actor: Actor,
@@ -386,7 +387,7 @@ export function recordDispatch(
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const cap = dispatchCap(run, lifecycle);
+  const cap = dispatchCap(run, definition);
   if (!cap.allowed) {
     return refuse(
       `runaway loop suspected: stage '${run.stage}' cycle ${
@@ -462,11 +463,11 @@ export function recordUsage(
 
 /** Human-approval gate ids a decision may name from the current stage. */
 function approvalGatesFrom(
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   stage: StageSpec,
 ): Set<string> {
   const ids = new Set<string>();
-  for (const t of transitionsFrom(lifecycle, stage)) {
+  for (const t of transitionsFrom(definition, stage)) {
     for (const gate of t.gates ?? []) {
       if (gate.type === "human-approval") ids.add(gate.config.id);
     }
@@ -487,7 +488,7 @@ export interface ApprovalInput {
  */
 export function recordApproval(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   input: ApprovalInput,
   actor: Actor,
@@ -497,7 +498,7 @@ export function recordApproval(
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const gates = approvalGatesFrom(lifecycle, stageOf(lifecycle, run));
+  const gates = approvalGatesFrom(definition, stageOf(definition, run));
   if (!gates.has(input.gateId)) {
     return refuse(
       `no human-approval gate '${input.gateId}' on the ways out of stage '${run.stage}'` +
@@ -553,7 +554,7 @@ export interface Limit {
   /** Entries into the stage so far (cycle limit), or dispatches in this
    * stage and cycle (dispatch cap). */
   count: number;
-  /** The lifecycle's limit. */
+  /** The factory definition's limit. */
   limit: number;
   /** Overrides granted in this era; each adds one. */
   granted: number;
@@ -568,10 +569,10 @@ export interface Limit {
  */
 export function cycleLimit(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   stageId: string,
 ): Limit {
-  const stage = findStage(lifecycle, stageId);
+  const stage = findStage(definition, stageId);
   if (stage === undefined) throw new Error(`no stage '${stageId}'`);
   const count = run.entries[stageId] ?? 0;
   const limit = maxCyclesFor(stage);
@@ -586,15 +587,15 @@ export function cycleLimit(
  * The cycle limit a transition is subject to, or null for a global
  * transition. Global transitions are escape hatches (abort, escalate); a
  * limit on the stage they lead to must never close the way out. Recognised by
- * identity against the lifecycle's own list, not by name.
+ * identity against the factory definition's own list, not by name.
  */
 export function cycleLimitFor(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   transition: TransitionSpec,
 ): Limit | null {
-  if ((lifecycle.globalTransitions ?? []).includes(transition)) return null;
-  return cycleLimit(run, lifecycle, transition.to);
+  if ((definition.globalTransitions ?? []).includes(transition)) return null;
+  return cycleLimit(run, definition, transition.to);
 }
 
 /** Why entering a stage is refused, for the refusal and the status view. */
@@ -606,13 +607,16 @@ export function cycleLimitMessage(stage: string, limit: Limit): string {
 }
 
 /** Whether the current stage and cycle may take one more dispatch. */
-export function dispatchCap(run: RunRecord, lifecycle: Lifecycle): Limit {
+export function dispatchCap(
+  run: RunRecord,
+  definition: FactoryDefinition,
+): Limit {
   const cycle = currentCycle(run);
   const count =
     run.dispatches.filter((d) =>
       d.era === run.era && d.stage === run.stage && d.cycle === cycle
     ).length;
-  const limit = maxDispatchesFor(stageOf(lifecycle, run));
+  const limit = maxDispatchesFor(stageOf(definition, run));
   const granted =
     run.overrides.filter((o) =>
       o.era === run.era && o.kind === "dispatch" && o.stage === run.stage &&
@@ -633,7 +637,7 @@ export type OverrideInput =
  */
 export function grantOverride(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   input: OverrideInput,
   actor: Actor,
@@ -644,7 +648,7 @@ export function grantOverride(
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
   const stage = input.kind === "cycle" ? input.stage : run.stage;
-  if (findStage(lifecycle, stage) === undefined) {
+  if (findStage(definition, stage) === undefined) {
     return refuse(`no stage '${stage}' to grant a ${input.kind} override for`);
   }
   const id = run.overrides.length + 1;
@@ -694,7 +698,7 @@ export interface AdvanceInput {
 /** Move along a transition from the current stage. */
 export async function advance(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   input: AdvanceInput,
   gates: GateEvaluator,
@@ -705,7 +709,7 @@ export async function advance(
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const available = transitionsFrom(lifecycle, stageOf(lifecycle, run));
+  const available = transitionsFrom(definition, stageOf(definition, run));
   const transition = available.find((t) => t.name === input.transition);
   if (transition === undefined) {
     return refuse(
@@ -718,7 +722,7 @@ export async function advance(
       `transition '${transition.name}' is manual: a person must confirm it`,
     );
   }
-  const limit = cycleLimitFor(run, lifecycle, transition);
+  const limit = cycleLimitFor(run, definition, transition);
   if (limit !== null && !limit.allowed) {
     return refuse(cycleLimitMessage(transition.to, limit));
   }
@@ -731,7 +735,7 @@ export async function advance(
     );
   }
   const to = transition.to;
-  const target = findStage(lifecycle, to);
+  const target = findStage(definition, to);
   if (target === undefined) throw new Error(`no stage '${to}'`);
   const toCycle = (run.entries[to] ?? 0) + 1;
   const event = journal(run, actor, env, {

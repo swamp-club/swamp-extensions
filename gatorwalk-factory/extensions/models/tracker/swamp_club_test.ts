@@ -33,10 +33,10 @@ import {
   swampClubFake,
 } from "../_lib/tracker/backends/swamp_club_fake.ts";
 import {
+  FACTORY_TYPE,
   type FakeSwamp,
   fakeSwamp,
-  HOLDER_TYPE,
-  smallLifecycle,
+  smallDefinition,
 } from "../_lib/engine/tracker_testing.ts";
 import {
   PROJECTED_ITEM,
@@ -341,7 +341,7 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
       await projectedItem(swamp, { "swamp-club": ISSUE });
       await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
       assertEquals(fake.comments.length, 1);
-      assert(fake.comments[0].body.includes("started on lifecycle"));
+      assert(fake.comments[0].body.includes("started on definition"));
       assertEquals(fake.issues[0].status, "shipped");
       assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
       const cursor = swamp.resources.get(INSTANCE)?.get(
@@ -505,12 +505,12 @@ Deno.test("swamp-club model: assign records issue-lifecycle's assigned entry, an
 
 async function claimIn(swamp: FakeSwamp, methods: Methods) {
   swamp.definitions.set("team", {
-    globalArguments: smallLifecycle(),
-    type: HOLDER_TYPE,
+    globalArguments: smallDefinition(),
+    type: FACTORY_TYPE,
   });
   return await call(methods, swamp, "claim", {
     issue: ISSUE,
-    lifecycle: "team",
+    factory: "team",
   });
 }
 

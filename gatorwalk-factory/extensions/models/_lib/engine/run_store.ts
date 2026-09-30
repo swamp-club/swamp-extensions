@@ -17,7 +17,7 @@
 import { noteAwaiting } from "./awaiting.ts";
 import { digestOf, jsonSafe } from "./canonical.ts";
 import type { Actor, ProductKind } from "./journal.ts";
-import type { Lifecycle } from "./lifecycle_schema.ts";
+import type { FactoryDefinition } from "./definition_schema.ts";
 import {
   acceptProduct,
   checkExpected,
@@ -36,8 +36,9 @@ import { parseRun, type RunRecord } from "./run_record.ts";
 //
 // A work item is one model instance. Inside it, the run record lives under
 // the fixed name `run`, and each product's payloads under `artifact-<name>`
-// or `evidence-<name>`, where <name> is a name the lifecycle declares. No
-// record name carries the work item's identity; the instance is the identity.
+// or `evidence-<name>`, where <name> is a name the factory definition declares.
+// No record name carries the work item's identity; the instance is the
+// identity.
 //
 // Every change commits by writing the run record last. Payloads are written
 // first, so a crash in between leaves a payload version that nothing
@@ -140,7 +141,7 @@ export function contextStore(
  */
 export function committingStore(
   base: RunStore,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   env: Env,
   afterCommit?: (run: RunRecord) => Promise<void>,
 ): RunStore {
@@ -148,7 +149,7 @@ export function committingStore(
     ...base,
     writeRun: async (run) => {
       const committed = await base.writeRun(
-        await noteAwaiting(run, lifecycle, base, env),
+        await noteAwaiting(run, definition, base, env),
       );
       await afterCommit?.(committed);
       return committed;
@@ -211,7 +212,7 @@ export async function loadRun(store: RunStore): Promise<RunRecord | null> {
 /** Start a work item; refuses when it has already started. */
 export async function startRun(
   store: RunStore,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   input: StartInput,
   actor: Actor,
   env: Env,
@@ -224,7 +225,7 @@ export async function startRun(
         "status to resume, or reset it",
     };
   }
-  const run = await store.writeRun(start(lifecycle, input, actor, env));
+  const run = await store.writeRun(start(definition, input, actor, env));
   return { ok: true, run, value: run.era };
 }
 
@@ -254,7 +255,7 @@ export type RecordResult =
  */
 export async function recordProduct(
   store: RunStore,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   expected: Expected,
   kind: ProductKind,
   name: string,
@@ -285,7 +286,7 @@ export async function recordProduct(
       }`,
     };
   }
-  const check = checkProduct(run, lifecycle, kind, name, payload);
+  const check = checkProduct(run, definition, kind, name, payload);
   if (!check.declared) {
     return { ok: false, rejected: false, reason: check.reason };
   }
@@ -313,7 +314,7 @@ export async function recordProduct(
     run,
     kind,
     name,
-    { version, digest, subject: reviewedSubject(run, lifecycle, kind, name) },
+    { version, digest, subject: reviewedSubject(run, definition, kind, name) },
     actor,
     env,
   );
@@ -324,12 +325,12 @@ export async function recordProduct(
  * digest, which the review is recorded against. */
 function reviewedSubject(
   run: RunRecord,
-  lifecycle: Lifecycle,
+  definition: FactoryDefinition,
   kind: ProductKind,
   name: string,
 ): { name: string; version: number; digest: string } | undefined {
   if (kind !== "artifact") return undefined;
-  const reviews = lifecycle.stages
+  const reviews = definition.stages
     .flatMap((s) => s.artifacts ?? [])
     .find((a) => a.name === name)?.reviews;
   if (reviews === undefined) return undefined;

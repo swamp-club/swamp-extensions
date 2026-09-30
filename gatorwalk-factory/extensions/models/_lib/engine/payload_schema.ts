@@ -31,7 +31,7 @@ import {
 // both about catching mistakes rather than changing meaning:
 //
 // - Unknown keywords are rejected (the standard ignores them), so a typo like
-//   `requried` fails when the lifecycle is saved instead of silently
+//   `requried` fails when the factory definition is saved instead of silently
 //   validating nothing. Extension keywords prefixed `x-` are allowed.
 // - Unknown `format` names are rejected. Known formats are asserted when a
 //   payload is recorded, not just annotated.

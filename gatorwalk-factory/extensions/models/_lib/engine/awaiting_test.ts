@@ -24,7 +24,7 @@ import {
   recordDispatch,
 } from "./run_ops.ts";
 import { noteAwaiting, personHeldExits } from "./awaiting.ts";
-import { parseLifecycle } from "./lifecycle_schema.ts";
+import { parseDefinition } from "./definition_schema.ts";
 import {
   committingStore,
   loadRun,
@@ -39,19 +39,20 @@ import {
   BOB,
   expectNow,
   settableEnv,
-  stopsLifecycle,
+  stopsParsedDefinition,
 } from "./test_support.ts";
 
-/** A work item on the stops lifecycle, committing through committingStore. */
+/** A work item on the stops factory definition, committing through
+ * committingStore. */
 async function item(minApprovals = 1) {
-  const lifecycle = stopsLifecycle(minApprovals);
+  const definition = stopsParsedDefinition(minApprovals);
   const env = settableEnv("2026-09-29T10:00:00.000Z");
-  const store = committingStore(memoryStore(), lifecycle, env);
+  const store = committingStore(memoryStore(), definition, env);
   assert(
     (await startRun(
       store,
-      lifecycle,
-      { key: "wi-1", lifecycleDigest: "sha256:l" },
+      definition,
+      { key: "wi-1", definitionDigest: "sha256:l" },
       ALICE,
       env,
     )).ok,
@@ -72,7 +73,7 @@ async function item(minApprovals = 1) {
       ok(
         await recordProduct(
           store,
-          lifecycle,
+          definition,
           await expectNow(store),
           kind,
           name,
@@ -90,7 +91,7 @@ async function item(minApprovals = 1) {
         await update(store, (run) =>
           recordApproval(
             run,
-            lifecycle,
+            definition,
             expectedOf(run),
             { gateId, decision },
             actor,
@@ -102,10 +103,10 @@ async function item(minApprovals = 1) {
         await update(store, (run) =>
           advance(
             run,
-            lifecycle,
+            definition,
             expectedOf(run),
             { transition, manualConfirmed },
-            makeGateEvaluator(lifecycle, store, env),
+            makeGateEvaluator(definition, store, env),
             ALICE,
             env,
           )),
@@ -115,7 +116,7 @@ async function item(minApprovals = 1) {
         await update(store, (run) =>
           recordDispatch(
             run,
-            lifecycle,
+            definition,
             expectedOf(run),
             { inputs: {} },
             ALICE,
@@ -278,7 +279,7 @@ Deno.test("awaiting: a cooldown restarted by a new recording is noted; one that 
 
 Deno.test("awaiting: nothing is noted on a commit whose run data cannot be read", async () => {
   const wi = await inReview();
-  const lifecycle = stopsLifecycle();
+  const definition = stopsParsedDefinition();
   // The run as if its awaiting events were never noted, so a readable commit
   // would note the approval exit.
   const current = await wi.run();
@@ -286,18 +287,18 @@ Deno.test("awaiting: nothing is noted on a commit whose run data cannot be read"
     ...current,
     journal: current.journal.filter((e) => e.type !== "awaiting"),
   };
-  const readable = await noteAwaiting(run, lifecycle, wi.store, wi.env);
+  const readable = await noteAwaiting(run, definition, wi.store, wi.env);
   assertEquals(awaitings(readable).length, 1);
   // A payload the run references reads back changed, so its digest fails.
   const unreadable = {
     ...memoryStore(),
     readPayload: () => Promise.resolve({ text: "tampered" }),
   };
-  assertEquals(await noteAwaiting(run, lifecycle, unreadable, wi.env), run);
+  assertEquals(await noteAwaiting(run, definition, unreadable, wi.env), run);
 });
 
 Deno.test("awaiting: a conditional approval is a stop only while its when is true; one that errors is not a stop", async () => {
-  const parsed = parseLifecycle({
+  const parsed = parseDefinition({
     schemaVersion: 1,
     name: "conditional",
     stages: [
@@ -332,13 +333,13 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
     ],
   });
   assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
-  const lifecycle = parsed.value;
+  const definition = parsed.value;
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const store = memoryStore();
   await startRun(
     store,
-    lifecycle,
-    { key: "wi-c", lifecycleDigest: "sha256:c" },
+    definition,
+    { key: "wi-c", definitionDigest: "sha256:c" },
     ALICE,
     env,
   );
@@ -346,7 +347,7 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
     names(
       await personHeldExits(
         (await loadRun(store))!,
-        lifecycle,
+        definition,
         store,
         env,
         env.now(),
@@ -356,7 +357,7 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
     assert(
       (await recordProduct(
         store,
-        lifecycle,
+        definition,
         await expectNow(store),
         "artifact",
         "plan",

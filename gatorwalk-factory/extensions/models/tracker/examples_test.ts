@@ -17,34 +17,34 @@
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
+  type FactoryDefinition,
   findStage,
-  type Lifecycle,
-  parseLifecycle,
+  parseDefinition,
   type StageSpec,
 } from "../_lib/engine/tracker_testing.ts";
 import { LAB_STATUSES } from "../_lib/tracker/backends/swamp_club.ts";
 
 // ---------------------------------------------------------------------------
-// The example lifecycles the skill ships, as the Lab adapter sees them.
-// engine/lifecycles_test.ts tests how each behaves.
+// The example factory definitions the skill ships, as the Lab adapter sees
+// them. engine/factories_test.ts tests how each behaves.
 // ---------------------------------------------------------------------------
 
-const LIFECYCLES = new URL(
+const DEFINITIONS = new URL(
   "../../../.claude/skills/gatorwalk-factory/references/examples/",
   import.meta.url,
 );
 
-async function load(file: string): Promise<Lifecycle> {
-  const raw = parseYaml(await Deno.readTextFile(new URL(file, LIFECYCLES)));
-  const result = parseLifecycle(raw);
+async function load(file: string): Promise<FactoryDefinition> {
+  const raw = parseYaml(await Deno.readTextFile(new URL(file, DEFINITIONS)));
+  const result = parseDefinition(raw);
   if (!result.ok) {
     throw new Error(`${file} is invalid:\n${result.errors.join("\n")}`);
   }
   return result.value;
 }
 
-function stage(lifecycle: Lifecycle, id: string): StageSpec {
-  const found = findStage(lifecycle, id);
+function stage(definition: FactoryDefinition, id: string): StageSpec {
+  const found = findStage(definition, id);
   if (found === undefined) throw new Error(`no stage '${id}'`);
   return found;
 }
@@ -56,8 +56,8 @@ const SWX = "swamp-club-swamp-extensions.yaml";
 Deno.test("every projecting example's status keys are Lab statuses, so the Lab adapter needs no status map", async () => {
   // minimal projects nothing, by design.
   for (const file of [STARTER, BUILD, SWX]) {
-    const lifecycle = await load(file);
-    const keyed = lifecycle.stages.filter((s) =>
+    const definition = await load(file);
+    const keyed = definition.stages.filter((s) =>
       s.projection?.status !== undefined
     );
     assert(keyed.length > 0, `${file} projects no status`);
@@ -80,7 +80,7 @@ Deno.test("every projecting example's status keys are Lab statuses, so the Lab a
       [...forward].sort((a, b) => a - b),
       `${file}: status keys go backwards in stage order`,
     );
-    assertEquals(stage(lifecycle, "done").projection?.status, "shipped");
-    assertEquals(stage(lifecycle, "abandoned").projection?.status, "closed");
+    assertEquals(stage(definition, "done").projection?.status, "shipped");
+    assertEquals(stage(definition, "abandoned").projection?.status, "closed");
   }
 });

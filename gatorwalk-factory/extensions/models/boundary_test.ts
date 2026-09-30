@@ -399,7 +399,7 @@ Deno.test("boundary: multi-line lists, type modifiers and aliases are read by th
     `${LIB}/tracker/core/claim.ts`,
     "import {\n  type RunRecord,\n  RUN_SPEC as SPEC,\n  parseRun,\n}" +
       ` from "../../engine/tracker.ts";\n` +
-      `import type { Lifecycle } from "../../engine/tracker.ts";\n` +
+      `import type { FactoryDefinition } from "../../engine/tracker.ts";\n` +
       `export { type Json as J, digestOf } from "./canonical.ts";\n` +
       `import * as all from "./adapter.ts";\n`,
   );
@@ -408,7 +408,7 @@ Deno.test("boundary: multi-line lists, type modifiers and aliases are read by th
       target: ENGINE_SURFACE,
       names: ["RunRecord", "RUN_SPEC", "parseRun"],
     },
-    { target: ENGINE_SURFACE, names: ["Lifecycle"] },
+    { target: ENGINE_SURFACE, names: ["FactoryDefinition"] },
     { target: `${LIB}/tracker/core/canonical.ts`, names: ["Json", "digestOf"] },
     { target: `${LIB}/tracker/core/adapter.ts`, names: ["*"] },
   ]);

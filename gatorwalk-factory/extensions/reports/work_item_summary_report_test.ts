@@ -25,7 +25,7 @@ import {
 import {
   advanceMethod,
   describeStatus,
-  HOLDER_TYPE,
+  FACTORY_TYPE,
   recordProductMethod,
   startWorkItem,
   summary,
@@ -39,7 +39,7 @@ async function inReview(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
     globalArguments: stopsDefinition(),
-    type: HOLDER_TYPE,
+    type: FACTORY_TYPE,
   });
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const ctx = () => swamp.context(ITEM);
@@ -51,7 +51,7 @@ async function inReview(): Promise<FakeSwamp> {
       expectedEra: view.expected.expectedEra,
     };
   };
-  await startWorkItem(ctx(), { lifecycle: "team" }, env);
+  await startWorkItem(ctx(), { factory: "team" }, env);
   env.at("2026-09-29T10:10:00.000Z");
   await recordProductMethod(
     ctx(),
@@ -119,7 +119,7 @@ Deno.test("report: other methods and other model types render nothing", async ()
   );
   assertEquals(
     await report.execute(
-      contextFor(swamp, { modelType: "@swamp/gatorwalk-factory/lifecycle" }),
+      contextFor(swamp, { modelType: "@swamp/gatorwalk-factory/factory" }),
     ),
     { markdown: "", json: {} },
   );

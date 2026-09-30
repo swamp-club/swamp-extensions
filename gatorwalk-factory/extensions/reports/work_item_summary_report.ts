@@ -19,8 +19,8 @@
  *
  * Runs after a work item's `summary` method and persists the same markdown
  * the method logs: the journal as a timeline per era, with the metrics,
- * rendered statically from the run record and the pinned lifecycle. The JSON
- * twin holds the metrics (the same object as the work item's `metrics`
+ * rendered statically from the run record and the pinned factory definition.
+ * The JSON twin holds the metrics (the same object as the work item's `metrics`
  * record at the same journal version) and the timeline.
  *
  * @module
@@ -30,7 +30,7 @@ import { parseRun } from "../models/_lib/engine/run_record.ts";
 import { buildSummary } from "../models/_lib/engine/summary.ts";
 import {
   checkPinned,
-  LIFECYCLE_NAME,
+  DEFINITION_NAME,
   typeNameOf,
   WORK_ITEM_TYPE,
 } from "../models/_lib/engine/work_item_ops.ts";
@@ -101,14 +101,14 @@ export const report = {
       );
     }
     const run = parsed.value;
-    if (run.lifecycle.version === undefined) {
-      throw new Error("the run names no pinned lifecycle version to read");
+    if (run.definition.version === undefined) {
+      throw new Error("the run names no pinned definition version to read");
     }
     const pinned = await checkPinned(
-      await readJson(context, LIFECYCLE_NAME, run.lifecycle.version),
+      await readJson(context, DEFINITION_NAME, run.definition.version),
       run,
     );
-    const built = buildSummary(run, pinned.lifecycle);
+    const built = buildSummary(run, pinned.definition);
     return {
       markdown: built.markdown,
       json: { metrics: built.metrics, timeline: built.timeline },

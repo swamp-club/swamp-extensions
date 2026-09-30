@@ -26,11 +26,11 @@ import {
   ActorInputs,
   advanceMethod,
   decide,
+  DEFINITION_SPEC,
   dispatch,
   ExpectedInputs,
   ExternalRefsInput,
   grantOverrideMethod,
-  LIFECYCLE_SPEC,
   type MethodContextLike,
   METRICS_SPEC,
   PayloadInput,
@@ -44,9 +44,9 @@ import {
 } from "../_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
-// A work item: one instance per piece of work, named by a key (the holder's
-// new_key makes one). start pins the holder's lifecycle; every other method
-// works on that pinned copy, so editing the holder never changes a running
+// A work item: one instance per piece of work, named by a key (the factory's
+// new_key makes one). start pins the factory's definition; every other method
+// works on that pinned copy, so editing the factory never changes a running
 // work item. Every writing method takes the expectation status reports and
 // is refused if the work item has moved since.
 // ---------------------------------------------------------------------------
@@ -93,14 +93,14 @@ export const model = {
       lifetime: "infinite" as const,
       garbageCollection: "1y",
     },
-    [LIFECYCLE_SPEC]: {
+    [DEFINITION_SPEC]: {
       description:
-        "The lifecycle pinned at start (and at a reset with repin); the run " +
+        "The definition pinned at start (and at a reset with repin); the run " +
         "names the version it uses.",
       schema: z.object({
-        holder: z.string(),
+        factory: z.string(),
         digest: z.string(),
-        lifecycle: payloadSchema,
+        definition: payloadSchema,
       }),
       lifetime: "infinite" as const,
       // By age, and long: the run reads one exact version, so retention must
@@ -121,15 +121,15 @@ export const model = {
   methods: {
     start: {
       description:
-        "Start the work item on a lifecycle holder's current lifecycle, pinning a copy",
+        "Start the work item on a factory's current definition, pinning a copy",
       arguments: z.object({
-        lifecycle: z.string().min(1).describe("The lifecycle holder's name"),
+        factory: z.string().min(1).describe("The factory's name"),
         externalRefs: ExternalRefsInput.optional(),
         ...ActorInputs,
       }),
       execute: (
         args: {
-          lifecycle: string;
+          factory: string;
           externalRefs?: Record<string, string> | string;
           onBehalfOf?: string;
         },
@@ -293,7 +293,7 @@ export const model = {
     },
     reset: {
       description:
-        "Start the work item over in a new era (confirm=reset); repin=true adopts the holder's current lifecycle",
+        "Start the work item over in a new era (confirm=reset); repin=true adopts the factory's current definition",
       arguments: z.object({
         confirm: z.string(),
         repin: z.stringbool().optional(),
