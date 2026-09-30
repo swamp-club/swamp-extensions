@@ -16,8 +16,9 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { buildCelContext } from "./cel_context.ts";
-import { buildDispatch } from "./dispatch.ts";
-import { parseDefinition } from "./definition_schema.ts";
+import { buildDispatch, buildSubagentPrompts } from "./dispatch.ts";
+import { findStage, parseDefinition } from "./definition_schema.ts";
+import { FINDINGS_SCHEMA, OUTCOME_SCHEMA } from "./payload_schema.ts";
 import { advance, expectedOf } from "./run_ops.ts";
 import {
   loadRun,
@@ -293,4 +294,177 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
       `${mode}: ${JSON.stringify(packet)}`,
     );
   }
+});
+
+const REVIEWING = (() => {
+  const parsed = parseDefinition({
+    schemaVersion: 1,
+    name: "reviewing",
+    stages: [
+      {
+        id: "draft",
+        initial: true,
+        artifacts: [{
+          name: "plan",
+          schema: {
+            type: "object",
+            required: ["summary"],
+            properties: { summary: { type: "string" } },
+          },
+        }],
+        transitions: [{ name: "submit", to: "review" }],
+      },
+      {
+        id: "review",
+        work: {
+          mode: "dispatch",
+          skills: ["code-review", "security-review"],
+          systemPrompt: "Review {{plan}}.\n",
+          bindings: { plan: 'artifacts["plan"].payload.summary' },
+          context: { inject: ["plan"] },
+        },
+        artifacts: [{ name: "plan-review", kind: "findings", reviews: "plan" }],
+        transitions: [{ name: "done", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  if (!parsed.ok) throw new Error(parsed.errors.join("\n"));
+  return parsed.value;
+})();
+
+async function reviewingPacket() {
+  const store = memoryStore();
+  const env = testEnv();
+  await startRun(
+    store,
+    REVIEWING,
+    { key: "wi-3", definitionDigest: "sha256:r" },
+    ALICE,
+    env,
+  );
+  await recordProduct(
+    store,
+    REVIEWING,
+    await expectNow(store),
+    "artifact",
+    "plan",
+    { summary: "Add a list method" },
+    ALICE,
+    env,
+  );
+  await update(
+    store,
+    (run) =>
+      advance(
+        run,
+        REVIEWING,
+        expectedOf(run),
+        { transition: "submit" },
+        PASS,
+        ALICE,
+        env,
+      ),
+  );
+  const run = await loadRun(store);
+  if (run === null) throw new Error("not started");
+  return buildDispatch(REVIEWING, run, await buildCelContext(run, store));
+}
+
+Deno.test("dispatch: the packet names a declared artifact and evidence with their schemas", async () => {
+  const store = memoryStore();
+  const env = testEnv();
+  await startRun(
+    store,
+    DEFINITION,
+    { key: "wi-1", definitionDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  const run = await loadRun(store);
+  assert(run !== null);
+  const packet = buildDispatch(
+    DEFINITION,
+    run,
+    await buildCelContext(run, store),
+  );
+  const write = findStage(DEFINITION, "write");
+  assertEquals(packet.products, [
+    {
+      kind: "artifact",
+      name: "summary",
+      schema: write?.artifacts?.[0].schema!,
+    },
+    { kind: "evidence", name: "pr", schema: write?.evidence?.[0].schema! },
+  ]);
+});
+
+Deno.test("dispatch: a findings artifact shows the findings contract and what it reviews", async () => {
+  const packet = await reviewingPacket();
+  assertEquals(packet.products, [
+    {
+      kind: "artifact",
+      name: "plan-review",
+      reviews: "plan",
+      schema: FINDINGS_SCHEMA,
+    },
+  ]);
+});
+
+Deno.test("dispatch: a workflow stage shows the outcome contract for its result evidence", async () => {
+  const { run, context } = await atReview("long enough");
+  const packet = buildDispatch(DEFINITION, run, context);
+  assertEquals(packet.products, [
+    { kind: "evidence", name: "test-run", schema: OUTCOME_SCHEMA },
+  ]);
+});
+
+Deno.test("dispatch: each subagent's prompt starts with the rendered prompt and carries its whole contract", async () => {
+  const packet = await reviewingPacket();
+  assert(packet.ready, packet.problems.join());
+  const prompts = buildSubagentPrompts(REVIEWING, packet, {
+    key: "wi-3",
+    dispatchId: 4,
+    resultDir: "/scratch/",
+  });
+  assertEquals(prompts.map((p) => [p.skill, p.resultPaths]), [
+    ["code-review", { "plan-review": "/scratch/wi-3-d4-1-plan-review.json" }],
+    [
+      "security-review",
+      { "plan-review": "/scratch/wi-3-d4-2-plan-review.json" },
+    ],
+  ]);
+  for (const [i, { prompt, skill }] of prompts.entries()) {
+    assert(prompt.startsWith(packet.prompt ?? "-"), prompt);
+    assert(prompt.includes(`Follow the ${skill} skill.`), prompt);
+    assert(
+      prompt.includes("- plan: swamp data get wi-3 artifact-plan --json"),
+      prompt,
+    );
+    assert(
+      prompt.includes(
+        `- artifact plan-review: write it to /scratch/wi-3-d4-${
+          i + 1
+        }-plan-review.json`,
+      ),
+      prompt,
+    );
+    assert(prompt.includes('"severity"'), "the findings schema is inline");
+  }
+  // Two reviewers join into one findings record, so their ids are kept apart.
+  assert(prompts[0].prompt.includes("Start every finding id with S1-"));
+  assert(prompts[1].prompt.includes("Start every finding id with S2-"));
+});
+
+Deno.test("dispatch: only a dispatch stage gets subagent prompts", async () => {
+  const { run, context } = await atReview("long enough");
+  const packet = buildDispatch(DEFINITION, run, context);
+  assertEquals(
+    buildSubagentPrompts(DEFINITION, packet, {
+      key: "wi-9",
+      dispatchId: 1,
+      resultDir: "/tmp",
+    }),
+    [],
+  );
 });

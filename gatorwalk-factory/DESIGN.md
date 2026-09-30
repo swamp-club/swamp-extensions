@@ -640,6 +640,40 @@ Checked on swamp 20260929.151817.0 and in its source at c48ef142
 engine with stub children. It checks that the children overlap and are runs of
 their own, that the wrapper waits for both, and that it fails when either does.
 
+## The dispatch contract
+
+Whoever does a stage's work gets everything it needs from the dispatch, and
+what is recorded is what was sent and what came back (swamp-club #2776). In a
+trial, the driving agent wrote its own reviewer prompts. It added scope and
+severity guidance, and once left a shell placeholder where the plan summary
+belonged. It then retyped the reviewers' findings, which lost half their text.
+The dispatch record held a prompt no subagent saw.
+
+- **The packet names the products.** `products` lists every artifact and
+  evidence the stage declares, each with the schema its payload is checked
+  against: the declared schema, the findings contract, both (as `allOf`), or
+  the outcome contract for result evidence. `artifactContract` and
+  `evidenceContract` in `payload_schema.ts` give the same contracts that
+  recording applies, and a test pins that they accept and reject the same
+  payloads. Schemas are shown without their `description` and `$comment`,
+  which are for the definition's authors.
+- **The engine writes the subagent prompt.** For a dispatch stage,
+  `buildSubagentPrompts` gives each subagent the rendered prompt byte for
+  byte. A fixed section follows it: the skill to follow, a `swamp data get`
+  read per injected product, and a result file per product with its schema,
+  inline. The dispatch records these prompts, so replay shows exactly what was
+  sent. The driver adds nothing. That makes the driver honest by construction,
+  which is stronger than recording whatever addendum it chose to write.
+- **Results are files, recorded as written.** Each result path is
+  `<resultDir>/<key>-d<dispatchId>-<n>-<product>.json`. `resultDir` is the
+  driver's scratch directory, or a new temporary directory that is removed
+  again if the dispatch is refused. The driver records a result with
+  `payload=@<path>`, which swamp reads from the file, and it never edits the
+  file. Findings from several subagents on one artifact are joined
+  mechanically with `jq`, not by the engine, since no bundled definition runs
+  more than one. Each subagent's findings ids carry its number, so a join
+  cannot repeat an id.
+
 ## The model types: a factory and work items
 
 **Decision.** Two model types (`extensions/models/engine/factory.ts`,

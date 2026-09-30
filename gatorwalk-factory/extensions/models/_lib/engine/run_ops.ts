@@ -36,6 +36,7 @@ import {
   type Usage,
 } from "./run_record.ts";
 import { jsonSafe } from "./canonical.ts";
+import type { SubagentPrompt } from "./dispatch.ts";
 
 // ---------------------------------------------------------------------------
 // Pure operations on a run record. Each takes the current record and returns
@@ -437,6 +438,7 @@ export interface DispatchInput {
   inputs: Record<string, unknown>;
   prompt?: string;
   command?: string;
+  subagentPrompts?: SubagentPrompt[];
 }
 
 /**
@@ -477,6 +479,9 @@ export function recordDispatch(
     inputs: jsonSafe(input.inputs) as Record<string, unknown>,
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.command !== undefined ? { command: input.command } : {}),
+    ...(input.subagentPrompts !== undefined
+      ? { subagentPrompts: input.subagentPrompts }
+      : {}),
   };
   return {
     ok: true,

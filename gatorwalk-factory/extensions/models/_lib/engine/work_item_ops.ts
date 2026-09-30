@@ -17,7 +17,11 @@
 import { z } from "npm:zod@4.3.6";
 import { digestOf, jsonSafe } from "./canonical.ts";
 import { buildCelContext } from "./cel_context.ts";
-import { buildDispatch } from "./dispatch.ts";
+import {
+  buildDispatch,
+  buildSubagentPrompts,
+  type SubagentPrompt,
+} from "./dispatch.ts";
 import {
   evaluateTransitions,
   type GateCheck,
@@ -36,6 +40,7 @@ import {
 } from "./definition_file.ts";
 import { parseScenario, runScenario } from "./scenario.ts";
 import { STARTERS } from "./starters.ts";
+import { isAbsolute } from "jsr:@std/path@1.1.4";
 import {
   analyzeDefinition,
   DEFAULT_MAX_STATES,
@@ -1057,15 +1062,38 @@ export async function recordProductMethod(
   return { dataHandles: handles };
 }
 
+/** Where a dispatch stage's result files go when no resultDir is given:
+ * a new temporary directory, removed again if the dispatch is refused. */
+export interface ResultDirs {
+  make(): Promise<string>;
+  remove(dir: string): Promise<void>;
+  /** Whether a given resultDir is an existing directory. */
+  exists(dir: string): Promise<boolean>;
+}
+
+export const defaultResultDirs: ResultDirs = {
+  make: () => Deno.makeTempDir({ prefix: "gatorwalk-" }),
+  remove: (dir) => Deno.remove(dir),
+  exists: async (dir) => {
+    try {
+      return (await Deno.stat(dir)).isDirectory;
+    } catch {
+      return false;
+    }
+  },
+};
+
 export async function dispatch(
   ctx: MethodContextLike,
   args: {
     expectedStage: string;
     expectedCycle: number;
     expectedEra: string;
+    resultDir?: string;
     onBehalfOf?: string;
   },
   env: Env,
+  resultDirs: ResultDirs = defaultResultDirs,
 ): Promise<MethodOutput> {
   const { store, handles, run, pinned } = await open(ctx, env);
   const packet = buildDispatch(
@@ -1080,9 +1108,42 @@ export async function dispatch(
       }`,
     );
   }
-  const recorded = unwrap(
-    await update(store, (current) =>
-      recordDispatch(
+  // A relative path would be read against whichever directory each of
+  // swamp, the subagent and the driver runs in; a typo would only show when
+  // a subagent fails to write.
+  if (packet.mode === "dispatch" && args.resultDir !== undefined) {
+    if (!isAbsolute(args.resultDir)) {
+      throw new Error(
+        `resultDir '${args.resultDir}' must be an absolute path`,
+      );
+    }
+    if (!await resultDirs.exists(args.resultDir)) {
+      throw new Error(
+        `resultDir '${args.resultDir}' is not an existing directory`,
+      );
+    }
+  }
+  const madeDir = packet.mode === "dispatch" && args.resultDir === undefined;
+  const resultDir = packet.mode !== "dispatch"
+    ? undefined
+    : args.resultDir ?? await resultDirs.make();
+  // Built inside the update from the id this dispatch will get, so the paths
+  // recorded, the paths sent and the id returned agree.
+  let subagentPrompts: SubagentPrompt[] = [];
+  // A directory made for this dispatch is removed again on every path that
+  // records nothing: a refusal (stale expectation, the dispatch cap) or a
+  // store failure.
+  let outcome: OpResult<number> | undefined;
+  try {
+    outcome = await update(store, (current) => {
+      subagentPrompts = resultDir === undefined
+        ? []
+        : buildSubagentPrompts(pinned.definition, packet, {
+          key: current.key,
+          dispatchId: current.dispatches.length + 1,
+          resultDir,
+        });
+      return recordDispatch(
         current,
         pinned.definition,
         expectedFrom(args),
@@ -1090,20 +1151,47 @@ export async function dispatch(
           inputs: packet.inputs ?? packet.values,
           ...(packet.prompt !== undefined ? { prompt: packet.prompt } : {}),
           ...(packet.command !== undefined ? { command: packet.command } : {}),
+          ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
         },
         actorOf(ctx, args.onBehalfOf),
         env,
-      )),
-  );
-  ctx.logger.info("{summary}", {
-    // The whole packet goes into the text, since a CLI caller sees only the
-    // log message: the prompt as written, then everything else as JSON.
-    summary:
-      `dispatch ${recorded.value} for stage '${packet.stage}' cycle ${packet.cycle}` +
+      );
+    });
+  } finally {
+    if (outcome?.ok !== true && madeDir && resultDir !== undefined) {
+      await resultDirs.remove(resultDir);
+    }
+  }
+  const recorded = unwrap(outcome);
+  // The whole packet goes into the text, since a CLI caller sees only the
+  // log message: the prompt as written, then everything else as JSON. A
+  // dispatch stage shows each subagent's prompt instead, which starts with
+  // the rendered prompt; that is what to send.
+  const header =
+    `dispatch ${recorded.value} for stage '${packet.stage}' cycle ${packet.cycle}`;
+  // Its products' schemas are in each subagent prompt, so they are left out
+  // of the packet printed above them.
+  const products = packet.products.map(({ schema: _, ...rest }) => rest);
+  const summary = subagentPrompts.length > 0
+    ? header +
+      `\npacket: ${
+        JSON.stringify({ ...packet, prompt: undefined, products }, null, 2)
+      }` +
+      subagentPrompts.map((s, i) =>
+        `\n--- subagent ${i + 1} of ${subagentPrompts.length}` +
+        (s.skill !== undefined ? ` (${s.skill})` : "") +
+        ` prompt; send it as it is ---\n${s.prompt}--- end subagent ${
+          i + 1
+        } prompt ---`
+      ).join("")
+    : header +
       (packet.prompt !== undefined ? `\n${packet.prompt}` : "") +
-      `\npacket: ${JSON.stringify({ ...packet, prompt: undefined }, null, 2)}`,
+      `\npacket: ${JSON.stringify({ ...packet, prompt: undefined }, null, 2)}`;
+  ctx.logger.info("{summary}", {
+    summary,
     dispatchId: recorded.value,
     packet,
+    ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
   });
   return { dataHandles: handles };
 }

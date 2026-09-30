@@ -52,7 +52,8 @@ extensions/models/
       metrics.ts            per-work-item metrics from the run and journal
       summary.ts            the summary: timeline and metrics as markdown
       cel_context.ts        the CEL vocabulary for bindings, cel gates and when
-      dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
+      dispatch.ts           dispatch packets: bindings, inputs, rendered prompts,
+                            products, subagent prompts
       gates.ts              gate evaluation and transition readiness
       graph.ts              graph analysis of a definition
       scenario.ts           saved scenarios: the file format and the runner
@@ -381,7 +382,10 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 failures and the ids of its human-approval gates (`[human: plan-approval]`, or
 `[approval not required now: regression-review]` for a conditional approval
 whose `when` is false); the stage's work mode and dispatch count; and any
-payload rejections. `dispatch` prints the whole dispatch packet. Writes are
+payload rejections. `dispatch` prints the whole dispatch packet, including the
+products the stage must record and each one's schema; for a dispatch stage it
+prints one ready-to-send prompt per subagent instead of the rendered prompt,
+with result files under `resultDir` (a new temporary directory when omitted). Writes are
 `record_artifact`, `record_evidence`, `dispatch`, `record_usage`, `approve`,
 `decline`, `grant_override`, `advance`, `reset` and `retarget`. A refused write
 fails with its reason and writes nothing. A payload that breaks its schema also

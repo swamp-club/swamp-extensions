@@ -61,11 +61,20 @@ const productArguments = z.object({
   ...ActorInputs,
 });
 
+const dispatchArguments = z.object({
+  resultDir: z.string().min(1).optional().describe(
+    "An existing directory for a dispatch stage's subagent result files; " +
+      "a new temporary directory when omitted",
+  ),
+  ...ExpectedInputs,
+  ...ActorInputs,
+});
+
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/gatorwalk-factory/work-item",
-  version: "2026.09.28.1",
+  version: "2026.09.30.1",
   // A string literal, for the same reason as the type; the report's test
   // checks it names the report.
   reports: ["@swamp/gatorwalk-factory/work-item-summary"],
@@ -181,9 +190,9 @@ export const model = {
     dispatch: {
       description:
         "Record that the current stage's work is starting and report its dispatch packet",
-      arguments: z.object({ ...ExpectedInputs, ...ActorInputs }),
+      arguments: dispatchArguments,
       execute: (
-        args: z.infer<z.ZodObject<typeof ExpectedInputs & typeof ActorInputs>>,
+        args: z.infer<typeof dispatchArguments>,
         context: MethodContextLike,
       ) => dispatch(context, args, systemEnv),
     },

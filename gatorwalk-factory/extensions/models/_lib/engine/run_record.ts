@@ -82,6 +82,13 @@ export const DispatchSchema = z.strictObject({
   inputs: z.record(z.string(), z.unknown()),
   prompt: z.string().optional(),
   command: z.string().optional(),
+  /** For a dispatch stage: exactly what each subagent was sent, and where
+   * it was told to write each product. */
+  subagentPrompts: z.array(z.strictObject({
+    skill: z.string().min(1).optional(),
+    resultPaths: z.record(z.string(), z.string()),
+    prompt: z.string(),
+  })).optional(),
   usage: UsageSchema.optional(),
 });
 

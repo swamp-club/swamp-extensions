@@ -66,8 +66,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 
 1. Read `status`. If the item is terminal, run `summary`, report and stop.
 2. `dispatch`, then do the stage's work as its `mode` says: yourself
-   (interactive), by subagents (dispatch), or by running the workflow or method
-   the packet names.
+   (interactive), by subagents sent the prompts it prints, unchanged (dispatch),
+   or by running the workflow or method the packet names.
 3. Record each artifact and piece of evidence the stage declares, and
    `record_usage` for a dispatch whose tokens you know.
 4. Read `status` and apply rule 5: `advance`, or stop and ask the person.
@@ -88,8 +88,8 @@ Work-item methods run by type, with the key as the instance:
 | `start`           | `factory=<factory>` (and `externalRefs`, a JSON object)         |                  |
 | `status`          | none (a read; no lock)                                          |                  |
 | `summary`         | none (a read; the timeline and metrics)                         |                  |
-| `dispatch`        | expect                                                          |                  |
-| `record_artifact` | `name`, `payload` (JSON), expect                                |                  |
+| `dispatch`        | `resultDir` (optional, for a dispatch stage), expect            |                  |
+| `record_artifact` | `name`, `payload` (JSON, or `@<path>` to a result file), expect |                  |
 | `record_evidence` | `name`, `payload` (JSON), expect                                |                  |
 | `record_usage`    | `dispatchId`, `inputTokens`, `outputTokens`, `model` (optional) |                  |
 | `advance`         | `transition`, expect                                            |                  |

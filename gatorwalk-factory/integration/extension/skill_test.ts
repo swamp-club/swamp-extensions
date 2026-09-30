@@ -80,13 +80,35 @@ Deno.test("skill: marked failures, continuations and indented fences are read fr
 });
 
 Deno.test("skill: every command names a real method with inputs it accepts", async () => {
-  const commands = await skillCommands();
+  const commands = (await skillCommands()).filter((c) =>
+    c.result === undefined
+  );
   assert(commands.length > 40, `only ${commands.length} commands found`);
   const problems = commands.flatMap((c) => {
     const problem = checkCommand(c.words);
     return problem === null ? [] : [`${c.file}:${c.line}: ${problem}`];
   });
   assertEquals(problems, []);
+});
+
+Deno.test("skill: a result block is a subagent's file, and a subagent's product is recorded from its file", async () => {
+  const found = commandsIn(
+    "x.md",
+    ["```json result", '{"findings": []}', "```", "```json", "{}", "```"]
+      .join("\n"),
+  );
+  assertEquals(found, [{
+    file: "x.md",
+    line: 1,
+    words: [],
+    result: '{"findings": []}\n',
+  }]);
+  const recordsFromFile = (await skillCommands()).filter((c) =>
+    c.file === "references/driving.md" && c.words.includes("record_artifact") &&
+    c.words.includes("payload=@<result-path>")
+  );
+  assertEquals(recordsFromFile.length, 1);
+  assertEquals(checkCommand(recordsFromFile[0].words), null);
 });
 
 Deno.test("skill: the checker refuses an unknown method or input", () => {
@@ -167,5 +189,35 @@ Deno.test("skill: the worked example runs as written, from start to done", async
     );
     assertEquals(run.dispatches.length, 8);
     assertEquals(run.dispatches.filter((d) => d.usage !== undefined).length, 3);
+    // Each review was recorded from its reviewer's result file, as written:
+    // the latest version of each equals the last file written for it.
+    const written = new Map<string, unknown>();
+    commands.forEach((c, i) => {
+      if (c.result === undefined) return;
+      const record = commands.slice(i + 1).find((n) =>
+        n.words.includes("record_artifact")
+      );
+      const name = record?.words.find((w) => w.startsWith("name="))?.slice(5);
+      assert(
+        name !== undefined && record?.words.includes("payload=@<result-path>"),
+        `${c.file}:${c.line}: a result block not recorded from its file`,
+      );
+      written.set(name, JSON.parse(c.result));
+    });
+    assertEquals([...written.keys()].sort(), ["code-review", "plan-review"]);
+    for (const [name, payload] of written) {
+      const read = await repo.swamp([
+        "data",
+        "get",
+        key,
+        `artifact-${name}`,
+        "--json",
+      ]);
+      assertEquals(
+        (JSON.parse(read.stdout) as { content?: unknown }).content,
+        payload,
+        name,
+      );
+    }
   });
 });

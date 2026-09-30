@@ -375,7 +375,7 @@ stages:
         {{planSummary}}
         Challenge it on every dimension in
         agent-constraints/adversarial-dimensions.md and verify each step
-        against the code. Record findings with a severity and the dimension
+        against the code. Report findings with a severity and the dimension
         as category; do not soften them.
 
         gatorwalk drives this issue: do not use the issue-lifecycle skill or

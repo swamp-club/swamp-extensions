@@ -66,7 +66,7 @@ stages:
         You are an adversarial reviewer. Try to refute this plan:
         {{planSummary}}
         Check its steps against the code and its testing strategy against the
-        risks. Record findings with severities; do not soften them.
+        risks. Report findings with severities; do not soften them.
       bindings:
         planSummary: artifacts["plan"].payload.summary
       context:
@@ -202,7 +202,7 @@ stages:
       systemPrompt: |
         You are an adversarial reviewer. Review commit {{commit}}:
         {{changeSummary}}
-        Check it against the plan. Record findings with severities; do not
+        Check it against the plan. Report findings with severities; do not
         soften them.
       bindings:
         commit: artifacts["change-summary"].payload.commit

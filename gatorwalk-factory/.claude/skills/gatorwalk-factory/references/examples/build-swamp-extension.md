@@ -18,9 +18,11 @@ Along the way:
 Every command here is run, in this order and as written, by
 `integration/extension/skill_test.ts` against a real swamp repo. Output is from
 such a run, trimmed to the lines that matter. `<key>` and `<era>` stand for the
-generated work-item key and era; everything else is literal. A reviewer's work
-at the two review stages is shown as the findings it records: the test cannot
-run a subagent.
+generated work-item key and era, `<result-dir>` for a scratch directory and
+`<result-path>` for the result file the latest dispatch named; everything else
+is literal. The test cannot run a subagent, so at the two review stages a
+reviewer's result file is shown as a `json result` block, and the test writes it
+where the reviewer would.
 
 ## Set up
 
@@ -144,22 +146,19 @@ took 'submit' to stage 'plan-review' cycle 1
 
 ## plan-review (cycle 1): the person declines
 
-A dispatch stage: dispatch, hand the packet's prompt to one reviewer subagent,
-record what it finds, and attach the tokens it reports to the dispatch id.
+A dispatch stage: dispatch with a scratch directory, send the printed subagent
+prompt to one reviewer subagent as it is, record the result file it writes, and
+attach the tokens it reports to the dispatch id.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
+  --input resultDir=<result-dir> \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 ```
 
 ```text
 dispatch 2 for stage 'plan-review' cycle 1
-You are an adversarial reviewer. Try to refute this plan:
-Add a list method
-Check its steps against the code, its testing strategy against the
-risks, and whether the version bump call is right. Record findings
-with severities; do not soften them.
 packet: {
   "stage": "plan-review",
   "cycle": 1,
@@ -172,15 +171,63 @@ packet: {
   "inject": [
     "plan"
   ],
+  "products": [
+    {
+      "kind": "artifact",
+      "name": "plan-review",
+      "reviews": "plan"
+    }
+  ],
   "problems": [],
   "ready": true
 }
+--- subagent 1 of 1 prompt; send it as it is ---
+You are an adversarial reviewer. Try to refute this plan:
+Add a list method
+Check its steps against the code, its testing strategy against the
+risks, and whether the version bump call is right. Report findings
+with severities; do not soften them.
+
+---
+
+Read these products fresh from the store:
+- plan: swamp data get <key> artifact-plan --json
+
+Write your result as JSON, one file per product, holding the
+payload and nothing else. These files are the only thing you may
+write.
+- artifact plan-review: write it to <result-dir>/<key>-d2-1-plan-review.json
+  Its schema:
+    {
+      "type": "object",
+      "required": [
+        "findings"
+      ],
+      ...
+    }
+--- end subagent 1 prompt ---
 ```
+
+The reviewer writes its result file:
+
+```json result
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "description": "The plan does not update the README for the new method"
+    }
+  ]
+}
+```
+
+Record it from the file, as written:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan-review \
-  --input payload='{"findings":[{"id":"F1","severity":"medium","description":"The plan does not update the README for the new method"}]}' \
+  --input payload=@<result-path> \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
@@ -250,11 +297,25 @@ swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
+  --input resultDir=<result-dir> \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
   --log
+```
+
+The reviewer writes its result file:
+
+```json result
+{
+  "findings": []
+}
+```
+
+Record it from the file, as written:
+
+```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan-review \
-  --input payload='{"findings":[]}' \
+  --input payload=@<result-path> \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
@@ -363,11 +424,32 @@ swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
+  --input resultDir=<result-dir> \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
+```
+
+The reviewer writes its result file:
+
+```json result
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "description": "list could page lazily",
+      "resolved": false
+    }
+  ]
+}
+```
+
+Record it from the file, as written:
+
+```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=code-review \
-  --input payload='{"findings":[{"id":"F1","severity":"low","description":"list could page lazily","resolved":false}]}' \
+  --input payload=@<result-path> \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \

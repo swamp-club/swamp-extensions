@@ -33,7 +33,7 @@ import {
   retarget,
   start,
 } from "./run_ops.ts";
-import { currentCycle, type RunRecord } from "./run_record.ts";
+import { currentCycle, parseRun, type RunRecord } from "./run_record.ts";
 import {
   ALICE,
   FAIL,
@@ -172,6 +172,41 @@ Deno.test("recordDispatch: ids never repeat, inputs are stored as plain JSON", (
   );
   assert(second.ok);
   assertEquals(second.value, 2);
+});
+
+Deno.test("recordDispatch: subagent prompts are stored as sent and survive a round trip", () => {
+  const env = testEnv();
+  const run = fresh(env);
+  const subagentPrompts = [{
+    skill: "review",
+    resultPaths: { review: "/r/wi-d1-1-review.json" },
+    prompt: "p\n\n---\n\nWrite it to /r/wi-d1-1-review.json\n",
+  }];
+  const recorded = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {}, prompt: "p\n", subagentPrompts },
+    ALICE,
+    env,
+  );
+  assert(recorded.ok);
+  assertEquals(recorded.run.dispatches[0].subagentPrompts, subagentPrompts);
+  const parsed = parseRun(JSON.parse(JSON.stringify(recorded.run)));
+  assert(parsed.ok);
+  assertEquals(parsed.value.dispatches[0].subagentPrompts, subagentPrompts);
+  // A dispatch recorded without them, as before this field existed, loads.
+  const plain = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(plain.ok);
+  assert(!("subagentPrompts" in plain.run.dispatches[0]));
+  assert(parseRun(JSON.parse(JSON.stringify(plain.run))).ok);
 });
 
 Deno.test("recordUsage: attaches to a named dispatch after the run moved on, once", async () => {

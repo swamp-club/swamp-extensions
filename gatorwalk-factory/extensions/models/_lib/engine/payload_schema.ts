@@ -616,6 +616,63 @@ export function validateArtifactPayload(
   return errors.length > 0 ? [...new Set(errors)] : null;
 }
 
+/**
+ * The contract an artifact payload is checked against, as one schema: what
+ * validateArtifactPayload applies, for showing to whoever writes the payload.
+ */
+export function artifactContract(
+  spec: { kind?: "findings"; schema?: PayloadSchema },
+): PayloadSchema {
+  if (spec.kind !== "findings") return spec.schema ?? {};
+  return spec.schema === undefined
+    ? FINDINGS_SCHEMA
+    : { allOf: [FINDINGS_SCHEMA, spec.schema] };
+}
+
+/**
+ * The contract an evidence payload is checked against: its declared schema,
+ * or the outcome contract for a stage's resultEvidence that declares none.
+ */
+export function evidenceContract(
+  spec: { schema?: PayloadSchema } | undefined,
+  isResult: boolean,
+): PayloadSchema {
+  return spec?.schema ?? (isResult ? OUTCOME_SCHEMA : {});
+}
+
+/**
+ * A copy of a schema without its notes (`description` and `$comment` in
+ * keyword position, at any depth). Notes are for the factory definition's
+ * authors; this is what a packet shows whoever writes the payload.
+ * Validation is unchanged, since annotations never affect it.
+ */
+export function withoutNotes(schema: PayloadSchema): PayloadSchema {
+  const strip = (value: unknown): unknown => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return value;
+    }
+    const out: Record<string, unknown> = {};
+    for (const [keyword, inner] of Object.entries(value)) {
+      if (keyword === "description" || keyword === "$comment") continue;
+      const kind = Object.hasOwn(KEYWORDS, keyword)
+        ? KEYWORDS[keyword]
+        : undefined;
+      if (kind === "schema") out[keyword] = strip(inner);
+      else if (kind === "schema-array" && Array.isArray(inner)) {
+        out[keyword] = inner.map(strip);
+      } else if (
+        kind === "schema-map" && typeof inner === "object" && inner !== null
+      ) {
+        out[keyword] = Object.fromEntries(
+          Object.entries(inner).map(([name, s]) => [name, strip(s)]),
+        );
+      } else out[keyword] = inner;
+    }
+    return out;
+  };
+  return strip(schema) as PayloadSchema;
+}
+
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

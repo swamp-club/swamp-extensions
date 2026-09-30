@@ -15,6 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
+import { fromFileUrl } from "@std/path";
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import { model } from "./work_item.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/fake_swamp.ts";
@@ -25,6 +26,7 @@ import {
   advanceMethod,
   decide,
   describeStatus,
+  dispatch,
   FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,
@@ -310,6 +312,160 @@ Deno.test("dispatch: reports the packet, and the dispatch cap refuses a third", 
   });
   assertEquals((await runOf(swamp)).dispatches[2].usage?.inputTokens, 100);
 });
+
+async function atPlanReview(): Promise<FakeSwamp> {
+  const swamp = await started();
+  await call(swamp, "record_artifact", {
+    name: "plan",
+    payload: JSON.stringify({
+      summary: "Add a list method",
+      steps: [{ description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+      versionBump: { needed: false, reason: "r" },
+    }),
+    ...await expected(swamp),
+  });
+  await call(swamp, "advance", {
+    transition: "submit",
+    ...await expected(swamp),
+  });
+  return swamp;
+}
+
+Deno.test("dispatch: a dispatch stage records the subagent prompts it prints", async () => {
+  const swamp = await atPlanReview();
+  // resultDir is given: the model's default makes a temp directory, which
+  // the unit tests have no permission for. It must exist; nothing is
+  // written there by dispatch itself.
+  await assertRejects(
+    async () =>
+      call(swamp, "dispatch", {
+        resultDir: "/no/such/dir",
+        ...await expected(swamp),
+      }),
+    Error,
+    "is not an existing directory",
+  );
+  const dir = fromFileUrl(new URL(".", import.meta.url)).replace(/\/$/, "");
+  await call(swamp, "dispatch", {
+    resultDir: dir,
+    ...await expected(swamp),
+  });
+  const logged = swamp.logs.at(-1)?.props;
+  const summary = String(logged?.summary);
+  const recorded = (await runOf(swamp)).dispatches[0];
+  assertEquals(recorded.subagentPrompts?.length, 1);
+  const [sent] = recorded.subagentPrompts ?? [];
+  assertEquals(logged?.subagentPrompts, recorded.subagentPrompts);
+  assert(sent.prompt.startsWith(recorded.prompt ?? "-"), sent.prompt);
+  assert(summary.includes(sent.prompt), summary);
+  assertEquals(sent.resultPaths, {
+    "plan-review": `${dir}/${ITEM}-d1-1-plan-review.json`,
+  });
+  // The rendered prompt is printed once, inside the subagent prompt.
+  assertEquals(summary.split("Try to refute this plan:").length, 2, summary);
+});
+
+Deno.test("dispatch: without resultDir a dispatch stage gets a new directory; other stages none", async () => {
+  const made: string[] = [];
+  const removed: string[] = [];
+  const makeDir = {
+    make: () => {
+      made.push("/tmp/gatorwalk-x");
+      return Promise.resolve("/tmp/gatorwalk-x");
+    },
+    remove: (dir: string) => {
+      removed.push(dir);
+      return Promise.resolve();
+    },
+    exists: (dir: string) => Promise.resolve(dir === "/mine"),
+  };
+  const plan = await started();
+  await dispatch(
+    plan.context(ITEM),
+    await expectedArgs(plan),
+    systemEnv,
+    makeDir,
+  );
+  assertEquals(made, [], "an interactive stage has no result files");
+  assertEquals((await runOf(plan)).dispatches[0].subagentPrompts, undefined);
+
+  const review = await atPlanReview();
+  await dispatch(
+    review.context(ITEM),
+    await expectedArgs(review),
+    systemEnv,
+    makeDir,
+  );
+  assertEquals(made.length, 1);
+  assertEquals(
+    (await runOf(review)).dispatches[0].subagentPrompts?.[0].resultPaths,
+    { "plan-review": `/tmp/gatorwalk-x/${ITEM}-d1-1-plan-review.json` },
+  );
+  assertEquals(removed, []);
+
+  // A refused dispatch removes the directory it made, and only that one.
+  const stale = { ...await expectedArgs(review), expectedCycle: 9 };
+  await assertRejects(
+    () =>
+      dispatch(
+        review.context(ITEM),
+        stale,
+        systemEnv,
+        makeDir,
+      ),
+    Error,
+    "stale:",
+  );
+  assertEquals(removed, ["/tmp/gatorwalk-x"]);
+  await assertRejects(
+    () =>
+      dispatch(
+        review.context(ITEM),
+        { ...stale, resultDir: "/mine" },
+        systemEnv,
+        makeDir,
+      ),
+    Error,
+    "stale:",
+  );
+  assertEquals(removed, ["/tmp/gatorwalk-x"], "a given resultDir is kept");
+
+  // A store failure records nothing either, so the made directory goes too.
+  const failing = review.context(ITEM);
+  failing.writeResource = () => Promise.reject(new Error("store down"));
+  removed.length = 0;
+  await assertRejects(
+    async () =>
+      dispatch(failing, await expectedArgs(review), systemEnv, makeDir),
+    Error,
+    "store down",
+  );
+  assertEquals(removed, ["/tmp/gatorwalk-x"]);
+});
+
+Deno.test("dispatch: a relative resultDir is refused, since each reader would resolve it differently", async () => {
+  const swamp = await atPlanReview();
+  await assertRejects(
+    async () =>
+      call(swamp, "dispatch", {
+        resultDir: "scratch",
+        ...await expected(swamp),
+      }),
+    Error,
+    "must be an absolute path",
+  );
+  assertEquals((await runOf(swamp)).dispatches, []);
+});
+
+async function expectedArgs(swamp: FakeSwamp) {
+  const e = await expected(swamp);
+  return {
+    expectedStage: e.expectedStage,
+    expectedCycle: Number(e.expectedCycle),
+    expectedEra: e.expectedEra,
+  };
+}
 
 Deno.test("status: a read method that logs where the work item is and what is ready", async () => {
   const swamp = await started();

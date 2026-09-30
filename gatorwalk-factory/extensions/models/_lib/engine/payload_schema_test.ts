@@ -16,6 +16,8 @@
 
 import { assert, assertEquals } from "@std/assert";
 import {
+  artifactContract,
+  evidenceContract,
   FINDINGS_SCHEMA,
   lintFieldSchema,
   lintPayloadSchema,
@@ -24,6 +26,7 @@ import {
   validateArtifactPayload,
   validateField,
   validatePayload,
+  withoutNotes,
 } from "./payload_schema.ts";
 
 function lintMessages(schema: unknown): string[] {
@@ -357,4 +360,69 @@ Deno.test("field schema: reasons are named from the field", () => {
     { ok: "yes" },
   );
   assert(nested?.every((r) => r.startsWith("run.ok: ")), nested?.join());
+});
+
+Deno.test("contracts: the shown schema accepts and rejects what recording does", () => {
+  const declared: PayloadSchema = {
+    type: "object",
+    required: ["findings", "round"],
+    properties: { findings: {}, round: { type: "integer" } },
+  };
+  const specs = [
+    { kind: "findings" as const },
+    { kind: "findings" as const, schema: declared },
+    { schema: declared },
+  ];
+  const samples: unknown[] = [
+    { findings: [] },
+    { findings: [], round: 2 },
+    { findings: [{ id: "F1", severity: "low", description: "d" }], round: 1 },
+    { findings: [{ id: "F1", severity: "bad", description: "d" }], round: 1 },
+    { findings: [{ id: "F1", severity: "low", description: "d", x: 1 }] },
+    { round: 1 },
+    {},
+  ];
+  for (const spec of specs) {
+    for (const sample of samples) {
+      assertEquals(
+        validatePayload(artifactContract(spec), sample) === null,
+        validateArtifactPayload(spec, sample) === null,
+        `${JSON.stringify(spec)} on ${JSON.stringify(sample)}`,
+      );
+    }
+  }
+  assertEquals(artifactContract({ kind: "findings" }), FINDINGS_SCHEMA);
+  assertEquals(artifactContract({ schema: declared }), declared);
+});
+
+Deno.test("contracts: evidence shows its schema, or the outcome contract for result evidence", () => {
+  const declared: PayloadSchema = { type: "object", required: ["url"] };
+  assertEquals(evidenceContract({ schema: declared }, true), declared);
+  assertEquals(evidenceContract({}, true), OUTCOME_SCHEMA);
+  assertEquals(evidenceContract(undefined, true), OUTCOME_SCHEMA);
+});
+
+Deno.test("notes: descriptions and comments go at every depth, a property named description stays", () => {
+  assertEquals(
+    withoutNotes({
+      type: "object",
+      description: "note",
+      $comment: "note",
+      properties: {
+        description: { type: "string", description: "note" },
+        list: { type: "array", items: { $comment: "note", type: "string" } },
+      },
+      allOf: [{ description: "note", required: ["description"] }],
+      "x-owner": "team",
+    }),
+    {
+      type: "object",
+      properties: {
+        description: { type: "string" },
+        list: { type: "array", items: { type: "string" } },
+      },
+      allOf: [{ required: ["description"] }],
+      "x-owner": "team",
+    },
+  );
 });

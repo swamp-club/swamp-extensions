@@ -201,16 +201,47 @@ swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
 
 It records the resolved inputs and prompt for later replay, counts toward the
 stage's dispatch cap, and prints the dispatch id and the packet: the rendered
-prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`, and for
-workflow and method stages `inputs` with the `workflow` or `method` to call).
+prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`,
+`products`, and for workflow and method stages `inputs` with the `workflow` or
+`method` to call). `products` lists every artifact and evidence the stage
+declares, each with the `schema` its payload must meet: record each one.
 Dispatch once per attempt at the work, not once per tool call.
+
+For a dispatch stage, pass your scratch directory as `resultDir`. Leave it out
+and the engine makes a new temporary directory:
+
+```sh
+swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
+  --input resultDir=<scratch-dir> \
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
+  --log
+```
+
+Instead of the rendered prompt, the output then prints one prompt per subagent,
+each between these two lines:
+
+```text
+--- subagent <n> of <total> (<skill>) prompt; send it as it is ---
+--- end subagent <n> prompt ---
+```
+
+The `(<skill>)` part appears only when the stage lists skills. Each prompt
+starts with the rendered prompt and goes on to name the skill to follow, a
+`swamp data get` read for each injected product, and a result file for each
+product with its schema. The dispatch records these prompts as they were
+printed.
 
 Then, by `mode`:
 
 - **interactive**: do the work yourself, following the prompt.
-- **dispatch**: hand the prompt to `subagents` subagents (one per listed skill,
-  or one reviewer). Give each the products named in `inject`, read fresh with
-  `swamp data get`. Record what they return.
+- **dispatch**: start one subagent per printed prompt, from this repo's
+  directory, and send each its prompt exactly as printed. Copy it from the
+  dispatch output; never retype it, shorten it or add to it. Never change a
+  reviewer's scope, its severity guidance or its stance. A decision the person
+  made (say, that a risk is accepted) belongs in the product under review or in
+  an approval note, never in a prompt. Each subagent writes its result to the
+  files its prompt names. Record those files as they are (see
+  [Record products](#record-products)).
 - **workflow** or **method**: run the workflow or model method the packet names,
   with the packet's `inputs`. Then record the stage's result evidence with the
   real run id and outcome: `{"status":"succeeded","runId":"<run id>"}`, or
@@ -245,8 +276,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
 
 ## Record products
 
-Record each artifact and each piece of evidence the stage declares. Give the
-payload as JSON in single quotes:
+Record each artifact and each piece of evidence the stage declares (the packet's
+`products`). Give the payload as JSON in single quotes:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
@@ -266,6 +297,30 @@ instead:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input-file <path> --log
+```
+
+A subagent's product is never typed out again. Record the result file it wrote,
+with `@` and the path from its prompt, so swamp reads the payload from the file:
+
+```sh
+swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
+  --input name=<name> --input payload=@<result-path> \
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
+  --log
+```
+
+You may read the file to show the person. Never edit it. If it is missing, is
+not JSON, or is refused by its schema, send the subagent back to fix it (with
+SendMessage, or your harness's way of continuing a subagent). Do not repair it
+yourself.
+
+When several subagents review into one findings artifact, join their files
+mechanically and record the joined file. Each subagent's prompt has it start its
+finding ids with its own number, so the join repeats no id. Fields other than
+`findings` come from the first file:
+
+```text
+jq -s '.[0] + {findings: map(.findings) | add}' <result-path-1> <result-path-2> > <joined-path>
 ```
 
 Recording the same name again makes a new version; gates and bindings read the

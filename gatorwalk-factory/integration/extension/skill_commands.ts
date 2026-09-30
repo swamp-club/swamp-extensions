@@ -36,6 +36,10 @@ import { splitWords } from "../harness.ts";
 // the forms the skill uses (bare words, single and double quotes); anything
 // that needs a real shell ($, backticks, pipes, redirects) is refused, which
 // keeps every command copy-paste safe.
+//
+// A ```json result block is not a command: it is a subagent's result file,
+// shown in the worked example where a subagent would write it. Running the
+// example writes it to <result-path>, the latest dispatch's result file.
 // ---------------------------------------------------------------------------
 
 export const SKILL_DIR = fromFileUrl(
@@ -48,6 +52,8 @@ export interface SkillCommand {
   words: string[];
   /** Why the command is meant to fail, when it is. */
   fails?: string;
+  /** For a ```json result block: the file's contents. words is empty. */
+  result?: string;
 }
 
 /** Every swamp command in one markdown file, in order. */
@@ -57,15 +63,19 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
   let inSh = false;
   let fence = "";
   let fails: string | undefined;
+  let result: { line: number; lines: string[] } | undefined;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // CommonMark fences: up to three spaces of indent, so a block under a
     // list item is read too; a fence closes only on a bare fence of the same
     // character, at least as long.
-    const open = line.match(/^ {0,3}(```+|~~~+)\s*(\S*)/);
+    const open = line.match(/^ {0,3}(```+|~~~+)\s*(\S*)\s*(.*)$/);
     if (fence === "" && open !== null) {
       fence = open[1];
       inSh = open[2] === "sh";
+      if (open[2] === "json" && open[3].trim() === "result") {
+        result = { line: i + 1, lines: [] };
+      }
       continue;
     }
     const close = line.match(/^ {0,3}(```+|~~~+)\s*$/);
@@ -76,6 +86,19 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
       fence = "";
       inSh = false;
       fails = undefined;
+      if (result !== undefined) {
+        out.push({
+          file,
+          line: result.line,
+          words: [],
+          result: result.lines.join("\n") + "\n",
+        });
+        result = undefined;
+      }
+      continue;
+    }
+    if (result !== undefined) {
+      result.lines.push(line);
       continue;
     }
     if (!inSh) continue;
@@ -272,8 +295,35 @@ export async function runExample(
   const values: Record<string, string> = {
     "<gatorwalk-factory>": context.extensionRoot,
   };
+  // Result files go to a fresh directory, named in the example as
+  // <result-dir>, removed when the run ends.
+  values["<result-dir>"] = await Deno.makeTempDir({ prefix: "gw-results-" });
+  try {
+    return await runCommands(repo, commands, values, onStep);
+  } finally {
+    await Deno.remove(values["<result-dir>"], { recursive: true });
+  }
+}
+
+async function runCommands(
+  repo: RepoLike,
+  commands: SkillCommand[],
+  values: Record<string, string>,
+  onStep: (step: ExampleStep) => void,
+): Promise<ExampleStep[]> {
   const steps: ExampleStep[] = [];
   for (const command of commands) {
+    if (command.result !== undefined) {
+      // Standing in for the subagent: write its result file.
+      const path = values["<result-path>"];
+      if (path === undefined) {
+        throw new Error(
+          `${command.file}:${command.line}: a result block before any dispatch named a result file`,
+        );
+      }
+      await Deno.writeTextFile(path, command.result);
+      continue;
+    }
     const ran = command.words.slice(1).map((w) =>
       w.replace(/<[a-z][a-z0-9-]*>/g, (p) => {
         const v = values[p];
@@ -322,6 +372,24 @@ export async function runExample(
         );
       }
       values["<key>"] = key;
+    }
+    // The result file the latest dispatch named for its first subagent's
+    // first product, read from the dispatch record rather than the log.
+    if (
+      result.code === 0 && ran[0] === "model" && ran[1] === WORK_ITEM_TYPE &&
+      ran[4] === "dispatch"
+    ) {
+      const read = await repo.swamp(["data", "get", ran[5], "run", "--json"]);
+      const dispatches = (JSON.parse(read.stdout) as {
+        content?: {
+          dispatches?: {
+            subagentPrompts?: { resultPaths: Record<string, string> }[];
+          }[];
+        };
+      }).content?.dispatches ?? [];
+      const paths = dispatches.at(-1)?.subagentPrompts?.[0]?.resultPaths;
+      const path = paths === undefined ? undefined : Object.values(paths)[0];
+      if (path !== undefined) values["<result-path>"] = path;
     }
     // The latest era status printed: a reset starts a new one.
     const era = result.output.match(/--input expectedEra=([0-9a-f-]+)/);
