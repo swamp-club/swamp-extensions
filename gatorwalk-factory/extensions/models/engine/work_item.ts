@@ -197,19 +197,27 @@ export const model = {
       ) => dispatch(context, args, systemEnv),
     },
     record_usage: {
-      description: "Attach reported token usage to a dispatch, once",
+      description:
+        "Attach reported token usage to a dispatch, once: totalTokens, " +
+        "or inputTokens and outputTokens, or all three",
       arguments: z.object({
         dispatchId: z.coerce.number().int().positive(),
-        inputTokens: z.coerce.number().int().nonnegative(),
-        outputTokens: z.coerce.number().int().nonnegative(),
+        totalTokens: z.coerce.number().int().nonnegative().optional(),
+        inputTokens: z.coerce.number().int().nonnegative().optional(),
+        outputTokens: z.coerce.number().int().nonnegative().optional(),
+        toolUses: z.coerce.number().int().nonnegative().optional(),
+        durationMs: z.coerce.number().int().nonnegative().optional(),
         model: z.string().min(1).optional(),
         ...ActorInputs,
       }),
       execute: (
         args: {
           dispatchId: number;
-          inputTokens: number;
-          outputTokens: number;
+          totalTokens?: number;
+          inputTokens?: number;
+          outputTokens?: number;
+          toolUses?: number;
+          durationMs?: number;
           model?: string;
           onBehalfOf?: string;
         },

@@ -70,15 +70,29 @@ export interface StageTotals {
   open: boolean;
 }
 
-export interface Usage {
+export interface ModelUsage {
+  totalTokens: number;
   inputTokens: number;
   outputTokens: number;
-  byModel: Record<
-    string,
-    { inputTokens: number; outputTokens: number; dispatches: number }
-  >;
+  dispatches: number;
+}
+
+export interface Usage {
+  /** Each dispatch's totalTokens when reported, else its input plus output. */
+  totalTokens: number;
+  /** Over the dispatches that reported the input/output split. */
+  inputTokens: number;
+  outputTokens: number;
+  dispatchesWithSplit: number;
+  /** Over the dispatches that reported them. */
+  toolUses: number;
+  durationMs: number;
+  byModel: Record<string, ModelUsage>;
   dispatchesWithUsage: number;
   dispatchesWithoutUsage: number;
+  /** Dispatches without usage by their stage's work mode. An interactive
+   * dispatch normally has none: nothing reports the driver's own tokens. */
+  withoutUsageByMode: Record<string, number>;
   /** Usage is reported by whoever did the work, not measured. */
   attested: true;
 }
@@ -141,6 +155,10 @@ function between(from: string, until: string): number {
   return Date.parse(until) - Date.parse(from);
 }
 
+function emptyModelUsage(): ModelUsage {
+  return { totalTokens: 0, inputTokens: 0, outputTokens: 0, dispatches: 0 };
+}
+
 function emptySummary(): Summary {
   return {
     stages: {},
@@ -149,11 +167,16 @@ function emptySummary(): Summary {
     dispatches: { count: 0, retries: 0 },
     overrides: { cycle: 0, dispatch: 0 },
     usage: {
+      totalTokens: 0,
       inputTokens: 0,
       outputTokens: 0,
+      dispatchesWithSplit: 0,
+      toolUses: 0,
+      durationMs: 0,
       byModel: {},
       dispatchesWithUsage: 0,
       dispatchesWithoutUsage: 0,
+      withoutUsageByMode: {},
       attested: true,
     },
   };
@@ -370,7 +393,7 @@ export function computeMetrics(
   for (const state of eras) {
     // Waits still open go last, in the order they began.
     state.metrics.waits.push(...state.open.values());
-    summarize(state, run);
+    summarize(state, run, definition);
   }
   const summary = emptySummary();
   for (const state of eras) addSummary(summary, state.metrics.summary);
@@ -395,7 +418,11 @@ export function computeMetrics(
   };
 }
 
-function summarize(state: EraState, run: RunRecord): void {
+function summarize(
+  state: EraState,
+  run: RunRecord,
+  definition: FactoryDefinition,
+): void {
   const m = state.metrics;
   const s = m.summary;
   for (const visit of m.visits) {
@@ -439,16 +466,30 @@ function summarize(state: EraState, run: RunRecord): void {
     const usage = dispatch.usage;
     if (usage === undefined) {
       s.usage.dispatchesWithoutUsage++;
+      // A dispatch recorded before its mode was kept falls back to the
+      // stage's mode in the pinned definition.
+      const mode = dispatch.mode ??
+        findStage(definition, dispatch.stage)?.work?.mode ?? "interactive";
+      s.usage.withoutUsageByMode[mode] =
+        (s.usage.withoutUsageByMode[mode] ?? 0) + 1;
       continue;
     }
     s.usage.dispatchesWithUsage++;
-    s.usage.inputTokens += usage.inputTokens;
-    s.usage.outputTokens += usage.outputTokens;
     const model = usage.model ?? "unknown";
-    const byModel = s.usage.byModel[model] ??
-      { inputTokens: 0, outputTokens: 0, dispatches: 0 };
-    byModel.inputTokens += usage.inputTokens;
-    byModel.outputTokens += usage.outputTokens;
+    const byModel = s.usage.byModel[model] ?? emptyModelUsage();
+    const total = usage.totalTokens ??
+      (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+    s.usage.totalTokens += total;
+    byModel.totalTokens += total;
+    if (usage.inputTokens !== undefined && usage.outputTokens !== undefined) {
+      s.usage.dispatchesWithSplit++;
+      s.usage.inputTokens += usage.inputTokens;
+      s.usage.outputTokens += usage.outputTokens;
+      byModel.inputTokens += usage.inputTokens;
+      byModel.outputTokens += usage.outputTokens;
+    }
+    s.usage.toolUses += usage.toolUses ?? 0;
+    s.usage.durationMs += usage.durationMs ?? 0;
     byModel.dispatches++;
     s.usage.byModel[model] = byModel;
   }
@@ -483,13 +524,20 @@ function addSummary(into: Summary, from: Summary): void {
   into.overrides.cycle += from.overrides.cycle;
   into.overrides.dispatch += from.overrides.dispatch;
   const u = into.usage;
+  u.totalTokens += from.usage.totalTokens;
   u.inputTokens += from.usage.inputTokens;
   u.outputTokens += from.usage.outputTokens;
+  u.dispatchesWithSplit += from.usage.dispatchesWithSplit;
+  u.toolUses += from.usage.toolUses;
+  u.durationMs += from.usage.durationMs;
   u.dispatchesWithUsage += from.usage.dispatchesWithUsage;
   u.dispatchesWithoutUsage += from.usage.dispatchesWithoutUsage;
+  for (const [mode, n] of Object.entries(from.usage.withoutUsageByMode)) {
+    u.withoutUsageByMode[mode] = (u.withoutUsageByMode[mode] ?? 0) + n;
+  }
   for (const [model, m] of Object.entries(from.usage.byModel)) {
-    const byModel = u.byModel[model] ??
-      { inputTokens: 0, outputTokens: 0, dispatches: 0 };
+    const byModel = u.byModel[model] ?? emptyModelUsage();
+    byModel.totalTokens += m.totalTokens;
     byModel.inputTokens += m.inputTokens;
     byModel.outputTokens += m.outputTokens;
     byModel.dispatches += m.dispatches;

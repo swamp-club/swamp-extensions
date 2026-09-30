@@ -249,6 +249,44 @@ Deno.test("recordUsage: attaches to a named dispatch after the run moved on, onc
   );
 });
 
+Deno.test("recordUsage: takes a harness total alone, and refuses usage without tokens", () => {
+  const env = testEnv();
+  const run = fresh(env);
+  const dispatched = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(dispatched.ok);
+  assertEquals(dispatched.run.dispatches[0].mode, "interactive");
+  const half = recordUsage(
+    dispatched.run,
+    1,
+    { inputTokens: 10 },
+    ALICE,
+    env,
+  );
+  assert(!half.ok && half.reason.includes("totalTokens"), String(half));
+  const total = recordUsage(
+    dispatched.run,
+    1,
+    { totalTokens: 65155, toolUses: 4, durationMs: 90_000 },
+    ALICE,
+    env,
+  );
+  assert(total.ok);
+  assertEquals(total.run.dispatches[0].usage, {
+    totalTokens: 65155,
+    toolUses: 4,
+    durationMs: 90_000,
+    attested: true,
+  });
+  assert(parseRun(JSON.parse(JSON.stringify(total.run))).ok);
+});
+
 // --- approvals -----------------------------------------------------------------
 
 Deno.test("recordApproval: bound to every product in the era, including earlier stages", async () => {

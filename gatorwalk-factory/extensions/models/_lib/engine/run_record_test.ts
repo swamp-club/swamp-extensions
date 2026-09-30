@@ -16,7 +16,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { start } from "./run_ops.ts";
-import { currentCycle, parseRun } from "./run_record.ts";
+import { currentCycle, parseRun, UsageSchema } from "./run_record.ts";
 import { ALICE, smallDefinition, testEnv } from "./test_support.ts";
 
 function started() {
@@ -49,6 +49,20 @@ Deno.test("parseRun: a malformed record is refused with paths", () => {
     parsed.errors.some((e) => e.startsWith("stage:")),
     parsed.errors.join(),
   );
+});
+
+Deno.test("UsageSchema: a total, the split, or both; never half a split or no tokens", () => {
+  const ok = (usage: Record<string, unknown>) =>
+    UsageSchema.safeParse({ ...usage, attested: true }).success;
+  assert(ok({ totalTokens: 65155 }));
+  assert(ok({ inputTokens: 10, outputTokens: 5 }));
+  // A harness total may count tokens the split does not; not cross-checked.
+  assert(ok({ totalTokens: 900, inputTokens: 10, outputTokens: 5 }));
+  assert(ok({ totalTokens: 1, toolUses: 3, durationMs: 1000, model: "m" }));
+  assert(!ok({ inputTokens: 10 }));
+  assert(!ok({ totalTokens: 10, outputTokens: 5 }));
+  assert(!ok({ toolUses: 3, durationMs: 1000 }));
+  assert(!ok({}));
 });
 
 Deno.test("currentCycle: the entry count of the current stage", () => {

@@ -498,6 +498,14 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
       outputTokens: "30",
       model: "m1",
     });
+    // A harness reports one total for a subagent, with no split.
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+    await repo.workItem(key, "record_usage", {
+      dispatchId: "2",
+      totalTokens: "65155",
+      toolUses: "4",
+      durationMs: "90000",
+    });
     await wi.record("artifact", "plan", { text: "the plan" });
     await wi.go("submit");
     await repo.workItem(key, "decline", {
@@ -554,9 +562,15 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
       ]],
     );
     assertEquals(metrics.summary.rework.declines, 1);
-    assertEquals(metrics.summary.dispatches, { count: 1, retries: 0 });
-    assertEquals(metrics.summary.usage.inputTokens, 120);
-    assertEquals(metrics.summary.usage.outputTokens, 30);
+    assertEquals(metrics.summary.dispatches, { count: 2, retries: 1 });
+    const usage = metrics.summary.usage;
+    assertEquals(usage.totalTokens, 120 + 30 + 65155);
+    assertEquals([usage.inputTokens, usage.outputTokens], [120, 30]);
+    assertEquals([usage.toolUses, usage.durationMs], [4, 90000]);
+    assertEquals([usage.dispatchesWithUsage, usage.dispatchesWithoutUsage], [
+      2,
+      0,
+    ]);
 
     // Level with the run, so a rebuild writes nothing.
     const rebuilt = await repo.workItem(key, "rebuild_metrics");

@@ -165,6 +165,8 @@ const SAMPLE: Record<string, string> = {
   "<cycle>": "1",
   "<dispatch-id>": "1",
   "<tokens>": "1000",
+  "<tool-uses>": "4",
+  "<duration-ms>": "90000",
 };
 
 function sample(word: string): string {

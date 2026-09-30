@@ -16,7 +16,11 @@
 
 import { z } from "npm:zod@4.3.6";
 import { ActorSchema, JournalEventSchema } from "./journal.ts";
-import { formatIssues, type ParseResult } from "./definition_schema.ts";
+import {
+  formatIssues,
+  type ParseResult,
+  WORK_MODES,
+} from "./definition_schema.ts";
 
 // ---------------------------------------------------------------------------
 // The run record: everything about one work item, in one record under a
@@ -60,14 +64,31 @@ export const ValidationSchema = z.strictObject({
 
 export type Validation = z.infer<typeof ValidationSchema>;
 
-/** Token usage for one dispatch, as reported by whoever did the work. */
+/**
+ * Token usage for one dispatch, as reported by whoever did the work. A
+ * harness often reports one total (Claude Code's subagent_tokens), so the
+ * input/output split is optional: a usage has a total, the split, or both.
+ * The total is not checked against the split, since a harness total can count
+ * tokens (cache reads) the split does not.
+ */
 export const UsageSchema = z.strictObject({
-  inputTokens: z.number().int().nonnegative(),
-  outputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative().optional(),
+  inputTokens: z.number().int().nonnegative().optional(),
+  outputTokens: z.number().int().nonnegative().optional(),
+  toolUses: z.number().int().nonnegative().optional(),
+  durationMs: z.number().int().nonnegative().optional(),
   model: z.string().min(1).optional(),
   /** Always true until a driver measures usage itself. */
   attested: z.literal(true),
-});
+}).refine(
+  (u) =>
+    (u.inputTokens === undefined) === (u.outputTokens === undefined) &&
+    (u.totalTokens !== undefined || u.inputTokens !== undefined),
+  {
+    message: "usage needs totalTokens, or inputTokens and outputTokens " +
+      "together (or all three)",
+  },
+);
 
 export type Usage = z.infer<typeof UsageSchema>;
 
@@ -78,6 +99,9 @@ export const DispatchSchema = z.strictObject({
   cycle: z.number().int().positive(),
   at: z.string().min(1),
   actor: ActorSchema,
+  /** The stage's work mode when dispatched. Absent on dispatches recorded
+   * before it was kept. */
+  mode: z.enum(WORK_MODES).optional(),
   /** The stage's resolved inputs and binding values, for replay. */
   inputs: z.record(z.string(), z.unknown()),
   prompt: z.string().optional(),

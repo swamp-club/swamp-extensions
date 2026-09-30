@@ -305,12 +305,23 @@ Deno.test("dispatch: reports the packet, and the dispatch cap refuses a third", 
     ...await expected(swamp),
   });
   await call(swamp, "dispatch", await expected(swamp));
+  await assertRejects(
+    () => call(swamp, "record_usage", { dispatchId: "3", inputTokens: "100" }),
+    Error,
+    "totalTokens",
+  );
   await call(swamp, "record_usage", {
     dispatchId: "3",
-    inputTokens: "100",
-    outputTokens: "20",
+    totalTokens: "65155",
+    toolUses: "4",
+    durationMs: "90000",
   });
-  assertEquals((await runOf(swamp)).dispatches[2].usage?.inputTokens, 100);
+  assertEquals((await runOf(swamp)).dispatches[2].usage, {
+    totalTokens: 65155,
+    toolUses: 4,
+    durationMs: 90000,
+    attested: true,
+  });
 });
 
 async function atPlanReview(): Promise<FakeSwamp> {

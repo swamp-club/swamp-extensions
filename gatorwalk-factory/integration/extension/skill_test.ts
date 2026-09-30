@@ -15,6 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
+import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
 import { EXTENSION_ROOT, splitWords, withRepo } from "../harness.ts";
 import {
   checkCommand,
@@ -188,7 +189,23 @@ Deno.test("skill: the worked example runs as written, from start to done", async
       ],
     );
     assertEquals(run.dispatches.length, 8);
-    assertEquals(run.dispatches.filter((d) => d.usage !== undefined).length, 3);
+    // Each reviewer's usage is the harness's one total, as the example
+    // records it, and the attested total is their sum.
+    const reported = commands.filter((c) => c.words.includes("record_usage"))
+      .map((c) =>
+        Number(c.words.find((w) => w.startsWith("totalTokens="))?.slice(12))
+      );
+    assertEquals(reported.length, 3);
+    const usages = run.dispatches.flatMap((d) =>
+      d.usage === undefined ? [] : [d.usage]
+    );
+    assertEquals(usages.map((u) => u.totalTokens), reported);
+    assert(usages.every((u) => u.inputTokens === undefined));
+    const metrics = await repo.data(key, "metrics") as unknown as Metrics;
+    assertEquals(
+      metrics.summary.usage.totalTokens,
+      reported.reduce((a, b) => a + b, 0),
+    );
     // Each review was recorded from its reviewer's result file, as written:
     // the latest version of each equals the last file written for it.
     const written = new Map<string, unknown>();

@@ -27,7 +27,9 @@ import {
   advanceMethod,
   decide,
   describeStatus,
+  dispatch,
   recordProductMethod,
+  recordUsageMethod,
   retargetMethod,
   startWorkItem,
   summary,
@@ -98,6 +100,35 @@ Deno.test("summary: the method logs the timeline and metrics, with no payload co
     assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
   }
   assert(!markdown.includes("a secret plan"));
+});
+
+Deno.test("summary: usage shows the harness total, and dispatches without usage by mode", async () => {
+  const { swamp, env, ctx, expected } = await reviewed();
+  await dispatch(ctx(), await expected(), env);
+  await dispatch(ctx(), await expected(), env);
+  await recordUsageMethod(
+    ctx(),
+    {
+      dispatchId: 1,
+      totalTokens: 65155,
+      toolUses: 4,
+      durationMs: 90_000,
+      model: "claude-opus-5-5",
+    },
+    env,
+  );
+  await summary(ctx(), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  for (
+    const expected of [
+      "usage for dispatch 1: 65155 tokens, 4 tool uses, 1m 30s " +
+      "(claude-opus-5-5), attested",
+      "- **Tokens (attested):** 65155 over 1 dispatch(es); 4 tool uses; " +
+      "1m 30s reported; 1 without usage: 1 interactive; claude-opus-5-5: 65155",
+    ]
+  ) {
+    assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
+  }
 });
 
 Deno.test("summary: a retargeted work item shows its current refs and the ones before", async () => {

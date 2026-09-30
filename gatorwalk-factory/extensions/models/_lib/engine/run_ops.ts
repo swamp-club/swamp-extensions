@@ -34,6 +34,7 @@ import {
   RUN_SCHEMA_VERSION,
   type RunRecord,
   type Usage,
+  UsageSchema,
 } from "./run_record.ts";
 import { jsonSafe } from "./canonical.ts";
 import type { SubagentPrompt } from "./dispatch.ts";
@@ -476,6 +477,7 @@ export function recordDispatch(
     cycle: currentCycle(run),
     at: env.now(),
     actor,
+    mode: findStage(definition, run.stage)?.work?.mode ?? "interactive",
     inputs: jsonSafe(input.inputs) as Record<string, unknown>,
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.command !== undefined ? { command: input.command } : {}),
@@ -514,11 +516,12 @@ export function recordUsage(
   if (run.dispatches[index].usage !== undefined) {
     return refuse(`dispatch ${dispatchId} already has usage recorded`);
   }
+  const parsed = UsageSchema.safeParse({ ...usage, attested: true });
+  if (!parsed.success) {
+    return refuse(parsed.error.issues.map((i) => i.message).join("; "));
+  }
   const dispatches = [...run.dispatches];
-  dispatches[index] = {
-    ...dispatches[index],
-    usage: { ...usage, attested: true },
-  };
+  dispatches[index] = { ...dispatches[index], usage: parsed.data };
   return {
     ok: true,
     value: dispatchId,

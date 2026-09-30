@@ -67,7 +67,7 @@ import {
 } from "./run_ops.ts";
 import { computeMetrics } from "./metrics.ts";
 import { buildSummary } from "./summary.ts";
-import { currentCycle, type RunRecord } from "./run_record.ts";
+import { currentCycle, type RunRecord, type Usage } from "./run_record.ts";
 import {
   committingStore,
   contextStore,
@@ -1223,24 +1223,35 @@ export async function recordUsageMethod(
   ctx: MethodContextLike,
   args: {
     dispatchId: number;
-    inputTokens: number;
-    outputTokens: number;
+    totalTokens?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    toolUses?: number;
+    durationMs?: number;
     model?: string;
     onBehalfOf?: string;
   },
   env: Env,
 ): Promise<MethodOutput> {
   const { store, handles } = await open(ctx, env);
+  const reported = {
+    totalTokens: args.totalTokens,
+    inputTokens: args.inputTokens,
+    outputTokens: args.outputTokens,
+    toolUses: args.toolUses,
+    durationMs: args.durationMs,
+    model: args.model,
+  };
+  // Only what was reported: the stored usage is a strict object.
+  const usage = Object.fromEntries(
+    Object.entries(reported).filter(([, v]) => v !== undefined),
+  ) as Omit<Usage, "attested">;
   unwrap(
     await update(store, (run) =>
       recordUsage(
         run,
         args.dispatchId,
-        {
-          inputTokens: args.inputTokens,
-          outputTokens: args.outputTokens,
-          ...(args.model !== undefined ? { model: args.model } : {}),
-        },
+        usage,
         actorOf(ctx, args.onBehalfOf),
         env,
       )),

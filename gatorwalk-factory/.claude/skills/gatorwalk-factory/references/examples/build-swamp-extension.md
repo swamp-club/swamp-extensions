@@ -148,7 +148,8 @@ took 'submit' to stage 'plan-review' cycle 1
 
 A dispatch stage: dispatch with a scratch directory, send the printed subagent
 prompt to one reviewer subagent as it is, record the result file it writes, and
-attach the tokens it reports to the dispatch id.
+attach the token count the harness reports for it (the task notification's
+`<usage>` block) to the dispatch id.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
@@ -238,7 +239,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> 
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
-  --input dispatchId=2 --input inputTokens=18000 --input outputTokens=1200 \
+  --input dispatchId=2 --input totalTokens=65155 --input toolUses=12 --input durationMs=94000 \
   --input model=claude-opus-5-5 --log
 swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
@@ -328,7 +329,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> 
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
-  --input dispatchId=4 --input inputTokens=17500 --input outputTokens=300 \
+  --input dispatchId=4 --input totalTokens=49659 --input toolUses=8 --input durationMs=61000 \
   --input model=claude-opus-5-5 --log
 ```
 
@@ -462,7 +463,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> 
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
   --log
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
-  --input dispatchId=7 --input inputTokens=24000 --input outputTokens=900 \
+  --input dispatchId=7 --input totalTokens=80523 --input toolUses=15 --input durationMs=122000 \
   --input model=claude-opus-5-5 --log
 ```
 

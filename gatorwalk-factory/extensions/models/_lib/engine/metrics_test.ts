@@ -91,6 +91,12 @@ async function driven() {
         { dispatchId, inputTokens, outputTokens, model: "m1" },
         env,
       ),
+    usageTotal: (dispatchId: number, totalTokens: number) =>
+      recordUsageMethod(
+        ctx(),
+        { dispatchId, totalTokens, toolUses: 4, durationMs: 90_000 },
+        env,
+      ),
     decide: async (
       gateId: string,
       decision: "approve" | "decline",
@@ -217,13 +223,81 @@ Deno.test("metrics: stage times, waits, rework, dispatches, overrides and usage 
   assertEquals(s.dispatches, { count: 2, retries: 1 });
   assertEquals(s.overrides, { cycle: 0, dispatch: 1 });
   assertEquals(s.usage, {
+    totalTokens: 150,
     inputTokens: 100,
     outputTokens: 50,
-    byModel: { m1: { inputTokens: 100, outputTokens: 50, dispatches: 1 } },
+    dispatchesWithSplit: 1,
+    toolUses: 0,
+    durationMs: 0,
+    byModel: {
+      m1: {
+        totalTokens: 150,
+        inputTokens: 100,
+        outputTokens: 50,
+        dispatches: 1,
+      },
+    },
     dispatchesWithUsage: 1,
     dispatchesWithoutUsage: 1,
+    withoutUsageByMode: { interactive: 1 },
     attested: true,
   });
+});
+
+Deno.test("metrics: a harness total counts as reported; the split only where given", async () => {
+  const wi = await driven();
+  await wi.dispatch();
+  await wi.usage(1, 100, 50);
+  await wi.dispatch();
+  // The total a harness reports for a subagent, with no split: counted as
+  // is, and not checked against any split.
+  await wi.usageTotal(2, 65_155);
+  const u = storedMetrics(wi.swamp).summary.usage;
+  assertEquals(u.totalTokens, 150 + 65_155);
+  assertEquals([u.inputTokens, u.outputTokens, u.dispatchesWithSplit], [
+    100,
+    50,
+    1,
+  ]);
+  assertEquals([u.toolUses, u.durationMs], [4, 90_000]);
+  assertEquals(u.byModel, {
+    m1: { totalTokens: 150, inputTokens: 100, outputTokens: 50, dispatches: 1 },
+    unknown: {
+      totalTokens: 65_155,
+      inputTokens: 0,
+      outputTokens: 0,
+      dispatches: 1,
+    },
+  });
+  assertEquals([u.dispatchesWithUsage, u.dispatchesWithoutUsage], [2, 0]);
+});
+
+Deno.test("metrics: dispatches without usage count by mode, from the pinned definition when not recorded", async () => {
+  const { swamp } = await toDone();
+  const run = await runOf(swamp);
+  assertEquals(run.dispatches.map((d) => d.mode), [
+    "interactive",
+    "interactive",
+  ]);
+  // A dispatch recorded before its mode was kept, on a stage the pinned
+  // definition now runs by dispatch: counted by the definition's mode.
+  const { mode: _, ...old } = run.dispatches[1];
+  const older: RunRecord = {
+    ...run,
+    dispatches: [...run.dispatches, { ...old, id: 3, stage: "review" }],
+  };
+  const pinned = stopsParsedDefinition();
+  const definition = {
+    ...pinned,
+    stages: pinned.stages.map((stage) =>
+      stage.id === "review" && stage.work !== undefined
+        ? { ...stage, work: { ...stage.work, mode: "dispatch" as const } }
+        : stage
+    ),
+  };
+  const u = computeMetrics(older, definition).summary.usage;
+  assertEquals(u.withoutUsageByMode, { interactive: 1, dispatch: 1 });
+  assertEquals(u.dispatchesWithoutUsage, 2);
 });
 
 Deno.test("metrics: the stored record is written after every commit and matches the run it names", async () => {

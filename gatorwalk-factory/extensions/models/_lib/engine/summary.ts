@@ -17,7 +17,7 @@
 import type { Actor, JournalEvent } from "./journal.ts";
 import type { FactoryDefinition } from "./definition_schema.ts";
 import { computeMetrics, type Metrics, type Summary } from "./metrics.ts";
-import type { RunRecord } from "./run_record.ts";
+import type { RunRecord, Usage } from "./run_record.ts";
 
 // ---------------------------------------------------------------------------
 // The work-item summary: the journal as a timeline, per era, with the
@@ -86,11 +86,7 @@ function detail(event: JournalEvent, run: RunRecord): string {
       const usage = run.dispatches.find((d) => d.id === event.dispatchId)
         ?.usage;
       return `usage for dispatch ${event.dispatchId}` +
-        (usage !== undefined
-          ? `: ${usage.inputTokens} in, ${usage.outputTokens} out` +
-            (usage.model !== undefined ? ` (${usage.model})` : "") +
-            ", attested"
-          : "");
+        (usage !== undefined ? `: ${usageText(usage)}, attested` : "");
     }
     case "recorded":
       return `${event.kind} '${event.name}' version ${event.version} ` +
@@ -159,15 +155,43 @@ function summaryLines(summary: Summary): string[] {
       : ""),
     `- **Dispatches:** ${summary.dispatches.count} (${summary.dispatches.retries} retries)`,
     `- **Overrides:** ${summary.overrides.cycle} cycle, ${summary.overrides.dispatch} dispatch`,
-    `- **Tokens (attested):** ${u.inputTokens} in, ${u.outputTokens} out over ` +
-    `${u.dispatchesWithUsage} dispatch(es); ${u.dispatchesWithoutUsage} without usage` +
+    `- **Tokens (attested):** ${u.totalTokens} over ` +
+    `${u.dispatchesWithUsage} dispatch(es)` +
+    (u.dispatchesWithSplit > 0
+      ? ` (${u.inputTokens} in, ${u.outputTokens} out over ` +
+        `${u.dispatchesWithSplit} with the split)`
+      : "") +
+    (u.toolUses > 0 ? `; ${u.toolUses} tool uses` : "") +
+    (u.durationMs > 0 ? `; ${formatDuration(u.durationMs)} reported` : "") +
+    `; ${u.dispatchesWithoutUsage} without usage` +
+    (u.dispatchesWithoutUsage > 0
+      ? ": " + Object.entries(u.withoutUsageByMode)
+        .map(([mode, n]) => `${n} ${mode}`).join(", ")
+      : "") +
     (Object.keys(u.byModel).length > 0
       ? "; " +
         Object.entries(u.byModel).map(([model, m]) =>
-          `${model}: ${m.inputTokens} in, ${m.outputTokens} out`
+          `${model}: ${m.totalTokens}`
         ).join(", ")
       : ""),
   ];
+}
+
+/** One dispatch's reported usage, as reported. */
+function usageText(usage: Usage): string {
+  const parts: string[] = [];
+  if (usage.totalTokens !== undefined) {
+    parts.push(`${usage.totalTokens} tokens`);
+  }
+  if (usage.inputTokens !== undefined && usage.outputTokens !== undefined) {
+    parts.push(`${usage.inputTokens} in, ${usage.outputTokens} out`);
+  }
+  if (usage.toolUses !== undefined) parts.push(`${usage.toolUses} tool uses`);
+  if (usage.durationMs !== undefined) {
+    parts.push(formatDuration(usage.durationMs));
+  }
+  return parts.join(", ") +
+    (usage.model !== undefined ? ` (${usage.model})` : "");
 }
 
 function renderMarkdown(run: RunRecord, metrics: Metrics): string {

@@ -68,8 +68,9 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 2. `dispatch`, then do the stage's work as its `mode` says: yourself
    (interactive), by subagents sent the prompts it prints, unchanged (dispatch),
    or by running the workflow or method the packet names.
-3. Record each artifact and piece of evidence the stage declares, and
-   `record_usage` for a dispatch whose tokens you know.
+3. Record each artifact and piece of evidence the stage declares. When a
+   subagent hands back, `record_usage` for its dispatch with the token count the
+   harness reported for it (see `references/driving.md`).
 4. Read `status` and apply rule 5: `advance`, or stop and ask the person.
 
 When a person must decide, read the products fresh with `swamp data get`, show
@@ -91,7 +92,7 @@ Work-item methods run by type, with the key as the instance:
 | `dispatch`        | `resultDir` (optional, for a dispatch stage), expect            |                  |
 | `record_artifact` | `name`, `payload` (JSON, or `@<path>` to a result file), expect |                  |
 | `record_evidence` | `name`, `payload` (JSON), expect                                |                  |
-| `record_usage`    | `dispatchId`, `inputTokens`, `outputTokens`, `model` (optional) |                  |
+| `record_usage`    | `dispatchId`, `totalTokens`, `toolUses`, `durationMs`, `model`  |                  |
 | `advance`         | `transition`, expect                                            |                  |
 | `advance`         | `transition`, `confirm=true`, expect (a manual exit)            | yes              |
 | `approve`         | `gateId`, `note`, expect                                        | yes              |

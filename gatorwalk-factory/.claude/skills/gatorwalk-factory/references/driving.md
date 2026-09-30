@@ -279,15 +279,29 @@ records each part, not only the wrapper:
 
 See DESIGN.md, "Parallel work inside one stage", for the rule and the pattern.
 
-When the work used tokens you can count (a subagent reports them), attach them
-to the dispatch. `record_usage` takes no expectation, since usage arrives after
-the item may have moved on, and each dispatch takes usage once:
+Attach each subagent's usage to its dispatch as soon as it hands back. The
+number comes from the harness's report of the subagent, not from anything the
+subagent says: a subagent cannot see its own token count, so never ask one (a
+reviewer included) to report it. In Claude Code the report is the `<usage>`
+block of the subagent's task notification, or of the Agent tool result when the
+call was synchronous: `subagent_tokens` is `totalTokens`, and `tool_uses` and
+`duration_ms` are `toolUses` and `durationMs`. That is one total, with no
+input/output split; give `inputTokens` and `outputTokens` too only when the
+harness reports them. Take `model` from the model the Agent call resolved to.
+Several subagents on one dispatch each report their own count: record their sum.
+`record_usage` takes no expectation, since usage arrives after the item may have
+moved on, and each dispatch takes usage once:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
-  --input dispatchId=<dispatch-id> --input inputTokens=<tokens> --input outputTokens=<tokens> \
+  --input dispatchId=<dispatch-id> --input totalTokens=<tokens> \
+  --input toolUses=<tool-uses> --input durationMs=<duration-ms> \
   --input model=<model> --log
 ```
+
+Interactive work (your own planning, implementing and checking) has no usage you
+can see, so do not record any: the summary counts those dispatches as without
+usage, by mode, and that is expected.
 
 ## Record products
 

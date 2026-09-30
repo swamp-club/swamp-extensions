@@ -897,7 +897,7 @@ Per era, and summed over every era:
 | Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. |
 | Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
 | Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
-| Usage        | Input and output tokens, in total and by model, and how many dispatches reported usage. Always `attested: true`: whoever did the work reported it.                                                                                                                        |
+| Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it. |
 
 A wait that would end before its cooldown lifted is not counted: the person
 decided before the exit was ready. With `minApprovals` above 1, one wait stays
