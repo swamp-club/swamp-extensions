@@ -21,6 +21,10 @@ import { model as swampClubModel } from "../../extensions/models/tracker/swamp_c
 import { model as builtinTrackerModel } from "../../extensions/models/tracker/builtin.ts";
 import { model as workItemModel } from "../../extensions/models/engine/work_item.ts";
 import {
+  TRACKER_KINDS,
+  type TrackerKind,
+} from "../../extensions/models/_lib/engine/tracker_binding.ts";
+import {
   FACTORY_TYPE,
   WORK_ITEM_TYPE,
 } from "../../extensions/models/_lib/engine/work_item_ops.ts";
@@ -184,6 +188,38 @@ interface MethodLike {
   };
 }
 
+/** Each tracker adapter's methods, by kind. */
+export type TrackerMethods = Readonly<
+  Record<TrackerKind, Readonly<Record<string, MethodLike>>>
+>;
+
+/** The tracker adapter models the skill's commands are checked against. */
+export const TRACKER_MODELS: TrackerMethods = {
+  "builtin": builtinTrackerModel.methods as Record<string, MethodLike>,
+  "swamp-club": swampClubModel.methods as Record<string, MethodLike>,
+  "linear": linearModel.methods as Record<string, MethodLike>,
+};
+
+/**
+ * The placeholder a skill command uses for one adapter's instance, named as
+ * the README names that instance. The swamp-club Lab tracker has none: it is
+ * the swamp-club team's own, so the skill never shows a command for it, and
+ * a command on <lab> is refused as it always was. A worked example that uses
+ * one of these must give runExample a value for it.
+ */
+export const TRACKER_PLACEHOLDERS: Readonly<
+  Record<TrackerKind, string | null>
+> = {
+  "builtin": "<board>",
+  "swamp-club": null,
+  "linear": "<linear>",
+};
+
+/** How a refusal names a tracker: its placeholder, or its kind. */
+function trackerName(kind: TrackerKind): string {
+  return TRACKER_PLACEHOLDERS[kind] ?? kind;
+}
+
 function checkInputs(
   method: MethodLike,
   rest: string[],
@@ -220,7 +256,10 @@ function checkInputs(
  * that fit its arguments schema, or is one of the few other commands the
  * skill shows. Returns the problem, or null.
  */
-export function checkCommand(words: string[]): string | null {
+export function checkCommand(
+  words: string[],
+  trackers: TrackerMethods = TRACKER_MODELS,
+): string | null {
   const [swamp, ...args] = words;
   if (swamp !== "swamp") return "not a swamp command";
   const is = (...prefix: string[]) => prefix.every((p, i) => args[i] === p);
@@ -233,14 +272,29 @@ export function checkCommand(words: string[]): string | null {
     return checkInputs(method, rest, ["--log"]);
   }
   // Tracker methods, by instance name: <tracker> stands for any tracker
-  // adapter, so the method must be one every tracker has.
-  if (is("model", "method", "run", "<tracker>")) {
+  // adapter, so the method must be one every tracker has, with inputs every
+  // tracker accepts. An adapter's own placeholder (TRACKER_PLACEHOLDERS)
+  // stands for that adapter alone.
+  const placeholder = args[3];
+  const kinds = placeholder === "<tracker>"
+    ? TRACKER_KINDS
+    : TRACKER_KINDS.filter((k) => TRACKER_PLACEHOLDERS[k] === placeholder);
+  if (is("model", "method", "run") && kinds.length > 0) {
     const [name, ...rest] = args.slice(4);
-    const method = (linearModel.methods as Record<string, MethodLike>)[name];
-    if (method === undefined || !(name in swampClubModel.methods)) {
-      return `no method '${name}' that every tracker has`;
+    const lacking = kinds.filter((k) => !Object.hasOwn(trackers[k], name));
+    if (lacking.length > 0) {
+      return placeholder === "<tracker>"
+        ? `no method '${name}' that every tracker has: ` +
+          `${lacking.map(trackerName).join(" and ")} lack it`
+        : `no ${placeholder} method '${name}'`;
     }
-    return checkInputs(method, rest, ["--log"]);
+    for (const k of kinds) {
+      const problem = checkInputs(trackers[k][name], rest, ["--log"]);
+      if (problem !== null) {
+        return kinds.length > 1 ? `${trackerName(k)}: ${problem}` : problem;
+      }
+    }
+    return null;
   }
   // Factory methods, by instance name.
   if (is("model", "method", "run")) {

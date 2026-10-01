@@ -15,7 +15,9 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
+import { z } from "npm:zod@4.3.6";
 import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
+import { model as swampClubModel } from "../../extensions/models/tracker/swamp_club.ts";
 import { EXTENSION_ROOT, splitWords, withRepo } from "../harness.ts";
 import {
   checkCommand,
@@ -152,7 +154,9 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
       "--input",
       "issue=1",
       "--log",
-    ])?.includes("every tracker has"),
+    ])?.includes(
+      "no method 'assign' that every tracker has: <board> and <linear> lack it",
+    ),
     "a method only one tracker has is not a <tracker> method",
   );
   assert(
@@ -171,6 +175,154 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
     ])?.includes("prefix=<prefix>"),
     "the built-in tracker is created with its prefix",
   );
+});
+
+const run = ["swamp", "model", "method", "run"];
+
+Deno.test("skill: a tracker command is checked against the adapter its placeholder names", () => {
+  assertEquals(
+    checkCommand([
+      ...run,
+      "<board>",
+      "set_type",
+      "--input",
+      "issue=1",
+      "--input",
+      "type=feature",
+      "--log",
+    ]),
+    null,
+    "the built-in tracker has set_type",
+  );
+  assertEquals(
+    checkCommand([...run, "<linear>", "assign", "--input", "issue=1", "--log"]),
+    "no <linear> method 'assign'",
+  );
+  assertEquals(
+    checkCommand([
+      ...run,
+      "<linear>",
+      "fetch_issue",
+      "--input",
+      "issue=ABC-1",
+      "--log",
+    ]),
+    null,
+  );
+  assertEquals(
+    checkCommand([
+      ...run,
+      "<tracker>",
+      "claim",
+      "--input",
+      "issue=1",
+      "--input",
+      "factory=team",
+      "--log",
+    ]),
+    null,
+    "claim is every tracker's",
+  );
+  assert(
+    checkCommand([
+      ...run,
+      "<tracker>",
+      "set_type",
+      "--input",
+      "issue=1",
+      "--input",
+      "type=bug",
+      "--log",
+    ])
+      ?.includes("<linear> lack it"),
+    "Linear has no set_type, so it is not a <tracker> method",
+  );
+  assert(
+    checkCommand([...run, "<board>", "set_type", "--input", "nope=1", "--log"])
+      ?.includes("no input 'nope'"),
+  );
+  // The swamp-club Lab has no placeholder: <lab> is an instance name like any
+  // other, so it is read as a factory, which has no assign.
+  assert(
+    checkCommand([...run, "<lab>", "assign", "--input", "issue=1", "--log"])
+      ?.includes("no factory method 'assign'"),
+  );
+  assertEquals(
+    checkCommand([...run, "<factory>", "validate", "--log"]),
+    null,
+    "<factory> is still a factory",
+  );
+});
+
+Deno.test("skill: <tracker> needs the method and its inputs on every adapter", () => {
+  const method = (schema: z.ZodObject) => ({ arguments: schema });
+  const shared = method(z.object({ issue: z.string() }));
+  const trackers = {
+    "builtin": { publish: shared },
+    "swamp-club": {
+      publish: shared,
+      only_two: shared,
+      kind: method(z.object({ type: z.enum(["bug", "feature"]) })),
+    },
+    "linear": {
+      publish: shared,
+      only_two: shared,
+      kind: method(z.object({ type: z.string() })),
+    },
+  };
+  assertEquals(
+    checkCommand([
+      ...run,
+      "<tracker>",
+      "publish",
+      "--input",
+      "issue=1",
+      "--log",
+    ], trackers),
+    null,
+  );
+  assertEquals(
+    checkCommand([
+      ...run,
+      "<tracker>",
+      "only_two",
+      "--input",
+      "issue=1",
+      "--log",
+    ], trackers),
+    "no method 'only_two' that every tracker has: <board> lack it",
+    "the built-in tracker counts",
+  );
+  const trackersWithKind = {
+    ...trackers,
+    "builtin": { ...trackers.builtin, kind: trackers.linear.kind },
+  };
+  assertEquals(
+    checkCommand(
+      [...run, "<tracker>", "kind", "--input", "type=bug", "--log"],
+      trackersWithKind,
+    ),
+    null,
+  );
+  assert(
+    checkCommand(
+      [...run, "<tracker>", "kind", "--input", "type=task", "--log"],
+      trackersWithKind,
+    )
+      ?.startsWith("swamp-club: inputs do not fit"),
+    "inputs are checked against every adapter, not only the first",
+  );
+});
+
+// The swamp-club Lab tracker is the swamp-club team's own and the skill is
+// public: no command in it may run on a Lab instance or create one.
+Deno.test("skill: no skill command uses the swamp-club Lab tracker", async () => {
+  const lab = (await skillCommands()).filter((c) =>
+    c.words.some((w) =>
+      w === "lab" || w === "<lab>" || w.includes(swampClubModel.type)
+    )
+  );
+  assertEquals(lab.map((c) => `${c.file}:${c.line}`), []);
 });
 
 // Authoring runs, as written, from an empty repo to a started work item: the
