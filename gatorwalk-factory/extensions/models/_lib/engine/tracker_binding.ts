@@ -68,6 +68,10 @@ export const CursorSchema = z.object({
   journalVersion: z.number().int().nonnegative(),
   /** The status key last delivered (or skipped as unreachable), or null. */
   status: z.string().nullable(),
+  /** The status move the last publish could not make: the events before it
+   * were delivered, and the next publish retries only the move. */
+  statusFailed: z.object({ status: z.string(), detail: z.string() })
+    .optional(),
   at: z.string(),
 });
 

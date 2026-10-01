@@ -424,21 +424,47 @@ Deno.test("publish: a failure part-way leaves the cursor, and the re-run deliver
   assertEquals(moves, ["In Review"]);
 });
 
-Deno.test("publish: a failed status write is retried alone", async () => {
+Deno.test("publish: a failed status write moves the cursor past what was delivered, and only the move is retried", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, state, methods } = ticket();
-  await trackedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
 
   state.statusError = new TrackerError("rate_limited", "test", "slow down");
-  await assertRejects(() => publish(swamp, methods), TrackerError, "slow");
+  await assertRejects(
+    () => publish(swamp, methods),
+    TrackerError,
+    "could not move T1 to status key 'in_progress': slow down. The events " +
+      "through journal version 1 were delivered; the next publish retries " +
+      "only this move",
+  );
   assertEquals(posted.length, 1);
-  assertEquals(cursorOf(swamp), undefined);
+  assertEquals(cursorOf(swamp)?.journalVersion, 1);
+  assertEquals(cursorOf(swamp)?.status, null, "the key last written");
+  assertEquals(cursorOf(swamp)?.statusFailed, {
+    status: "in_progress",
+    detail: "slow down",
+  });
+
+  // Nothing fixed and nothing new: only the move is tried again.
+  await assertRejects(() => publish(swamp, methods), TrackerError, "slow");
+  assertEquals(posted.length, 1, "no comment again");
+
+  // Nothing fixed, but new events: they are delivered all the same.
+  await item.advance("submit");
+  await assertRejects(() => publish(swamp, methods), TrackerError, "slow");
+  assertEquals(posted.length, 3, posted.join("\n"));
+  assertEquals(cursorOf(swamp)?.journalVersion, 3);
+  assertEquals(
+    (cursorOf(swamp)?.statusFailed as { status?: string } | undefined)?.status,
+    "in_review",
+  );
 
   state.statusError = null;
   await publish(swamp, methods);
-  assertEquals(posted.length, 1, "no comment again");
-  assertEquals(moves, ["In Progress"]);
-  assertEquals(cursorOf(swamp)?.journalVersion, 1);
+  assertEquals(posted.length, 3, "no comment again");
+  assertEquals(moves, ["In Review"]);
+  assertEquals(cursorOf(swamp)?.status, "in_review");
+  assertEquals(cursorOf(swamp)?.statusFailed, undefined, "cleared");
 });
 
 Deno.test("publish: a status the tracker cannot reach is recorded as skipped, not retried", async () => {
@@ -477,7 +503,10 @@ Deno.test("publish: any other invalid status write fails, and an unmapped key na
   await trackedItem(swamp, { test: "T1" });
   state.statusError = new TrackerError("invalid", "test", "no such status");
   await assertRejects(() => publish(swamp, methods), TrackerError, "no such");
-  assertEquals(cursorOf(swamp), undefined);
+  assertEquals(cursorOf(swamp)?.statusFailed, {
+    status: "in_progress",
+    detail: "no such status",
+  });
 
   const unmapped = fakeSwamp();
   await trackedItem(unmapped, { test: "T1" });
@@ -490,10 +519,15 @@ Deno.test("publish: any other invalid status write fails, and an unmapped key na
   await assertRejects(
     () => publish(unmapped, narrow),
     TrackerError,
-    "status key 'in_progress' is not in the statuses global argument " +
-      "(mapped: shipped)",
+    "status key 'in_progress' is not in the statuses global argument of " +
+      `tracker '${INSTANCE}' (mapped: shipped); add it there`,
   );
-  assertEquals(cursorOf(unmapped), undefined);
+  assertEquals(cursorOf(unmapped)?.journalVersion, 1);
+  assertEquals(
+    (cursorOf(unmapped)?.statusFailed as { status?: string } | undefined)
+      ?.status,
+    "in_progress",
+  );
 });
 
 /** An adapter that accepts comments and must never be asked for a status. */
@@ -783,6 +817,26 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
     'name == "definition" && version == 1',
   ]);
   assertEquals(posted.length, 1);
+
+  // When every copy is refused, each one's reason is reported.
+  const error = await assertRejects(
+    () =>
+      publish(swamp, methods, {
+        ...swamp.context(INSTANCE),
+        queryData: () =>
+          Promise.resolve([
+            { name: "definition", version: 1, content: versions[1] },
+          ]),
+      }),
+    Error,
+    `no copy of the pinned definition of '${TRACKED_ITEM}' is usable`,
+  );
+  assertEquals(error.message.split("\n").slice(1), [
+    "- the copy at version 1 (query result 1): the pinned definition does " +
+    "not match the digest the run recorded",
+    "- the latest copy: the pinned definition does not match the digest " +
+    "the run recorded",
+  ]);
 });
 
 Deno.test("publish: keeps its own ledger records, so a hand-keyed comment neither stands in for nor blocks it", async () => {
@@ -1082,18 +1136,16 @@ Deno.test("publish, entries: the payload is the version the journal recorded, ne
   );
 });
 
-Deno.test("publish, entries: an entry whose status key is not mapped is refused", async () => {
+Deno.test("publish, entries: an entry whose status key is not mapped carries the ticket's own status", async () => {
   const swamp = fakeSwamp();
-  const { methods } = historyTicket();
+  const { writes, methods } = historyTicket();
   const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
   (doc.stages[0].tracker as { entries: Record<string, unknown>[] })
     .entries[0].status = "nowhere";
   await trackedItem(swamp, { test: "T1" }, doc);
-  await assertRejects(
-    () => publish(swamp, methods),
-    TrackerError,
-    "status key 'nowhere' labels an entry",
-  );
+  await publish(swamp, methods);
+  assertEquals(writes, ["fetch", "entry work_started [Todo] Work started"]);
+  assertEquals(cursorOf(swamp)?.journalVersion, 1);
 });
 
 Deno.test("publish, entries: without a label anywhere, an entry carries the ticket's own status", async () => {

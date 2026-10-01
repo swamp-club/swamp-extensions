@@ -154,12 +154,16 @@ async function onTicket() {
     factory: "team",
     externalRefs: JSON.stringify({ builtin: "cue-work-abcd" }),
   });
-  const cursorAt = async (journalVersion: number) => {
+  const cursorAt = async (
+    journalVersion: number,
+    statusFailed?: { status: string; detail: string },
+  ) => {
     await swamp.context("board").writeResource?.("cursor", `cursor-${ITEM}`, {
       workItem: ITEM,
       issue: "cue-work-abcd",
       journalVersion,
       status: null,
+      ...(statusFailed === undefined ? {} : { statusFailed }),
       at: "2026-09-30T00:00:00.000Z",
     });
   };
@@ -206,6 +210,31 @@ Deno.test("status: the lag is the journal past the cursor, and nothing once publ
   assert(
     (await statusText()).includes("  tracker 'board' behind by 1 event(s)"),
   );
+  await cursorAt(length);
+  assert(!(await statusText()).includes("tracker"));
+});
+
+Deno.test("status: a status move publish could not make is shown until a publish makes it", async () => {
+  const { swamp, cursorAt, statusText } = await onTicket();
+  const length = (await runOf(swamp)).journal.length;
+  const failed = {
+    status: "in_progress",
+    detail: "status key 'in_progress' is not in the statuses global " +
+      "argument of tracker 'board' (mapped: open); add it there",
+  };
+  await cursorAt(length, failed);
+  const text = await statusText();
+  assert(!text.includes("behind by"), text);
+  assert(
+    text.includes(
+      "  tracker 'board' could not move the ticket to 'in_progress': " +
+        `${failed.detail}; fix it, then run publish on it`,
+    ),
+    text,
+  );
+  const view = await describeStatus(swamp.context(ITEM), systemEnv);
+  assertEquals(view.tracker.statusFailed, failed);
+
   await cursorAt(length);
   assert(!(await statusText()).includes("tracker"));
 });

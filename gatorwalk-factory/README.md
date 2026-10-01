@@ -584,7 +584,12 @@ where it stopped. It is the only writer of a work item's ticket status, and it
 runs only on the tracker instance the work item's factory was bound to at
 start. The work item's `status` reads that instance's publish cursor, with no
 network call, and says `tracker '<instance>' behind by N event(s)` while
-`publish` has events to deliver.
+`publish` has events to deliver. A status move the tracker refuses (a key
+missing from the instance's `statuses` argument, say) fails the publish but
+does not hold back later events: they are still delivered, the next publish
+retries only the move, and `status` says
+`tracker '<instance>' could not move the ticket to '<key>'` and why until it
+lands.
 
 ## swamp-club Lab (swamp-club team only)
 

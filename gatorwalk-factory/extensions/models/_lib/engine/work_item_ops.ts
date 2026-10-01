@@ -987,13 +987,18 @@ function humanGatesOf(gates: GateCheck[]): {
  * Read as data from the tracker instance, with no network call. A work item
  * with no ticket on that tracker (no externalRefs under its kind) has nothing
  * to publish, so it is never behind. When the cursor cannot be read, behind
- * is null and problem says why; status still answers.
+ * is null and problem says why; status still answers. statusFailed is the
+ * status move the last publish could not make, still waiting on a fix.
  */
 export async function trackerLag(ctx: MethodContextLike, run: RunRecord) {
   const { instance, kind } = run.tracker;
   const journalLength = run.journal.length;
   const ticket = run.externalRefs[kind] !== undefined;
-  const view = (delivered: number | null, problem?: string) => ({
+  const view = (
+    delivered: number | null,
+    problem?: string,
+    statusFailed?: { status: string; detail: string },
+  ) => ({
     instance,
     kind,
     ticket,
@@ -1005,6 +1010,7 @@ export async function trackerLag(ctx: MethodContextLike, run: RunRecord) {
       ? null
       : Math.max(0, journalLength - delivered),
     ...(problem === undefined ? {} : { problem }),
+    ...(statusFailed === undefined ? {} : { statusFailed }),
   });
   if (!ticket) return view(null);
   const reader = ctx as DataReadingContext;
@@ -1018,7 +1024,7 @@ export async function trackerLag(ctx: MethodContextLike, run: RunRecord) {
       .sort((a, b) => b.version - a.version)[0];
     if (latest === undefined) return view(0);
     const cursor = CursorSchema.parse(latest.content ?? latest.attributes);
-    return view(cursor.journalVersion);
+    return view(cursor.journalVersion, undefined, cursor.statusFailed);
   } catch (error) {
     return view(
       null,
@@ -1118,6 +1124,13 @@ function statusLines(view: StatusView): string[] {
     lines.push(
       `  tracker '${lag.instance}' behind by ${lag.behind} event(s): run ` +
         `publish on it`,
+    );
+  }
+  if (lag.statusFailed !== undefined) {
+    lines.push(
+      `  tracker '${lag.instance}' could not move the ticket to ` +
+        `'${lag.statusFailed.status}': ${lag.statusFailed.detail}; fix it, ` +
+        "then run publish on it",
     );
   }
   if (view.dispatch !== null && view.dispatchCap !== null) {

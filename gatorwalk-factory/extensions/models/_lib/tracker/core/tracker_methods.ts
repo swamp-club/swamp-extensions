@@ -221,6 +221,15 @@ export function deliveryKeyOf(
   return { workItem: args.workItem, journalVersion: args.journalVersion };
 }
 
+/** Where a status key is mapped: the statuses argument of this tracker
+ * model instance, by name where the context has one. */
+function statusesArgument(ctx: TrackerContext, tracker: string): string {
+  const instance = ctx.definition?.name;
+  return instance === undefined
+    ? `the statuses global argument of the ${tracker} tracker`
+    : `the statuses global argument of tracker '${instance}'`;
+}
+
 function resources(ctx: TrackerContext) {
   if (ctx.writeResource === undefined || ctx.readResource === undefined) {
     throw new Error("this method context has no writeResource/readResource");
@@ -569,9 +578,11 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       throw new TrackerError(
         "invalid",
         options.tracker,
-        `status key '${write.status}' is not in the statuses global argument (${
+        `status key '${write.status}' is not in ${
+          statusesArgument(ctx, options.tracker)
+        } (${
           known.length === 0 ? "it is empty" : `mapped: ${known.join(", ")}`
-        })`,
+        }); add it there`,
       );
     }
     const adapter = options.adapter(ctx);
@@ -822,16 +833,29 @@ async function readWorkItem(ctx: TrackerContext, workItem: string) {
     DEFINITION_NAME,
   );
   if (latest !== null) candidates.push(latest);
-  let refusal: unknown = null;
-  for (const candidate of candidates) {
+  // Every refusal is reported: which copy was wrong says what to repair.
+  const refusals: string[] = [];
+  for (const [i, candidate] of candidates.entries()) {
     try {
       const pinned = await checkPinned(recordObject(candidate), run);
       return { run, definition: pinned.definition };
     } catch (error) {
-      refusal = error;
+      const source = candidate === latest
+        ? "the latest copy"
+        : `the copy at version ${run.definition.version} (query result ${
+          i + 1
+        })`;
+      refusals.push(
+        `${source}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
-  if (refusal !== null) throw refusal;
+  if (refusals.length > 0) {
+    throw new Error(
+      `no copy of the pinned definition of '${workItem}' is usable:\n` +
+        refusals.map((r) => `- ${r}`).join("\n"),
+    );
+  }
   return { run, definition: (await checkPinned(null, run)).definition };
 }
 
@@ -1248,27 +1272,30 @@ export function trackerMethods(options: TrackerModelOptions) {
         const statusNameOf = async (
           issue: string,
           key: string | null,
+          journalVersion: number,
         ): Promise<string> => {
-          if (key === null) {
-            // Nothing names a label yet (a first stage without a key): the
-            // status the ticket has, which is what the entry happened in.
-            let name = ticketStatus.get(issue);
-            if (name === undefined) {
-              name = (await adapter.fetchIssue(issue)).status.name;
-              ticketStatus.set(issue, name);
-            }
-            return name;
+          const name = key === null
+            ? undefined
+            : options.statuses(argsOf(ctx))[key];
+          if (name !== undefined) return name;
+          // A label only, so an unmapped key does not hold back the entry
+          // or any later one: it falls back as an entry without a key does.
+          if (key !== null) {
+            ctx.logger.info("{warning}", {
+              warning: `status key '${key}' labels the entry for journal ` +
+                `version ${journalVersion} but is not in ${
+                  statusesArgument(ctx, options.tracker)
+                }; labelled with the ticket's status instead`,
+            });
           }
-          const name = options.statuses(argsOf(ctx))[key];
-          if (name === undefined) {
-            throw new TrackerError(
-              "invalid",
-              options.tracker,
-              `status key '${key}' labels an entry but is not in the ` +
-                "statuses global argument",
-            );
+          // Nothing names a label yet (a first stage without a key): the
+          // status the ticket has, which is what the entry happened in.
+          let current = ticketStatus.get(issue);
+          if (current === undefined) {
+            current = (await adapter.fetchIssue(issue)).status.name;
+            ticketStatus.set(issue, current);
           }
-          return name;
+          return current;
         };
 
         for (let k = resume; k <= lastTicket; k++) {
@@ -1389,7 +1416,11 @@ export function trackerMethods(options: TrackerModelOptions) {
               replay: true,
               entry: {
                 step: entry.step,
-                targetStatus: await statusNameOf(issue, entry.status),
+                targetStatus: await statusNameOf(
+                  issue,
+                  entry.status,
+                  event.journalVersion,
+                ),
                 summary: entry.summary,
                 emoji: entry.emoji,
                 payload: entry.payload,
@@ -1416,28 +1447,56 @@ export function trackerMethods(options: TrackerModelOptions) {
           ) {
             await note(segment.closing);
           }
-          if (moveTo !== null) {
-            const done = await deliver.setStatus(ctx, {
+          const cursorAt = (
+            status: string | null,
+            statusFailed?: { status: string; detail: string },
+          ) =>
+            resources(ctx).write(CURSOR_SPEC, recordName, {
+              workItem,
               issue,
-              status: moveTo,
-              key: { workItem, journalVersion: segment.statusVersion },
-              replay: true,
-              skipUnreachable: true,
+              journalVersion: segment.through,
+              status,
+              ...(statusFailed === undefined ? {} : { statusFailed }),
+              at: now().toISOString(),
             });
-            handles.push(...done.handles);
+          if (moveTo !== null) {
+            try {
+              const done = await deliver.setStatus(ctx, {
+                issue,
+                status: moveTo,
+                key: { workItem, journalVersion: segment.statusVersion },
+                replay: true,
+                skipUnreachable: true,
+              });
+              handles.push(...done.handles);
+            } catch (error) {
+              // Everything before the move was delivered, so the cursor
+              // moves past it; it keeps the key last written, so the next
+              // publish sees the move still wanted and retries only that.
+              const detail = error instanceof TrackerError
+                ? error.detail
+                : error instanceof Error
+                ? error.message
+                : String(error);
+              await cursorAt(lastStatus, { status: moveTo, detail });
+              const message = `could not move ${issue} to status key ` +
+                `'${moveTo}': ${detail}. The events through journal version ` +
+                `${segment.through} were delivered; the next publish ` +
+                "retries only this move";
+              throw error instanceof TrackerError
+                ? new TrackerError(
+                  error.kind,
+                  error.tracker,
+                  message,
+                  error.reason,
+                )
+                : new Error(message);
+            }
           }
           // Last for each ticket: a failure above leaves the cursor where it
           // was, and the re-run's replay finds each landed write in the
           // ledger.
-          handles.push(
-            await resources(ctx).write(CURSOR_SPEC, recordName, {
-              workItem,
-              issue,
-              journalVersion: segment.through,
-              status: moveTo ?? lastStatus,
-              at: now().toISOString(),
-            }),
-          );
+          handles.push(await cursorAt(moveTo ?? lastStatus));
           ctx.logger.info("{summary}", {
             summary: `published ${workItem} to ${issue} through journal ` +
               `version ${segment.through}: ${posted} ` +

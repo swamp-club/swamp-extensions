@@ -1644,11 +1644,13 @@ published as entries instead, below):
    (a query naming `version` reaches history; `readModelData` gives only the
    latest), and otherwise, or if that query fails (logged), the latest copy. The
    query is not limited to this repository's namespace, so a candidate is used
-   only if its digest is the one the run recorded. The ticket is
+   only if its digest is the one the run recorded; when none is, the error
+   lists each candidate's reason. The ticket is
    `externalRefs[<tracker>]`, one ticket per segment of the journal (see
    "Retargeting" below); a work item that never had one is refused.
 2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
-   version delivered so far, the ticket, and the last status key written. The
+   version delivered so far, the ticket, the last status key written, and the
+   status move the last publish could not make, if any (`statusFailed`). The
    cursor's ticket must be the one its journal version belongs to: a cursor for
    an older ticket is where the publish resumes, and one for a ticket no
    retarget explains is refused, since one work item projects to one ticket at
@@ -1671,9 +1673,21 @@ published as entries instead, below):
    did not change the stage; the next stage whose key differs moves it again. A
    move the tracker refuses as `unreachable` is recorded in the ledger as
    skipped, counts as written, and is logged rather than failing the publish.
+   Any other failure (a key missing from the `statuses` argument, a ticket in
+   a status the tracker cannot move from, a tracker that is down) still fails
+   the publish, but only after the cursor moves past the events delivered
+   before it, keeping the key last written and recording the failed move as
+   `statusFailed`. The error names the key and what to fix (for an unmapped
+   key, the tracker instance whose `statuses` argument lacks it). Later events
+   are not held back: the next publish delivers them, and, because the stage's
+   key still differs from the cursor's, retries only the move until it lands.
+   The work item's `status` prints the failed move until then. On a ticket a
+   retarget left behind, the next ticket's events wait for that ticket's move,
+   as the segments are walked in order.
 5. **Writes the cursor last.** A failure part-way leaves the cursor where it
-   was; the re-run replays from there and the ledger turns every write that
-   landed into a no-op. A publish with nothing new writes nothing.
+   was (except for the status move, step 4); the re-run replays from there and
+   the ledger turns every write that landed into a no-op. A publish with
+   nothing new writes nothing.
 
 **Assigning when work starts.** On the work item's `started` event, after
 that event's own comment or entry and before any later event's, `publish`
@@ -1720,6 +1734,9 @@ under its own ledger key, as issue-lifecycle's `link_pr` links the pull request
 with its `pr_linked` entry. An entry's `targetStatus` is a label only
 (swamp-club never moves the issue for it): the entry's own `status` key, else
 its stage's, else the last stage's before it, else the ticket's current status.
+A key missing from the `statuses` argument labels the entry with the ticket's
+current status too, with a warning naming the key: a label is no reason to
+hold back the entry and every later one.
 Summaries are a template over the payload, not CEL, so what issue-lifecycle
 computes (counts, versions, attempts) is left out. A summary needs fixed text besides
 its placeholders, and names only scalar fields. The payload sent is the recorded
@@ -1740,6 +1757,16 @@ use the built-in tracker's default statuses as keys (`open`, `in_progress`,
 `shipped`, `closed`), so the built-in tracker needs no `statuses` list and
 Linear maps the same keys to its team's names. A stage without a key leaves the status
 alone.
+
+**Past events read the definition pinned now.** Whether an `advanced` event is
+worded as entering or finishing, which entries an event becomes, and each
+segment's status key all come from the factory definition the run pins when
+`publish` runs, not the one pinned when the event happened. After a `reset`
+with `repin=true`, an event not yet published from before the reset is worded
+from the newer definition. The journal cannot say otherwise: the `started`
+event records no digest, and a reset records only the copy it adopts. The
+window is only the events still unpublished at the repin, so it is left as
+is.
 
 **Retargeting.** A `retargeted` event whose old and new maps name different
 tickets for this tracker ends one segment of the journal and starts the next

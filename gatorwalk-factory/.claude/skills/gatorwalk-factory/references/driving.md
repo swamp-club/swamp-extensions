@@ -593,6 +593,12 @@ tracker is behind. `publish` prints no status of its own, so before stopping for
 a person run `status` and make sure it no longer says so. If it says
 `lag unknown`, run `publish` anyway.
 
+If `status` says `tracker 'board' could not move the ticket to '<key>'`, the
+events were delivered but the ticket's status was not. Its reason says what to
+fix (often a key missing from the tracker's `statuses` argument, which a person
+sets); tell the person, and run `publish` once it is fixed. Later publishes
+still deliver new events meanwhile.
+
 `publish` posts a comment for each new event a person on the ticket needs, and
 moves the ticket when the stage's status key changes. When the factory
 definition declares tracker entries and the tracker keeps them (the built-in
