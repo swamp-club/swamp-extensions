@@ -85,7 +85,6 @@ Deno.test("tracker: the Linear adapter takes its token from a vault and delivers
           ...Object.entries(inputs).flatMap((
             [k, v],
           ) => ["--input", `${k}=${v}`]),
-          "--log",
         ]);
 
       const fetched = await method("fetch_issue", { issue: "GW-16" });
@@ -169,7 +168,6 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
           ...Object.entries(inputs).flatMap((
             [k, v],
           ) => ["--input", `${k}=${v}`]),
-          "--log",
         ]);
 
       const fetched = await method("fetch_issue", { issue: `#${issue}` });
@@ -283,7 +281,6 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
           "publish",
           "--input",
           `workItem=${key}`,
-          "--log",
         ]);
 
       await publish();
@@ -415,7 +412,6 @@ Deno.test("tracker: status shows the Lab issue behind until publish runs, then n
         "publish",
         "--input",
         `workItem=${key}`,
-        "--log",
       ]);
       const after = await repo.workItem(key, "status");
       assert(after.output.includes(`${key}: active`), after.output);
@@ -453,10 +449,9 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
           ...Object.entries(inputs).flatMap((
             [k, v],
           ) => ["--input", `${k}=${v}`]),
-          "--log",
         ]);
       const printed = (output: string) => {
-        const match = output.match(/Start it: (swamp .* --log)/);
+        const match = output.match(/Start it: (swamp .*)$/m);
         assert(match !== null, output);
         return match[1];
       };
@@ -580,7 +575,6 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
         `issue=${issue}`,
         "--input",
         "factory=team",
-        "--log",
       ], { allowFailure: true });
       assert(refused.code !== 0, refused.output);
       assert(
@@ -637,13 +631,12 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
           ...Object.entries(inputs).flatMap((
             [k, v],
           ) => ["--input", `${k}=${v}`]),
-          "--log",
         ]);
       const claimed = await lab("claim", {
         issue: `#${issue}`,
         factory: "process",
       });
-      const command = claimed.output.match(/Start it: (swamp .* --log)/);
+      const command = claimed.output.match(/Start it: (swamp .*)$/m);
       assert(command !== null, claimed.output);
       await repo.swamp(splitWords(command[1]).slice(1));
       const key = String((await repo.data("lab", `ticket-${issue}`)).key);
@@ -855,7 +848,6 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
         ...Object.entries(inputs).flatMap((
           [k, v],
         ) => ["--input", `${k}=${v}`]),
-        "--log",
       ]);
 
     const created = await board("create", {
@@ -870,7 +862,7 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
 
     const claimed = await board("claim", { issue: id, factory: "entries" });
     assert(claimed.output.includes(`is claimed as '${id}'`), claimed.output);
-    const command = claimed.output.match(/Start it: (swamp .* --log)/);
+    const command = claimed.output.match(/Start it: (swamp .*)$/m);
     assert(command !== null, claimed.output);
     await repo.swamp(splitWords(command[1]).slice(1));
     const key = id;

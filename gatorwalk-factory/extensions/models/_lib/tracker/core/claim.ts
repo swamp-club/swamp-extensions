@@ -94,8 +94,7 @@ export function startCommand(
 ): string {
   return `swamp model ${WORK_ITEM_TYPE} method run start ${key} ` +
     `--input ${shellQuote(`factory=${factory}`)} ` +
-    `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)} ` +
-    "--log";
+    `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)}`;
 }
 
 /**

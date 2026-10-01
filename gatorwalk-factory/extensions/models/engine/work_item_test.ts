@@ -28,6 +28,7 @@ import {
   describeStatus,
   dispatch,
   FACTORY_TYPE,
+  logWrite,
   type MethodContextLike,
   recordProductMethod,
   retargetMethod,
@@ -116,9 +117,8 @@ Deno.test("start: pins the tracker the factory is bound to", async () => {
     instance: "board",
     kind: "builtin",
   });
-  assert(
-    String(swamp.logs.at(-1)?.props?.summary).endsWith("; tracker 'board')"),
-  );
+  const [line] = String(swamp.logs.at(-1)?.props?.summary).split("\n");
+  assert(line.endsWith("; tracker 'board')"), line);
 });
 
 Deno.test("start: refuses a factory bound to a tracker of another kind, and writes nothing", async () => {
@@ -520,6 +520,88 @@ Deno.test("dispatch: a dispatch stage records the subagent prompts it prints", a
   });
   // The rendered prompt is printed once, inside the subagent prompt.
   assertEquals(summary.split("Try to refute this plan:").length, 2, summary);
+  // The status follows the last prompt, so sending the prompts as they are
+  // never sends it.
+  const statusAt = summary.indexOf(`\n${ITEM}: active at stage 'plan-review'`);
+  assert(statusAt > summary.lastIndexOf("--- end subagent 1 prompt ---"));
+});
+
+// --- what a write prints ----------------------------------------------------------
+
+/** A write's log: its own line, then exactly what status prints next. */
+async function assertEndsWithStatus(swamp: FakeSwamp, line: string) {
+  const written = swamp.logs.at(-1)?.props;
+  const summary = String(written?.summary);
+  await call(swamp, "status");
+  const read = swamp.logs.at(-1)?.props;
+  assert(summary.startsWith(line), summary);
+  assert(summary.endsWith(`\n${String(read?.summary)}`), summary);
+  assertEquals(written?.status, read?.status);
+}
+
+Deno.test("writes: each write ends with the status that follows it", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await call(swamp, "start", { factory: "team" });
+  await assertEndsWithStatus(swamp, `started '${ITEM}' at stage 'plan'`);
+  await call(swamp, "dispatch", await expected(swamp));
+  await assertEndsWithStatus(swamp, "dispatch 1 for stage 'plan' cycle 1");
+  await call(swamp, "record_usage", { dispatchId: "1", totalTokens: "10" });
+  await assertEndsWithStatus(swamp, "recorded usage for dispatch 1");
+  await call(swamp, "record_artifact", {
+    name: "plan",
+    payload: JSON.stringify({
+      summary: "Add a list method",
+      steps: [{ description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+      versionBump: { needed: false, reason: "r" },
+    }),
+    ...await expected(swamp),
+  });
+  await assertEndsWithStatus(swamp, "recorded artifact 'plan' version 1");
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).includes(
+      "  exit submit -> plan-review: ready",
+    ),
+  );
+  await call(swamp, "grant_override", {
+    kind: "dispatch",
+    ...await expected(swamp),
+  });
+  await assertEndsWithStatus(swamp, "granted dispatch override 1");
+  await call(swamp, "advance", {
+    transition: "submit",
+    ...await expected(swamp),
+  });
+  await assertEndsWithStatus(
+    swamp,
+    "took 'submit' to stage 'plan-review' cycle 1",
+  );
+  await call(swamp, "reset", { confirm: "reset", ...await expected(swamp) });
+  await assertEndsWithStatus(swamp, "reset: new era ");
+});
+
+Deno.test("writes: a status that cannot be read after a committed write is reported, not thrown", async () => {
+  const swamp = await atPlanReview();
+  const ctx = swamp.context(ITEM);
+  const store = {
+    ...contextStore(ctx),
+    readPayload: () => Promise.reject(new Error("store down")),
+  };
+  const run = await runOf(swamp);
+  const pinned = {
+    factory: "team",
+    digest: run.definition.digest,
+    definition: await buildDefinition(),
+  } as Parameters<typeof logWrite>[3]["pinned"];
+  await logWrite(ctx, "took 'x'", { a: 1 }, { store, run, pinned }, systemEnv);
+  const props = swamp.logs.at(-1)?.props;
+  assertEquals(
+    props?.summary,
+    "took 'x'\nstatus could not be read after this write: store down; " +
+      "run status",
+  );
+  assertEquals(props?.a, 1);
 });
 
 Deno.test("dispatch: without resultDir a dispatch stage gets a new directory; other stages none", async () => {

@@ -39,11 +39,12 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 Work-item methods are run by type, with the key as the instance name:
 
 ```sh
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
-Pass `--log` on every call. Methods report through the log; without it you see
-only that the method succeeded.
+Run methods without `--log`: swamp prints a method's output without it, and
+twice with it. Read the output whole, never through `grep`, `sed`, `head` or
+`tail`.
 
 ## Set up a factory
 
@@ -65,7 +66,7 @@ swamp model create @swamp/gatorwalk-factory/tracker board \
   --global-arg prefix=<prefix> --json
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
   --global-arg definition=factories/<factory>.yaml --global-arg tracker=board --json
-swamp model method run <factory> init --input from=starter --log
+swamp model method run <factory> init --input from=starter
 ```
 
 `init` copies a starter to the definition file and never overwrites one. The
@@ -77,7 +78,7 @@ file when it is saved, so check it. `validate` also refuses a factory whose
 tracker instance is missing or of another kind than the definition's:
 
 ```sh
-swamp model method run <factory> validate --log
+swamp model method run <factory> validate
 ```
 
 `validate` reports every problem with its path. Fix them all before starting
@@ -91,7 +92,7 @@ handoffs and the graph findings with their traces), render it, then save the
 browser:
 
 ```sh
-swamp model method run <factory> design_page --log
+swamp model method run <factory> design_page
 swamp data get <factory> design-page --json
 ```
 
@@ -119,9 +120,9 @@ factory's `validate` method. The page re-checks the file when you save it.
 ## Start a work item
 
 ```sh
-swamp model method run <factory> new_key --input 'title=<title>' --log
+swamp model method run <factory> new_key --input 'title=<title>'
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input factory=<factory> --log
+  --input factory=<factory>
 ```
 
 `new_key` prints an unused key made from the work's title, such as
@@ -136,7 +137,7 @@ through `externalRefs`.
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
   --input factory=<factory> \
-  --input 'externalRefs={"linear":"<issue UUID>"}' --log
+  --input 'externalRefs={"linear":"<issue UUID>"}'
 ```
 
 ## Start from a ticket
@@ -147,7 +148,7 @@ instance, so the same ticket never starts twice:
 
 ```sh
 swamp model method run <tracker> claim --input issue=<ticket> \
-  --input factory=<factory> --log
+  --input factory=<factory>
 ```
 
 `issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`,
@@ -179,7 +180,7 @@ instance, then claim the id it prints:
 
 ```sh
 swamp model method run <tracker> create --input 'title=<title>' \
-  --input 'body=<body>' --input 'type=<type>' --log
+  --input 'body=<body>' --input 'type=<type>'
 ```
 
 The type must be one the tracker has (the Lab: `feature`, `bug`, `security`; the
@@ -190,10 +191,13 @@ first, since a retry files a second ticket.
 ## Read status
 
 `status` is the only view of the work item to act on. It is a read method: it
-takes no lock and writes nothing.
+takes no lock and writes nothing. Every write (`start`, `dispatch`, `record_*`,
+`approve`, `decline`, `grant_override`, `advance`, `reset`, `retarget`) ends its
+output with this same block, as it stands after the write, and that counts as
+reading status. A refused write prints only its error: read `status` again.
 
 ```sh
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 ```text
@@ -234,8 +238,10 @@ swamp data get <key> artifact-<name> --json
 1. `status`.
 2. If the item is terminal, stop and report.
 3. `dispatch`, then do the stage's work.
-4. Record each product the stage's work records (the packet's `products`).
-5. `status` again, and apply the propulsion rule: advance, or stop and ask.
+4. Record each product the stage's work records (the packet's `products`), one
+   write per command.
+5. Read the status the last write printed, and apply the propulsion rule:
+   advance, or stop and ask.
 6. Repeat.
 
 ## Do the stage's work
@@ -244,8 +250,7 @@ Start every stage's work, whatever its mode, with `dispatch`:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 It records the resolved inputs and prompt for later replay, counts toward the
@@ -265,8 +270,7 @@ and the engine makes a new temporary directory:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --input resultDir=<scratch-dir> \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 Instead of the rendered prompt, the output then prints one prompt per subagent,
@@ -281,7 +285,8 @@ The `(<skill>)` part appears only when the stage lists skills. Each prompt
 starts with the rendered prompt and goes on to name the skill to follow, a
 `swamp data get` read for each injected product, and a result file for each
 product with its schema. The dispatch records these prompts as they were
-printed.
+printed. The status block comes after the last end line, so it is never part of
+a prompt.
 
 Then, by `mode`:
 
@@ -333,7 +338,7 @@ moved on, and each dispatch takes usage once:
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
   --input dispatchId=<dispatch-id> --input totalTokens=<tokens> \
   --input toolUses=<tool-uses> --input durationMs=<duration-ms> \
-  --input model=<model> --log
+  --input model=<model>
 ```
 
 Interactive work (your own planning, implementing and checking) has no usage you
@@ -348,12 +353,10 @@ Record each artifact and each piece of evidence the stage declares (the packet's
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=<name> --input payload='<json>' \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=<name> --input payload='<json>' \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 If the payload contains a single quote, put all the inputs in a YAML file (keys
@@ -362,7 +365,7 @@ instead:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
-  --input-file <path> --log
+  --input-file <path>
 ```
 
 A subagent's product is never typed out again. Record the result file it wrote,
@@ -371,8 +374,7 @@ with `@` and the path from its prompt, so swamp reads the payload from the file:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=<name> --input payload=@<result-path> \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 You may read the file to show the person. Never edit it. If it is missing, is
@@ -412,8 +414,7 @@ the person gives it, in their words, and on their behalf:
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=plan-feedback --input payload='{"feedback":"<their words>"}' \
   --input onBehalfOf=<person> \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 It counts for the pass it was recorded in, like any evidence a gate reads:
@@ -421,7 +422,8 @@ feedback from an earlier pass does not open `revise` again.
 
 ## Advance: the propulsion rule
 
-After recording, read `status` and sort the `ready` exits into two kinds:
+After recording, read the status the write printed and sort the `ready` exits
+into two kinds:
 
 - **Yours**: ready, not `(manual)`, and no `[human: ...]`. An
   `[approval not required now: ...]` marker does not make an exit the person's.
@@ -447,8 +449,7 @@ Take a manual exit only when the person asks for it.
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=<transition> \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 `advance` checks every gate again under the lock. It refuses rather than
@@ -470,7 +471,7 @@ and this decision. Earlier approvals, approvals of something similar, and your
 own judgment that it is fine do not count.
 
 A conditional approval shows as `[human: ...]` only while its condition holds,
-so read `status` again after recording: recording can turn a stop on (a
+so read the status each recording prints: recording can turn a stop on (a
 classification that claims a regression) or off. A condition that cannot be
 evaluated also shows as `[human: ...]`, with the CEL error among the failures;
 tell the person, since the run data or the factory definition needs fixing.
@@ -532,12 +533,10 @@ findings folded in, approving is the way to do it.
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=<gate-id> --input note="<their words>" \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
   --input gateId=<gate-id> --input note="<their words>" \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 A decline blocks the gate, and the note shows in `status`. To send the work back
@@ -548,8 +547,7 @@ first, as in [Evidence a person records](#evidence-a-person-records):
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=<transition> --input confirm=true \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 An approval is bound to the exact versions of the products in the era. If a
@@ -563,7 +561,7 @@ after each write, on the tracker instance its factory was bound to when it
 started (`<tracker>`; publish refuses any other instance):
 
 ```sh
-swamp model method run <tracker> publish --input workItem=<key> --log
+swamp model method run <tracker> publish --input workItem=<key>
 ```
 
 `status` says when the ticket is behind. It reads the tracker's publish cursor,
@@ -574,8 +572,9 @@ tracker 'board' behind by 2 event(s): run publish on it
 ```
 
 Once all are delivered it prints no tracker line. So the loop is: after each
-write, run `status`, and run `publish` whenever it says the tracker is behind.
-Before stopping for a person, make sure it no longer does. If it says
+write, read the status it printed, and run `publish` whenever it says the
+tracker is behind. `publish` prints no status of its own, so before stopping for
+a person run `status` and make sure it no longer says so. If it says
 `lag unknown`, run `publish` anyway.
 
 `publish` posts a comment for each new event a person on the ticket needs, and
@@ -596,8 +595,7 @@ duplicate another), a person may move the work item there, on their word:
 swamp model @swamp/gatorwalk-factory/work-item method run retarget <key> \
   --input 'externalRefs={"swamp-club":"<id>","swamp-club.display":"#<id>"}' \
   --input reason="<their words>" \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 `retarget` replaces the whole `externalRefs` map and records who moved it and
@@ -629,12 +627,10 @@ Overrides, on the person's word:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run grant_override <key> \
   --input kind=cycle --input stage=<stage> --input note="<their words>" \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run grant_override <key> \
   --input kind=dispatch --input note="<their words>" \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 A cycle override names the stage that is being re-entered, which is the target
@@ -659,8 +655,7 @@ dispatch, and grants add up.
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run reset <key> \
   --input confirm=reset \
-  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era> \
-  --log
+  --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
 Never reset to get past a refusal you do not understand. Read `status` and ask

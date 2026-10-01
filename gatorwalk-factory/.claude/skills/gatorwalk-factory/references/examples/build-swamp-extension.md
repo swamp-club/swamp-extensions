@@ -25,6 +25,11 @@ is literal. The test cannot run a subagent, so at the two review stages a
 reviewer's result file is shown as a `json result` block, and the test writes it
 where the reviewer would.
 
+A block can list several commands, in order. Run each write as its own command
+and read its whole output before the next: a write ends with the status that
+follows it, so no `status` call is needed after one, except after a write that
+was refused.
+
 ## Set up
 
 In a swamp repo, add gatorwalk-factory as an extension source, create the
@@ -37,7 +42,7 @@ swamp model create @swamp/gatorwalk-factory/tracker board \
   --global-arg prefix=team --json
 swamp model create @swamp/gatorwalk-factory/factory team \
   --global-arg definition=factories/team.yaml --global-arg tracker=board --json
-swamp model method run team init --input from=build-swamp-extension --log
+swamp model method run team init --input from=build-swamp-extension
 ```
 
 `init` copies [build-swamp-extension.yaml](build-swamp-extension.yaml), beside
@@ -46,22 +51,27 @@ the one copy of the definition: edit it there. Then check it, get a key, and
 start the work item under that key:
 
 ```sh
-swamp model method run team validate --log
-swamp model method run team new_key --input 'title=Add a list method' --log
+swamp model method run team validate
+swamp model method run team new_key --input 'title=Add a list method'
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input factory=team --log
+  --input factory=team
 ```
 
 ```text
 definition 'build-swamp-extension' in factories/team.yaml is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 build-swamp-extension-add-list-method-r2ne
-started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team', factories/team.yaml)
+started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team', factories/team.yaml; tracker 'board')
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+  expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
+  ...
 ```
 
 ## plan (cycle 1)
 
+The loop starts with `status`:
+
 ```sh
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 ```text
@@ -77,8 +87,7 @@ resolved inputs and prompt are recorded:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
@@ -107,9 +116,8 @@ feedback:
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts"]}]}' \
-  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 ```text
@@ -130,22 +138,23 @@ no human gate and not manual, so advance without asking:
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"}}' \
-  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=submit \
-  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
 recorded artifact 'plan' version 1
-
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+  expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> plan-review: ready
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: ...
+  work: interactive; dispatches this cycle 1 of 2
 
 took 'submit' to stage 'plan-review' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+  ...
 ```
 
 ## plan-review (cycle 1): the person declines
@@ -158,8 +167,7 @@ attach the token count the harness reports for it (the task notification's
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --input resultDir=<result-dir> \
-  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
@@ -240,15 +248,14 @@ Record it from the file, as written:
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan-review \
   --input payload=@<result-path> \
-  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
   --input dispatchId=2 --input totalTokens=65155 --input toolUses=12 --input durationMs=94000 \
-  --input model=claude-opus-5-5 --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input model=claude-opus-5-5
 ```
 
 ```text
+recorded usage for dispatch 2
 build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
@@ -287,24 +294,30 @@ words and on their behalf, then take the manual exit they asked for:
 swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
   --input gateId=plan-approval \
   --input note="The README must be in the plan." \
-  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=plan-feedback \
   --input payload='{"feedback":"The README must be in the plan."}' \
   --input onBehalfOf=sam \
-  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=revise --input confirm=true \
-  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
 declined 'plan-approval' (decision 1)
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+  ...
 recorded evidence 'plan-feedback' version 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+  ...
+  exit revise -> plan (manual): ready
+  ...
 took 'revise' to stage 'plan' cycle 2
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 2
+  expect: --input expectedStage=plan --input expectedCycle=2 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
+  ...
 ```
 
 ## plan (cycle 2) and plan-review (cycle 2): the person approves
@@ -315,22 +328,17 @@ review and the feedback; the new plan answers the feedback and lists it in
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]},{"description":"Document list","files":["README.md"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"},"feedbackIncorporated":["The README must be in the plan."]}' \
-  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=submit \
-  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --input resultDir=<result-dir> \
-  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 ```
 
 The reviewer writes its result file:
@@ -347,11 +355,10 @@ Record it from the file, as written:
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=plan-review \
   --input payload=@<result-path> \
-  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
   --input dispatchId=4 --input totalTokens=49659 --input toolUses=8 --input durationMs=61000 \
-  --input model=claude-opus-5-5 --log
+  --input model=claude-opus-5-5
 ```
 
 > Plan-review found nothing. Approve the plan and move to implement? (Or
@@ -363,17 +370,19 @@ and advance:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=plan-approval --input note="Approved, go." \
-  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=approve \
-  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era> \
-  --log
+  --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 ```
 
 ```text
 approved 'plan-approval' (decision 2)
+build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 2
+  ...
 took 'approve' to stage 'implement' cycle 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'implement' cycle 1
+  ...
 ```
 
 ## implement
@@ -382,17 +391,15 @@ Implement and commit, then record `change-summary` with the commit's full SHA.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=change-summary \
   --input payload='{"summary":"Add list and document it","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","files":["extensions/models/thing.ts","extensions/models/thing_test.ts","README.md"]}' \
-  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
+recorded artifact 'change-summary' version 1
 build-swamp-extension-add-list-method-r2ne: active at stage 'implement' cycle 1
   expect: --input expectedStage=implement --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> check: ready
@@ -408,8 +415,7 @@ asking:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=submit \
-  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ## check: the person waives the quality score
@@ -419,21 +425,21 @@ no manifest yet, so `swamp extension quality` cannot score it:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=checks \
   --input payload='{"commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","status":"passed","results":[{"name":"fmt","status":"passed"},{"name":"check","status":"passed"},{"name":"lint","status":"passed"},{"name":"test","status":"passed"}]}' \
-  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text
-exit passed -> code-review: not ready: evidence-recorded: evidence 'quality' has not been recorded; cel: checks and quality must be for the change-summary commit
-exit passed-with-quality-waiver -> code-review [human: quality-waiver]: not ready: human-approval: awaiting approval 'quality-waiver' (0/1) for stage 'check' cycle 1
-exit failed -> implement: not ready: evidence-recorded: evidence 'checks': field 'status' is "passed", expected "failed"
-exit quality-failed -> implement: not ready: evidence-recorded: evidence 'quality' has not been recorded
+recorded evidence 'checks' version 1
+build-swamp-extension-add-list-method-r2ne: active at stage 'check' cycle 1
+  expect: --input expectedStage=check --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
+  exit passed -> code-review: not ready: evidence-recorded: evidence 'quality' has not been recorded; cel: checks and quality must be for the change-summary commit
+  exit passed-with-quality-waiver -> code-review [human: quality-waiver]: not ready: human-approval: awaiting approval 'quality-waiver' (0/1) for stage 'check' cycle 1
+  exit failed -> implement: not ready: evidence-recorded: evidence 'checks': field 'status' is "passed", expected "failed"
+  exit quality-failed -> implement: not ready: evidence-recorded: evidence 'quality' has not been recorded
 ```
 
 > Checks passed. The extension has no manifest, so it cannot be scored. Waive
@@ -444,12 +450,10 @@ The person answers: "Waive it, go on."
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=quality-waiver --input note="No manifest yet; waive it, go on." \
-  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=passed-with-quality-waiver \
-  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ## code-review: the person approves the release
@@ -457,8 +461,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --input resultDir=<result-dir> \
-  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 The reviewer writes its result file:
@@ -482,11 +485,10 @@ Record it from the file, as written:
 swamp model @swamp/gatorwalk-factory/work-item method run record_artifact <key> \
   --input name=code-review \
   --input payload=@<result-path> \
-  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
   --input dispatchId=7 --input totalTokens=80523 --input toolUses=15 --input durationMs=122000 \
-  --input model=claude-opus-5-5 --log
+  --input model=claude-opus-5-5
 ```
 
 > Code review found one low finding (list could page lazily). Approve the
@@ -498,12 +500,10 @@ The person answers: "Approve the release."
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=release-approval --input note="Approve the release." \
-  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=accept \
-  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ## release
@@ -513,14 +513,11 @@ record the release with the merge commit:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
-  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era> \
-  --log
+  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=release \
   --input payload='{"via":"pull-request","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","mergeCommit":"9e1f0c7b3a5d2e4f6a8b0c1d3e5f7a9b1c3d5e7f","url":"https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/400","pullRequest":"https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/400","attestationId":"att-0001"}' \
-  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 `released` is the one exit that is yours (`rework` is manual), so advance:
@@ -528,9 +525,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=released \
-  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era> \
-  --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 ```
 
 ```text

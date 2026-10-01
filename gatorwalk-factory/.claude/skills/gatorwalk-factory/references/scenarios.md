@@ -78,7 +78,7 @@ and the payload schemas.
 Run `validate` and fix what it reports:
 
 ```sh
-swamp model method run <factory> validate --log
+swamp model method run <factory> validate
 ```
 
 It runs every scenario in `scenarios/<factory>/` and names each step that did

@@ -223,7 +223,6 @@ function trackerName(kind: TrackerKind): string {
 function checkInputs(
   method: MethodLike,
   rest: string[],
-  allowed: string[],
 ): string | null {
   const inputs: Record<string, string> = {};
   let fromFile = false;
@@ -242,7 +241,10 @@ function checkInputs(
         return `no input '${kv.slice(0, eq)}'`;
       }
       inputs[kv.slice(0, eq)] = sample(kv.slice(eq + 1));
-    } else if (!allowed.includes(w)) {
+    } else if (w === "--log") {
+      // swamp prints a method's output without it; with it, twice.
+      return "--log prints every method's output twice; leave it off";
+    } else {
       return `unexpected word '${w}'`;
     }
   }
@@ -269,7 +271,7 @@ export function checkCommand(
     const [name, _key, ...rest] = args.slice(4);
     const method = (workItemModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no work-item method '${name}'`;
-    return checkInputs(method, rest, ["--log"]);
+    return checkInputs(method, rest);
   }
   // Tracker methods, by instance name: <tracker> stands for any tracker
   // adapter, so the method must be one every tracker has, with inputs every
@@ -289,7 +291,7 @@ export function checkCommand(
         : `no ${placeholder} method '${name}'`;
     }
     for (const k of kinds) {
-      const problem = checkInputs(trackers[k][name], rest, ["--log"]);
+      const problem = checkInputs(trackers[k][name], rest);
       if (problem !== null) {
         return kinds.length > 1 ? `${trackerName(k)}: ${problem}` : problem;
       }
@@ -301,7 +303,7 @@ export function checkCommand(
     const [_factory, name, ...rest] = args.slice(3);
     const method = (factoryModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no factory method '${name}'`;
-    return checkInputs(method, rest, ["--log"]);
+    return checkInputs(method, rest);
   }
   if (is("model", "create")) {
     if (args[2] === FACTORY_TYPE) {

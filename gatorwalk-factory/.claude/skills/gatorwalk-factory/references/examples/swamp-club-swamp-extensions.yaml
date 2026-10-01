@@ -1081,7 +1081,7 @@ stages:
         summary is free text, so never
         paste it into a shell line: write the three as a JSON object to a
         file with your file tool and run swamp model method run <adapter>
-        thank_author --input-file <that file> --log. It checks the author
+        thank_author --input-file <that file>. It checks the author
         against the team roster, never GitHub, and posts the thank-you only
         to an author outside the team, and never twice: a re-run finds it
         already posted. Record its action, author and reason. If the lookup

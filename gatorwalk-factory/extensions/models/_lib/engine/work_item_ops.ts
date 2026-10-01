@@ -1032,12 +1032,19 @@ export async function startWorkItem(
       env,
     ),
   );
-  ctx.logger.info("{summary}", {
-    summary: `started '${key}' at stage '${started.run.stage}' ` +
+  await logWrite(
+    ctx,
+    `started '${key}' at stage '${started.run.stage}' ` +
       `(definition '${definition.name}' from '${args.factory}', ${path}; ` +
       `tracker '${tracker.instance}')`,
-    ...expectationProps(started.run),
-  });
+    expectationProps(started.run),
+    {
+      store: base,
+      run: started.run,
+      pinned: { factory: args.factory, digest: pinned.digest, definition },
+    },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1123,6 +1130,20 @@ export async function describeStatus(
   env: Env,
 ) {
   const { store, run, pinned } = await open(ctx, env);
+  return await statusView(ctx, store, run, pinned, env);
+}
+
+/**
+ * The status of a given run. A write passes the run it just committed, so the
+ * status it prints never depends on reading the run record back.
+ */
+async function statusView(
+  ctx: MethodContextLike,
+  store: RunStore,
+  run: RunRecord,
+  pinned: Pinned,
+  env: Env,
+) {
   const definition = pinned.definition;
   const context = await buildCelContext(run, store);
   const active = run.status === "active";
@@ -1162,11 +1183,10 @@ export async function describeStatus(
   };
 }
 
-export async function status(
-  ctx: MethodContextLike,
-  env: Env,
-): Promise<MethodOutput> {
-  const view = await describeStatus(ctx, env);
+type StatusView = Awaited<ReturnType<typeof statusView>>;
+
+/** The text status prints: everything a driver acts on next. */
+function statusLines(view: StatusView): string[] {
   const lines = [
     `${view.key}: ${view.status} at stage '${view.stage}' cycle ${view.cycle}`,
     `  expect: --input expectedStage=${view.expected.expectedStage} ` +
@@ -1219,8 +1239,50 @@ export async function status(
       );
     }
   }
-  ctx.logger.info("{summary}", { summary: lines.join("\n"), status: view });
+  return lines;
+}
+
+export async function status(
+  ctx: MethodContextLike,
+  env: Env,
+): Promise<MethodOutput> {
+  const view = await describeStatus(ctx, env);
+  ctx.logger.info("{summary}", {
+    summary: statusLines(view).join("\n"),
+    status: view,
+  });
   return { dataHandles: [] };
+}
+
+/**
+ * Log a committed write: its own line, then the status that follows it, so
+ * the write's output counts as reading status. The write is committed by
+ * then, so a status that cannot be built is reported, not thrown.
+ */
+export async function logWrite(
+  ctx: MethodContextLike,
+  line: string,
+  props: Record<string, unknown>,
+  after: { store: RunStore; run: RunRecord; pinned: Pinned },
+  env: Env,
+): Promise<void> {
+  let view: StatusView;
+  try {
+    view = await statusView(ctx, after.store, after.run, after.pinned, env);
+  } catch (error) {
+    ctx.logger.info("{summary}", {
+      summary: `${line}\nstatus could not be read after this write: ${
+        error instanceof Error ? error.message : String(error)
+      }; run status`,
+      ...props,
+    });
+    return;
+  }
+  ctx.logger.info("{summary}", {
+    summary: [line, ...statusLines(view)].join("\n"),
+    ...props,
+    status: view,
+  });
 }
 
 export async function recordProductMethod(
@@ -1255,11 +1317,13 @@ export async function recordProductMethod(
     );
   }
   if (!result.ok) throw new Error(result.reason);
-  ctx.logger.info("{summary}", {
-    summary: `recorded ${kind} '${args.name}' version ${result.version}`,
-    version: result.version,
-    digest: result.digest,
-  });
+  await logWrite(
+    ctx,
+    `recorded ${kind} '${args.name}' version ${result.version}`,
+    { version: result.version, digest: result.digest },
+    { store, run: result.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1388,12 +1452,19 @@ export async function dispatch(
     : header +
       (packet.prompt !== undefined ? `\n${packet.prompt}` : "") +
       `\npacket: ${JSON.stringify({ ...packet, prompt: undefined }, null, 2)}`;
-  ctx.logger.info("{summary}", {
+  // The status follows the last prompt's end line, so a driver sending the
+  // prompts as they are never sends it.
+  await logWrite(
+    ctx,
     summary,
-    dispatchId: recorded.value,
-    packet,
-    ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
-  });
+    {
+      dispatchId: recorded.value,
+      packet,
+      ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
+    },
+    { store, run: recorded.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1411,7 +1482,7 @@ export async function recordUsageMethod(
   },
   env: Env,
 ): Promise<MethodOutput> {
-  const { store, handles } = await open(ctx, env);
+  const { store, handles, pinned } = await open(ctx, env);
   const reported = {
     totalTokens: args.totalTokens,
     inputTokens: args.inputTokens,
@@ -1424,7 +1495,7 @@ export async function recordUsageMethod(
   const usage = Object.fromEntries(
     Object.entries(reported).filter(([, v]) => v !== undefined),
   ) as Omit<Usage, "attested">;
-  unwrap(
+  const recorded = unwrap(
     await update(store, (run) =>
       recordUsage(
         run,
@@ -1434,9 +1505,13 @@ export async function recordUsageMethod(
         env,
       )),
   );
-  ctx.logger.info("{summary}", {
-    summary: `recorded usage for dispatch ${args.dispatchId}`,
-  });
+  await logWrite(
+    ctx,
+    `recorded usage for dispatch ${args.dispatchId}`,
+    {},
+    { store, run: recorded.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1469,11 +1544,14 @@ export async function decide(
         env,
       )),
   );
-  ctx.logger.info("{summary}", {
-    summary:
-      `${decision === "approve" ? "approved" : "declined"} '${args.gateId}' ` +
+  await logWrite(
+    ctx,
+    `${decision === "approve" ? "approved" : "declined"} '${args.gateId}' ` +
       `(decision ${recorded.value})`,
-  });
+    {},
+    { store, run: recorded.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1510,9 +1588,13 @@ export async function grantOverrideMethod(
         env,
       )),
   );
-  ctx.logger.info("{summary}", {
-    summary: `granted ${args.kind} override ${granted.value}`,
-  });
+  await logWrite(
+    ctx,
+    `granted ${args.kind} override ${granted.value}`,
+    {},
+    { store, run: granted.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1542,13 +1624,15 @@ export async function advanceMethod(
         env,
       )),
   );
-  ctx.logger.info("{summary}", {
-    summary:
-      `took '${args.transition}' to stage '${moved.run.stage}' cycle ${
-        currentCycle(moved.run)
-      }` + (moved.run.status === "terminal" ? " (finished)" : ""),
-    ...expectationProps(moved.run),
-  });
+  await logWrite(
+    ctx,
+    `took '${args.transition}' to stage '${moved.run.stage}' cycle ${
+      currentCycle(moved.run)
+    }` + (moved.run.status === "terminal" ? " (finished)" : ""),
+    expectationProps(moved.run),
+    { store, run: moved.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1610,11 +1694,22 @@ export async function resetMethod(
         ),
     ),
   );
-  ctx.logger.info("{summary}", {
-    summary: `reset: new era ${result.value} at stage '${result.run.stage}'` +
+  await logWrite(
+    ctx,
+    `reset: new era ${result.value} at stage '${result.run.stage}'` +
       (repinned !== undefined ? ` with definition ${repinned.digest}` : ""),
-    ...expectationProps(result.run),
-  });
+    expectationProps(result.run),
+    {
+      store: commitStore,
+      run: result.run,
+      pinned: {
+        factory: pinned.factory,
+        digest: repinned?.digest ?? pinned.digest,
+        definition,
+      },
+    },
+    env,
+  );
   return { dataHandles: handles };
 }
 
@@ -1633,7 +1728,7 @@ export async function retargetMethod(
   const externalRefs = externalRefsFrom(args.externalRefs);
   // Commits through the committing store like every write: CEL reads
   // item.externalRefs, so the awaiting event and metrics are recomputed.
-  const { store, handles } = await open(ctx, env);
+  const { store, handles, pinned } = await open(ctx, env);
   const moved = unwrap(
     await update(store, (run) =>
       retarget(
@@ -1644,10 +1739,13 @@ export async function retargetMethod(
         env,
       )),
   );
-  ctx.logger.info("{summary}", {
-    summary: `retargeted to ${JSON.stringify(moved.value)}`,
-    ...expectationProps(moved.run),
-  });
+  await logWrite(
+    ctx,
+    `retargeted to ${JSON.stringify(moved.value)}`,
+    expectationProps(moved.run),
+    { store, run: moved.run, pinned },
+    env,
+  );
   return { dataHandles: handles };
 }
 

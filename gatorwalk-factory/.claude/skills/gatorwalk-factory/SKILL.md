@@ -44,8 +44,12 @@ This skill covers **authoring** a factory and **driving** its work items.
 ## Rules
 
 1. **`status` first, and after every change.** It is the only state to act on.
-   Never act on memory or on what you meant to do.
-2. **`--log` on every call.** Methods report through the log.
+   Never act on memory or on what you meant to do. Every write ends its output
+   with the status that follows it, and that counts as reading status. Run one
+   write per command and read its output before the next.
+2. **Read a method's output whole.** Run methods without `--log`, which prints
+   everything twice. Never filter the output through `grep`, `sed`, `head` or
+   `tail`: a dispatch prompt, an exit or a rejection dropped there is missed.
 3. **Pass back the expectation `status` prints** (`expectedStage`,
    `expectedCycle`, `expectedEra`) on every write except `record_usage`. A
    refused write wrote nothing: read `status` again before retrying.
@@ -68,7 +72,7 @@ This skill covers **authoring** a factory and **driving** its work items.
 ## The loop
 
 ```sh
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 1. Read `status`. If the item is terminal, run `summary`, report and stop.
@@ -78,7 +82,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 3. Record each product the packet lists (the stage's work). When a subagent
    hands back, `record_usage` for its dispatch with the token count the harness
    reported for it (see `references/driving.md`).
-4. Read `status` and apply rule 5: `advance`, or stop and ask the person.
+4. Read the status the last write printed and apply rule 5: `advance`, or stop
+   and ask the person.
 
 When a person must decide, read the products fresh with `swamp data get` and
 show them. Then lay out every exit that is open or can be opened, one line each
@@ -93,7 +98,7 @@ said. See [references/driving.md](references/driving.md#human-stops).
 ## Quick reference
 
 Work-item methods run by type, with the key as the instance:
-`swamp model @swamp/gatorwalk-factory/work-item method run <method> <key> ... --log`.
+`swamp model @swamp/gatorwalk-factory/work-item method run <method> <key> ...`.
 "expect" means the three `--input expected...=` flags from `status`.
 
 | Method            | Inputs                                                          | Needs the person |
@@ -114,24 +119,24 @@ Work-item methods run by type, with the key as the instance:
 | `retarget`        | `externalRefs` (a JSON object), `reason`, expect                | yes              |
 
 Factory methods run by instance name:
-`swamp model method run <factory> validate --log` checks a factory definition in
-full and runs its saved scenarios in `scenarios/<factory>/`;
-`swamp model method run <factory> new_key --input 'title=<title>' --log` makes a
-key from the work's title to start a work item under; `start` also takes any
-unused name chosen by hand.
+`swamp model method run <factory> validate` checks a factory definition in full
+and runs its saved scenarios in `scenarios/<factory>/`;
+`swamp model method run <factory> new_key --input 'title=<title>'` makes a key
+from the work's title to start a work item under; `start` also takes any unused
+name chosen by hand.
 
 Work from a tracker ticket starts through the tracker's adapter instance:
-`swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory> --log`
+`swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory>`
 reserves a key for the ticket and prints the `start` command to run, or names
 the work item the ticket already has. Re-run it after any failure. A project
 with no external tracker has the built-in one
 (`@swamp/gatorwalk-factory/tracker`). When the person asks for a new ticket,
 file it with
-`swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>' --log`,
+`swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'`,
 then claim it. See
 [references/driving.md](references/driving.md#start-from-a-ticket). To link two
 tickets (a parent and its child, a blocker, a duplicate), use
-`swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id> --log`
+`swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
 with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
 second parent, a parent cycle and a duplicate chain the same way. Relations
 belong to the tracker: read them with `fetch_issue`, not from memory.

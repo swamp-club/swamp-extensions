@@ -410,18 +410,18 @@ swamp model create @swamp/gatorwalk-factory/tracker board \
 # examples. Edit the file itself; it is the one copy of the definition.
 swamp model create @swamp/gatorwalk-factory/factory team \
   --global-arg definition=factories/team.yaml --global-arg tracker=board --json
-swamp model method run team init --input from=starter --log
-swamp model method run team validate --log
-swamp model method run team design_page --log    # the definition as a page
+swamp model method run team init --input from=starter
+swamp model method run team validate
+swamp model method run team design_page    # the definition as a page
 swamp data get team design-page --json | jq -r .content > team.html
 # Prints a work-item key made from the title, such as
 # build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
-swamp model method run team new_key --input 'title=Add a list method' --log
+swamp model method run team new_key --input 'title=Add a list method'
 
 # A work item, named by that key.
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input factory=team --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input factory=team
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 `status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
@@ -436,8 +436,10 @@ with result files under `resultDir` (a new temporary directory when omitted). Wr
 `record_artifact`, `record_evidence`, `dispatch`, `record_usage`, `approve`,
 `decline`, `grant_override`, `advance`, `reset` and `retarget`. A refused write
 fails with its reason and writes nothing. A payload that breaks its schema also
-fails, but is kept on the work item as retry feedback. Method output goes to the
-log, so pass `--log`.
+fails, but is kept on the work item as retry feedback. A write that succeeds
+ends its output with the status that follows it, the same block `status`
+prints, so no separate `status` call is needed after one. Run methods without
+`--log`: swamp prints a method's output without it, and twice with it.
 
 ## The studio
 
@@ -483,7 +485,7 @@ runs after it and stores the same markdown, with the metrics and timeline as
 JSON:
 
 ```bash
-swamp model @swamp/gatorwalk-factory/work-item method run summary <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run summary <key>
 swamp report get @swamp/gatorwalk-factory/work-item-summary --model <key>
 ```
 
@@ -501,7 +503,7 @@ If a metrics write failed, or the work item has not committed since metrics were
 introduced, `rebuild_metrics` rewrites the record from the run:
 
 ```bash
-swamp model @swamp/gatorwalk-factory/work-item method run rebuild_metrics <key> --log
+swamp model @swamp/gatorwalk-factory/work-item method run rebuild_metrics <key>
 ```
 
 See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
@@ -519,10 +521,10 @@ swamp model create @swamp/gatorwalk-factory/tracker board --json
 #   statuses: [open, in_progress, shipped, closed]   # the default
 #   types: [bug, feature, security]                  # the default
 swamp model method run board create --input title="Board shortcuts" \
-  --input body="Keys for the board." --input type=feature --log
+  --input body="Keys for the board." --input type=feature
 swamp model method run board claim --input issue=cue-board-shortcuts-r2ne \
-  --input factory=team --log
-swamp model method run board publish --input workItem=<key> --log
+  --input factory=team
+swamp model method run board publish --input workItem=<key>
 ```
 
 Ticket ids are lowercase, `<prefix>-<slug>-<4 random characters>` by the
@@ -541,9 +543,9 @@ Every tracker relates tickets the same way, by stable id:
 
 ```bash
 swamp model method run board relate --input issue=<parent> \
-  --input type=parent_of --input to=<child> --log
+  --input type=parent_of --input to=<child>
 swamp model method run board unrelate --input issue=<parent> \
-  --input type=parent_of --input to=<child> --log
+  --input type=parent_of --input to=<child>
 ```
 
 `type` is `parent_of` (`issue` is the parent), `blocked_by` (`issue` waits on
@@ -571,10 +573,10 @@ swamp model create @swamp/gatorwalk-factory/linear linear --json
 #   statuses: { triaged: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
 #   teamId: <the team create files issues in>
 #   types: { bug: Bug, feature: Feature }
-swamp model method run linear fetch_issue --input issue=ABC-1 --log
+swamp model method run linear fetch_issue --input issue=ABC-1
 swamp model method run linear create --input title="A new issue" \
-  --input body="What and why." --input type=bug --log
-swamp model method run linear publish --input workItem=<key> --log
+  --input body="What and why." --input type=bug
+swamp model method run linear publish --input workItem=<key>
 ```
 
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
@@ -611,16 +613,16 @@ admin key. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
 
 ```bash
 swamp model create @swamp/gatorwalk-factory/swamp-club lab --json
-swamp model method run lab fetch_issue --input issue=2631 --log
+swamp model method run lab fetch_issue --input issue=2631
 swamp model method run lab create --input title="A new issue" \
-  --input body="What and why." --input type=bug --log
-swamp model method run lab set_status --input issue=2631 --input status=triaged --log
-swamp model method run lab assign --input issue=2631 --log
+  --input body="What and why." --input type=bug
+swamp model method run lab set_status --input issue=2631 --input status=triaged
+swamp model method run lab assign --input issue=2631
 swamp model method run lab post_attestation \
-  --input attestation="$(cat /tmp/attestation-<SHA>.json)" --log
-swamp model method run lab set_type --input issue=2631 --input type=bug --log
-swamp model method run lab team_member --input issue=2631 --log
-swamp model method run lab thank_author --input issue=2631 --log
+  --input attestation="$(cat /tmp/attestation-<SHA>.json)"
+swamp model method run lab set_type --input issue=2631 --input type=bug
+swamp model method run lab team_member --input issue=2631
+swamp model method run lab thank_author --input issue=2631
 ```
 
 `assign` without `username` assigns your stored login's user, and only on the
@@ -655,7 +657,7 @@ Every tracker adapter has `claim`, which starts a work item from a ticket and
 makes sure the same ticket never starts two at once:
 
 ```bash
-swamp model method run lab claim --input issue=2631 --input factory=team --log
+swamp model method run lab claim --input issue=2631 --input factory=team
 ```
 
 With no work item for the ticket, `claim` reserves a fresh key (the ticket's

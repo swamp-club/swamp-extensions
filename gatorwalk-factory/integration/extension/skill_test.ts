@@ -66,20 +66,20 @@ Deno.test("skill: marked failures, continuations and indented fences are read fr
     "```sh",
     "# fails: because",
     "swamp model method run team validate \\",
-    "  --log",
-    "swamp model method run team new_key --log",
+    "  --input-file f.yaml",
+    "swamp model method run team new_key",
     "```",
     "- a list item:",
     "  ```sh",
     "  ```text",
-    "  swamp model method run team validate --log",
+    "  swamp model method run team validate",
     "  ```",
   ].join("\n");
   const found = commandsIn("x.md", md);
   assertEquals(found.map((c) => [c.line, c.words.length, c.fails]), [
-    [6, 7, "because"],
-    [8, 7, undefined],
-    [13, 7, undefined],
+    [6, 8, "because"],
+    [8, 6, undefined],
+    [13, 6, undefined],
   ]);
 });
 
@@ -124,12 +124,12 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
     "run",
   ];
   assert(
-    checkCommand([...item, "approv", "<key>", "--log"])?.includes(
+    checkCommand([...item, "approv", "<key>"])?.includes(
       "no work-item method",
     ),
   );
   assert(
-    checkCommand([...item, "status", "<key>", "--input", "stage=x", "--log"])
+    checkCommand([...item, "status", "<key>", "--input", "stage=x"])
       ?.includes("no input 'stage'"),
   );
   assert(
@@ -139,7 +139,6 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
       "<key>",
       "--input",
       "transition=submit",
-      "--log",
     ])?.includes("inputs do not fit"),
     "a write without its expectation is refused",
   );
@@ -153,11 +152,16 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
       "assign",
       "--input",
       "issue=1",
-      "--log",
     ])?.includes(
       "no method 'assign' that every tracker has: <board> and <linear> lack it",
     ),
     "a method only one tracker has is not a <tracker> method",
+  );
+  assert(
+    checkCommand([...item, "status", "<key>", "--log"])?.includes(
+      "--log prints every method's output twice",
+    ),
+    "--log doubles the output the skill tells the driver to read whole",
   );
   assert(
     checkCommand(["swamp", "model", "edit", "team"])?.includes(
@@ -189,13 +193,12 @@ Deno.test("skill: a tracker command is checked against the adapter its placehold
       "issue=1",
       "--input",
       "type=feature",
-      "--log",
     ]),
     null,
     "the built-in tracker has set_type",
   );
   assertEquals(
-    checkCommand([...run, "<linear>", "assign", "--input", "issue=1", "--log"]),
+    checkCommand([...run, "<linear>", "assign", "--input", "issue=1"]),
     "no <linear> method 'assign'",
   );
   assertEquals(
@@ -205,7 +208,6 @@ Deno.test("skill: a tracker command is checked against the adapter its placehold
       "fetch_issue",
       "--input",
       "issue=ABC-1",
-      "--log",
     ]),
     null,
   );
@@ -218,7 +220,6 @@ Deno.test("skill: a tracker command is checked against the adapter its placehold
       "issue=1",
       "--input",
       "factory=team",
-      "--log",
     ]),
     null,
     "claim is every tracker's",
@@ -232,23 +233,22 @@ Deno.test("skill: a tracker command is checked against the adapter its placehold
       "issue=1",
       "--input",
       "type=bug",
-      "--log",
     ])
       ?.includes("<linear> lack it"),
     "Linear has no set_type, so it is not a <tracker> method",
   );
   assert(
-    checkCommand([...run, "<board>", "set_type", "--input", "nope=1", "--log"])
+    checkCommand([...run, "<board>", "set_type", "--input", "nope=1"])
       ?.includes("no input 'nope'"),
   );
   // The swamp-club Lab has no placeholder: <lab> is an instance name like any
   // other, so it is read as a factory, which has no assign.
   assert(
-    checkCommand([...run, "<lab>", "assign", "--input", "issue=1", "--log"])
+    checkCommand([...run, "<lab>", "assign", "--input", "issue=1"])
       ?.includes("no factory method 'assign'"),
   );
   assertEquals(
-    checkCommand([...run, "<factory>", "validate", "--log"]),
+    checkCommand([...run, "<factory>", "validate"]),
     null,
     "<factory> is still a factory",
   );
@@ -277,7 +277,6 @@ Deno.test("skill: <tracker> needs the method and its inputs on every adapter", (
       "publish",
       "--input",
       "issue=1",
-      "--log",
     ], trackers),
     null,
   );
@@ -288,7 +287,6 @@ Deno.test("skill: <tracker> needs the method and its inputs on every adapter", (
       "only_two",
       "--input",
       "issue=1",
-      "--log",
     ], trackers),
     "no method 'only_two' that every tracker has: <board> lack it",
     "the built-in tracker counts",
@@ -299,14 +297,14 @@ Deno.test("skill: <tracker> needs the method and its inputs on every adapter", (
   };
   assertEquals(
     checkCommand(
-      [...run, "<tracker>", "kind", "--input", "type=bug", "--log"],
+      [...run, "<tracker>", "kind", "--input", "type=bug"],
       trackersWithKind,
     ),
     null,
   );
   assert(
     checkCommand(
-      [...run, "<tracker>", "kind", "--input", "type=task", "--log"],
+      [...run, "<tracker>", "kind", "--input", "type=task"],
       trackersWithKind,
     )
       ?.startsWith("swamp-club: inputs do not fit"),

@@ -92,7 +92,7 @@ example into that file:
 ```sh
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
   --global-arg definition=factories/<factory>.yaml --global-arg tracker=<tracker> --json
-swamp model method run <factory> init --input from=<starter> --log
+swamp model method run <factory> init --input from=<starter>
 ```
 
 `init` never overwrites an existing file. Then edit `factories/<factory>.yaml`:
@@ -123,7 +123,7 @@ name or go to [Change an existing factory](#change-an-existing-factory).
 whole factory:
 
 ```sh
-swamp model method run <factory> validate --log
+swamp model method run <factory> validate
 ```
 
 `validate` checks the definition's schema and references, analyses its stage
@@ -146,7 +146,7 @@ for goes back to them as a question, with the choices. Never weaken a scenario's
 **Action:** show the person the design. Render the page, then read it back:
 
 ```sh
-swamp model method run <factory> design_page --log
+swamp model method run <factory> design_page
 swamp data get <factory> design-page --json
 ```
 
@@ -172,10 +172,10 @@ stops and the loops in a short list instead.
 tracker:
 
 ```sh
-swamp model method run <factory> new_key --input 'title=<title>' --log
+swamp model method run <factory> new_key --input 'title=<title>'
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
-  --input factory=<factory> --log
-swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
+  --input factory=<factory>
+swamp model @swamp/gatorwalk-factory/work-item method run status <key>
 ```
 
 With a tracker, file the ticket with `create` and start it through `claim`

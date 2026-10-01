@@ -307,6 +307,40 @@ Deno.test("cli: start, status, a rejected payload and a stale write", async () =
   });
 });
 
+Deno.test("cli: status, dispatch and writes print their text once, and a write ends with the status that follows it", async () => {
+  await withRepo(async (repo) => {
+    const key = await started(repo);
+    const go = driver(repo, key);
+    // Run as the skill runs them, without --log, which prints it all twice.
+    const once = (output: string, text: string) =>
+      assertEquals(output.split(text).length, 2, `${text}\n---\n${output}`);
+
+    const status = await repo.workItem(key, "status");
+    once(status.output, `${key}: active at stage 'plan' cycle 1`);
+    const dispatched = await repo.workItem(
+      key,
+      "dispatch",
+      await repo.expected(key),
+    );
+    once(dispatched.output, "dispatch 1 for stage 'plan' cycle 1");
+    once(dispatched.output, "Plan the change.");
+    const recorded = await go.record("artifact", "plan", PLAN);
+    once(recorded.output, "recorded artifact 'plan' version 1");
+    once(recorded.output, "  exit submit -> plan-review: ready");
+    const advanced = await go.go("submit");
+    once(advanced.output, "took 'submit' to stage 'plan-review' cycle 1");
+    once(
+      advanced.output,
+      "  expect: --input expectedStage=plan-review --input expectedCycle=1 " +
+        `--input expectedEra=${(await repo.run(key)).era}`,
+    );
+    assert(
+      advanced.output.includes("  exit approve -> implement"),
+      advanced.output,
+    );
+  });
+});
+
 Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640)", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", await buildDefinition());

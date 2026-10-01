@@ -812,11 +812,17 @@ a person must decide looks otherwise the same as one an agent may take), split
 into those a person must decide now and conditional ones whose `when` is false
 (`humanGates` and `humanGatesNotRequired` in the logged status), the stage's
 work mode, the dispatch count, and payload rejections; and `dispatch` prints the
-whole packet. `status` is a `read` method, so it takes no lock. A refused write
-throws with its reason and writes nothing. A rejected payload is committed to
-the run as retry feedback and then thrown: no method declares
-`rollbackOnFailure`, so the feedback survives and the caller still gets a
-non-zero exit.
+whole packet. Every write ends its text with the status that follows it, the
+same block `status` prints, built from the run the write committed, so reading
+a write's output counts as reading status; a dispatch prints it after the last
+subagent prompt. The write is committed by then, so a status that cannot be
+built is reported in the text, not thrown. Drivers run methods without `--log`:
+swamp shows a method's log text without it, and with it prints the text a
+second time through its console log sink. `status` is a `read` method, so it
+takes no lock. A refused write throws with its reason and writes nothing. A
+rejected payload is committed to the run as retry feedback and then thrown: no
+method declares `rollbackOnFailure`, so the feedback survives and the caller
+still gets a non-zero exit.
 
 **Model types are string literals.** swamp reads a model's `type` from the
 source without running it, so each model file writes its type literally; tests
@@ -1810,12 +1816,13 @@ types").
 (`_lib/engine/fake_swamp.ts`, `memoryStore`), an integration suite drives
 gatorwalk through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
-runs methods by direct type execution with `--log`, and reads results back from
-swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
-`integration/engine/cli_test.ts`; `integration/extension/skill_test.ts`, which
-checks every command the driving skill shows and runs its worked example as
-written; and `integration/tracker/tracker_test.ts`, which runs the Linear and
-swamp-club adapters with their credentials in a vault made inside the temp repo,
+runs methods by direct type execution, without `--log` as the skill does, and
+reads results back from swamp's storage with `swamp data get --json`. Code:
+`integration/harness.ts`, `integration/engine/cli_test.ts`;
+`integration/extension/skill_test.ts`, which checks every command the driving
+skill shows and runs its worked example as written; and
+`integration/tracker/tracker_test.ts`, which runs the Linear and swamp-club
+adapters with their credentials in a vault made inside the temp repo,
 against their local fakes.
 
 ### Why
@@ -1950,6 +1957,22 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: no `--log`, and every write prints the status that follows it (swamp-club #2780)
+
+**Decided.** The skill, the worked example, the hints the extension prints and
+the integration suite run methods without `--log`. Under current swamp it
+prints every method's text twice: once as the method's output and once through
+the console log sink, quoted and joined with `+`. Drivers filtered the doubled
+text with `grep` and `sed` and dropped dispatch prompts. The skill says to read
+a method's output whole, and its command check refuses `--log`. Every write
+ends its text with the full status block, built from the run it committed
+rather than read back, and rule 1 counts that as reading status. That keeps
+one rendering and one rule, where a shorter block (only `expect` and the exits)
+would be a second format. Writes still run one per command. A status that
+cannot be built after a committed write is reported, not thrown. The empty
+report box swamp draws after every method is swamp's to fix (swamp-club
+#2813). The work-item model version is bumped: its write output changed.
 
 ### 2026-09-30: Design mode, in the browser, read-only (swamp-club #2807)
 
