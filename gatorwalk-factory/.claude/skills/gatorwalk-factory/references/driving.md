@@ -517,7 +517,8 @@ When a person must decide:
 5. Ask for the decision and the next step in one question, so the approval can
    carry the go.
 6. Do exactly what the answer says. Put the person's reason in `note`, in their
-   words.
+   words, and name them with `onBehalfOf`, so the journal and the summary say
+   who decided and not only whose account ran it.
 
 For example, at plan-review after the plan has been entered as many times as its
 limit allows, with four medium findings open:
@@ -545,9 +546,11 @@ findings folded in, approving is the way to do it.
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=<gate-id> --input note="<their words>" \
+  --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
   --input gateId=<gate-id> --input note="<their words>" \
+  --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
@@ -559,6 +562,7 @@ first, as in [Evidence a person records](#evidence-a-person-records):
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=<transition> --input confirm=true \
+  --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
@@ -610,7 +614,7 @@ duplicate another), a person may move the work item there, on their word:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run retarget <key> \
   --input 'externalRefs={"builtin":"<id>"}' \
-  --input reason="<their words>" \
+  --input reason="<their words>" --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
@@ -643,9 +647,11 @@ Overrides, on the person's word:
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run grant_override <key> \
   --input kind=cycle --input stage=<stage> --input note="<their words>" \
+  --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run grant_override <key> \
   --input kind=dispatch --input note="<their words>" \
+  --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
@@ -670,7 +676,7 @@ dispatch, and grants add up.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run reset <key> \
-  --input confirm=reset \
+  --input confirm=reset --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 

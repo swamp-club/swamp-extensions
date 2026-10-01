@@ -57,7 +57,10 @@ This skill covers **authoring** a factory and **driving** its work items.
    same user, so nothing but this rule stops you approving your own work. Never
    run `approve`, `decline`, `grant_override`, `advance` with `confirm=true`, or
    `reset` without the person's explicit word for that decision, in this
-   conversation.
+   conversation. When you run one of them, or `retarget`, on their word, pass
+   `onBehalfOf` naming them, so the journal and the summary say who decided. An
+   advance you take on your own under rule 5 is yours: it names no one, even
+   right after an approval.
 5. **Advance on your own only when it is safe.** Count the ready exits that are
    neither `(manual)` nor `[human: ...]`. If there is exactly one and no
    human-gated exit is ready, advance on it. Otherwise stop and ask. Ready

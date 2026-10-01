@@ -2148,6 +2148,27 @@ that reaches it. An include step would be its own change.
 
 ## Decision log
 
+### 2026-10-01: small driving fixes from the #2711 dogfood (swamp-club #2875)
+
+**Decision.** Three changes. The swamp-club adapter's `post_attestation` says
+the attestation id in its message, on a post and on a repeat that posted
+nothing. An exit's gate failures are listed once: two gates that read the same
+missing evidence fail with the same words, and `status`, `advance`'s refusal,
+saved scenarios and the studio now show that line once, while the exit still
+keeps one check per gate. The skill tells the driver to pass `onBehalfOf` on
+every decision it runs on a person's word (`approve`, `decline`,
+`grant_override`, a manual `advance`, `reset`, `retarget`), which the engine
+has accepted since #2793; an advance the driver takes on its own names no one.
+The swamp-club and work-item model versions are bumped; the factory's is not,
+as `validate` changes only where a repeated failure was shown.
+
+**Left out.** The issue also asked for a triage prompt that points at the
+issue text, which lived in a local dogfood factory that has since been
+discarded; empty report banners on `status`, which swamp itself no longer
+prints; Lab tracker docs, which #2842 decided against; and saved scenarios
+copied by `init`, which no longer exists since #2884 (a factory's scenarios are
+its model definition's `scenarios` block).
+
 ### 2026-10-01: a manual exit waits on a person only once the agent has no way out (swamp-club #2874)
 
 **Decision.** A manual exit with gates, all passing, is held by a person only

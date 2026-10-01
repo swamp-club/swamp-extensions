@@ -279,7 +279,7 @@ Deno.test("swamp-club model: assign says which assignees it dropped", async () =
   );
 });
 
-Deno.test("swamp-club model: the same attestation posts once; a rebuilt one posts again", async () => {
+Deno.test("swamp-club model: the same attestation posts once, and both say its id; a rebuilt one posts again", async () => {
   const methods = swampClubMethods({ sources: sources() });
   await withLab(
     (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
@@ -287,9 +287,18 @@ Deno.test("swamp-club model: the same attestation posts once; a rebuilt one post
       await call(methods, swamp, "post_attestation", {
         attestation: JSON.stringify(attestation()),
       });
+      const id = fake.attestations[0].id;
+      assertEquals(
+        swamp.logs.at(-1)?.props?.summary,
+        `posted the attestation for ${COMMIT} as ${id}`,
+      );
       await call(methods, swamp, "post_attestation", {
         attestation: attestation(),
       });
+      assertEquals(
+        swamp.logs.at(-1)?.props?.summary,
+        `already posted for ${COMMIT} as ${id}; posted nothing`,
+      );
       assertEquals(fake.attestations.length, 1);
       const record = swamp.resources.get(INSTANCE)?.get(
         `attestation-${COMMIT}`,

@@ -290,12 +290,13 @@ swamp data get <key> artifact-plan-review --json
 
 The person (`sam`) answers: "Decline. The README must be in the plan. Send it
 back." Record the decline with their reason, record their feedback in their
-words and on their behalf, then take the manual exit they asked for:
+words, then take the manual exit they asked for, each on their behalf:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run decline <key> \
   --input gateId=plan-approval \
   --input note="The README must be in the plan." \
+  --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=plan-feedback \
@@ -304,6 +305,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> 
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=revise --input confirm=true \
+  --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 ```
 
@@ -367,11 +369,12 @@ swamp model @swamp/gatorwalk-factory/work-item method run record_usage <key> \
 > `revise` it for another round, or abandon.)
 
 The person answers: "Approved, go." Their approval carries their go, so approve
-and advance:
+on their behalf, then advance; the advance is yours and names no one:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=plan-approval --input note="Approved, go." \
+  --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=approve \
@@ -452,6 +455,7 @@ The person answers: "Waive it, go on."
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=quality-waiver --input note="No manifest yet; waive it, go on." \
+  --input onBehalfOf=sam \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=passed-with-quality-waiver \
@@ -502,6 +506,7 @@ The person answers: "Approve the release."
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run approve <key> \
   --input gateId=release-approval --input note="Approve the release." \
+  --input onBehalfOf=sam \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run advance <key> \
   --input transition=accept \

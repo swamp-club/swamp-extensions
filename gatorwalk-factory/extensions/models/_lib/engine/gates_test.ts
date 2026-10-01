@@ -203,6 +203,20 @@ function gateDefinition(): FactoryDefinition {
             }],
           },
           {
+            name: "twice",
+            to: "done",
+            gates: [
+              {
+                type: "evidence-recorded",
+                config: { name: "ci", requireField: { status: "green" } },
+              },
+              {
+                type: "evidence-recorded",
+                config: { name: "ci", match: { status: { const: "green" } } },
+              },
+            ],
+          },
+          {
             name: "cooled",
             to: "done",
             gates: [{
@@ -815,6 +829,30 @@ Deno.test("evaluateTransitions: reports each exit's gates and the cycle limit of
     (await evaluateTransitions(await current(store), DEFINITION, store, env))
       .find((t) => t.name === "again");
   assert(after?.ready, after?.failures.join());
+});
+
+Deno.test("evaluateTransitions and makeGateEvaluator: two gates failing with the same words say it once", async () => {
+  const { store, env } = await setup();
+  const missing = "evidence-recorded: evidence 'ci' has not been recorded";
+  const exits = await evaluateTransitions(
+    await current(store),
+    DEFINITION,
+    store,
+    env,
+  );
+  const twice = exits.find((t) => t.name === "twice");
+  assertEquals(twice?.gates.length, 2);
+  assertEquals(twice?.failures, [missing]);
+
+  const transition = DEFINITION.stages[0].transitions?.find((t) =>
+    t.name === "twice"
+  );
+  assert(transition !== undefined);
+  const verdict = await makeGateEvaluator(DEFINITION, store, env)(
+    await current(store),
+    transition,
+  );
+  assertEquals(verdict, { pass: false, failures: [missing] });
 });
 
 Deno.test("evidence-recorded: requireField compares objects and arrays by content", async () => {

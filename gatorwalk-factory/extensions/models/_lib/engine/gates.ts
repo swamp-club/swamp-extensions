@@ -101,11 +101,22 @@ export function makeGateEvaluator(
 ): GateEvaluator {
   return async (run, transition) => {
     const checks = await evaluateGates(run, definition, transition, store, env);
-    const failures = checks.flatMap((c) =>
-      c.pass ? [] : [`${c.type}: ${c.reason}`]
-    );
+    const failures = failuresOf(checks);
     return { pass: failures.length === 0, failures };
   };
+}
+
+/**
+ * The failing gates as lines a person reads, each line once: two gates that
+ * read the same missing evidence fail with the same words, and saying it
+ * twice adds nothing.
+ */
+function failuresOf(checks: GateCheck[]): string[] {
+  return [
+    ...new Set(
+      checks.flatMap((c) => c.pass ? [] : [`${c.type}: ${c.reason}`]),
+    ),
+  ];
 }
 
 export interface TransitionReadiness {
@@ -141,9 +152,7 @@ export async function evaluateTransitions(
   for (const transition of transitionsFrom(definition, stage)) {
     const gates = await evaluateGates(run, definition, transition, store, env);
     const limit = cycleLimitFor(run, definition, transition);
-    const failures = gates.flatMap((c) =>
-      c.pass ? [] : [`${c.type}: ${c.reason}`]
-    );
+    const failures = failuresOf(gates);
     if (limit !== null && !limit.allowed) {
       failures.push(`cycle limit: ${cycleLimitMessage(transition.to, limit)}`);
     }

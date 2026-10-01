@@ -212,6 +212,9 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
       assert(repeat.output.includes("already posted"), repeat.output);
       const record = await repo.data("lab", `attestation-${commit}`);
       assertEquals(record.id, fake.attestations[0].id);
+      for (const result of [posted, repeat]) {
+        assert(result.output.includes(`as ${record.id}`), result.output);
+      }
 
       for (const result of [fetched, first, second, posted, repeat]) {
         assert(!result.output.includes(ADMIN_KEY), "the key is not output");

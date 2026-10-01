@@ -505,7 +505,8 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
         const prior = raw === null ? null : AttestationRecordSchema.parse(raw);
         if (prior !== null && prior.digest === digest) {
           ctx.logger.info("{summary}", {
-            summary: `already posted for ${commit}; posted nothing`,
+            summary:
+              `already posted for ${commit} as ${prior.id}; posted nothing`,
             id: prior.id,
           });
           return { dataHandles: [] };
@@ -518,7 +519,7 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
           at: now().toISOString(),
         });
         ctx.logger.info("{summary}", {
-          summary: `posted the attestation for ${commit}`,
+          summary: `posted the attestation for ${commit} as ${posted.id}`,
           id: posted.id,
         });
         return { dataHandles: [handle] };
@@ -531,7 +532,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.
   type: "@swamp/gatorwalk-factory/swamp-club",
-  version: "2026.10.01.2",
+  version: "2026.10.01.3",
   globalArguments: SwampClubArgumentsSchema,
   resources: {
     ...trackerResources,
