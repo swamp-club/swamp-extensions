@@ -25,6 +25,11 @@ import {
 import type { CelContext } from "./cel_context.ts";
 import { isCelNode, productKind, productRefs } from "./cel_refs.ts";
 import {
+  DEFAULT_TRACKER_KIND,
+  TRACKER_KINDS,
+  type TrackerKind,
+} from "./tracker_binding.ts";
+import {
   IDENTIFIER_PATTERN,
   parseTemplate,
   undeclaredPlaceholders,
@@ -564,7 +569,7 @@ export const TransitionSchema = z.strictObject({
 export type TransitionSpec = z.infer<typeof TransitionSchema>;
 
 /**
- * What a projection entry answers to: the work item entering the stage
+ * What a tracker entry answers to: the work item entering the stage
  * (including starting in it), a product the stage declares being recorded,
  * or a person approving one of its human-approval gates.
  */
@@ -578,9 +583,9 @@ export type EntryTrigger = z.infer<typeof EntryTriggerSchema>;
 
 /**
  * One journal event as a structured entry in the ticket's history (the
- * Lab's lifecycle entry). DESIGN.md, "The projection publisher".
+ * Lab's lifecycle entry). DESIGN.md, "The publisher".
  */
-export const ProjectionEntrySchema = z.strictObject({
+export const TrackerEntrySchema = z.strictObject({
   on: EntryTriggerSchema,
   /** Top-level payload fields the recorded product must hold, by equality. */
   match: z.record(
@@ -603,7 +608,7 @@ export const ProjectionEntrySchema = z.strictObject({
   setsType: z.string().regex(IDENTIFIER_PATTERN).optional(),
 });
 
-export type ProjectionEntry = z.infer<typeof ProjectionEntrySchema>;
+export type TrackerEntry = z.infer<typeof TrackerEntrySchema>;
 
 /** The key two entries collide on: the same kind of event, same target. */
 export function triggerKey(on: EntryTrigger): string {
@@ -622,9 +627,8 @@ export const StageSchema = z.strictObject({
   artifacts: z.array(ArtifactSpecSchema).optional(),
   evidence: z.array(EvidenceSpecSchema).optional(),
   transitions: z.array(TransitionSchema).optional(),
-  /** How a tracker ticket shows this stage (DESIGN.md, "The projection
-   * publisher"). */
-  projection: z.strictObject({
+  /** How a tracker ticket shows this stage (DESIGN.md, "The publisher"). */
+  tracker: z.strictObject({
     /** A gatorwalk status key, which a tracker adapter's statuses argument
      * maps to its own status name. Absent: entering the stage leaves the
      * ticket's status alone. */
@@ -632,7 +636,7 @@ export const StageSchema = z.strictObject({
     /** Journal events this stage turns into ticket history entries. A
      * factory definition that declares any is published as entries, not
      * comments, to a tracker that keeps them. */
-    entries: z.array(ProjectionEntrySchema).optional(),
+    entries: z.array(TrackerEntrySchema).optional(),
   }).optional(),
 });
 
@@ -650,12 +654,20 @@ export const DefinitionSchema = z.strictObject({
   schemaVersion: z.literal(DEFINITION_SCHEMA_VERSION),
   name: NameSchema,
   description: z.string().optional(),
+  /** The kind of tracker the factory definition is written for; the factory
+   * names the instance. Absent: the built-in tracker. */
+  tracker: z.strictObject({ kind: z.enum(TRACKER_KINDS) }).optional(),
   stages: z.array(StageSchema).min(1),
   /** Escape hatches (abort, escalate) available from any non-terminal stage. */
   globalTransitions: z.array(TransitionSchema).optional(),
 }).superRefine((doc, ctx) => checkDocument(doc, ctx));
 
 export type FactoryDefinition = z.infer<typeof DefinitionSchema>;
+
+/** The tracker kind a factory definition is written for. */
+export function trackerKindOf(definition: FactoryDefinition): TrackerKind {
+  return definition.tracker?.kind ?? DEFAULT_TRACKER_KIND;
+}
 
 type Doc = {
   stages: StageSpec[];
@@ -970,7 +982,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
   });
   checkTransitions(doc.globalTransitions ?? [], ["globalTransitions"], true);
   doc.stages.forEach((stage, i) =>
-    checkEntries(stage, ["stages", i, "projection", "entries"], fail)
+    checkEntries(stage, ["stages", i, "tracker", "entries"], fail)
   );
 
   // `${{ }}` anywhere else would be evaluated by the platform on save.
@@ -984,7 +996,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
 }
 
 /**
- * A stage's projection entries: each names something the stage has, only a
+ * A stage's tracker entries: each names something the stage has, only a
  * recorded product has payload fields to match, fill or read a type from,
  * and no two entries can answer the same event.
  */
@@ -993,7 +1005,7 @@ function checkEntries(
   path: Path,
   fail: (path: Path, message: string) => void,
 ): void {
-  const entries = stage.projection?.entries ?? [];
+  const entries = stage.tracker?.entries ?? [];
   const products = new Map<string, PayloadSchema | undefined>();
   for (const spec of stage.artifacts ?? []) {
     products.set(spec.name, spec.schema);

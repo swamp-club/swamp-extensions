@@ -37,6 +37,7 @@ import {
   UsageSchema,
 } from "./run_record.ts";
 import { jsonSafe } from "./canonical.ts";
+import type { TrackerBinding } from "./tracker_binding.ts";
 import type { SubagentPrompt } from "./dispatch.ts";
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,8 @@ function stageOf(definition: FactoryDefinition, run: RunRecord): StageSpec {
 export interface StartInput {
   key: string;
   externalRefs?: Record<string, string>;
+  /** The tracker the factory is bound to. */
+  tracker: TrackerBinding;
   definitionDigest: string;
   /** The version of the pinned factory definition copy the run uses. */
   definitionVersion?: number;
@@ -162,6 +165,7 @@ export function start(
     schemaVersion: RUN_SCHEMA_VERSION,
     key: input.key,
     externalRefs: input.externalRefs ?? {},
+    tracker: { ...input.tracker },
     definition: {
       name: definition.name,
       digest: input.definitionDigest,
@@ -247,7 +251,7 @@ function sameRefs(
  * Point the work item at other tracker tickets: replace externalRefs whole
  * and journal the move. No gate and no stage change; gates, products and
  * cycles are untouched. It knows nothing of trackers: which ticket each
- * event belongs to is the projection's to work out from the journal.
+ * event belongs to is the publisher's to work out from the journal.
  */
 export function retarget(
   run: RunRecord,

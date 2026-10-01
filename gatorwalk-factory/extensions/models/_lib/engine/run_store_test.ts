@@ -31,10 +31,20 @@ import {
   startRun,
   update,
 } from "./run_store.ts";
-import { ALICE, expectNow, smallDefinition, testEnv } from "./test_support.ts";
+import {
+  ALICE,
+  expectNow,
+  smallDefinition,
+  TEST_TRACKER,
+  testEnv,
+} from "./test_support.ts";
 
 const DEFINITION = smallDefinition();
-const START = { key: "wi-1", definitionDigest: "sha256:l" };
+const START = {
+  key: "wi-1",
+  tracker: TEST_TRACKER,
+  definitionDigest: "sha256:l",
+};
 
 Deno.test("startRun: writes the run record once; a second start is refused", async () => {
   const store = memoryStore();

@@ -44,14 +44,78 @@ async function buildDefinition(): Promise<Record<string, unknown>> {
   return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
 }
 
-Deno.test("factory: the globalArguments schema survives swamp's .partial() and takes a definition path", () => {
+Deno.test("factory: the globalArguments schema survives swamp's .partial() and takes a definition path and a tracker", () => {
   // swamp validates globalArguments with schema.partial() on every run; zod
   // throws on .partial() of a refined schema. This guards against adding one.
   const partial = FactoryArgumentsSchema.partial();
-  const args = { definition: "factories/team.yaml" };
+  const args = { definition: "factories/team.yaml", tracker: "board" };
   assert(partial.safeParse(args).success);
   assert(FactoryArgumentsSchema.safeParse(args).success);
-  assertFalse(FactoryArgumentsSchema.safeParse({ definition: "" }).success);
+  assertFalse(
+    FactoryArgumentsSchema.safeParse({ ...args, definition: "" }).success,
+  );
+  assertFalse(
+    FactoryArgumentsSchema.safeParse({ definition: "factories/team.yaml" })
+      .success,
+  );
+});
+
+// --- the tracker binding -----------------------------------------------------
+
+Deno.test("factory: validate names the tracker the factory is bound to", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await factory.methods.validate.execute({}, swamp.context("team"));
+  assertEquals(swamp.logs.at(-1)?.props?.tracker, {
+    instance: "board",
+    kind: "builtin",
+  });
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).endsWith(
+      "; tracker 'board' (builtin)",
+    ),
+  );
+});
+
+Deno.test("factory: validate refuses a factory that names no tracker", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition(), { tracker: null });
+  await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+    "factory 'team' names no tracker: create a " +
+      "@swamp/gatorwalk-factory/tracker instance",
+  );
+});
+
+Deno.test("factory: validate refuses a tracker no model is named", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition(), { tracker: "board" });
+  swamp.definitions.delete("board");
+  await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+    "factory 'team' names tracker 'board', but no model is named 'board': " +
+      "create it with swamp model create @swamp/gatorwalk-factory/tracker board",
+  );
+});
+
+Deno.test("factory: validate refuses a tracker of another kind than the definition's", async () => {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("board", {
+    globalArguments: {},
+    type: "@swamp/gatorwalk-factory/linear",
+  });
+  const definition = await buildDefinition();
+  definition.tracker = { kind: "swamp-club" };
+  swamp.factory("team", definition, { tracker: "board" });
+  await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+    "factory 'team' has a definition for a swamp-club tracker, which is a " +
+      "@swamp/gatorwalk-factory/swamp-club, but its tracker 'board' is a " +
+      "@swamp/gatorwalk-factory/linear",
+  );
 });
 
 Deno.test("factory: validate reports a valid definition", async () => {
@@ -115,8 +179,8 @@ Deno.test("factory: validate runs the saved scenarios and counts them in its sum
     "scenarios/team/plan-to-review.yaml: passed, 4 steps",
   ]);
   assert(
-    String(swamp.logs.at(-1)?.props?.summary).endsWith(
-      "1 saved scenario(s) passed",
+    String(swamp.logs.at(-1)?.props?.summary).includes(
+      ", 1 saved scenario(s) passed; ",
     ),
   );
 });
@@ -126,8 +190,8 @@ Deno.test("factory: validate passes with no scenarios directory", async () => {
   swamp.factory("team", await buildDefinition());
   await factory.methods.validate.execute({}, swamp.context("team"));
   assert(
-    String(swamp.logs.at(-1)?.props?.summary).endsWith(
-      "0 saved scenario(s) passed",
+    String(swamp.logs.at(-1)?.props?.summary).includes(
+      ", 0 saved scenario(s) passed; ",
     ),
   );
 });
@@ -505,8 +569,12 @@ Deno.test("factory: the model's literal type is FACTORY_TYPE", () => {
 Deno.test("factory: init copies a starter to the definition file, then validate reads it", async () => {
   const swamp = fakeSwamp();
   swamp.definitions.set("team", {
-    globalArguments: { definition: "factories/team.yaml" },
+    globalArguments: { definition: "factories/team.yaml", tracker: "board" },
     type: FACTORY_TYPE,
+  });
+  swamp.definitions.set("board", {
+    globalArguments: {},
+    type: "@swamp/gatorwalk-factory/tracker",
   });
   await factory.methods.init.execute(
     { from: "starter" },

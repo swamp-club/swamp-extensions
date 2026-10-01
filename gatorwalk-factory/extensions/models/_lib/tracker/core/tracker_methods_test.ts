@@ -18,9 +18,9 @@ import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "../../engine/tracker_testing.ts";
 import {
   entriesDefinition,
-  PROJECTED_ITEM,
-  projectedDefinition,
-  projectedItem,
+  TRACKED_ITEM,
+  trackedDefinition,
+  trackedItem,
 } from "./test_support.ts";
 import { type TrackerAdapter, TrackerError } from "./adapter.ts";
 import {
@@ -303,13 +303,13 @@ async function publish(
 ) {
   const method = methods.publish;
   return await method.execute(
-    method.arguments.parse({ workItem: PROJECTED_ITEM }),
+    method.arguments.parse({ workItem: TRACKED_ITEM }),
     ctx,
   );
 }
 
 function cursorOf(swamp: FakeSwamp) {
-  return swamp.resources.get(INSTANCE)?.get(`cursor-${PROJECTED_ITEM}`)?.at(
+  return swamp.resources.get(INSTANCE)?.get(`cursor-${TRACKED_ITEM}`)?.at(
     -1,
   );
 }
@@ -317,12 +317,12 @@ function cursorOf(swamp: FakeSwamp) {
 Deno.test("publish: comments on each event a person needs, sets the status, and a re-run writes nothing", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.advance("submit");
 
   await publish(swamp, methods);
   assertEquals(posted.length, 3, posted.join("\n"));
-  assert(posted[0].includes("started on definition `projected`"));
+  assert(posted[0].includes("started on definition `tracked`"));
   assert(posted[1].includes("entered **review** (cycle 1) by `submit`"));
   assert(posted[2].includes("is waiting on a person in **review**"));
   assertEquals(moves, ["In Review"]);
@@ -339,7 +339,7 @@ Deno.test("publish: comments on each event a person needs, sets the status, and 
 Deno.test("publish: a later publish sends only what is new, and the status only when the stage's key changes", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.advance("submit");
   await publish(swamp, methods);
 
@@ -359,7 +359,7 @@ Deno.test("publish: a later publish sends only what is new, and the status only 
 Deno.test("publish: a failure part-way leaves the cursor, and the re-run delivers only the rest", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, state, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.advance("submit");
 
   state.failComment = 2;
@@ -378,7 +378,7 @@ Deno.test("publish: a failure part-way leaves the cursor, and the re-run deliver
 Deno.test("publish: a failed status write is retried alone", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, state, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
 
   state.statusError = new TrackerError("rate_limited", "test", "slow down");
   await assertRejects(() => publish(swamp, methods), TrackerError, "slow");
@@ -395,7 +395,7 @@ Deno.test("publish: a failed status write is retried alone", async () => {
 Deno.test("publish: a status the tracker cannot reach is recorded as skipped, not retried", async () => {
   const swamp = fakeSwamp();
   const { moves, state, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
 
   state.statusError = new TrackerError(
     "invalid",
@@ -407,7 +407,7 @@ Deno.test("publish: a status the tracker cannot reach is recorded as skipped, no
   const ledger = swamp.resources.get(INSTANCE)?.get(
     deliveryName(
       "set_status",
-      { workItem: PROJECTED_ITEM, journalVersion: 1 },
+      { workItem: TRACKED_ITEM, journalVersion: 1 },
       "publish",
     ),
   );
@@ -425,13 +425,13 @@ Deno.test("publish: a status the tracker cannot reach is recorded as skipped, no
 Deno.test("publish: any other invalid status write fails, and an unmapped key names the mapped ones", async () => {
   const swamp = fakeSwamp();
   const { state, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   state.statusError = new TrackerError("invalid", "test", "no such status");
   await assertRejects(() => publish(swamp, methods), TrackerError, "no such");
   assertEquals(cursorOf(swamp), undefined);
 
   const unmapped = fakeSwamp();
-  await projectedItem(unmapped, { test: "T1" });
+  await trackedItem(unmapped, { test: "T1" });
   const narrow = trackerMethods({
     tracker: "test",
     adapter: adapterless,
@@ -463,17 +463,17 @@ function adapterless(): TrackerAdapter {
 Deno.test("publish: a delivered event worded differently by a later version counts as delivered", async () => {
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   const name = deliveryName(
     "comment",
-    { workItem: PROJECTED_ITEM, journalVersion: 1 },
+    { workItem: TRACKED_ITEM, journalVersion: 1 },
     "publish",
   );
-  assertEquals(name, `delivery-publish-comment-${PROJECTED_ITEM}-1`);
+  assertEquals(name, `delivery-publish-comment-${TRACKED_ITEM}-1`);
   await swamp.context(INSTANCE).writeResource?.("delivery", name, {
     action: "comment",
     issue: "T1",
-    workItem: PROJECTED_ITEM,
+    workItem: TRACKED_ITEM,
     journalVersion: 1,
     request: "sha256:older-wording",
     result: { id: "c0", url: "u" },
@@ -488,9 +488,21 @@ Deno.test("publish: a delivered event worded differently by a later version coun
   );
 });
 
+Deno.test("publish: refuses a work item started against another tracker instance, so the cursor status reads is the one that moves", async () => {
+  const swamp = fakeSwamp();
+  await trackedItem(swamp, { test: "T1" }, undefined, { tracker: "board" });
+  await assertRejects(
+    () => publish(swamp, ticket().methods),
+    Error,
+    `work item '${TRACKED_ITEM}' was started against tracker 'board', not ` +
+      `'${INSTANCE}': publish it there`,
+  );
+  assertEquals(cursorOf(swamp), undefined);
+});
+
 Deno.test("publish: refuses a work item with no ticket, another ticket than before, or no run", async () => {
   const noRef = fakeSwamp();
-  await projectedItem(noRef, { other: "X1" });
+  await trackedItem(noRef, { other: "X1" });
   await assertRejects(
     () => publish(noRef, ticket().methods),
     Error,
@@ -498,12 +510,12 @@ Deno.test("publish: refuses a work item with no ticket, another ticket than befo
   );
 
   const moved = fakeSwamp();
-  await projectedItem(moved, { test: "T1" });
+  await trackedItem(moved, { test: "T1" });
   await moved.context(INSTANCE).writeResource?.(
     "cursor",
-    `cursor-${PROJECTED_ITEM}`,
+    `cursor-${TRACKED_ITEM}`,
     {
-      workItem: PROJECTED_ITEM,
+      workItem: TRACKED_ITEM,
       issue: "T9",
       journalVersion: 0,
       status: null,
@@ -519,14 +531,14 @@ Deno.test("publish: refuses a work item with no ticket, another ticket than befo
   await assertRejects(
     () => publish(fakeSwamp(), ticket().methods),
     Error,
-    `no work item '${PROJECTED_ITEM}'`,
+    `no work item '${TRACKED_ITEM}'`,
   );
 });
 
 Deno.test("publish: after a retarget, earlier events stay on the old ticket and later ones go to the new, each with a note", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, postedTo, movedOn, methods } = ticket();
-  const item = await projectedItem(swamp, {
+  const item = await trackedItem(swamp, {
     test: "T1",
     "test.display": "T-1",
   });
@@ -544,11 +556,11 @@ Deno.test("publish: after a retarget, earlier events stay on the old ticket and 
   assert(posted[3].includes("approved `ship-approval`"), posted[3]);
   assertEquals(
     posted[4],
-    `**${PROJECTED_ITEM}** moved to T-2; its updates continue there.`,
+    `**${TRACKED_ITEM}** moved to T-2; its updates continue there.`,
   );
   assertEquals(
     posted[5],
-    `**${PROJECTED_ITEM}** continued here from T-1, at stage **review**.`,
+    `**${TRACKED_ITEM}** continued here from T-1, at stage **review**.`,
   );
   assert(posted[6].includes("finished at **done** by `ship`"), posted[6]);
   // The old ticket was already in review at the retarget; the new one gets
@@ -568,7 +580,7 @@ Deno.test("publish: after a retarget, earlier events stay on the old ticket and 
 Deno.test("publish: a cursor behind the retarget flushes the old ticket first, and the new ticket's status is written even when it matches", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, postedTo, movedOn, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.advance("submit");
   // Retarget as the newest event: both status writes share no ledger key.
   await item.retarget({ test: "T2" });
@@ -581,10 +593,10 @@ Deno.test("publish: a cursor behind the retarget flushes the old ticket first, a
   // Journal: started, advanced, awaiting, retargeted. The old ticket's
   // status is keyed before the retarget, the new one's on the journal.
   const ledger = swamp.resources.get(INSTANCE);
-  assert(ledger?.has(`delivery-publish-set_status-${PROJECTED_ITEM}-3`));
-  assert(ledger?.has(`delivery-publish-set_status-${PROJECTED_ITEM}-4`));
-  assert(ledger?.has(`delivery-publish-comment-${PROJECTED_ITEM}-4`));
-  assert(ledger?.has(`delivery-publish-comment-${PROJECTED_ITEM}-4-opening`));
+  assert(ledger?.has(`delivery-publish-set_status-${TRACKED_ITEM}-3`));
+  assert(ledger?.has(`delivery-publish-set_status-${TRACKED_ITEM}-4`));
+  assert(ledger?.has(`delivery-publish-comment-${TRACKED_ITEM}-4`));
+  assert(ledger?.has(`delivery-publish-comment-${TRACKED_ITEM}-4-opening`));
 
   await item.approve("ship-approval");
   await publish(swamp, methods);
@@ -596,7 +608,7 @@ Deno.test("publish: a cursor behind the retarget flushes the old ticket first, a
 Deno.test("publish: two retargets in a row each move the ticket; a retarget of another tracker's ref does not", async () => {
   const swamp = fakeSwamp();
   const { posted, postedTo, movedOn, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.retarget({ test: "T1", other: "X1" });
   await item.retarget({ test: "T2", other: "X1" });
   await item.retarget({ test: "T3", other: "X1" });
@@ -614,7 +626,7 @@ Deno.test("publish: two retargets in a row each move the ticket; a retarget of a
 Deno.test("publish: a ref a retarget adds links its ticket; one it removes tells the old ticket", async () => {
   const swamp = fakeSwamp();
   const { posted, postedTo, methods } = ticket();
-  const item = await projectedItem(swamp, { other: "X1" });
+  const item = await trackedItem(swamp, { other: "X1" });
   await item.retarget({ test: "T1" });
   await publish(swamp, methods);
   // The events before the ref was added name no ticket and are skipped.
@@ -636,14 +648,14 @@ Deno.test("publish: a ref a retarget adds links its ticket; one it removes tells
   assertEquals(swamp.versionsWritten(INSTANCE), written);
   assertEquals(
     swamp.logs.at(-1)?.props?.summary,
-    `${PROJECTED_ITEM} is up to date on T1; later events name no test ticket`,
+    `${TRACKED_ITEM} is up to date on T1; later events name no test ticket`,
   );
 });
 
 Deno.test("publish: a failure on the new ticket keeps the old ticket's delivery, and the re-run finishes", async () => {
   const swamp = fakeSwamp();
   const { postedTo, movedOn, state, methods } = ticket();
-  const item = await projectedItem(swamp, { test: "T1" });
+  const item = await trackedItem(swamp, { test: "T1" });
   await item.retarget({ test: "T2" });
   state.failComment = 3; // started and moved land; the opening note fails
   await assertRejects(() => publish(swamp, methods), TrackerError, "boom");
@@ -660,7 +672,7 @@ Deno.test("publish: a failure on the new ticket keeps the old ticket's delivery,
 Deno.test("publish: needs readModelData", async () => {
   const swamp = fakeSwamp();
   const { methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   const { readModelData: _omitted, ...bare } = swamp.context(INSTANCE);
   await assertRejects(
     () => publish(swamp, methods, bare),
@@ -672,9 +684,9 @@ Deno.test("publish: needs readModelData", async () => {
 Deno.test("publish: a pinned copy that is not the latest is read by its version through queryData", async () => {
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   // A repinning reset cut short: a newer copy the run does not name.
-  const versions = swamp.resources.get(PROJECTED_ITEM)?.get("definition");
+  const versions = swamp.resources.get(TRACKED_ITEM)?.get("definition");
   assert(versions !== undefined);
   const pinned = structuredClone(versions[0]);
   versions.push({
@@ -716,7 +728,7 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
   };
   await publish(swamp, methods, ctx);
   assertEquals(queries, [
-    `modelName == "${PROJECTED_ITEM}" && specName == "definition" && ` +
+    `modelName == "${TRACKED_ITEM}" && specName == "definition" && ` +
     'name == "definition" && version == 1',
   ]);
   assertEquals(posted.length, 1);
@@ -725,13 +737,13 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
 Deno.test("publish: keeps its own ledger records, so a hand-keyed comment neither stands in for nor blocks it", async () => {
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   // Someone used publish's key by hand, on another ticket.
   await methods.comment.execute(
     methods.comment.arguments.parse({
       issue: "T9",
       body: "by hand",
-      workItem: PROJECTED_ITEM,
+      workItem: TRACKED_ITEM,
       journalVersion: "1",
     }),
     swamp.context(INSTANCE),
@@ -744,7 +756,7 @@ Deno.test("publish: keeps its own ledger records, so a hand-keyed comment neithe
 Deno.test("publish: a failing version query falls back to the latest copy of the pinned definition", async () => {
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" });
+  await trackedItem(swamp, { test: "T1" });
   const ctx: TrackerContext = {
     ...swamp.context(INSTANCE),
     queryData: () => Promise.reject(new Error("catalog unavailable")),
@@ -838,7 +850,7 @@ function historyTicket() {
 Deno.test("publish, entries: each answered event becomes one entry in place of comments, and a re-run writes nothing", async () => {
   const swamp = fakeSwamp();
   const { writes, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "first", type: "bug" });
   await item.advance("submit");
   await item.record("evidence", "result", { status: "failed" });
@@ -864,7 +876,7 @@ Deno.test("publish, entries: each answered event becomes one entry in place of c
   assertEquals(writes.length, count, "a re-run writes nothing");
   assert(
     swamp.resources.get(INSTANCE)?.has(
-      `delivery-publish-lifecycle_entry-${PROJECTED_ITEM}-1`,
+      `delivery-publish-lifecycle_entry-${TRACKED_ITEM}-1`,
     ),
   );
 });
@@ -872,7 +884,7 @@ Deno.test("publish, entries: each answered event becomes one entry in place of c
 Deno.test("publish, entries: a later cycle picks its own entry, and a stage without a key carries the last one", async () => {
   const swamp = fakeSwamp();
   const { writes, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "first" });
   await item.advance("submit");
   await item.advance("again");
@@ -890,7 +902,7 @@ Deno.test("publish, entries: a later cycle picks its own entry, and a stage with
 Deno.test("publish, entries: a declined approval and an unanswered event write nothing", async () => {
   const swamp = fakeSwamp();
   const { writes, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "x" });
   await item.advance("submit");
   await publish(swamp, methods);
@@ -903,7 +915,7 @@ Deno.test("publish, entries: a declined approval and an unanswered event write n
 Deno.test("publish, entries: a failed entry leaves the cursor, and the re-run posts only what did not land", async () => {
   const swamp = fakeSwamp();
   const { writes, state, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "x" });
   await item.advance("submit");
   state.failEntry = "review_started";
@@ -920,10 +932,10 @@ Deno.test("publish, entries: a failed entry leaves the cursor, and the re-run po
 Deno.test("publish, entries: the payload is the version the journal recorded, never a later one", async () => {
   const swamp = fakeSwamp();
   const { writes, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "as recorded" });
   // A later version of the payload, written behind the journal's back.
-  swamp.resources.get(PROJECTED_ITEM)?.get("artifact-note")?.push({
+  swamp.resources.get(TRACKED_ITEM)?.get("artifact-note")?.push({
     text: "rewritten",
   });
   await publish(swamp, methods);
@@ -937,9 +949,9 @@ Deno.test("publish, entries: the payload is the version the journal recorded, ne
   // not match: publish stops rather than describe the wrong version.
   const fresh = fakeSwamp();
   const other = historyTicket();
-  const again = await projectedItem(fresh, { test: "T1" }, entriesDefinition());
+  const again = await trackedItem(fresh, { test: "T1" }, entriesDefinition());
   await again.record("artifact", "note", { text: "as recorded" });
-  fresh.resources.get(PROJECTED_ITEM)?.get("artifact-note")?.push({
+  fresh.resources.get(TRACKED_ITEM)?.get("artifact-note")?.push({
     text: "rewritten",
   });
   await assertRejects(
@@ -957,9 +969,9 @@ Deno.test("publish, entries: an entry whose status key is not mapped is refused"
   const swamp = fakeSwamp();
   const { methods } = historyTicket();
   const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
-  (doc.stages[0].projection as { entries: Record<string, unknown>[] })
+  (doc.stages[0].tracker as { entries: Record<string, unknown>[] })
     .entries[0].status = "nowhere";
-  await projectedItem(swamp, { test: "T1" }, doc);
+  await trackedItem(swamp, { test: "T1" }, doc);
   await assertRejects(
     () => publish(swamp, methods),
     TrackerError,
@@ -971,9 +983,9 @@ Deno.test("publish, entries: without a label anywhere, an entry carries the tick
   const swamp = fakeSwamp();
   const { writes, methods } = historyTicket();
   const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
-  delete (doc.stages[0].projection as { entries: Record<string, unknown>[] })
+  delete (doc.stages[0].tracker as { entries: Record<string, unknown>[] })
     .entries[0].status;
-  await projectedItem(swamp, { test: "T1" }, doc);
+  await trackedItem(swamp, { test: "T1" }, doc);
   await publish(swamp, methods);
   assertEquals(writes, ["fetch", "entry work_started [Todo] Work started"]);
 });
@@ -981,13 +993,13 @@ Deno.test("publish, entries: without a label anywhere, an entry carries the tick
 Deno.test("publish, entries: a definition without entries, or a tracker without history, still gets comments", async () => {
   const plain = fakeSwamp();
   const lab = historyTicket();
-  await projectedItem(plain, { test: "T1" }, projectedDefinition());
+  await trackedItem(plain, { test: "T1" }, trackedDefinition());
   await publish(plain, lab.methods);
   assert(lab.writes[0].startsWith("comment "), lab.writes.join("\n"));
 
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
-  await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await publish(swamp, methods);
   assertEquals(posted.length, 1);
 });
@@ -995,7 +1007,7 @@ Deno.test("publish, entries: a definition without entries, or a tracker without 
 Deno.test("publish, entries: an entry the tracker refuses outright is skipped and recorded, so publish moves past it", async () => {
   const swamp = fakeSwamp();
   const { writes, state, methods } = historyTicket();
-  const item = await projectedItem(swamp, { test: "T1" }, entriesDefinition());
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
   await item.record("artifact", "note", { text: "x" });
   await item.advance("submit");
   state.failEntry = "noted";
@@ -1007,7 +1019,7 @@ Deno.test("publish, entries: an entry the tracker refuses outright is skipped an
   );
   assertEquals(writes.at(-1), "status In Review", "the status still moves");
   const ledger = swamp.resources.get(INSTANCE)?.get(
-    `delivery-publish-lifecycle_entry-${PROJECTED_ITEM}-2`,
+    `delivery-publish-lifecycle_entry-${TRACKED_ITEM}-2`,
   )?.[0];
   assertEquals((ledger?.result as { skipped?: string }).skipped, "invalid");
   assert(

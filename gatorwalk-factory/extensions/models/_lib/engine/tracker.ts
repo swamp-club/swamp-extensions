@@ -24,12 +24,13 @@ export { digestOf } from "./canonical.ts";
 export type { AwaitingExit, JournalEvent, ProductKind } from "./journal.ts";
 export {
   type FactoryDefinition,
-  type ProjectionEntry,
+  type TrackerEntry,
   triggerKey,
 } from "./definition_schema.ts";
 export { parseRun, type RunRecord, RunRecordSchema } from "./run_record.ts";
 export { payloadName, RUN_NAME, RUN_SPEC } from "./run_store.ts";
 export { parseTemplate, renderTemplate } from "./template.ts";
+export { CURSOR_SPEC, cursorName, CursorSchema } from "./tracker_binding.ts";
 export {
   checkPinned,
   type DataReadingContext,

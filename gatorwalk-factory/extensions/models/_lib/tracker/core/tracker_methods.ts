@@ -17,6 +17,9 @@
 import { z } from "npm:zod@4.3.6";
 import {
   checkPinned,
+  CURSOR_SPEC,
+  cursorName,
+  CursorSchema,
   DEFINITION_NAME,
   DEFINITION_SPEC,
   digestOf,
@@ -40,12 +43,12 @@ import {
   declaresEntries,
   type EntryProduct,
   type PlannedComment,
-  project,
   projectEntries,
   renderEntry,
   type TicketSegment,
   ticketSegments,
-} from "./projection.ts";
+  ticketView,
+} from "./ticket_view.ts";
 import {
   type DeliveryKey,
   type LifecycleEntry,
@@ -72,7 +75,6 @@ import {
 
 export const ISSUE_SPEC = "issue";
 export const DELIVERY_SPEC = "delivery";
-export const CURSOR_SPEC = "cursor";
 
 export const DELIVERY_ACTIONS = [
   "comment",
@@ -143,20 +145,6 @@ export const IssueSchema = z.discriminatedUnion("origin", [
 export function issueName(issueId: string): string {
   return `issue-${safePart("issue id", issueId)}`;
 }
-
-/**
- * How far publish has delivered a work item to its ticket: every journal
- * event up to journalVersion, and the last status key it wrote.
- */
-export const CursorSchema = z.object({
-  workItem: z.string(),
-  issue: z.string(),
-  journalVersion: z.number().int().nonnegative(),
-  /** The status key last delivered (or skipped as unreachable), or null. */
-  status: z.string().nullable(),
-  at: z.string(),
-});
-export type Cursor = z.infer<typeof CursorSchema>;
 
 /** What the methods need from swamp's method context. */
 export interface TrackerContext extends ClaimContext {
@@ -970,8 +958,17 @@ export function trackerMethods(options: TrackerModelOptions) {
       ): Promise<MethodOutput> => {
         const workItem = safePart("workItem", args.workItem);
         const { run, definition } = await readWorkItem(ctx, workItem);
+        // Only the tracker pinned at start: its cursor is the one the work
+        // item's status reads.
+        const self = ctx.definition?.name;
+        if (self !== undefined && run.tracker.instance !== self) {
+          throw new Error(
+            `work item '${workItem}' was started against tracker ` +
+              `'${run.tracker.instance}', not '${self}': publish it there`,
+          );
+        }
         // One segment per ticket: a retarget moves the rest of the journal
-        // to another ticket (DESIGN.md, "The projection publisher").
+        // to another ticket (DESIGN.md, "The publisher").
         const segments = ticketSegments(run, definition, options.tracker);
         if (segments.every((s) => s.issue === null)) {
           throw new Error(
@@ -979,8 +976,8 @@ export function trackerMethods(options: TrackerModelOptions) {
               "start it with the ticket's stable id to publish it",
           );
         }
-        const cursorName = `cursor-${workItem}`;
-        const rawCursor = await resources(ctx).read(cursorName);
+        const recordName = cursorName(workItem);
+        const rawCursor = await resources(ctx).read(recordName);
         const cursor = rawCursor === null
           ? null
           : CursorSchema.parse(rawCursor);
@@ -1134,7 +1131,7 @@ export function trackerMethods(options: TrackerModelOptions) {
           for (
             const planned of entryMode
               ? []
-              : project(run, definition, from).comments.filter(inSegment)
+              : ticketView(run, definition, from).comments.filter(inSegment)
           ) {
             await note(planned);
           }
@@ -1160,7 +1157,7 @@ export function trackerMethods(options: TrackerModelOptions) {
           // was, and the re-run's replay finds each landed write in the
           // ledger.
           handles.push(
-            await resources(ctx).write(CURSOR_SPEC, cursorName, {
+            await resources(ctx).write(CURSOR_SPEC, recordName, {
               workItem,
               issue,
               journalVersion: segment.through,

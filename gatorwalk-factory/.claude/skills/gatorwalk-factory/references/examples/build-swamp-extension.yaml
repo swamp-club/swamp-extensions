@@ -34,7 +34,7 @@ description: |-
 stages:
   - id: plan
     initial: true
-    projection: { status: triaged }
+    tracker: { status: triaged }
     description: Plan the change to the extension.
     work:
       mode: interactive
@@ -92,7 +92,7 @@ stages:
             config: { artifact: plan }
 
   - id: plan-review
-    projection: { status: triaged }
+    tracker: { status: triaged }
     description: >-
       Adversarial review of the current plan. Approval needs a fresh review
       with no open critical or high findings and a person's sign-off; open
@@ -173,7 +173,7 @@ stages:
             config: { name: plan-feedback }
 
   - id: implement
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: Implement the approved plan and commit it.
     work:
       mode: interactive
@@ -218,7 +218,7 @@ stages:
           (a flaky test, a broken tool). A person decides.
 
   - id: check
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: >-
       Run the extension's checks (swamp extension fmt, type check, lint,
       tests) and swamp extension quality on the change-summary commit. An
@@ -334,7 +334,7 @@ stages:
             config: { name: quality, requireField: { allPassed: false } }
 
   - id: code-review
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: >-
       Adversarial review of the checked change. Releasing needs a fresh review
       with no open critical or high findings and a person's approval; open
@@ -393,7 +393,7 @@ stages:
           work. Manual, so it never fires on its own.
 
   - id: release
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: >-
       Release the reviewed commit: swamp extension push, or a pull request
       that CI publishes when it merges. commit is the reviewed head that
@@ -463,11 +463,11 @@ stages:
 
   - id: done
     terminal: true
-    projection: { status: shipped }
+    tracker: { status: shipped }
 
   - id: abandoned
     terminal: true
-    projection: { status: closed }
+    tracker: { status: closed }
 
 globalTransitions:
   - name: abandon

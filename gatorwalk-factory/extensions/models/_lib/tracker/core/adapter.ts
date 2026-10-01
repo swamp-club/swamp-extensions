@@ -80,7 +80,7 @@ export interface PostedEntry {
 /**
  * The history capability: a tracker that keeps a structured history of each
  * ticket, and a ticket type. An adapter that has it is published in entry
- * mode when the factory definition declares entries (projection.ts); publish
+ * mode when the factory definition declares entries (ticket_view.ts); publish
  * never asks one without it.
  */
 export interface LifecycleEntryWriter {
@@ -151,7 +151,7 @@ export type TrackerErrorKind = typeof TRACKER_ERROR_KINDS[number];
 /**
  * Why an `invalid` status move was refused, when the reason is where the
  * ticket is now: the tracker knows the status but cannot move there from
- * here (the Lab only moves forward). The projection skips such a move
+ * here (the Lab only moves forward). The publisher skips such a move
  * rather than failing.
  */
 export type TrackerErrorReason = "unreachable";

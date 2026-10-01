@@ -39,8 +39,8 @@ import {
 } from "../_lib/engine/tracker_testing.ts";
 import {
   entriesDefinition,
-  PROJECTED_ITEM,
-  projectedItem,
+  TRACKED_ITEM,
+  trackedItem,
 } from "../_lib/tracker/core/test_support.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 
@@ -338,20 +338,25 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
     (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
     async (swamp, fake) => {
       fake.issues[0].status = "shipped";
-      await projectedItem(swamp, { "swamp-club": ISSUE });
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      await trackedItem(
+        swamp,
+        { "swamp-club": ISSUE },
+        undefined,
+        { tracker: INSTANCE, kind: "swamp-club" },
+      );
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       assertEquals(fake.comments.length, 1);
       assert(fake.comments[0].body.includes("started on definition"));
       assertEquals(fake.issues[0].status, "shipped");
       assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
       const cursor = swamp.resources.get(INSTANCE)?.get(
-        `cursor-${PROJECTED_ITEM}`,
+        `cursor-${TRACKED_ITEM}`,
       )?.[0];
       assertEquals(cursor?.status, "in_progress");
 
       // Nothing new: nothing is read or written on the Lab.
       const requests = fake.requests.length;
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       assertEquals(fake.requests.length, requests);
     },
   );
@@ -370,7 +375,7 @@ function withPrimary(fake: SwampClubFake): void {
   });
 }
 
-/** projectedDefinition's status keys, mapped onto Lab statuses. */
+/** trackedDefinition's status keys, mapped onto Lab statuses. */
 const STATUSES = JSON.stringify({
   in_progress: "in_progress",
   in_review: "triaged",
@@ -383,11 +388,13 @@ Deno.test("swamp-club model: publish after a retarget writes new events to the n
     (fake) => ({ apiKey: ADMIN_KEY, url: fake.url, statuses: STATUSES }),
     async (swamp, fake) => {
       withPrimary(fake);
-      const item = await projectedItem(swamp, {
-        "swamp-club": ISSUE,
-        "swamp-club.display": `#${ISSUE}`,
-      });
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      const item = await trackedItem(
+        swamp,
+        { "swamp-club": ISSUE, "swamp-club.display": `#${ISSUE}` },
+        undefined,
+        { tracker: INSTANCE, kind: "swamp-club" },
+      );
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       const before = fake.comments.length;
       assertEquals(fake.comments.every((c) => c.issue === LAB_ISSUE), true);
 
@@ -396,18 +403,18 @@ Deno.test("swamp-club model: publish after a retarget writes new events to the n
         "swamp-club.display": `#${PRIMARY}`,
       }, `#${ISSUE} duplicates #${PRIMARY}`);
       await item.advance("submit");
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       const onOld = fake.comments.slice(before).filter((c) =>
         c.issue === LAB_ISSUE
       );
       const onNew = fake.comments.filter((c) => c.issue === PRIMARY);
       assertEquals(onOld.map((c) => c.body), [
-        `**${PROJECTED_ITEM}** moved to #${PRIMARY}; its updates continue there.`,
+        `**${TRACKED_ITEM}** moved to #${PRIMARY}; its updates continue there.`,
       ]);
       assertEquals(onNew.map((c) => c.body.split("\n")[0]), [
-        `**${PROJECTED_ITEM}** continued here from #${ISSUE}, at stage **write**.`,
-        `**${PROJECTED_ITEM}** entered **review** (cycle 1) by \`submit\`.`,
-        `**${PROJECTED_ITEM}** is waiting on a person in **review**:`,
+        `**${TRACKED_ITEM}** continued here from #${ISSUE}, at stage **write**.`,
+        `**${TRACKED_ITEM}** entered **review** (cycle 1) by \`submit\`.`,
+        `**${TRACKED_ITEM}** is waiting on a person in **review**:`,
       ]);
       // The old issue keeps the status of the stage at the retarget.
       assertEquals(fake.issues[0].status, "in_progress");
@@ -434,15 +441,16 @@ Deno.test("swamp-club model: publish in entry mode writes entries per issue and 
     }),
     async (swamp, fake) => {
       withPrimary(fake);
-      const item = await projectedItem(
+      const item = await trackedItem(
         swamp,
         { "swamp-club": ISSUE },
         entriesDefinition(),
+        { tracker: INSTANCE, kind: "swamp-club" },
       );
       await item.record("artifact", "note", { text: "first", type: "bug" });
       await item.retarget({ "swamp-club": String(PRIMARY) });
       await item.advance("submit");
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       const steps = (issue: number) =>
         fake.entries.filter((e) => e.issue === issue).map((e) => e.step);
       assertEquals(steps(LAB_ISSUE), ["work_started", "noted"]);
@@ -455,7 +463,7 @@ Deno.test("swamp-club model: publish in entry mode writes entries per issue and 
 
       // A re-run writes nothing on either issue.
       const requests = fake.requests.length;
-      await call(methods, swamp, "publish", { workItem: PROJECTED_ITEM });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       assertEquals(fake.requests.length, requests);
     },
   );

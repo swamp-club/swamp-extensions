@@ -713,7 +713,9 @@ The dispatch record held a prompt no subagent saw.
 `work_item.ts`, logic in `_lib/engine/work_item_ops.ts`):
 
 - A **factory** is an instance whose `globalArguments` name a team's factory
-  definition file, `{ definition: factories/<factory>.yaml }`.
+  definition file and the tracker instance its work items publish to,
+  `{ definition: factories/<factory>.yaml, tracker: board }` ("The factory's
+  tracker").
 - A **work item** is one instance per piece of work, named by a key. `start`
   reads the factory's definition file and **pins a copy** of it with its
   digest. Every later method uses that copy, so editing the file never changes
@@ -730,9 +732,9 @@ copy, never a mismatch. Pinned copies are kept by age for ten years, not by
 count: they are small and rarely written, and retention must never collect the
 one a run reads.
 
-**The factory's schema is only the path.** swamp validates a model's
-`globalArguments` on every run with `schema.partial()`, so the schema is a plain
-string: the path's rules are checked when the file is read, and `init` runs
+**The factory's schema is only the path and the tracker's name.** swamp
+validates a model's `globalArguments` on every run with `schema.partial()`, so
+both are plain strings: the path's rules are checked when the file is read, and `init` runs
 before the file exists. The full check of the definition is gatorwalk's own:
 the factory's `validate` method, and every `start`. Both find the path in the
 factory's **raw** model definition through the definition repository, never
@@ -810,7 +812,8 @@ first starts can race. That is accepted for solo use until swamp fixes it.
 
 **Decision** (swamp-club #2803, option B in the studio proposal). A factory
 definition lives in one file in the repo, `factories/<factory>.yaml` by
-convention, and the factory's `globalArguments` are only its repo-relative path:
+convention, and the factory's `globalArguments` name only its repo-relative path
+(and, since #2795, its tracker):
 `{ definition: factories/team.yaml }`. Before, the definition was pasted by
 hand into the factory's `globalArguments`, and the same definition was often
 kept as a file as well; nothing synced the two, and they drifted from the first
@@ -1135,10 +1138,10 @@ The contract:
   The work-item type and its runtime make no network call, so a tracker being
   down or slow never holds a work item's lock or fails one of its writes.
 - **One writer per tracker field.** An adapter's `set_status` is the only code
-  that writes a ticket's status, and the projection publisher (`publish`, below)
+  that writes a ticket's status, and the publisher (`publish`, below)
   is its only caller for a work item. The same holds for a ticket's type, where
   the tracker has one: `publish` sets it from the entry that names it. A stage
-  that wants the ticket to move requests a transition; the projection reflects
+  that wants the ticket to move requests a transition; the publisher reflects
   it. A person moving the ticket in the tracker is outside this rule;
   reconciling that belongs with inbound webhooks.
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
@@ -1155,8 +1158,8 @@ The contract:
   refused on a finished work item and for a map that names no ticket (no
   non-empty stable id, only `<tracker>.display` keys), which would silently
   detach the work item from every tracker. It knows nothing of trackers or
-  duplicates, and the projection works out from the journal which ticket each
-  event belongs to (see "Retargeting" under "The projection publisher"). A
+  duplicates, and the publisher works out from the journal which ticket each
+  event belongs to (see "Retargeting" under "The publisher"). A
   Linear identifier that changes when
   an issue moves team leaves that slug stale, which is accepted. Linear
   identifiers change when an issue moves team, so Linear keys on the UUID:
@@ -1230,7 +1233,7 @@ adapter lacks.
 ticket and a ticket type (the Lab's lifecycle entries and issue type, and the
 built-in tracker's own records) offers it as `capabilities.history`
 (`postEntry`, `setType`). Linear has neither, so it lacks the capability. `publish` uses it when the factory definition declares
-projection entries; its writes go through the same ledger (actions
+tracker entries; its writes go through the same ledger (actions
 `lifecycle_entry` and `set_type`). The conformance suite checks it for an
 adapter that declares it (an entry returns its id, a type move is a no-op the
 second time, bad credentials are `auth`) and skips it otherwise. A snapshot may
@@ -1278,12 +1281,15 @@ item and everything under `_lib/engine/`. The tracker is the adapter models in
 clients and their fakes in `_lib/tracker/backends/`. `boundary_test.ts` holds
 the rules:
 
-- Engine code imports no tracker code. Nothing in the engine knows a tracker
-  exists.
+- Engine code imports no tracker code. The engine knows only the tracker a
+  factory is bound to: the instance's name, its kind and the model type each
+  kind needs, and the shape of that instance's publish cursor, which `status`
+  reads as data ("The factory's tracker", below). All of it is in
+  `_lib/engine/tracker_binding.ts`, and the engine never calls a tracker.
 - Tracker code imports the engine only through `_lib/engine/tracker.ts`, which
   re-exports exactly what tracker code uses: the run record, the journal types,
-  the pinned factory definition, the template renderer and a few work-item
-  helpers. Tracker tests may also use `_lib/engine/tracker_testing.ts` (the
+  the pinned factory definition, the template renderer, the publish cursor's
+  schema and a few work-item helpers. Tracker tests may also use `_lib/engine/tracker_testing.ts` (the
   fakes and the work-item operations they drive) and `integration/harness.ts`.
 - Tracker core imports no backend, so the contract never depends on one tracker.
 - Production code imports no test code, and the surface exports nothing that
@@ -1300,12 +1306,55 @@ reads all three. A test gives the same isolation with none of that: an import
 that crosses the line fails the build, and the surface shows in one file exactly
 what the tracker depends on.
 
-### The projection publisher
+### The factory's tracker
+
+**Decision.** A factory definition names the kind of tracker it is written for,
+`tracker: { kind: builtin | swamp-club | linear }`, and the built-in tracker
+when it names none. The kind belongs to the definition because what the
+definition says depends on it: the Lab example's stage entries, status keys and
+type fields only make sense on the Lab. The factory names the tracker
+instance, its required `tracker` global argument, because which instance is a
+choice per repo and the definition is portable. The instance keeps the
+tracker's own settings (the built-in tracker's `prefix`, `statuses` and
+`types`, Linear's `teamId`, `statuses` and `types`, the Lab's `statuses`): the
+tracker instance is the tracker's definition, so there is no separate document
+for it.
+
+- **validate and start check the binding.** Both resolve the instance through
+  the definition repository and refuse, naming both sides, a factory with no
+  `tracker` argument, an instance no model is named, or one whose model type is
+  not the one the kind needs. `kinds_test.ts` on the tracker side keeps each
+  kind's type and tracker name equal to its adapter's.
+- **start pins it.** The run record carries `tracker: { instance, kind }` beside
+  `externalRefs`, so a later edit to the factory never moves a running work
+  item to another tracker. A retarget changes the refs, not the tracker. A
+  saved scenario runs in memory with no tracker, so it pins
+  `{ instance: scenario, kind: <the definition's> }`. start also refuses
+  `externalRefs` whose tickets are all on another kind of tracker (a ticket
+  claimed on one tracker, started under a factory bound to another): no
+  tracker could publish that work item, and status would call it never
+  behind.
+- **status shows the lag.** It reads the pinned instance's `cursor-<key>` as
+  data (`readModelData`, no network call) and reports the journal version
+  delivered against the journal's length: `tracker '<instance>' behind by N
+  event(s): run publish on it`, and nothing once they match. The count is not
+  split by ticket after a retarget. A work item with no `externalRefs` under
+  its kind has nothing to publish and is never behind. A cursor that cannot be
+  read shows `lag unknown` and the reason, and status still answers.
+- **publish runs only on the pinned instance.** Any other instance refuses the
+  work item, so the cursor status reads is the one publish moves.
+
+**Not checked yet.** Whether each stage's `tracker.status` key is one the bound
+tracker has, and whether a definition with entries is bound to a tracker that
+keeps history. The Lab's default status map is tracker code the engine cannot
+import, so this is a tracker-side check method (swamp-club #2847).
+
+### The publisher
 
 **Decision.** `publish` replays one work item's journal to its ticket. It is one
 of the shared methods in `_lib/tracker/core/tracker_methods.ts`, so every
 adapter has it unchanged, and what it says is a pure function of the run and its
-pinned factory definition (`_lib/tracker/core/projection.ts`). An explicit
+pinned factory definition (`_lib/tracker/core/ticket_view.ts`). An explicit
 method now: a scheduled sweep or a driver tick can call the same thing later.
 
 What it does, in order (step 3 is comments; a factory definition with entries is
@@ -1347,7 +1396,7 @@ published as entries instead, below):
    was; the re-run replays from there and the ledger turns every write that
    landed into a no-op. A publish with nothing new writes nothing.
 
-**Entries instead of comments.** A stage's `projection.entries` says which of
+**Entries instead of comments.** A stage's `tracker.entries` says which of
 its journal events become structured entries in the ticket's history: entering
 the stage (or starting in it), a product it declares being recorded, or one of
 its human-approval gates being approved. When the pinned factory definition
@@ -1379,7 +1428,7 @@ freeze the ticket's status and every later entry. Other failures stop the
 publish for a re-run.
 
 **Where the stage-to-status mapping lives: both places.** A stage names a
-gatorwalk status key (`projection: { status: in_progress }`), and the adapter's
+gatorwalk status key (`tracker: { status: in_progress }`), and the adapter's
 `statuses` argument maps keys to the tracker's own names. The key belongs in the
 factory definition because only its author knows what a stage means, and there
 it is pinned by digest with the rest of the run. The tracker's names belong to
@@ -1391,7 +1440,7 @@ alone.
 
 **Retargeting.** A `retargeted` event whose old and new maps name different
 tickets for this tracker ends one segment of the journal and starts the next
-(`ticketSegments` in `projection.ts`). A retarget of another tracker's ref does
+(`ticketSegments` in `ticket_view.ts`). A retarget of another tracker's ref does
 not split this tracker's journal. Events up to and including the retarget
 belong to the old ticket, later ones to the new. `publish` walks the segments
 from the cursor, doing steps 3 to 5 for each ticket in turn:
@@ -1428,7 +1477,7 @@ difference. `comment`, `set_status` and `set_type` keep the strict refusal.
 **Known gaps.** A crash between the tracker accepting a comment and the ledger
 recording it repeats that comment (the adapter contract's gap, above). Catching
 up after a long outage posts one comment (or entry) per event. A work item
-parked by its stage's dispatch cap is not in the journal, so it is not projected
+parked by its stage's dispatch cap is not in the journal, so it is not published
 (#2703). A failed publish does not block the work item, unlike issue-lifecycle,
 whose methods fail when their entry is refused; the Lab falls behind until
 `publish` is re-run, which the driving reference asks for after each step.
@@ -1552,9 +1601,9 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
 - **One method at a time.** `set_status`, `set_type` and `create` read a
   ticket's record and write a whole new version, so, like the ledger, they
   rely on swamp running one method at a time per tracker instance.
-- **Arguments for now.** `prefix`, `statuses` and `types` are the instance's
-  global arguments until the factory definition declares its tracker
-  (swamp-club #2795), as are Linear's `teamId` and `types`.
+- **Settings on the instance.** `prefix`, `statuses` and `types` are the
+  instance's global arguments, as are Linear's `teamId` and `types`. A factory
+  definition names only the tracker's kind ("The factory's tracker").
 
 **Why no counter.** A counter needs one place to mint numbers, which a repo
 shared by several people (or several worktrees) does not have, and it reuses
@@ -1597,7 +1646,7 @@ A claim that succeeds also refreshes the ticket's `issue-<id>` snapshot, as
 `fetch_issue` does, after the index is settled. A refused claim writes nothing.
 
 `factory` is only needed when a new key is reserved. `claim` never comments,
-moves or assigns the ticket; that is the projection's (GW-17).
+moves or assigns the ticket; that is the publisher's (GW-17).
 
 **Why write the index first.** A crash between reserving and starting then
 leaves a reservation, which the next `claim` hands back, and the start command
@@ -1778,6 +1827,23 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: a factory chooses its tracker, and status shows the lag (swamp-club #2795)
+
+**Decided.** A factory definition names its tracker's kind (`builtin` by
+default), the factory names the instance, and `validate` and `start` check the
+instance's type against the kind; `start` pins the binding, and `status` reads
+the instance's publish cursor to show how far the ticket is behind. The stage
+`projection` block is now `tracker`, and the code and docs follow: "the
+projection publisher" is "the publisher", and `projection.ts` is
+`ticket_view.ts`. See "The factory's tracker".
+
+**Decided with Seth.** The engine may know the bound instance and its kind and
+read its cursor as data, which relaxes "nothing in the engine knows a tracker
+exists". A binding is required. Tracker settings stay on the tracker instance
+rather than moving into the factory definition, as the entry for #2794
+expected: the instance is the tracker's definition. The check of status keys
+and entries against the bound tracker is a tracker-side method (#2847).
 
 ### 2026-09-30: a person's plan feedback is kept and handed to the next plan (swamp-club #2770)
 

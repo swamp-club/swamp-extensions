@@ -74,7 +74,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/gatorwalk-factory/work-item",
-  version: "2026.09.30.1",
+  version: "2026.09.30.2",
   // A string literal, for the same reason as the type; the report's test
   // checks it names the report.
   reports: ["@swamp/gatorwalk-factory/work-item-summary"],

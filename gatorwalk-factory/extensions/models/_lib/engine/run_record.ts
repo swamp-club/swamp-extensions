@@ -21,6 +21,7 @@ import {
   type ParseResult,
   WORK_MODES,
 } from "./definition_schema.ts";
+import { TrackerBindingSchema } from "./tracker_binding.ts";
 
 // ---------------------------------------------------------------------------
 // The run record: everything about one work item, in one record under a
@@ -169,6 +170,9 @@ export const RunRecordSchema = z.strictObject({
   key: z.string().min(1),
   /** Tracker ids (a Linear UUID, a display identifier), kept as data. */
   externalRefs: z.record(z.string(), z.string()),
+  /** The tracker the factory was bound to at start: the instance publish
+   * runs on, and its kind. status reads that instance's cursor. */
+  tracker: TrackerBindingSchema,
   /** The factory definition pinned at start: its name, content digest, and the
    * version of the pinned copy the run uses. */
   definition: z.strictObject({

@@ -25,6 +25,7 @@ import {
   retargetMethod,
   startWorkItem,
   testEnv,
+  TRACKER_KINDS,
 } from "../../engine/tracker_testing.ts";
 
 // ---------------------------------------------------------------------------
@@ -33,28 +34,28 @@ import {
 
 // --- a work item to publish -----------------------------------------------------
 
-/** The work item the projection tests publish. */
-export const PROJECTED_ITEM = "projected-abcdefgh";
+/** The work item the publish tests publish. */
+export const TRACKED_ITEM = "tracked-abcdefgh";
 
 /**
- * write -> review -> done, with projection keys: write is in_progress,
+ * write -> review -> done, with tracker status keys: write is in_progress,
  * review is in_review, done is shipped; review's ship exit needs an
  * approval, and again goes back to write.
  */
-export function projectedDefinition(): Record<string, unknown> {
+export function trackedDefinition(): Record<string, unknown> {
   return {
     schemaVersion: 1,
-    name: "projected",
+    name: "tracked",
     stages: [
       {
         id: "write",
         initial: true,
-        projection: { status: "in_progress" },
+        tracker: { status: "in_progress" },
         transitions: [{ name: "submit", to: "review" }],
       },
       {
         id: "review",
-        projection: { status: "in_review" },
+        tracker: { status: "in_review" },
         transitions: [
           {
             name: "ship",
@@ -67,24 +68,24 @@ export function projectedDefinition(): Record<string, unknown> {
           { name: "again", to: "write", manual: true },
         ],
       },
-      { id: "done", terminal: true, projection: { status: "shipped" } },
+      { id: "done", terminal: true, tracker: { status: "shipped" } },
     ],
   };
 }
 
 /**
- * projectedDefinition with products and projection entries: write records
+ * trackedDefinition with products and tracker entries: write records
  * a note (noted the first cycle, note_revised after, setting the type from
  * it), review records a result (passed or failed by its status) and its
  * ship-approval is an entry; done says finished. write has no status key,
  * so its enter entry names its own.
  */
 export function entriesDefinition(): Record<string, unknown> {
-  const doc = projectedDefinition() as {
+  const doc = trackedDefinition() as {
     stages: Record<string, unknown>[];
   };
   const [write, review, done] = doc.stages;
-  delete write.projection;
+  delete write.tracker;
   write.artifacts = [{
     name: "note",
     schema: {
@@ -93,7 +94,7 @@ export function entriesDefinition(): Record<string, unknown> {
       properties: { text: { type: "string" }, type: { type: "string" } },
     },
   }];
-  write.projection = {
+  write.tracker = {
     entries: [
       {
         on: "enter",
@@ -129,7 +130,7 @@ export function entriesDefinition(): Record<string, unknown> {
       properties: { status: { enum: ["passed", "failed"] } },
     },
   }];
-  review.projection = {
+  review.tracker = {
     status: "in_review",
     entries: [
       { on: "enter", step: "review_started", emoji: "x", summary: "Review" },
@@ -156,7 +157,7 @@ export function entriesDefinition(): Record<string, unknown> {
       },
     ],
   };
-  done.projection = {
+  done.tracker = {
     status: "shipped",
     entries: [{ on: "enter", step: "finished", emoji: "x", summary: "Done" }],
   };
@@ -164,20 +165,31 @@ export function entriesDefinition(): Record<string, unknown> {
 }
 
 /**
- * A work item started on projectedDefinition in the fake swamp, with the
- * given externalRefs, and a way to move it on as a person would.
+ * A work item started on trackedDefinition in the fake swamp, with the
+ * given externalRefs, and a way to move it on as a person would. Its factory
+ * is bound to the tracker instance `tracker` ("tracker" by default, the
+ * instance the tests publish from); a tracker name that is a kind is written
+ * into the definition, so the fake gives the instance that kind's type.
  */
-export async function projectedItem(
+export async function trackedItem(
   swamp: FakeSwamp,
   externalRefs: Record<string, string>,
-  definition: Record<string, unknown> = projectedDefinition(),
+  definition: Record<string, unknown> = trackedDefinition(),
+  options: { tracker?: string; kind?: string } = {},
 ) {
   const env = testEnv();
-  swamp.factory("projected-factory", definition);
-  const ctx = () => swamp.context(PROJECTED_ITEM);
+  const kind = options.kind;
+  swamp.factory(
+    "tracked-factory",
+    kind !== undefined && (TRACKER_KINDS as readonly string[]).includes(kind)
+      ? { ...definition, tracker: { kind } }
+      : definition,
+    { tracker: options.tracker ?? "tracker" },
+  );
+  const ctx = () => swamp.context(TRACKED_ITEM);
   await startWorkItem(
     ctx(),
-    { factory: "projected-factory", externalRefs },
+    { factory: "tracked-factory", externalRefs },
     env,
   );
   const expected = async () => {

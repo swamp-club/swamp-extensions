@@ -116,7 +116,7 @@ issue-lifecycle's do. Nothing is lost, so this is not a gap.
 
 ### Lifecycle entries
 
-Each stage's `projection.entries` says which journal events become which Lab
+Each stage's `tracker.entries` says which journal events become which Lab
 lifecycle entries, and `publish` writes them in place of comments. Every step
 name is issue-lifecycle's, with its emoji and its `targetStatus` label (an entry
 names its own `status` where the stage's differs, as `classified` and

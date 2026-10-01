@@ -31,6 +31,7 @@ import {
   expectNow,
   PASS,
   smallDefinition,
+  TEST_TRACKER,
   testEnv,
 } from "./test_support.ts";
 
@@ -47,6 +48,7 @@ async function started(): Promise<
     {
       key: "wi-7",
       externalRefs: { linear: "ENG-1" },
+      tracker: TEST_TRACKER,
       definitionDigest: "sha256:l",
     },
     ALICE,

@@ -41,8 +41,8 @@ import {
 // The built-in tracker: one instance per project, keeping its tickets in
 // swamp data. It has every tracker method, set_type too, and never makes a
 // network call; see DESIGN.md, "The built-in tracker". prefix, statuses and
-// types are arguments here until the factory definition declares them
-// (swamp-club #2795).
+// types are the instance's own arguments: a factory definition names only
+// the tracker's kind, and a factory names this instance.
 // ---------------------------------------------------------------------------
 
 const PREFIX_MAX = 55;
@@ -187,7 +187,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/gatorwalk-factory/tracker",
-  version: "2026.09.30.1",
+  version: "2026.09.30.2",
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,

@@ -28,7 +28,7 @@ import {
 } from "../../extensions/models/_lib/tracker/backends/swamp_club_fake.ts";
 import {
   entriesDefinition,
-  projectedDefinition,
+  trackedDefinition,
 } from "../../extensions/models/_lib/tracker/core/test_support.ts";
 import { BUILTIN_TYPE } from "../../extensions/models/_lib/tracker/backends/builtin.ts";
 import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linear.ts";
@@ -238,17 +238,6 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
   const fake = linearFake();
   try {
     await withRepo(async (repo) => {
-      await repo.factory("projected", projectedDefinition());
-      const key = await repo.newKey("projected", "Projected work");
-      await repo.workItem(key, "start", {
-        factory: "projected",
-        externalRefs: JSON.stringify({ linear: ISSUE_UUID }),
-      });
-      await repo.workItem(key, "advance", {
-        transition: "submit",
-        ...await repo.expected(key),
-      });
-
       const { stdout } = await repo.swamp([
         "model",
         "create",
@@ -271,6 +260,20 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
         },
       };
       await Deno.writeTextFile(path, stringifyYaml(definition));
+      await repo.factory(
+        "tracked",
+        { ...trackedDefinition(), tracker: { kind: "linear" } },
+        { tracker: "linear" },
+      );
+      const key = await repo.newKey("tracked", "Tracked work");
+      await repo.workItem(key, "start", {
+        factory: "tracked",
+        externalRefs: JSON.stringify({ linear: ISSUE_UUID }),
+      });
+      await repo.workItem(key, "advance", {
+        transition: "submit",
+        ...await repo.expected(key),
+      });
       const publish = () =>
         repo.swamp([
           "model",
@@ -287,7 +290,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
       assertEquals(
         fake.comments.map((c) => c.body.split("\n")[0]),
         [
-          `**${key}** started on definition \`projected\`, at stage **write**.`,
+          `**${key}** started on definition \`tracked\`, at stage **write**.`,
           `**${key}** entered **review** (cycle 1) by \`submit\`.`,
           `**${key}** is waiting on a person in **review**:`,
         ],
@@ -347,6 +350,82 @@ const MINIMAL = new URL(
   import.meta.url,
 );
 
+// ---------------------------------------------------------------------------
+// The tracker binding on the real engine: validate checks the bound
+// instance's model type against the definition's kind, and status reads the
+// bound instance's publish cursor across instances to show the lag.
+// ---------------------------------------------------------------------------
+
+Deno.test("tracker: validate refuses a Lab factory definition bound to a Linear instance", async () => {
+  await withRepo(async (repo) => {
+    await repo.swamp(["model", "create", LINEAR_TYPE, "linear", "--json"]);
+    await repo.factory(
+      "process",
+      { ...trackedDefinition(), tracker: { kind: "swamp-club" } },
+      { tracker: "linear" },
+    );
+    const result = await repo.factoryMethod("process", "validate", {
+      allowFailure: true,
+    });
+    assert(result.code !== 0, result.output);
+    assert(
+      result.output.includes(
+        "factory 'process' has a definition for a swamp-club tracker, which " +
+          "is a @swamp/gatorwalk-factory/swamp-club, but its tracker 'linear' " +
+          "is a @swamp/gatorwalk-factory/linear",
+      ),
+      result.output,
+    );
+  });
+});
+
+Deno.test("tracker: status shows the Lab issue behind until publish runs, then nothing", async () => {
+  const fake = swampClubFake();
+  try {
+    await withRepo(async (repo) => {
+      await labAdapter(repo, fake.url);
+      const minimal = parseYaml(await Deno.readTextFile(MINIMAL)) as Record<
+        string,
+        unknown
+      >;
+      await repo.factory(
+        "small",
+        { ...minimal, tracker: { kind: "swamp-club" } },
+        { tracker: "lab" },
+      );
+      const key = await repo.newKey("small", "Small work");
+      await repo.workItem(key, "start", {
+        factory: "small",
+        externalRefs: JSON.stringify({ "swamp-club": String(LAB_ISSUE) }),
+      });
+      const length = (await repo.run(key)).journal.length;
+      const behind = await repo.workItem(key, "status");
+      assert(
+        behind.output.includes(
+          `tracker 'lab' behind by ${length} event(s): run publish on it`,
+        ),
+        behind.output,
+      );
+
+      await repo.swamp([
+        "model",
+        "method",
+        "run",
+        "lab",
+        "publish",
+        "--input",
+        `workItem=${key}`,
+        "--log",
+      ]);
+      const after = await repo.workItem(key, "status");
+      assert(after.output.includes(`${key}: active`), after.output);
+      assert(!after.output.includes("tracker 'lab'"), after.output);
+    });
+  } finally {
+    await fake.close();
+  }
+});
+
 Deno.test("tracker: claim starts a work item from a Lab issue once, and hands back a reservation after an interrupted start", async () => {
   const fake = swampClubFake();
   const issue = String(LAB_ISSUE);
@@ -355,7 +434,14 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       await labAdapter(repo, fake.url);
       await repo.factory(
         "team",
-        parseYaml(await Deno.readTextFile(MINIMAL)),
+        {
+          ...parseYaml(await Deno.readTextFile(MINIMAL)) as Record<
+            string,
+            unknown
+          >,
+          tracker: { kind: "swamp-club" },
+        },
+        { tracker: "lab" },
       );
       const claim = (inputs: Record<string, string>) =>
         repo.swamp([
@@ -539,7 +625,7 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
           if (g.type === "cooldown") g.config.seconds = 1;
         }
       }
-      await repo.factory("process", definition);
+      await repo.factory("process", definition, { tracker: "lab" });
 
       const lab = (method: string, inputs: Record<string, string>) =>
         repo.swamp([
@@ -737,7 +823,7 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
 // finishes, the ticket claims a new one under a <prefix>-<slug>-<rnd> key.
 // ---------------------------------------------------------------------------
 
-Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a work item's projection, with no network", async () => {
+Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a work item's history, with no network", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
       "model",
@@ -757,7 +843,7 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
       types: ["bug", "feature"],
     };
     await Deno.writeTextFile(path, stringifyYaml(definition));
-    await repo.factory("entries", entriesDefinition());
+    await repo.factory("entries", entriesDefinition(), { tracker: "board" });
 
     const board = (method: string, inputs: Record<string, string>) =>
       repo.swamp([

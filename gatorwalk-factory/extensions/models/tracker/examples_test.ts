@@ -36,10 +36,10 @@ import {
   chooseEntry,
   type EntryEvent,
   renderEntry,
-} from "../_lib/tracker/core/projection.ts";
+} from "../_lib/tracker/core/ticket_view.ts";
 import {
-  PROJECTED_ITEM,
-  projectedItem,
+  TRACKED_ITEM,
+  trackedItem,
 } from "../_lib/tracker/core/test_support.ts";
 import { swampClubMethods } from "./swamp_club.ts";
 
@@ -77,36 +77,36 @@ Deno.test("every projecting example's status keys are Lab statuses, so the Lab a
   for (const file of [STARTER, BUILD, SWX]) {
     const definition = await load(file);
     const keyed = definition.stages.filter((s) =>
-      s.projection?.status !== undefined
+      s.tracker?.status !== undefined
     );
     assert(keyed.length > 0, `${file} projects no status`);
     for (const s of keyed) {
       assert(
         (LAB_STATUSES as readonly string[]).includes(
-          s.projection?.status ?? "",
+          s.tracker?.status ?? "",
         ),
         `${file}: stage '${s.id}' has status key ` +
-          `'${s.projection?.status}', not one of ${LAB_STATUSES.join(", ")}`,
+          `'${s.tracker?.status}', not one of ${LAB_STATUSES.join(", ")}`,
       );
     }
     // In stage order the keys only move forward along the Lab's order, so
     // a work item going forward never asks the Lab to move back.
     const order = ["open", "triaged", "in_progress", "shipped"];
-    const forward = keyed.filter((s) => s.projection?.status !== "closed")
-      .map((s) => order.indexOf(s.projection?.status ?? ""));
+    const forward = keyed.filter((s) => s.tracker?.status !== "closed")
+      .map((s) => order.indexOf(s.tracker?.status ?? ""));
     assertEquals(
       forward,
       [...forward].sort((a, b) => a - b),
       `${file}: status keys go backwards in stage order`,
     );
-    assertEquals(stage(definition, "done").projection?.status, "shipped");
-    assertEquals(stage(definition, "abandoned").projection?.status, "closed");
+    assertEquals(stage(definition, "done").tracker?.status, "shipped");
+    assertEquals(stage(definition, "abandoned").tracker?.status, "closed");
   }
 });
 
 Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regression flag only for a confirmed regression, and clears it otherwise", async () => {
   const definition = await load(SWX);
-  const candidates = (stage(definition, "triage").projection?.entries ?? [])
+  const candidates = (stage(definition, "triage").tracker?.entries ?? [])
     .filter((e) => e.step === "classified");
   assertEquals(candidates.length, 2);
   const claim = {
@@ -197,9 +197,14 @@ Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab
   try {
     const swamp = fakeSwamp();
     swamp.globalArgs.set("lab", { apiKey: ADMIN_KEY, url: fake.url });
-    const item = await projectedItem(swamp, {
-      "swamp-club": String(LAB_ISSUE),
-    }, raw);
+    const item = await trackedItem(
+      swamp,
+      {
+        "swamp-club": String(LAB_ISSUE),
+      },
+      raw,
+      { tracker: "lab" },
+    );
     const plan = {
       summary: "Add a list method",
       scopeAnalysis: "One extension",
@@ -238,7 +243,7 @@ Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab
       ctx: ReturnType<typeof swamp.context>,
     ) => Promise<unknown>;
     await publish(
-      methods.publish.arguments.parse({ workItem: PROJECTED_ITEM }),
+      methods.publish.arguments.parse({ workItem: TRACKED_ITEM }),
       swamp.context("lab"),
     );
     const planned = fake.entries.filter((e) =>

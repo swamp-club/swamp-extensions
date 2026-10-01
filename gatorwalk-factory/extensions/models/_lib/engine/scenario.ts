@@ -22,6 +22,7 @@ import {
   formatIssues,
   NameSchema,
   type ParseResult,
+  trackerKindOf,
 } from "./definition_schema.ts";
 import {
   evaluateTransitions,
@@ -294,6 +295,8 @@ export async function runScenario(
       key: `scenario-${scenario.scenario}`,
       definitionDigest: await digestOf(definition),
       externalRefs: scenario.externalRefs ?? {},
+      // A scenario runs in memory, with no tracker instance to publish to.
+      tracker: { instance: "scenario", kind: trackerKindOf(definition) },
     },
     SCENARIO_AGENT,
     env,

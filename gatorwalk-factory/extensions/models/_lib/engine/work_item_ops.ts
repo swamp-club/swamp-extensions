@@ -40,6 +40,14 @@ import {
 } from "./definition_file.ts";
 import { parseScenario, runScenario } from "./scenario.ts";
 import { STARTERS } from "./starters.ts";
+import {
+  CURSOR_SPEC,
+  cursorName,
+  CursorSchema,
+  TRACKER_KINDS,
+  TRACKER_TYPES,
+  type TrackerBinding,
+} from "./tracker_binding.ts";
 import { isAbsolute } from "jsr:@std/path@1.1.4";
 import {
   analyzeDefinition,
@@ -51,6 +59,7 @@ import {
   type FactoryDefinition,
   findStage,
   parseDefinition,
+  trackerKindOf,
 } from "./definition_schema.ts";
 import {
   advance,
@@ -282,21 +291,27 @@ export function typeNameOf(type: unknown): string {
   return String(type);
 }
 
-/**
- * The definition path a factory's model definition names in its raw,
- * unevaluated globalArguments; undefined when it names none. On a remote
- * worker the definition arrives as a plain object with _globalArguments.
- */
-export function factoryPathArgument(definition: unknown): string | undefined {
+/** One of a factory's raw, unevaluated globalArguments, as a string. On a
+ * remote worker the definition arrives as a plain object with
+ * _globalArguments. */
+function factoryArgument(definition: unknown, key: string): string | undefined {
   const d = definition as {
     globalArguments?: unknown;
     _globalArguments?: unknown;
   };
   const args = d.globalArguments ?? d._globalArguments;
-  const path = args !== null && typeof args === "object"
-    ? (args as Record<string, unknown>).definition
+  const value = args !== null && typeof args === "object"
+    ? (args as Record<string, unknown>)[key]
     : undefined;
-  return typeof path === "string" ? path : undefined;
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * The definition path a factory's model definition names in its raw,
+ * unevaluated globalArguments; undefined when it names none.
+ */
+export function factoryPathArgument(definition: unknown): string | undefined {
+  return factoryArgument(definition, "definition");
 }
 
 /**
@@ -309,6 +324,23 @@ export async function readFactoryPath(
   ctx: MethodContextLike,
   name: string,
 ): Promise<string> {
+  const found = await findFactoryModel(ctx, name);
+  const path = factoryPathArgument(found.definition);
+  if (path === undefined) {
+    throw new Error(
+      `factory '${name}' does not name its definition file: set its ` +
+        `globalArguments to { definition: <repo-relative path> }, e.g. ` +
+        `--global-arg definition=${DEFINITION_DIR}/${name}.yaml`,
+    );
+  }
+  return path;
+}
+
+/** A factory's model definition, through the definition repository. */
+async function findFactoryModel(
+  ctx: MethodContextLike,
+  name: string,
+): Promise<{ definition: unknown }> {
   if (ctx.definitionRepository === undefined) {
     throw new Error("this method context cannot read model definitions");
   }
@@ -320,15 +352,75 @@ export async function readFactoryPath(
       `'${name}' is a ${type}, not a factory (${FACTORY_TYPE})`,
     );
   }
-  const path = factoryPathArgument(found.definition);
-  if (path === undefined) {
+  return found;
+}
+
+/**
+ * The tracker a factory is bound to: the instance its tracker argument names,
+ * checked to have the model type its definition's tracker kind needs. Throws
+ * when the factory names no instance, the instance does not exist, or it is
+ * another kind of model. validate reports it and start pins it.
+ */
+export async function resolveTrackerBinding(
+  ctx: MethodContextLike,
+  factory: string,
+  definition: FactoryDefinition,
+): Promise<TrackerBinding> {
+  const kind = trackerKindOf(definition);
+  const expected = TRACKER_TYPES[kind];
+  const found = await findFactoryModel(ctx, factory);
+  const instance = factoryArgument(found.definition, "tracker");
+  if (instance === undefined) {
     throw new Error(
-      `factory '${name}' does not name its definition file: set its ` +
-        `globalArguments to { definition: <repo-relative path> }, e.g. ` +
-        `--global-arg definition=${DEFINITION_DIR}/${name}.yaml`,
+      `factory '${factory}' names no tracker: create a ${expected} instance ` +
+        `and set the factory's tracker argument to its name, e.g. ` +
+        `--global-arg tracker=<instance>`,
     );
   }
-  return path;
+  const tracker = await ctx.definitionRepository?.findByNameGlobal(instance);
+  if (tracker === null || tracker === undefined) {
+    throw new Error(
+      `factory '${factory}' names tracker '${instance}', but no model is ` +
+        `named '${instance}': create it with swamp model create ${expected} ` +
+        `${instance}`,
+    );
+  }
+  const type = typeNameOf(tracker.type);
+  if (type !== expected) {
+    throw new Error(
+      `factory '${factory}' has a definition for a ${kind} tracker, which ` +
+        `is a ${expected}, but its tracker '${instance}' is a ${type}`,
+    );
+  }
+  return { instance, kind };
+}
+
+/**
+ * Refuse externalRefs whose tickets are all on another kind of tracker than
+ * the one the factory is bound to: no tracker could publish such a work item,
+ * and status would report it as never behind. Keys that are not a tracker
+ * kind, and `<kind>.display` keys, are left alone; no refs at all is a work
+ * item with no ticket.
+ */
+function checkRefsFitTracker(
+  key: string,
+  factory: string,
+  externalRefs: Record<string, string>,
+  tracker: TrackerBinding,
+): void {
+  const kinds = Object.entries(externalRefs)
+    .filter(([k, v]) =>
+      v !== "" && (TRACKER_KINDS as readonly string[]).includes(k)
+    )
+    .map(([k]) => k);
+  if (kinds.length === 0 || kinds.includes(tracker.kind)) return;
+  throw new Error(
+    `work item '${key}' names a ticket on ${
+      kinds.join(", ")
+    }, but factory '${factory}' is bound to tracker '${tracker.instance}' ` +
+      `(${tracker.kind}): start it with externalRefs.${tracker.kind}, or ` +
+      `under a factory bound to that tracker`,
+  );
 }
 
 function repoOf(ctx: MethodContextLike): { dir: string; files: RepoFiles } {
@@ -408,7 +500,8 @@ export async function initFactory(
   }
   ctx.logger.info("{summary}", {
     summary: `wrote the '${from}' starter to ${path} for factory '${name}'. ` +
-      `Edit it (its description says what to change first), then run: ` +
+      `Edit it (its description says what to change first), make sure the ` +
+      `factory's tracker argument names a tracker instance, then run: ` +
       `swamp model method run ${name} validate`,
     path,
     starter: from,
@@ -428,6 +521,7 @@ export async function validateFactory(
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
   const { definition, path } = await loadFactory(ctx, name);
+  const tracker = await resolveTrackerBinding(ctx, name, definition);
   const maxStates = DEFAULT_MAX_STATES;
   const graph = analyzeDefinition(definition, { maxStates });
   // A partial exploration proves nothing, so it fails validation too. The
@@ -466,9 +560,11 @@ export async function validateFactory(
       `${definition.stages.length} stages (${
         definition.stages.map((s) => s.id).join(", ")
       }), ${graph.warnings.length} warning(s), ` +
-      `${scenarios} saved scenario(s) passed`,
+      `${scenarios} saved scenario(s) passed; tracker '${tracker.instance}' ` +
+      `(${tracker.kind})`,
     definition: definition.name,
     path,
+    tracker,
     digest: await digestOf(definition),
   });
   return { dataHandles: [] };
@@ -917,6 +1013,8 @@ export async function startWorkItem(
     );
   }
   const { definition, path } = await loadFactory(ctx, args.factory);
+  const tracker = await resolveTrackerBinding(ctx, args.factory, definition);
+  checkRefsFitTracker(key, args.factory, externalRefs, tracker);
   // Pin first, then commit the run that names the pinned version.
   const pinned = await pin(ctx, handles, args.factory, definition);
   const started = unwrap(
@@ -926,6 +1024,7 @@ export async function startWorkItem(
       {
         key,
         externalRefs,
+        tracker,
         definitionDigest: pinned.digest,
         definitionVersion: pinned.version,
       },
@@ -935,7 +1034,8 @@ export async function startWorkItem(
   );
   ctx.logger.info("{summary}", {
     summary: `started '${key}' at stage '${started.run.stage}' ` +
-      `(definition '${definition.name}' from '${args.factory}', ${path})`,
+      `(definition '${definition.name}' from '${args.factory}', ${path}; ` +
+      `tracker '${tracker.instance}')`,
     ...expectationProps(started.run),
   });
   return { dataHandles: handles };
@@ -967,6 +1067,54 @@ function humanGatesOf(gates: GateCheck[]): {
         : []
     );
   return { humanGates: ids(true), humanGatesNotRequired: ids(false) };
+}
+
+/**
+ * How far the bound tracker's ticket is behind the journal: the journal
+ * version its publish cursor has delivered against the journal's length.
+ * Read as data from the tracker instance, with no network call. A work item
+ * with no ticket on that tracker (no externalRefs under its kind) has nothing
+ * to publish, so it is never behind. When the cursor cannot be read, behind
+ * is null and problem says why; status still answers.
+ */
+export async function trackerLag(ctx: MethodContextLike, run: RunRecord) {
+  const { instance, kind } = run.tracker;
+  const journalLength = run.journal.length;
+  const ticket = run.externalRefs[kind] !== undefined;
+  const view = (delivered: number | null, problem?: string) => ({
+    instance,
+    kind,
+    ticket,
+    journalLength,
+    delivered,
+    behind: !ticket
+      ? 0
+      : delivered === null
+      ? null
+      : Math.max(0, journalLength - delivered),
+    ...(problem === undefined ? {} : { problem }),
+  });
+  if (!ticket) return view(null);
+  const reader = ctx as DataReadingContext;
+  if (reader.readModelData === undefined) {
+    return view(null, "this method context cannot read the tracker's data");
+  }
+  try {
+    const name = cursorName(run.key);
+    const latest = (await reader.readModelData(instance, CURSOR_SPEC))
+      .filter((r) => r.name === name)
+      .sort((a, b) => b.version - a.version)[0];
+    if (latest === undefined) return view(0);
+    const cursor = CursorSchema.parse(latest.content ?? latest.attributes);
+    return view(cursor.journalVersion);
+  } catch (error) {
+    return view(
+      null,
+      `reading tracker '${instance}': ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /** Everything a caller needs to act next, as data. */
@@ -1010,6 +1158,7 @@ export async function describeStatus(
       : [],
     validations: run.validations,
     products: run.products,
+    tracker: await trackerLag(ctx, run),
   };
 }
 
@@ -1037,6 +1186,15 @@ export async function status(
   ];
   if (view.personRecords.length > 0) {
     lines.push(`  a person records: ${view.personRecords.join(", ")}`);
+  }
+  const lag = view.tracker;
+  if (lag.behind === null) {
+    lines.push(`  tracker '${lag.instance}' lag unknown: ${lag.problem}`);
+  } else if (lag.behind > 0) {
+    lines.push(
+      `  tracker '${lag.instance}' behind by ${lag.behind} event(s): run ` +
+        `publish on it`,
+    );
   }
   if (view.dispatch !== null && view.dispatchCap !== null) {
     const cap = view.dispatchCap;

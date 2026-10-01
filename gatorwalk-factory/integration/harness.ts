@@ -15,7 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { fromFileUrl, join } from "@std/path";
-import { stringify as stringifyYaml } from "@std/yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import { expectedOf } from "../extensions/models/_lib/engine/run_ops.ts";
 import {
   parseRun,
@@ -25,6 +25,12 @@ import {
   FACTORY_TYPE,
   WORK_ITEM_TYPE,
 } from "../extensions/models/_lib/engine/work_item_ops.ts";
+import {
+  DEFAULT_TRACKER_KIND,
+  TRACKER_KINDS,
+  TRACKER_TYPES,
+  type TrackerKind,
+} from "../extensions/models/_lib/engine/tracker_binding.ts";
 
 // ---------------------------------------------------------------------------
 // A harness that drives gatorwalk-factory through the installed swamp CLI,
@@ -106,9 +112,17 @@ export interface SwampRepo {
   >;
   /**
    * Write `definition` (YAML text as is, anything else as YAML) to
-   * factories/<name>.yaml and create a factory naming that file.
+   * factories/<name>.yaml and create a factory naming that file, bound to
+   * the tracker instance `tracker`. Without one it is bound to a tracker of
+   * the definition's kind that the harness creates once per repo: `board`
+   * for the built-in tracker (prefix board), `swamp-club` for the Lab. A
+   * Linear definition needs its tracker named, since Linear needs a token.
    */
-  factory(name: string, definition: unknown): Promise<void>;
+  factory(
+    name: string,
+    definition: unknown,
+    options?: { tracker?: string },
+  ): Promise<void>;
   /** Replace a factory's definition file, as an edit would. */
   editFactory(name: string, definition: unknown): Promise<void>;
   /** Run a factory method by name. */
@@ -188,6 +202,17 @@ function inputArgs(inputs: Record<string, string>): string[] {
   return Object.entries(inputs).flatMap(([k, v]) => ["--input", `${k}=${v}`]);
 }
 
+/** The tracker kind a definition, as YAML text or data, names. */
+function kindOf(definition: unknown): TrackerKind {
+  const doc = typeof definition === "string"
+    ? parseYaml(definition)
+    : definition;
+  const kind = (doc as { tracker?: { kind?: unknown } } | null)?.tracker?.kind;
+  return (TRACKER_KINDS as readonly unknown[]).includes(kind)
+    ? kind as TrackerKind
+    : DEFAULT_TRACKER_KIND;
+}
+
 /** Run `fn` against a fresh swamp repo with gatorwalk-factory as a source. */
 export async function withRepo(
   fn: (repo: SwampRepo) => Promise<void>,
@@ -236,8 +261,35 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     );
   };
 
-  const createFactory = async (name: string, definition: unknown) => {
+  // The trackers the harness created, so each is created once.
+  const trackers = new Set<string>();
+  const defaultTracker = async (kind: TrackerKind): Promise<string> => {
+    if (kind === "linear") {
+      throw new Error("a Linear factory needs its tracker named: { tracker }");
+    }
+    const instance = kind === "builtin" ? "board" : kind;
+    if (!trackers.has(instance)) {
+      const args = kind === "builtin" ? ["--global-arg", "prefix=board"] : [];
+      await swamp([
+        "model",
+        "create",
+        TRACKER_TYPES[kind],
+        instance,
+        ...args,
+        "--json",
+      ]);
+      trackers.add(instance);
+    }
+    return instance;
+  };
+
+  const createFactory: SwampRepo["factory"] = async (
+    name,
+    definition,
+    options = {},
+  ) => {
     await writeFactory(name, definition);
+    const tracker = options.tracker ?? await defaultTracker(kindOf(definition));
     await swamp([
       "model",
       "create",
@@ -245,6 +297,8 @@ async function openRepo(dir: string): Promise<SwampRepo> {
       name,
       "--global-arg",
       `definition=${definitionPath(name)}`,
+      "--global-arg",
+      `tracker=${tracker}`,
       "--json",
     ]);
   };

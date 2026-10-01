@@ -20,15 +20,15 @@ import {
   type JournalEvent,
   parseTemplate,
   type ProductKind,
-  type ProjectionEntry,
   renderTemplate,
   type RunRecord,
+  type TrackerEntry,
   triggerKey,
 } from "../../engine/tracker.ts";
 
 // ---------------------------------------------------------------------------
-// The projection: what a work item's journal says to its tracker ticket
-// (DESIGN.md, "The projection publisher"). Pure: no I/O and no clock, so the
+// The ticket view: what a work item's journal says to its tracker ticket
+// (DESIGN.md, "The publisher"). Pure: no I/O and no clock, so the
 // same run always gives the same comments, and a replay of a delivery key
 // asks the ledger for the same write.
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ export interface PlannedComment {
   body: string;
 }
 
-export interface Projection {
+export interface TicketView {
   /** Comments for the events after the cursor, in journal order. */
   comments: PlannedComment[];
   /** The status key of the stage the work item is in now, or null when
@@ -52,18 +52,18 @@ export interface Projection {
  * The comments for the journal events after `since` (a journal version),
  * and the status key of the current stage in the pinned factory definition.
  */
-export function project(
+export function ticketView(
   run: RunRecord,
   definition: FactoryDefinition,
   since: number,
-): Projection {
+): TicketView {
   const comments: PlannedComment[] = [];
   for (let i = since; i < run.journal.length; i++) {
     const body = commentFor(run.key, run.journal[i], definition);
     if (body !== null) comments.push({ journalVersion: i + 1, body });
   }
   const stage = definition.stages.find((s) => s.id === run.stage);
-  return { comments, status: stage?.projection?.status ?? null };
+  return { comments, status: stage?.tracker?.status ?? null };
 }
 
 /**
@@ -172,7 +172,7 @@ export function ticketSegments(
   tracker: string,
 ): TicketSegment[] {
   const statusOf = (stage: string) =>
-    definition.stages.find((s) => s.id === stage)?.projection?.status ?? null;
+    definition.stages.find((s) => s.id === stage)?.tracker?.status ?? null;
   const item = `**${run.key}**`;
   const firstMove = run.journal.find((e) => e.type === "retargeted");
   const segments: TicketSegment[] = [];
@@ -233,16 +233,14 @@ function exitLine(exit: AwaitingExit): string {
 
 // ---------------------------------------------------------------------------
 // Entries: the journal as structured ticket history (the Lab's lifecycle
-// entries), for a factory definition whose stages declare projection.entries.
+// entries), for a factory definition whose stages declare tracker.entries.
 // Which event becomes which step is the factory definition's to say, pinned
 // with the rest of it. An event no entry answers posts nothing.
 // ---------------------------------------------------------------------------
 
-/** Whether a factory definition declares any projection entries. */
+/** Whether a factory definition declares any tracker entries. */
 export function declaresEntries(definition: FactoryDefinition): boolean {
-  return definition.stages.some((s) =>
-    (s.projection?.entries?.length ?? 0) > 0
-  );
+  return definition.stages.some((s) => (s.tracker?.entries?.length ?? 0) > 0);
 }
 
 /** A recorded product an entry reads its payload from. */
@@ -260,7 +258,7 @@ export interface EntryEvent {
   /** The candidates in the factory definition's order: those on the event's
    * trigger and cycle. A match decides between them once the payload is read.
    */
-  candidates: ProjectionEntry[];
+  candidates: TrackerEntry[];
   /** The status key labelling the entry unless it names its own: the
    * stage's, else the last one entered before it, else null. */
   status: string | null;
@@ -286,9 +284,9 @@ export function projectEntries(
     const at = triggerOf(event);
     if (at === null) continue;
     const stage = stages.get(at.stage);
-    status = stage?.projection?.status ?? status;
+    status = stage?.tracker?.status ?? status;
     if (i < since) continue;
-    const candidates = (stage?.projection?.entries ?? []).filter((e) =>
+    const candidates = (stage?.tracker?.entries ?? []).filter((e) =>
       triggerKey(e.on) === at.key &&
       (e.cycle === undefined || (e.cycle === "first") === (at.cycle === 1))
     );
@@ -341,9 +339,9 @@ function triggerOf(event: JournalEvent): {
 
 /** The first candidate whose match the payload holds, or null. */
 export function chooseEntry(
-  candidates: ProjectionEntry[],
+  candidates: TrackerEntry[],
   payload: Record<string, unknown>,
-): ProjectionEntry | null {
+): TrackerEntry | null {
   return candidates.find((e) =>
     Object.entries(e.match ?? {}).every(([field, value]) =>
       Object.hasOwn(payload, field) && payload[field] === value
@@ -390,7 +388,7 @@ export function withoutDollarKeys(
  * so an optional field never blocks the history.
  */
 export function renderEntry(
-  entry: ProjectionEntry,
+  entry: TrackerEntry,
   event: EntryEvent,
   payload: Record<string, unknown>,
 ): RenderedEntry {

@@ -251,11 +251,14 @@ export function checkCommand(words: string[]): string | null {
   }
   if (is("model", "create")) {
     if (args[2] === FACTORY_TYPE) {
-      return args.length === 7 && args[4] === "--global-arg" &&
-          /^definition=[^/].*\.ya?ml$/.test(args[5]) && args[6] === "--json"
+      return args.length === 9 && args[4] === "--global-arg" &&
+          /^definition=[^/].*\.ya?ml$/.test(args[5]) &&
+          args[6] === "--global-arg" && /^tracker=\S+$/.test(args[7]) &&
+          args[8] === "--json"
         ? null
         : `model create must be: model create ${FACTORY_TYPE} <name> ` +
-          "--global-arg definition=<path>.yaml --json";
+          "--global-arg definition=<path>.yaml --global-arg tracker=<tracker> " +
+          "--json";
     }
     // The built-in tracker needs its prefix; Linear is set up in the model
     // file create prints.

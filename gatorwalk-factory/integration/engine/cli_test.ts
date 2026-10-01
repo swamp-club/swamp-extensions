@@ -312,8 +312,8 @@ Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640
     await repo.factory("team", await buildDefinition());
     const key = await repo.newKey("team", "Integration work");
     const refs = {
-      linear: "5b0e7a52-3f0c-4d8e-9a51-2c7d4a1e9b10",
-      "linear.display": "GW-16",
+      builtin: "board-integration-work-r2ne",
+      "builtin.display": "board-integration-work-r2ne",
     };
     await repo.workItem(key, "start", {
       factory: "team",
@@ -329,10 +329,13 @@ Deno.test("cli: retarget replaces externalRefs from a JSON string and journals t
     const key = await repo.newKey("team", "Integration work");
     await repo.workItem(key, "start", {
       factory: "team",
-      externalRefs: JSON.stringify({ "swamp-club": "2630" }),
+      externalRefs: JSON.stringify({ builtin: "board-work-2630" }),
     });
     const before = await repo.run(key);
-    const refs = { "swamp-club": "2631", "swamp-club.display": "#2631" };
+    const refs = {
+      builtin: "board-work-2631",
+      "builtin.display": "board-work-2631",
+    };
     await repo.workItem(key, "retarget", {
       externalRefs: JSON.stringify(refs),
       reason: "2630 duplicates 2631",
@@ -343,7 +346,7 @@ Deno.test("cli: retarget replaces externalRefs from a JSON string and journals t
     assertEquals([after.stage, after.era], [before.stage, before.era]);
     const moved = after.journal.at(-1);
     assert(moved?.type === "retargeted");
-    assertEquals(moved.from, { "swamp-club": "2630" });
+    assertEquals(moved.from, { builtin: "board-work-2630" });
     assertEquals(moved.reason, "2630 duplicates 2631");
   });
 });
@@ -597,10 +600,21 @@ Deno.test("cli: a factory names its definition file; init copies a starter, then
     await repo.swamp([
       "model",
       "create",
+      "@swamp/gatorwalk-factory/tracker",
+      "board",
+      "--global-arg",
+      "prefix=board",
+      "--json",
+    ]);
+    await repo.swamp([
+      "model",
+      "create",
       FACTORY_TYPE,
       "team",
       "--global-arg",
       "definition=factories/team.yaml",
+      "--global-arg",
+      "tracker=board",
       "--json",
     ]);
     const init = await repo.factoryMethod("team", "init", {
@@ -689,6 +703,8 @@ Deno.test("cli: a definition path outside the repo, through a symlink out, missi
           name,
           "--global-arg",
           `definition=${path}`,
+          "--global-arg",
+          "tracker=board",
           "--json",
         ]);
         const result = await repo.factoryMethod(name, "validate", {
@@ -707,6 +723,8 @@ Deno.test("cli: a definition path outside the repo, through a symlink out, missi
         "under-file",
         "--global-arg",
         "definition=plain/new.yaml",
+        "--global-arg",
+        "tracker=board",
         "--json",
       ]);
       const underFile = await repo.factoryMethod("under-file", "init", {

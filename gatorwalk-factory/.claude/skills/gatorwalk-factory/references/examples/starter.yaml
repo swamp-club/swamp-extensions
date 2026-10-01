@@ -7,8 +7,8 @@ description: |-
   For: changes to any codebase. A person approves the plan and the release,
   and confirms abandoning the work. A review with a blocking finding, or a
   failed verify, sends the work back. Every check and the release are bound
-  to the commit named in change-summary. Stages project Lab statuses, so a
-  work item can drive a swamp-club issue; drop the projection keys if it will
+  to the commit named in change-summary. Stages name tracker status keys, so
+  a work item can drive a ticket; drop the stages' tracker blocks if it will
   not. For a swamp extension, build-swamp-extension.yaml adds a quality score
   and a manifest version check.
 
@@ -19,7 +19,7 @@ description: |-
 stages:
   - id: plan
     initial: true
-    projection: { status: triaged }
+    tracker: { status: triaged }
     description: Plan the change.
     work:
       mode: interactive
@@ -70,7 +70,7 @@ stages:
             config: { artifact: plan }
 
   - id: plan-review
-    projection: { status: triaged }
+    tracker: { status: triaged }
     description: >-
       Adversarial review of the current plan. Open blocking findings send it
       back; none lets it through. With nothing blocking, approving carries the
@@ -145,7 +145,7 @@ stages:
             config: { name: plan-feedback }
 
   - id: implement
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: Implement the plan and commit it.
     work:
       mode: interactive
@@ -174,7 +174,7 @@ stages:
             config: { artifact: change-summary }
 
   - id: verify
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: >-
       Run the checks on the change-summary commit and record checks, with one
       result per check.
@@ -237,7 +237,7 @@ stages:
             config: { name: checks, requireField: { status: failed } }
 
   - id: code-review
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: >-
       Adversarial review of the change. Open blocking findings send it back;
       none lets it through.
@@ -290,7 +290,7 @@ stages:
           it never fires on its own.
 
   - id: release
-    projection: { status: in_progress }
+    tracker: { status: in_progress }
     description: Release the reviewed commit.
     work:
       mode: interactive
@@ -318,11 +318,11 @@ stages:
 
   - id: done
     terminal: true
-    projection: { status: shipped }
+    tracker: { status: shipped }
 
   - id: abandoned
     terminal: true
-    projection: { status: closed }
+    tracker: { status: closed }
 
 globalTransitions:
   - name: abandon

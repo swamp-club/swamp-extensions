@@ -110,7 +110,7 @@ export interface StageView {
   terminal: boolean;
   maxCycles: number;
   maxDispatchesPerCycle: number;
-  projectionStatus?: string;
+  trackerStatus?: string;
   work?: WorkView;
   products: ProductView[];
   transitions: TransitionView[];
@@ -312,8 +312,8 @@ export function designView(
       }),
     };
     if (s.description !== undefined) view.description = s.description;
-    if (s.projection?.status !== undefined) {
-      view.projectionStatus = s.projection.status;
+    if (s.tracker?.status !== undefined) {
+      view.trackerStatus = s.tracker.status;
     }
     if (s.work !== undefined) {
       const w = s.work;
@@ -642,8 +642,8 @@ function stageHtml(s: StageView, view: DesignView, ids: Set<string>): string {
   const tags = [
     s.initial ? `<span class="tag">initial</span>` : "",
     s.terminal ? `<span class="tag">terminal</span>` : "",
-    s.projectionStatus !== undefined
-      ? `<span class="tag">status ${e(s.projectionStatus)}</span>`
+    s.trackerStatus !== undefined
+      ? `<span class="tag">status ${e(s.trackerStatus)}</span>`
       : "",
   ].join(" ");
   const own = view.findings.map((f, i) => [f, i] as const)

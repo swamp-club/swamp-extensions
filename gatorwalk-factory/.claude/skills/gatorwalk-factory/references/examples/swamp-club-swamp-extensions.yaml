@@ -24,7 +24,7 @@ description: |-
   onto this factory definition and lists what the format could not express.
 
   The work item never talks to swamp-club itself. The adapter's publish
-  replays its journal to the issue: each stage's projection names the Lab
+  replays its journal to the issue: each stage's tracker block names the Lab
   status and the lifecycle entries (issue-lifecycle's step names) its events
   become, and the classification sets the issue type. attest and notify post
   the attestation and the contributor's thank-you through the adapter.
@@ -41,11 +41,14 @@ description: |-
   the evidence-recorded gate, which only accepts evidence from the current
   stage and cycle. implement.submit and attest.attested depend on it.
 
+tracker:
+  kind: swamp-club
+
 stages:
   - id: triage
     initial: true
     maxCycles: 5
-    projection:
+    tracker:
       entries:
         - on: enter
           step: triage_started
@@ -226,7 +229,7 @@ stages:
                 answers; record it again once they have answered
 
   - id: reproduce
-    projection: { status: triaged }
+    tracker: { status: triaged }
     description: >-
       Reproduce the bug before planning a fix. A bug that cannot be
       reproduced goes on to planning only with a person's approval.
@@ -282,7 +285,7 @@ stages:
           is not the bug it looked like. Manual, so it never fires on its own.
 
   - id: plan
-    projection:
+    tracker:
       status: triaged
       entries:
         - on: { record: plan }
@@ -364,7 +367,7 @@ stages:
             config: { artifact: plan }
 
   - id: plan-review
-    projection:
+    tracker:
       status: triaged
       entries:
         - on: { record: plan-review }
@@ -458,7 +461,7 @@ stages:
             config: { name: plan-feedback }
 
   - id: implement
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: enter
@@ -532,7 +535,7 @@ stages:
                 new commit goes through submit
 
   - id: conformance-review
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: { record: conformance }
@@ -608,7 +611,7 @@ stages:
           The code has to change to match the plan. A person decides.
 
   - id: verify
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: enter
@@ -715,7 +718,7 @@ stages:
           on its own.
 
   - id: attest
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: { record: attestation }
@@ -824,7 +827,7 @@ stages:
                 succeeded, with their run ids
 
   - id: pull-request
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: { record: pull-request }
@@ -869,7 +872,7 @@ stages:
               message: the pull request must be for the attested commit
 
   - id: merge
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: { record: merge }
@@ -996,7 +999,7 @@ stages:
                 succeeded, with their run ids
 
   - id: release
-    projection:
+    tracker:
       status: in_progress
       entries:
         - on: { record: release }
@@ -1047,7 +1050,7 @@ stages:
             config: { name: release }
 
   - id: notify
-    projection:
+    tracker:
       status: shipped
       entries:
         - on: { record: notification }
@@ -1115,7 +1118,7 @@ stages:
             config: { name: notification }
 
   - id: summary
-    projection:
+    tracker:
       status: shipped
       entries:
         - on: { record: summary }
@@ -1158,11 +1161,11 @@ stages:
 
   - id: done
     terminal: true
-    projection: { status: shipped }
+    tracker: { status: shipped }
 
   - id: abandoned
     terminal: true
-    projection:
+    tracker:
       status: closed
       entries:
         - on: enter

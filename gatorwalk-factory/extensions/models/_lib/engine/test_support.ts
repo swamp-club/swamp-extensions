@@ -15,6 +15,7 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import type { Actor } from "./journal.ts";
+import type { TrackerBinding } from "./tracker_binding.ts";
 import { type Expected, expectedOf } from "./run_ops.ts";
 import { loadRun, type RunStore } from "./run_store.ts";
 import {
@@ -36,6 +37,12 @@ export function testEnv(): Env {
     newEra: () => `era-${++era}`,
   };
 }
+
+/** The tracker binding unit tests start runs with. */
+export const TEST_TRACKER: TrackerBinding = {
+  instance: "board",
+  kind: "builtin",
+};
 
 export const ALICE: Actor = { principal: "user:alice", source: "platform" };
 export const NOBODY: Actor = { principal: null, source: "none" };

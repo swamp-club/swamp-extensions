@@ -20,6 +20,7 @@ import {
   celExpressions,
   type FactoryDefinition,
   parseDefinition,
+  trackerKindOf,
   transitionsFrom,
 } from "./definition_schema.ts";
 
@@ -788,35 +789,56 @@ Deno.test("transitionsFrom: stage transitions plus globals; none from terminals"
   assertEquals(transitionsFrom(definition, done), []);
 });
 
-// --- projection hints ----------------------------------------------------------
+// --- tracker block ----------------------------------------------------------
 
-Deno.test("projection: a stage may name a status key", () => {
+Deno.test("tracker kind: a definition names the kind of tracker it is written for, the built-in one by default", () => {
+  const result = parseDefinition(base());
+  assert(result.ok);
+  assertEquals(trackerKindOf(result.value), "builtin");
+  for (const kind of ["builtin", "swamp-club", "linear"]) {
+    const doc = base();
+    set(doc, "tracker", { kind });
+    const named = parseDefinition(doc);
+    assert(named.ok);
+    assertEquals(trackerKindOf(named.value), kind);
+  }
+});
+
+Deno.test("tracker kind: only a known kind, and nothing else, since the tracker instance holds its settings", () => {
   const doc = base();
-  set(doc, "stages.0.projection", { status: "in_progress" });
-  set(doc, "stages.1.projection", {});
+  set(doc, "tracker", { kind: "jira" });
+  assertRejects(doc, "tracker.kind:");
+  set(doc, "tracker", { kind: "builtin", prefix: "cue" });
+  assertRejects(doc, "prefix");
+});
+
+Deno.test("stage tracker block: a stage may name a status key", () => {
+  const doc = base();
+  set(doc, "stages.0.tracker", { status: "in_progress" });
+  set(doc, "stages.1.tracker", {});
   assertValid(doc);
 });
 
-Deno.test("projection: the status key is a name, and nothing else is accepted", () => {
+Deno.test("stage tracker block: the status key is a name, and nothing else is accepted", () => {
   const doc = base();
-  set(doc, "stages.0.projection", { status: "In Progress", comment: false });
-  assertRejects(doc, "stages.0.projection.status:", "comment");
+  set(doc, "stages.0.tracker", { status: "In Progress", comment: false });
+  assertRejects(doc, "stages.0.tracker.status:", "comment");
 });
 
-Deno.test("projection: a stage without one parses without the key, so its digest does not move", () => {
+Deno.test("stage tracker block: a stage without one parses without the key, so its digest does not move", () => {
   const result = parseDefinition(base());
   assert(result.ok);
-  assert(result.value.stages.every((s) => !("projection" in s)));
+  assert(result.value.stages.every((s) => !("tracker" in s)));
 });
 
-/** base() with an approval gate on finish and the given projection entries. */
+/** base() with an approval gate on finish and the given tracker entries. */
 function withEntries(entries: unknown[]): Raw {
   const doc = base();
   set(doc, "stages.0.transitions.0.gates.1", {
     type: "human-approval",
     config: { id: "sign-off" },
   });
-  set(doc, "stages.0.projection", { status: "in_progress", entries });
+  set(doc, "stages.0.tracker", { status: "in_progress", entries });
   return doc;
 }
 
@@ -827,7 +849,7 @@ const entry = (extra: Raw): Raw => ({
   ...extra,
 });
 
-Deno.test("projection entries: enter, record and approve triggers, with a payload summary and a status label", () => {
+Deno.test("tracker entries: enter, record and approve triggers, with a payload summary and a status label", () => {
   assertValid(withEntries([
     entry({ on: "enter", step: "work_started" }),
     entry({
@@ -840,7 +862,7 @@ Deno.test("projection entries: enter, record and approve triggers, with a payloa
   ]));
 });
 
-Deno.test("projection entries: a trigger names what its stage has", () => {
+Deno.test("tracker entries: a trigger names what its stage has", () => {
   assertRejects(
     withEntries([entry({ on: { record: "elsewhere" } })]),
     "'elsewhere' is not a product stage 'work' declares",
@@ -851,7 +873,7 @@ Deno.test("projection entries: a trigger names what its stage has", () => {
   );
 });
 
-Deno.test("projection entries: payload fields are the recorded product's own", () => {
+Deno.test("tracker entries: payload fields are the recorded product's own", () => {
   assertRejects(
     withEntries([entry({ on: { record: "summary" }, summary: "{{missing}}" })]),
     "'missing' is not a field of 'summary'",
@@ -866,14 +888,14 @@ Deno.test("projection entries: payload fields are the recorded product's own", (
   );
 });
 
-Deno.test("projection entries: a summary needs fixed text, since an absent field fills as empty", () => {
+Deno.test("tracker entries: a summary needs fixed text, since an absent field fills as empty", () => {
   assertRejects(
     withEntries([entry({ on: { record: "summary" }, summary: " {{text}} " })]),
     "a summary needs some text besides its {{field}} placeholders",
   );
 });
 
-Deno.test("projection entries: a summary placeholder names a scalar field, not an object or a list", () => {
+Deno.test("tracker entries: a summary placeholder names a scalar field, not an object or a list", () => {
   const doc = withEntries([
     entry({ on: { record: "summary" }, summary: "{{tags}} and {{meta}}" }),
   ]);
@@ -886,7 +908,7 @@ Deno.test("projection entries: a summary placeholder names a scalar field, not a
   );
 });
 
-Deno.test("projection entries: enter and approve have no payload to match, fill or read a type from", () => {
+Deno.test("tracker entries: enter and approve have no payload to match, fill or read a type from", () => {
   assertRejects(
     withEntries([entry({ on: "enter", summary: "At {{text}}" })]),
     "{{field}} placeholders",
@@ -901,7 +923,7 @@ Deno.test("projection entries: enter and approve have no payload to match, fill 
   );
 });
 
-Deno.test("projection entries: two entries on one trigger must be told apart by cycle or match", () => {
+Deno.test("tracker entries: two entries on one trigger must be told apart by cycle or match", () => {
   assertRejects(
     withEntries([
       entry({ on: { record: "summary" }, step: "one" }),
@@ -927,7 +949,7 @@ Deno.test("projection entries: two entries on one trigger must be told apart by 
   );
 });
 
-Deno.test("projection entries: a step is a lowercase name, and a status label a status key", () => {
+Deno.test("tracker entries: a step is a lowercase name, and a status label a status key", () => {
   assertRejects(
     withEntries([entry({ on: "enter", step: "Started" })]),
     "step",

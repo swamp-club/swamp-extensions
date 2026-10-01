@@ -40,6 +40,7 @@ import {
   NOBODY,
   PASS,
   smallDefinition,
+  TEST_TRACKER,
   testEnv,
 } from "./test_support.ts";
 
@@ -48,7 +49,7 @@ const DEFINITION = smallDefinition();
 function fresh(env: Env = testEnv()): RunRecord {
   return start(
     DEFINITION,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -379,7 +380,7 @@ Deno.test("recordApproval: a conditional gate takes decisions while its when is 
   const env = testEnv();
   let run = start(
     parsed.value,
-    { key: "wi-c", definitionDigest: "sha256:c" },
+    { key: "wi-c", tracker: TEST_TRACKER, definitionDigest: "sha256:c" },
     ALICE,
     env,
   );
@@ -693,7 +694,7 @@ Deno.test("cycle limit: entering a stage past maxCycles is refused, and says who
   const env = testEnv();
   let run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -726,7 +727,7 @@ Deno.test("cycle overrides accumulate: each grant allows one more entry, none re
   const env = testEnv();
   let run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -776,7 +777,7 @@ Deno.test("overrides belong to their era: a reset starts the counts afresh", () 
   const env = testEnv();
   let run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -811,7 +812,7 @@ Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop 
   const env = testEnv();
   let run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -863,7 +864,7 @@ Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
   const env = testEnv();
   const run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:l" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
     ALICE,
     env,
   );
@@ -907,7 +908,7 @@ Deno.test("cycle limit: a global escape transition is never closed by it", async
   const env = testEnv();
   let run = start(
     definition,
-    { key: "wi-1", definitionDigest: "sha256:e" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:e" },
     ALICE,
     env,
   );
@@ -930,6 +931,7 @@ Deno.test("retarget: replaces externalRefs whole and journals the move; nothing 
     {
       key: "wi-1",
       externalRefs: { "swamp-club": "12", "swamp-club.display": "#12" },
+      tracker: TEST_TRACKER,
       definitionDigest: "sha256:l",
     },
     ALICE,
@@ -980,6 +982,7 @@ Deno.test("retarget: refused when finished, stale, naming no ticket, unchanged o
     {
       key: "wi-1",
       externalRefs: { linear: "a" },
+      tracker: TEST_TRACKER,
       definitionDigest: "sha256:l",
     },
     ALICE,

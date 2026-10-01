@@ -86,11 +86,12 @@ closest to the interview, then change it:
 | A swamp extension                                 | `build-swamp-extension` |
 
 `starter` fits most processes. Create the factory, which names its definition
-file, and copy the example into that file:
+file and its tracker instance (`<tracker>`, set up in step 5), and copy the
+example into that file:
 
 ```sh
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
-  --global-arg definition=factories/<factory>.yaml --json
+  --global-arg definition=factories/<factory>.yaml --global-arg tracker=<tracker> --json
 swamp model method run <factory> init --input from=<starter> --log
 ```
 
@@ -198,11 +199,13 @@ repositories, not for anyone else. When an example's description mentions the
 Lab or swamp-club issues, remove that from the copy.
 
 Create the tracker's adapter instance once per project, next to the factory. The
-factory definition does not name it yet: a work item finds its ticket through
-its `externalRefs`, which `claim` sets.
+factory names it (its `tracker` argument), and `validate` refuses the factory
+until an instance of that name exists with the type the definition's
+`tracker.kind` needs. A work item finds its ticket through its `externalRefs`,
+which `claim` sets.
 
-**Built-in** (the default): tickets kept in swamp data, with ids like
-`docs-fix-typo-r2ne`:
+**Built-in** (the default, when the definition names no `tracker.kind`): tickets
+kept in swamp data, with ids like `docs-fix-typo-r2ne`:
 
 ```sh
 swamp model create @swamp/gatorwalk-factory/tracker <tracker> \
@@ -210,16 +213,17 @@ swamp model create @swamp/gatorwalk-factory/tracker <tracker> \
 ```
 
 Its statuses default to `open`, `in_progress`, `shipped` and `closed`. Every
-`projection: { status: <key> }` in the definition must be one of them, or
-`publish` refuses that stage. The examples use `triaged` for their first stages,
-so either change those keys to `open`, or add a `statuses` list to the tracker's
-global arguments that has every key the definition uses.
+`tracker: { status: <key> }` in the definition must be one of them, or `publish`
+refuses that stage. The examples use `triaged` for their first stages, so either
+change those keys to `open`, or add a `statuses` list to the tracker's global
+arguments that has every key the definition uses.
 
-**Linear**: create the instance, then set its global arguments in the model file
-that `model create` prints. Put the API key in a vault first and refer to it
-from `apiToken`; never write the key into the file. `statuses` maps each status
-key the definition uses to a Linear state, `teamId` is the team new issues go
-to, and `types` maps ticket types to label names:
+**Linear**: add `tracker: { kind: linear }` at the top of the definition, create
+the instance, then set its global arguments in the model file that
+`model create` prints. Put the API key in a vault first and refer to it from
+`apiToken`; never write the key into the file. `statuses` maps each status key
+the definition uses to a Linear state, `teamId` is the team new issues go to,
+and `types` maps ticket types to label names:
 
 ```sh
 swamp model create @swamp/gatorwalk-factory/linear <tracker> --json

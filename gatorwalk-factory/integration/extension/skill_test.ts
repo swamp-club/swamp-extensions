@@ -195,12 +195,24 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
     "status",
   ]);
   await withRepo(async (repo) => {
+    // State 2's step 5 sets up the tracker from "The tracker", which this walk
+    // stops before: the built-in one, created as that section says.
+    await repo.swamp([
+      "model",
+      "create",
+      "@swamp/gatorwalk-factory/tracker",
+      "board",
+      "--global-arg",
+      "prefix=team",
+      "--json",
+    ]);
     const steps = await runExample(repo, commands, {
       extensionRoot: EXTENSION_ROOT,
       values: {
         "<factory>": "team",
         "<starter>": "starter",
         "<title>": "Fix a typo",
+        "<tracker>": "board",
       },
     });
     const validate = steps.find((s) => s.ran.includes("validate"))!;

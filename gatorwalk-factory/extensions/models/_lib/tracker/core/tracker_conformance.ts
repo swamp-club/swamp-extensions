@@ -16,7 +16,7 @@
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { fakeSwamp, smallDefinition } from "../../engine/tracker_testing.ts";
-import { PROJECTED_ITEM, projectedItem } from "./test_support.ts";
+import { TRACKED_ITEM, trackedItem } from "./test_support.ts";
 import {
   requireCapability,
   type TrackerAdapter,
@@ -282,14 +282,19 @@ export async function assertTrackerConformance(
   // stage's key maps to the status the ticket already has, so the move
   // writes nothing. A second publish delivers nothing.
   const published = fakeSwamp();
-  await projectedItem(published, { [adapter.tracker]: f.issue.id });
+  await trackedItem(
+    published,
+    { [adapter.tracker]: f.issue.id },
+    undefined,
+    { kind: adapter.tracker },
+  );
   const publisher = trackerMethods({
     tracker: adapter.tracker,
     adapter: () => adapter,
     statuses: () => ({ in_progress: second }),
   });
   const publishArgs = publisher.publish.arguments.parse({
-    workItem: PROJECTED_ITEM,
+    workItem: TRACKED_ITEM,
   });
   const beforePublish = f.commentsPosted();
   await publisher.publish.execute(publishArgs, published.context("tracker"));

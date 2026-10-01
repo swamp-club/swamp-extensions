@@ -52,9 +52,19 @@ path relative to the repo, `factories/<factory>.yaml` by convention. That file
 is the one copy of the definition: edit it there, never in the factory's model
 definition.
 
+A factory also names the tracker instance its work items publish to, and the
+instance must exist first. Its type is the one the definition's `tracker.kind`
+needs: the built-in tracker (`@swamp/gatorwalk-factory/tracker`) when the
+definition names no kind, or Linear (`@swamp/gatorwalk-factory/linear`, with its
+token wired from a vault) for `kind: linear`. The instance keeps the tracker's
+settings, such as the built-in tracker's `prefix`, `statuses` and `types`. With
+no external tracker, create the built-in one once per project:
+
 ```sh
+swamp model create @swamp/gatorwalk-factory/tracker board \
+  --global-arg prefix=<prefix> --json
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
-  --global-arg definition=factories/<factory>.yaml --json
+  --global-arg definition=factories/<factory>.yaml --global-arg tracker=board --json
 swamp model method run <factory> init --input from=starter --log
 ```
 
@@ -63,7 +73,8 @@ starters are the examples in [examples/](examples/): `minimal`, `starter`,
 `build-swamp-extension` and `swamp-club-swamp-extensions`. Pick the closest.
 Then edit the file: change what its description's "Change first" paragraph
 names, and rewrite the description for your process. swamp does not check the
-file when it is saved, so check it:
+file when it is saved, so check it. `validate` also refuses a factory whose
+tracker instance is missing or of another kind than the definition's:
 
 ```sh
 swamp model method run <factory> validate --log
@@ -532,17 +543,29 @@ must decide again.
 
 ## Keep the ticket in step
 
-When the work item was started with `externalRefs` for a tracker, publish it
-after each write, on that tracker's adapter instance (`<tracker>`, for example
-the `linear` or `lab` instance):
+When the work item was started with `externalRefs` for its tracker, publish it
+after each write, on the tracker instance its factory was bound to when it
+started (`<tracker>`; publish refuses any other instance):
 
 ```sh
 swamp model method run <tracker> publish --input workItem=<key> --log
 ```
 
+`status` says when the ticket is behind. It reads the tracker's publish cursor,
+with no network call, and while events are waiting it prints a line such as:
+
+```text
+tracker 'board' behind by 2 event(s): run publish on it
+```
+
+Once all are delivered it prints no tracker line. So the loop is: after each
+write, run `status`, and run `publish` whenever it says the tracker is behind.
+Before stopping for a person, make sure it no longer does. If it says
+`lag unknown`, run `publish` anyway.
+
 `publish` posts a comment for each new event a person on the ticket needs, and
 moves the ticket when the stage's status key changes. When the factory
-definition declares projection entries and the tracker keeps them (the Lab), it
+definition declares tracker entries and the tracker keeps them (the Lab), it
 writes those lifecycle entries instead of comments, and sets the ticket type an
 entry names. It is the only thing that writes the ticket's status and type:
 never call `set_status` or `set_type` for a work item yourself. Running it again

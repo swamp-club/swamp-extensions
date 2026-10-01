@@ -5,7 +5,7 @@ description: |-
 
   For: a first look at gatorwalk-factory. Start a work item, record the
   summary, advance, and the item is done. It has no reviews, approvals or
-  tracker projection; see starter.yaml for a full process.
+  tracker status keys; see starter.yaml for a full process.
 
   Change first: the work stage's description (what the work is), and the
   summary artifact's schema (what a finished piece of work records).

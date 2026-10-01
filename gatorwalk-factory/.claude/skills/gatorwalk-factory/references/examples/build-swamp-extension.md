@@ -27,13 +27,16 @@ where the reviewer would.
 
 ## Set up
 
-In a swamp repo, add gatorwalk-factory as an extension source, create a factory
-that names its definition file, and copy this example into that file:
+In a swamp repo, add gatorwalk-factory as an extension source, create the
+built-in tracker, create a factory that names its definition file and that
+tracker, and copy this example into that file:
 
 ```sh
 swamp extension source add <gatorwalk-factory>
+swamp model create @swamp/gatorwalk-factory/tracker board \
+  --global-arg prefix=team --json
 swamp model create @swamp/gatorwalk-factory/factory team \
-  --global-arg definition=factories/team.yaml --json
+  --global-arg definition=factories/team.yaml --global-arg tracker=board --json
 swamp model method run team init --input from=build-swamp-extension --log
 ```
 

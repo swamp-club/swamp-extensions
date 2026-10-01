@@ -76,7 +76,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.
   type: "@swamp/gatorwalk-factory/linear",
-  version: "2026.09.29.1",
+  version: "2026.09.30.1",
   globalArguments: LinearArgumentsSchema,
   resources: trackerResources,
   methods: trackerMethods({

@@ -105,7 +105,7 @@ Deno.test("examples: each passes the factory's validate method, with its saved s
     const summary = String(swamp.logs.at(-1)?.props?.summary);
     assert(
       summary.includes(`' in factories/${name}.yaml is valid: `) &&
-        summary.endsWith(`, ${scenarios.size} saved scenario(s) passed`),
+        summary.includes(`, ${scenarios.size} saved scenario(s) passed; `),
       `${file}: ${summary}`,
     );
     const warnings = swamp.logs

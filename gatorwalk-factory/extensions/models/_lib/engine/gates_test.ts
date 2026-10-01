@@ -41,7 +41,14 @@ import {
   startRun,
   update,
 } from "./run_store.ts";
-import { ALICE, expectNow, NOBODY, PASS, testEnv } from "./test_support.ts";
+import {
+  ALICE,
+  expectNow,
+  NOBODY,
+  PASS,
+  TEST_TRACKER,
+  testEnv,
+} from "./test_support.ts";
 
 const BOB: Actor = { principal: "user:bob", source: "platform" };
 
@@ -248,7 +255,7 @@ async function setup(env: Env = testEnv()) {
   await startRun(
     store,
     DEFINITION,
-    { key: "wi-1", definitionDigest: "sha256:g" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:g" },
     ALICE,
     env,
   );
@@ -959,7 +966,7 @@ Deno.test("evidence-recorded: a requireField path reads own fields only, never t
   await startRun(
     store,
     ctor.value,
-    { key: "wi-1", definitionDigest: "sha256:p" },
+    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:p" },
     ALICE,
     env,
   );

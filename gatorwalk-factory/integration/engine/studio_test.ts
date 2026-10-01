@@ -245,6 +245,8 @@ Deno.test("studio: a definition whose directory does not exist yet is picked up 
       "later",
       "--global-arg",
       "definition=teams/later/factory.yaml",
+      "--global-arg",
+      "tracker=board",
       "--json",
     ]);
     const { child, stdout, stderr, output } = await serve(repo);
@@ -353,6 +355,8 @@ Deno.test("studio: a definition path through a symlink out of the repo is never 
       "escape",
       "--global-arg",
       "definition=link/sub/x.yaml",
+      "--global-arg",
+      "tracker=board",
       "--json",
     ]);
     await repo.factory(

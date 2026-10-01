@@ -108,6 +108,119 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
   assert(summary.includes("factories/team.yaml"), summary);
 });
 
+// --- the tracker binding -------------------------------------------------------
+
+Deno.test("start: pins the tracker the factory is bound to", async () => {
+  const swamp = await started();
+  assertEquals((await runOf(swamp)).tracker, {
+    instance: "board",
+    kind: "builtin",
+  });
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).endsWith("; tracker 'board')"),
+  );
+});
+
+Deno.test("start: refuses a factory bound to a tracker of another kind, and writes nothing", async () => {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("board", {
+    globalArguments: {},
+    type: "@swamp/gatorwalk-factory/linear",
+  });
+  swamp.factory("team", await buildDefinition());
+  await assertRejects(
+    () => call(swamp, "start", { factory: "team" }),
+    Error,
+    "its tracker 'board' is a @swamp/gatorwalk-factory/linear",
+  );
+  assertEquals(swamp.versionsWritten(ITEM), 0);
+});
+
+/** A work item on a builtin ticket, and a way to set board's cursor for it. */
+async function onTicket() {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await call(swamp, "start", {
+    factory: "team",
+    externalRefs: JSON.stringify({ builtin: "cue-work-abcd" }),
+  });
+  const cursorAt = async (journalVersion: number) => {
+    await swamp.context("board").writeResource?.("cursor", `cursor-${ITEM}`, {
+      workItem: ITEM,
+      issue: "cue-work-abcd",
+      journalVersion,
+      status: null,
+      at: "2026-09-30T00:00:00.000Z",
+    });
+  };
+  const statusText = async () => {
+    await call(swamp, "status");
+    return String(swamp.logs.at(-1)?.props?.summary);
+  };
+  return { swamp, cursorAt, statusText };
+}
+
+Deno.test("status: a ticket never published is behind by the whole journal", async () => {
+  const { swamp, statusText } = await onTicket();
+  const length = (await runOf(swamp)).journal.length;
+  assert(
+    (await statusText()).includes(
+      `  tracker 'board' behind by ${length} event(s): run publish on it`,
+    ),
+  );
+  const view = await describeStatus(swamp.context(ITEM), systemEnv);
+  assertEquals(view.tracker, {
+    instance: "board",
+    kind: "builtin",
+    ticket: true,
+    journalLength: length,
+    delivered: 0,
+    behind: length,
+  });
+});
+
+Deno.test("status: the lag is the journal past the cursor, and nothing once published", async () => {
+  const { swamp, cursorAt, statusText } = await onTicket();
+  await call(swamp, "record_artifact", {
+    name: "plan",
+    payload: JSON.stringify({
+      summary: "Add list",
+      steps: [{ description: "Add list", files: ["x.ts"] }],
+      testingStrategy: "Unit tests",
+      versionBump: { needed: true, reason: "New method" },
+    }),
+    ...await expected(swamp),
+  });
+  const length = (await runOf(swamp)).journal.length;
+  await cursorAt(length - 1);
+  assert(
+    (await statusText()).includes("  tracker 'board' behind by 1 event(s)"),
+  );
+  await cursorAt(length);
+  assert(!(await statusText()).includes("tracker"));
+});
+
+Deno.test("status: a work item with no ticket on its tracker is never behind", async () => {
+  const swamp = await started();
+  await call(swamp, "status");
+  assert(!String(swamp.logs.at(-1)?.props?.summary).includes("tracker"));
+  const view = await describeStatus(swamp.context(ITEM), systemEnv);
+  assertEquals(view.tracker.ticket, false);
+  assertEquals(view.tracker.behind, 0);
+});
+
+Deno.test("status: an unreadable cursor says the lag is unknown, and status still answers", async () => {
+  const { swamp, statusText } = await onTicket();
+  await swamp.context("board").writeResource?.("cursor", `cursor-${ITEM}`, {
+    journalVersion: "three",
+  });
+  const text = await statusText();
+  assert(text.startsWith(`${ITEM}: active at stage 'plan'`), text);
+  assert(
+    text.includes("  tracker 'board' lag unknown: reading tracker 'board'"),
+  );
+});
+
 Deno.test("start: reads a factory in the remote-worker shape too", async () => {
   const swamp = await started(true);
   assertEquals((await runOf(swamp)).stage, "plan");
@@ -176,10 +289,42 @@ async function factoryOnly(): Promise<FakeSwamp> {
 }
 
 Deno.test("start: externalRefs as an object (--input-file) or a JSON string (--input) (#2640)", async () => {
-  const refs = { linear: "7d2b8c4e-0000-4000-8000-000000000001" };
+  const refs = { builtin: "cue-fix-typo-r2ne", "builtin.display": "cue-fix" };
   for (const externalRefs of [refs, JSON.stringify(refs)]) {
     const swamp = await factoryOnly();
     await call(swamp, "start", { factory: "team", externalRefs });
+    assertEquals((await runOf(swamp)).externalRefs, refs);
+  }
+});
+
+Deno.test("start: refuses externalRefs whose tickets are only on another kind of tracker than the factory's, and writes nothing", async () => {
+  const swamp = await factoryOnly();
+  await assertRejects(
+    () =>
+      call(swamp, "start", {
+        factory: "team",
+        externalRefs: JSON.stringify({ "swamp-club": "2631" }),
+      }),
+    Error,
+    `work item '${ITEM}' names a ticket on swamp-club, but factory 'team' is ` +
+      "bound to tracker 'board' (builtin): start it with externalRefs.builtin",
+  );
+  assertEquals(swamp.versionsWritten(ITEM), 0);
+});
+
+Deno.test("start: takes refs that include the bound kind's ticket, and keys that are not a tracker kind", async () => {
+  for (
+    const refs of [
+      { builtin: "cue-fix-typo-r2ne", linear: "7d2b8c4e" },
+      { other: "X1" },
+      { "linear.display": "ABC-1" },
+    ] as Record<string, string>[]
+  ) {
+    const swamp = await factoryOnly();
+    await call(swamp, "start", {
+      factory: "team",
+      externalRefs: JSON.stringify(refs),
+    });
     assertEquals((await runOf(swamp)).externalRefs, refs);
   }
 });

@@ -16,13 +16,19 @@
 
 import { evaluate } from "npm:@marcbachmann/cel-js@7.6.1";
 import * as posix from "@std/path/posix";
-import { stringify as stringifyYaml } from "@std/yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import type { PathKind, RepoFiles } from "./definition_file.ts";
 import {
   type DataReadingContext,
   FACTORY_TYPE,
   type ModelDataRecord,
 } from "./work_item_ops.ts";
+import {
+  DEFAULT_TRACKER_KIND,
+  TRACKER_KINDS,
+  TRACKER_TYPES,
+  type TrackerKind,
+} from "./tracker_binding.ts";
 
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
@@ -192,12 +198,15 @@ export interface FakeSwamp {
   /**
    * Define a factory whose definition file is factories/<name>.yaml, holding
    * `definition` (YAML text as is, anything else as YAML). `remote` gives the
-   * definition the shape a remote worker receives.
+   * definition the shape a remote worker receives. `tracker` is the tracker
+   * instance it binds, "board" by default; when no model has that name, one
+   * of the type the definition's tracker kind needs is defined. null binds
+   * none.
    */
   factory(
     name: string,
     definition: unknown,
-    options?: { remote?: boolean },
+    options?: { remote?: boolean; tracker?: string | null },
   ): void;
   context(
     name: string,
@@ -211,6 +220,20 @@ export interface FakeSwamp {
     queryData(predicate: string): Promise<ModelDataRecord[]>;
   };
   versionsWritten(instance: string): number;
+}
+
+/** The tracker kind a definition, as YAML text or data, names. */
+function kindOf(definition: unknown): TrackerKind {
+  let doc = definition;
+  try {
+    if (typeof doc === "string") doc = parseYaml(doc);
+  } catch {
+    return DEFAULT_TRACKER_KIND;
+  }
+  const kind = (doc as { tracker?: { kind?: unknown } } | null)?.tracker?.kind;
+  return (TRACKER_KINDS as readonly unknown[]).includes(kind)
+    ? kind as TrackerKind
+    : DEFAULT_TRACKER_KIND;
 }
 
 export function fakeSwamp(): FakeSwamp {
@@ -243,11 +266,20 @@ export function fakeSwamp(): FakeSwamp {
         path,
         typeof definition === "string" ? definition : stringifyYaml(definition),
       );
+      const tracker = options.tracker === undefined ? "board" : options.tracker;
       definitions.set(name, {
-        globalArguments: { definition: path },
+        globalArguments: tracker === null
+          ? { definition: path }
+          : { definition: path, tracker },
         type: FACTORY_TYPE,
         remote: options.remote,
       });
+      if (tracker !== null && !definitions.has(tracker)) {
+        definitions.set(tracker, {
+          globalArguments: {},
+          type: TRACKER_TYPES[kindOf(definition)],
+        });
+      }
     },
     versionsWritten: (instance) =>
       [...of(instance).values()].reduce((n, v) => n + v.length, 0),

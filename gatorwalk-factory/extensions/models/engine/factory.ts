@@ -33,11 +33,14 @@ import { STARTERS } from "../_lib/engine/starters.ts";
 // read it when they start and pin a copy, so editing the file never changes
 // a running work item.
 //
-// The globalArguments schema is only the path. Its rules (relative, .yaml or
-// .yml, inside the repo, existing) are checked when the file is read
-// (definition_file.ts), since init runs before the file exists. The full
-// check of the definition is the validate method (schema, then graph
-// analysis), and its schema check runs again whenever a work item starts.
+// The globalArguments are the definition path and the tracker instance work
+// items publish to. The path's rules (relative, .yaml or .yml, inside the
+// repo, existing) are checked when the file is read (definition_file.ts),
+// since init runs before the file exists. The tracker's model type must be
+// the one the definition's tracker kind needs; validate and start check it.
+// The full check of the definition is the validate method (schema, then
+// graph analysis), and its schema check runs again whenever a work item
+// starts.
 //
 // init copies a bundled starter to the definition path; it never overwrites.
 //
@@ -50,6 +53,11 @@ export const FactoryArgumentsSchema = z.object({
     "The factory definition file: a YAML path relative to the repo, " +
       "e.g. factories/team.yaml",
   ),
+  tracker: z.string().min(1).describe(
+    "The tracker instance work items publish to, e.g. board: a model of the " +
+      "type the definition's tracker kind needs (the built-in tracker, " +
+      "@swamp/gatorwalk-factory/tracker, unless it names another)",
+  ),
 });
 
 const STARTER_NAMES = Object.keys(STARTERS) as [string, ...string[]];
@@ -58,7 +66,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.
   type: "@swamp/gatorwalk-factory/factory",
-  version: "2026.09.28.1",
+  version: "2026.09.30.1",
   globalArguments: FactoryArgumentsSchema,
   resources: {
     [KEY_SPEC]: {

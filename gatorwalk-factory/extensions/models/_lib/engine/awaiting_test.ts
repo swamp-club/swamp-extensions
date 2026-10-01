@@ -41,6 +41,7 @@ import {
   settableEnv,
   stopsParsedDefinition,
   stopsWithFeedbackDefinition,
+  TEST_TRACKER,
 } from "./test_support.ts";
 
 /** A work item on the stops factory definition, committing through
@@ -55,7 +56,7 @@ async function item(
     (await startRun(
       store,
       definition,
-      { key: "wi-1", definitionDigest: "sha256:l" },
+      { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
       ALICE,
       env,
     )).ok,
@@ -356,7 +357,7 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
   await startRun(
     store,
     definition,
-    { key: "wi-c", definitionDigest: "sha256:c" },
+    { key: "wi-c", tracker: TEST_TRACKER, definitionDigest: "sha256:c" },
     ALICE,
     env,
   );
