@@ -16,9 +16,12 @@
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { fromFileUrl } from "@std/path";
-import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import { model } from "./work_item.ts";
-import { type FakeSwamp, fakeSwamp } from "../_lib/engine/fake_swamp.ts";
+import {
+  type FakeSwamp,
+  fakeSwamp,
+  parseExample,
+} from "../_lib/engine/fake_swamp.ts";
 import { type Env, systemEnv } from "../_lib/engine/run_ops.ts";
 import type { RunRecord } from "../_lib/engine/run_record.ts";
 import { contextStore, loadRun } from "../_lib/engine/run_store.ts";
@@ -27,7 +30,6 @@ import {
   decide,
   describeStatus,
   dispatch,
-  FACTORY_TYPE,
   logWrite,
   type MethodContextLike,
   recordProductMethod,
@@ -44,8 +46,9 @@ const BUILD = new URL(
 const ITEM = "build-swamp-extension-abcdefgh";
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
+/** The build-swamp-extension example's definition block. */
 async function buildDefinition(): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
+  return parseExample(await Deno.readTextFile(BUILD)).definition;
 }
 
 type MethodName = keyof typeof model.methods;
@@ -106,7 +109,10 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
   });
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(summary.startsWith(`started '${ITEM}' at stage 'plan'`), summary);
-  assert(summary.includes("factories/team.yaml"), summary);
+  assert(
+    summary.includes("(definition 'build-swamp-extension' from 'team'; "),
+    summary,
+  );
 });
 
 // --- the tracker binding -------------------------------------------------------
@@ -222,8 +228,15 @@ Deno.test("status: an unreadable cursor says the lag is unknown, and status stil
 });
 
 Deno.test("start: reads a factory in the remote-worker shape too", async () => {
+  // A remote worker has no repo checkout and receives the factory's model
+  // definition as a plain object with _globalArguments.
   const swamp = await started(true);
   assertEquals((await runOf(swamp)).stage, "plan");
+  const local = await started();
+  assertEquals(
+    (await runOf(swamp)).definition.digest,
+    (await runOf(local)).definition.digest,
+  );
 });
 
 Deno.test("start: a second start, a missing factory, or an invalid definition is refused and writes nothing", async () => {
@@ -251,33 +264,14 @@ Deno.test("start: a second start, a missing factory, or an invalid definition is
   assertEquals(fresh.versionsWritten(ITEM), 0);
 });
 
-Deno.test("start: a factory whose globalArguments hold the definition inline is refused, pointing at the file form", async () => {
+Deno.test("start: a factory with no definition yet is refused, saying where to write one", async () => {
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: await buildDefinition(),
-    type: FACTORY_TYPE,
-  });
+  swamp.factory("team", undefined);
   await assertRejects(
     () => call(swamp, "start", { factory: "team" }),
     Error,
-    "--global-arg definition=factories/team.yaml",
-  );
-  assertEquals(swamp.versionsWritten(ITEM), 0);
-});
-
-Deno.test("start: a missing definition file is refused with its path, and away from the repo says to start where the repo is", async () => {
-  const swamp = await factoryOnly();
-  swamp.repo.remove("factories/team.yaml");
-  await assertRejects(
-    () => call(swamp, "start", { factory: "team" }),
-    Error,
-    "factory 'team': definition file 'factories/team.yaml' does not exist",
-  );
-  swamp.repo.remove(".swamp");
-  await assertRejects(
-    () => call(swamp, "start", { factory: "team" }),
-    Error,
-    "Start the work item where the repo is",
+    "factory 'team' has no definition: write one under " +
+      "globalArguments.definition",
   );
   assertEquals(swamp.versionsWritten(ITEM), 0);
 });
@@ -352,7 +346,7 @@ Deno.test("pinning: editing the factory does not change a running work item; res
   const before = (await runOf(swamp)).definition.digest;
   const edited = await buildDefinition();
   edited.description = "edited after start";
-  swamp.repo.write("factories/team.yaml", stringifyYaml(edited));
+  swamp.factory("team", edited);
 
   await call(swamp, "reset", { confirm: "reset", ...await expected(swamp) });
   assertEquals(
@@ -938,14 +932,14 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   const swamp = fakeSwamp();
   swamp.factory(
     "team",
-    parseYaml(
+    parseExample(
       await Deno.readTextFile(
         new URL(
           "../../../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
           import.meta.url,
         ),
       ),
-    ),
+    ).definition,
   );
   const ctx = () => swamp.context(item);
   const { methods } = model;

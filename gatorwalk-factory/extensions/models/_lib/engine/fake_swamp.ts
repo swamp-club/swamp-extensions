@@ -16,8 +16,8 @@
 
 import { evaluate } from "npm:@marcbachmann/cel-js@7.6.1";
 import * as posix from "@std/path/posix";
-import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
-import type { PathKind, RepoFiles } from "./definition_file.ts";
+import { parse as parseYaml } from "@std/yaml";
+import type { PathKind, RepoFiles } from "./studio_files.ts";
 import {
   type DataReadingContext,
   FACTORY_TYPE,
@@ -34,7 +34,7 @@ import {
 // A fake of the parts of swamp the model types use: versioned resources per
 // instance, readModelData across instances, a definition repository,
 // globalArgs per instance, tagOverrides, file writers, a logger, and an
-// in-memory repo for factory definition files. Not used by production code.
+// in-memory repo for the studio's files. Not used by production code.
 // ---------------------------------------------------------------------------
 
 /** An in-memory repo: files, directories and symlinks under `dir`. */
@@ -122,41 +122,6 @@ export function memoryRepo(dir = "/repo"): MemoryRepo {
         return Promise.reject(error);
       }
     },
-    mkdir: (path) => {
-      // Like mkdir -p: follows symlinks on the way, creates what is missing.
-      let cur = "/";
-      for (const part of path.split("/").filter((p) => p !== "")) {
-        const next = posix.join(cur, part);
-        const entry = entries.get(next);
-        if (entry === undefined) entries.set(next, { kind: "dir" });
-        cur = entry?.kind === "link"
-          ? real(posix.resolve(cur, entry.target))
-          : next;
-      }
-      return Promise.resolve();
-    },
-    writeNewTextFile: (path, text) => {
-      if (entryAt(path) !== null) {
-        return Promise.reject(new Deno.errors.AlreadyExists(path));
-      }
-      entries.set(posix.join(real(posix.dirname(path)), posix.basename(path)), {
-        kind: "file",
-        text,
-      });
-      return Promise.resolve();
-    },
-    readDir: (path) => {
-      try {
-        const at = real(path);
-        if (entries.get(at)?.kind !== "dir") throw notFound(path);
-        const names = [...entries.keys()]
-          .filter((p) => p !== at && posix.dirname(p) === at)
-          .map((p) => posix.basename(p));
-        return Promise.resolve(names);
-      } catch (error) {
-        return Promise.reject(error);
-      }
-    },
   };
   mkdirs(posix.join(dir, ".swamp"));
   return {
@@ -193,20 +158,22 @@ export interface FakeSwamp {
   /** Files per instance: "<spec>/<name>" -> the text of each version. */
   files: Map<string, Map<string, string[]>>;
   logs: { message: string; props?: Record<string, unknown> }[];
-  /** The repo factory definition files are read from. */
-  repo: MemoryRepo;
   /**
-   * Define a factory whose definition file is factories/<name>.yaml, holding
-   * `definition` (YAML text as is, anything else as YAML). `remote` gives the
-   * definition the shape a remote worker receives. `tracker` is the tracker
-   * instance it binds, "board" by default; when no model has that name, one
-   * of the type the definition's tracker kind needs is defined. null binds
-   * none.
+   * Define a factory whose globalArguments hold `definition` (YAML text is
+   * parsed, as swamp reads a model definition; undefined leaves it out) and,
+   * when given, `scenarios`. `remote` gives the model definition the shape a
+   * remote worker receives. `tracker` is the tracker instance it binds,
+   * "board" by default; when no model has that name, one of the type the
+   * definition's tracker kind needs is defined. null binds none.
    */
   factory(
     name: string,
     definition: unknown,
-    options?: { remote?: boolean; tracker?: string | null },
+    options?: {
+      remote?: boolean;
+      tracker?: string | null;
+      scenarios?: unknown;
+    },
   ): void;
   context(
     name: string,
@@ -242,7 +209,6 @@ export function fakeSwamp(): FakeSwamp {
   const resources: FakeSwamp["resources"] = new Map();
   const files: FakeSwamp["files"] = new Map();
   const logs: FakeSwamp["logs"] = [];
-  const repo = memoryRepo();
   // The spec each resource was written under, per instance.
   const specs = new Map<string, Map<string, string>>();
   const of = (instance: string) => {
@@ -259,18 +225,20 @@ export function fakeSwamp(): FakeSwamp {
     resources,
     files,
     logs,
-    repo,
     factory(name, definition, options = {}) {
-      const path = `factories/${name}.yaml`;
-      repo.write(
-        path,
-        typeof definition === "string" ? definition : stringifyYaml(definition),
-      );
       const tracker = options.tracker === undefined ? "board" : options.tracker;
       definitions.set(name, {
-        globalArguments: tracker === null
-          ? { definition: path }
-          : { definition: path, tracker },
+        globalArguments: {
+          ...(definition === undefined ? {} : {
+            definition: typeof definition === "string"
+              ? parseYaml(definition)
+              : structuredClone(definition),
+          }),
+          ...(tracker === null ? {} : { tracker }),
+          ...(options.scenarios === undefined
+            ? {}
+            : { scenarios: structuredClone(options.scenarios) }),
+        },
         type: FACTORY_TYPE,
         remote: options.remote,
       });
@@ -287,8 +255,6 @@ export function fakeSwamp(): FakeSwamp {
       definition: { name },
       globalArgs: structuredClone(globalArgs.get(name) ?? {}),
       tagOverrides: { initiatedBy },
-      repoDir: repo.dir,
-      repoFiles: repo.files,
       logger: {
         info: (message, props) => {
           logs.push({ message, props });
@@ -389,4 +355,21 @@ export function fakeSwamp(): FakeSwamp {
       },
     }),
   };
+}
+
+/**
+ * A skill example, from its YAML text: the definition and scenarios blocks a
+ * factory's globalArguments hold (scenarios empty when it has none).
+ */
+export function parseExample(
+  text: string,
+): { definition: Record<string, unknown>; scenarios: unknown[] } {
+  const doc = parseYaml(text) as {
+    definition?: Record<string, unknown>;
+    scenarios?: unknown[];
+  } | null;
+  if (doc?.definition === undefined) {
+    throw new Error("an example holds a definition: block");
+  }
+  return { definition: doc.definition, scenarios: doc.scenarios ?? [] };
 }

@@ -23,6 +23,7 @@ import {
   type Target,
   targetAt,
 } from "./selection.ts";
+import { modelFile, modelPath } from "./test_support.ts";
 
 const BASE = `schemaVersion: 1
 name: tiny
@@ -47,7 +48,7 @@ globalTransitions:
 `;
 
 async function load(text: string) {
-  const loaded = await loadDefinition("factories/tiny.yaml", text);
+  const loaded = await loadDefinition(modelPath("tiny"), modelFile(text));
   assert(loaded.ok, JSON.stringify(!loaded.ok && loaded.problems));
   return loaded;
 }

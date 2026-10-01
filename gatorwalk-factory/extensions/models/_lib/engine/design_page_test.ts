@@ -27,6 +27,7 @@ import {
   MERMAID_URL,
   renderDesignPage,
 } from "./design_page.ts";
+import { parseExample } from "./fake_swamp.ts";
 import { analyzeDefinition } from "./graph.ts";
 import {
   type FactoryDefinition,
@@ -44,10 +45,19 @@ async function render(
   return { view, html: renderDesignPage(view) };
 }
 
-function definition(yaml: string): FactoryDefinition {
-  const result = parseDefinition(parseYaml(yaml));
+function fromRaw(raw: unknown): FactoryDefinition {
+  const result = parseDefinition(raw);
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
+}
+
+function definition(yaml: string): FactoryDefinition {
+  return fromRaw(parseYaml(yaml));
+}
+
+/** A skill example's definition block. */
+function example(text: string): FactoryDefinition {
+  return fromRaw(parseExample(text).definition);
 }
 
 /** The view the page embeds, read back the way its script reads it. */
@@ -112,7 +122,10 @@ async function shippedDefinitions(): Promise<[string, FactoryDefinition][]> {
     for await (const entry of Deno.readDir(dir)) {
       if (!entry.name.endsWith(".yaml")) continue;
       const text = await Deno.readTextFile(new URL(entry.name, dir));
-      found.push([entry.name, definition(text)]);
+      found.push([
+        entry.name,
+        dir === SHIPPED[0] ? example(text) : definition(text),
+      ]);
     }
   }
   return found.sort(([a], [b]) => a.localeCompare(b));
@@ -190,7 +203,7 @@ Deno.test("design page: the swamp-club-swamp-extensions definition shows its han
   const text = await Deno.readTextFile(
     new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
   );
-  const lc = definition(text);
+  const lc = example(text);
   const { view, html } = await render(lc);
   const worked = lc.stages.filter((s) => s.work !== undefined);
   assert(worked.length > 0);
@@ -398,7 +411,7 @@ Deno.test("design page: loops back and global transitions are layers, both off a
 });
 
 Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first", async () => {
-  const lc = definition(
+  const lc = example(
     await Deno.readTextFile(
       new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
     ),

@@ -15,52 +15,66 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { z } from "npm:zod@4.3.6";
+import { DefinitionSchema } from "../_lib/engine/definition_schema.ts";
+import { SavedScenariosSchema } from "../_lib/engine/scenario.ts";
 import {
   DESIGN_PAGE_SPEC,
   designPageMethod,
-  initFactory,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
   validateFactory,
 } from "../_lib/engine/work_item_ops.ts";
-import { STARTERS } from "../_lib/engine/starters.ts";
 
 // ---------------------------------------------------------------------------
-// The factory: a model instance whose globalArguments name a team's factory
-// definition file, a repo-relative YAML path (factories/<name>.yaml by
-// convention). There is one copy of the definition, in the repo. Work items
-// read it when they start and pin a copy, so editing the file never changes
-// a running work item.
+// The factory: a model instance whose globalArguments hold a team's factory
+// definition, the tracker instance work items publish to, and the saved
+// scenarios its validate method runs. There is one copy of the definition,
+// in the factory's model definition. Work items read it when they start and
+// pin a copy, so editing it never changes a running work item.
 //
-// The globalArguments are the definition path and the tracker instance work
-// items publish to. The path's rules (relative, .yaml or .yml, inside the
-// repo, existing) are checked when the file is read (definition_file.ts),
-// since init runs before the file exists. The tracker's model type must be
-// the one the definition's tracker kind needs; validate and start check it.
-// The full check of the definition is the validate method (schema, then
-// graph analysis), and its schema check runs again whenever a work item
-// starts.
+// swamp checks the globalArguments against this schema with schema.partial()
+// before every method, and swamp model validate does too. partial() only
+// makes the top-level keys optional, so a definition that is present gets the
+// whole definition schema. The top level must stay a plain object with no
+// refinement of its own: swamp falls back to checking key by key when it
+// cannot call partial(). definition is optional because swamp model create
+// checks the full schema whenever a --global-arg is given, and a factory is
+// created with only its tracker before its definition is written in. The
+// tracker's model type must be the one the definition's tracker kind needs;
+// validate and start check it.
 //
-// init copies a bundled starter to the definition path; it never overwrites.
+// definition and scenarios are marked as foreign template text: their
+// {{name}} placeholders are gatorwalk's, not swamp's, so swamp's template
+// scan neither warns about them nor fails one whose name is a swamp
+// namespace, such as {{run}}.
+//
+// The methods read the definition from the factory's raw model definition,
+// not swamp's evaluated globalArguments (work_item_ops.ts, loadFactory). The
+// full check is the validate method (schema, tracker, graph analysis, saved
+// scenarios), and its schema check runs again whenever a work item starts.
 //
 // design_page renders the factory definition, with its graph findings, as a
 // static HTML page stored as the factory's design-page file.
 // ---------------------------------------------------------------------------
 
 export const FactoryArgumentsSchema = z.object({
-  definition: z.string().min(1).describe(
-    "The factory definition file: a YAML path relative to the repo, " +
-      "e.g. factories/team.yaml",
-  ),
+  definition: DefinitionSchema.optional().meta({
+    foreignTemplate: true,
+    description: "The factory definition: its stages, transitions, gates " +
+      "and prompts. Start from one of the skill's examples.",
+  }),
   tracker: z.string().min(1).describe(
     "The tracker instance work items publish to, e.g. board: a model of the " +
       "type the definition's tracker kind needs (the built-in tracker, " +
       "@swamp/gatorwalk-factory/tracker, unless it names another)",
   ),
+  scenarios: SavedScenariosSchema.optional().meta({
+    foreignTemplate: true,
+    description: "Saved scenarios: work items walked through the " +
+      "definition, which validate runs",
+  }),
 });
-
-const STARTER_NAMES = Object.keys(STARTERS) as [string, ...string[]];
 
 export const model = {
   // A string literal: swamp reads the type from the source without running
@@ -89,18 +103,6 @@ export const model = {
     },
   },
   methods: {
-    init: {
-      description:
-        "Copy a starter factory definition to this factory's definition file; never overwrites",
-      // Not a read method: it writes the file.
-      arguments: z.object({
-        from: z.enum(STARTER_NAMES).describe(
-          "The starter to copy: one of the skill's example factory definitions",
-        ),
-      }),
-      execute: (args: { from: string }, context: MethodContextLike) =>
-        initFactory(context, args.from),
-    },
     validate: {
       description:
         "Check the definition in full, analyse it as a graph, and report every problem with its path",

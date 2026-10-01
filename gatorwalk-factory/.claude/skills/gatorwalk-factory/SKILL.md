@@ -29,17 +29,18 @@ This skill covers **authoring** a factory and **driving** its work items.
 - Driving in full: [references/driving.md](references/driving.md)
 - A whole work item, start to done:
   [references/examples/build-swamp-extension.md](references/examples/build-swamp-extension.md)
-- A factory definition to start from: copy the closest example in
-  [references/examples/](references/examples/) into a factory, then run
-  `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general change
-  from plan to release; `build-swamp-extension.yaml` builds a swamp extension;
-  `swamp-club-swamp-extensions.yaml` is a real repository's process, to read
-  rather than copy whole. Each factory definition's description says what it is
-  for and what to change first.
-- Saved scenarios, the paths `validate` checks a factory still allows: write one
-  to `scenarios/<factory>/<scenario>.yaml` when you change a factory definition
-  or the person names a path to keep, then run `validate`. The format:
-  [references/scenarios.md](references/scenarios.md)
+- A factory definition to start from: write the closest example in
+  [references/examples/](references/examples/) into a factory's model definition
+  (its `definition:` and `scenarios:` blocks, under `globalArguments:`), then
+  run `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general
+  change from plan to release; `build-swamp-extension.yaml` builds a swamp
+  extension; `swamp-club-swamp-extensions.yaml` is a real repository's process,
+  to read rather than copy whole. Each factory definition's description says
+  what it is for and what to change first.
+- Saved scenarios, the paths `validate` checks a factory still allows: add one
+  to the factory's `scenarios:` list, beside its definition, when you change a
+  factory definition or the person names a path to keep, then run `validate`.
+  The format: [references/scenarios.md](references/scenarios.md)
 
 ## Rules
 
@@ -120,7 +121,7 @@ Work-item methods run by type, with the key as the instance:
 
 Factory methods run by instance name:
 `swamp model method run <factory> validate` checks a factory definition in full
-and runs its saved scenarios in `scenarios/<factory>/`;
+and runs its saved scenarios;
 `swamp model method run <factory> new_key --input 'title=<title>'` makes a key
 from the work's title to start a work item under; `start` also takes any unused
 name chosen by hand.

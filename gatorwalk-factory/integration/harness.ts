@@ -21,6 +21,7 @@ import {
   parseRun,
   type RunRecord,
 } from "../extensions/models/_lib/engine/run_record.ts";
+import { parseExample } from "../extensions/models/_lib/engine/fake_swamp.ts";
 import {
   FACTORY_TYPE,
   WORK_ITEM_TYPE,
@@ -46,6 +47,7 @@ import {
 /** The gatorwalk-factory directory, added to each repo as an extension source. */
 export const EXTENSION_ROOT = fromFileUrl(new URL("../", import.meta.url));
 
+/** Skill examples: each holds a definition block and a scenarios block. */
 export const BUILD_DEFINITION = new URL(
   "../.claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
   import.meta.url,
@@ -55,6 +57,13 @@ export const SWAMP_EXTENSIONS_DEFINITION = new URL(
   "../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
   import.meta.url,
 );
+
+/** A skill example's definition and saved scenarios, as data. */
+export async function readExample(
+  url: URL,
+): Promise<{ definition: Record<string, unknown>; scenarios: unknown[] }> {
+  return parseExample(await Deno.readTextFile(url));
+}
 
 /** The wrapper swamp-club-swamp-extensions.yaml's verify stage runs; see
  * DESIGN.md. */
@@ -111,20 +120,30 @@ export interface SwampRepo {
     SwampResult
   >;
   /**
-   * Write `definition` (YAML text as is, anything else as YAML) to
-   * factories/<name>.yaml and create a factory naming that file, bound to
-   * the tracker instance `tracker`. Without one it is bound to a tracker of
-   * the definition's kind that the harness creates once per repo: `board`
+   * Create a factory bound to the tracker instance `tracker`, with only its
+   * tracker as swamp model create allows, then write `definition` (YAML text
+   * is parsed) and any `scenarios` into its model definition file under
+   * globalArguments, as the skill does. Without a tracker it is bound to one
+   * of the definition's kind that the harness creates once per repo: `board`
    * for the built-in tracker (prefix board), `swamp-club` for the Lab. A
    * Linear definition needs its tracker named, since Linear needs a token.
    */
   factory(
     name: string,
     definition: unknown,
-    options?: { tracker?: string },
+    options?: { tracker?: string; scenarios?: unknown[] },
   ): Promise<void>;
-  /** Replace a factory's definition file, as an edit would. */
-  editFactory(name: string, definition: unknown): Promise<void>;
+  /**
+   * Replace a factory's definition (and its scenarios, when given) in its
+   * model definition file, as an agent's edit would.
+   */
+  editFactory(
+    name: string,
+    definition: unknown,
+    scenarios?: unknown[],
+  ): Promise<void>;
+  /** A factory's model definition file, relative to the repo. */
+  factoryFile(name: string): string;
   /** Run a factory method by name. */
   factoryMethod(
     name: string,
@@ -251,14 +270,25 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   await swamp(["init", "--tool", "none"]);
   await swamp(["extension", "source", "add", EXTENSION_ROOT]);
 
-  const definitionPath = (name: string) => `factories/${name}.yaml`;
+  const factoryFile = (name: string) => `models/${FACTORY_TYPE}/${name}.yaml`;
 
-  const writeFactory = async (name: string, definition: unknown) => {
-    await Deno.mkdir(join(dir, "factories"), { recursive: true });
-    await Deno.writeTextFile(
-      join(dir, definitionPath(name)),
-      typeof definition === "string" ? definition : stringifyYaml(definition),
-    );
+  // Writes into the file swamp model create wrote, as an agent edits it.
+  const writeFactory = async (
+    name: string,
+    definition: unknown,
+    scenarios?: unknown[],
+  ) => {
+    const path = join(dir, factoryFile(name));
+    const model = parseYaml(await Deno.readTextFile(path)) as {
+      globalArguments?: Record<string, unknown>;
+    };
+    const args = model.globalArguments ?? {};
+    args.definition = typeof definition === "string"
+      ? parseYaml(definition)
+      : definition;
+    if (scenarios !== undefined) args.scenarios = scenarios;
+    model.globalArguments = args;
+    await Deno.writeTextFile(path, stringifyYaml(model));
   };
 
   // The trackers the harness created, so each is created once.
@@ -288,7 +318,6 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     definition,
     options = {},
   ) => {
-    await writeFactory(name, definition);
     const tracker = options.tracker ?? await defaultTracker(kindOf(definition));
     await swamp([
       "model",
@@ -296,11 +325,10 @@ async function openRepo(dir: string): Promise<SwampRepo> {
       FACTORY_TYPE,
       name,
       "--global-arg",
-      `definition=${definitionPath(name)}`,
-      "--global-arg",
       `tracker=${tracker}`,
       "--json",
     ]);
+    await writeFactory(name, definition, options.scenarios);
   };
 
   const data: SwampRepo["data"] = async (instance, name, version) => {
@@ -336,6 +364,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     spawn,
     factory: createFactory,
     editFactory: writeFactory,
+    factoryFile,
     factoryMethod: (name, method, options = {}) =>
       swamp(
         [

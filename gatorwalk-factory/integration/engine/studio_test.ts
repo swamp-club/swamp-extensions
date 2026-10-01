@@ -16,20 +16,19 @@
 
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { join } from "@std/path";
-import { parse as parseYaml } from "@std/yaml";
 import { STUDIO_TYPE } from "../../extensions/models/_lib/engine/studio_server.ts";
 import {
   BUILD_DEFINITION,
-  FACTORY_TYPE,
+  readExample,
   type SwampRepo,
   withRepo,
 } from "../harness.ts";
 
 // ---------------------------------------------------------------------------
 // The studio's serve method through the installed swamp CLI: it starts on a
-// free port, serves the page and the files, pushes an edit made on disk over
-// server-sent events, refuses a foreign Host and a symlink out of the repo on
-// the real server, and ends cleanly on Ctrl-C.
+// free port, serves the page and each factory's model definition file, pushes
+// an edit made on disk over server-sent events, refuses a foreign Host on the
+// real server, and ends cleanly on Ctrl-C.
 // ---------------------------------------------------------------------------
 
 const decoder = new TextDecoder();
@@ -119,13 +118,11 @@ async function serve(repo: SwampRepo) {
   return { child, stdout, stderr, output };
 }
 
-Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, and stops on Ctrl-C", async () => {
+Deno.test("studio: serve shows the factory's model definition file, reloads an edit, refuses strangers, and stops on Ctrl-C", async () => {
   await withRepo(async (repo) => {
-    await repo.factory(
-      "team",
-      parseYaml(await Deno.readTextFile(BUILD_DEFINITION)),
-    );
-    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
+    const { definition, scenarios } = await readExample(BUILD_DEFINITION);
+    await repo.factory("team", definition, { scenarios });
+    const file = repo.factoryFile("team");
     const { child, stdout, stderr, output } = await serve(repo);
     let exited = false;
     try {
@@ -168,16 +165,12 @@ Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, an
         /^font\/woff2$/,
       );
 
-      // The factory list and the definition file.
+      // The factory list and its model definition file, which swamp's
+      // definition repository names.
       const list = await (await fetch(`${base}/api/factories`)).json();
-      assertEquals(list, {
-        factories: [{ name: "team", path: "factories/team.yaml" }],
-      });
+      assertEquals(list, { factories: [{ name: "team", path: file }] });
       const before = await (await fetch(`${base}/api/factories/team`)).json();
-      assertEquals(
-        before.text,
-        await Deno.readTextFile(join(repo.dir, "factories/team.yaml")),
-      );
+      assertEquals(before.text, await Deno.readTextFile(join(repo.dir, file)));
 
       // An edit on disk arrives as an event, and the new text reads back.
       const events = await fetch(`${base}/api/events`);
@@ -186,7 +179,7 @@ Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, an
       try {
         assertEquals((await reader.read()).value, ": connected\n\n");
         const edited = `${before.text}\n# edited by the agent\n`;
-        await Deno.writeTextFile(join(repo.dir, "factories/team.yaml"), edited);
+        await Deno.writeTextFile(join(repo.dir, file), edited);
         let seen = "";
         while (!seen.includes('"kind":"definition"')) {
           const { value, done } = await within(
@@ -215,16 +208,10 @@ Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, an
         /^HTTP\/1\.1 200/,
       );
 
-      // A scenario symlinked out of the repo is refused on the real file system.
-      await Deno.writeTextFile(join(outside, "secret.yaml"), "secret: true\n");
-      await Deno.mkdir(join(repo.dir, "scenarios/team"), { recursive: true });
-      await Deno.symlink(
-        join(outside, "secret.yaml"),
-        join(repo.dir, "scenarios/team/sneaky.yaml"),
-      );
-      const sneaky = await fetch(`${base}/api/factories/team/scenarios/sneaky`);
-      assertEquals(sneaky.status, 403);
-      assert(!(await sneaky.text()).includes("secret: true"));
+      // Scenarios are in the same file; there is no route of their own.
+      const scenarioRoute = await fetch(`${base}/api/factories/team/scenarios`);
+      assertEquals(scenarioRoute.status, 404);
+      await scenarioRoute.body?.cancel();
 
       // Ctrl-C ends the method cleanly, event streams and all.
       const open = await fetch(`${base}/api/events`);
@@ -246,69 +233,6 @@ Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, an
         await child.status;
         await Promise.all([stdout.done, stderr.done]).catch(() => {});
       }
-      await Deno.remove(outside, { recursive: true });
-    }
-  });
-});
-
-Deno.test("studio: a definition whose directory does not exist yet is picked up when it appears", async () => {
-  await withRepo(async (repo) => {
-    // The factory names a file in a directory nobody has made yet.
-    await repo.swamp([
-      "model",
-      "create",
-      FACTORY_TYPE,
-      "later",
-      "--global-arg",
-      "definition=teams/later/factory.yaml",
-      "--global-arg",
-      "tracker=board",
-      "--json",
-    ]);
-    const { child, stdout, stderr, output } = await serve(repo);
-    try {
-      const [, base] = await within(
-        120_000,
-        "the logged studio URL",
-        stdout.match(/studio: (http:\/\/127\.0\.0\.1:\d+)\//),
-      );
-      const missing = await fetch(`${base}/api/factories/later`);
-      assertEquals(missing.status, 422, output());
-      await missing.body?.cancel();
-
-      const events = await fetch(`${base}/api/events`);
-      const reader = events.body!.pipeThrough(new TextDecoderStream())
-        .getReader();
-      try {
-        await reader.read();
-        await Deno.mkdir(join(repo.dir, "teams/later"), { recursive: true });
-        await Deno.writeTextFile(
-          join(repo.dir, "teams/later/factory.yaml"),
-          await Deno.readTextFile(BUILD_DEFINITION),
-        );
-        let seen = "";
-        while (!seen.includes('"factory":"later"')) {
-          const { value, done } = await within(
-            10_000,
-            "the change event",
-            reader.read(),
-          );
-          if (done) throw new Error(`the event stream ended; saw:\n${seen}`);
-          seen += value;
-        }
-      } finally {
-        await reader.cancel();
-      }
-      const found = await fetch(`${base}/api/factories/later`);
-      assertEquals(found.status, 200);
-      assertEquals(
-        (await found.json()).text,
-        await Deno.readTextFile(BUILD_DEFINITION),
-      );
-    } finally {
-      child.kill("SIGINT");
-      await within(30_000, "serve to exit", child.status);
-      await Promise.all([stdout.done, stderr.done]);
     }
   });
 });
@@ -332,7 +256,7 @@ Deno.test("studio: a factory created while the studio runs is listed without a r
         await reader.read();
         await repo.factory(
           "team",
-          parseYaml(await Deno.readTextFile(BUILD_DEFINITION)),
+          (await readExample(BUILD_DEFINITION)).definition,
         );
         let seen = "";
         while (!seen.includes('"kind":"factories"')) {
@@ -348,80 +272,12 @@ Deno.test("studio: a factory created while the studio runs is listed without a r
         await reader.cancel();
       }
       assertEquals(await (await fetch(`${base}/api/factories`)).json(), {
-        factories: [{ name: "team", path: "factories/team.yaml" }],
+        factories: [{ name: "team", path: repo.factoryFile("team") }],
       });
     } finally {
       child.kill("SIGINT");
       await within(30_000, "serve to exit", child.status);
       await Promise.all([stdout.done, stderr.done]);
-    }
-  });
-});
-
-Deno.test("studio: a definition path through a symlink out of the repo is never watched", async () => {
-  await withRepo(async (repo) => {
-    // link/ leads out of the repo, where sub/ exists; x.yaml does not yet.
-    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
-    await Deno.mkdir(join(outside, "sub"));
-    await Deno.symlink(outside, join(repo.dir, "link"));
-    await repo.swamp([
-      "model",
-      "create",
-      FACTORY_TYPE,
-      "escape",
-      "--global-arg",
-      "definition=link/sub/x.yaml",
-      "--global-arg",
-      "tracker=board",
-      "--json",
-    ]);
-    await repo.factory(
-      "team",
-      parseYaml(await Deno.readTextFile(BUILD_DEFINITION)),
-    );
-    const { child, stdout, stderr } = await serve(repo);
-    try {
-      const [, base] = await within(
-        120_000,
-        "the logged studio URL",
-        stdout.match(/studio: (http:\/\/127\.0\.0\.1:\d+)\//),
-      );
-      const events = await fetch(`${base}/api/events`);
-      const reader = events.body!.pipeThrough(new TextDecoderStream())
-        .getReader();
-      try {
-        await reader.read();
-        // A write outside the repo, through the link, says nothing ...
-        await Deno.writeTextFile(join(outside, "sub/x.yaml"), "x: 1\n");
-        // ... and a write inside it does, so the stream is known to work.
-        const path = join(repo.dir, "factories/team.yaml");
-        await Deno.writeTextFile(
-          path,
-          `${await Deno.readTextFile(path)}\n# edited\n`,
-        );
-        let seen = "";
-        while (!seen.includes('"factory":"team"')) {
-          const { value, done } = await within(
-            10_000,
-            "the change event",
-            reader.read(),
-          );
-          if (done) throw new Error(`the event stream ended; saw:\n${seen}`);
-          seen += value;
-        }
-        assert(!seen.includes('"factory":"escape"'), seen);
-      } finally {
-        await reader.cancel();
-      }
-      // And the file itself is refused.
-      const read = await fetch(`${base}/api/factories/escape`);
-      assertEquals(read.status, 422);
-      assertMatch((await read.json()).error, /outside the repo/);
-    } finally {
-      child.kill("SIGINT");
-      await within(30_000, "serve to exit", child.status);
-      await Promise.all([stdout.done, stderr.done]);
-      await Deno.remove(outside, { recursive: true });
     }
   });
 });

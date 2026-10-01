@@ -28,13 +28,15 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 ## The two model types
 
 - **`@swamp/gatorwalk-factory/factory`**, the factory: one instance whose
-  `globalArguments` name its factory definition file (stages, work, products,
-  transitions, gates), `{ definition: factories/<factory>.yaml }`. Methods:
-  `init`, `validate`, `design_page`, `new_key`.
+  `globalArguments` hold its factory definition (stages, work, products,
+  transitions, gates), the tracker instance it publishes to, and its saved
+  scenarios: `{ definition: {...}, tracker: <instance>, scenarios: [...] }`.
+  Methods: `validate`, `design_page`, `new_key`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
-  named by a key from `new_key`. `start` reads the definition file and pins a
-  copy, so editing the file never changes a running item; `reset` with
-  `repin=true` adopts the edited file. Every other method works on that copy.
+  named by a key from `new_key`. `start` reads the factory's definition and pins
+  a copy, so editing the factory never changes a running item; `reset` with
+  `repin=true` adopts the edited definition. Every other method works on that
+  copy.
 
 Work-item methods are run by type, with the key as the instance name:
 
@@ -48,10 +50,10 @@ twice with it. Read the output whole, never through `grep`, `sed`, `head` or
 
 ## Set up a factory
 
-Once per factory, in the swamp repo. A factory names its definition file, a YAML
-path relative to the repo, `factories/<factory>.yaml` by convention. That file
-is the one copy of the definition: edit it there, never in the factory's model
-definition.
+Once per factory, in the swamp repo. A factory's model definition,
+`models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, holds its factory
+definition under `globalArguments.definition`. That is the one copy of the
+definition: edit it there.
 
 A factory also names the tracker instance its work items publish to, and the
 instance must exist first. Its type is the one the definition's `tracker.kind`
@@ -65,17 +67,21 @@ no external tracker, create the built-in one once per project:
 swamp model create @swamp/gatorwalk-factory/tracker board \
   --global-arg prefix=<prefix> --json
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
-  --global-arg definition=factories/<factory>.yaml --global-arg tracker=board --json
-swamp model method run <factory> init --input from=starter
+  --global-arg tracker=board --json
+# agent: write starter into <factory>
 ```
 
-`init` copies a starter to the definition file and never overwrites one. The
-starters are the examples in [examples/](examples/): `minimal`, `starter`,
-`build-swamp-extension` and `swamp-club-swamp-extensions`. Pick the closest.
-Then edit the file: change what its description's "Change first" paragraph
-names, and rewrite the description for your process. swamp does not check the
-file when it is saved, so check it. `validate` also refuses a factory whose
-tracker instance is missing or of another kind than the definition's:
+Then write an example into the factory: put the `definition:` and `scenarios:`
+blocks of the closest one in [examples/](examples/) (`minimal`, `starter`,
+`build-swamp-extension` or `swamp-club-swamp-extensions`) under the factory's
+`globalArguments:`, right after its `tracker:` line and before `methods:`, each
+indented two more spaces. Never replace a definition that is already there. Then
+edit it: change what its description's "Change first" paragraph names, and
+rewrite the description for your process. swamp does not check the file when it
+is saved: it checks the definition's schema before each factory method runs, and
+`swamp model validate <factory>` runs that check alone. `validate` checks the
+rest too, and refuses a factory whose tracker instance is missing or of another
+kind than the definition's:
 
 ```sh
 swamp model method run <factory> validate
@@ -83,7 +89,7 @@ swamp model method run <factory> validate
 
 `validate` reports every problem with its path. Fix them all before starting
 work. It also runs the factory's saved scenarios, the known paths through it,
-from `scenarios/<factory>/`; write one for each path the factory must keep
+from its `scenarios:` list; write one for each path the factory must keep
 ([scenarios.md](scenarios.md)).
 
 To see the factory definition as a page (the stage graph, gates, human stops,
@@ -97,25 +103,26 @@ swamp data get <factory> design-page --json
 ```
 
 When a person wants to watch your edits to a factory definition or its
-scenarios, point them at the studio: a read-only local page that reloads each
-file as you save it. They start it themselves, since it runs until Ctrl-C:
-`swamp model create @swamp/gatorwalk-factory/studio studio` once, then
-`swamp model method run studio serve`, which logs the URL.
+scenarios, point them at the studio: a read-only local page that reloads the
+factory's model definition as you save it. They start it themselves, since it
+runs until Ctrl-C: `swamp model create @swamp/gatorwalk-factory/studio studio`
+once, then `swamp model method run studio serve`, which logs the URL.
 
 The studio's Copy reference gives the person one line to paste to you. It names
-the file, a document path, and a readable name, and for a finding its code and
-message:
+the factory's model definition file, a document path in it, and a readable name,
+and for a finding its code and message:
 
 ```text
-factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)
-factories/team.yaml stages.2.transitions.0 (exit submit: plan → review) ambiguous-exit: <message>
+models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.2.transitions.0 (exit submit: plan → review)
+models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.2.transitions.0 (exit submit: plan → review) ambiguous-exit: <message>
 ```
 
-Find the path in the file: `stages.2.transitions.0` is the first exit of the
-third stage, and `.gates.1` after it would be that exit's second gate. Check
-that the readable name matches what is there, since the file may have changed
-since the line was copied. Make the change the person asks for, then run the
-factory's `validate` method. The page re-checks the file when you save it.
+Find the path in the file: under `globalArguments.definition`,
+`stages.2.transitions.0` is the first exit of the third stage, and `.gates.1`
+after it would be that exit's second gate. Check that the readable name matches
+what is there, since the file may have changed since the line was copied. Make
+the change the person asks for, then run the factory's `validate` method. The
+page re-checks the file when you save it.
 
 ## Start a work item
 

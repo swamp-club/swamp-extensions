@@ -730,15 +730,15 @@ The dispatch record held a prompt no subagent saw.
 **Decision.** Two model types (`extensions/models/engine/factory.ts`,
 `work_item.ts`, logic in `_lib/engine/work_item_ops.ts`):
 
-- A **factory** is an instance whose `globalArguments` name a team's factory
-  definition file and the tracker instance its work items publish to,
-  `{ definition: factories/<factory>.yaml, tracker: board }` ("The factory's
-  tracker").
+- A **factory** is an instance whose `globalArguments` hold a team's factory
+  definition, the tracker instance its work items publish to, and its saved
+  scenarios, `{ definition: {...}, tracker: board, scenarios: [...] }` ("Where
+  a factory definition lives", "The factory's tracker", "Saved scenarios").
 - A **work item** is one instance per piece of work, named by a key. `start`
-  reads the factory's definition file and **pins a copy** of it with its
-  digest. Every later method uses that copy, so editing the file never changes
-  a running work item. `reset` keeps the pinned copy unless `repin=true` adopts
-  the file's current contents.
+  reads the factory's definition and **pins a copy** of it with its digest.
+  Every later method uses that copy, so editing the factory never changes a
+  running work item. `reset` keeps the pinned copy unless `repin=true` adopts
+  the factory's current definition.
 
 A third type, the **studio**, only reads: see "The studio server".
 
@@ -750,14 +750,16 @@ copy, never a mismatch. Pinned copies are kept by age for ten years, not by
 count: they are small and rarely written, and retention must never collect the
 one a run reads.
 
-**The factory's schema is only the path and the tracker's name.** swamp
-validates a model's `globalArguments` on every run with `schema.partial()`, so
-both are plain strings: the path's rules are checked when the file is read, and `init` runs
-before the file exists. The full check of the definition is gatorwalk's own:
-the factory's `validate` method, and every `start`. Both find the path in the
-factory's **raw** model definition through the definition repository, never
-swamp's evaluated `globalArguments`. On a remote worker that model definition
-arrives as a plain object with `_globalArguments`; both shapes are read.
+**The factory's schema is the definition's.** The factory type's
+`globalArguments` schema is `{ definition, tracker, scenarios }`, with
+`definition` the definition schema (`_lib/engine/definition_schema.ts`) and
+`scenarios` the saved-scenario list (`_lib/engine/scenario.ts`), so swamp checks
+them as it checks any model ("What swamp checks, and what validate checks").
+gatorwalk's methods still read the definition from the factory's **raw** model
+definition through the definition repository, never swamp's evaluated
+`globalArguments`, so a pinned copy is exactly what was written. On a remote
+worker that model definition arrives as a plain object with
+`_globalArguments`; both shapes are read.
 
 **Keys are gatorwalk's.** swamp cannot generate instance names, so the factory's
 `new_key` generates an unused key from the work's title (a required `title`
@@ -834,53 +836,88 @@ first starts can race. That is accepted for solo use until swamp fixes it.
 
 ### Where a factory definition lives
 
-**Decision** (swamp-club #2803, option B in the studio proposal). A factory
-definition lives in one file in the repo, `factories/<factory>.yaml` by
-convention, and the factory's `globalArguments` name only its repo-relative path
-(and, since #2795, its tracker):
-`{ definition: factories/team.yaml }`. Before, the definition was pasted by
-hand into the factory's `globalArguments`, and the same definition was often
-kept as a file as well; nothing synced the two, and they drifted from the first
-edit. There were no users before go-live, so the inline form was removed, not
-kept beside the path.
+**Decision** (swamp-club #2884, replacing #2803's file). A factory definition
+lives in the factory's own model definition,
+`models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, under
+`globalArguments.definition`, beside the factory's `tracker` and its saved
+`scenarios`:
 
-**Who reads the file.** `start` pins the parsed definition and its digest, and
-every later method reads the pinned copy, so only the methods that pin or check
-read the file: `validate`, `design_page`, `new_key`, `start`, `reset` with
-`repin=true`, and the tracker's `claim`, which starts a work item. The studio
-reads it too, and does not hand-edit it: edits come from the agent. Editing the
-file never changes a running work item.
+```yaml
+globalArguments:
+  tracker: board
+  definition: { schemaVersion: 1, name: team, stages: [...] }
+  scenarios: [{ scenario: plan-to-done, steps: [...] }]
+```
 
-**The path's rules** (`_lib/engine/definition_file.ts`). The path is resolved
-against the method context's `repoDir`, and refused, with the path in the
-message, when it is absolute, does not end in `.yaml` or `.yml`, resolves
-outside the repo (lexically, or after following symlinks), or names no file.
-File access goes through a small `RepoFiles` interface, so the unit tests, which
-may only read, run the same rules on an in-memory repo.
+#2803 had moved the definition into a file the factory named, because people
+pasted it into `globalArguments` by hand while keeping a file copy, and the two
+drifted. That reason went when factories became authored and edited only by
+the agent: a swamp model definition is already a YAML file in the repo that an
+agent edits directly. Keeping the definition there gives one copy in the place
+swamp already looks, lets swamp's own checks see it (the old software-factory
+defect #1236 was a platform-facing schema of `stages: unknown[]`), and lets a
+remote worker start work, since it receives the model definition but not the
+repo. There were no users before go-live, so the file form was removed, not
+kept beside it.
 
-**Remote factories are later.** A remote worker runs a method in a scratch
-directory with no repo checkout, so the file is not there. `start` fails there
-with a message to start the work item where the repo is: when the missing
-file's directory has no `.swamp`, the message says it is likely a remote
-worker. swamp gives a method no flag saying it runs remotely, so this is a
-heuristic; at worst the error is a plain missing-file error that names the
-path. Remote factories wait until someone needs them.
+**Who reads it.** `start` pins the parsed definition and its digest, and every
+later method reads the pinned copy, so only the methods that pin or check read
+the factory's definition: `validate`, `design_page`, `new_key`, `start`,
+`reset` with `repin=true`, and the tracker's `claim`, which starts a work item.
+All of them go through `loadFactory` in `_lib/engine/work_item_ops.ts`. The
+studio reads the model definition file too, and does not hand-edit it: edits
+come from the agent. Editing it never changes a running work item.
 
-**`init` and the starters.** `init --input from=<starter>` copies a starter to
-the factory's path and never overwrites a file. The starters are the skill's
-examples (#2767), embedded in `_lib/engine/starters.ts` by
-`deno task gen:starters`, and `scripts/gen_starters_test.ts` fails when that
-module drifts from the examples. They cannot be read beside the model at run
-time: swamp bundles a model before importing it, so `import.meta.url` points
-into `.swamp/`, not at the source, and `context.extensionFile()` needs a
-manifest, which gatorwalk-factory has none of until go-live. Embedding works in
-source mode, on a remote worker and after go-live alike.
+**No `init`.** The agent creates the factory with only its tracker
+(`swamp model create ... --global-arg tracker=<instance>`), then writes the
+`definition:` and `scenarios:` blocks of one of the skill's examples into the
+file, and never replaces a definition that is there. A method that wrote its own
+model definition would have been new and local-only, and an `init` needed the
+examples embedded in the engine (`starters.ts`, a generator and a drift test)
+as a second copy of each. Each example is now one file holding those two
+blocks, and `examples_test.ts` checks every one against the factory type's full
+schema, its graph and its scenarios.
 
-**`${{` stays rejected.** swamp evaluated `${{ }}` in `globalArguments`, which
-is why a definition rejects `${{`. It no longer evaluates the definition's
-text, so the reason is gone, but the rejection is kept: loosening it later
-breaks no one, while loosening it now and tightening it again after go-live
-would.
+**What swamp checks, and what validate checks.** swamp checks a factory's
+`globalArguments` against the factory type's schema with `schema.partial()`, in
+`swamp model validate` and before every method runs (on the evaluated
+arguments). `partial()` only makes the top-level keys optional, so a
+`definition` or `scenarios` that is present is checked in full, refinements
+included; the top level is a plain object with no refinement of its own, since
+swamp falls back to checking key by key when it cannot call `partial()`.
+`definition` is optional because `swamp model create` checks the full schema
+whenever a `--global-arg` is given, and a factory is created with only its
+tracker. So:
+
+- `swamp model validate <factory>` reports a schema error in the definition or
+  a scenario, with its path, as `<message> at "definition.stages.1.transitions.0.to"`.
+  It does not report a missing definition (an optional key), and it skips a key
+  holding a swamp expression (below).
+- Every factory method stops on the same error first, as `Global arguments
+  validation failed: ...`, before gatorwalk's own code runs.
+- gatorwalk's `validate` checks the schema again on the raw definition (which
+  also catches `${{`), then the tracker binding, the graph analysis and the saved
+  scenarios, and reports a missing definition with where to write it.
+
+**`{{name}}` is marked as foreign template text.** swamp scans `globalArguments`
+for `{{...}}` and fails `swamp model validate` on one whose root is a swamp
+namespace (`{{run}}`, `{{steps}}`); others are warnings. gatorwalk's
+placeholders are its own, so `definition` and `scenarios` carry
+`.meta({ foreignTemplate: true })`, which silences the scan for the whole
+subtree. Bare CEL in gates and bindings has no `${{`, so swamp never touches it.
+`cli_test.ts` checks a definition with CEL gates and a placeholder named `run`
+through `swamp model validate` and a start, and that the pinned copy is the
+written one.
+
+**`${{` stays rejected.** swamp evaluates `${{ }}` anywhere in
+`globalArguments` before each method runs, vault and env references included,
+and skips its schema check for a top-level key that holds one. So a `${{` under
+`definition` is refused by gatorwalk's own check of the raw definition (it
+reaches the method because swamp skipped the key), never evaluated into a
+pinned copy. Allowing swamp-native `${{ }}` later, for a vault or env reference
+in a specific field, would mean reading that field from the evaluated
+arguments while the rest stays raw, and accepting that swamp then skips the
+schema check of the whole definition; it is not enabled here.
 
 ## Summary and metrics
 
@@ -1049,31 +1086,37 @@ the same way: it may not apply.
 one instance per repo and one method, `serve`. `serve` runs a web server on
 127.0.0.1 (port 0, a free one, unless `port` says otherwise), logs its URL, and
 runs until swamp aborts the method on Ctrl-C (`ctx.signal`). The page lists
-every factory in the repo and shows its definition file and its scenario files,
-`scenarios/<factory>/<scenario>.yaml`, reloading them as they change
+every factory in the repo and shows its model definition file, which holds its
+definition and saved scenarios (#2884), reloading it as it changes
 (`_lib/engine/studio_server.ts`, `studio_watch.ts`, `studio_serve.ts`). What the
 page shows is in "Design mode".
 
 **Its own type, not a factory method.** One studio covers every factory in the
 repo through a picker, rather than one server per factory. It finds the
-factories with the definition repository's `findAllGlobal`, and resolves each
-definition file as the factory does (`resolveDefinitionPath`). It takes only its
+factories with the definition repository's `findAllGlobal`, and each one's file
+with the repository's `getPath`, which answers from the path the listing just
+cached; it is only called on a definition that listing returned. A file swamp
+keeps outside the repo (a managed-config datastore) is shown by its absolute
+path. It takes only its
 own instance's lock, which `serve` holds while it runs, and never a factory's,
 so `validate`, `new_key` and `start` run while it is open.
 
 **Read-only.** The studio views; it never writes (Seth, 2026-09-30: edits come
 from the agent, and people do not create or edit factory definitions by hand).
-The agent writes the definition and scenario files, and the page reloads them.
+The agent writes the factory's model definition, and the page reloads it.
 Every route is `GET`; any other method gets 405. No route writes a file or runs
 swamp, a shell or a method.
 
 | Route                                             | Returns                                        |
 | ------------------------------------------------- | ---------------------------------------------- |
 | `GET /`, `/assets/<file>`                         | the page                                       |
-| `GET /api/factories`                              | every factory, with the path it names          |
-| `GET /api/factories/<factory>`                    | the definition file: path, text, digest        |
-| `GET /api/factories/<factory>/scenarios[/<name>]` | the scenario files, listed or one              |
+| `GET /api/factories`                              | every factory, with its model definition file  |
+| `GET /api/factories/<factory>`                    | that file: path, text, digest                  |
 | `GET /api/events`                                 | server-sent events when a watched file changes |
+
+The page reads the definition at `globalArguments.definition` in that text and
+the saved scenarios at `globalArguments.scenarios`; there is no scenario route
+or scenario event.
 
 **Security posture.** Any page in any browser tab can send requests to
 localhost, so the server trusts nothing a request says about where it came from,
@@ -1084,7 +1127,7 @@ and reveals only files the local account can already read.
 | Another machine on the network               | Binds 127.0.0.1 only                                                                                                                                                                                                                                      |
 | DNS rebinding (a hostile name for 127.0.0.1) | `Host` must be `127.0.0.1:<port>` or `localhost:<port>`                                                                                                                                                                                                   |
 | Another website reading responses            | A request carrying `Origin` must carry the server's own; a `Sec-Fetch-Site` other than `same-origin` or `none` is refused, except a person opening `/` itself from a link (a top-level document navigation, which the linking page cannot read); no CORS header is ever sent; `Cross-Origin-Resource-Policy: same-origin` and `nosniff` stop no-cors embedding                  |
-| Reading other files (path traversal)         | A request names a factory and a scenario, never a path. The definition path comes from the factory's model definition and must resolve inside the repo; a scenario name must match `NameSchema`, and its real path must sit inside `scenarios/<factory>/` |
+| Reading other files (path traversal)         | A request names a factory, never a path. The only file read is the one swamp's definition repository gives for that factory's model definition |
 | Scripts from elsewhere                       | CSP `default-src 'self'`, no inline script or style; the fonts are bundled                                                                                                                                                                                |
 
 There is no token or cookie: nothing is written, and the files are ones the
@@ -1094,18 +1137,16 @@ design from the studio proposal first: a one-time token exchanged for an
 that carries the digest the page loaded and is refused on a mismatch.
 
 **Live reload.** The file watch (`Deno.watchFs`) covers the directory of each
-definition file, so an agent's write by rename is seen (before that directory
-exists, the nearest one above it, until it appears); `scenarios/` and each
-factory's directory in it; and the repo root, to see `scenarios/` appear. Every
-watch is one level deep, on a directory whose real path is inside the repo, so
-no symlink leads one out. It follows the factory list each
+factory's model definition file, so an agent's write by rename is seen. Every
+watch is one level deep, on the directory of a path the definition repository
+gave. It follows the factory list each
 time the page reads it, one refresh at a time so a slow one never wins over a
 newer list; a refresh that fails keeps the old watches and the next one retries.
 swamp says nothing when a factory is created or removed, so `serve`
 reads the factory list again every three seconds, and a change sends
 `{ kind: "factories" }`, on which the page lists them again. The watch drops
 paths nobody asked about, coalesces a save's several events, and sends
-`{ kind, factory, name? }` to every open event stream. Deno's server waits for
+`{ kind: "definition", factory }` to every open event stream. Deno's server waits for
 open responses when it stops, so the event streams close on the same signal.
 
 **The page is embedded, not beside the module.** The page's source is
@@ -1118,8 +1159,7 @@ in `studio_asset_fonts.ts`, and the HTML and CSS, with the map of them all, in
 `studio_assets.ts`. A model added as an extension source runs from
 swamp's bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the
 source module can be found from `import.meta.url`, and `ctx.extensionFile()`
-needs a manifest. Embedding works the same before and after go-live; the
-starters are embedded the same way.
+needs a manifest. Embedding works the same before and after go-live.
 
 **Fresh by digest.** `studio_assets.ts` records a sha256 of the build's inputs,
 and `studio_assets_test` recomputes it, so a stale page fails the unit tests.
@@ -1187,10 +1227,14 @@ were not given names: most already have a natural key, and a field every
 definition must carry was not worth it for this.
 
 **Copy reference** (`reference.ts`). Every stage, exit, gate and finding has a
-button, and `c`, that copies one plain line: the file, the document path, and a
-readable name, plus the code and message for a finding. For example
-`factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)`. That
-is the whole hand-off: no chat, no request form.
+button, and `c`, that copies one plain line: the factory's model definition
+file, the document path in it, and a readable name, plus the code and message
+for a finding. For example
+`models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.2.transitions.0 (exit submit: plan → review)`.
+Inside the page, paths stay the definition's own (`stages.2`), as the engine's
+findings give them; only the source positions and the copied line carry the
+`globalArguments.definition` prefix. That is the whole hand-off: no chat, no
+request form.
 
 **Changed marks** (`changes.ts`). Each stage, and the global transitions as ANY
 STAGE, has a fingerprint of its parsed spec. The browser keeps, per factory in
@@ -1948,16 +1992,15 @@ GW-8. Dispatch and usage run through the CLI in the summary test.
 
 ## Saved scenarios
 
-**Decision** (swamp-club #2805). A factory can be tested before anyone runs work
-on it. Saved scenarios are YAML files at `scenarios/<factory>/<scenario>.yaml`
-under the repo root, one engine call per step (the format is in the README,
-"Saved scenarios"). The factory's `validate` runs every one after the schema and
-graph checks, and fails listing each step that did not do what its scenario
-said, as `<path> step <n> (<label>): <message>`, along with any file that cannot
-be read, is not a scenario, or names another factory. The runner is
-`_lib/engine/scenario.ts`; the files are read by `readScenarioFiles` in
-`definition_file.ts`, with the same checks as a definition file, so nothing is
-read from outside the repo, symlinks included.
+**Decision** (swamp-club #2805; inline since #2884). A factory can be tested
+before anyone runs work on it. Saved scenarios are the `scenarios` list in the
+factory's `globalArguments`, beside its `definition`, one engine call per step
+(the format is in the README, "Saved scenarios"). swamp checks their shape with
+the rest of the factory's arguments (`SavedScenariosSchema`, which also refuses
+two with one name). The factory's `validate` runs every one after the schema
+and graph checks, and fails listing each step that did not do what its scenario
+said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`. The runner
+is `_lib/engine/scenario.ts`.
 
 **Why.** A factory definition is code people run work on, and its graph analysis
 says what can happen, not what does. A scenario pins a known path, including the
@@ -1965,8 +2008,8 @@ gate messages a person or agent sees when a step is refused
 (`expect: { refused }`), so a definition change that breaks one fails `validate`
 wherever it runs: an author's machine, or CI through `examples_test.ts`. The
 walks that were code in `factories_test.ts` are now the examples' scenarios, in
-`references/examples/scenarios/<example>/`; what stayed in code inspects CEL
-results on the run a scenario leaves.
+each example's `scenarios:` block; what stayed in code inspects CEL results on
+the run a scenario leaves.
 
 What it rests on:
 
@@ -1986,19 +2029,51 @@ What it rests on:
   import graph to check. It returns one frame per step, frame n for step n: the
   committed run, readiness from `evaluateTransitions`, `computeMetrics`, and the
   outcome.
-- **The directory is the factory's name, not the definition's.** `init` copies a
-  starter as it is, so a factory `team` holds a definition named `starter`. The
-  `factory` key must match the directory, which catches a file saved in the
-  wrong place; a scenario copied from an example needs its key changed.
+- **In the factory, not in files** (#2884). Scenarios were files at
+  `scenarios/<factory>/<scenario>.yaml`, keyed by a `factory` field that had to
+  match the directory. In the factory's model definition they are
+  schema-checked by swamp, travel with the definition to a remote worker (where
+  `validate` could not read the files), and need no factory key, path rules or
+  symlink checks. The cost is one longer file: the swamp-club example with its
+  sixteen scenarios is about 2,000 lines, which the studio parses whole on each
+  change.
 - **An agent writes them.** The studio views and simulates but never edits, so
-  the skill says where scenario files go, the verbs, and to run `validate` after
+  the skill says where scenarios go, the verbs, and to run `validate` after
   writing one (`references/scenarios.md`).
 
-Scenario files have no includes: the swamp-club `complete` variants each repeat
-the walk to attest. Each file reads whole in the studio; an include step would
-be its own change.
+Scenarios have no includes: the swamp-club `complete` variants each repeat the
+walk to attest. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: the factory definition lives in the factory model, with its schema (swamp-club #2884)
+
+**Decision.** A factory's `globalArguments` are `{ definition, tracker,
+scenarios }`: the definition inline, schema-checked by swamp as the factory
+type's own, beside its tracker and its saved scenarios. `factories/` files,
+`scenarios/` files, `init`, the embedded starters and `definition_file.ts` are
+gone. Every reader, the studio included, reads the factory's model definition.
+See "Where a factory definition lives", "What swamp checks, and what validate
+checks", and "Saved scenarios".
+
+**Why.** Adam's review (2026-10-01): "I don't understand why the definition is
+not itself a model. It will have to grow to have basically every feature models
+have (schema, inputs, CEL expressions)." #2803's reason for a separate file,
+hand-pasted copies drifting from the file, went when factories became authored
+only by the agent. Keeping it in the model gives one copy where swamp looks,
+swamp's own checks on it (#1236), and remote workers that can start work.
+
+**Choices made with Seth in triage.** The definition is nested under
+`definition` rather than spread across the top level: the definition's
+`tracker: { kind }` and the factory's `tracker: <instance>` would otherwise
+collide, the definition keeps its kind for scenarios, starters and #2847 where
+no instance is known, and nesting keeps swamp's shallow `partial()` checking the
+whole definition. `init` was dropped rather than made to write its own model
+definition; the skill writes the example in. Saved scenarios moved inline too,
+so `validate` works on a remote worker. The dogfood factory was not migrated:
+it is reset after this lands. Work items as data inside the factory (Adam's
+other suggestion) stay out: one instance per work item ("The runtime: one run
+record per work item", #818).
 
 ### 2026-10-01: publish assigns the ticket when work starts (swamp-club #2801)
 

@@ -28,18 +28,7 @@ import {
   makeGateEvaluator,
 } from "./gates.ts";
 import { designView, renderDesignPage } from "./design_page.ts";
-import {
-  DEFINITION_DIR,
-  denoRepoFiles,
-  readDefinitionFile,
-  readScenarioFiles,
-  type RepoFiles,
-  SCENARIO_DIR,
-  type ScenarioFile,
-  writeNewDefinitionFile,
-} from "./definition_file.ts";
-import { parseScenario, runScenario } from "./scenario.ts";
-import { STARTERS } from "./starters.ts";
+import { runScenario, SavedScenariosSchema } from "./scenario.ts";
 import {
   CURSOR_SPEC,
   cursorName,
@@ -58,6 +47,7 @@ import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   type FactoryDefinition,
   findStage,
+  formatIssues,
   parseDefinition,
   trackerKindOf,
 } from "./definition_schema.ts";
@@ -147,10 +137,6 @@ export interface MethodContextLike extends ResourceContext {
   logger: Logger;
   definitionRepository?: DefinitionLookup;
   createFileWriter?(specName: string, instanceName: string): FileWriterLike;
-  /** The repo a factory's definition path is resolved against. */
-  repoDir?: string;
-  /** File access for the definition file; swamp never sets it, the fake does. */
-  repoFiles?: RepoFiles;
 }
 
 /**
@@ -291,49 +277,27 @@ export function typeNameOf(type: unknown): string {
   return String(type);
 }
 
-/** One of a factory's raw, unevaluated globalArguments, as a string. On a
- * remote worker the definition arrives as a plain object with
- * _globalArguments. */
-function factoryArgument(definition: unknown, key: string): string | undefined {
+/**
+ * A factory's raw, unevaluated globalArguments, from its model definition as
+ * the definition repository returns it: a Definition whose globalArguments
+ * getter gives a copy, or, on a remote worker, a plain object with
+ * _globalArguments. An empty object when there are none.
+ */
+export function factoryArguments(definition: unknown): Record<string, unknown> {
   const d = definition as {
     globalArguments?: unknown;
     _globalArguments?: unknown;
   };
   const args = d.globalArguments ?? d._globalArguments;
-  const value = args !== null && typeof args === "object"
-    ? (args as Record<string, unknown>)[key]
-    : undefined;
+  return args !== null && typeof args === "object" && !Array.isArray(args)
+    ? args as Record<string, unknown>
+    : {};
+}
+
+/** One of a factory's raw globalArguments, as a string. */
+function factoryArgument(definition: unknown, key: string): string | undefined {
+  const value = factoryArguments(definition)[key];
   return typeof value === "string" ? value : undefined;
-}
-
-/**
- * The definition path a factory's model definition names in its raw,
- * unevaluated globalArguments; undefined when it names none.
- */
-export function factoryPathArgument(definition: unknown): string | undefined {
-  return factoryArgument(definition, "definition");
-}
-
-/**
- * The repo-relative path of a factory's definition file, from the factory's
- * raw, unevaluated globalArguments, read through the definition repository.
- * On a remote worker the definition arrives as a plain object with
- * _globalArguments.
- */
-export async function readFactoryPath(
-  ctx: MethodContextLike,
-  name: string,
-): Promise<string> {
-  const found = await findFactoryModel(ctx, name);
-  const path = factoryPathArgument(found.definition);
-  if (path === undefined) {
-    throw new Error(
-      `factory '${name}' does not name its definition file: set its ` +
-        `globalArguments to { definition: <repo-relative path> }, e.g. ` +
-        `--global-arg definition=${DEFINITION_DIR}/${name}.yaml`,
-    );
-  }
-  return path;
 }
 
 /** A factory's model definition, through the definition repository. */
@@ -423,42 +387,33 @@ function checkRefsFitTracker(
   );
 }
 
-function repoOf(ctx: MethodContextLike): { dir: string; files: RepoFiles } {
-  if (ctx.repoDir === undefined) {
-    throw new Error("this method context has no repo directory");
-  }
-  return { dir: ctx.repoDir, files: ctx.repoFiles ?? denoRepoFiles };
-}
-
 /**
- * A factory's definition, read from its file and validated in full, with the
- * file's path; throws with every error.
+ * A factory's definition, read from the factory's raw model definition through
+ * the definition repository and validated in full, with the raw
+ * globalArguments it came from; throws with every error. The raw definition
+ * is read, not swamp's evaluated globalArguments, so a pinned copy is exactly
+ * what was written: no expression evaluated, no default filled in.
  */
 export async function loadFactory(
   ctx: MethodContextLike,
   name: string,
-): Promise<{ definition: FactoryDefinition; path: string }> {
-  const path = await readFactoryPath(ctx, name);
-  const repo = repoOf(ctx);
-  let raw: unknown;
-  try {
-    raw = await readDefinitionFile(repo.dir, path, repo.files);
-  } catch (error) {
+): Promise<{ definition: FactoryDefinition; args: Record<string, unknown> }> {
+  const args = factoryArguments((await findFactoryModel(ctx, name)).definition);
+  if (args.definition === undefined) {
     throw new Error(
-      `factory '${name}': ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `factory '${name}' has no definition: write one under ` +
+        `globalArguments.definition in its model definition, starting from ` +
+        `one of the skill's examples`,
     );
   }
-  const parsed = parseDefinition(raw);
+  const parsed = parseDefinition(args.definition);
   if (!parsed.ok) {
     throw new Error(
-      `factory '${name}' (${path}) is not a valid definition:\n${
-        parsed.errors.join("\n")
-      }`,
+      `factory '${name}': globalArguments.definition is not a valid ` +
+        `definition:\n${parsed.errors.join("\n")}`,
     );
   }
-  return { definition: parsed.value, path };
+  return { definition: parsed.value, args };
 }
 
 /** A factory's definition, validated in full; throws with every error. */
@@ -467,46 +422,6 @@ export async function loadFactoryDefinition(
   name: string,
 ): Promise<FactoryDefinition> {
   return (await loadFactory(ctx, name)).definition;
-}
-
-/**
- * The factory's init method: copy a bundled starter definition to the
- * factory's definition path. It never overwrites a file.
- */
-export async function initFactory(
-  ctx: MethodContextLike,
-  from: string,
-): Promise<MethodOutput> {
-  const name = selfName(ctx);
-  // hasOwn, so an inherited name such as toString is not a starter.
-  const text = Object.hasOwn(STARTERS, from) ? STARTERS[from] : undefined;
-  if (text === undefined) {
-    throw new Error(
-      `no starter named '${from}'; the starters are ${
-        Object.keys(STARTERS).join(", ")
-      }`,
-    );
-  }
-  const path = await readFactoryPath(ctx, name);
-  const repo = repoOf(ctx);
-  try {
-    await writeNewDefinitionFile(repo.dir, path, text, repo.files);
-  } catch (error) {
-    throw new Error(
-      `factory '${name}': ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
-  ctx.logger.info("{summary}", {
-    summary: `wrote the '${from}' starter to ${path} for factory '${name}'. ` +
-      `Edit it (its description says what to change first), make sure the ` +
-      `factory's tracker argument names a tracker instance, then run: ` +
-      `swamp model method run ${name} validate`,
-    path,
-    starter: from,
-  });
-  return { dataHandles: [] };
 }
 
 /**
@@ -520,7 +435,7 @@ export async function validateFactory(
   ctx: MethodContextLike,
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
-  const { definition, path } = await loadFactory(ctx, name);
+  const { definition, args } = await loadFactory(ctx, name);
   const tracker = await resolveTrackerBinding(ctx, name, definition);
   const maxStates = DEFAULT_MAX_STATES;
   const graph = analyzeDefinition(definition, { maxStates });
@@ -554,16 +469,20 @@ export async function validateFactory(
       ...finding,
     });
   }
-  const scenarios = await runSavedScenarios(ctx, name, definition);
+  const scenarios = await runSavedScenarios(
+    ctx,
+    name,
+    definition,
+    args.scenarios,
+  );
   ctx.logger.info("{summary}", {
-    summary: `definition '${definition.name}' in ${path} is valid: ` +
+    summary: `definition '${definition.name}' in factory '${name}' is valid: ` +
       `${definition.stages.length} stages (${
         definition.stages.map((s) => s.id).join(", ")
       }), ${graph.warnings.length} warning(s), ` +
       `${scenarios} saved scenario(s) passed; tracker '${tracker.instance}' ` +
       `(${tracker.kind})`,
     definition: definition.name,
-    path,
     tracker,
     digest: await digestOf(definition),
   });
@@ -571,73 +490,56 @@ export async function validateFactory(
 }
 
 /**
- * Run every scenario saved for the factory in scenarios/<factory>/ on its
- * definition, logging each that passes. Throws with every problem: a file
- * that cannot be read or is not a scenario, one saved for another factory,
- * and each step that did not do what its scenario said, by file and step.
- * Returns how many passed.
+ * Run every scenario saved in the factory's scenarios global argument on its
+ * definition, logging each that passes. Throws with every problem: a list
+ * that is not valid scenarios, and each step that did not do what its
+ * scenario said, as scenarios.<i> (<name>) step <n> (<label>). Returns how
+ * many passed.
  */
 async function runSavedScenarios(
   ctx: MethodContextLike,
   name: string,
   definition: FactoryDefinition,
+  raw: unknown,
 ): Promise<number> {
-  const repo = repoOf(ctx);
-  let files: ScenarioFile[];
-  try {
-    files = await readScenarioFiles(repo.dir, name, repo.files);
-  } catch (error) {
+  if (raw === undefined) return 0;
+  const parsed = SavedScenariosSchema.safeParse(raw);
+  if (!parsed.success) {
     throw new Error(
-      `factory '${name}': ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `factory '${name}' has saved scenarios that are not valid ` +
+        `(globalArguments.scenarios):\n${
+          formatIssues(parsed.error).map((e) =>
+            e.startsWith("(root)")
+              ? `  scenarios${e.slice("(root)".length)}`
+              : `  scenarios.${e}`
+          ).join("\n")
+        }`,
     );
   }
+  const scenarios = parsed.data;
   const problems: string[] = [];
   let passed = 0;
-  for (const file of files) {
-    if (!file.ok) {
-      problems.push(`${file.path} ${file.error}`);
-      continue;
-    }
-    const parsed = parseScenario(file.raw);
-    if (!parsed.ok) {
-      problems.push(
-        `${file.path} is not a valid scenario:\n${
-          parsed.errors.map((e) => `  ${e}`).join("\n")
-        }`,
-      );
-      continue;
-    }
-    const scenario = parsed.value;
-    if (scenario.factory !== name) {
-      problems.push(
-        `${file.path} says factory '${scenario.factory}', but it is saved ` +
-          `for factory '${name}': set factory: ${name}, or move it to ` +
-          `${SCENARIO_DIR}/${scenario.factory}/`,
-      );
-      continue;
-    }
+  for (const [i, scenario] of scenarios.entries()) {
+    const at = `scenarios.${i} (${scenario.scenario})`;
     const result = await runScenario(definition, scenario);
     if (!result.passed) {
       for (const failure of result.failures) {
         problems.push(
-          `${file.path} step ${failure.step} (${failure.label}): ` +
-            failure.message,
+          `${at} step ${failure.step} (${failure.label}): ${failure.message}`,
         );
       }
       continue;
     }
     passed++;
     ctx.logger.info("{scenario}", {
-      scenario: `${file.path}: passed, ${scenario.steps.length} steps`,
-      path: file.path,
+      scenario: `${at}: passed, ${scenario.steps.length} steps`,
+      name: scenario.scenario,
     });
   }
   if (problems.length > 0) {
     throw new Error(
-      `factory '${name}': ${files.length - passed} of ${files.length} ` +
-        `saved scenario(s) failed:\n${problems.join("\n")}`,
+      `factory '${name}': ${scenarios.length - passed} of ` +
+        `${scenarios.length} saved scenario(s) failed:\n${problems.join("\n")}`,
     );
   }
   return passed;
@@ -1012,7 +914,7 @@ export async function startWorkItem(
       `work item '${key}' has already started; run status to see where it is`,
     );
   }
-  const { definition, path } = await loadFactory(ctx, args.factory);
+  const definition = await loadFactoryDefinition(ctx, args.factory);
   const tracker = await resolveTrackerBinding(ctx, args.factory, definition);
   checkRefsFitTracker(key, args.factory, externalRefs, tracker);
   // Pin first, then commit the run that names the pinned version.
@@ -1035,7 +937,7 @@ export async function startWorkItem(
   await logWrite(
     ctx,
     `started '${key}' at stage '${started.run.stage}' ` +
-      `(definition '${definition.name}' from '${args.factory}', ${path}; ` +
+      `(definition '${definition.name}' from '${args.factory}'; ` +
       `tracker '${tracker.instance}')`,
     expectationProps(started.run),
     {

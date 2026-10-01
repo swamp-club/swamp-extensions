@@ -85,17 +85,25 @@ closest to the interview, then change it:
 | A change: plan, implement, check, review, release | `starter`               |
 | A swamp extension                                 | `build-swamp-extension` |
 
-`starter` fits most processes. Create the factory, which names its definition
-file and its tracker instance (`<tracker>`, set up in step 5), and copy the
-example into that file:
+`starter` fits most processes. Create the factory with its tracker instance
+(`<tracker>`, set up in step 5) as its only argument, then write the example
+into it:
 
 ```sh
 swamp model create @swamp/gatorwalk-factory/factory <factory> \
-  --global-arg definition=factories/<factory>.yaml --global-arg tracker=<tracker> --json
-swamp model method run <factory> init --input from=<starter>
+  --global-arg tracker=<tracker> --json
+# agent: write <starter> into <factory>
 ```
 
-`init` never overwrites an existing file. Then edit `factories/<factory>.yaml`:
+The factory's model definition is
+`models/@swamp/gatorwalk-factory/factory/<factory>.yaml`. It is the one copy of
+the factory definition. Open it and put the example's two blocks, `definition:`
+and `scenarios:` from `references/examples/<starter>.yaml`, under its
+`globalArguments:`, right after its `tracker:` line and before `methods:`, each
+indented two more spaces. Leave every other line of the file as swamp wrote it.
+Never replace a `definition:` that is already there: that factory exists, so go
+to [Change an existing factory](#change-an-existing-factory). Then edit the
+definition in that file:
 
 1. Do what the example's `description` says under "Change first".
 2. Rewrite `description` for this process: what it is for, where a person
@@ -108,8 +116,9 @@ swamp model method run <factory> init --input from=<starter>
 4. Follow the [authoring rules](#authoring-rules).
 5. Set up the tracker the person chose: see [The tracker](#the-tracker).
 
-**Verify:** the file exists, and its `description` is about this process, not
-the example.
+**Verify:** the factory's model definition holds a `definition:` under
+`globalArguments:`, and its `description` is about this process, not the
+example.
 
 **On failure:** if `model create` fails because the name is taken, pick another
 name or go to [Change an existing factory](#change-an-existing-factory).
@@ -119,18 +128,21 @@ name or go to [Change an existing factory](#change-an-existing-factory).
 **Gate:** State 2 passed.
 
 **Action:** write a saved scenario for each path the person asked to keep (in
-`scenarios/<factory>/`, format in [scenarios.md](scenarios.md)), then check the
-whole factory:
+the factory's `scenarios:` list, format in [scenarios.md](scenarios.md)), then
+check the whole factory:
 
 ```sh
 swamp model method run <factory> validate
 ```
 
 `validate` checks the definition's schema and references, analyses its stage
-graph, and runs its saved scenarios. Read every line it prints. For each
-problem, tell the person what it means in plain words (see
-[Findings in plain words](#findings-in-plain-words)), fix the file, and run
-`validate` again.
+graph, and runs its saved scenarios. swamp checks the schema first, before any
+factory method runs: a schema error stops `validate` with
+`Global arguments validation failed: <message> at "definition.<path>"` (or
+`scenarios.<path>`), and `swamp model validate <factory>` shows the same. Read
+every line it prints. For each problem, tell the person what it means in plain
+words (see [Findings in plain words](#findings-in-plain-words)), fix the
+definition, and run `validate` again.
 
 **Verify:** `validate` succeeds, and every warning left is one the person has
 heard in plain words and agreed to keep. An error never stays.
@@ -156,8 +168,9 @@ stage graph, the gates, the human stops, the handoffs and the graph findings
 with their traces. Walk them through it: the path a work item takes, where it
 stops for them, and where it can loop back.
 
-Take their change requests. Apply each one as an edit to the definition file,
-then go back to State 3. Show the page again after the changes.
+Take their change requests. Apply each one as an edit to the definition in the
+factory's model definition, then go back to State 3. Show the page again after
+the changes.
 
 **Verify:** the person says the design is right.
 
@@ -285,22 +298,24 @@ unless the person agrees to keep one, since each is a real way a work item can
 get stuck or loop.
 
 A saved scenario that fails is printed as
-`<path> step <n> (<label>): <message>`. Either the scenario or the definition is
-wrong: read the message, and if it is not clear which, ask the person.
+`scenarios.<index> (<name>) step <n> (<label>): <message>`. Either the scenario
+or the definition is wrong: read the message, and if it is not clear which, ask
+the person.
 
 ## Change an existing factory
 
 Work items already running are not affected by an edit. Each work item pinned a
 copy of the definition when it started, and works on that copy to the end.
 
-1. **Edit in place** by default: change `factories/<factory>.yaml`, update or
-   add saved scenarios for what changed, and go through State 3 and State 4
-   again. New work items start on the edited definition.
+1. **Edit in place** by default: change the definition in
+   `models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, update or add saved
+   scenarios for what changed, and go through State 3 and State 4 again. New
+   work items start on the edited definition.
 2. **Move a running work item** to the edited definition only on the person's
    word. `reset` with `repin=true` does it, and starts the item over at the
    initial stage ([driving.md](driving.md#ways-back-so-nothing-wedges)).
-3. **Use a new name** (a new factory with its own file, made through State 2 to
-   State 5) instead, when either is true:
+3. **Use a new name** (a new factory with its own definition, made through State
+   2 to State 5) instead, when either is true:
    - work items that are running could not reach done under the new definition;
    - a stage, product or schema is renamed or removed that a tracker, a saved
      scenario or another tool depends on.

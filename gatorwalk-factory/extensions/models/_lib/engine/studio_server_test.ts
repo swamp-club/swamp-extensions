@@ -30,34 +30,56 @@ import { FACTORY_TYPE } from "./work_item_ops.ts";
 const PORT = 4321;
 const HOST = `127.0.0.1:${PORT}`;
 
+const TEAM_FILE = "models/@swamp/gatorwalk-factory/factory/team.yaml";
+const TEAM_TEXT = "type: '@swamp/gatorwalk-factory/factory'\nname: team\n" +
+  "globalArguments:\n  tracker: board\n  definition:\n    name: team\n";
+
 function setup() {
   const repo = memoryRepo();
   repo.write(".swamp/.keep", "");
-  repo.write("factories/team.yaml", "name: team\n");
+  repo.write(TEAM_FILE, TEAM_TEXT);
   const definitions: { definition: unknown; type: unknown }[] = [
     {
-      definition: {
-        name: "team",
-        globalArguments: { definition: "factories/team.yaml" },
-      },
+      definition: { id: "id-team", name: "team", globalArguments: {} },
       type: { raw: FACTORY_TYPE, normalized: FACTORY_TYPE },
     },
     {
-      definition: { name: "unnamed-file", globalArguments: {} },
+      definition: { id: "id-pathless", name: "pathless", globalArguments: {} },
       type: FACTORY_TYPE,
     },
     {
-      definition: { name: "issue-1", globalArguments: {} },
+      definition: { id: "id-issue", name: "issue-1", globalArguments: {} },
       type: "@swamp/issue-lifecycle",
     },
   ];
+  // Like swamp's repository: getPath answers from what the last listing
+  // cached, so calling it on a definition not just listed fails here.
+  const paths: Record<string, string> = {
+    "id-team": `${repo.dir}/${TEAM_FILE}`,
+    "id-issue": `${repo.dir}/models/@swamp/issue-lifecycle/issue-1.yaml`,
+  };
+  let cached = new Set<string>();
   const listeners = new Set<(e: StudioEvent) => void>();
-  const followed: string[][] = [];
+  const followed: [string[], Record<string, string>][] = [];
   const deps: StudioDeps = {
     repoDir: repo.dir,
     port: PORT,
     files: repo.files,
-    factories: { findAllGlobal: () => Promise.resolve(definitions) },
+    factories: {
+      findAllGlobal: () => {
+        cached = new Set(
+          definitions.map((d) => String((d.definition as { id: unknown }).id)),
+        );
+        return Promise.resolve(definitions);
+      },
+      getPath: (_type, id) => {
+        const path = paths[String(id)];
+        if (!cached.has(String(id)) || path === undefined) {
+          throw new Error(`no path cached for ${id}`);
+        }
+        return path;
+      },
+    },
     assets: {
       "index.html": {
         type: "text/html; charset=utf-8",
@@ -71,11 +93,11 @@ function setup() {
         return () => listeners.delete(listener);
       },
     },
-    onFactories: (list) => followed.push(list.map((f) => f.name)),
+    onFactories: (list, files) =>
+      followed.push([list.map((f) => f.name), Object.fromEntries(files)]),
   };
-  const write = (path: string, text: string) => repo.write(path, text);
   const emit = (e: StudioEvent) => listeners.forEach((l) => l(e));
-  return { repo, deps, definitions, write, emit, listeners, followed };
+  return { repo, deps, definitions, paths, emit, listeners, followed };
 }
 
 function get(
@@ -135,40 +157,65 @@ Deno.test("studio: / and /assets serve the page, text and binary", async () => {
   }
 });
 
-Deno.test("studio: /api/factories lists factories only, with their paths", async () => {
-  const { deps, followed } = setup();
+Deno.test("studio: /api/factories lists factories only, with their model definition files", async () => {
+  const { deps, followed, repo } = setup();
   const res = await handleStudioRequest(get("/api/factories"), deps);
   assertEquals(res.status, 200);
   assertSecurityHeaders(res);
   assertEquals(await body(res), {
     factories: [
-      { name: "team", path: "factories/team.yaml" },
       {
-        name: "unnamed-file",
+        name: "pathless",
         path: null,
-        error: "factory 'unnamed-file' does not name its definition file",
+        error: "factory 'pathless': swamp gives no file for its model " +
+          "definition: no path cached for id-pathless",
       },
+      { name: "team", path: TEAM_FILE },
     ],
   });
-  assertEquals(followed, [["team", "unnamed-file"]]);
+  assertEquals(followed, [[["pathless", "team"], {
+    team: `${repo.dir}/${TEAM_FILE}`,
+  }]]);
 });
 
-Deno.test("studio: /api/factories/<f> reads the definition file", async () => {
+Deno.test("studio: a model definition kept outside the repo is shown by its absolute path", async () => {
+  const { deps, repo, definitions, paths } = setup();
+  repo.write("/managed/models/x.yaml", "name: managed\n");
+  definitions.push({
+    definition: { id: "id-managed", name: "managed", globalArguments: {} },
+    type: FACTORY_TYPE,
+  });
+  paths["id-managed"] = "/managed/models/x.yaml";
+  const list = await body(
+    await handleStudioRequest(get("/api/factories"), deps),
+  );
+  assert(
+    JSON.stringify(list.factories).includes(
+      '{"name":"managed","path":"/managed/models/x.yaml"}',
+    ),
+  );
+  const file = await body(
+    await handleStudioRequest(get("/api/factories/managed"), deps),
+  );
+  assertEquals(file.text, "name: managed\n");
+});
+
+Deno.test("studio: /api/factories/<f> reads the factory's model definition file", async () => {
   const { deps } = setup();
   const res = await handleStudioRequest(get("/api/factories/team"), deps);
   assertEquals(res.status, 200);
   const file = await body(res);
   assertEquals(file.factory, "team");
-  assertEquals(file.path, "factories/team.yaml");
-  assertEquals(file.text, "name: team\n");
+  assertEquals(file.path, TEAM_FILE);
+  assertEquals(file.text, TEAM_TEXT);
   assertMatch(String(file.digest), /^sha256:[0-9a-f]{64}$/);
 });
 
 Deno.test("studio: a factory's file problems are errors, not files", async () => {
-  const { deps, repo, definitions } = setup();
+  const { deps, repo } = setup();
   const cases: [string, number, RegExp][] = [
     ["nobody", 404, /no factory named 'nobody'/],
-    ["unnamed-file", 422, /does not name its definition file/],
+    ["pathless", 422, /swamp gives no file for its model definition/],
     ["issue-1", 404, /no factory named 'issue-1'/],
   ];
   for (const [name, status, message] of cases) {
@@ -176,117 +223,21 @@ Deno.test("studio: a factory's file problems are errors, not files", async () =>
     assertEquals(res.status, status, name);
     assertMatch(String((await body(res)).error), message);
   }
-  // Outside the repo, through a symlink.
-  repo.write("/elsewhere/secret.yaml", "secret: true\n");
-  repo.symlink("factories/escape.yaml", "/elsewhere/secret.yaml");
-  definitions.push({
-    definition: {
-      name: "escape",
-      globalArguments: { definition: "factories/escape.yaml" },
-    },
-    type: FACTORY_TYPE,
-  });
-  const res = await handleStudioRequest(get("/api/factories/escape"), deps);
+  repo.remove(TEAM_FILE);
+  const res = await handleStudioRequest(get("/api/factories/team"), deps);
   assertEquals(res.status, 422);
-  const refused = await body(res);
-  assertMatch(String(refused.error), /resolves outside the repo/);
-  assert(!JSON.stringify(refused).includes("secret: true"));
+  assertMatch(String((await body(res)).error), /team\.yaml is missing/);
 });
 
-Deno.test("studio: scenarios are listed and read from scenarios/<factory>/", async () => {
-  const { deps, write } = setup();
-  const none = await handleStudioRequest(
-    get("/api/factories/team/scenarios"),
-    deps,
-  );
-  assertEquals(await body(none), {
-    factory: "team",
-    dir: "scenarios/team",
-    scenarios: [],
-  });
-
-  write("scenarios/team/happy.yaml", "scenario: happy\n");
-  write("scenarios/team/churn.yml", "scenario: churn\n");
-  write("scenarios/team/notes.md", "not a scenario\n");
-  write("scenarios/team/Bad.yaml", "not a scenario name\n");
-  const list = await handleStudioRequest(
-    get("/api/factories/team/scenarios"),
-    deps,
-  );
-  assertEquals((await body(list)).scenarios, [
-    { name: "churn", path: "scenarios/team/churn.yml" },
-    { name: "happy", path: "scenarios/team/happy.yaml" },
-  ]);
-
-  const one = await handleStudioRequest(
-    get("/api/factories/team/scenarios/churn"),
-    deps,
-  );
-  assertEquals(one.status, 200);
-  const file = await body(one);
-  assertEquals(file.path, "scenarios/team/churn.yml");
-  assertEquals(file.text, "scenario: churn\n");
-
-  const missing = await handleStudioRequest(
-    get("/api/factories/team/scenarios/nope"),
-    deps,
-  );
-  assertEquals(missing.status, 404);
-  await missing.body?.cancel();
-});
-
-// --- refusals -----------------------------------------------------------------
-
-Deno.test("studio: a bad scenario name is refused before any path is built", async () => {
-  const { deps, write } = setup();
-  write("scenarios/team/happy.yaml", "scenario: happy\n");
+Deno.test("studio: there are no scenario routes; scenarios are in the model definition file", async () => {
+  const { deps } = setup();
   for (
-    const name of ["..%2F..%2Ffactories%2Fteam", "a.b", "Happy", "%20", "-x"]
+    const path of ["/api/factories/team/scenarios", "/api/factories/team/x"]
   ) {
-    const res = await handleStudioRequest(
-      get(`/api/factories/team/scenarios/${name}`),
-      deps,
-    );
-    assertEquals(res.status, 400, name);
-    assertMatch(String((await body(res)).error), /is not a scenario name/);
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 404, path);
+    await res.body?.cancel();
   }
-  // A deeper path is not a route at all.
-  const deep = await handleStudioRequest(
-    get("/api/factories/team/scenarios/happy/x"),
-    deps,
-  );
-  assertEquals(deep.status, 404);
-  await deep.body?.cancel();
-});
-
-Deno.test("studio: a scenario whose real path leaves its directory is refused", async () => {
-  const { deps, repo, write } = setup();
-  write("scenarios/team/happy.yaml", "scenario: happy\n");
-  repo.write("factories/other.yaml", "private: true\n");
-  repo.symlink("scenarios/team/sneaky.yaml", "../../factories/other.yaml");
-  const res = await handleStudioRequest(
-    get("/api/factories/team/scenarios/sneaky"),
-    deps,
-  );
-  assertEquals(res.status, 403);
-  const refused = await body(res);
-  assertMatch(String(refused.error), /resolves outside scenarios\/team/);
-  assert(!JSON.stringify(refused).includes("private"));
-});
-
-Deno.test("studio: a scenario directory that escapes the repo is refused", async () => {
-  const { deps, repo } = setup();
-  repo.write("/elsewhere/team/x.yaml", "x: 1\n");
-  repo.symlink("scenarios/team", "/elsewhere/team");
-  const res = await handleStudioRequest(
-    get("/api/factories/team/scenarios"),
-    deps,
-  );
-  assertEquals(res.status, 422);
-  assertMatch(
-    String((await body(res)).error),
-    /scenarios\/team resolves outside the repo/,
-  );
 });
 
 Deno.test("studio: a Host other than this server is refused (DNS rebinding)", async () => {

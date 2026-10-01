@@ -33,22 +33,24 @@ was refused.
 ## Set up
 
 In a swamp repo, add gatorwalk-factory as an extension source, create the
-built-in tracker, create a factory that names its definition file and that
-tracker, and copy this example into that file:
+built-in tracker, create a factory bound to that tracker, and write this example
+into it:
 
 ```sh
 swamp extension source add <gatorwalk-factory>
 swamp model create @swamp/gatorwalk-factory/tracker board \
   --global-arg prefix=team --json
 swamp model create @swamp/gatorwalk-factory/factory team \
-  --global-arg definition=factories/team.yaml --global-arg tracker=board --json
-swamp model method run team init --input from=build-swamp-extension
+  --global-arg tracker=board --json
+# agent: write build-swamp-extension into team
 ```
 
-`init` copies [build-swamp-extension.yaml](build-swamp-extension.yaml), beside
-this file, to `factories/team.yaml`; it never overwrites a file. That file is
-the one copy of the definition: edit it there. Then check it, get a key, and
-start the work item under that key:
+The agent writes the `definition:` and `scenarios:` blocks of
+[build-swamp-extension.yaml](build-swamp-extension.yaml), beside this file,
+under `globalArguments:` in the factory's model definition,
+`models/@swamp/gatorwalk-factory/factory/team.yaml`. That is the one copy of the
+definition: edit it there. Then check it, get a key, and start the work item
+under that key:
 
 ```sh
 swamp model method run team validate
@@ -58,9 +60,9 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 ```
 
 ```text
-definition 'build-swamp-extension' in factories/team.yaml is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
+definition 'build-swamp-extension' in factory 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 build-swamp-extension-add-list-method-r2ne
-started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team', factories/team.yaml; tracker 'board')
+started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team'; tracker 'board')
 build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   ...

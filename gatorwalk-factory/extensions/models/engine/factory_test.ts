@@ -25,7 +25,7 @@ import {
 import { parse as parseYaml } from "@std/yaml";
 import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
-import { STARTERS } from "../_lib/engine/starters.ts";
+import { z } from "npm:zod@4.3.6";
 import {
   DESIGN_PAGE_NAME,
   DESIGN_PAGE_SPEC,
@@ -40,24 +40,52 @@ const BUILD = new URL(
   import.meta.url,
 );
 
+/** The build-swamp-extension example's definition block. */
 async function buildDefinition(): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(BUILD)) as Record<string, unknown>;
+  const example = parseYaml(await Deno.readTextFile(BUILD)) as {
+    definition: Record<string, unknown>;
+  };
+  return example.definition;
 }
 
-Deno.test("factory: the globalArguments schema survives swamp's .partial() and takes a definition path and a tracker", () => {
-  // swamp validates globalArguments with schema.partial() on every run; zod
-  // throws on .partial() of a refined schema. This guards against adding one.
+Deno.test("factory: the globalArguments schema survives swamp's .partial() and takes a definition, a tracker and scenarios", async () => {
+  // swamp validates globalArguments with schema.partial() before every
+  // method; zod throws on .partial() of a refined top level, and swamp then
+  // falls back to checking key by key. This guards against adding one.
   const partial = FactoryArgumentsSchema.partial();
-  const args = { definition: "factories/team.yaml", tracker: "board" };
+  const definition = await buildDefinition();
+  const args = { definition, tracker: "board", scenarios: [] };
   assert(partial.safeParse(args).success);
   assert(FactoryArgumentsSchema.safeParse(args).success);
-  assertFalse(
-    FactoryArgumentsSchema.safeParse({ ...args, definition: "" }).success,
+  // Created with only its tracker, before the definition is written in.
+  assert(FactoryArgumentsSchema.safeParse({ tracker: "board" }).success);
+  assertFalse(FactoryArgumentsSchema.safeParse({ definition }).success);
+  // partial() is shallow: a definition that is present is checked in full,
+  // refinements included.
+  const stages = structuredClone(definition.stages) as {
+    transitions: unknown[];
+  }[];
+  stages[1].transitions.push({ name: "nowhere", to: "missing" });
+  const bad = partial.safeParse({ definition: { ...definition, stages } });
+  assertFalse(bad.success);
+  assert(
+    bad.error.issues.some((i) =>
+      i.path[0] === "definition" && i.message.includes("'missing'")
+    ),
+    JSON.stringify(bad.error.issues),
   );
-  assertFalse(
-    FactoryArgumentsSchema.safeParse({ definition: "factories/team.yaml" })
-      .success,
-  );
+});
+
+Deno.test("factory: definition and scenarios are marked as foreign template text", () => {
+  // swamp's template scan reads this mark, so {{name}} placeholders neither
+  // warn nor fail swamp model validate (foreign_template_fields.ts in swamp).
+  const shape = FactoryArgumentsSchema.shape;
+  for (const key of ["definition", "scenarios"] as const) {
+    const meta = z.globalRegistry.get(shape[key]) as
+      | { foreignTemplate?: boolean }
+      | undefined;
+    assertEquals(meta?.foreignTemplate, true, key);
+  }
 });
 
 // --- the tracker binding -----------------------------------------------------
@@ -125,7 +153,7 @@ Deno.test("factory: validate reports a valid definition", async () => {
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "definition 'build-swamp-extension' in factories/team.yaml is valid: 8 stages",
+      "definition 'build-swamp-extension' in factory 'team' is valid: 8 stages",
     ),
     summary,
   );
@@ -153,7 +181,6 @@ Deno.test("factory: validate logs each graph warning", async () => {
 // --- saved scenarios ---------------------------------------------------------
 
 const PLAN_TO_REVIEW = `scenario: plan-to-review
-factory: team
 steps:
   - record: { artifact: plan }
     payload:
@@ -167,16 +194,20 @@ steps:
   - expect: { stage: plan-review }
 `;
 
+/** The plan-to-review scenario, as data; `edit` changes its text first. */
+function planToReview(edit: (text: string) => string = (t) => t): unknown {
+  return parseYaml(edit(PLAN_TO_REVIEW));
+}
+
 Deno.test("factory: validate runs the saved scenarios and counts them in its summary", async () => {
   const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  swamp.repo.write("scenarios/team/plan-to-review.yaml", PLAN_TO_REVIEW);
-  swamp.repo.write("scenarios/team/notes.txt", "not a scenario");
-  swamp.repo.write("scenarios/other/x.yaml", "not: for this factory");
+  swamp.factory("team", await buildDefinition(), {
+    scenarios: [planToReview()],
+  });
   await factory.methods.validate.execute({}, swamp.context("team"));
   const passed = swamp.logs.filter((l) => l.message === "{scenario}");
   assertEquals(passed.map((l) => l.props?.scenario), [
-    "scenarios/team/plan-to-review.yaml: passed, 4 steps",
+    "scenarios.0 (plan-to-review): passed, 4 steps",
   ]);
   assert(
     String(swamp.logs.at(-1)?.props?.summary).includes(
@@ -185,7 +216,7 @@ Deno.test("factory: validate runs the saved scenarios and counts them in its sum
   );
 });
 
-Deno.test("factory: validate passes with no scenarios directory", async () => {
+Deno.test("factory: validate passes with no saved scenarios", async () => {
   const swamp = fakeSwamp();
   swamp.factory("team", await buildDefinition());
   await factory.methods.validate.execute({}, swamp.context("team"));
@@ -196,76 +227,56 @@ Deno.test("factory: validate passes with no scenarios directory", async () => {
   );
 });
 
-Deno.test("factory: validate fails on an unexpected step, naming the file and step", async () => {
+Deno.test("factory: validate fails on an unexpected step, naming the scenario and step", async () => {
   const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  swamp.repo.write(
-    "scenarios/team/plan-to-review.yaml",
-    PLAN_TO_REVIEW.replace(
-      "awaiting approval 'plan-approval'",
-      "a different message",
-    ),
-  );
+  swamp.factory("team", await buildDefinition(), {
+    scenarios: [
+      planToReview((t) =>
+        t.replace("awaiting approval 'plan-approval'", "a different message")
+      ),
+    ],
+  });
   const error = await assertRejects(
     () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,
   );
   assertMatch(
     error.message,
-    /1 of 1 saved scenario\(s\) failed:\nscenarios\/team\/plan-to-review\.yaml step 3 \(move approve\): expected a refusal mentioning "a different message", but it was refused for another reason: .*awaiting approval 'plan-approval'/,
+    /1 of 1 saved scenario\(s\) failed:\nscenarios\.0 \(plan-to-review\) step 3 \(move approve\): expected a refusal mentioning "a different message", but it was refused for another reason: .*awaiting approval 'plan-approval'/,
   );
 });
 
-Deno.test("factory: validate fails on a scenario saved for another factory, and a malformed one, reporting both", async () => {
+Deno.test("factory: validate fails on malformed scenarios, reporting each with its path", async () => {
   const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  swamp.repo.write(
-    "scenarios/team/a.yaml",
-    PLAN_TO_REVIEW.replace("factory: team", "factory: build-swamp-extension"),
-  );
-  swamp.repo.write(
-    "scenarios/team/b.yml",
-    "scenario: b\nfactory: team\nsteps:\n  - move: submit\n    wait: 5\n",
-  );
-  swamp.repo.write("scenarios/team/c.yaml", "steps: [");
-  const error = await assertRejects(
-    () => factory.methods.validate.execute({}, swamp.context("team")),
-    Error,
-  );
-  assert(error.message.includes("3 of 3 saved scenario(s) failed"));
-  assert(
-    error.message.includes(
-      "scenarios/team/a.yaml says factory 'build-swamp-extension', but it is " +
-        "saved for factory 'team': set factory: team, or move it to " +
-        "scenarios/build-swamp-extension/",
-    ),
-    error.message,
-  );
-  assert(
-    error.message.includes(
-      "scenarios/team/b.yml is not a valid scenario:\n  steps.0: a step has one verb, not move and wait",
-    ),
-    error.message,
-  );
-  assert(
-    error.message.includes("scenarios/team/c.yaml is not valid YAML"),
-    error.message,
-  );
-});
-
-Deno.test("factory: validate refuses a scenarios directory that leads outside the repo", async () => {
-  const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  swamp.repo.write("/elsewhere/x.yaml", PLAN_TO_REVIEW);
-  swamp.repo.symlink("scenarios/team", "/elsewhere");
+  swamp.factory("team", await buildDefinition(), {
+    scenarios: [
+      planToReview(),
+      parseYaml("scenario: b\nsteps:\n  - move: submit\n    wait: 5\n"),
+      { scenario: "c", factory: "team", steps: [{ move: "submit" }] },
+    ],
+  });
   const error = await assertRejects(
     () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,
   );
   assertEquals(
     error.message,
-    "factory 'team': scenarios directory 'scenarios/team' resolves outside " +
-      "the repo (to /elsewhere)",
+    "factory 'team' has saved scenarios that are not valid " +
+      "(globalArguments.scenarios):\n" +
+      "  scenarios.1.steps.0: a step has one verb, not move and wait\n" +
+      '  scenarios.2: Unrecognized key: "factory"',
+  );
+});
+
+Deno.test("factory: validate refuses two saved scenarios with one name", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition(), {
+    scenarios: [planToReview(), planToReview()],
+  });
+  await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+    "  scenarios.1.scenario: another scenario is already named 'plan-to-review'",
   );
 });
 
@@ -408,7 +419,7 @@ Deno.test("factory: design_page fails with every schema error, writing nothing",
   const text = (error as Error).message;
   assert(
     text.includes(
-      "factory 'team' (factories/team.yaml) is not a valid definition",
+      "factory 'team': globalArguments.definition is not a valid definition",
     ),
     text,
   );
@@ -566,71 +577,22 @@ Deno.test("factory: the model's literal type is FACTORY_TYPE", () => {
   assert(factory.type === FACTORY_TYPE);
 });
 
-Deno.test("factory: init copies a starter to the definition file, then validate reads it", async () => {
+Deno.test("factory: validate refuses a factory with no definition yet, saying where to write one", async () => {
   const swamp = fakeSwamp();
-  swamp.definitions.set("team", {
-    globalArguments: { definition: "factories/team.yaml", tracker: "board" },
-    type: FACTORY_TYPE,
-  });
-  swamp.definitions.set("board", {
-    globalArguments: {},
-    type: "@swamp/gatorwalk-factory/tracker",
-  });
-  await factory.methods.init.execute(
-    { from: "starter" },
-    swamp.context("team"),
-  );
-  assertEquals(swamp.repo.read("factories/team.yaml"), STARTERS.starter);
-  const summary = String(swamp.logs.at(-1)?.props?.summary);
-  assert(
-    summary.startsWith(
-      "wrote the 'starter' starter to factories/team.yaml for factory 'team'",
-    ),
-    summary,
-  );
-  await factory.methods.validate.execute({}, swamp.context("team"));
-  assert(
-    String(swamp.logs.at(-1)?.props?.summary).startsWith(
-      "definition 'starter' in factories/team.yaml is valid",
-    ),
+  swamp.factory("team", undefined);
+  await assertRejects(
+    () => factory.methods.validate.execute({}, swamp.context("team")),
+    Error,
+    "factory 'team' has no definition: write one under " +
+      "globalArguments.definition in its model definition",
   );
 });
 
-Deno.test("factory: init never overwrites, and refuses an unknown starter", async () => {
-  const swamp = fakeSwamp();
-  swamp.factory("team", "name: mine\n");
-  await assertRejects(
-    () =>
-      factory.methods.init.execute({ from: "minimal" }, swamp.context("team")),
-    Error,
-    "factory 'team': definition file 'factories/team.yaml' already exists",
-  );
-  assertEquals(swamp.repo.read("factories/team.yaml"), "name: mine\n");
-  await assertRejects(
-    () => factory.methods.init.execute({ from: "nope" }, swamp.context("team")),
-    Error,
-    "no starter named 'nope'; the starters are build-swamp-extension, minimal",
-  );
-  assertFalse(
-    factory.methods.init.arguments.safeParse({ from: "nope" }).success,
-  );
-  await assertRejects(
-    () =>
-      factory.methods.init.execute(
-        { from: "toString" },
-        swamp.context("team"),
-      ),
-    Error,
-    "no starter named 'toString'",
-  );
-});
-
-Deno.test("factory: init offers every example as a starter", () => {
-  assertEquals(Object.keys(STARTERS), [
-    "build-swamp-extension",
-    "minimal",
-    "starter",
-    "swamp-club-swamp-extensions",
+Deno.test("factory: has no init method; the skill writes the definition in", () => {
+  assertEquals(Object.keys(factory.methods).sort(), [
+    "design_page",
+    "new_key",
+    "validate",
   ]);
 });
 

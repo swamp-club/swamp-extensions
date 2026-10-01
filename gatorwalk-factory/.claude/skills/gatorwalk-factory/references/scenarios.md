@@ -1,30 +1,35 @@
 # Saved scenarios
 
-A saved scenario is a known path through a factory, written as a file so that a
-change to the factory definition that breaks it fails `validate`. You write
-them: when you change a factory definition, when the person describes a path the
-factory must keep allowing (or refusing), or when they ask for one. Nothing else
-creates them.
+A saved scenario is a known path through a factory, kept beside its definition
+so that a change to the factory definition that breaks it fails `validate`. You
+write them: when you change a factory definition, when the person describes a
+path the factory must keep allowing (or refusing), or when they ask for one.
+Nothing else creates them.
 
 ## Where they go
 
-One YAML file per scenario, under the repo root:
+In the factory's model definition,
+`models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, as the `scenarios:`
+list under `globalArguments:`, beside `definition:` and `tracker:`. Each example
+in [examples/](examples/) has its own `scenarios:` block, written in with its
+definition; no two scenarios in a factory share a name.
 
+```yaml
+globalArguments:
+  tracker: board
+  definition:
+    ...
+  scenarios:
+    - scenario: plan-waits-for-approval
+      ...
 ```
-scenarios/<factory>/<scenario>.yaml
-```
 
-`<factory>` is the factory's name (the model instance, such as `team`), not the
-`name:` inside its definition, which is often a starter's. The file's `factory`
-key must be the same name. A scenario copied from
-[examples/scenarios/](examples/scenarios/) names the example, so change its
-`factory` key to your factory's name, or `validate` refuses it.
+## One scenario
 
-## The file
+One entry in the list, shown here on its own:
 
 ```yaml
 scenario: plan-waits-for-approval
-factory: team
 description: A reviewed plan waits for a person's approval, then goes on to implement.
 externalRefs: { swamp-club: "2805" }
 steps:
@@ -81,9 +86,13 @@ Run `validate` and fix what it reports:
 swamp model method run <factory> validate
 ```
 
-It runs every scenario in `scenarios/<factory>/` and names each step that did
-not do what its scenario said, as `<path> step <n> (<label>): <message>`; step 1
-is the first in `steps`. A step that should pass but was refused means the
-scenario or the definition is wrong: read the refusal, then ask the person which
-one if it is not clear. Never weaken an `expect` to make `validate` pass without
-the person's word, since the scenario may be catching a real break.
+It runs every scenario in the factory's `scenarios:` list and names each step
+that did not do what its scenario said, as
+`scenarios.<index> (<name>) step <n> (<label>): <message>`; step 1 is the first
+in `steps`. A scenario that is not well formed (an unknown key, two verbs in a
+step, a name used twice) stops every factory method before it runs, with swamp's
+`Global arguments validation failed: ... at "scenarios.<path>"`. A step that
+should pass but was refused means the scenario or the definition is wrong: read
+the refusal, then ask the person which one if it is not clear. Never weaken an
+`expect` to make `validate` pass without the person's word, since the scenario
+may be catching a real break.

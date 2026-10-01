@@ -15,20 +15,24 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 // Copy reference: one plain line a person pastes to the agent, naming the
-// file, the document path and something a person reads. That is the whole
-// hand-off; the page never edits the file.
+// factory's model definition file, the document path in it and something a
+// person reads. That is the whole hand-off; the page never edits the file.
+// The definition sits under globalArguments.definition, so every path starts
+// there (F is models/@swamp/gatorwalk-factory/factory/team.yaml):
 //
-//   factories/team.yaml stages.2 (stage plan)
-//   factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)
-//   factories/team.yaml stages.2.transitions.0.gates.1 (human-approval gate
-//     'plan-ok' on exit submit: plan → review)
-//   factories/team.yaml globalTransitions.0 (global exit abandon: any stage →
-//     abandoned)
-//   factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)
-//     ambiguous-exit: <the finding's message>
+//   F globalArguments.definition.stages.2 (stage plan)
+//   F globalArguments.definition.stages.2.transitions.0 (exit submit: plan →
+//     review)
+//   F globalArguments.definition.stages.2.transitions.0.gates.1
+//     (human-approval gate 'plan-ok' on exit submit: plan → review)
+//   F globalArguments.definition.globalTransitions.0 (global exit abandon:
+//     any stage → abandoned)
+//   F globalArguments.definition.stages.2.transitions.0 (exit submit: plan →
+//     review) ambiguous-exit: <the finding's message>
 
 import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { FindingView } from "../../extensions/models/_lib/engine/design_page.ts";
+import { DEFINITION_PATH } from "./model.ts";
 import { pathOf, type Target, targetAt } from "./selection.ts";
 
 /** A short name a person reads, for a target that exists. */
@@ -62,6 +66,13 @@ export function readable(
   }
 }
 
+/** A definition's document path as a path in the model definition file. */
+export function inFile(path: string): string {
+  return path === "" || path === "(root)"
+    ? DEFINITION_PATH
+    : `${DEFINITION_PATH}.${path}`;
+}
+
 /** The one line Copy reference puts on the clipboard. */
 export function referenceLine(
   file: string,
@@ -73,8 +84,10 @@ export function referenceLine(
     const at = targetAt(definition, target.path);
     const name = at === null ? "" : ` (${readable(definition, at)})`;
     const message = target.message.replace(/\s+/g, " ").trim();
-    return `${file} ${target.path}${name} ${target.code}: ${message}`;
+    return `${file} ${inFile(target.path)}${name} ${target.code}: ${message}`;
   }
-  const path = pathOf(definition, target, findings) ?? "(gone)";
-  return `${file} ${path} (${readable(definition, target)})`;
+  const path = pathOf(definition, target, findings);
+  return `${file} ${path === null ? "(gone)" : inFile(path)} (${
+    readable(definition, target)
+  })`;
 }

@@ -1,9 +1,0 @@
-scenario: plain-bug-not-regression
-factory: swamp-club-swamp-extensions
-description: >-
-  A bug that says it is not a regression does not wait for regression-review.
-steps:
-  - record: { evidence: classification }
-    payload: { type: bug, confidence: high, reasoning: r, isRegression: false }
-  - move: bug
-  - expect: { stage: reproduce }

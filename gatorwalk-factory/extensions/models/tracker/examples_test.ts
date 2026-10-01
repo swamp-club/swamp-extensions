@@ -15,12 +15,12 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "@std/assert";
-import { parse as parseYaml } from "@std/yaml";
 import {
   type FactoryDefinition,
   fakeSwamp,
   findStage,
   parseDefinition,
+  parseExample,
   type StageSpec,
 } from "../_lib/engine/tracker_testing.ts";
 import {
@@ -54,7 +54,9 @@ const DEFINITIONS = new URL(
 );
 
 async function load(file: string): Promise<FactoryDefinition> {
-  const raw = parseYaml(await Deno.readTextFile(new URL(file, DEFINITIONS)));
+  const raw = parseExample(
+    await Deno.readTextFile(new URL(file, DEFINITIONS)),
+  ).definition;
   const result = parseDefinition(raw);
   if (!result.ok) {
     throw new Error(`${file} is invalid:\n${result.errors.join("\n")}`);
@@ -190,9 +192,9 @@ Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regres
 });
 
 Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab with the revised plan", async () => {
-  const raw = parseYaml(
+  const raw = parseExample(
     await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
-  ) as Record<string, unknown>;
+  ).definition;
   const fake = swampClubFake();
   try {
     const swamp = fakeSwamp();
@@ -263,9 +265,9 @@ Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab
 });
 
 Deno.test("swamp-club-swamp-extensions: a work item started and published once is assigned, triage_started then assigned, with no assign call", async () => {
-  const raw = parseYaml(
+  const raw = parseExample(
     await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
-  ) as Record<string, unknown>;
+  ).definition;
   const fake = swampClubFake();
   try {
     const swamp = fakeSwamp();

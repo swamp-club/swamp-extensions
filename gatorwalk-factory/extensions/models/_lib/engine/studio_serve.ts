@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { denoRepoFiles } from "./definition_file.ts";
+import { denoRepoFiles } from "./studio_files.ts";
 import {
   type FactoryLister,
   handleStudioRequest,
@@ -52,21 +52,33 @@ export async function serveStudio(
     throw new Error("this method context has no repo directory");
   }
   const lister = ctx.definitionRepository as Partial<FactoryLister> | undefined;
-  if (typeof lister?.findAllGlobal !== "function") {
+  if (
+    typeof lister?.findAllGlobal !== "function" ||
+    typeof lister.getPath !== "function"
+  ) {
     throw new Error("this method context cannot list model definitions");
   }
-  const factories = lister as FactoryLister;
-  const watcher = watchStudio(repoDir);
+  // getPath is a method of swamp's repository class: bound, so it keeps its
+  // this when called through the lister.
+  const repository = lister as FactoryLister;
+  const factories: FactoryLister = {
+    findAllGlobal: () => repository.findAllGlobal(),
+    getPath: (type, id) => repository.getPath(type, id),
+  };
+  const watcher = watchStudio();
   // A factory created or removed while the studio is open: swamp says
   // nothing, so the list is read again every few seconds. The watch tells
   // the page when it changed.
   const relist = setInterval(() => {
-    listFactories(factories).then(watcher.follow).catch(() => {
+    listFactories(factories, repoDir).then(({ entries, files }) =>
+      watcher.follow(entries, files)
+    ).catch(() => {
       // A definition mid-write; the next read sees it whole.
     });
   }, RELIST_SECONDS * 1000);
   try {
-    await watcher.follow(await listFactories(factories));
+    const first = await listFactories(factories, repoDir);
+    await watcher.follow(first.entries, first.files);
     const deps: StudioDeps = {
       repoDir,
       // Set once the server has bound, before any request can arrive.
@@ -75,7 +87,7 @@ export async function serveStudio(
       factories,
       assets,
       events: watcher,
-      onFactories: (list) => void watcher.follow(list),
+      onFactories: (list, files) => void watcher.follow(list, files),
       // Deno.serve waits for open responses when it stops, so the event
       // streams close on the same signal.
       signal: ctx.signal,

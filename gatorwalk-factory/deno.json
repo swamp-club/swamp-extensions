@@ -6,7 +6,6 @@
     "fmt:check": "deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ studio/ testdata/ .claude/skills/",
     "test": "deno test --allow-read --allow-net=127.0.0.1 --allow-env=LOG_TOKENS,LOG_STREAM extensions/models/ extensions/reports/ scripts/ studio/",
     "test:integration": "deno test --allow-run=swamp --allow-read --allow-write --allow-env --allow-net=127.0.0.1 integration/",
-    "gen:starters": "deno run --allow-read=. --allow-write=extensions/models/_lib/engine/starters.ts scripts/gen_starters.ts && deno fmt extensions/models/_lib/engine/starters.ts",
     "build:studio": "deno run --allow-read=. --allow-write=studio/dist,extensions/models/_lib/engine/studio_assets.ts,extensions/models/_lib/engine/studio_asset_app.ts,extensions/models/_lib/engine/studio_asset_fonts.ts --allow-run=deno studio/build.ts && deno fmt extensions/models/_lib/engine/studio_assets.ts extensions/models/_lib/engine/studio_asset_app.ts extensions/models/_lib/engine/studio_asset_fonts.ts"
   },
   "exclude": ["studio/dist/"],

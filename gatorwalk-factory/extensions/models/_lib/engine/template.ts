@@ -34,7 +34,7 @@ import { jsonSafe } from "./canonical.ts";
 //   bare-word template tags (`{{end}}`, `{{else}}`), which are otherwise
 //   rejected as undeclared bindings. There is no way to write a literal `\`
 //   directly before a live placeholder.
-// - `${{` cannot appear at all: the platform evaluates it on save.
+// - `${{` cannot appear at all: swamp evaluates it before each method runs.
 // ---------------------------------------------------------------------------
 
 /** A binding name, and so a placeholder name. */

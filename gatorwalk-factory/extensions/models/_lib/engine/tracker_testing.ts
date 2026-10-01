@@ -21,7 +21,7 @@
 // ---------------------------------------------------------------------------
 
 export * from "./tracker.ts";
-export { type FakeSwamp, fakeSwamp } from "./fake_swamp.ts";
+export { type FakeSwamp, fakeSwamp, parseExample } from "./fake_swamp.ts";
 export {
   ALICE,
   expectNow,

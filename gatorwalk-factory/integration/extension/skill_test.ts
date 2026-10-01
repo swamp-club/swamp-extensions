@@ -83,10 +83,22 @@ Deno.test("skill: marked failures, continuations and indented fences are read fr
   ]);
 });
 
-Deno.test("skill: every command names a real method with inputs it accepts", async () => {
-  const commands = (await skillCommands()).filter((c) =>
-    c.result === undefined
+Deno.test("skill: an agent: write line is the agent writing an example into a factory, not a command", () => {
+  const found = commandsIn(
+    "x.md",
+    ["```sh", "# agent: write <starter> into <factory>", "```"].join("\n"),
   );
+  assertEquals(found, [{
+    file: "x.md",
+    line: 2,
+    words: [],
+    write: { example: "<starter>", factory: "<factory>" },
+  }]);
+});
+
+Deno.test("skill: every command names a real method with inputs it accepts", async () => {
+  // Result blocks and agent writes are not commands.
+  const commands = (await skillCommands()).filter((c) => c.words.length > 0);
   assert(commands.length > 40, `only ${commands.length} commands found`);
   const problems = commands.flatMap((c) => {
     const problem = checkCommand(c.words);
@@ -330,13 +342,21 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
   const end = text.split("\n").indexOf("## The tracker") + 1;
   assert(end > 0, "authoring.md has no '## The tracker' section");
   const commands = commandsIn(AUTHORING, text).filter((c) => c.line < end);
-  // What each command does: its method, or its swamp subcommand.
-  const label = (w: string[]) =>
-    w[2] === "method" ? w[5] : w[3] === "method" ? w[5] : `${w[1]} ${w[2]}`;
-  assertEquals(commands.map((c) => label(c.words)), [
+  // What each command does: its method, or its swamp subcommand; or the
+  // agent writing an example in.
+  const label = (c: (typeof commands)[number]) => {
+    if (c.write !== undefined) return "agent write";
+    const w = c.words;
+    return w[2] === "method"
+      ? w[5]
+      : w[3] === "method"
+      ? w[5]
+      : `${w[1]} ${w[2]}`;
+  };
+  assertEquals(commands.map(label), [
     "model search",
     "model create",
-    "init",
+    "agent write",
     "validate",
     "design_page",
     "data get",

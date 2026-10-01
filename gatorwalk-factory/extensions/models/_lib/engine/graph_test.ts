@@ -16,6 +16,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
+import { parseExample } from "./fake_swamp.ts";
 import {
   analyzeDefinition,
   formatFinding,
@@ -1249,7 +1250,10 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on eve
   for (const dir of dirs) {
     for (const file of await yamlFiles(new URL(dir, ROOT))) {
       const label = file.href.slice(ROOT.href.length);
-      const raw = parseYaml(await Deno.readTextFile(file));
+      const text = await Deno.readTextFile(file);
+      const raw = dir === EXAMPLES
+        ? parseExample(text).definition
+        : parseYaml(text);
       assertPruningExact(parsed(raw, label), label);
       checked++;
     }
@@ -1259,11 +1263,11 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on eve
 
 Deno.test("graph: swamp-club-swamp-extensions at the default cycle limits finishes under the cap", async () => {
   // Without pruning this is 716,220 count states, past the 100,000 cap.
-  const raw = parseYaml(
+  const raw = parseExample(
     await Deno.readTextFile(
       new URL(`${EXAMPLES}swamp-club-swamp-extensions.yaml`, ROOT),
     ),
-  ) as { stages: { maxCycles?: number }[] };
+  ).definition as { stages: { maxCycles?: number }[] };
   for (const stage of raw.stages) delete stage.maxCycles;
   const doc = parsed(raw, "swamp-club-swamp-extensions without maxCycles");
   const { pruned, full } = assertPruningExact(

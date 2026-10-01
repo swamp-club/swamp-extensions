@@ -17,6 +17,7 @@ import { assert, assertEquals } from "@std/assert";
 import { loadDefinition } from "./model.ts";
 import { referenceLine } from "./reference.ts";
 import { findingTarget } from "./selection.ts";
+import { modelFile } from "./test_support.ts";
 
 const TEXT = `schemaVersion: 1
 name: team
@@ -39,19 +40,21 @@ globalTransitions:
   - { name: abandon, to: done }
 `;
 
-Deno.test("reference: one plain line naming the file, the path and a readable name", async () => {
-  const loaded = await loadDefinition("factories/team.yaml", TEXT);
+const FILE = "models/@swamp/gatorwalk-factory/factory/team.yaml";
+
+Deno.test("reference: one plain line naming the model file, the path in it and a readable name", async () => {
+  const loaded = await loadDefinition(FILE, modelFile(TEXT, "team"));
   assert(loaded.ok);
   const d = loaded.definition;
   const line = (t: Parameters<typeof referenceLine>[2]) =>
-    referenceLine("factories/team.yaml", d, t);
+    referenceLine(FILE, d, t);
   assertEquals(
     line({ kind: "stage", stage: "review" }),
-    "factories/team.yaml stages.1 (stage review)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.1 (stage review)",
   );
   assertEquals(
     line({ kind: "exit", stage: "plan", exit: "submit" }),
-    "factories/team.yaml stages.0.transitions.0 (exit submit: plan → review)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.0.transitions.0 (exit submit: plan → review)",
   );
   assertEquals(
     line({
@@ -60,7 +63,7 @@ Deno.test("reference: one plain line naming the file, the path and a readable na
       exit: "submit",
       gate: { type: "human-approval", key: "plan-ok", nth: 0 },
     }),
-    "factories/team.yaml stages.0.transitions.0.gates.0 (human-approval gate 'plan-ok' on exit submit: plan → review)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.0.transitions.0.gates.0 (human-approval gate 'plan-ok' on exit submit: plan → review)",
   );
   assertEquals(
     line({
@@ -69,30 +72,30 @@ Deno.test("reference: one plain line naming the file, the path and a readable na
       exit: "submit",
       gate: { type: "cel", key: "true", nth: 0 },
     }),
-    "factories/team.yaml stages.0.transitions.0.gates.1 (cel gate on exit submit: plan → review)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.0.transitions.0.gates.1 (cel gate on exit submit: plan → review)",
   );
   assertEquals(
     line({ kind: "exit", stage: null, exit: "abandon" }),
-    "factories/team.yaml globalTransitions.0 (global exit abandon: any stage → done)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.globalTransitions.0 (global exit abandon: any stage → done)",
   );
   assertEquals(
     line({ kind: "any" }),
-    "factories/team.yaml globalTransitions (global exits, from any stage)",
+    "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.globalTransitions (global exits, from any stage)",
   );
 });
 
 Deno.test("reference: a finding's line adds its code and message", async () => {
-  const loaded = await loadDefinition("factories/team.yaml", TEXT);
+  const loaded = await loadDefinition(FILE, modelFile(TEXT, "team"));
   assert(loaded.ok);
   const f = loaded.view.findings.find((x) => x.code === "unreachable-stage")!;
   const line = referenceLine(
-    "factories/team.yaml",
+    FILE,
     loaded.definition,
     findingTarget(f),
   );
   assert(
     line.startsWith(
-      "factories/team.yaml stages.2 (stage lost) unreachable-stage: ",
+      "models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.2 (stage lost) unreachable-stage: ",
     ),
     line,
   );

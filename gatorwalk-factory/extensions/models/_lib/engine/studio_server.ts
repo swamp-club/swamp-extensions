@@ -14,24 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { isAbsolute, join, relative, SEPARATOR } from "jsr:@std/path@1.1.4";
-import {
-  type RepoFiles,
-  resolveDefinitionPath,
-  SCENARIO_DIR,
-} from "./definition_file.ts";
-import { NameSchema } from "./definition_schema.ts";
-import {
-  FACTORY_TYPE,
-  factoryPathArgument,
-  typeNameOf,
-} from "./work_item_ops.ts";
+import { isAbsolute, relative, SEPARATOR } from "jsr:@std/path@1.1.4";
+import type { RepoFiles } from "./studio_files.ts";
+import { FACTORY_TYPE, typeNameOf } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // The studio's HTTP handler (DESIGN.md, "The studio server"). The studio
-// only views; it never writes. Every route is GET, and every path
-// is resolved here from a factory's model definition: a request names a
-// factory and a scenario, never a path.
+// only views; it never writes. Every route is GET, and the only file it
+// reads is a factory's model definition file, at the path swamp's definition
+// repository gives: a request names a factory, never a path. The model
+// definition holds the factory definition and its saved scenarios, so one
+// file and one change event cover both.
 //
 // A request is refused before routing when:
 // - its Host is not 127.0.0.1:<port> or localhost:<port> (DNS rebinding);
@@ -50,15 +43,24 @@ import {
 
 export const STUDIO_TYPE = "@swamp/gatorwalk-factory/studio";
 
-/** The part of swamp's definition repository the studio uses. */
+/**
+ * The part of swamp's definition repository the studio uses. getPath gives
+ * the file a definition was read from, which the listing just cached; it is
+ * only called on a definition findAllGlobal returned.
+ */
 export interface FactoryLister {
   findAllGlobal(): Promise<{ definition: unknown; type: unknown }[]>;
+  getPath(type: unknown, id: unknown): string;
 }
 
-/** A factory in the repo, with the definition path it names. */
+/** A factory in the repo, with its model definition file. */
 export interface FactoryEntry {
   name: string;
-  /** Repo-relative, as the factory names it; null when it names none. */
+  /**
+   * The model definition file: repo-relative when it is in the repo (swamp
+   * can keep definitions elsewhere), as the page shows it; null when swamp
+   * gives no path.
+   */
   path: string | null;
   error?: string;
 }
@@ -73,8 +75,7 @@ export interface StudioAsset {
 /** A file an agent changed, as the page hears of it. */
 export type StudioEvent =
   | { kind: "factories" }
-  | { kind: "definition"; factory: string }
-  | { kind: "scenarios"; factory: string; name?: string };
+  | { kind: "definition"; factory: string };
 
 export interface StudioEvents {
   /** Returns the unsubscribe function. */
@@ -91,8 +92,11 @@ export interface StudioDeps {
   /** The page's files by served name; "index.html" is served at /. */
   assets: Readonly<Record<string, StudioAsset>>;
   events: StudioEvents;
-  /** Told each time the factory list is read, so the watch can follow it. */
-  onFactories?(factories: FactoryEntry[]): void;
+  /**
+   * Told each time the factory list is read, with each factory's model
+   * definition file by name, so the watch can follow them.
+   */
+  onFactories?(factories: FactoryEntry[], files: Map<string, string>): void;
   /** Aborts on shutdown; open event streams close with it. */
   signal?: AbortSignal;
   /** Seconds between keepalive comments on an event stream. */
@@ -169,27 +173,43 @@ function refusal(req: Request, port: number): Response | null {
   return null;
 }
 
-/** Every factory in the repo, by name. */
+/** Where a model definition file is shown: repo-relative when it is inside. */
+export function shownPath(repoDir: string, file: string): string {
+  return inside(repoDir, file) ? relative(repoDir, file) : file;
+}
+
+/**
+ * Every factory in the repo, by name, with its model definition file as an
+ * absolute path in `files` (by name) and as shown in each entry.
+ */
 export async function listFactories(
   lister: FactoryLister,
-): Promise<FactoryEntry[]> {
+  repoDir: string,
+): Promise<{ entries: FactoryEntry[]; files: Map<string, string> }> {
   const entries: FactoryEntry[] = [];
+  const files = new Map<string, string>();
   for (const found of await lister.findAllGlobal()) {
     if (typeNameOf(found.type) !== FACTORY_TYPE) continue;
-    const name = (found.definition as { name?: unknown }).name;
+    const def = found.definition as { name?: unknown; id?: unknown };
+    const name = def.name;
     if (typeof name !== "string" || name === "") continue;
-    const path = factoryPathArgument(found.definition);
-    entries.push(
-      path === undefined
-        ? {
-          name,
-          path: null,
-          error: `factory '${name}' does not name its definition file`,
-        }
-        : { name, path },
-    );
+    let file: string;
+    try {
+      file = lister.getPath(found.type, def.id);
+    } catch (e) {
+      entries.push({
+        name,
+        path: null,
+        error: `factory '${name}': swamp gives no file for its model ` +
+          `definition: ${message(e)}`,
+      });
+      continue;
+    }
+    files.set(name, file);
+    entries.push({ name, path: shownPath(repoDir, file) });
   }
-  return entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  return { entries, files };
 }
 
 /** Whether `path` is `root` or under it. */
@@ -211,96 +231,22 @@ async function sha256(text: string): Promise<string> {
 
 const message = (e: unknown) => e instanceof Error ? e.message : String(e);
 
-/**
- * The real path of a factory's scenario directory, or null when it does not
- * exist. Throws when the factory's name cannot name a directory, or the
- * directory resolves outside the repo.
- */
-export async function scenarioDir(
-  deps: Pick<StudioDeps, "repoDir" | "files">,
-  factory: string,
-): Promise<string | null> {
-  const named = NameSchema.safeParse(factory);
-  if (!named.success) {
-    throw new Error(
-      `factory '${factory}' cannot name a scenario directory: its name ${
-        named.error.issues[0]?.message
-      }`,
-    );
+async function definitionFile(
+  deps: StudioDeps,
+  entry: FactoryEntry,
+  file: string | undefined,
+) {
+  if (entry.path === null || file === undefined) {
+    return error(422, entry.error ?? "no model definition file");
   }
-  const dir = join(deps.repoDir, SCENARIO_DIR, factory);
   let real: string;
   try {
-    real = await deps.files.realPath(dir);
+    real = await deps.files.realPath(file);
   } catch {
-    return null;
+    return error(422, `factory '${entry.name}': ${entry.path} is missing`);
   }
-  if (!inside(await deps.files.realPath(deps.repoDir), real)) {
-    throw new Error(`${SCENARIO_DIR}/${factory} resolves outside the repo`);
-  }
-  if ((await deps.files.lstat(real))?.isDirectory !== true) return null;
-  return real;
-}
-
-const SCENARIO_FILE = /^(.+)\.ya?ml$/;
-
-async function scenarioList(deps: StudioDeps, factory: string) {
-  const dir = await scenarioDir(deps, factory);
-  const names = dir === null ? [] : await deps.files.readDir(dir);
-  const scenarios = names
-    .map((file) => ({ file, name: SCENARIO_FILE.exec(file)?.[1] }))
-    .filter((s): s is { file: string; name: string } =>
-      s.name !== undefined && NameSchema.safeParse(s.name).success
-    )
-    .map((s) => ({
-      name: s.name,
-      path: `${SCENARIO_DIR}/${factory}/${s.file}`,
-    }))
-    .sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-  return { factory, dir: `${SCENARIO_DIR}/${factory}`, scenarios };
-}
-
-async function scenarioFile(deps: StudioDeps, factory: string, name: string) {
-  if (!NameSchema.safeParse(name).success) {
-    return error(400, `'${name}' is not a scenario name`);
-  }
-  const dir = await scenarioDir(deps, factory);
-  if (dir === null) return error(404, `factory '${factory}' has no scenarios`);
-  for (const file of [`${name}.yaml`, `${name}.yml`]) {
-    let real: string;
-    try {
-      real = await deps.files.realPath(join(dir, file));
-    } catch {
-      continue;
-    }
-    if (!inside(dir, real)) {
-      return error(
-        403,
-        `scenario '${name}' resolves outside ${SCENARIO_DIR}/${factory}`,
-      );
-    }
-    if ((await deps.files.lstat(real))?.isFile !== true) {
-      return error(403, `scenario '${name}' is not a file`);
-    }
-    const text = await deps.files.readTextFile(real);
-    return json({
-      factory,
-      name,
-      path: `${SCENARIO_DIR}/${factory}/${file}`,
-      text,
-      digest: await sha256(text),
-    });
-  }
-  return error(404, `factory '${factory}' has no scenario '${name}'`);
-}
-
-async function definitionFile(deps: StudioDeps, entry: FactoryEntry) {
-  if (entry.path === null) return error(422, entry.error ?? "no definition");
-  let real: string;
-  try {
-    real = await resolveDefinitionPath(deps.repoDir, entry.path, deps.files);
-  } catch (e) {
-    return error(422, message(e));
+  if ((await deps.files.lstat(real))?.isFile !== true) {
+    return error(422, `factory '${entry.name}': ${entry.path} is not a file`);
   }
   const text = await deps.files.readTextFile(real);
   return json({
@@ -392,21 +338,20 @@ export async function handleStudioRequest(
   if (parts[1] !== "factories") return error(404, "not found");
 
   try {
-    const factories = await listFactories(deps.factories);
+    const { entries, files } = await listFactories(
+      deps.factories,
+      deps.repoDir,
+    );
     if (parts.length === 2) {
-      deps.onFactories?.(factories);
-      return json({ factories });
+      deps.onFactories?.(entries, files);
+      return json({ factories: entries });
     }
-    const entry = factories.find((f) => f.name === parts[2]);
+    const entry = entries.find((f) => f.name === parts[2]);
     if (entry === undefined) {
       return error(404, `no factory named '${parts[2]}'`);
     }
-    if (parts.length === 3) return await definitionFile(deps, entry);
-    if (parts[3] !== "scenarios" || parts.length > 5) {
-      return error(404, "not found");
-    }
-    if (parts.length === 4) return json(await scenarioList(deps, entry.name));
-    return await scenarioFile(deps, entry.name, parts[4]);
+    if (parts.length > 3) return error(404, "not found");
+    return await definitionFile(deps, entry, files.get(entry.name));
   } catch (e) {
     return error(422, message(e));
   }

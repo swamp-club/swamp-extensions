@@ -15,7 +15,6 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
-import { parse as parseYaml } from "@std/yaml";
 import { model as builtin } from "./builtin.ts";
 import { model as linear } from "./linear.ts";
 import { model as swampClub } from "./swamp_club.ts";
@@ -24,6 +23,7 @@ import {
   type FakeSwamp,
   fakeSwamp,
   type MethodContextLike,
+  parseExample,
   systemEnv,
   workItemModel as workItem,
 } from "../_lib/engine/tracker_testing.ts";
@@ -96,7 +96,7 @@ function oneTicket() {
 
 async function withFactories(): Promise<FakeSwamp> {
   const swamp = fakeSwamp();
-  const definition = parseYaml(await Deno.readTextFile(MINIMAL));
+  const definition = parseExample(await Deno.readTextFile(MINIMAL)).definition;
   for (const name of ["team", "other"]) {
     swamp.factory(name, definition);
   }

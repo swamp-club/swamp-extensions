@@ -134,14 +134,29 @@ export type ScenarioStep = z.infer<typeof ScenarioStepSchema>;
 
 export const ScenarioSchema = z.strictObject({
   scenario: NameSchema,
-  /** The factory's name, which is also the directory the file is saved in. */
-  factory: z.string().min(1),
   description: z.string().min(1).optional(),
   externalRefs: z.record(z.string(), z.string()).optional(),
   steps: z.array(ScenarioStepSchema).min(1),
 });
 
 export type Scenario = z.infer<typeof ScenarioSchema>;
+
+/** A factory's saved scenarios: its scenarios global argument. */
+export const SavedScenariosSchema = z.array(ScenarioSchema).superRefine(
+  (list, ctx) => {
+    const seen = new Set<string>();
+    list.forEach((s, i) => {
+      if (seen.has(s.scenario)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [i, "scenario"],
+          message: `another scenario is already named '${s.scenario}'`,
+        });
+      }
+      seen.add(s.scenario);
+    });
+  },
+);
 
 export function parseScenario(raw: unknown): ParseResult<Scenario> {
   const result = ScenarioSchema.safeParse(raw);

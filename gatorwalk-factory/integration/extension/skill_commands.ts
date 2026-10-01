@@ -29,6 +29,7 @@ import {
   WORK_ITEM_TYPE,
 } from "../../extensions/models/_lib/engine/work_item_ops.ts";
 
+import { parseExample } from "../../extensions/models/_lib/engine/fake_swamp.ts";
 import { splitWords } from "../harness.ts";
 
 const BUILTIN_TRACKER_TYPE = builtinTrackerModel.type;
@@ -47,6 +48,11 @@ const BUILTIN_TRACKER_TYPE = builtinTrackerModel.type;
 // A ```json result block is not a command: it is a subagent's result file,
 // shown in the worked example where a subagent would write it. Running the
 // example writes it to <result-path>, the latest dispatch's result file.
+//
+// A `# agent: write <example> into <factory>` line in a ```sh block is not a
+// command either: it is the agent writing one of the skill's examples into a
+// factory, its definition and scenarios blocks under the factory's
+// globalArguments. Running the example does that edit.
 // ---------------------------------------------------------------------------
 
 export const SKILL_DIR = fromFileUrl(
@@ -61,6 +67,11 @@ export interface SkillCommand {
   fails?: string;
   /** For a ```json result block: the file's contents. words is empty. */
   result?: string;
+  /**
+   * For a `# agent: write <example> into <factory>` line: the example and
+   * the factory, placeholders unfilled. words is empty.
+   */
+  write?: { example: string; factory: string };
 }
 
 /** Every swamp command in one markdown file, in order. */
@@ -113,6 +124,16 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
     const failing = trimmed.match(/^# fails: (.+)$/);
     if (failing !== null) {
       fails = failing[1];
+      continue;
+    }
+    const write = trimmed.match(/^# agent: write (\S+) into (\S+)$/);
+    if (write !== null) {
+      out.push({
+        file,
+        line: i + 1,
+        words: [],
+        write: { example: write[1], factory: write[2] },
+      });
       continue;
     }
     if (!trimmed.startsWith("swamp ")) continue;
@@ -306,15 +327,14 @@ export function checkCommand(
     return checkInputs(method, rest);
   }
   if (is("model", "create")) {
+    // A factory is created with only its tracker; the agent writes its
+    // definition into the model file afterwards.
     if (args[2] === FACTORY_TYPE) {
-      return args.length === 9 && args[4] === "--global-arg" &&
-          /^definition=[^/].*\.ya?ml$/.test(args[5]) &&
-          args[6] === "--global-arg" && /^tracker=\S+$/.test(args[7]) &&
-          args[8] === "--json"
+      return args.length === 7 && args[4] === "--global-arg" &&
+          /^tracker=\S+$/.test(args[5]) && args[6] === "--json"
         ? null
         : `model create must be: model create ${FACTORY_TYPE} <name> ` +
-          "--global-arg definition=<path>.yaml --global-arg tracker=<tracker> " +
-          "--json";
+          "--global-arg tracker=<tracker> --json";
     }
     // The built-in tracker needs its prefix; Linear is set up in the model
     // file create prints.
@@ -363,13 +383,20 @@ interface RepoLike {
     args: string[],
     options?: { allowFailure?: boolean },
   ): Promise<{ code: number; output: string; stdout: string }>;
+  /** Write a definition and scenarios into a factory's model definition. */
+  editFactory(
+    name: string,
+    definition: unknown,
+    scenarios?: unknown[],
+  ): Promise<void>;
 }
 
 /**
  * Run the example's commands in order, as written, filling <key> from the
  * key record new_key writes, <era> from the first expectation status prints, and
- * <gatorwalk-factory> with the extension's directory. The example's own `init`
- * writes the factory definition file. A command runs with allowFailure only
+ * <gatorwalk-factory> with the extension's directory. An `# agent: write`
+ * line writes a skill example into a factory, as the agent would. A command
+ * runs with allowFailure only
  * when it is marked `# fails:`; a marked command that succeeds is an error.
  */
 export async function runExample(
@@ -403,7 +430,32 @@ async function runCommands(
   onStep: (step: ExampleStep) => void,
 ): Promise<ExampleStep[]> {
   const steps: ExampleStep[] = [];
+  const fill = (command: SkillCommand, word: string) =>
+    word.replace(/<[a-z][a-z0-9-]*>/g, (p) => {
+      const v = values[p];
+      if (v === undefined) {
+        throw new Error(
+          `${command.file}:${command.line}: ${p} has no value yet`,
+        );
+      }
+      return v;
+    });
   for (const command of commands) {
+    if (command.write !== undefined) {
+      // Standing in for the agent: the example's blocks, into the factory.
+      const example = fill(command, command.write.example);
+      const { definition, scenarios } = parseExample(
+        await Deno.readTextFile(
+          `${SKILL_DIR}/references/examples/${example}.yaml`,
+        ),
+      );
+      await repo.editFactory(
+        fill(command, command.write.factory),
+        definition,
+        scenarios,
+      );
+      continue;
+    }
     if (command.result !== undefined) {
       // Standing in for the subagent: write its result file.
       const path = values["<result-path>"];
@@ -415,17 +467,7 @@ async function runCommands(
       await Deno.writeTextFile(path, command.result);
       continue;
     }
-    const ran = command.words.slice(1).map((w) =>
-      w.replace(/<[a-z][a-z0-9-]*>/g, (p) => {
-        const v = values[p];
-        if (v === undefined) {
-          throw new Error(
-            `${command.file}:${command.line}: ${p} has no value yet`,
-          );
-        }
-        return v;
-      })
-    );
+    const ran = command.words.slice(1).map((w) => fill(command, w));
     // The harness adds the extension source when it makes the repo, so the
     // example's own `extension source add` may only find it there already.
     const addsSource = ran[0] === "extension" && ran[1] === "source" &&

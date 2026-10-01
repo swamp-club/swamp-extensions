@@ -34,6 +34,7 @@ import { BUILTIN_TYPE } from "../../extensions/models/_lib/tracker/backends/buil
 import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linear.ts";
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
 import {
+  readExample,
   splitWords,
   SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
@@ -381,10 +382,7 @@ Deno.test("tracker: status shows the Lab issue behind until publish runs, then n
   try {
     await withRepo(async (repo) => {
       await labAdapter(repo, fake.url);
-      const minimal = parseYaml(await Deno.readTextFile(MINIMAL)) as Record<
-        string,
-        unknown
-      >;
+      const minimal = (await readExample(MINIMAL)).definition;
       await repo.factory(
         "small",
         { ...minimal, tracker: { kind: "swamp-club" } },
@@ -431,10 +429,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       await repo.factory(
         "team",
         {
-          ...parseYaml(await Deno.readTextFile(MINIMAL)) as Record<
-            string,
-            unknown
-          >,
+          ...(await readExample(MINIMAL)).definition,
           tracker: { kind: "swamp-club" },
         },
         { tracker: "lab" },
@@ -553,7 +548,7 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
       await labAdapter(repo, fake.url);
       await repo.factory(
         "team",
-        parseYaml(await Deno.readTextFile(MINIMAL)),
+        (await readExample(MINIMAL)).definition,
       );
       await repo.swamp([
         "model",
@@ -606,9 +601,8 @@ Deno.test("tracker: a work item drives a Lab issue from claim to notify, as issu
     await withRepo(async (repo) => {
       await labAdapter(repo, fake.url);
       // The bundled factory definition, with merge's cooldown cut to a second.
-      const definition = parseYaml(
-        await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
-      ) as { stages: { id: string; transitions?: unknown[] }[] };
+      const definition = (await readExample(SWAMP_EXTENSIONS_DEFINITION))
+        .definition as { stages: { id: string; transitions?: unknown[] }[] };
       const merge = definition.stages.find((s) => s.id === "merge");
       for (const t of merge?.transitions ?? []) {
         for (

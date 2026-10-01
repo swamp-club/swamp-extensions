@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-// The page's model of one factory definition file: the engine's own schema
-// check, graph analysis and design view, run in the browser on the file's
-// text, plus where each document path sits in that text. Pure and DOM-free,
-// so the tests run it on the real examples.
+// The page's model of one factory's model definition file: the engine's own
+// schema check, graph analysis and design view, run in the browser on the
+// definition under globalArguments.definition, plus where each document path
+// sits in the file's text, and the saved scenarios under
+// globalArguments.scenarios. Document paths are the definition's own
+// (stages.2); DEFINITION_PATH is the prefix that places them in the file.
+// Pure and DOM-free, so the tests run it on the real examples.
 
 import "./jitless.ts";
 import { parse as parseYaml } from "@std/yaml";
@@ -33,6 +36,11 @@ import {
   type FindingView,
 } from "../../extensions/models/_lib/engine/design_page.ts";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
+
+/** Where a factory's definition sits in its model definition file. */
+export const DEFINITION_PATH = "globalArguments.definition";
+/** Where a factory's saved scenarios sit in its model definition file. */
+export const SCENARIOS_PATH = "globalArguments.scenarios";
 
 /** Where a document path sits in the text: its first line, as offsets. */
 export interface SourceRange {
@@ -57,12 +65,24 @@ export interface Located extends FindingView {
   range: SourceRange | null;
 }
 
+/** A saved scenario as the file holds it, for reading. */
+export interface SavedScenario {
+  /** Its scenario name, or #<index> when it has none. */
+  name: string;
+  /** Its path in the file: globalArguments.scenarios.<index>. */
+  path: string;
+  /** Its text in the file, whole lines, as written. */
+  text: string;
+}
+
 interface Base {
-  /** The repo-relative path of the file. */
+  /** The model definition file, repo-relative when it is in the repo. */
   file: string;
   text: string;
-  /** Where any document path sits in the text. */
+  /** Where any of the definition's document paths sits in the text. */
   rangeOf(path: string): SourceRange | null;
+  /** The saved scenarios, in file order; empty when there are none. */
+  scenarios: SavedScenario[];
 }
 
 export type Loaded =
@@ -106,10 +126,12 @@ function lineOf(starts: number[], offset: number): number {
 export function makeRangeOf(
   doc: Document,
   text: string,
+  prefix = "",
 ): (path: string) => SourceRange | null {
   const starts = lineStarts(text);
+  const base = pathSegments(prefix);
   return (path) => {
-    const segments = pathSegments(path);
+    const segments = [...base, ...pathSegments(path)];
     for (let n = segments.length; n >= 0; n--) {
       const node = n === 0
         ? doc.contents
@@ -138,9 +160,37 @@ function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** The saved scenarios in a model definition file, each with its text. */
+function savedScenarios(
+  doc: Document,
+  raw: unknown,
+  text: string,
+): SavedScenario[] {
+  const list = (raw as { globalArguments?: { scenarios?: unknown } } | null)
+    ?.globalArguments?.scenarios;
+  if (!Array.isArray(list)) return [];
+  const starts = lineStarts(text);
+  return list.map((item, i) => {
+    const named = (item as { scenario?: unknown } | null)?.scenario;
+    const path = `${SCENARIOS_PATH}.${i}`;
+    const node = doc.getIn(pathSegments(path), true);
+    let slice = "";
+    if (isNode(node) && node.range) {
+      // From the start of its first line, so the text keeps its indentation.
+      const from = starts[lineOf(starts, node.range[0])];
+      slice = text.slice(from, node.range[2]).trimEnd();
+    }
+    return {
+      name: typeof named === "string" ? named : `#${i}`,
+      path,
+      text: slice,
+    };
+  });
+}
+
 /**
- * Check, analyse and view a factory definition's text. The value is read
- * with @std/yaml, as the factory's own methods read the file, so the page
+ * Check, analyse and view the definition in a factory's model definition
+ * file. The value is read with @std/yaml, as swamp reads the file, so the page
  * shows what validate would; the yaml package is used only for positions.
  */
 export async function loadDefinition(
@@ -148,8 +198,8 @@ export async function loadDefinition(
   text: string,
 ): Promise<Loaded> {
   const doc = parseDocument(text);
-  const rangeOf = makeRangeOf(doc, text);
-  const base: Base = { file, text, rangeOf };
+  const rangeOf = makeRangeOf(doc, text, DEFINITION_PATH);
+  const base: Base = { file, text, rangeOf, scenarios: [] };
   const fail = (problems: Problem[]): Loaded => ({
     ...base,
     ok: false,
@@ -179,8 +229,18 @@ export async function loadDefinition(
       range: null,
     }]);
   }
+  base.scenarios = savedScenarios(doc, raw, text);
+  const held = (raw as { globalArguments?: { definition?: unknown } })
+    .globalArguments?.definition;
+  if (held === undefined || held === null) {
+    return fail([{
+      path: "(root)",
+      message: `no definition yet: write one under ${DEFINITION_PATH}`,
+      range: null,
+    }]);
+  }
 
-  const parsed = DefinitionSchema.safeParse(raw);
+  const parsed = DefinitionSchema.safeParse(held);
   if (!parsed.success) {
     return fail(parsed.error.issues.map((issue) => {
       const path = issue.path.length > 0

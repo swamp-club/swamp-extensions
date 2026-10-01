@@ -22,11 +22,13 @@ import { assert, assertEquals } from "@std/assert";
 import { changedSince, fingerprints, markSeen } from "./changes.ts";
 import { referenceLine } from "./reference.ts";
 import { findingTarget, follow, type Target } from "./selection.ts";
-import { exampleText, loadOk } from "./test_support.ts";
+import { exampleText, loadOk, modelPath } from "./test_support.ts";
 
-const FILE = "factories/swamp-club-swamp-extensions.yaml";
-const EXIT = "      - name: submit\n        to: plan-review\n";
-const SHORTCUT = "      - name: shortcut\n        to: implement\n";
+const FILE = modelPath("swamp-club-swamp-extensions");
+// As the model definition file holds them: four spaces in, under
+// globalArguments.definition.
+const EXIT = "          - name: submit\n            to: plan-review\n";
+const SHORTCUT = "          - name: shortcut\n            to: implement\n";
 
 Deno.test("acceptance: adding an exit from plan to implement shows its findings and marks plan", async () => {
   const text = await exampleText("swamp-club-swamp-extensions");
@@ -56,7 +58,12 @@ Deno.test("acceptance: adding an exit from plan to implement shows its findings 
 
   const ambiguous = after.findings.find((f) => f.code === "ambiguous-exit")!;
   const line = referenceLine(FILE, after.definition, findingTarget(ambiguous));
-  assert(line.startsWith(`${FILE} ${ambiguous.path} (`), line);
+  assert(
+    line.startsWith(
+      `${FILE} globalArguments.definition.${ambiguous.path} (`,
+    ),
+    line,
+  );
   assert(line.includes(" ambiguous-exit: "), line);
   assert(
     ambiguous.range !== null,

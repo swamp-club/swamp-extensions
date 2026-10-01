@@ -27,6 +27,7 @@ import type { JSX } from "preact";
 import { Findings } from "./findings.tsx";
 import { fitZoom, Graph } from "./graph.tsx";
 import { Inspector } from "./inspector.tsx";
+import { SCENARIOS_PATH } from "./model.ts";
 import { targetKey } from "./selection.ts";
 import { Source } from "./source.tsx";
 import { reveal } from "./ui.tsx";
@@ -40,14 +41,12 @@ import {
   live,
   loaded,
   loadFactories,
-  loadScenario,
   markStagesSeen,
   type Mode,
   mode,
   type PanelTab,
   panelTab,
   scenario,
-  scenarioError,
   scenarios,
   scenarioText,
   selectFactory,
@@ -315,6 +314,7 @@ function DesignMode() {
 
 function ScenariosMode() {
   const found = scenarios.value;
+  const file = loaded.value?.file ?? "";
   return (
     <div
       class="main single"
@@ -325,19 +325,22 @@ function ScenariosMode() {
       <section class="panel wide" aria-labelledby="scenarios-title">
         <div class="pane-head">
           <h2 id="scenarios-title">Scenarios</h2>
-          <span class="dir">{found?.dir ?? ""}</span>
+          <span class="dir">
+            {file === "" ? "" : `${file} ${SCENARIOS_PATH}`}
+          </span>
         </div>
         <div class="panel-body">
           <p class="desc muted">
             Saved scenarios, read-only. Simulate mode runs them here later.
           </p>
-          {found !== null && found.scenarios.length === 0 && (
+          {found !== null && found.length === 0 && (
             <p class="empty">
-              No scenarios yet. The agent saves them in {found.dir}/.
+              No scenarios yet. The agent saves them under {SCENARIOS_PATH}{" "}
+              in the factory's model definition.
             </p>
           )}
           <ul class="scenarios">
-            {(found?.scenarios ?? []).map((s) => (
+            {(found ?? []).map((s) => (
               <li key={s.name}>
                 <button
                   type="button"
@@ -345,7 +348,6 @@ function ScenariosMode() {
                   aria-pressed={s.name === scenario.value}
                   onClick={() => {
                     scenario.value = scenario.value === s.name ? null : s.name;
-                    void loadScenario();
                   }}
                 >
                   {s.name}
@@ -353,9 +355,6 @@ function ScenariosMode() {
               </li>
             ))}
           </ul>
-          {scenarioError.value !== null && (
-            <div class="problem">{scenarioError.value}</div>
-          )}
           {scenarioText.value !== null && (
             <pre class="code small" tabIndex={0}>{scenarioText.value}</pre>
           )}

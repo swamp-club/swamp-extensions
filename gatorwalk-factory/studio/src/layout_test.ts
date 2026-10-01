@@ -24,7 +24,7 @@ import {
   stageLanes,
 } from "./layout.ts";
 import { loadDefinition } from "./model.ts";
-import { EXAMPLES, loadOk } from "./test_support.ts";
+import { EXAMPLES, loadOk, modelFile, modelPath } from "./test_support.ts";
 
 type Segment = { a: Point; b: Point; edge: string };
 
@@ -143,10 +143,13 @@ name: tiny
 stages:
 ${stages}`;
 
+/** A tiny definition as a factory's model definition file holds it. */
+const tinyFile = (stages: string) => modelFile(tiny(stages));
+
 Deno.test("layout: a stage's own status, its enter entry's, or its predecessor's names its lane", async () => {
   const loaded = await loadDefinition(
-    "factories/tiny.yaml",
-    tiny(`  - id: a
+    modelPath("tiny"),
+    tinyFile(`  - id: a
     initial: true
     tracker: { status: open }
     transitions: [{ name: go, to: b }]
@@ -181,8 +184,8 @@ Deno.test("layout: a stage's own status, its enter entry's, or its predecessor's
 
 Deno.test("layout: without statuses every stage is in one lane with no status", async () => {
   const loaded = await loadDefinition(
-    "factories/tiny.yaml",
-    tiny(`  - id: a
+    modelPath("tiny"),
+    tinyFile(`  - id: a
     initial: true
     transitions: [{ name: go, to: b }]
   - id: b
@@ -199,8 +202,8 @@ Deno.test("layout: without statuses every stage is in one lane with no status", 
 
 Deno.test("layout: ranks are the longest forward path, and loops are drawn", async () => {
   const loaded = await loadDefinition(
-    "factories/tiny.yaml",
-    tiny(`  - id: a
+    modelPath("tiny"),
+    tinyFile(`  - id: a
     initial: true
     transitions: [{ name: long, to: b }, { name: short, to: c }]
   - id: b
@@ -226,8 +229,8 @@ Deno.test("layout: ranks are the longest forward path, and loops are drawn", asy
 
 Deno.test("layout: global transitions leave one ANY STAGE tile", async () => {
   const loaded = await loadDefinition(
-    "factories/tiny.yaml",
-    tiny(`  - id: a
+    modelPath("tiny"),
+    tinyFile(`  - id: a
     initial: true
     transitions: [{ name: go, to: b }]
   - id: b

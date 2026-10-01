@@ -44,8 +44,8 @@ import {
 //   not a home-grown dialect.
 // - Runtime values are bare CEL strings in `work.bindings`, cel gates and a
 //   human-approval gate's `when`, never `${{ }}`. A factory definition is
-//   stored in a model's globalArguments, where the platform would evaluate
-//   `${{ }}` when the definition is saved. Prose fields refer to bindings by
+//   stored in its factory's globalArguments, where swamp evaluates `${{ }}`
+//   before each method runs. Prose fields refer to bindings by
 //   name with `{{name}}` placeholders (template.ts).
 // - Referential integrity is part of the schema, so a factory definition with a
 //   dangling reference fails when it is saved, not when a work item reaches
@@ -174,7 +174,7 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
       ctx.addIssue({
         code: "custom",
         message: "write bare CEL without ${{ }}: the definition is data, and " +
-          "the platform would evaluate ${{ }} when the definition is saved",
+          "swamp would evaluate ${{ }} before each method runs",
       });
       return;
     }
@@ -985,13 +985,13 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     checkEntries(stage, ["stages", i, "tracker", "entries"], fail)
   );
 
-  // `${{ }}` anywhere else would be evaluated by the platform on save.
+  // `${{ }}` anywhere else would be evaluated by swamp before each method.
   findTemplates(doc, [], (path) =>
     fail(
       path,
-      "contains ${{ }}, which the platform evaluates when the definition is " +
-        "saved; declare runtime values in work.bindings as bare CEL and " +
-        "refer to them as {{name}}",
+      "contains ${{ }}, which swamp evaluates before each method runs; " +
+        "declare runtime values in work.bindings as bare CEL and refer to " +
+        "them as {{name}}",
     ));
 }
 

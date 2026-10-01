@@ -15,7 +15,6 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "@std/assert";
-import { parse as parseYaml } from "@std/yaml";
 import {
   type FactoryDefinition,
   findStage,
@@ -29,6 +28,7 @@ import {
   validatePayload,
 } from "../_lib/engine/payload_schema.ts";
 import type { Json } from "../_lib/engine/canonical.ts";
+import { parseExample } from "../_lib/engine/fake_swamp.ts";
 import {
   buildCelContext,
   type CelContext,
@@ -59,7 +59,9 @@ const DEFINITIONS = new URL(
 );
 
 async function load(file: string): Promise<FactoryDefinition> {
-  const raw = parseYaml(await Deno.readTextFile(new URL(file, DEFINITIONS)));
+  const raw = parseExample(
+    await Deno.readTextFile(new URL(file, DEFINITIONS)),
+  ).definition;
   const result = parseDefinition(raw);
   if (!result.ok) {
     throw new Error(`${file} is invalid:\n${result.errors.join("\n")}`);
@@ -67,11 +69,9 @@ async function load(file: string): Promise<FactoryDefinition> {
   return result.value;
 }
 
-// The walks through each example are its saved scenarios, under
-// references/examples/scenarios/<example>/, which validate runs (see
-// examples_test.ts). What stays here inspects CEL results on the run a
-// scenario leaves.
-const SCENARIOS = new URL("scenarios/", DEFINITIONS);
+// The walks through each example are its saved scenarios, in its scenarios
+// block, which validate runs (see examples_test.ts). What stays here inspects
+// CEL results on the run a scenario leaves.
 
 /** Run a saved scenario, which must pass, and return the run it leaves. */
 async function scenario(
@@ -79,10 +79,15 @@ async function scenario(
   example: string,
   name: string,
 ): Promise<{ result: ScenarioResult; run: RunRecord; store: RunStore }> {
-  const file = `${example}/${name}.yaml`;
-  const parsed = parseScenario(
-    parseYaml(await Deno.readTextFile(new URL(file, SCENARIOS))),
+  const file = `${example} scenario ${name}`;
+  const { scenarios } = parseExample(
+    await Deno.readTextFile(new URL(`${example}.yaml`, DEFINITIONS)),
   );
+  const raw = scenarios.find((s) =>
+    (s as { scenario?: unknown }).scenario === name
+  );
+  if (raw === undefined) throw new Error(`no ${file}`);
+  const parsed = parseScenario(raw);
   if (!parsed.ok) throw new Error(`${file}:\n${parsed.errors.join("\n")}`);
   const result = await runScenario(definition, parsed.value);
   assertEquals(result.failures, [], file);

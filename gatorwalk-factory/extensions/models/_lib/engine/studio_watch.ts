@@ -14,43 +14,38 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { dirname, join, relative, SEPARATOR } from "jsr:@std/path@1.1.4";
-import {
-  denoRepoFiles,
-  type RepoFiles,
-  resolveDefinitionPath,
-  SCENARIO_DIR,
-} from "./definition_file.ts";
-import {
-  type FactoryEntry,
-  inside,
-  type StudioEvent,
-  type StudioEvents,
+import { dirname } from "jsr:@std/path@1.1.4";
+import { denoRepoFiles, type RepoFiles } from "./studio_files.ts";
+import type {
+  FactoryEntry,
+  StudioEvent,
+  StudioEvents,
 } from "./studio_server.ts";
 
 // ---------------------------------------------------------------------------
 // The studio's file watch: tells the page when an agent changes a factory's
-// definition file or its scenario files, so the page reloads the edit.
+// model definition file, which holds its definition and saved scenarios, so
+// the page reloads the edit.
 //
-// It watches the directory holding each definition file, not the file, so an
-// agent's write by rename is seen too (or, before that directory exists, the
-// nearest one above it, until it appears); scenarios/ and each factory's
-// directory in it; and the repo root, to see scenarios/ appear. Every watch
-// is one level deep, on a directory whose real path is inside the repo, so
-// no symlink leads a watch out of it. Paths nobody asked about are dropped.
-// Events are coalesced for a short debounce, since one save is often several
-// file-system events. The unit tests use a fake event source; this runs in
-// the integration suite.
+// It watches the directory holding each file, not the file, so an agent's
+// write by rename is seen too. Every watch is one level deep, on the
+// directory of a path swamp's definition repository gave. Paths nobody asked
+// about are dropped. Events are coalesced for a short debounce, since one save
+// is often several file-system events. A factory created or removed shows
+// when serve reads the list again. The unit tests use a fake event source;
+// this runs in the integration suite.
 // ---------------------------------------------------------------------------
 
 export interface StudioWatcher extends StudioEvents {
-  /** Watch these factories' files; a no-op when nothing changed. */
-  follow(factories: FactoryEntry[]): Promise<void>;
+  /**
+   * Watch these factories' model definition files, by factory name; a no-op
+   * when nothing changed.
+   */
+  follow(factories: FactoryEntry[], files: Map<string, string>): Promise<void>;
   close(): void;
 }
 
 export function watchStudio(
-  repoDir: string,
   files: RepoFiles = denoRepoFiles,
   debounceMs = 100,
 ): StudioWatcher {
@@ -58,10 +53,9 @@ export function watchStudio(
   let watchers: Deno.FsWatcher[] = [];
   let key = "";
   let closed = false;
-  let factories: FactoryEntry[] = [];
-  let realRepo = repoDir;
+  let listed = "[]";
+  // Factory names by the real path of their model definition file.
   let definitions = new Map<string, string[]>();
-  let scenarioRoot = join(repoDir, SCENARIO_DIR);
 
   const pending = new Map<string, StudioEvent>();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -76,69 +70,10 @@ export function watchStudio(
     }, debounceMs);
   };
 
-  // Definition paths whose directory does not exist yet, by factory.
-  let awaited = new Map<string, string[]>();
-
-  /** Watch afresh, then tell the page about these factories' files. */
-  const refollow = (touched: string[] = []) => {
-    key = "";
-    void follow(factories).then(() => {
-      for (const factory of touched) emit({ kind: "definition", factory });
-    });
-  };
-
   const changed = (path: string) => {
     for (const factory of definitions.get(path) ?? []) {
       emit({ kind: "definition", factory });
     }
-    // A directory on the way to a definition file appeared: watch it now,
-    // and reload those factories in case the file came with it.
-    const created = [...awaited.entries()]
-      .filter(([def]) => def.startsWith(`${path}${SEPARATOR}`))
-      .flatMap(([, names]) => names);
-    if (created.length > 0) refollow(created);
-    if (path === scenarioRoot) {
-      // scenarios/ appeared or went: watch it afresh, and every list may
-      // have changed.
-      refollow();
-      for (const f of factories) emit({ kind: "scenarios", factory: f.name });
-      return;
-    }
-    if (!inside(scenarioRoot, path)) return;
-    const rel = relative(scenarioRoot, path);
-    const [factory, file] = rel.split(SEPARATOR);
-    const name = file?.match(/^(.+)\.ya?ml$/)?.[1];
-    if (file === undefined) {
-      // A factory's scenario directory appeared or went: watch it afresh.
-      refollow();
-      emit({ kind: "scenarios", factory });
-    } else if (name !== undefined) emit({ kind: "scenarios", factory, name });
-  };
-
-  const isDir = async (path: string) =>
-    (await files.lstat(path))?.isDirectory === true;
-
-  /** Whether `dir` is a directory whose real path is inside the repo. */
-  const ownDir = async (dir: string): Promise<boolean> => {
-    if (!(await isDir(dir))) return false;
-    try {
-      return inside(realRepo, await files.realPath(dir));
-    } catch {
-      return false;
-    }
-  };
-
-  /**
-   * The nearest existing directory at or above `dir` whose real path is
-   * inside the repo; the repo itself when a symlink on the way leads out.
-   */
-  const nearestDir = async (dir: string): Promise<string> => {
-    while (!(await isDir(dir)) && dir !== realRepo) {
-      const up = dirname(dir);
-      if (up === dir || !inside(realRepo, up)) return realRepo;
-      dir = up;
-    }
-    return await ownDir(dir) ? dir : realRepo;
   };
 
   const watch = (path: string): Deno.FsWatcher => {
@@ -152,51 +87,33 @@ export function watchStudio(
     return w;
   };
 
-  async function refresh(next: FactoryEntry[]): Promise<void> {
+  async function refresh(
+    next: FactoryEntry[],
+    paths: Map<string, string>,
+  ): Promise<void> {
     if (closed) return;
-    // A factory added, removed or renamed, or pointed at another file.
-    const listed = (list: FactoryEntry[]) =>
-      JSON.stringify(list.map((f) => [f.name, f.path]));
-    if (listed(next) !== listed(factories)) emit({ kind: "factories" });
-    factories = next;
-    realRepo = await files.realPath(repoDir);
-    scenarioRoot = join(realRepo, SCENARIO_DIR);
+    // A factory added, removed or renamed, or moved to another file.
+    const nextListed = JSON.stringify(next.map((f) => [f.name, f.path]));
+    if (nextListed !== listed) emit({ kind: "factories" });
+    listed = nextListed;
     const defs = new Map<string, string[]>();
-    const waiting = new Map<string, string[]>();
-    const dirs = new Set<string>([realRepo]);
-    for (const f of next) {
-      if (f.path === null) continue;
-      let path: string;
+    const dirs = new Set<string>();
+    for (const [name, file] of paths) {
+      let real: string;
       try {
-        path = await resolveDefinitionPath(repoDir, f.path, files);
+        real = await files.realPath(file);
       } catch {
-        // Missing or refused: watch where it would be, so its creation
-        // shows; never anywhere outside the repo.
-        path = join(realRepo, f.path);
-        if (!inside(realRepo, path)) continue;
+        // Gone between the listing and now; the next listing drops it.
+        continue;
       }
-      defs.set(path, [...(defs.get(path) ?? []), f.name]);
-      const dir = await nearestDir(dirname(path));
-      dirs.add(dir);
-      if (dir !== dirname(path)) {
-        waiting.set(path, [...(waiting.get(path) ?? []), f.name]);
-      }
-    }
-    // scenarios/ and each listed factory's directory in it, one level each:
-    // a recursive watch could follow a symlink out of the repo.
-    if (await ownDir(scenarioRoot)) {
-      dirs.add(scenarioRoot);
-      for (const f of next) {
-        const dir = join(scenarioRoot, f.name);
-        if (inside(scenarioRoot, dir) && await ownDir(dir)) dirs.add(dir);
-      }
+      defs.set(real, [...(defs.get(real) ?? []), name]);
+      dirs.add(dirname(real));
     }
     const nextKey = JSON.stringify([
       [...dirs].sort(),
       [...defs.entries()].sort(),
     ]);
     definitions = defs;
-    awaited = waiting;
     if (nextKey === key || closed) return;
     // The new watches first: if one fails, the old ones stay.
     const fresh: Deno.FsWatcher[] = [];
@@ -216,8 +133,11 @@ export function watchStudio(
   // list. A failed refresh (a directory removed under it) never rejects:
   // it leaves the old watches and clears the key, so the next one retries.
   let queue: Promise<void> = Promise.resolve();
-  function follow(next: FactoryEntry[]): Promise<void> {
-    queue = queue.then(() => refresh(next)).catch(() => {
+  function follow(
+    next: FactoryEntry[],
+    paths: Map<string, string>,
+  ): Promise<void> {
+    queue = queue.then(() => refresh(next, paths)).catch(() => {
       key = "";
     });
     return queue;

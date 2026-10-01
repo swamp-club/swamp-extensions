@@ -20,6 +20,7 @@ import { loadRun } from "./run_store.ts";
 import {
   parseScenario,
   runScenario,
+  SavedScenariosSchema,
   SCENARIO_AGENT,
   SCENARIO_EPOCH,
   SCENARIO_PERSON,
@@ -37,7 +38,7 @@ import {
 // ---------------------------------------------------------------------------
 
 async function run(steps: unknown[]): Promise<ScenarioResult> {
-  const parsed = parseScenario({ scenario: "s", factory: "team", steps });
+  const parsed = parseScenario({ scenario: "s", steps });
   if (!parsed.ok) throw new Error(parsed.errors.join("\n"));
   return await runScenario(stopsParsedDefinition(), parsed.value);
 }
@@ -154,7 +155,6 @@ Deno.test("scenario: records and automatic moves are an agent's; approvals, over
 Deno.test("scenario: evidence a person records is the person's, and opens the manual way back it gates", async () => {
   const parsed = parseScenario({
     scenario: "s",
-    factory: "team",
     steps: [
       ...TO_REVIEW,
       { decline: "go" },
@@ -300,7 +300,6 @@ Deno.test("scenario: the clock moves a second per engine reading, and wait opens
 Deno.test("scenario: externalRefs reach the run", async () => {
   const parsed = parseScenario({
     scenario: "s",
-    factory: "team",
     externalRefs: { "swamp-club": "2805" },
     steps: [{ expect: { stage: "draft" } }],
   });
@@ -310,8 +309,8 @@ Deno.test("scenario: externalRefs reach the run", async () => {
   assertEquals(result.frames[0].run.key, "scenario-s");
 });
 
-Deno.test("scenario: malformed files are refused with a reason", () => {
-  const base = { scenario: "s", factory: "team" };
+Deno.test("scenario: malformed scenarios are refused with a reason", () => {
+  const base = { scenario: "s" };
   const cases: [unknown, string][] = [
     [{ ...base }, "steps: "],
     [{ ...base, steps: [] }, "steps: "],
@@ -336,7 +335,8 @@ Deno.test("scenario: malformed files are refused with a reason", () => {
     [{ ...base, steps: [{ expect: { refused: "x" } }] }, "a step needs a verb"],
     [{ ...base, steps: [{ go: "a" }] }, "steps.0"],
     [{ ...base, unknown: "x", steps: [{ move: "a" }] }, "(root)"],
-    [{ scenario: "s", steps: [{ move: "a" }] }, "factory"],
+    // A saved scenario lives in its factory, so it names none.
+    [{ ...base, factory: "team", steps: [{ move: "a" }] }, "factory"],
   ];
   for (const [raw, want] of cases) {
     const errors = errorsOf(raw);
@@ -362,5 +362,15 @@ Deno.test("scenario: the runner and everything it imports use no Deno API, so th
   await visit(new URL("./scenario.ts", import.meta.url));
   const names = [...seen].map((href) => posix.basename(new URL(href).pathname));
   assert(names.includes("run_store.ts") && names.includes("gates.ts"));
-  assert(!names.includes("definition_file.ts"));
+});
+
+Deno.test("scenario: a factory's saved scenarios refuse two with one name", () => {
+  const one = { scenario: "s", steps: [{ move: "a" }] };
+  assert(SavedScenariosSchema.safeParse([one]).success);
+  const twice = SavedScenariosSchema.safeParse([one, { ...one }]);
+  assert(!twice.success);
+  assertEquals(
+    twice.error.issues.map((i) => [i.path.join("."), i.message]),
+    [["1.scenario", "another scenario is already named 's'"]],
+  );
 });

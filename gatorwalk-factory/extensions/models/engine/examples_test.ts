@@ -16,8 +16,8 @@
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
-import { model as factory } from "./factory.ts";
-import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
+import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
+import { fakeSwamp, parseExample } from "../_lib/engine/fake_swamp.ts";
 
 // ---------------------------------------------------------------------------
 // The example factory definitions the skill points agents at, under its
@@ -64,37 +64,38 @@ Deno.test("examples: the set of examples is the one listed here", async () => {
   assertEquals(await examples(), Object.keys(EXPECTED).sort());
 });
 
-/** Each example's saved scenarios, under scenarios/<example>/, by file name. */
-async function scenariosOf(example: string): Promise<Map<string, string>> {
-  const dir = new URL(`scenarios/${example}/`, EXAMPLES);
-  const out = new Map<string, string>();
-  try {
-    for await (const entry of Deno.readDir(dir)) {
-      if (entry.isFile && entry.name.endsWith(".yaml")) {
-        out.set(entry.name, await Deno.readTextFile(new URL(entry.name, dir)));
-      }
-    }
-  } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) throw error;
-  }
-  return out;
+/** An example as data: its definition and scenarios blocks. */
+async function readExample(file: string) {
+  return parseExample(await Deno.readTextFile(new URL(file, EXAMPLES)));
 }
 
 /**
- * A fake repo holding an example as the factory named after it, with its
- * saved scenarios where validate finds them.
+ * A fake repo holding an example as the factory named after it: its
+ * definition and saved scenarios in the factory's globalArguments, as the
+ * skill writes them in.
  */
-async function exampleFactory(file: string) {
+async function exampleFactory(file: string, edit = (text: string) => text) {
   const name = file.replace(/\.yaml$/, "");
   const swamp = fakeSwamp();
-  // The example's text, as init would copy it.
-  swamp.factory(name, await Deno.readTextFile(new URL(file, EXAMPLES)));
-  const scenarios = await scenariosOf(name);
-  for (const [scenario, text] of scenarios) {
-    swamp.repo.write(`scenarios/${name}/${scenario}`, text);
-  }
+  const { definition, scenarios } = parseExample(
+    edit(await Deno.readTextFile(new URL(file, EXAMPLES))),
+  );
+  swamp.factory(name, definition, { scenarios });
   return { swamp, name, scenarios };
 }
+
+Deno.test("examples: each is a factory's globalArguments once a tracker is named, under swamp's full schema", async () => {
+  // swamp model validate and every method check the factory's globalArguments
+  // against this schema, so a pasted example must pass it as it is.
+  for (const file of await examples()) {
+    const doc = parseYaml(await Deno.readTextFile(new URL(file, EXAMPLES)));
+    const result = FactoryArgumentsSchema.safeParse({
+      ...doc as Record<string, unknown>,
+      tracker: "board",
+    });
+    assert(result.success, `${file}: ${JSON.stringify(result.error?.issues)}`);
+  }
+});
 
 Deno.test("examples: each passes the factory's validate method, with its saved scenarios and only the explained warnings", async () => {
   for (const file of await examples()) {
@@ -104,8 +105,8 @@ Deno.test("examples: each passes the factory's validate method, with its saved s
     await factory.methods.validate.execute({}, swamp.context(name));
     const summary = String(swamp.logs.at(-1)?.props?.summary);
     assert(
-      summary.includes(`' in factories/${name}.yaml is valid: `) &&
-        summary.includes(`, ${scenarios.size} saved scenario(s) passed; `),
+      summary.includes(`' in factory '${name}' is valid: `) &&
+        summary.includes(`, ${scenarios.length} saved scenario(s) passed; `),
       `${file}: ${summary}`,
     );
     const warnings = swamp.logs
@@ -115,41 +116,40 @@ Deno.test("examples: each passes the factory's validate method, with its saved s
   }
 });
 
-Deno.test("examples: the scenarios directories are for examples, and every example but minimal has scenarios", async () => {
-  const dirs: string[] = [];
-  for await (const entry of Deno.readDir(new URL("scenarios/", EXAMPLES))) {
-    if (entry.isDirectory) dirs.push(entry.name);
+Deno.test("examples: every example but minimal has saved scenarios", async () => {
+  const withScenarios: string[] = [];
+  for (const file of await examples()) {
+    if ((await readExample(file)).scenarios.length > 0) {
+      withScenarios.push(file);
+    }
   }
   assertEquals(
-    dirs.sort(),
-    (await examples()).map((f) => f.replace(/\.yaml$/, ""))
-      .filter((n) => n !== "minimal"),
+    withScenarios,
+    (await examples()).filter((f) => f !== "minimal.yaml"),
   );
 });
 
 Deno.test("examples: a changed gate message fails validate, naming the scenario and step", async () => {
   const file = "swamp-club-swamp-extensions.yaml";
-  const { swamp, name } = await exampleFactory(file);
-  const path = `factories/${name}.yaml`;
-  const text = swamp.repo.read(path);
-  assert(text !== undefined);
   // conformance-review's conforms gate; bug-to-done pins its message.
-  const gate = "message: >-\n                every step not implemented as " +
+  const gate = "message: >-\n                  every step not implemented as " +
     "planned needs a justification";
-  assert(text.includes(gate));
   const message = "needs a justification";
-  swamp.repo.remove(path);
-  swamp.repo.write(
-    path,
-    text.replace(gate, gate.replace(message, "needs a reason")),
+  const { swamp, name, scenarios } = await exampleFactory(file, (text) => {
+    assert(text.includes(gate));
+    return text.replace(gate, gate.replace(message, "needs a reason"));
+  });
+  const at = scenarios.findIndex((s) =>
+    (s as { scenario?: unknown }).scenario === "bug-to-done"
   );
+  assert(at >= 0);
   const error = await assertRejects(
     () => factory.methods.validate.execute({}, swamp.context(name)),
     Error,
   );
   assert(
     error.message.includes(
-      `scenarios/${name}/bug-to-done.yaml step 28 (move conforms): ` +
+      `scenarios.${at} (bug-to-done) step 28 (move conforms): ` +
         `expected a refusal mentioning "${message}"`,
     ),
     error.message,
@@ -158,10 +158,7 @@ Deno.test("examples: a changed gate message fails validate, naming the scenario 
 
 Deno.test("examples: each description says what it is for and what to change first", async () => {
   for (const file of await examples()) {
-    const doc = parseYaml(
-      await Deno.readTextFile(new URL(file, EXAMPLES)),
-    ) as { description?: unknown };
-    const description = doc.description;
+    const description = (await readExample(file)).definition.description;
     assert(typeof description === "string", `${file} has no description`);
     assert(
       /\n\nFor\b/.test(description),
@@ -210,10 +207,7 @@ interface ExampleStage {
 }
 
 async function stagesOf(file: string): Promise<ExampleStage[]> {
-  const doc = parseYaml(
-    await Deno.readTextFile(new URL(file, EXAMPLES)),
-  ) as { stages: ExampleStage[] };
-  return doc.stages;
+  return (await readExample(file)).definition.stages as ExampleStage[];
 }
 
 Deno.test("examples: every review prompt carries the severity bar and asks for proportion", async () => {

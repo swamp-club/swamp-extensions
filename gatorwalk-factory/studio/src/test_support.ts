@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-// The factory definitions the page's tests run on: the skill's examples,
-// which users start from, and the test factory.
+// The factories the page's tests run on: the skill's examples, which users
+// start from, and the test factory, each as a factory's model definition
+// file, the file the page reads.
 
 import { assert } from "@std/assert";
 import { loadDefinition } from "./model.ts";
@@ -41,14 +42,48 @@ const FILES: Record<string, URL> = {
 
 export const EXAMPLES = Object.keys(FILES);
 
-export function exampleText(name: string): Promise<string> {
-  return Deno.readTextFile(FILES[name]);
+/** Where a factory's model definition file is, by its name. */
+export const modelPath = (name: string) =>
+  `models/@swamp/gatorwalk-factory/factory/${name}.yaml`;
+
+const HEADER = "type: '@swamp/gatorwalk-factory/factory'\n" +
+  "typeVersion: 2026.09.30.1\nid: 00000000-0000-4000-8000-000000000000\n";
+
+function indent(text: string, by: number): string {
+  return text.replace(/\n$/, "").split("\n")
+    .map((line) => line === "" ? "" : `${" ".repeat(by)}${line}`)
+    .join("\n") + "\n";
+}
+
+/**
+ * A factory's model definition file holding `definition` (a definition's own
+ * YAML text) under globalArguments.definition, as the agent writes it in. The
+ * definition's lines move down by `MODEL_LINES` and right by four spaces.
+ */
+export function modelFile(definition: string, name = "tiny"): string {
+  return `${HEADER}name: ${name}\nglobalArguments:\n  tracker: board\n` +
+    `  definition:\n${indent(definition, 4)}`;
+}
+
+/** The lines modelFile puts before the definition's first line. */
+export const MODEL_LINES = 7;
+
+/**
+ * An example's model definition file: its definition and scenarios blocks
+ * under globalArguments, beside its tracker.
+ */
+export async function exampleText(name: string): Promise<string> {
+  const text = await Deno.readTextFile(FILES[name]);
+  return FILES[name].pathname.includes("/testdata/")
+    ? modelFile(text, name)
+    : `${HEADER}name: ${name}\nglobalArguments:\n  tracker: board\n` +
+      indent(text, 2);
 }
 
 /** An example, loaded as the page loads it, which must pass the schema. */
 export async function loadOk(name: string, text?: string) {
   const loaded = await loadDefinition(
-    `factories/${name}.yaml`,
+    modelPath(name),
     text ?? await exampleText(name),
   );
   assert(

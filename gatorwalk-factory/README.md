@@ -8,14 +8,15 @@ It is **not published**, and its public name is chosen at go-live.
 ## Vocabulary
 
 - **factory**: a model of type `@swamp/gatorwalk-factory/factory`, created
-  once and named, for example `team`. You run `init`, `validate`, `design_page`
-  and `new_key` on it, and start work items on it.
+  once and named, for example `team`. You run `validate`, `design_page` and
+  `new_key` on it, and start work items on it.
 - **factory definition**: the YAML document of a factory's stages, work,
-  transitions and gates. It lives in one file in the repo,
-  `factories/<factory>.yaml` by convention, which the factory's
-  `globalArguments` name (`definition: factories/team.yaml`). `validate`
-  checks it, and a work item pins a copy of it when it starts. In code and data
-  it is `definition`.
+  transitions and gates. It lives in the factory's own model definition,
+  `models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, under
+  `globalArguments.definition`, beside the factory's `tracker` and its saved
+  `scenarios`. swamp checks it against the factory type's schema, `validate`
+  checks it in full, and a work item pins a copy of it when it starts. In code
+  and data it is `definition`.
 - **work item**: one piece of work moving through a factory, a model of type
   `@swamp/gatorwalk-factory/work-item` named by a key from `new_key`.
 
@@ -100,15 +101,14 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
   SKILL.md                the skill: how an agent authors a factory and drives a work item
   references/             authoring (authoring.md), driving in full, and saved
                           scenarios (scenarios.md)
-    examples/             the example definitions to start from, a worked
-                          example, and the swamp-club-swamp-extensions
-                          mapping (a .md)
-      scenarios/          each example's saved scenarios, by example
+    examples/             the examples to start from (each a definition block
+                          and its saved scenarios), a worked example, and the
+                          swamp-club-swamp-extensions mapping (a .md)
 studio/                   the studio page's source
   src/                    the page (Preact): index.html, studio.css, app.tsx,
                           its views (graph, inspector, findings, source), and
                           the pure parts they use, with their tests: model.ts
-                          (the engine on the file's text), layout.ts,
+                          (the engine on the model file's text), layout.ts,
                           selection.ts, reference.ts, changes.ts, nav.ts
   fonts/                  the bundled fonts, with their licences
   build.ts                bundles the page into the studio_asset modules
@@ -223,11 +223,13 @@ example.
 ## Example factory definitions
 
 gatorwalk-factory ships no factory definition of its own. The skill carries
-examples to copy into a factory and change, under
+examples to write into a factory and change, under
 `.claude/skills/gatorwalk-factory/references/examples/`, so they reach every
-agent the skill is installed for. Each opens with a comment saying what it is
-for and what to change first, and each passes `validate` with its saved
-scenarios, under `examples/scenarios/<example>/`
+agent the skill is installed for. Each holds a `definition:` block and a
+`scenarios:` block, the part of a factory's `globalArguments` the agent writes
+in beside its `tracker`. Each definition's description says what it is for and
+what to change first, and each example passes the factory type's schema and
+`validate` with its saved scenarios
 (`extensions/models/engine/examples_test.ts`):
 
 - `minimal.yaml`: one stage of work, then done.
@@ -307,16 +309,17 @@ the format could not express.
 ## Saved scenarios
 
 A saved scenario is a known path through a factory, written down so a change to
-the factory definition that breaks it fails `validate`. Each is a YAML file at
-`scenarios/<factory>/<scenario>.yaml` under the repo root, where `<factory>` is
-the factory's name (`team`), not its definition's. `validate` runs every one on
-the real engine, in process against an in-memory store, and fails naming each
-step that did not do what its scenario said. An agent writes them (the skill's
-`references/scenarios.md`); nothing else creates them.
+the factory definition that breaks it fails `validate`. A factory keeps them in
+its model definition, as the `scenarios` list under `globalArguments`, beside
+its `definition`; no two share a name. swamp checks their shape before every
+factory method. `validate` runs every one on the real engine, in process
+against an in-memory store, and fails naming each step that did not do what its
+scenario said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`.
+An agent writes them (the skill's `references/scenarios.md`); nothing else
+creates them. One entry:
 
 ```yaml
 scenario: plan-waits-for-approval
-factory: team
 description: A reviewed plan waits for a person's approval, then goes on to implement.
 externalRefs: { swamp-club: "2805" }
 steps:
@@ -359,9 +362,7 @@ pins gate messages. A step can also carry a `note`.
 
 The clock moves one second per engine reading, plus each `wait`. Records and
 automatic moves are an agent's; approvals, declines, overrides and manual moves
-are a person's. The `factory` key must match the directory, so a scenario copied
-from an example needs it changed. See [DESIGN.md](DESIGN.md), "Saved
-scenarios".
+are a person's. See [DESIGN.md](DESIGN.md), "Saved scenarios".
 
 ## Developing
 
@@ -405,13 +406,14 @@ swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 swamp model create @swamp/gatorwalk-factory/tracker board \
   --global-arg prefix=team --json
 
-# A factory, naming its definition file (a repo-relative YAML path) and its
-# tracker, and that file, copied from a starter: one of the skill's
-# examples. Edit the file itself; it is the one copy of the definition.
+# A factory, bound to its tracker. Then write a definition into it: the
+# definition: and scenarios: blocks of one of the skill's examples, under
+# globalArguments: in models/@swamp/gatorwalk-factory/factory/team.yaml.
+# That file is the one copy of the definition; edit it there.
 swamp model create @swamp/gatorwalk-factory/factory team \
-  --global-arg definition=factories/team.yaml --global-arg tracker=board --json
-swamp model method run team init --input from=starter
-swamp model method run team validate
+  --global-arg tracker=board --json
+swamp model validate team                        # swamp's own schema check
+swamp model method run team validate       # that, the graph, scenarios
 swamp model method run team design_page    # the definition as a page
 swamp data get team design-page --json | jq -r .content > team.html
 # Prints a work-item key made from the title, such as
@@ -444,25 +446,26 @@ prints, so no separate `status` call is needed after one. Run methods without
 ## The studio
 
 The studio is a local page for looking at the factories in a repo, reloaded as
-their files change. It is read-only. Edits come from the agent, and the page
+their model definitions change. It is read-only. Edits come from the agent, and the page
 shows them as the agent saves.
 
 - **Design** draws a factory's definition: one row per tracker status, stages in
   flow order, each exit a port with pips for its gates (gold where a person
   decides), and every forward edge, loop back and global exit. The page runs
-  gatorwalk's own schema check and graph analysis on the file, as `validate`
-  does, every time it changes. Select a stage, an exit or a gate to inspect it;
+  gatorwalk's own schema check and graph analysis on the definition, as
+  `validate` does, every time the file changes. Select a stage, an exit or a gate to inspect it;
   select a finding to walk its trace on the graph and underline its path in the
   source. Stages that changed since you last looked are marked until you select
   them.
 - **Copy reference** on any stage, exit, gate or finding copies one line to
-  paste to the agent, such as
-  `factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)`.
+  paste to the agent, naming the model definition file and the path in it,
+  such as
+  `models/@swamp/gatorwalk-factory/factory/team.yaml globalArguments.definition.stages.2.transitions.0 (exit submit: plan → review)`.
 - **Keyboard:** the graph is one tab stop. Arrows move between stages, Enter
   steps into a stage's exits, Enter on an exit follows it to the next stage, →
   steps into an exit's gates, Esc steps back out, and `c` copies a reference.
-- **Scenarios** lists the factory's saved scenarios (`scenarios/<factory>/`) and
-  shows them, read-only.
+- **Scenarios** lists the factory's saved scenarios (`globalArguments.scenarios`
+  in the same file) and shows them, read-only.
 
 ```bash
 # Once per repo.
@@ -473,7 +476,8 @@ swamp model method run studio serve --input port=8123   # a fixed port
 ```
 
 The server listens on 127.0.0.1 only, answers only requests addressed to it from
-its own page, and serves nothing but the factories' own files. `serve` holds the
+its own page, and serves nothing but the page and each factory's model
+definition file, at the path swamp's definition repository gives. `serve` holds the
 studio's lock while it runs, so a second `serve` of the same studio waits; it
 never takes a factory's lock. See [DESIGN.md](DESIGN.md), "The studio server".
 
@@ -684,7 +688,7 @@ record, so read the key with `swamp data get lab ticket-2631 --json`. See
 
 A factory is made and changed by an agent with the gatorwalk-factory skill,
 never by hand: the skill's `references/authoring.md` interviews the person,
-copies the closest example with `init`, applies the authoring rules, runs
+writes the closest example into the factory, applies the authoring rules, runs
 `validate` until it is clean, shows the design page, and starts the first work
 item. It also covers changing a factory that has work items running.
 

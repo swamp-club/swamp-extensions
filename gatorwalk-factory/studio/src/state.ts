@@ -42,15 +42,9 @@ export interface FileText {
   digest: string;
 }
 
-export interface ScenarioList {
-  dir: string;
-  scenarios: { name: string; path: string }[];
-}
-
 export type StudioEvent =
   | { kind: "factories" }
-  | { kind: "definition"; factory: string }
-  | { kind: "scenarios"; factory: string; name?: string };
+  | { kind: "definition"; factory: string };
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
@@ -82,12 +76,20 @@ export const trace = signal<{ stages: string[]; step: number } | null>(null);
 export const seen = signal<Seen | null>(null);
 export const zoom = signal(1);
 
-export const scenarios = signal<ScenarioList | null>(null);
-export const scenarioError = signal<string | null>(null);
 export const scenario = signal<string | null>(null);
-export const scenarioText = signal<string | null>(null);
 
 // --- derived -------------------------------------------------------------------
+
+/**
+ * The saved scenarios in the factory's model definition file, which also
+ * holds its definition: read with it, from the last load.
+ */
+export const scenarios = computed(() => loaded.value?.scenarios ?? null);
+
+/** The picked scenario's text, as the file holds it. */
+export const scenarioText = computed(() =>
+  scenarios.value?.find((s) => s.name === scenario.value)?.text ?? null
+);
 
 export const graph = computed(() => {
   const g = good.value;
@@ -225,7 +227,8 @@ export async function loadFactories() {
     sourceError.value =
       "No factories in this repo yet. Create one with swamp model create " +
       "@swamp/gatorwalk-factory/factory <name> --global-arg " +
-      "definition=factories/<name>.yaml, then run its init method.";
+      "tracker=<tracker>, then write its definition under " +
+      "globalArguments.definition in its model definition file.";
   }
   return pick;
 }
@@ -298,53 +301,6 @@ async function readDefinition() {
   });
 }
 
-export async function loadScenarios() {
-  const name = factory.value;
-  if (name === null) return;
-  try {
-    const found = await getJson<ScenarioList>(api(name, "scenarios"));
-    if (factory.value !== name) return;
-    batch(() => {
-      scenarios.value = found;
-      scenarioError.value = null;
-      if (!found.scenarios.some((s) => s.name === scenario.value)) {
-        scenario.value = null;
-        scenarioText.value = null;
-      }
-    });
-  } catch (e) {
-    if (factory.value !== name) return;
-    batch(() => {
-      scenarios.value = null;
-      scenarioError.value = message(e);
-    });
-    return;
-  }
-  await loadScenario();
-}
-
-export async function loadScenario() {
-  const name = factory.value, pick = scenario.value;
-  if (name === null || pick === null) {
-    scenarioText.value = null;
-    return;
-  }
-  try {
-    const file = await getJson<FileText>(api(name, "scenarios", pick));
-    if (factory.value !== name || scenario.value !== pick) return;
-    batch(() => {
-      scenarioText.value = file.text;
-      scenarioError.value = null;
-    });
-  } catch (e) {
-    if (factory.value !== name || scenario.value !== pick) return;
-    batch(() => {
-      scenarioText.value = null;
-      scenarioError.value = message(e);
-    });
-  }
-}
-
 export async function selectFactory(name: string) {
   batch(() => {
     factory.value = name;
@@ -354,12 +310,10 @@ export async function selectFactory(name: string) {
     trace.value = null;
     seen.value = null;
     scenario.value = null;
-    scenarioText.value = null;
-    scenarios.value = null;
     zoom.value = 1;
   });
   write(PICK_KEY, name);
-  await Promise.all([loadDefinitionFile(), loadScenarios()]);
+  await loadDefinitionFile();
 }
 
 /** The factory list again; the selection is kept, or reloaded if it moved. */
@@ -396,14 +350,7 @@ export function listen() {
       return;
     }
     if (event.factory !== factory.value) return;
-    if (event.kind === "definition") {
-      flash("definition reloaded");
-      void loadDefinitionFile();
-      return;
-    }
-    if (event.name === undefined || event.name === scenario.value) {
-      flash("scenarios reloaded");
-    }
-    void loadScenarios();
+    flash("definition reloaded");
+    void loadDefinitionFile();
   });
 }

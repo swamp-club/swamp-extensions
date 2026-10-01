@@ -21,7 +21,6 @@ import {
   assertNotEquals,
 } from "@std/assert";
 import { join } from "@std/path";
-import { parse as parseYaml } from "@std/yaml";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
 import { parseDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
@@ -29,6 +28,7 @@ import { stopsDefinition } from "../../extensions/models/_lib/engine/test_suppor
 import {
   BUILD_DEFINITION,
   FACTORY_TYPE,
+  readExample,
   SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
   withRepo,
@@ -43,11 +43,9 @@ import {
 
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
+/** The build-swamp-extension example's definition block. */
 async function buildDefinition(): Promise<Record<string, unknown>> {
-  return parseYaml(await Deno.readTextFile(BUILD_DEFINITION)) as Record<
-    string,
-    unknown
-  >;
+  return (await readExample(BUILD_DEFINITION)).definition;
 }
 
 /** A factory named team on build-swamp-extension, and a work item started on
@@ -94,7 +92,7 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
     const ok = await repo.factoryMethod("team", "validate");
     assert(
       ok.output.includes(
-        "definition 'build-swamp-extension' in factories/team.yaml is valid",
+        "definition 'build-swamp-extension' in factory 'team' is valid",
       ),
       ok.output,
     );
@@ -113,8 +111,8 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
       work: Record<string, unknown>;
       transitions: unknown[];
     }[];
-    // A platform expression: swamp must leave it to the factory definition
-    // schema.
+    // A swamp expression: swamp skips its schema check of a key that holds
+    // one, so gatorwalk's own check of the raw definition refuses it.
     stages[0].work.systemPrompt = "Plan ${{ model.x }}";
     stages[1].transitions.push({ name: "nowhere", to: "missing" });
     await repo.factory("broken", broken);
@@ -127,6 +125,11 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
       bad.output,
     );
     assert(bad.output.includes("targets unknown stage 'missing'"), bad.output);
+    const refused = await repo.workItem("broken-item", "start", {
+      factory: "broken",
+    }, { allowFailure: true });
+    assertNotEquals(refused.code, 0);
+    assertEquals(await repo.versions("broken-item"), {}, "nothing pinned");
 
     // A design error the schema accepts: plan can never see the check
     // stage's evidence, so graph analysis fails validate.
@@ -152,14 +155,12 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
 
 Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a work item starts on it", async () => {
   await withRepo(async (repo) => {
-    const definition = parseYaml(
-      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
-    ) as Record<string, unknown>;
+    const { definition } = await readExample(SWAMP_EXTENSIONS_DEFINITION);
     await repo.factory("process", definition);
     const ok = await repo.factoryMethod("process", "validate");
     assert(
       ok.output.includes(
-        "definition 'swamp-club-swamp-extensions' in factories/process.yaml is valid",
+        "definition 'swamp-club-swamp-extensions' in factory 'process' is valid",
       ),
       ok.output,
     );
@@ -169,73 +170,43 @@ Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a 
   });
 });
 
-Deno.test("cli: validate runs the saved scenarios in scenarios/<factory>/, names a failing step, and refuses a directory outside the repo", async () => {
+Deno.test("cli: validate runs the factory's saved scenarios and names a failing step", async () => {
   await withRepo(async (repo) => {
-    const definition = parseYaml(
-      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
-    ) as Record<string, unknown>;
-    await repo.factory("process", definition);
-    const saved = (await Deno.readTextFile(
-      new URL(
-        "scenarios/swamp-club-swamp-extensions/bug-to-done.yaml",
-        SWAMP_EXTENSIONS_DEFINITION,
-      ),
-    )).replace(
-      "factory: swamp-club-swamp-extensions",
-      "factory: process",
+    const { definition, scenarios } = await readExample(
+      SWAMP_EXTENSIONS_DEFINITION,
     );
-    const dir = join(repo.dir, "scenarios", "process");
-    await Deno.mkdir(dir, { recursive: true });
-    const file = join(dir, "bug-to-done.yaml");
-    await Deno.writeTextFile(file, saved);
+    const saved = scenarios.find((s) =>
+      (s as { scenario?: unknown }).scenario === "bug-to-done"
+    );
+    assert(saved !== undefined);
+    await repo.factory("process", definition, { scenarios: [saved] });
     const ok = await repo.factoryMethod("process", "validate");
     assert(
       ok.output.includes("1 saved scenario(s) passed"),
       ok.output,
     );
 
-    await Deno.writeTextFile(
-      file,
-      saved.replace("needs a justification", "needs a reason"),
+    const changed = JSON.parse(
+      JSON.stringify(saved).replace("needs a justification", "needs a reason"),
     );
+    await repo.editFactory("process", definition, [changed]);
     const failed = await repo.factoryMethod("process", "validate", {
       allowFailure: true,
     });
     assertNotEquals(failed.code, 0);
     assert(
       failed.output.includes(
-        "scenarios/process/bug-to-done.yaml step 28 (move conforms): " +
+        "scenarios.0 (bug-to-done) step 28 (move conforms): " +
           'expected a refusal mentioning "needs a reason"',
       ),
       failed.output,
     );
-
-    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
-    try {
-      await Deno.writeTextFile(join(outside, "bug-to-done.yaml"), saved);
-      await Deno.remove(dir, { recursive: true });
-      await Deno.symlink(outside, dir);
-      const refused = await repo.factoryMethod("process", "validate", {
-        allowFailure: true,
-      });
-      assertNotEquals(refused.code, 0);
-      assert(
-        refused.output.includes(
-          "scenarios directory 'scenarios/process' resolves outside the repo",
-        ),
-        refused.output,
-      );
-    } finally {
-      await Deno.remove(outside, { recursive: true });
-    }
   });
 });
 
 Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as an HTML file", async () => {
   await withRepo(async (repo) => {
-    const definition = parseYaml(
-      await Deno.readTextFile(SWAMP_EXTENSIONS_DEFINITION),
-    ) as Record<string, unknown>;
+    const { definition } = await readExample(SWAMP_EXTENSIONS_DEFINITION);
     await repo.factory("process", definition);
     const run = await repo.factoryMethod("process", "design_page");
     assert(
@@ -629,7 +600,19 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
   });
 });
 
-Deno.test("cli: a factory names its definition file; init copies a starter, then validate, design_page and start read it", async () => {
+/** Every path under `dir`, relative to it, skipping .swamp. */
+async function pathsUnder(dir: string, rel = ""): Promise<string[]> {
+  const out: string[] = [];
+  for await (const entry of Deno.readDir(join(dir, rel))) {
+    const path = rel === "" ? entry.name : `${rel}/${entry.name}`;
+    if (path === ".swamp") continue;
+    out.push(path);
+    if (entry.isDirectory) out.push(...await pathsUnder(dir, path));
+  }
+  return out;
+}
+
+Deno.test("cli: a factory holds its definition: created with only its tracker, the definition written in, then validate, design_page and start read it", async () => {
   await withRepo(async (repo) => {
     await repo.swamp([
       "model",
@@ -640,45 +623,38 @@ Deno.test("cli: a factory names its definition file; init copies a starter, then
       "prefix=board",
       "--json",
     ]);
+    // swamp model create checks the full schema when a --global-arg is
+    // given; a factory with only its tracker passes it.
     await repo.swamp([
       "model",
       "create",
       FACTORY_TYPE,
       "team",
       "--global-arg",
-      "definition=factories/team.yaml",
-      "--global-arg",
       "tracker=board",
       "--json",
     ]);
-    const init = await repo.factoryMethod("team", "init", {
-      inputs: { from: "build-swamp-extension" },
-    });
-    assert(
-      init.output.includes(
-        "wrote the 'build-swamp-extension' starter to factories/team.yaml",
-      ),
-      init.output,
-    );
-    assertEquals(
-      await Deno.readTextFile(join(repo.dir, "factories/team.yaml")),
-      await Deno.readTextFile(BUILD_DEFINITION),
-    );
-    const again = await repo.factoryMethod("team", "init", {
-      inputs: { from: "minimal" },
+    const empty = await repo.factoryMethod("team", "validate", {
       allowFailure: true,
     });
-    assertNotEquals(again.code, 0);
+    assertNotEquals(empty.code, 0);
     assert(
-      again.output.includes("'factories/team.yaml' already exists"),
-      again.output,
+      empty.output.includes("factory 'team' has no definition"),
+      empty.output,
     );
 
+    const { definition, scenarios } = await readExample(BUILD_DEFINITION);
+    await repo.editFactory("team", definition, scenarios);
+    const checked = await repo.swamp(["model", "validate", "team"]);
+    assert(checked.output.includes("Result: PASSED"), checked.output);
     const valid = await repo.factoryMethod("team", "validate");
     assert(
       valid.output.includes(
-        "definition 'build-swamp-extension' in factories/team.yaml is valid",
-      ),
+        "definition 'build-swamp-extension' in factory 'team' is valid",
+      ) &&
+        valid.output.includes(
+          `${scenarios.length} saved scenario(s) passed`,
+        ),
       valid.output,
     );
     const page = await repo.factoryMethod("team", "design_page");
@@ -689,102 +665,67 @@ Deno.test("cli: a factory names its definition file; init copies a starter, then
       page.output,
     );
 
-    const key = await repo.newKey("team", "From a file");
-    const start = await repo.workItem(key, "start", { factory: "team" });
-    assert(start.output.includes("factories/team.yaml"), start.output);
+    const key = await repo.newKey("team", "From the model");
+    await repo.workItem(key, "start", { factory: "team" });
     assertEquals(
       (await repo.run(key)).definition.digest,
-      await digestOf(await buildDefinition()),
+      await digestOf(definition),
+    );
+    // One copy, in the model definition: no factory file anywhere.
+    const paths = await pathsUnder(repo.dir);
+    assertEquals(
+      paths.filter((p) => /(^|\/)(factories|scenarios)(\/|$)/.test(p)),
+      [],
     );
   });
 });
 
-Deno.test("cli: a definition path outside the repo, through a symlink out, missing, or not YAML is refused, naming the path", async () => {
+Deno.test("cli: swamp model validate reports a schema error in the definition, with its path, and every factory method stops on it", async () => {
   await withRepo(async (repo) => {
-    const outside = await Deno.makeTempDir({ prefix: "gatorwalk-outside-" });
-    try {
-      const text = await Deno.readTextFile(BUILD_DEFINITION);
-      await Deno.writeTextFile(join(outside, "out.yaml"), text);
-      await Deno.mkdir(join(repo.dir, "factories"), { recursive: true });
-      await Deno.symlink(
-        join(outside, "out.yaml"),
-        join(repo.dir, "factories/link.yaml"),
-      );
-      await Deno.writeTextFile(join(repo.dir, "factories/team.json"), "{}");
-      const cases: [string, string, string][] = [
-        ["up", "../out.yaml", "'../out.yaml' is outside the repo"],
-        [
-          "linked",
-          "factories/link.yaml",
-          "'factories/link.yaml' resolves outside the repo",
-        ],
-        [
-          "missing",
-          "factories/missing.yaml",
-          "'factories/missing.yaml' does not exist",
-        ],
-        [
-          "json",
-          "factories/team.json",
-          "'factories/team.json' is not a YAML file",
-        ],
-      ];
-      for (const [name, path, message] of cases) {
-        await repo.swamp([
-          "model",
-          "create",
-          FACTORY_TYPE,
-          name,
-          "--global-arg",
-          `definition=${path}`,
-          "--global-arg",
-          "tracker=board",
-          "--json",
-        ]);
-        const result = await repo.factoryMethod(name, "validate", {
-          allowFailure: true,
-        });
-        assertNotEquals(result.code, 0, `${name}: ${result.output}`);
-        assert(result.output.includes(message), `${name}: ${result.output}`);
-      }
-      // A regular file where a directory should be: refused with the path,
-      // not the OS's raw "Not a directory".
-      await Deno.writeTextFile(join(repo.dir, "plain"), "");
-      await repo.swamp([
-        "model",
-        "create",
-        FACTORY_TYPE,
-        "under-file",
-        "--global-arg",
-        "definition=plain/new.yaml",
-        "--global-arg",
-        "tracker=board",
-        "--json",
-      ]);
-      const underFile = await repo.factoryMethod("under-file", "init", {
-        inputs: { from: "minimal" },
-        allowFailure: true,
-      });
-      assertNotEquals(underFile.code, 0);
-      assert(
-        underFile.output.includes(
-          "'plain/new.yaml' cannot be created: " +
-            `${join(repo.dir, "plain")} is not a directory`,
-        ),
-        underFile.output,
-      );
-      const start = await repo.workItem(
-        "missing-file-item",
-        "start",
-        { factory: "missing" },
-        { allowFailure: true },
-      );
-      assert(
-        start.output.includes("'factories/missing.yaml' does not exist"),
-        start.output,
-      );
-    } finally {
-      await Deno.remove(outside, { recursive: true });
-    }
+    const definition = await buildDefinition();
+    (definition.stages as { transitions: unknown[] }[])[1].transitions.push({
+      name: "nowhere",
+      to: "missing",
+    });
+    await repo.factory("team", definition);
+    const checked = await repo.swamp(["model", "validate", "team"], {
+      allowFailure: true,
+    });
+    assertNotEquals(checked.code, 0);
+    assertMatch(
+      checked.output,
+      /targets unknown stage 'missing' at "definition\.stages\.1\.transitions\.\d+\.to"/,
+    );
+    const run = await repo.factoryMethod("team", "new_key", {
+      inputs: { title: "Anything" },
+      allowFailure: true,
+    });
+    assertNotEquals(run.code, 0);
+    assert(
+      run.output.includes("Global arguments validation failed") &&
+        run.output.includes("targets unknown stage 'missing'"),
+      run.output,
+    );
+  });
+});
+
+Deno.test("cli: {{name}} placeholders, one named like a swamp namespace, and CEL gates survive a save-and-run round trip", async () => {
+  await withRepo(async (repo) => {
+    // planSummary renamed run: a swamp namespace, which swamp's template
+    // scan would flag were the definition not marked as foreign templates.
+    const text = JSON.stringify(await buildDefinition())
+      .replaceAll("planSummary", "run");
+    const definition = JSON.parse(text) as Record<string, unknown>;
+    assert(text.includes("{{run}}") && text.includes('"type":"cel"'));
+    await repo.factory("team", definition);
+    const checked = await repo.swamp(["model", "validate", "team"]);
+    assert(checked.output.includes("Result: PASSED"), checked.output);
+    assert(!checked.output.includes("Expression paths ✗"), checked.output);
+    const key = await repo.newKey("team", "Round trip");
+    await repo.workItem(key, "start", { factory: "team" });
+    const pinned = await repo.data(key, "definition");
+    const parsed = parseDefinition(definition);
+    assert(parsed.ok);
+    assertEquals(pinned.definition, JSON.parse(JSON.stringify(parsed.value)));
   });
 });
