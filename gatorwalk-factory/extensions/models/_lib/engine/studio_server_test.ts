@@ -32,7 +32,7 @@ const HOST = `127.0.0.1:${PORT}`;
 
 const TEAM_FILE = "models/@swamp/gatorwalk-factory/factory/team.yaml";
 const TEAM_TEXT = "type: '@swamp/gatorwalk-factory/factory'\nname: team\n" +
-  "globalArguments:\n  tracker: board\n  definition:\n    name: team\n";
+  "globalArguments:\n  tracker: board\n  definition:\n    schemaVersion: 1\n";
 
 function setup() {
   const repo = memoryRepo();

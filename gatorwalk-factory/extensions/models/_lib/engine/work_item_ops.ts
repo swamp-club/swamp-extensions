@@ -476,13 +476,13 @@ export async function validateFactory(
     args.scenarios,
   );
   ctx.logger.info("{summary}", {
-    summary: `definition '${definition.name}' in factory '${name}' is valid: ` +
+    summary: `factory '${name}' is valid: ` +
       `${definition.stages.length} stages (${
         definition.stages.map((s) => s.id).join(", ")
       }), ${graph.warnings.length} warning(s), ` +
       `${scenarios} saved scenario(s) passed; tracker '${tracker.instance}' ` +
       `(${tracker.kind})`,
-    definition: definition.name,
+    factory: name,
     tracker,
     digest: await digestOf(definition),
   });
@@ -563,17 +563,17 @@ export async function designPageMethod(
     maxStates: DEFAULT_MAX_STATES,
   });
   const digest = await digestOf(definition);
-  const html = renderDesignPage(designView(definition, graph, digest));
+  const html = renderDesignPage(designView(name, definition, graph, digest));
   const handle = await ctx.createFileWriter(DESIGN_PAGE_SPEC, DESIGN_PAGE_NAME)
     .writeText(html);
   ctx.logger.info("{summary}", {
-    summary: `design page for definition '${definition.name}' in '${name}': ` +
+    summary: `design page for factory '${name}': ` +
       `${definition.stages.length} stages, ${graph.errors.length} error(s), ` +
       `${graph.warnings.length} warning(s)` +
       (graph.truncated ? ", analysis truncated" : "") +
       `; save it with: swamp data get ${name} ${DESIGN_PAGE_NAME} --json ` +
-      `| jq -r .content > ${definition.name}.html`,
-    definition: definition.name,
+      `| jq -r .content > ${name}.html`,
+    factory: name,
     digest,
     errors: graph.errors.length,
     warnings: graph.warnings.length,
@@ -588,11 +588,11 @@ const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 // ^[a-z0-9][a-z0-9_-]*$ (DEFINITION_NAME_MAX_LENGTH and
 // DEFINITION_NAME_PATTERN in swamp's src/domain/definitions/definition.ts).
 const KEY_MAX_LENGTH = 64;
-// The random tail: 32^4 keys per slug. Only work with the same factory
-// definition and slug can collide, and freshKey retries when it does.
+// The random tail: 32^4 keys per slug. Only work with the same prefix and slug
+// can collide, and freshKey retries when it does.
 const KEY_SUFFIX_LENGTH = 4;
-// Today's cap on the factory definition prefix, so the slug always keeps at
-// least 64 - 55 - 2 - 4 = 3 characters.
+// Today's cap on the prefix (a factory's name or a ticket's id), so the slug
+// always keeps at least 64 - 55 - 2 - 4 = 3 characters.
 const KEY_PREFIX_MAX_LENGTH = 55;
 
 // Words a title's slug leaves out. A ticket's display id keeps all its words.
@@ -660,18 +660,19 @@ export interface KeyOptions {
   allowBare?: boolean;
 }
 
-/** A fresh work-item key: <factory definition>-<slug>-<4 base32 characters>. */
+/** A fresh work-item key: <prefix>-<slug>-<4 base32 characters>. The prefix is
+ * the factory's name, a ticket's display id or a tracker's prefix. */
 export function generateKey(
-  definitionName: string,
+  lead: string,
   title: string,
   id = "",
   options: KeyOptions = {},
 ): string {
   const bytes = crypto.getRandomValues(new Uint8Array(KEY_SUFFIX_LENGTH));
   const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
-  const prefix = definitionName.length > KEY_PREFIX_MAX_LENGTH
-    ? definitionName.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
-    : definitionName;
+  const prefix = lead.length > KEY_PREFIX_MAX_LENGTH
+    ? lead.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
+    : lead;
   if (
     options.allowBare === true && slugWords(title).length === 0 &&
     slugWords(id).length === 0
@@ -693,13 +694,13 @@ export async function keyIsFree(
 /** A fresh work-item key that no definition uses yet. */
 export async function freshKey(
   ctx: { definitionRepository?: DefinitionLookup },
-  definitionName: string,
+  lead: string,
   title: string,
   id = "",
   options: KeyOptions = {},
 ): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(definitionName, title, id, options);
+    const key = generateKey(lead, title, id, options);
     if (await keyIsFree(ctx, key)) return key;
   }
   throw new Error("could not find a free work-item key; try again");
@@ -711,8 +712,9 @@ export async function newKey(
   ctx: MethodContextLike,
   title: string,
 ): Promise<MethodOutput> {
-  const definition = await loadFactoryDefinition(ctx, selfName(ctx));
-  const key = await freshKey(ctx, definition.name, title);
+  // Loaded only to refuse a factory whose definition is invalid.
+  await loadFactoryDefinition(ctx, selfName(ctx));
+  const key = await freshKey(ctx, selfName(ctx), title);
   if (ctx.writeResource === undefined) {
     throw new Error("this method context cannot write resources");
   }
@@ -925,6 +927,7 @@ export async function startWorkItem(
       definition,
       {
         key,
+        factory: args.factory,
         externalRefs,
         tracker,
         definitionDigest: pinned.digest,
@@ -937,7 +940,7 @@ export async function startWorkItem(
   await logWrite(
     ctx,
     `started '${key}' at stage '${started.run.stage}' ` +
-      `(definition '${definition.name}' from '${args.factory}'; ` +
+      `(factory '${args.factory}'; ` +
       `tracker '${tracker.instance}')`,
     expectationProps(started.run),
     {
@@ -1052,7 +1055,6 @@ async function statusView(
   return {
     key: run.key,
     definition: {
-      name: definition.name,
       factory: pinned.factory,
       digest: pinned.digest,
     },

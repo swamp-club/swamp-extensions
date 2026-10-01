@@ -135,6 +135,7 @@ export interface FindingView extends GraphFinding {
 }
 
 export interface DesignView {
+  /** The factory's name: the definition has none of its own. */
   name: string;
   description?: string;
   digest: string;
@@ -275,6 +276,7 @@ function loopPaths(definition: FactoryDefinition): Set<string> {
 /** Everything the page shows, derived from the factory definition and its
  * report. */
 export function designView(
+  factory: string,
   definition: FactoryDefinition,
   report: GraphReport,
   digest: string,
@@ -360,7 +362,7 @@ export function designView(
       global,
     });
   const view: DesignView = {
-    name: definition.name,
+    name: factory,
     digest,
     stages,
     globalTransitions,

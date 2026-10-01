@@ -30,7 +30,7 @@ import {
 
 function definition(yaml: string): FactoryDefinition {
   const result = parseDefinition(
-    parseYaml(`schemaVersion: 1\nname: test\n${yaml}`),
+    parseYaml(`schemaVersion: 1\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
@@ -1451,7 +1451,6 @@ function generated(seed: number): FactoryDefinition {
   stages.push({ id: "done", terminal: true });
   const doc: Record<string, unknown> = {
     schemaVersion: 1,
-    name: `generated-${seed}`,
     stages,
   };
   if (rand() < 0.3) {

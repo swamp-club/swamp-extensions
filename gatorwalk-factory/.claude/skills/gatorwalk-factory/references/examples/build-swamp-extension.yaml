@@ -1,6 +1,5 @@
 definition:
   schemaVersion: 1
-  name: build-swamp-extension
   description: |-
     Build a swamp extension from plan to release: plan it, have the plan
     reviewed, implement it, check it, have the change reviewed, and release it.

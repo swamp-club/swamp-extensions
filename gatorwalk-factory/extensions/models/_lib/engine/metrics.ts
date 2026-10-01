@@ -137,6 +137,7 @@ export interface Metrics {
   schemaVersion: typeof METRICS_SCHEMA_VERSION;
   key: string;
   externalRefs: Record<string, string>;
+  factory: RunRecord["factory"];
   definition: RunRecord["definition"];
   status: RunRecord["status"];
   stage: string;
@@ -406,6 +407,7 @@ export function computeMetrics(
     schemaVersion: METRICS_SCHEMA_VERSION,
     key: run.key,
     externalRefs: run.externalRefs,
+    factory: run.factory,
     definition: run.definition,
     status: run.status,
     stage: run.stage,

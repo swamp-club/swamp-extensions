@@ -56,7 +56,12 @@ async function item(
     (await startRun(
       store,
       definition,
-      { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
+      {
+        key: "wi-1",
+        tracker: TEST_TRACKER,
+        factory: "team",
+        definitionDigest: "sha256:l",
+      },
       ALICE,
       env,
     )).ok,
@@ -318,7 +323,6 @@ Deno.test("awaiting: nothing is noted on a commit whose run data cannot be read"
 Deno.test("awaiting: a conditional approval is a stop only while its when is true; one that errors is not a stop", async () => {
   const parsed = parseDefinition({
     schemaVersion: 1,
-    name: "conditional",
     stages: [
       {
         id: "review",
@@ -357,7 +361,12 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
   await startRun(
     store,
     definition,
-    { key: "wi-c", tracker: TEST_TRACKER, definitionDigest: "sha256:c" },
+    {
+      key: "wi-c",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:c",
+    },
     ALICE,
     env,
   );

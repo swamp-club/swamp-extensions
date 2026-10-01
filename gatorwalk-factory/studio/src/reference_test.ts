@@ -20,7 +20,6 @@ import { findingTarget } from "./selection.ts";
 import { modelFile } from "./test_support.ts";
 
 const TEXT = `schemaVersion: 1
-name: team
 stages:
   - id: plan
     initial: true

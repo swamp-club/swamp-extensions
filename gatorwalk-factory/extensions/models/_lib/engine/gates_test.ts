@@ -56,7 +56,6 @@ const BOB: Actor = { principal: "user:bob", source: "platform" };
 function gateDefinition(): FactoryDefinition {
   const result = parseDefinition({
     schemaVersion: 1,
-    name: "gates",
     stages: [
       {
         id: "draft",
@@ -255,7 +254,12 @@ async function setup(env: Env = testEnv()) {
   await startRun(
     store,
     DEFINITION,
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:g" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:g",
+    },
     ALICE,
     env,
   );
@@ -929,7 +933,6 @@ Deno.test("evidence-recorded: a requireField path reads own fields only, never t
   const withField = (requireField: Record<string, unknown>) =>
     parseDefinition({
       schemaVersion: 1,
-      name: "proto",
       stages: [
         {
           id: "s",
@@ -966,7 +969,12 @@ Deno.test("evidence-recorded: a requireField path reads own fields only, never t
   await startRun(
     store,
     ctor.value,
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:p" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:p",
+    },
     ALICE,
     env,
   );

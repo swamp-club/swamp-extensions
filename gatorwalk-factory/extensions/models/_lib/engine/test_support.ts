@@ -69,7 +69,6 @@ export const FAIL: GateEvaluator = () =>
 export function smallDefinition(): FactoryDefinition {
   const result = parseDefinition({
     schemaVersion: 1,
-    name: "small",
     stages: [
       {
         id: "write",
@@ -173,7 +172,6 @@ export function stopsDefinition(minApprovals = 1): Record<string, unknown> {
   const work = { mode: "interactive", systemPrompt: "Do the work." };
   return {
     schemaVersion: 1,
-    name: "stops",
     stages: [
       {
         id: "draft",

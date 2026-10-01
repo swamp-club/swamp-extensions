@@ -153,7 +153,7 @@ Deno.test("factory: validate reports a valid definition", async () => {
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "definition 'build-swamp-extension' in factory 'team' is valid: 8 stages",
+      "factory 'team' is valid: 8 stages",
     ),
     summary,
   );
@@ -345,7 +345,7 @@ Deno.test("factory: validate fails when the graph analysis stops at the state ca
     { id: "done", terminal: true },
   );
   const swamp = fakeSwamp();
-  swamp.factory("team", { schemaVersion: 1, name: "wide", stages });
+  swamp.factory("team", { schemaVersion: 1, stages });
   const error = await assertRejects(
     () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,
@@ -395,12 +395,12 @@ Deno.test("factory: design_page stores the definition as an HTML page", async ()
   assertEquals(pages?.length, 1);
   const html = pages?.[0] ?? "";
   assert(html.startsWith("<!doctype html>"));
-  assert(html.includes("<h1>build-swamp-extension</h1>"));
+  assert(html.includes("<h1>team</h1>"));
   assertEquals(factory.files[DESIGN_PAGE_SPEC].contentType, "text/html");
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "design page for definition 'build-swamp-extension' in 'team': 8 stages, 0 error(s), 2 warning(s)",
+      "design page for factory 'team': 8 stages, 0 error(s), 2 warning(s)",
     ),
     summary,
   );
@@ -461,7 +461,7 @@ Deno.test("factory: new_key logs and records an unused key for this factory", as
   const key = String(swamp.logs.at(-1)?.props?.key);
   assertMatch(
     key,
-    /^build-swamp-extension-add-json-output-status-[a-z2-7]{4}$/,
+    /^team-add-json-output-status-[a-z2-7]{4}$/,
   );
   // The key is also recorded, for programs that read --json output.
   assertEquals(swamp.resources.get("team")?.get("key"), [{ key }]);
@@ -471,6 +471,19 @@ Deno.test("factory: new_key logs and records an unused key for this factory", as
     String(swamp.logs.at(-1)?.props?.next).includes(
       `run start ${key} --input factory=team`,
     ),
+  );
+});
+
+Deno.test("factory: new_key leads with the factory's name, which may start with a digit", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("2026-ops", await buildDefinition());
+  await factory.methods.new_key.execute(
+    factory.methods.new_key.arguments.parse({ title: "Rotate the keys" }),
+    swamp.context("2026-ops"),
+  );
+  assertMatch(
+    String(swamp.logs.at(-1)?.props?.key),
+    /^2026-ops-rotate-keys-[a-z2-7]{4}$/,
   );
 });
 

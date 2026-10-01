@@ -24,7 +24,6 @@ import {
 } from "./test_support.ts";
 
 const TEXT = `schemaVersion: 1
-name: tiny
 stages:
   - id: a
     initial: true
@@ -64,6 +63,12 @@ Deno.test("model: a definition path finds its line in the model file", async () 
     text.slice(stage.from, stage.end).trim(),
     "id: b\n        terminal: true",
   );
+});
+
+Deno.test("model: the view takes its name from the factory model, not the definition", async () => {
+  const loaded = await loadDefinition(FILE, modelFile(TEXT, "team"));
+  assert(loaded.ok);
+  assertEquals(loaded.view.name, "team");
 });
 
 Deno.test("model: a path that is not there falls back to its nearest parent", async () => {

@@ -1,5 +1,4 @@
 schemaVersion: 1
-name: retry-feedback
 description: >-
   An LLM method produces a plan; a rejected payload is fed back on retry.
 stages:

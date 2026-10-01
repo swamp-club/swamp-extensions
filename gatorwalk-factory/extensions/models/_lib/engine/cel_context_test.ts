@@ -49,6 +49,7 @@ async function started(): Promise<
       key: "wi-7",
       externalRefs: { linear: "ENG-1" },
       tracker: TEST_TRACKER,
+      factory: "team",
       definitionDigest: "sha256:l",
     },
     ALICE,

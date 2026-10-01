@@ -144,6 +144,8 @@ function stageOf(definition: FactoryDefinition, run: RunRecord): StageSpec {
 
 export interface StartInput {
   key: string;
+  /** The factory the work item starts in: its model's name. */
+  factory: string;
   externalRefs?: Record<string, string>;
   /** The tracker the factory is bound to. */
   tracker: TrackerBinding;
@@ -166,8 +168,8 @@ export function start(
     key: input.key,
     externalRefs: input.externalRefs ?? {},
     tracker: { ...input.tracker },
+    factory: input.factory,
     definition: {
-      name: definition.name,
       digest: input.definitionDigest,
       ...(input.definitionVersion !== undefined
         ? { version: input.definitionVersion }
@@ -186,6 +188,7 @@ export function start(
   };
   run.journal.push(journal(run, actor, env, {
     type: "started",
+    factory: run.factory,
     definition: { ...run.definition },
   }));
   return run;
@@ -214,9 +217,7 @@ export function reset(
   const previousEra = run.era;
   const next: RunRecord = {
     ...run,
-    ...(repinned !== undefined
-      ? { definition: { name: definition.name, ...repinned } }
-      : {}),
+    ...(repinned !== undefined ? { definition: { ...repinned } } : {}),
     era: env.newEra(),
     status: "active",
     stage: initial.id,

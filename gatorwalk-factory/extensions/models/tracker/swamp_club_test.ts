@@ -346,7 +346,7 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
       );
       await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
       assertEquals(fake.comments.length, 1);
-      assert(fake.comments[0].body.includes("started on definition"));
+      assert(fake.comments[0].body.includes("started in factory"));
       assertEquals(fake.issues[0].status, "shipped");
       assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
       const cursor = swamp.resources.get(INSTANCE)?.get(

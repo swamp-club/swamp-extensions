@@ -771,8 +771,8 @@ worker that model definition arrives as a plain object with
 `new_key` generates an unused key from the work's title (a required `title`
 input), and the work item is created under it. A key is how a person refers to a
 work item everywhere (`status`, the summary report, commands, conversation), so
-it says what the work is: `<definition>-<slug>-<suffix>`, for example
-`build-swamp-extension-add-list-method-r2ne`.
+it says what the work is: `<factory>-<slug>-<suffix>`, for example
+`team-add-list-method-r2ne` from the factory `team`.
 
 - **The slug** is the title with accents removed, lowercased, and split into
   ASCII letters and digits; every other character is a break, so separators
@@ -783,19 +783,19 @@ it says what the work is: `<definition>-<slug>-<suffix>`, for example
 - **The length** is swamp's: an instance name is at most 64 characters matching
   `^[a-z0-9][a-z0-9_-]*$` (`DEFINITION_NAME_MAX_LENGTH` and
   `DEFINITION_NAME_PATTERN` in swamp's `src/domain/definitions/definition.ts`).
-  The factory definition prefix is cut at 55 characters (and any trailing
+  The factory's name is cut at 55 characters (and any trailing
   separator dropped), so the slug always keeps at least 3.
 - **The suffix** is 4 random base32 characters, about a million per slug. Only
-  work with the same factory definition and slug can collide, in practice a
+  work with the same factory and slug can collide, in practice a
   ticket claimed again, and a key some definition already has is drawn again.
 - **From a ticket,** `claim` puts the ticket's display id where the factory
-  definition name would go, all its words kept: `2734-drive-lab-issue-r2ne` for
+  name would go, all its words kept: `2734-drive-lab-issue-r2ne` for
   the Lab's `#2734`, `abc-12-...` for Linear's `ABC-12`. The id there is for
   reading only (see "Tracker ids are data"). A built-in ticket's first work
   item takes the ticket's own id (`cue-board-shortcuts-r2ne`), and a later one
   on the same ticket is `<prefix>-<slug>-<suffix>` (see "The built-in
   tracker"). Only the factory's `new_key`, which has no ticket, leads with the
-  factory definition name. A ticket whose title has no ASCII letters or digits
+  factory's name. A ticket whose title has no ASCII letters or digits
   still claims: its key is the lead and the suffix alone (`2800-k3xq`), since
   the ticket's id already says what the work is; `new_key` refuses such a
   title, having nothing else to go on.
@@ -851,7 +851,7 @@ lives in the factory's own model definition,
 ```yaml
 globalArguments:
   tracker: board
-  definition: { schemaVersion: 1, name: team, stages: [...] }
+  definition: { schemaVersion: 1, stages: [...] }
   scenarios: [{ scenario: plan-to-done, steps: [...] }]
 ```
 
@@ -2051,6 +2051,30 @@ Scenarios have no includes: the swamp-club `complete` variants each repeat the
 walk to attest. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: a factory has one name, its model's (swamp-club #2816)
+
+**Decision.** A factory definition has no `name` field. The factory model's
+name is the factory's only name: `new_key` leads keys with it, the run record
+and the `started` journal event carry it as `factory` (beside `definition: {
+digest, version }`), and `validate`, `design_page`, the summary, ticket
+comments, the design page and the studio show it. A definition that still has
+`name` is a schema error, from swamp's checks and from `validate`.
+
+**Why.** Since #2884 the definition sits in the factory's model definition,
+next to the model's own `name`, so one factory had two names, and they differed
+in practice (the dogfood factory `swamp-extensions` held a definition named
+`swamp-club-swamp-extensions`). Requiring them to match would keep a field with
+nothing to say; keeping both would need a reason, and none survived #2884: the
+pinned copy already recorded the factory's model name.
+
+**Choices made with Seth in triage.** The field is rejected, not ignored.
+Records written before this change are not read: there are no users before
+go-live, so `RUN_SCHEMA_VERSION` stays 1 and an old run record fails its strict
+parse on the unexpected key. A factory model's name may start with a digit,
+which the old definition name could not; keys allow it. Saved scenarios run in
+memory under the factory name `scenario`, as their tracker instance is
+`scenario`.
 
 ### 2026-10-01: the factory definition lives in the factory model, with its schema (swamp-club #2884)
 

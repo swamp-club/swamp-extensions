@@ -38,6 +38,7 @@ async function render(
   definition: FactoryDefinition,
 ): Promise<{ view: DesignView; html: string }> {
   const view = designView(
+    "team",
     definition,
     analyzeDefinition(definition),
     await digestOf(definition),
@@ -219,7 +220,6 @@ Deno.test("design page: the swamp-club-swamp-extensions definition shows its han
 Deno.test("design page: gate and work descriptions are shown", async () => {
   const { view, html } = await render(definition(`
 schemaVersion: 1
-name: described
 stages:
   - id: plan
     initial: true
@@ -260,7 +260,6 @@ stages:
 Deno.test("design page: evidence a person records is marked so", async () => {
   const { view, html } = await render(definition(`
 schemaVersion: 1
-name: feedback
 stages:
   - id: review
     initial: true
@@ -290,7 +289,6 @@ stages:
 
 const FLAWED = `
 schemaVersion: 1
-name: flawed
 description: A definition with design errors.
 stages:
   - id: plan
@@ -363,6 +361,7 @@ Deno.test("design page: a definition with graph findings shows each one with its
 Deno.test("design page: a truncated analysis says so", async () => {
   const lc = definition(FLAWED);
   const view = designView(
+    "team",
     lc,
     analyzeDefinition(lc, { maxStates: 1 }),
     await digestOf(lc),
@@ -444,7 +443,6 @@ Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first
 
 const HOSTILE = `
 schemaVersion: 1
-name: hostile
 description: "</script><script>alert(1)</script> & \\"quotes\\" 'single'"
 stages:
   - id: plan

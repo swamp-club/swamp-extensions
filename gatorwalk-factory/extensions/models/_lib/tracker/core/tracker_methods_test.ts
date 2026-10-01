@@ -370,7 +370,7 @@ Deno.test("publish: comments on each event a person needs, sets the status, and 
 
   await publish(swamp, methods);
   assertEquals(posted.length, 3, posted.join("\n"));
-  assert(posted[0].includes("started on definition `tracked`"));
+  assert(posted[0].includes("started in factory `tracked-factory`"));
   assert(posted[1].includes("entered **review** (cycle 1) by `submit`"));
   assert(posted[2].includes("is waiting on a person in **review**"));
   assertEquals(moves, ["In Review"]);
@@ -744,7 +744,7 @@ Deno.test("publish: a pinned copy that is not the latest is read by its version 
     digest: "sha256:unused",
     definition: {
       ...(pinned.definition as Record<string, unknown>),
-      name: "unused",
+      description: "unused",
     },
   });
 
@@ -800,7 +800,7 @@ Deno.test("publish: keeps its own ledger records, so a hand-keyed comment neithe
   );
   await publish(swamp, methods);
   assertEquals(posted.length, 2, posted.join("\n"));
-  assert(posted[1].includes("started on definition"), posted[1]);
+  assert(posted[1].includes("started in factory"), posted[1]);
 });
 
 Deno.test("publish: a failing version query falls back to the latest copy of the pinned definition", async () => {
@@ -1261,7 +1261,7 @@ Deno.test("publish, assign: the started event's comment, then the assign, then l
   await item.advance("submit");
   await publish(swamp, methods);
   assertEquals(writes, [
-    "comment started on",
+    "comment started in",
     "assign seth",
     "comment entered **review**",
     "comment is waiting",
@@ -1339,7 +1339,7 @@ Deno.test("publish, assign: a failed assign warns, is recorded as skipped and is
     const { writes, state, methods } = setup();
     const item = await trackedItem(swamp, { test: "T1" });
     await publish(swamp, methods);
-    assertEquals(writes, ["comment started on", "status In Progress"], label);
+    assertEquals(writes, ["comment started in", "status In Progress"], label);
     const warned = warnings(swamp);
     assertEquals(warned.length, 1, label);
     assert(warned[0].includes("will not try again"), warned[0]);

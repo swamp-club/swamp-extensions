@@ -252,7 +252,14 @@ export async function loadDefinition(
 
   const definition = parsed.data;
   const report = analyzeDefinition(definition);
-  const view = designView(definition, report, await digestOf(definition));
+  // The factory's name is its model's: the definition has none of its own.
+  const factory = (raw as { name?: unknown }).name;
+  const view = designView(
+    typeof factory === "string" ? factory : "",
+    definition,
+    report,
+    await digestOf(definition),
+  );
   return {
     ...base,
     ok: true,

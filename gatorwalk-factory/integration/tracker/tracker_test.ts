@@ -288,7 +288,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
       assertEquals(
         fake.comments.map((c) => c.body.split("\n")[0]),
         [
-          `**${key}** started on definition \`tracked\`, at stage **write**.`,
+          `**${key}** started in factory \`tracked\`, at stage **write**.`,
           `**${key}** entered **review** (cycle 1) by \`submit\`.`,
           `**${key}** is waiting on a person in **review**:`,
         ],

@@ -1,6 +1,5 @@
 definition:
   schemaVersion: 1
-  name: starter
   description: |-
     A general software change, from plan to release: plan, review the plan,
     implement, verify, review the change, release.

@@ -105,7 +105,7 @@ Deno.test("examples: each passes the factory's validate method, with its saved s
     await factory.methods.validate.execute({}, swamp.context(name));
     const summary = String(swamp.logs.at(-1)?.props?.summary);
     assert(
-      summary.includes(`' in factory '${name}' is valid: `) &&
+      summary.startsWith(`factory '${name}' is valid: `) &&
         summary.includes(`, ${scenarios.length} saved scenario(s) passed; `),
       `${file}: ${summary}`,
     );

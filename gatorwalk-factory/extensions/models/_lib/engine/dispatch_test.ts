@@ -44,7 +44,12 @@ async function atReview(text: string) {
   await startRun(
     store,
     DEFINITION,
-    { key: "wi-9", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
+    {
+      key: "wi-9",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:l",
+    },
     ALICE,
     env,
   );
@@ -82,7 +87,12 @@ Deno.test("dispatch: an interactive stage gets its prompt rendered from bindings
   await startRun(
     store,
     DEFINITION,
-    { key: "wi-9", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
+    {
+      key: "wi-9",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:l",
+    },
     ALICE,
     env,
   );
@@ -120,7 +130,6 @@ Deno.test("dispatch: a workflow stage merges literal inputs with bindings and ch
 Deno.test("dispatch: a failing binding and its unfilled placeholder are reported, not thrown", async () => {
   const definition = parseDefinition({
     schemaVersion: 1,
-    name: "reviewing",
     stages: [
       {
         id: "review",
@@ -144,7 +153,12 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
   await startRun(
     store,
     definition.value,
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:r" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:r",
+    },
     ALICE,
     env,
   );
@@ -169,7 +183,6 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
 Deno.test("dispatch: a binding whose value has no JSON form is reported as a problem", async () => {
   const definition = parseDefinition({
     schemaVersion: 1,
-    name: "bytes",
     stages: [
       {
         id: "work",
@@ -186,7 +199,12 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
   await startRun(
     store,
     definition.value,
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:b" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:b",
+    },
     ALICE,
     env,
   );
@@ -222,7 +240,6 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
   for (const [mode, call] of Object.entries(calls)) {
     const definition = parseDefinition({
       schemaVersion: 1,
-      name: "described",
       description: marker("definition"),
       stages: [
         {
@@ -279,7 +296,12 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
     await startRun(
       store,
       definition.value,
-      { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:d" },
+      {
+        key: "wi-1",
+        tracker: TEST_TRACKER,
+        factory: "team",
+        definitionDigest: "sha256:d",
+      },
       ALICE,
       testEnv(),
     );
@@ -303,7 +325,6 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
 const REVIEWING = (() => {
   const parsed = parseDefinition({
     schemaVersion: 1,
-    name: "reviewing",
     stages: [
       {
         id: "draft",
@@ -352,7 +373,12 @@ async function reviewingPacket() {
   await startRun(
     store,
     REVIEWING,
-    { key: "wi-3", tracker: TEST_TRACKER, definitionDigest: "sha256:r" },
+    {
+      key: "wi-3",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:r",
+    },
     ALICE,
     env,
   );
@@ -390,7 +416,12 @@ Deno.test("dispatch: the packet names a declared artifact and evidence with thei
   await startRun(
     store,
     DEFINITION,
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:l" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:l",
+    },
     ALICE,
     env,
   );

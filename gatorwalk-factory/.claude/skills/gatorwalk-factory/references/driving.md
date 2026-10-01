@@ -133,13 +133,12 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 ```
 
 `new_key` prints an unused key made from the work's title, such as
-`build-swamp-extension-add-list-method-r2ne`: the factory definition name, a
-slug of the title, and a short random suffix. Use it as the work item's name
-from then on; it does not change if the work does. A title with no ASCII letters
-or digits is refused. `start` takes any unused name, so a person may choose a
-key by hand instead. To link a tracker ticket, pass `externalRefs` as a JSON
-object mapping tracker to id; the code links a work item to a ticket only
-through `externalRefs`.
+`team-add-list-method-r2ne`: the factory's name, a slug of the title, and a
+short random suffix. Use it as the work item's name from then on; it does not
+change if the work does. A title with no ASCII letters or digits is refused.
+`start` takes any unused name, so a person may choose a key by hand instead. To
+link a tracker ticket, pass `externalRefs` as a JSON object mapping tracker to
+id; the code links a work item to a ticket only through `externalRefs`.
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run start <key> \

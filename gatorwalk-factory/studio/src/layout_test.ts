@@ -139,7 +139,6 @@ for (const name of EXAMPLES) {
 
 const tiny = (stages: string) =>
   `schemaVersion: 1
-name: tiny
 stages:
 ${stages}`;
 

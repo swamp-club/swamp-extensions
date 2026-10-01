@@ -173,10 +173,11 @@ export const RunRecordSchema = z.strictObject({
   /** The tracker the factory was bound to at start: the instance publish
    * runs on, and its kind. status reads that instance's cursor. */
   tracker: TrackerBindingSchema,
-  /** The factory definition pinned at start: its name, content digest, and the
+  /** The factory the work item started in: its model's name. */
+  factory: z.string().min(1),
+  /** The factory definition pinned at start: its content digest, and the
    * version of the pinned copy the run uses. */
   definition: z.strictObject({
-    name: z.string().min(1),
     digest: z.string().min(1),
     version: z.number().int().positive().optional(),
   }),

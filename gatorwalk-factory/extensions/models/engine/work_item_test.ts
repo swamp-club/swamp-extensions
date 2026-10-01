@@ -100,6 +100,10 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
   assertEquals(run.key, ITEM);
   assertEquals(run.stage, "plan");
   assertEquals(run.definition.version, 1);
+  assertEquals(run.factory, "team");
+  const first = run.journal[0];
+  assert(first.type === "started");
+  assertEquals(first.factory, "team");
   const pinned = swamp.resources.get(ITEM)?.get("definition")?.[0];
   assertEquals(pinned?.factory, "team");
   assertEquals(pinned?.digest, run.definition.digest);
@@ -110,7 +114,7 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(summary.startsWith(`started '${ITEM}' at stage 'plan'`), summary);
   assert(
-    summary.includes("(definition 'build-swamp-extension' from 'team'; "),
+    summary.includes("(factory 'team'; "),
     summary,
   );
 });
@@ -254,7 +258,8 @@ Deno.test("start: a second start, a missing factory, or an invalid definition is
     "no factory named 'team'",
   );
   const broken = await buildDefinition();
-  delete broken.name;
+  // A name of its own is refused: the factory names its definition (#2816).
+  broken.name = "team";
   fresh.factory("team", broken);
   await assertRejects(
     () => call(fresh, "start", { factory: "team" }),
@@ -363,6 +368,7 @@ Deno.test("pinning: editing the factory does not change a running work item; res
   const run = await runOf(swamp);
   assert(run.definition.digest !== before);
   assertEquals(run.definition.version, 2);
+  assertEquals(run.factory, "team", "a repin keeps the factory");
   const view = await describeStatus(swamp.context(ITEM), systemEnv);
   assertEquals(view.definition.digest, run.definition.digest);
   const last = run.journal.at(-1);
@@ -773,7 +779,6 @@ Deno.test("status: names each exit's human gates, global exits included, and the
   const conditional = fakeSwamp();
   conditional.factory("team", {
     schemaVersion: 1,
-    name: "conditional",
     stages: [
       {
         id: "review",

@@ -59,8 +59,8 @@ import {
 
 export const DEFINITION_SCHEMA_VERSION = 1;
 
-/** Names for factory definitions, stages, transitions, artifacts, evidence,
- * gates. Safe as path segments and shell words on every platform (#2290). */
+/** Names for stages, transitions, artifacts, evidence, gates. Safe as path
+ * segments and shell words on every platform (#2290). */
 const NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 export const NameSchema = z.string().regex(
@@ -648,11 +648,11 @@ export type StageSpec = z.infer<typeof StageSchema>;
 
 /**
  * A factory definition: the state machine a work item runs, copied into the
- * work item at start so the run is pinned to it.
+ * work item at start so the run is pinned to it. It has no name of its own:
+ * the factory model that holds it names it (#2816).
  */
 export const DefinitionSchema = z.strictObject({
   schemaVersion: z.literal(DEFINITION_SCHEMA_VERSION),
-  name: NameSchema,
   description: z.string().optional(),
   /** The kind of tracker the factory definition is written for; the factory
    * names the instance. Absent: the built-in tracker. */

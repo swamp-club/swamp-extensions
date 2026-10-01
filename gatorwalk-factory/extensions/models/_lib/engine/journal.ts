@@ -80,8 +80,8 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
     ...EVENT_BASE,
     type: z.literal("started"),
+    factory: z.string(),
     definition: z.strictObject({
-      name: z.string(),
       digest: z.string(),
       version: z.number().int().positive().optional(),
     }),

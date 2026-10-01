@@ -174,6 +174,7 @@ Deno.test("metrics: stage times, waits, rework, dispatches, overrides and usage 
   const run = await runOf(swamp);
   const m = computeMetrics(run, stopsParsedDefinition());
   assertEquals(m.status, "terminal");
+  assertEquals(m.factory, run.factory);
   assertEquals(m.startedAt, "2026-09-29T10:00:00.000Z");
   assertEquals(m.endedAt, "2026-09-29T11:31:00.000Z");
   assertEquals(m.durationMs, 91 * MINUTE);

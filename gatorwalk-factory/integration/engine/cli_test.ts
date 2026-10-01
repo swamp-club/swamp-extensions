@@ -92,13 +92,13 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
     const ok = await repo.factoryMethod("team", "validate");
     assert(
       ok.output.includes(
-        "definition 'build-swamp-extension' in factory 'team' is valid",
+        "factory 'team' is valid",
       ),
       ok.output,
     );
     assertMatch(
       await repo.newKey("team", "Add JSON output to status"),
-      /^build-swamp-extension-add-json-output-status-[a-z2-7]{4}$/,
+      /^team-add-json-output-status-[a-z2-7]{4}$/,
     );
     // start takes any unused name, so a person can choose a key by hand.
     const chosen = await repo.workItem("my-chosen-key", "start", {
@@ -160,7 +160,7 @@ Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a 
     const ok = await repo.factoryMethod("process", "validate");
     assert(
       ok.output.includes(
-        "definition 'swamp-club-swamp-extensions' in factory 'process' is valid",
+        "factory 'process' is valid",
       ),
       ok.output,
     );
@@ -211,7 +211,7 @@ Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as
     const run = await repo.factoryMethod("process", "design_page");
     assert(
       run.output.includes(
-        "design page for definition 'swamp-club-swamp-extensions' in 'process'",
+        "design page for factory 'process'",
       ),
       run.output,
     );
@@ -231,7 +231,7 @@ Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as
     assertEquals(page.contentType, "text/html");
     assertEquals(page.tags.specName, "design-page");
     assert(page.content.startsWith("<!doctype html>"));
-    assert(page.content.includes("<h1>swamp-club-swamp-extensions</h1>"));
+    assert(page.content.includes("<h1>process</h1>"));
     assert(page.content.includes('id="stage-triage"'));
   });
 });
@@ -650,7 +650,7 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
     const valid = await repo.factoryMethod("team", "validate");
     assert(
       valid.output.includes(
-        "definition 'build-swamp-extension' in factory 'team' is valid",
+        "factory 'team' is valid",
       ) &&
         valid.output.includes(
           `${scenarios.length} saved scenario(s) passed`,
@@ -660,7 +660,7 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
     const page = await repo.factoryMethod("team", "design_page");
     assert(
       page.output.includes(
-        "design page for definition 'build-swamp-extension' in 'team'",
+        "design page for factory 'team'",
       ),
       page.output,
     );
@@ -706,6 +706,17 @@ Deno.test("cli: swamp model validate reports a schema error in the definition, w
         run.output.includes("targets unknown stage 'missing'"),
       run.output,
     );
+  });
+});
+
+Deno.test("cli: swamp model validate rejects a definition that names itself: the factory names it", async () => {
+  await withRepo(async (repo) => {
+    await repo.factory("team", { ...await buildDefinition(), name: "other" });
+    const checked = await repo.swamp(["model", "validate", "team"], {
+      allowFailure: true,
+    });
+    assertNotEquals(checked.code, 0);
+    assert(checked.output.includes('"name"'), checked.output);
   });
 });
 

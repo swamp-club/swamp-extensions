@@ -80,7 +80,7 @@ export function commentFor(
   const item = `**${key}**`;
   switch (event.type) {
     case "started":
-      return `${item} started on definition \`${event.definition.name}\`, ` +
+      return `${item} started in factory \`${event.factory}\`, ` +
         `at stage **${event.stage}**.`;
     case "advanced": {
       const terminal =

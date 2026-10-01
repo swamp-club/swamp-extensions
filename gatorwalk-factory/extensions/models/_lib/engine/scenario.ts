@@ -308,6 +308,8 @@ export async function runScenario(
     definition,
     {
       key: `scenario-${scenario.scenario}`,
+      // In memory, with no factory model, as with the tracker below.
+      factory: "scenario",
       definitionDigest: await digestOf(definition),
       externalRefs: scenario.externalRefs ?? {},
       // A scenario runs in memory, with no tracker instance to publish to.

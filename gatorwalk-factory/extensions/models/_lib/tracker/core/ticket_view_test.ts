@@ -61,7 +61,8 @@ function runWith(stage: string, journal: JournalEvent[]): RunRecord {
     key: KEY,
     externalRefs: {},
     tracker: { instance: "board", kind: "builtin" },
-    definition: { name: "small", digest: "sha256:x", version: 1 },
+    factory: "team",
+    definition: { digest: "sha256:x", version: 1 },
     era: "era-1",
     status: "active",
     stage,
@@ -79,7 +80,8 @@ const STARTED: JournalEvent = {
   ...BASE,
   stage: "write",
   type: "started",
-  definition: { name: "small", digest: "sha256:x", version: 1 },
+  factory: "team",
+  definition: { digest: "sha256:x", version: 1 },
 };
 const DISPATCHED: JournalEvent = {
   ...BASE,
@@ -100,7 +102,7 @@ Deno.test("ticket view: each event a person needs gets a comment", () => {
   const doc = definition();
   assertEquals(
     commentFor(KEY, STARTED, doc),
-    `**${KEY}** started on definition \`small\`, at stage **write**.`,
+    `**${KEY}** started in factory \`team\`, at stage **write**.`,
   );
   assertEquals(
     commentFor(KEY, SUBMITTED, doc),
@@ -388,7 +390,8 @@ Deno.test("ticketSegments: one segment without a retarget; each retarget of this
     ...BASE,
     stage: "write",
     type: "started",
-    definition: { name: "small", digest: "sha256:x", version: 1 },
+    factory: "team",
+    definition: { digest: "sha256:x", version: 1 },
   };
   const plain = { ...runWith("write", [started]), externalRefs: { t: "A" } };
   assertEquals(ticketSegments(plain, definition(), "t"), [

@@ -1,6 +1,5 @@
 definition:
   schemaVersion: 1
-  name: swamp-club-swamp-extensions
   description: |-
     A real-world example: a swamp-club Lab issue in swamp-extensions, from
     triage through verification, the pull request and release to the session

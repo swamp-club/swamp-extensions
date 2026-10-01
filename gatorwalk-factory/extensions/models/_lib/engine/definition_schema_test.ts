@@ -36,7 +36,6 @@ type Raw = Record<string, unknown>;
 function base(): Raw {
   return {
     schemaVersion: 1,
-    name: "t",
     stages: [
       {
         id: "work",
@@ -134,11 +133,16 @@ Deno.test("base definition is valid", () => assertValid(base()));
 
 // --- document ----------------------------------------------------------------
 
-Deno.test("document: schemaVersion and name are required", () => {
+Deno.test("document: schemaVersion is required", () => {
   const doc = base();
   del(doc, "schemaVersion");
-  del(doc, "name");
-  assertRejects(doc, "schemaVersion:", "name:");
+  assertRejects(doc, "schemaVersion:");
+});
+
+Deno.test("document: a name of its own is rejected; the factory names it", () => {
+  const doc = base();
+  set(doc, "name", "team");
+  assertRejects(doc, '"name"');
 });
 
 Deno.test("document: several problems are reported together, with paths", () => {

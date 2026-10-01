@@ -1,5 +1,4 @@
 schemaVersion: 1
-name: sdlc-classic
 description: >-
   plan → review → implement → test → release → UAT, with a cooldown after
   release and a CEL rule on the UAT report.

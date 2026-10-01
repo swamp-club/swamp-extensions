@@ -27,7 +27,12 @@ import {
 function started() {
   return start(
     smallDefinition(),
-    { key: "wi-1", tracker: TEST_TRACKER, definitionDigest: "sha256:abc" },
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:abc",
+    },
     ALICE,
     testEnv(),
   );

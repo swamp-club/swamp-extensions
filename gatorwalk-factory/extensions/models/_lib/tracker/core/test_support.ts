@@ -45,7 +45,6 @@ export const TRACKED_ITEM = "tracked-abcdefgh";
 export function trackedDefinition(): Record<string, unknown> {
   return {
     schemaVersion: 1,
-    name: "tracked",
     stages: [
       {
         id: "write",

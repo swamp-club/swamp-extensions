@@ -79,7 +79,7 @@ function actorText(actor: Actor): string {
 function detail(event: JournalEvent, run: RunRecord): string {
   switch (event.type) {
     case "started":
-      return `started on definition '${event.definition.name}'`;
+      return `started in factory '${event.factory}'`;
     case "dispatched":
       return `dispatch ${event.dispatchId}`;
     case "usage": {
@@ -203,9 +203,7 @@ function renderMarkdown(run: RunRecord, metrics: Metrics): string {
   const lines = [
     `# Work item ${run.key}`,
     "",
-    `- **FactoryDefinition:** ${run.definition.name} (${
-      run.definition.digest.slice(0, 19)
-    })`,
+    `- **Factory:** ${run.factory} (${run.definition.digest.slice(0, 19)})`,
     `- **Status:** ${run.status} at stage '${run.stage}'`,
     `- **Started:** ${metrics.startedAt}`,
     `- **Finished:** ${metrics.endedAt ?? "not yet"}` +

@@ -43,6 +43,7 @@ const DEFINITION = smallDefinition();
 const START = {
   key: "wi-1",
   tracker: TEST_TRACKER,
+  factory: "team",
   definitionDigest: "sha256:l",
 };
 

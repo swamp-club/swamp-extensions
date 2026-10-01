@@ -26,7 +26,6 @@ import {
 import { modelFile, modelPath } from "./test_support.ts";
 
 const BASE = `schemaVersion: 1
-name: tiny
 stages:
   - id: plan
     initial: true
