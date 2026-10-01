@@ -272,3 +272,103 @@ export function stopsWithFeedbackDefinition(): FactoryDefinition {
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
+
+/**
+ * The agent's own way out beside a person's manual one, shaped like a team's
+ * attest and merge stages: build -> attest -> merge -> done.
+ * attest: `attested` needs the agent's `attestation` and the `open-pr`
+ * approval; `revise` is a manual way back with no gates; `complete` is manual,
+ * and its gate passes from entry. merge: `merged` needs a merged `merge` and a
+ * 60s cooldown after it; `new-pr` is manual and opens on a failed merge;
+ * `complete` as in attest.
+ */
+export function handoffDefinition(): Record<string, unknown> {
+  const work = { mode: "interactive", systemPrompt: "Do the work." };
+  const complete = {
+    name: "complete",
+    to: "done",
+    manual: true,
+    gates: [{
+      type: "cel",
+      config: { expr: '"change" in artifacts', message: "needs a change" },
+    }],
+  };
+  return {
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "build",
+        initial: true,
+        work,
+        artifacts: [{ name: "change", schema: TEXT_SCHEMA }],
+        transitions: [{
+          name: "built",
+          to: "attest",
+          gates: [{ type: "artifact-exists", config: { artifact: "change" } }],
+        }],
+      },
+      {
+        id: "attest",
+        work,
+        evidence: [{ name: "attestation", schema: TEXT_SCHEMA }],
+        transitions: [
+          {
+            name: "attested",
+            to: "merge",
+            gates: [
+              { type: "evidence-recorded", config: { name: "attestation" } },
+              { type: "human-approval", config: { id: "open-pr" } },
+            ],
+          },
+          { name: "revise", to: "build", manual: true },
+          complete,
+        ],
+      },
+      {
+        id: "merge",
+        work,
+        evidence: [{
+          name: "merge",
+          schema: {
+            type: "object",
+            required: ["status"],
+            properties: { status: { enum: ["merged", "failed"] } },
+          },
+        }],
+        transitions: [
+          {
+            name: "merged",
+            to: "done",
+            gates: [
+              {
+                type: "evidence-recorded",
+                config: { name: "merge", requireField: { status: "merged" } },
+              },
+              {
+                type: "cooldown",
+                config: { afterEvidence: "merge", seconds: 60 },
+              },
+            ],
+          },
+          {
+            name: "new-pr",
+            to: "merge",
+            manual: true,
+            gates: [{
+              type: "evidence-recorded",
+              config: { name: "merge", requireField: { status: "failed" } },
+            }],
+          },
+          complete,
+        ],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+}
+
+export function handoffParsedDefinition(): FactoryDefinition {
+  const result = parseDefinition(handoffDefinition());
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}

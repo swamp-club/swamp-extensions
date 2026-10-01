@@ -19,6 +19,7 @@ import { fakeSwamp } from "./fake_swamp.ts";
 import { contextStore, loadRun } from "./run_store.ts";
 import { buildSummary, formatDuration } from "./summary.ts";
 import {
+  handoffDefinition,
   settableEnv,
   stopsDefinition,
   stopsParsedDefinition,
@@ -155,6 +156,66 @@ Deno.test("summary: a retargeted work item shows its current refs and the ones b
   ) {
     assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
   }
+});
+
+Deno.test("summary: waits a person was kept in at once count once; a manual exit is no wait while the agent works", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", handoffDefinition());
+  const env = settableEnv("2026-09-29T10:00:00.000Z");
+  const ctx = () => swamp.context(ITEM);
+  const expected = async () => {
+    const view = await describeStatus(ctx(), env);
+    return {
+      expectedStage: view.expected.expectedStage,
+      expectedCycle: view.expected.expectedCycle,
+      expectedEra: view.expected.expectedEra,
+    };
+  };
+  const record = async (
+    kind: "artifact" | "evidence",
+    name: string,
+    payload: Record<string, unknown>,
+  ) =>
+    recordProductMethod(
+      ctx(),
+      kind,
+      { name, payload, ...await expected() },
+      env,
+    );
+  const move = async (transition: string) =>
+    advanceMethod(ctx(), { transition, ...await expected() }, env);
+  await startWorkItem(ctx(), { factory: "team" }, env);
+  await record("artifact", "change", { text: "the change" });
+  await move("built");
+  env.at("2026-09-29T10:10:00.000Z");
+  await record("evidence", "attestation", { text: "att-1" });
+  env.at("2026-09-29T10:20:00.000Z");
+  await decide(
+    ctx(),
+    "approve",
+    { gateId: "open-pr", ...await expected() },
+    env,
+  );
+  await move("attested");
+  env.at("2026-09-29T10:30:00.000Z");
+  await record("evidence", "merge", { status: "merged" });
+  env.at("2026-09-29T10:35:00.000Z");
+  await move("merged");
+  await summary(ctx(), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  for (
+    const expected of [
+      "- **Waits at human stops:** 2 (0 open), 10m 0s finished " +
+      "(overlaps counted once)",
+      "| attest (1) | attested [open-pr] | 2026-09-29T10:10:00.000Z | " +
+      "2026-09-29T10:20:00.000Z | 10m 0s | approved |",
+      "| attest (1) | complete (manual) | 2026-09-29T10:10:00.000Z | " +
+      "2026-09-29T10:20:00.000Z | 10m 0s | cleared |",
+    ]
+  ) {
+    assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
+  }
+  assert(!markdown.includes("| merge (1) | complete"), markdown);
 });
 
 Deno.test("summary: the same run always renders the same summary", async () => {

@@ -108,6 +108,8 @@ export interface Summary {
     declines: number;
     rejections: number;
   };
+  /** count and open are per exit; timeMs is the time covered by finished
+   * waits, so a person kept waiting on two exits at once counts once. */
   waits: { count: number; open: number; timeMs: number };
   dispatches: { count: number; retries: number };
   overrides: { cycle: number; dispatch: number };
@@ -420,6 +422,21 @@ export function computeMetrics(
   };
 }
 
+/** The time covered by finished waits, overlapping ones merged. */
+function coveredMs(waits: Wait[]): number {
+  const spans = waits.flatMap((w) =>
+    w.until === null ? [] : [[Date.parse(w.from), Date.parse(w.until)]]
+  ).sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let end = -Infinity;
+  for (const [from, until] of spans) {
+    if (until <= end) continue;
+    total += until - Math.max(from, end);
+    end = until;
+  }
+  return total;
+}
+
 function summarize(
   state: EraState,
   run: RunRecord,
@@ -446,8 +463,8 @@ function summarize(
   for (const wait of m.waits) {
     s.waits.count++;
     if (wait.durationMs === null) s.waits.open++;
-    else s.waits.timeMs += wait.durationMs;
   }
+  s.waits.timeMs = coveredMs(m.waits);
   for (const dispatch of run.dispatches) {
     if (dispatch.era !== m.era) continue;
     let entry = m.dispatches.find((d) =>

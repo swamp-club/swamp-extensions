@@ -146,7 +146,7 @@ function summaryLines(summary: Summary): string[] {
     ),
     "",
     `- **Waits at human stops:** ${summary.waits.count} (${summary.waits.open} open), ` +
-    `${formatDuration(summary.waits.timeMs)} finished`,
+    `${formatDuration(summary.waits.timeMs)} finished (overlaps counted once)`,
     `- **Rework:** ${summary.rework.reentries} re-entries, ` +
     `${summary.rework.declines} declines, ${summary.rework.rejections} rejected payloads` +
     (Object.keys(summary.rework.reviewRounds).length > 0

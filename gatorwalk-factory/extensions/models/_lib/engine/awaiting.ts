@@ -15,12 +15,13 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { buildCelContext } from "./cel_context.ts";
-import { evaluateGates } from "./gates.ts";
+import { evaluateGates, type GateCheck } from "./gates.ts";
 import type { AwaitingExit, JournalEvent } from "./journal.ts";
 import {
   type FactoryDefinition,
   findStage,
   type GateSpec,
+  type StageSpec,
   transitionsFrom,
   type TransitionSpec,
 } from "./definition_schema.ts";
@@ -37,8 +38,14 @@ import type { RunStore } from "./run_store.ts";
 // cycle limit allows entry, every gate that is not a human approval passes
 // (a cooldown counts from when it lifts), and either
 //   - one of its human-approval gates is pending, or
-//   - it is manual and has gates, all passing: a decision the run's state has
-//     opened, such as what to do after a failed pull request.
+//   - it is manual and has gates, all passing, and the agent has no way out
+//     of its own: a decision the run's state has opened, such as what to do
+//     after a failed pull request.
+// The agent has a way out while a non-manual exit is ready without a pending
+// approval, waits on a product this stage records and the agent has not yet
+// recorded in this stage entry, or waits only on a cooldown with a known end.
+// A gate that fails on a product already recorded (a field that does not
+// match, findings, a cel expression) leaves a decision, not the agent's work.
 // A manual exit with no gates is a way back a person may always take, and a
 // global transition is an escape hatch; neither is a stop. A gate declined in
 // this stage entry waits on rework, not on a person, until a product is
@@ -61,27 +68,34 @@ export async function personHeldExits(
   const stage = findStage(definition, run.stage);
   if (stage === undefined) return [];
   const globals = definition.globalTransitions ?? [];
-  const held: AwaitingExit[] = [];
+  const exits: Array<{ transition: TransitionSpec; checks: GateCheck[] }> = [];
   for (const transition of transitionsFrom(definition, stage)) {
     if (globals.includes(transition)) continue;
-    const exit = await heldBy(run, definition, transition, store, env, at);
+    const limit = cycleLimitFor(run, definition, transition);
+    if (limit !== null && !limit.allowed) continue;
+    const checks = await evaluateGates(run, definition, transition, store, env);
+    exits.push({ transition, checks });
+  }
+  const agentWayOut = exits.some(({ transition, checks }) =>
+    transition.manual !== true && isAgentsWay(run, stage, transition, checks)
+  );
+  const held: AwaitingExit[] = [];
+  for (const { transition, checks } of exits) {
+    const exit = heldBy(run, definition, transition, checks, agentWayOut, at);
     if (exit !== null) held.push(exit);
   }
   return held;
 }
 
-async function heldBy(
+function heldBy(
   run: RunRecord,
   definition: FactoryDefinition,
   transition: TransitionSpec,
-  store: RunStore,
-  env: Env,
+  checks: GateCheck[],
+  agentWayOut: boolean,
   at: string,
-): Promise<AwaitingExit | null> {
-  const limit = cycleLimitFor(run, definition, transition);
-  if (limit !== null && !limit.allowed) return null;
+): AwaitingExit | null {
   const gates = transition.gates ?? [];
-  const checks = await evaluateGates(run, definition, transition, store, env);
   const pending: string[] = [];
   let readyAt: number | null = null;
   for (const [i, gate] of gates.entries()) {
@@ -99,7 +113,8 @@ async function heldBy(
     readyAt = Math.max(readyAt ?? lifts, lifts);
   }
   const manual = transition.manual === true;
-  if (pending.length === 0 && !(manual && gates.length > 0)) return null;
+  const decision = manual && gates.length > 0 && !agentWayOut;
+  if (pending.length === 0 && !decision) return null;
   return {
     transition: transition.name,
     to: transition.to,
@@ -109,6 +124,65 @@ async function heldBy(
       ? { readyAt: new Date(readyAt).toISOString() }
       : {}),
   };
+}
+
+/**
+ * Whether a non-manual exit is still the agent's way out: ready without a
+ * pending approval, waiting on a product this stage records that the agent
+ * has not recorded in this stage entry, or waiting only on cooldowns that
+ * will lift. A product of another stage cannot be recorded here, and
+ * evidence a person records is not the agent's.
+ */
+function isAgentsWay(
+  run: RunRecord,
+  stage: StageSpec,
+  transition: TransitionSpec,
+  checks: GateCheck[],
+): boolean {
+  const failing = (transition.gates ?? []).filter((_, i) => !checks[i].pass);
+  if (failing.length === 0) return true;
+  if (failing.some((gate) => awaitsAgentProduct(run, stage, gate))) {
+    return true;
+  }
+  return failing.every((gate) =>
+    gate.type === "cooldown" && cooldownEnd(gate, run) !== null
+  );
+}
+
+/** Whether a failing gate waits on a product the agent records in this
+ * stage and has not recorded in this stage entry. */
+function awaitsAgentProduct(
+  run: RunRecord,
+  stage: StageSpec,
+  gate: GateSpec,
+): boolean {
+  const thisEntry = (ref: { stage: string; cycle: number } | undefined) =>
+    ref !== undefined && ref.stage === run.stage &&
+    ref.cycle === currentCycle(run);
+  const artifact = (name: string) =>
+    (stage.artifacts ?? []).some((a) => a.name === name);
+  const evidence = (name: string) =>
+    (stage.evidence ?? []).some((e) =>
+      e.name === name && e.recordedBy !== "person"
+    );
+  switch (gate.type) {
+    case "artifact-exists":
+    case "artifact-fresh":
+      return artifact(gate.config.artifact);
+    case "evidence-recorded":
+      return evidence(gate.config.name) &&
+        !thisEntry(run.products.evidence[gate.config.name]);
+    case "cooldown": {
+      const { afterEvidence, afterArtifact } = gate.config;
+      return afterEvidence !== undefined
+        ? evidence(afterEvidence) &&
+          !thisEntry(run.products.evidence[afterEvidence])
+        : afterArtifact !== undefined && artifact(afterArtifact) &&
+          run.products.artifacts[afterArtifact] === undefined;
+    }
+    default:
+      return false;
+  }
 }
 
 /**

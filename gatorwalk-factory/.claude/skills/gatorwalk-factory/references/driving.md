@@ -438,7 +438,9 @@ into two kinds:
 
 A manual exit with no gates, such as `recheck`, shows `ready` all the time. It
 is a way back that is there for the person. Its being ready never counts as a
-reason to stop, and never as a reason to take it.
+reason to stop, and never as a reason to take it. The same holds for a manual
+exit with gates, such as `complete`, while one of your exits still waits on a
+product you record in this stage.
 
 Then:
 
@@ -448,6 +450,9 @@ Then:
   ready: stop and ask which to take.
 - **None is yours, and a human-approval gate is what stands in the way**: stop
   and ask the person. See [Human stops](#human-stops).
+- **None is yours, a manual exit with gates is ready, and you have recorded what
+  your exits need** (their failures name products already recorded, such as a
+  failed merge): stop and ask the person which way to go.
 - **None is yours and no person is needed**: the stage's work is not done. Read
   the failures and do what they name.
 

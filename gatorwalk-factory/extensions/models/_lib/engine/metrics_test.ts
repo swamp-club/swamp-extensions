@@ -33,6 +33,8 @@ import {
   startWorkItem,
 } from "./work_item_ops.ts";
 import {
+  handoffDefinition,
+  handoffParsedDefinition,
   settableEnv,
   stopsDefinition,
   stopsParsedDefinition,
@@ -43,9 +45,9 @@ const MINUTE = 60_000;
 
 /** A work item on the stops factory definition, driven through the work-item
  * operations on a clock the test sets. */
-async function driven() {
+async function driven(definition = stopsDefinition()) {
   const swamp = fakeSwamp();
-  swamp.factory("team", stopsDefinition());
+  swamp.factory("team", definition);
   const env = settableEnv("2026-09-29T10:00:00.000Z");
   const failing = { metrics: false };
   const ctx = (): MethodContextLike => {
@@ -459,4 +461,53 @@ Deno.test("metrics: rebuild_metrics writes the record for an item that has none"
     storedMetrics(wi.swamp),
     computeMetrics(await runOf(wi.swamp), stopsParsedDefinition()),
   );
+});
+
+/** The handoff item into attest, its change built at 10:05. */
+async function attesting() {
+  const wi = await driven(handoffDefinition());
+  wi.at("10:05");
+  await wi.record("artifact", "change", { text: "the change" });
+  await wi.move("built");
+  return wi;
+}
+
+Deno.test("metrics: a manual exit is no wait while the agent works; waits held at once count once", async () => {
+  const wi = await attesting();
+  wi.at("10:10");
+  await wi.record("evidence", "attestation", { text: "att-1" });
+  wi.at("10:20");
+  await wi.decide("open-pr", "approve");
+  wi.at("10:21");
+  await wi.move("attested");
+  wi.at("10:30");
+  await wi.record("evidence", "merge", { status: "merged" });
+  wi.at("10:35");
+  await wi.move("merged");
+  const m = computeMetrics(await runOf(wi.swamp), handoffParsedDefinition());
+  assertEquals(m.status, "terminal");
+  // complete waited only while the person was asked about open-pr; never
+  // while the agent built the attestation or waited for the merge.
+  assertEquals(
+    m.eras[0].waits.map((w) => [w.stage, w.transition, w.from, w.endedBy]),
+    [
+      ["attest", "attested", "2026-09-29T10:10:00.000Z", "approved"],
+      ["attest", "complete", "2026-09-29T10:10:00.000Z", "cleared"],
+    ],
+  );
+  assertEquals(m.summary.waits, { count: 2, open: 0, timeMs: 10 * MINUTE });
+});
+
+Deno.test("metrics: a wait still open stays out of the time, beside a finished one it overlaps", async () => {
+  const wi = await attesting();
+  wi.at("10:10");
+  await wi.record("evidence", "attestation", { text: "att-1" });
+  wi.at("10:15");
+  await wi.decide("open-pr", "decline");
+  const m = computeMetrics(await runOf(wi.swamp), handoffParsedDefinition());
+  assertEquals(
+    m.eras[0].waits.map((w) => [w.transition, w.durationMs, w.endedBy]),
+    [["attested", 5 * MINUTE, "declined"], ["complete", null, null]],
+  );
+  assertEquals(m.summary.waits, { count: 2, open: 1, timeMs: 5 * MINUTE });
 });

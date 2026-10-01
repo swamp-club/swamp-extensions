@@ -965,7 +965,27 @@ change as it happens.
 An exit is **held by a person** when it is not a global transition, its cycle
 limit allows entry, every gate that is not a human approval passes, and either
 one of its human-approval gates is pending, or it is manual and has gates, all
-passing. A conditional approval whose `when` is false passes, so it is no stop.
+passing, and the agent has no way out of its own. A conditional approval whose
+`when` is false passes, so it is no stop.
+
+The agent has a **way out of its own** while a non-manual exit is ready without
+a pending approval, waits on a product the stage declares for the agent
+(`artifact-exists`, `artifact-fresh`, `evidence-recorded`, or a cooldown
+counting from one) that has not been recorded in this stage entry, or waits
+only on cooldowns that will lift. A gate that fails on a product already
+recorded (a `requireField` or `match` that does not hold, `findings-clear`,
+`findings-open`, `max-cycles`, `cel`) leaves a decision, not work: the agent
+has recorded what it records. So a manual `complete` whose gates pass from
+entry waits on nobody while the agent works toward the merge evidence its
+`merged` exit needs; once a failed merge is recorded, `complete` and `new-pr`
+wait on the person. A pending or declined approval is not the agent's way
+either, so a gated manual exit beside one waits too; the summary counts that
+time once (see "The metrics"). A product of another stage cannot be recorded
+here, and evidence `recordedBy: person` is not the agent's. A stage whose agent
+exits are gated only by `cel` over data not yet recorded has no way out the
+engine can see: pair the `cel` gate with an `evidence-recorded` or
+`artifact-exists` gate.
+
 Excluded, on purpose:
 
 - **A manual exit with no gates** (`recheck`, `revise` on stages other than
@@ -1000,7 +1020,7 @@ Per era, and summed over every era:
 | Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                            |
 | Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
 | Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                    |
-| Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. |
+| Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. The summary's time is the time covered by finished waits: exits that wait at once count once. |
 | Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
 | Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
 | Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it. |
@@ -2127,6 +2147,20 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: a manual exit waits on a person only once the agent has no way out (swamp-club #2874)
+
+**Decision.** A manual exit with gates, all passing, is held by a person only
+while the agent has no way out of its own (see "Why `awaiting` is journaled").
+The summary's wait time is the time covered by finished waits, so two exits
+waiting at once count once; each exit keeps its own row.
+
+**Why.** The dogfood run on #2711 counted `attest.complete` and
+`merge.complete` as waits from the moment their stages were entered, while the
+agent built the attestation and waited for CI, and summed a `revise` that
+overlapped a plan approval: 18m 57s of waits for 16m 09s a person was asked.
+Whether the agent still has work is read from the gates and the products
+recorded, not declared by the factory definition: the engine already has both.
 
 ### 2026-10-01: publish links the pull request on the Lab issue, as issue-lifecycle's link_pr does (swamp-club #2872)
 

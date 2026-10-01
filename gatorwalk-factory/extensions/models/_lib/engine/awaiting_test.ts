@@ -38,6 +38,7 @@ import {
   ALICE,
   BOB,
   expectNow,
+  handoffParsedDefinition,
   settableEnv,
   stopsParsedDefinition,
   stopsWithFeedbackDefinition,
@@ -399,4 +400,105 @@ Deno.test("awaiting: a conditional approval is a stop only while its when is tru
   assertEquals(await held(), ["careful", "broken"]);
   await record({ risky: false });
   assertEquals(await held(), []);
+});
+
+/** build -> attest on the handoff factory definition. */
+async function inAttest() {
+  const wi = await item(1, handoffParsedDefinition());
+  await wi.record("artifact", "change", { text: "the change" });
+  await wi.move("built");
+  return wi;
+}
+
+/** attest -> merge on the handoff factory definition. */
+async function inMerge() {
+  const wi = await inAttest();
+  await wi.record("evidence", "attestation", { text: "att-1" });
+  await wi.decide("open-pr", "approve");
+  await wi.move("attested");
+  return wi;
+}
+
+Deno.test("awaiting: a manual exit is no stop while the agent has its own way out still to record", async () => {
+  const wi = await inAttest();
+  await wi.dispatch();
+  assertEquals(awaitings(await wi.run()), []);
+});
+
+Deno.test("awaiting: a manual exit beside an exit waiting on an approval waits too", async () => {
+  const wi = await inAttest();
+  await wi.record("evidence", "attestation", { text: "att-1" });
+  assertEquals(
+    awaitings(await wi.run()).map((e) => names(e.exits)),
+    [["attested", "complete"]],
+  );
+  // The approval gives the agent its way out: complete waits no more.
+  await wi.decide("open-pr", "approve");
+  assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), []);
+});
+
+Deno.test("awaiting: after a decline the person's manual exits wait, not the agent", async () => {
+  const wi = await inAttest();
+  await wi.record("evidence", "attestation", { text: "att-1" });
+  await wi.decide("open-pr", "decline");
+  assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), ["complete"]);
+});
+
+Deno.test("awaiting: an agent's way out waiting only on a cooldown keeps a manual exit from waiting", async () => {
+  const wi = await inMerge();
+  assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), []);
+  await wi.record("evidence", "merge", { status: "merged" });
+  assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), []);
+});
+
+Deno.test("awaiting: once the agent's product closes its way out, the manual exits wait", async () => {
+  const wi = await inMerge();
+  await wi.record("evidence", "merge", { status: "failed" });
+  assertEquals(
+    names(awaitings(await wi.run()).at(-1)!.exits),
+    ["new-pr", "complete"],
+  );
+});
+
+Deno.test("awaiting: an exit gated on another stage's product is no way out for the agent", async () => {
+  const parsed = parseDefinition({
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "a",
+        initial: true,
+        evidence: [{ name: "x", schema: { type: "object" } }],
+        transitions: [{
+          name: "next",
+          to: "b",
+          gates: [{ type: "evidence-recorded", config: { name: "x" } }],
+        }],
+      },
+      {
+        id: "b",
+        transitions: [
+          {
+            name: "onward",
+            to: "done",
+            gates: [{ type: "evidence-recorded", config: { name: "x" } }],
+          },
+          {
+            name: "complete",
+            to: "done",
+            manual: true,
+            gates: [{
+              type: "cel",
+              config: { expr: '"x" in evidence', message: "needs x" },
+            }],
+          },
+        ],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+  const wi = await item(1, parsed.value);
+  await wi.record("evidence", "x", {});
+  await wi.move("next");
+  assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), ["complete"]);
 });
