@@ -255,6 +255,38 @@ function parseAttestation(
 }
 
 /**
+ * The swamp-club user of swamp's stored login, on the server the
+ * credentials resolve to: whom assign and publish assign by default. `hint`
+ * leads the advice when there is none.
+ */
+async function storedLoginUser(
+  credentials: () => Promise<LabCredentials>,
+  sources: CredentialSources,
+  hint = "",
+): Promise<string> {
+  const { url } = await credentials();
+  const login = await sources.readAuthFile();
+  if (login?.username === undefined) {
+    throw new TrackerError(
+      "invalid",
+      SWAMP_CLUB,
+      `no username: ${hint}run \`swamp auth login\` so the stored login ` +
+        "names you",
+    );
+  }
+  // A user of one server is not a user of another.
+  if (!sameServer(url, login.serverUrl)) {
+    throw new TrackerError(
+      "invalid",
+      SWAMP_CLUB,
+      `no username: the stored login is for ${login.serverUrl}, not ` +
+        `${url}` + (hint === "" ? "" : "; pass username"),
+    );
+  }
+  return login.username;
+}
+
+/**
  * The adapter's methods: the shared create, fetch_issue, claim, comment,
  * set_status and publish, plus assign and post_attestation. Tests pass their own
  * credential sources.
@@ -277,6 +309,11 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
     adapter: (ctx) => adapterOf(argsOf(ctx)),
     statuses: (globalArgs) => labStatuses(argumentsOf(globalArgs).statuses),
     beforeClaim: refuseIssueLifecycle,
+    assignee: (ctx) =>
+      storedLoginUser(
+        () => resolveLabCredentials(argumentsOf(argsOf(ctx)), sources),
+        sources,
+      ),
     now,
   };
   const deliver = deliveries(trackerOptions, now);
@@ -401,29 +438,8 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
         let resolved: Promise<LabCredentials> | undefined;
         const credentials = () =>
           resolved ??= resolveLabCredentials(argumentsOf(argsOf(ctx)), sources);
-        let username = args.username;
-        if (username === undefined) {
-          const { url } = await credentials();
-          const login = await sources.readAuthFile();
-          if (login?.username === undefined) {
-            throw new TrackerError(
-              "invalid",
-              SWAMP_CLUB,
-              "no username: pass username, or run `swamp auth login` so the " +
-                "stored login names you",
-            );
-          }
-          // A user of one server is not a user of another.
-          if (!sameServer(url, login.serverUrl)) {
-            throw new TrackerError(
-              "invalid",
-              SWAMP_CLUB,
-              `no username: the stored login is for ${login.serverUrl}, not ` +
-                `${url}; pass username`,
-            );
-          }
-          username = login.username;
-        }
+        const username = args.username ??
+          await storedLoginUser(credentials, sources, "pass username, or ");
         const adapter = adapterOf(argsOf(ctx), credentials);
         const result = await adapter.assign(args.issue, username);
         if (result.changed) {
@@ -515,7 +531,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.
   type: "@swamp/gatorwalk-factory/swamp-club",
-  version: "2026.09.30.2",
+  version: "2026.10.01.1",
   globalArguments: SwampClubArgumentsSchema,
   resources: {
     ...trackerResources,

@@ -50,6 +50,7 @@ import {
   ticketView,
 } from "./ticket_view.ts";
 import {
+  type Assigner,
   type DeliveryKey,
   type LifecycleEntry,
   RELATION_TYPES,
@@ -85,6 +86,7 @@ export const DELIVERY_ACTIONS = [
   "lifecycle_entry",
   "relate",
   "unrelate",
+  "assign",
 ] as const;
 
 export const DeliverySchema = z.object({
@@ -98,8 +100,8 @@ export const DeliverySchema = z.object({
    * refused, not skipped.
    */
   request: z.string(),
-  /** What the tracker returned: a comment's or entry's id, the status, or
-   * the type. */
+  /** What the tracker returned: a comment's or entry's id, the status, the
+   * type or the assignment; for an assign publish skipped, why. */
   result: z.record(z.string(), z.unknown()),
   at: z.string(),
 });
@@ -139,6 +141,8 @@ export const BuiltinIssueSchema = z.object({
   /** Both ends keep the relation; the subject's (outgoing) side is written
    * first and removed last (builtin.ts). */
   relations: z.array(TrackerRelationSchema).default([]),
+  /** The users assigned; absent on a record written before assignees. */
+  assignees: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -302,6 +306,12 @@ export interface TrackerModelOptions {
     globalArgs: Record<string, unknown>,
     issue: TrackerIssue,
   ): ClaimNaming;
+  /**
+   * The tracker's user for swamp's stored login: whom publish assigns when
+   * a work item starts. Absent where no login maps to a user yet (Linear),
+   * and then publish never assigns. Throws when there is no one to assign.
+   */
+  assignee?(ctx: TrackerContext): Promise<string>;
   now?: () => Date;
 }
 
@@ -311,6 +321,8 @@ export interface Write {
   key: DeliveryKey | null;
   /** Set by publish: its own ledger records, and see priorDelivery. */
   replay: boolean;
+  /** Set for a second write of one action on one journal version. */
+  suffix?: string;
 }
 
 export interface Delivered {
@@ -443,11 +455,12 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
         `recorded '${write.entry.step}' on ${write.issue} (entry ${
           String(r.id)
         })`,
+      write.suffix,
     );
 
   const comment = async (
     ctx: TrackerContext,
-    write: Write & { body: string; suffix?: string },
+    write: Write & { body: string },
   ): Promise<Delivered> => {
     const { key } = write;
     const name = key === null ? null : deliveryName(
@@ -609,7 +622,80 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     );
   };
 
-  return { comment, setStatus, setType, entry, relation };
+  /**
+   * publish's assign when a work item starts, through the assign capability.
+   * Best effort and never retried, as issue-lifecycle's start assigns: any
+   * failure, finding the user included, is a warning and is recorded as
+   * skipped, so a re-run tries nothing. A ledger record already there is
+   * returned as it is, so the caller can still act on what it says.
+   */
+  const assign = async (
+    ctx: TrackerContext,
+    write: { issue: string; key: DeliveryKey },
+    assigner: Assigner,
+    userOf: () => Promise<string>,
+  ): Promise<Delivered & { result: Record<string, unknown> }> => {
+    const name = deliveryName("assign", write.key, "publish");
+    const raw = await resources(ctx).read(name);
+    if (raw !== null) {
+      const prior = DeliverySchema.parse(raw);
+      if (prior.issue !== write.issue) {
+        throw new Error(
+          `delivery ${name} was made to ${prior.issue}, not ${write.issue}; ` +
+            "a delivery key names one ticket",
+        );
+      }
+      ctx.logger.info("{summary}", {
+        summary: `already delivered (${name}); wrote nothing`,
+      });
+      return { handles: [], wrote: false, result: prior.result };
+    }
+    let user: string | null = null;
+    let result: Record<string, unknown>;
+    try {
+      user = await userOf();
+      result = { ...await assigner.assign(write.issue, user) };
+    } catch (error) {
+      const detail = error instanceof TrackerError
+        ? error.detail
+        : error instanceof Error
+        ? error.message
+        : String(error);
+      result = {
+        skipped: error instanceof TrackerError ? error.kind : "error",
+        detail,
+      };
+      ctx.logger.info("{warning}", {
+        warning: `did not assign ${write.issue}` +
+          (user === null ? "" : ` to ${user}`) +
+          `, and publish will not try again: ${detail}; assign it by hand`,
+      });
+    }
+    const handle = await recordDelivery(ctx, name, {
+      action: "assign",
+      issue: write.issue,
+      ...write.key,
+      request: await digestOf({ user }),
+      result,
+      at: now().toISOString(),
+    });
+    if (result.skipped === undefined) {
+      // Say who the tracker took off (the Lab drops those no longer on its
+      // team), as the Lab's own assign method does.
+      const dropped = Array.isArray(result.dropped) ? result.dropped : [];
+      ctx.logger.info("{summary}", {
+        summary: (result.changed === true
+          ? `assigned ${write.issue} to ${user}`
+          : `${write.issue} is already assigned to ${user}; wrote nothing`) +
+          (dropped.length === 0
+            ? ""
+            : `; the tracker dropped ${dropped.join(", ")}`),
+      });
+    }
+    return { handles: [handle], wrote: result.changed === true, result };
+  };
+
+  return { comment, setStatus, setType, entry, relation, assign };
 }
 
 const publishArguments = z.object({
@@ -1129,6 +1215,12 @@ export function trackerMethods(options: TrackerModelOptions) {
         const entryMode = adapter.capabilities.history !== undefined &&
           declaresEntries(definition);
         const handles: unknown[] = [];
+        // Assigning when the work item starts: where the tracker can, and a
+        // login maps to its user. Once, on the started event's version.
+        const assigner = adapter.capabilities.assign;
+        const assignee = options.assignee;
+        const startedVersion =
+          run.journal.findIndex((e) => e.type === "started") + 1;
         const ticketStatus = new Map<string, string>();
         const statusNameOf = async (
           issue: string,
@@ -1173,6 +1265,51 @@ export function trackerMethods(options: TrackerModelOptions) {
           const moveTo = moveOf(segment, lastStatus);
           if (first && from === segment.through && moveTo === null) continue;
           let posted = 0;
+          // Only the publish that delivers the started event assigns: a
+          // work item first published before there was assigning never is.
+          let assignPending = startedVersion > from &&
+            startedVersion <= segment.through;
+          // After the started event's own write, whether or not it had one,
+          // and before any later event's: issue-lifecycle's order.
+          const assignBefore = async (journalVersion: number) => {
+            if (
+              !assignPending || journalVersion <= startedVersion ||
+              assigner === undefined || assignee === undefined
+            ) return;
+            assignPending = false;
+            const key = { workItem, journalVersion: startedVersion };
+            const done = await deliver.assign(
+              ctx,
+              { issue, key },
+              assigner,
+              () => assignee(ctx),
+            );
+            handles.push(...done.handles);
+            // From the ledger, so a re-run after this entry failed still
+            // writes it; its own key keeps it to once.
+            const { result } = done;
+            if (!entryMode || result.changed !== true) return;
+            const user = String(result.user);
+            const entry = await deliver.entry(ctx, {
+              issue,
+              key,
+              replay: true,
+              suffix: "assigned",
+              entry: {
+                step: "assigned",
+                targetStatus: String(result.status),
+                summary: `Assigned to ${user}`,
+                emoji: "\u{1F464}",
+                payload: {
+                  username: user,
+                  ...(result.details as Record<string, unknown> | undefined),
+                },
+                isVerbose: false,
+              },
+            });
+            handles.push(...entry.handles);
+            if (entry.wrote) posted++;
+          };
           const note = async (planned: PlannedComment, suffix?: string) => {
             const done = await deliver.comment(ctx, {
               issue,
@@ -1194,6 +1331,7 @@ export function trackerMethods(options: TrackerModelOptions) {
               ? projectEntries(run, definition, from).filter(inSegment)
               : []
           ) {
+            await assignBefore(event.journalVersion);
             const payload = event.product === undefined
               ? {}
               : await readRecordedPayload(ctx, workItem, event.product);
@@ -1232,8 +1370,10 @@ export function trackerMethods(options: TrackerModelOptions) {
               ? []
               : ticketView(run, definition, from).comments.filter(inSegment)
           ) {
+            await assignBefore(planned.journalVersion);
             await note(planned);
           }
+          await assignBefore(Number.POSITIVE_INFINITY);
           // The retarget is the segment's last event. Its notes are comments
           // in entry mode too: no entry answers a retarget.
           if (

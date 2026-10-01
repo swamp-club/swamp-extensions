@@ -82,6 +82,14 @@ export interface ConformanceFixture {
     statusName: string;
     types: [string, string];
   };
+  /**
+   * For an adapter with the optional assign capability: a user the tracker
+   * accepts, and the ticket's assignees as the fake holds them.
+   */
+  assign?: {
+    user: string;
+    assignees(): string[];
+  };
 }
 
 async function rejectsWith(
@@ -215,6 +223,38 @@ export async function assertTrackerConformance(
       "not_found",
       () => history.postEntry(f.missing, entry),
     );
+  }
+
+  // Assign, where the adapter has it: the user is added once, and the same
+  // assign again writes nothing. Where it has not, asking is refused.
+  const assigner = adapter.capabilities.assign;
+  if ((assigner === undefined) !== (f.assign === undefined)) {
+    throw new Error("fixture: assign needs both the capability and a user");
+  }
+  if (assigner === undefined) {
+    const refused = await rejectsWith(
+      "invalid",
+      // deno-lint-ignore require-await
+      async () => requireCapability(adapter, "assign"),
+    );
+    assert(refused.message.includes("assign"), refused.message);
+  }
+  if (assigner !== undefined && f.assign !== undefined) {
+    const { user } = f.assign;
+    const added = await assigner.assign(f.issue.id, user);
+    assertEquals([added.changed, added.user], [true, user]);
+    const again = await assigner.assign(f.issue.id, user);
+    assertEquals([again.changed, again.dropped], [false, []]);
+    assertEquals(
+      f.assign.assignees().filter((a) => a === user),
+      [user],
+      "assigned once",
+    );
+    const badAssign = badAuth?.capabilities.assign;
+    if (badAssign !== undefined) {
+      await rejectsWith("auth", () => badAssign.assign(f.issue.id, user));
+    }
+    await rejectsWith("not_found", () => assigner.assign(f.missing, user));
   }
 
   // The ledger, through the shared methods: one delivery key, one write.

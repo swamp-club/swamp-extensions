@@ -887,8 +887,16 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
     const entries = Object.keys(await repo.versions("board")).filter((n) =>
       n.startsWith(`entry-${id}-`)
     );
-    // work_started, noted and review_started.
-    assertEquals(entries.length, 3, entries.join(", "));
+    // work_started, noted and review_started, and assigned after the first
+    // when the host has a stored login: publish assigns the ticket to its
+    // user, from whichever server (the suite runs on the caller's HOME).
+    const assignees = ticket.assignees as string[] | undefined;
+    if (assignees !== undefined) assertEquals(assignees.length, 1);
+    assertEquals(
+      entries.length,
+      assignees === undefined ? 3 : 4,
+      entries.join(", "),
+    );
 
     const again = await board("publish", { workItem: key });
     assert(again.output.includes("is up to date"), again.output);

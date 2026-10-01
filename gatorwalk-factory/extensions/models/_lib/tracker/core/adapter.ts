@@ -126,6 +126,34 @@ export interface LifecycleEntryWriter {
   ): Promise<{ changed: boolean; type: string }>;
 }
 
+/** What an assign did. */
+export interface Assignment {
+  /** False when the user was already assigned: nothing was written. */
+  changed: boolean;
+  /** The tracker's user, as assign was given it. */
+  user: string;
+  /** The ticket's status name when it was read. */
+  status: string;
+  /**
+   * Assignees the tracker took off the ticket to make the write (the Lab
+   * drops those no longer on its team). Empty when none were.
+   */
+  dropped: string[];
+  /** What only this tracker reports about the assignment (the Lab's
+   * userId). */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * The assign capability: a tracker whose tickets have assignees. publish
+ * assigns through it when a work item starts.
+ */
+export interface Assigner {
+  /** Add the tracker's user to the ticket's assignees, keeping those
+   * already there; already assigned writes nothing. */
+  assign(issueId: string, user: string): Promise<Assignment>;
+}
+
 /** A new ticket, as create takes it. */
 export interface IssueDraft {
   title: string;
@@ -151,6 +179,8 @@ export type IssueOrigin = typeof ISSUE_ORIGINS[number];
 export interface TrackerCapabilities {
   /** Lifecycle entries and the ticket type, where the tracker has them. */
   readonly history?: LifecycleEntryWriter;
+  /** Ticket assignees, where the tracker has them. */
+  readonly assign?: Assigner;
 }
 export type CapabilityName = keyof TrackerCapabilities;
 

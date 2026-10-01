@@ -16,6 +16,8 @@
 
 import { join } from "@std/path";
 import {
+  type Assigner,
+  type Assignment,
   type IssueDraft,
   type LifecycleEntry,
   type LifecycleEntryWriter,
@@ -317,7 +319,10 @@ export interface PostedAttestation {
 
 /** The tracker contract plus what only the Lab has. */
 export interface SwampClubAdapter extends TrackerAdapter {
-  readonly capabilities: { readonly history: LifecycleEntryWriter };
+  readonly capabilities: {
+    readonly history: LifecycleEntryWriter;
+    readonly assign: Assigner;
+  };
   /**
    * Whether the issue's author is on swamp-club's team, from a fresh read
    * of the issue and the team roster. Fail-closed: a read that fails is an
@@ -747,10 +752,25 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
     };
   }
 
-  return {
+  const adapter: SwampClubAdapter = {
     tracker: SWAMP_CLUB,
     origin: "snapshot",
-    capabilities: { history },
+    capabilities: {
+      history,
+      // The Lab's own assign, in the contract's terms.
+      assign: {
+        async assign(issueId: string, user: string): Promise<Assignment> {
+          const done = await adapter.assign(issueId, user);
+          return {
+            changed: done.changed,
+            user: done.username,
+            status: done.status,
+            dropped: done.dropped.map((a) => a.username ?? a.userId),
+            details: { userId: done.userId },
+          };
+        },
+      },
+    },
 
     async create(draft: IssueDraft): Promise<TrackerIssue> {
       if (!(LAB_TYPES as readonly string[]).includes(draft.type)) {
@@ -968,4 +988,5 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
       };
     },
   };
+  return adapter;
 }

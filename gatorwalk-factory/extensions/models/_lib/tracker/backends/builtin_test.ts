@@ -82,7 +82,7 @@ async function failsWith(
 }
 
 Deno.test("builtin: meets the tracker adapter contract", async () => {
-  const { store, count } = memoryStore();
+  const { store, records, count } = memoryStore();
   const adapter = adapterWith(store);
   const issue = await adapter.create({
     title: "Board shortcuts",
@@ -105,7 +105,45 @@ Deno.test("builtin: meets the tracker adapter contract", async () => {
       statusName: "open",
       types: ["bug", "security"],
     },
+    assign: {
+      user: "seth",
+      assignees: () =>
+        (records.get(`issue-${issue.id}`)?.versions.at(-1)?.assignees ??
+          []) as string[],
+    },
   });
+});
+
+Deno.test("builtin: assign adds a swamp user once, reports it, and reads a ticket written before assignees", async () => {
+  const { store, records } = memoryStore();
+  const adapter = adapterWith(store);
+  const issue = await adapter.create({
+    title: "Board shortcuts",
+    body: "Keys for the board.",
+    type: "feature",
+  });
+  // A record from before assignees has no field: no one is assigned.
+  const name = `issue-${issue.id}`;
+  const old = records.get(name)!.versions.at(-1)!;
+  delete old.assignees;
+  assertEquals((await adapter.fetchIssue(issue.id)).details?.assignees, []);
+  const assigner = adapter.capabilities.assign!;
+  assertEquals(await assigner.assign(issue.id, "seth"), {
+    changed: true,
+    user: "seth",
+    status: "open",
+    dropped: [],
+  });
+  await assigner.assign(issue.id, "skunk-ape");
+  assertEquals(
+    (await assigner.assign(issue.id, "seth")).changed,
+    false,
+  );
+  assertEquals((await adapter.fetchIssue(issue.id)).details?.assignees, [
+    "seth",
+    "skunk-ape",
+  ]);
+  await failsWith("invalid", () => assigner.assign(issue.id, " "), "no user");
 });
 
 Deno.test("builtin: create files a lowercase <prefix>-<slug>-<rnd> ticket in the first status", async () => {

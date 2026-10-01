@@ -15,10 +15,14 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
-import { BuiltinArgumentsSchema, model } from "./builtin.ts";
+import { BuiltinArgumentsSchema, builtinMethods, model } from "./builtin.ts";
 import { BUILTIN_TYPE } from "../_lib/tracker/backends/builtin.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/tracker_testing.ts";
+import {
+  TRACKED_ITEM,
+  trackedItem,
+} from "../_lib/tracker/core/test_support.ts";
 
 const INSTANCE = "tracker";
 
@@ -157,4 +161,47 @@ Deno.test("builtin model: the prefix is required and lowercase, and the lists ar
 Deno.test("builtin model: comments and entries are kept by version count, never by age", () => {
   assertEquals(model.resources.comment.garbageCollection, 1);
   assertEquals(model.resources.entry.garbageCollection, 1);
+});
+
+Deno.test("builtin model: publish assigns the ticket to the stored login's user when the work item starts", async () => {
+  for (const username of ["seth", undefined]) {
+    const swamp = withArgs({ prefix: "cue" });
+    const methods = builtinMethods({
+      sources: {
+        readAuthFile: () =>
+          Promise.resolve({
+            serverUrl: "https://elsewhere.example",
+            apiKey: "k",
+            username,
+          }),
+      },
+    });
+    const run = async (
+      name: "create" | "publish",
+      raw: Record<string, unknown>,
+    ) => {
+      const method = methods[name];
+      const execute = method.execute as (
+        args: unknown,
+        ctx: ReturnType<FakeSwamp["context"]>,
+      ) => Promise<unknown>;
+      await execute(method.arguments.parse(raw), swamp.context(INSTANCE));
+    };
+    await run("create", { title: "x", body: "y", type: "bug" });
+    const id = createdId(swamp);
+    await trackedItem(swamp, { builtin: id }, undefined, { kind: "builtin" });
+    await run("publish", { workItem: TRACKED_ITEM });
+    const ticket = record(swamp, `issue-${id}`)?.at(-1);
+    // Any server's login: a built-in ticket's assignees are swamp users.
+    assertEquals(
+      ticket?.assignees,
+      username === undefined ? undefined : [
+        username,
+      ],
+    );
+    const warned = swamp.logs.some((l) =>
+      String(l.props?.warning ?? "").includes("no username")
+    );
+    assertEquals(warned, username === undefined);
+  }
 });

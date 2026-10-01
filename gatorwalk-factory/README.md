@@ -533,7 +533,9 @@ ticket itself. A new ticket starts in the first status, and a ticket may move
 between any two statuses; `statuses` keys are also the status names, so a
 factory definition's status keys name them directly. It keeps lifecycle
 entries and the ticket type, like the Lab, so `publish` writes entries for a
-factory definition that declares them, and `set_type` sets a type by hand.
+factory definition that declares them, and `set_type` sets a type by hand. A
+ticket has assignees, swamp usernames: `publish` assigns your stored login's
+user when it delivers the work item's start.
 `prefix`, `statuses` and `types` are the instance's own settings: a factory
 definition names only the kind of tracker (`builtin` unless it says
 otherwise), and a factory names the instance with `--global-arg
@@ -625,6 +627,10 @@ swamp model method run lab team_member --input issue=2631
 swamp model method run lab thank_author --input issue=2631
 ```
 
+`publish` assigns the issue to your stored login's user when it delivers the
+work item's start, so you need not run `assign`; it tries once, and if it
+cannot (no login, a login for another server) it warns and goes on. `assign`
+is for assigning someone else, or by hand.
 `assign` without `username` assigns your stored login's user, and only on the
 server that login is for. It drops, and names, any assignee no longer on
 swamp-club's team, since swamp-club refuses the whole list otherwise. `comment`

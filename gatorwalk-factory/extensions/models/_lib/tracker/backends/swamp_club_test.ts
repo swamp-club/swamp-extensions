@@ -98,6 +98,13 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
         statusName: "open",
         types: ["bug", "platform"],
       },
+      assign: {
+        user: "seth",
+        assignees: () =>
+          fake.issues.find((i) => i.number === LAB_ISSUE)?.assignees.map((a) =>
+            a.username
+          ) ?? [],
+      },
     });
   });
 });

@@ -1369,6 +1369,20 @@ second time, bad credentials are `auth`) and skips it otherwise. A snapshot may
 also carry the tracker's own `details` (the Lab's body, type, author and
 ripples).
 
+**The assign capability.** A tracker whose tickets have assignees offers
+`capabilities.assign` (`assign`): it adds the tracker's user to the ticket's
+assignees, keeping those already there, and an already-assigned user writes
+nothing. The Lab and the built-in tracker have it; Linear lacks it until its
+users can be mapped. Whom to assign is a separate mapping, from swamp's stored
+login to the tracker's user, which each tracker model supplies as `assignee`
+in its options: the built-in tracker takes the login's username, from
+whichever server, since its assignees are swamp users; the Lab takes it only
+when the login is for the server it writes to. `publish` assigns only when a
+tracker has both (see "The publisher"). The conformance suite checks the
+capability for an adapter that declares it (the user is added once, bad
+credentials are `auth`, a missing ticket is `not_found`) and that one without
+it refuses.
+
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
 and are matched by exact name, then resolved to an id at call time). An unmapped
@@ -1525,6 +1539,26 @@ published as entries instead, below):
    was; the re-run replays from there and the ledger turns every write that
    landed into a no-op. A publish with nothing new writes nothing.
 
+**Assigning when work starts.** On the work item's `started` event, after
+that event's own comment or entry and before any later event's, `publish`
+assigns the ticket through the assign capability to the user the stored login
+maps to, under its own ledger key (action `assign`, the `started` event's
+journal version). It is best effort and never retried, as issue-lifecycle's
+`start` assigns: any failure, finding the user included (no stored login, a
+login for another server, a user not on the Lab's team, a tracker that is
+down), is logged as a warning and recorded in the ledger as skipped, so a
+re-run tries nothing and the replay goes on. Assigning a ticket is a
+convenience, not a lifecycle fact, and a person can assign it by hand; a
+publish that stalled on it would hold back every later write. In entry mode,
+when the assign added the user, issue-lifecycle's `assigned` entry follows,
+labelled with the ticket's status, under the `started` event's entry key with
+an `-assigned` suffix. It is driven from the assign's ledger record, so a
+re-run after the entry failed writes it without assigning again. Only the
+publish that delivers the `started` event assigns: a work item first published
+before `publish` assigned is never assigned by a later one, and a retarget's
+new ticket is not assigned. A reset is not a start and assigns nothing. A
+tracker without the capability, or without a login mapping, is never asked.
+
 **Entries instead of comments.** A stage's `tracker.entries` says which of
 its journal events become structured entries in the ticket's history: entering
 the stage (or starting in it), a product it declares being recorded, or one of
@@ -1651,9 +1685,13 @@ to it:
   team, or nothing for a team member. A failed lookup posts nothing; `force`
   skips only the roster check. A delivery key makes the ripple idempotent.
   `assign` records issue-lifecycle's `assigned` entry when it adds the user,
-  best effort as there. The history capability posts lifecycle entries (the
-  server's step, emoji and summary limits checked before the call, a summary
-  over 2000 characters cut as issue-lifecycle cuts it) and sets the type.
+  best effort as there. The same assign is the adapter's assign capability,
+  through which `publish` assigns the stored login's user when a work item
+  starts; the method stays for assigning someone else, or a work item
+  published before `publish` assigned. The history capability posts lifecycle
+  entries (the server's step, emoji and summary limits checked before the
+  call, a summary over 2000 characters cut as issue-lifecycle cuts it) and sets
+  the type.
   `fetch_issue` records the body, type, author and ripples in `details`.
   `post_attestation` posts a verification attestation that was built elsewhere
   (`deno task build-attestation`); the adapter only checks that `subject.commit`
@@ -1724,6 +1762,10 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
   starts in the first; a ticket may move between any two, since the factory
   decides the order, not the tracker. An entry must name a declared status.
   `types` defaults to `bug`, `feature`, `security`.
+- **Assignees.** A ticket keeps `assignees`, swamp usernames, so the tracker
+  has the assign capability; `publish` adds the stored login's username when a
+  work item starts. A record written before assignees has no field and reads
+  as no one assigned.
 - **Claim.** A ticket's first work item takes the ticket's id as its key, when
   no definition has that name yet; otherwise, and for every later work item on
   the ticket, the key is `<prefix>-<slug>-<suffix>`.
@@ -1957,6 +1999,24 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-10-01: publish assigns the ticket when work starts (swamp-club #2801)
+
+**Decided.** Assigning is an optional tracker capability, `assign`, which the
+built-in tracker and the Lab have and Linear lacks. `publish` assigns through
+it on the work item's `started` event, to the user swamp's stored login maps
+to (each tracker model's `assignee`: the login's username for the built-in
+tracker, and for the Lab when the login is for its server), keyed in the
+delivery ledger. There is no opt-in: a tracker that can assign does. A failure
+warns and is never retried. In entry mode issue-lifecycle's `assigned` entry
+follows the `started` event's entry. The Lab adapter's `assign` method stays.
+
+**Why.** issue-lifecycle's `start` assigns, and a driver following gatorwalk's
+skill never ran the separate `assign`, so its Lab issues stayed unassigned
+(#2771). The stored login, not the start event's actor: a local run records no
+principal, and a principal is a swamp identity, not a tracker's user. Never
+retried, because assigning is a convenience a person can do by hand, and a
+retry on every publish would warn forever for a login that cannot assign.
 
 ### 2026-09-30: no `--log`, and every write prints the status that follows it (swamp-club #2780)
 

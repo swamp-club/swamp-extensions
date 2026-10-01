@@ -26,6 +26,10 @@ import {
   DEFAULT_TYPES,
   ENTRY_SPEC,
 } from "../_lib/tracker/backends/builtin.ts";
+import {
+  type CredentialSources,
+  DEFAULT_SOURCES,
+} from "../_lib/tracker/backends/swamp_club.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import {
   deliveries,
@@ -118,12 +122,15 @@ const setTypeArguments = z.object({
 });
 
 export interface BuiltinMethodOptions {
+  /** Where swamp's stored login, whom publish assigns, is read from. */
+  sources?: Pick<CredentialSources, "readAuthFile">;
   now?: () => Date;
 }
 
 /** The shared tracker methods over the built-in tracker, plus set_type. */
 export function builtinMethods(options: BuiltinMethodOptions = {}) {
   const now = options.now ?? (() => new Date());
+  const sources = options.sources ?? DEFAULT_SOURCES;
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
   const trackerOptions: TrackerModelOptions = {
     tracker: BUILTIN,
@@ -157,6 +164,17 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
       lead: prefixOf(globalArgs),
       first: issue.id,
     }),
+    // A built-in ticket's assignees are swamp users: the stored login's,
+    // whichever server it is for.
+    assignee: async () => {
+      const username = (await sources.readAuthFile())?.username;
+      if (username === undefined) {
+        invalid(
+          "no username: run `swamp auth login` so the stored login names you",
+        );
+      }
+      return username;
+    },
     now,
   };
   const deliver = deliveries(trackerOptions, now);
@@ -187,7 +205,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/gatorwalk-factory/tracker",
-  version: "2026.09.30.3",
+  version: "2026.10.01.1",
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,

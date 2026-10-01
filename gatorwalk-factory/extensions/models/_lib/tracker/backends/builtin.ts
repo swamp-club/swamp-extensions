@@ -17,6 +17,8 @@
 import { z } from "npm:zod@4.3.6";
 import { generateKey } from "../../engine/tracker.ts";
 import {
+  type Assigner,
+  type Assignment,
   type IssueDraft,
   type LifecycleEntry,
   type LifecycleEntryWriter,
@@ -48,7 +50,8 @@ import {
 // counter, so several people can file tickets without one place minting
 // numbers. Statuses and types are the instance's own lists, and a status
 // may move in any direction. It keeps lifecycle entries and the ticket type,
-// so it has the history capability. A relation is kept on both tickets'
+// so it has the history capability, and assignees (swamp usernames), so it
+// has the assign capability. A relation is kept on both tickets'
 // records, the subject's side written first and removed last; a re-run after
 // a crash between the two finishes the job, checking the rules again first.
 // It never makes a network call.
@@ -156,7 +159,11 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
       display: issue.display,
       title: issue.title,
       status: issue.status,
-      details: { body: issue.body, type: issue.type },
+      details: {
+        body: issue.body,
+        type: issue.type,
+        assignees: issue.assignees ?? [],
+      },
       relations: issue.relations,
     };
   }
@@ -256,10 +263,28 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
     },
   };
 
+  const assign: Assigner = {
+    async assign(issueId: string, user: string): Promise<Assignment> {
+      if (user.trim() === "") return fail("invalid", "no user to assign");
+      const issue = await read(issueId);
+      const assignees = issue.assignees ?? [];
+      const status = issue.status.name;
+      if (assignees.includes(user)) {
+        return { changed: false, user, status, dropped: [] };
+      }
+      await write({
+        ...issue,
+        assignees: [...assignees, user],
+        updatedAt: now(),
+      });
+      return { changed: true, user, status, dropped: [] };
+    },
+  };
+
   return {
     tracker: BUILTIN,
     origin: "builtin",
-    capabilities: { history },
+    capabilities: { history, assign },
 
     async create(draft: IssueDraft): Promise<TrackerIssue> {
       checkType(draft.type);

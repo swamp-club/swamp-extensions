@@ -581,8 +581,11 @@ a person run `status` and make sure it no longer says so. If it says
 moves the ticket when the stage's status key changes. When the factory
 definition declares tracker entries and the tracker keeps them (the Lab), it
 writes those lifecycle entries instead of comments, and sets the ticket type an
-entry names. It is the only thing that writes the ticket's status and type:
-never call `set_status` or `set_type` for a work item yourself. Running it again
+entry names. The publish that delivers the work item's start also assigns the
+ticket to the person logged in to swamp (the built-in tracker and the Lab), so
+there is no separate assign step; if it cannot, it warns once, and you tell the
+person. It is the only thing that writes the ticket's status and type: never
+call `set_status` or `set_type` for a work item yourself. Running it again
 delivers only what is new. A failed publish never blocks the work item, but the
 ticket falls behind until it succeeds, and on the Lab that ticket is the audit
 trail: after a failure, run it again before moving on. An entry the tracker

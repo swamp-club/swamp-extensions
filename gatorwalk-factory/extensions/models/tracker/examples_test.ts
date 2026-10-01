@@ -261,3 +261,57 @@ Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab
     await fake.close();
   }
 });
+
+Deno.test("swamp-club-swamp-extensions: a work item started and published once is assigned, triage_started then assigned, with no assign call", async () => {
+  const raw = parseYaml(
+    await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
+  ) as Record<string, unknown>;
+  const fake = swampClubFake();
+  try {
+    const swamp = fakeSwamp();
+    swamp.globalArgs.set("lab", { apiKey: ADMIN_KEY, url: fake.url });
+    await trackedItem(
+      swamp,
+      { "swamp-club": String(LAB_ISSUE) },
+      raw,
+      { tracker: "lab" },
+    );
+    const methods = swampClubMethods({
+      sources: {
+        env: () => undefined,
+        readAuthFile: () =>
+          Promise.resolve({
+            serverUrl: fake.url,
+            apiKey: "swamp_other",
+            username: "seth",
+          }),
+      },
+    });
+    const publish = () =>
+      (methods.publish.execute as (
+        args: unknown,
+        ctx: ReturnType<typeof swamp.context>,
+      ) => Promise<unknown>)(
+        methods.publish.arguments.parse({ workItem: TRACKED_ITEM }),
+        swamp.context("lab"),
+      );
+    await publish();
+    assertEquals(fake.entries.map((e) => e.step), [
+      "triage_started",
+      "assigned",
+    ]);
+    const assigned = fake.entries[1];
+    assertEquals(assigned.summary, "Assigned to seth");
+    assertEquals(assigned.payload.username, "seth");
+    assert(typeof assigned.payload.userId === "string");
+    assertEquals(fake.issues[0].assignees.map((a) => a.username), ["seth"]);
+
+    // A re-run writes nothing to the Lab.
+    const writes = () => fake.requests.filter((r) => r.method !== "GET").length;
+    const before = writes();
+    await publish();
+    assertEquals(writes(), before);
+  } finally {
+    await fake.close();
+  }
+});

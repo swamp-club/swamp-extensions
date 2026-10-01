@@ -40,7 +40,7 @@ from every stage.
 
 | issue-lifecycle                                      | gatorwalk                                                                                                          | Fit                                            |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| `created`, `start` (fetch the issue, assign it)      | The adapter's `claim` fetches the issue and prints the start command; `assign` assigns it and records `assigned`.  | Fits                                           |
+| `created`, `start` (fetch the issue, assign it)      | The adapter's `claim` fetches the issue; `publish` assigns it on start and records `assigned`.                     | Fits                                           |
 | `triaging` → `triage` → `classified`                 | `triage` stage, `classification` evidence                                                                          | Fits                                           |
 | Bug reproduction (triage step 4)                     | `reproduce` stage, `reproduction` evidence, entered only for a bug                                                 | Fits                                           |
 | `classified` → `plan` → `plan_generated`             | `plan` stage, `plan` artifact                                                                                      | Fits                                           |
@@ -152,7 +152,7 @@ Lab's regression flag is set or cleared by every classification, and
 "Close" summaries leave out what issue-lifecycle computes (counts, versions,
 attempt numbers): an entry's summary fills only fields of the recorded payload.
 Payloads are gatorwalk's own products, not issue-lifecycle's shapes.
-issue-lifecycle's `assigned` comes from the adapter's `assign`, not the journal.
+issue-lifecycle's `assigned` comes from `publish` on start, not from an entry.
 It has no entry for entering `reproduce`, for waiting on a person, for a reset
 or for a declined approval, and none of those posts one here.
 `findings_resolved` and `deviations_justified` have no gatorwalk event: a
@@ -172,10 +172,10 @@ Candidates for issues. A resolved gap says so and keeps its number.
 1. **No way to act on swamp-club.** Resolved by swamp-club #2734. The adapter's
    `publish` moves the status, writes the lifecycle entries and sets the type
    from the classification; `attest` posts the attestation and `notify` thanks
-   the contributor through the adapter; `claim` and `assign` start from the
-   issue. The attestation is still checked only in CI (`validate-attestation`
-   reads it from the Lab by commit), as today. Kept here so the numbering the
-   other gaps are cited by stays.
+   the contributor through the adapter; `claim` and `publish` start from the
+   issue, `publish` assigning it. The attestation is still checked only in CI
+   (`validate-attestation` reads it from the Lab by commit), as today. Kept here
+   so the numbering the other gaps are cited by stays.
 2. **No parallel stages (resolved inside one stage).** verify-build and
    verify-reviews run at the same time today and are judged together as one
    checklist. A factory definition is in one stage at a time, so the first

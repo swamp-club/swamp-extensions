@@ -1145,3 +1145,282 @@ Deno.test("create: every input is required", () => {
     assertEquals(methods.create.arguments.safeParse(raw).success, false);
   }
 });
+
+// --- assigning when a work item starts --------------------------------------
+
+/**
+ * A ticket with the assign capability, history optional, and a login that
+ * maps to `assignee` unless that is null. failAssign and failEntry script
+ * one failure.
+ */
+function assignTicket(
+  options: { history?: boolean; assignee?: string | null } = {},
+) {
+  const writes: string[] = [];
+  const state = {
+    assigned: [] as string[],
+    assignCalls: 0,
+    failAssign: null as Error | null,
+    failEntry: null as string | null,
+    dropped: [] as string[],
+  };
+  const adapter: TrackerAdapter = {
+    tracker: "test",
+    origin: "snapshot",
+    create: () => Promise.reject(new Error("not used")),
+    fetchIssue: () =>
+      Promise.resolve({
+        id: "T1",
+        display: "T-1",
+        title: "t",
+        status: { id: "Todo", name: "Todo" },
+        relations: [],
+      }),
+    comment: (_issueId, body) => {
+      writes.push(`comment ${body.split(" ").slice(1, 3).join(" ")}`);
+      return Promise.resolve({ id: "c" });
+    },
+    setStatus: (_issueId, name) => {
+      writes.push(`status ${name}`);
+      return Promise.resolve({ changed: true, status: { id: name, name } });
+    },
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
+    capabilities: {
+      assign: {
+        assign: (_issueId, user) => {
+          state.assignCalls++;
+          if (state.failAssign !== null) {
+            return Promise.reject(state.failAssign);
+          }
+          const changed = !state.assigned.includes(user);
+          if (changed) state.assigned.push(user);
+          writes.push(`assign ${user}`);
+          return Promise.resolve({
+            changed,
+            user,
+            status: "Todo",
+            dropped: state.dropped,
+            details: { userId: `id-${user}` },
+          });
+        },
+      },
+      ...(options.history === true
+        ? {
+          history: {
+            postEntry: (
+              _issueId: string,
+              entry: { step: string; targetStatus: string },
+            ) => {
+              if (entry.step === state.failEntry) {
+                state.failEntry = null;
+                return Promise.reject(
+                  new TrackerError("upstream", "test", "boom"),
+                );
+              }
+              writes.push(`entry ${entry.step} [${entry.targetStatus}]`);
+              return Promise.resolve({ id: `e${writes.length}` });
+            },
+            setType: (_issueId: string, type: string) =>
+              Promise.resolve({ changed: true, type }),
+          },
+        }
+        : {}),
+    },
+  };
+  const assignee = options.assignee === undefined ? "seth" : options.assignee;
+  const methods = trackerMethods({
+    tracker: "test",
+    adapter: () => adapter,
+    statuses: () => ({
+      open: "Todo",
+      triaged: "Triaged",
+      in_progress: "In Progress",
+      in_review: "In Review",
+      shipped: "Done",
+    }),
+    assignee: () =>
+      assignee === null
+        ? Promise.reject(new TrackerError("invalid", "test", "no username"))
+        : Promise.resolve(assignee),
+    now: () => NOW,
+  });
+  return { writes, state, methods, adapter };
+}
+
+function warnings(swamp: FakeSwamp): string[] {
+  return swamp.logs.flatMap((l) =>
+    l.props?.warning === undefined ? [] : [String(l.props.warning)]
+  );
+}
+
+Deno.test("publish, assign: the started event's comment, then the assign, then later events; a re-run writes nothing", async () => {
+  const swamp = fakeSwamp();
+  const { writes, state, methods } = assignTicket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await item.advance("submit");
+  await publish(swamp, methods);
+  assertEquals(writes, [
+    "comment started on",
+    "assign seth",
+    "comment entered **review**",
+    "comment is waiting",
+    "status In Review",
+  ]);
+  const ledger = swamp.resources.get(INSTANCE)?.get(
+    `delivery-publish-assign-${TRACKED_ITEM}-1`,
+  )?.at(-1) as { action: string; result: Record<string, unknown> };
+  assertEquals(ledger.action, "assign");
+  assertEquals(ledger.result.changed, true);
+
+  // Comment mode posts no note for the assignment, and a re-run, or a later
+  // publish, never assigns again.
+  await publish(swamp, methods);
+  await item.approve("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(state.assignCalls, 1);
+});
+
+Deno.test("publish, assign: in entry mode the assigned entry follows the started event's, labelled with the ticket's status", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = assignTicket({ history: true });
+  const item = await trackedItem(swamp, { test: "T1" }, entriesDefinition());
+  await item.record("artifact", "note", { text: "first" });
+  await publish(swamp, methods);
+  assertEquals(writes, [
+    "entry work_started [Todo]",
+    "assign seth",
+    "entry assigned [Todo]",
+    "entry noted [Triaged]",
+  ]);
+  assert(
+    swamp.resources.get(INSTANCE)?.has(
+      `delivery-publish-lifecycle_entry-${TRACKED_ITEM}-1-assigned`,
+    ),
+  );
+});
+
+Deno.test("publish, assign: a started event with no entry of its own still assigns, before later entries", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = assignTicket({ history: true });
+  const definition = entriesDefinition() as {
+    stages: { tracker: { entries: { on: unknown }[] } }[];
+  };
+  const write = definition.stages[0].tracker;
+  write.entries = write.entries.filter((e) => e.on !== "enter");
+  const item = await trackedItem(swamp, { test: "T1" }, definition);
+  await item.record("artifact", "note", { text: "first" });
+  await publish(swamp, methods);
+  assertEquals(writes, [
+    "assign seth",
+    "entry assigned [Todo]",
+    "entry noted [Triaged]",
+  ]);
+});
+
+Deno.test("publish, assign: a failed assign warns, is recorded as skipped and is never retried", async () => {
+  for (
+    const [label, setup] of [
+      [
+        "no login",
+        () => assignTicket({ assignee: null }),
+      ],
+      [
+        "the tracker refused",
+        () => {
+          const t = assignTicket();
+          t.state.failAssign = new TrackerError("upstream", "test", "down");
+          return t;
+        },
+      ],
+    ] as const
+  ) {
+    const swamp = fakeSwamp();
+    const { writes, state, methods } = setup();
+    const item = await trackedItem(swamp, { test: "T1" });
+    await publish(swamp, methods);
+    assertEquals(writes, ["comment started on", "status In Progress"], label);
+    const warned = warnings(swamp);
+    assertEquals(warned.length, 1, label);
+    assert(warned[0].includes("will not try again"), warned[0]);
+    const ledger = swamp.resources.get(INSTANCE)?.get(
+      `delivery-publish-assign-${TRACKED_ITEM}-1`,
+    )?.at(-1) as { result: Record<string, unknown> };
+    assertEquals(
+      ledger.result.skipped,
+      label === "no login" ? "invalid" : "upstream",
+    );
+    const calls = state.assignCalls;
+    state.failAssign = null;
+    await item.advance("submit");
+    await publish(swamp, methods);
+    assertEquals(state.assignCalls, calls, label);
+  }
+});
+
+Deno.test("publish, assign: an assigned entry that failed is written by the re-run without assigning again", async () => {
+  const swamp = fakeSwamp();
+  const { writes, state, methods } = assignTicket({ history: true });
+  await trackedItem(swamp, { test: "T1" }, entriesDefinition());
+  state.failEntry = "assigned";
+  await assertRejects(() => publish(swamp, methods), TrackerError, "boom");
+  assertEquals(writes, ["entry work_started [Todo]", "assign seth"]);
+  await publish(swamp, methods);
+  assertEquals(writes, [
+    "entry work_started [Todo]",
+    "assign seth",
+    "entry assigned [Todo]",
+  ]);
+  assertEquals(state.assignCalls, 1);
+});
+
+Deno.test("publish, assign: a work item first published without assigning is never assigned later", async () => {
+  const swamp = fakeSwamp();
+  const { state, adapter, methods } = assignTicket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  // The same tracker before it could assign: no login mapping.
+  const before = trackerMethods({
+    tracker: "test",
+    adapter: () => adapter,
+    statuses: () => ({ in_progress: "In Progress", in_review: "In Review" }),
+    now: () => NOW,
+  });
+  await publish(swamp, before);
+  await item.advance("submit");
+  await publish(swamp, methods);
+  assertEquals(state.assignCalls, 0);
+});
+
+Deno.test("publish, assign: a tracker without the capability never assigns, even with a login mapping", async () => {
+  const swamp = fakeSwamp();
+  const { adapter } = assignTicket();
+  const methods = trackerMethods({
+    tracker: "test",
+    adapter: () => ({ ...adapter, capabilities: {} }),
+    statuses: () => ({ in_progress: "In Progress" }),
+    assignee: () => Promise.resolve("seth"),
+    now: () => NOW,
+  });
+  await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  assertEquals(
+    swamp.resources.get(INSTANCE)?.has(
+      `delivery-publish-assign-${TRACKED_ITEM}-1`,
+    ),
+    false,
+  );
+  assertEquals(warnings(swamp), []);
+});
+
+Deno.test("publish, assign: the summary names assignees the tracker dropped", async () => {
+  const swamp = fakeSwamp();
+  const { state, methods } = assignTicket();
+  state.dropped = ["gone"];
+  await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  const summaries = swamp.logs.map((l) => String(l.props?.summary ?? ""));
+  assert(
+    summaries.includes("assigned T1 to seth; the tracker dropped gone"),
+    summaries.join("\n"),
+  );
+});
