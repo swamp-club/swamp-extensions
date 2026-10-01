@@ -27,6 +27,7 @@ import {
   swampClubFake,
 } from "../../extensions/models/_lib/tracker/backends/swamp_club_fake.ts";
 import {
+  duplicateDefinition,
   entriesDefinition,
   trackedDefinition,
 } from "../../extensions/models/_lib/tracker/core/test_support.ts";
@@ -699,5 +700,101 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
     assert(nextKey !== id, nextKey);
     assertEquals(index.previous, [id]);
     assert(next.output.includes(`'${id}', has finished`), next.output);
+  });
+});
+
+Deno.test("tracker: an approved duplicate on the built-in tracker is marked and closed, and its work item moves to the primary with the ticket index", async () => {
+  await withRepo(async (repo) => {
+    const { stdout } = await repo.swamp([
+      "model",
+      "create",
+      BUILTIN_TYPE,
+      "board",
+      "--json",
+    ]);
+    const path = (JSON.parse(stdout) as { path: string }).path;
+    const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+      string,
+      unknown
+    >;
+    definition.globalArguments = {
+      prefix: "cue",
+      statuses: ["open", "in_progress", "in_review", "shipped", "closed"],
+      types: ["bug"],
+    };
+    await Deno.writeTextFile(path, stringifyYaml(definition));
+    await repo.factory("dups", duplicateDefinition(), { tracker: "board" });
+    const board = (method: string, inputs: Record<string, string>) =>
+      repo.swamp([
+        "model",
+        "method",
+        "run",
+        "board",
+        method,
+        ...Object.entries(inputs).flatMap((
+          [k, v],
+        ) => ["--input", `${k}=${v}`]),
+      ]);
+    const file = async (title: string) => {
+      const created = await board("create", { title, body: "b", type: "bug" });
+      const id = created.output.match(/created (cue-[a-z0-9-]+)/)?.[1];
+      assert(id !== undefined, created.output);
+      return id;
+    };
+    const primary = await file("Primary ticket");
+    const duplicate = await file("Duplicate ticket");
+
+    // Started on the duplicate; the primary has no work item.
+    const claimed = await board("claim", { issue: duplicate, factory: "dups" });
+    const command = claimed.output.match(/Start it: (swamp .*)$/m);
+    assert(command !== null, claimed.output);
+    await repo.swamp(splitWords(command[1]).slice(1));
+    const key = duplicate;
+    const probe = await board("claim", { issue: primary, dryRun: "true" });
+    assert(probe.output.includes("has no work item"), probe.output);
+
+    await repo.workItem(key, "record_artifact", {
+      name: "duplicate-of",
+      payload: JSON.stringify({ primary }),
+      ...await repo.expected(key),
+    });
+    await repo.workItem(key, "approve", {
+      gateId: "duplicate-confirmation",
+      ...await repo.expected(key),
+    });
+    await repo.workItem(key, "retarget", {
+      externalRefs: JSON.stringify({
+        builtin: primary,
+        "builtin.display": primary,
+      }),
+      reason: "duplicate",
+      ...await repo.expected(key),
+    });
+    await board("publish", { workItem: key });
+
+    const marked = await repo.data("board", `issue-${duplicate}`);
+    assertEquals(marked.status, { id: "closed", name: "closed" });
+    assertEquals(
+      (marked.relations as { type: string; direction: string; issue: string }[])
+        .filter((r) => r.direction === "outgoing")
+        .map((r) => [r.type, r.issue]),
+      [["duplicate_of", primary]],
+    );
+    const onPrimary = await repo.data("board", `issue-${primary}`);
+    assertEquals(onPrimary.status, { id: "in_progress", name: "in_progress" });
+    assertEquals((await repo.data("board", `ticket-${primary}`)).key, key);
+
+    const again = await board("publish", { workItem: key });
+    assert(again.output.includes("is up to date"), again.output);
+    const working = await board("claim", { issue: primary });
+    assert(working.output.includes("is already started"), working.output);
+    const refused = await board("claim", {
+      issue: duplicate,
+      factory: "dups",
+    }).then(() => null, (error: unknown) => String(error));
+    assert(
+      refused?.includes(`is a duplicate of ${primary}`),
+      String(refused),
+    );
   });
 });

@@ -99,6 +99,7 @@ Deno.test("builtin: meets the tracker adapter contract", async () => {
     createType: "bug",
     missing: "cue-missing-aaaa",
     statusNames: ["in_progress", "shipped"],
+    closedStatus: "closed",
     commentsPosted: () => count(COMMENT_SPEC),
     history: {
       entriesPosted: () => count(ENTRY_SPEC),

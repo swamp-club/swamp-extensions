@@ -36,12 +36,16 @@ import {
   type ClaimContext,
   claimTicket,
   displayLead,
+  moveClaim,
+  readClaimedRun,
   TICKET_SPEC,
   TicketClaimSchema,
 } from "./claim.ts";
 import {
   chooseEntry,
   declaresEntries,
+  type DuplicateMark,
+  duplicateMarks,
   type EntryProduct,
   type PlannedComment,
   projectEntries,
@@ -61,7 +65,8 @@ import {
   TrackerError,
   type TrackerIssue,
 } from "./adapter.ts";
-import { TrackerRelationSchema } from "./relations.ts";
+import { DUPLICATE_STATUS, duplicateRefusal, primaryOf } from "./duplicates.ts";
+import { findRelation, TrackerRelationSchema } from "./relations.ts";
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
@@ -587,9 +592,12 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     // The ledger first: a delivered key is a no-op even if the statuses
     // mapping has changed since.
     const { key } = write;
-    const name = key === null
-      ? null
-      : deliveryName("set_status", key, write.replay ? "publish" : "method");
+    const name = key === null ? null : deliveryName(
+      "set_status",
+      key,
+      write.replay ? "publish" : "method",
+      write.suffix,
+    );
     const request = await digestOf({ status: write.status });
     if (name !== null) {
       const prior = await priorDelivery(
@@ -764,7 +772,71 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     return { handles: [handle], wrote: result.changed === true, result };
   };
 
-  return { comment, setStatus, setType, linkPr, entry, relation, assign };
+  /**
+   * Mark a ticket a duplicate of its primary: relate it duplicate_of, then
+   * close it through the `closed` status key, unless the tracker closes a
+   * duplicate itself. Only a ticket that is marked now is closed, so a
+   * relation the tracker refused (a replay records it as skipped) leaves the
+   * ticket open. The close has its own ledger record beside any status write
+   * keyed on the same journal version.
+   */
+  const duplicate = async (
+    ctx: TrackerContext,
+    write: Write & { primary: string },
+  ): Promise<Delivered> => {
+    const adapter = options.adapter(ctx);
+    // Checked before anything is written, so a ticket is never left
+    // related but open for want of a status to close it with.
+    if (
+      adapter.closesDuplicates !== true &&
+      options.statuses(argsOf(ctx))[DUPLICATE_STATUS] === undefined
+    ) {
+      throw new TrackerError(
+        "invalid",
+        options.tracker,
+        `status key '${DUPLICATE_STATUS}' is not in the statuses global ` +
+          "argument, so a duplicate cannot be closed; map it, then mark again",
+      );
+    }
+    const related = await relation(ctx, {
+      ...write,
+      type: "duplicate_of",
+      to: write.primary,
+      remove: false,
+    });
+    if (adapter.closesDuplicates === true) return related;
+    const issue = await adapter.fetchIssue(write.issue);
+    if (findRelation(issue, "duplicate_of", write.primary) === undefined) {
+      ctx.logger.info("{warning}", {
+        warning: `${issue.display} is not a duplicate of ${write.primary}, ` +
+          "so it was left open",
+      });
+      return related;
+    }
+    const closed = await setStatus(ctx, {
+      issue: write.issue,
+      key: write.key,
+      replay: write.replay,
+      suffix: "duplicate",
+      status: DUPLICATE_STATUS,
+      skipUnreachable: write.replay,
+    });
+    return {
+      handles: [...related.handles, ...closed.handles],
+      wrote: related.wrote || closed.wrote,
+    };
+  };
+
+  return {
+    comment,
+    setStatus,
+    setType,
+    linkPr,
+    entry,
+    relation,
+    assign,
+    duplicate,
+  };
 }
 
 const publishArguments = z.object({
@@ -795,6 +867,25 @@ function recordObject(record: unknown): Record<string, unknown> | null {
       !Array.isArray(content)
     ? content as Record<string, unknown>
     : null;
+}
+
+/**
+ * One handle per record name, the last written: swamp refuses a method's
+ * output that names a record twice, and publish writes a work item's cursor
+ * once per ticket, twice when it crosses a retarget. Every version is
+ * already stored; the handles only report them.
+ */
+export function lastPerName(handles: unknown[]): unknown[] {
+  const nameOf = (h: unknown) =>
+    h !== null && typeof h === "object" &&
+      typeof (h as { name?: unknown }).name === "string"
+      ? (h as { name: string }).name
+      : null;
+  return handles.filter((h, i) => {
+    const name = nameOf(h);
+    return name === null ||
+      !handles.slice(i + 1).some((later) => nameOf(later) === name);
+  });
 }
 
 /** The latest version of a named record among another model's data. */
@@ -989,6 +1080,16 @@ const relateArguments = z.object({
   ...DeliveryInputs,
 });
 
+const markDuplicateArguments = z.object({
+  issue: z.string().min(1).describe(
+    "The duplicate: its stable id, or its display identifier",
+  ),
+  primary: z.string().min(1).describe(
+    "The primary it duplicates: its stable id, or its display identifier",
+  ),
+  ...DeliveryInputs,
+});
+
 export function ticketName(issueId: string): string {
   return `ticket-${safePart("issue id", issueId)}`;
 }
@@ -1000,6 +1101,9 @@ const claimArguments = z.object({
   factory: z.string().min(1).optional().describe(
     "The factory to start a new work item under; needed only when " +
       "the ticket has no work item, or its last one has finished",
+  ),
+  dryRun: z.boolean().optional().describe(
+    "Report the ticket's work item, or that it has none, and write nothing",
   ),
 });
 
@@ -1134,11 +1238,14 @@ export function trackerMethods(options: TrackerModelOptions) {
           factory: args.factory,
           lead: naming.lead,
           first: naming.first,
+          dryRun: args.dryRun,
           now: now(),
         });
-        // The snapshot only once the claim has succeeded: a refused claim
-        // writes nothing.
-        const handles = await recordSnapshot(ctx, adapter, issue);
+        // The snapshot only once the claim has succeeded: a refused claim,
+        // or a dry run, writes nothing.
+        const handles = args.dryRun === true
+          ? []
+          : await recordSnapshot(ctx, adapter, issue);
         return { dataHandles: [...written, ...handles] };
       },
     },
@@ -1193,6 +1300,49 @@ export function trackerMethods(options: TrackerModelOptions) {
           key: deliveryKeyOf(args),
           replay: false,
         });
+        return { dataHandles: handles };
+      },
+    },
+    mark_duplicate: {
+      description:
+        "Mark a ticket a duplicate of a primary: relate it duplicate_of and close it where the tracker does not; it moves no work item, and publish and claim refuse the duplicate until a driver moves its work",
+      arguments: markDuplicateArguments,
+      execute: async (
+        args: z.infer<typeof markDuplicateArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const adapter = options.adapter(ctx);
+        const issue = await adapter.fetchIssue(args.issue);
+        const primary = await adapter.fetchIssue(args.primary);
+        const { handles } = await deliver.duplicate(ctx, {
+          issue: issue.id,
+          primary: primary.id,
+          key: deliveryKeyOf(args),
+          replay: false,
+        });
+        // The work item on the duplicate, if any, is the driver's to move.
+        const raw = await resources(ctx).read(ticketName(issue.id));
+        if (raw !== null) {
+          const claimed = TicketClaimSchema.parse(raw);
+          const run = await readClaimedRun(ctx, claimed.key);
+          if (
+            run !== null && run.status === "active" &&
+            run.externalRefs[options.tracker] === issue.id
+          ) {
+            ctx.logger.info("{warning}", {
+              warning: duplicateRefusal(
+                issue,
+                {
+                  type: "duplicate_of",
+                  direction: "outgoing",
+                  issue: primary.id,
+                  display: primary.display,
+                },
+                claimed.key,
+              ),
+            });
+          }
+        }
         return { dataHandles: handles };
       },
     },
@@ -1270,13 +1420,41 @@ export function trackerMethods(options: TrackerModelOptions) {
               "retarget between; one work item projects to one ticket at a time",
           );
         }
+        // Segments after the last ticket (a retarget removed this tracker's
+        // ref) have nowhere to go, so they are never pending.
+        const lastTicket = segments.findLastIndex((s) => s.issue !== null);
+        const adapter = options.adapter(ctx);
+        // The duplicate marks in the journal (DESIGN.md, "Duplicates"), and
+        // the primary each names, read from its recorded product: no network.
+        const marks = duplicateMarks(run, definition);
+        const marksIn = (segment: TicketSegment) =>
+          marks.filter((m) =>
+            m.journalVersion > segment.after &&
+            m.journalVersion <= segment.through
+          );
+        const refOf = async (
+          mark: DuplicateMark,
+        ): Promise<{ ref: string } | { why: string }> => {
+          if (mark.product === null) {
+            return {
+              why: `'${mark.gateId}' was approved with no '${mark.record}' ` +
+                "recorded before it",
+            };
+          }
+          const payload = await readRecordedPayload(
+            ctx,
+            workItem,
+            mark.product,
+          );
+          const ref = payload[mark.field];
+          return typeof ref === "string" && ref !== "" ? { ref } : {
+            why: `'${mark.record}' has no ${mark.field} naming the primary`,
+          };
+        };
         const moveOf = (segment: TicketSegment, lastStatus: string | null) =>
           segment.status !== null && segment.status !== lastStatus
             ? segment.status
             : null;
-        // Segments after the last ticket (a retarget removed this tracker's
-        // ref) have nowhere to go, so they are never pending.
-        const lastTicket = segments.findLastIndex((s) => s.issue !== null);
         const resumed = segments[resume];
         // The cursor is written after the status, so a lost cursor write
         // leaves it behind the ledger: the key last written is the ledger's,
@@ -1325,7 +1503,6 @@ export function trackerMethods(options: TrackerModelOptions) {
           return { dataHandles: [] };
         }
 
-        const adapter = options.adapter(ctx);
         // Entry mode: the factory definition says which events become which
         // entries, and the tracker keeps them. They replace the comments.
         const entryMode = adapter.capabilities.history !== undefined &&
@@ -1384,6 +1561,48 @@ export function trackerMethods(options: TrackerModelOptions) {
           }
           const moveTo = moveOf(segment, lastStatus);
           if (first && from === segment.through && moveTo === null) continue;
+          // The ticket as last read; null once a write may have changed it.
+          let ticketNow: TrackerIssue | null = null;
+          // A work item still at work on a ticket marked a duplicate outside
+          // its own journal is not projected there: a driver moves it first.
+          // A segment a retarget ends, or a finished work item, still reaches
+          // the ticket, so the move itself can be published.
+          if (k === lastTicket && run.status === "active") {
+            ticketNow = await adapter.fetchIssue(issue);
+            ticketStatus.set(issue, ticketNow.status.name);
+            const primary = primaryOf(ticketNow);
+            let own = false;
+            for (const mark of primary === undefined ? [] : marksIn(segment)) {
+              const named = await refOf(mark);
+              own ||= "ref" in named &&
+                (named.ref === primary?.issue ||
+                  named.ref === primary?.display);
+            }
+            if (primary !== undefined && !own) {
+              throw new Error(
+                duplicateRefusal(ticketNow, primary, workItem) +
+                  "; nothing was published",
+              );
+            }
+          }
+          // A retarget moved the work item here: the ticket index follows.
+          if (!first && segment.opening !== undefined) {
+            const opened = run.journal[segment.after - 1];
+            const refs = opened?.type === "retargeted" ? opened.to : {};
+            handles.push(
+              ...await moveClaim(ctx, {
+                tracker: options.tracker,
+                issue: {
+                  id: issue,
+                  display: refs[`${options.tracker}.display`] || issue,
+                },
+                recordName: ticketName(issue),
+                key: workItem,
+                factory: run.factory,
+                now: now(),
+              }),
+            );
+          }
           let posted = 0;
           // Only the publish that delivers the started event assigns: a
           // work item first published before there was assigning never is.
@@ -1509,6 +1728,49 @@ export function trackerMethods(options: TrackerModelOptions) {
             await note(planned);
           }
           await assignBefore(Number.POSITIVE_INFINITY);
+          // A mark that names no other ticket the tracker has marks nothing,
+          // with a warning: an approval with no product before it, no
+          // primary in its field, a primary the tracker cannot find, or this
+          // ticket itself (an approval after the retarget onto it).
+          for (const mark of marksIn(segment)) {
+            if (mark.journalVersion <= from) continue;
+            const named = await refOf(mark);
+            const unmarked = `, so ${issue} was not marked a duplicate`;
+            if ("why" in named) {
+              ctx.logger.info("{warning}", { warning: named.why + unmarked });
+              continue;
+            }
+            let primary: TrackerIssue;
+            try {
+              primary = await adapter.fetchIssue(named.ref);
+            } catch (error) {
+              if (
+                !(error instanceof TrackerError) || error.kind !== "not_found"
+              ) {
+                throw error;
+              }
+              ctx.logger.info("{warning}", {
+                warning: `'${mark.record}' names ${named.ref}, which the ` +
+                  `tracker cannot find${unmarked}`,
+              });
+              continue;
+            }
+            if (primary.id === issue) {
+              ctx.logger.info("{warning}", {
+                warning: `'${mark.record}' names ${issue} as its own ` +
+                  `primary${unmarked}`,
+              });
+              continue;
+            }
+            ticketNow = null;
+            const done = await deliver.duplicate(ctx, {
+              issue,
+              primary: primary.id,
+              key: { workItem, journalVersion: mark.journalVersion },
+              replay: true,
+            });
+            handles.push(...done.handles);
+          }
           // The retarget is the segment's last event. Its notes are comments
           // in entry mode too: no entry answers a retarget.
           if (
@@ -1529,38 +1791,49 @@ export function trackerMethods(options: TrackerModelOptions) {
               ...(statusFailed === undefined ? {} : { statusFailed }),
               at: now().toISOString(),
             });
+          // A duplicate keeps its closed status, however it was marked: no
+          // status write reopens it.
           if (moveTo !== null) {
-            try {
-              const done = await deliver.setStatus(ctx, {
-                issue,
-                status: moveTo,
-                key: { workItem, journalVersion: segment.statusVersion },
-                replay: true,
-                skipUnreachable: true,
+            ticketNow ??= await adapter.fetchIssue(issue);
+            const primary = primaryOf(ticketNow);
+            if (primary !== undefined) {
+              ctx.logger.info("{summary}", {
+                summary: `${issue} is a duplicate of ${primary.display}, so ` +
+                  `its status was left alone, not moved to '${moveTo}'`,
               });
-              handles.push(...done.handles);
-            } catch (error) {
-              // Everything before the move was delivered, so the cursor
-              // moves past it; it keeps the key last written, so the next
-              // publish sees the move still wanted and retries only that.
-              const detail = error instanceof TrackerError
-                ? error.detail
-                : error instanceof Error
-                ? error.message
-                : String(error);
-              await cursorAt(lastStatus, { status: moveTo, detail });
-              const message = `could not move ${issue} to status key ` +
-                `'${moveTo}': ${detail}. The events through journal version ` +
-                `${segment.through} were delivered; the next publish ` +
-                "retries only this move";
-              throw error instanceof TrackerError
-                ? new TrackerError(
-                  error.kind,
-                  error.tracker,
-                  message,
-                  error.reason,
-                )
-                : new Error(message);
+            } else {
+              try {
+                const done = await deliver.setStatus(ctx, {
+                  issue,
+                  status: moveTo,
+                  key: { workItem, journalVersion: segment.statusVersion },
+                  replay: true,
+                  skipUnreachable: true,
+                });
+                handles.push(...done.handles);
+              } catch (error) {
+                // Everything before the move was delivered, so the cursor
+                // moves past it; it keeps the key last written, so the next
+                // publish sees the move still wanted and retries only that.
+                const detail = error instanceof TrackerError
+                  ? error.detail
+                  : error instanceof Error
+                  ? error.message
+                  : String(error);
+                await cursorAt(lastStatus, { status: moveTo, detail });
+                const message = `could not move ${issue} to status key ` +
+                  `'${moveTo}': ${detail}. The events through journal version ` +
+                  `${segment.through} were delivered; the next publish ` +
+                  "retries only this move";
+                throw error instanceof TrackerError
+                  ? new TrackerError(
+                    error.kind,
+                    error.tracker,
+                    message,
+                    error.reason,
+                  )
+                  : new Error(message);
+              }
             }
           }
           // Last for each ticket: a failure above leaves the cursor where it
@@ -1574,7 +1847,7 @@ export function trackerMethods(options: TrackerModelOptions) {
               (moveTo === null ? "" : `, status '${moveTo}'`),
           });
         }
-        return { dataHandles: handles };
+        return { dataHandles: lastPerName(handles) };
       },
     },
   };

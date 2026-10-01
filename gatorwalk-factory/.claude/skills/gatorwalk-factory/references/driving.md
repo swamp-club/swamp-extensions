@@ -22,8 +22,9 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 9. [Advance: the propulsion rule](#advance-the-propulsion-rule)
 10. [Human stops](#human-stops)
 11. [Keep the ticket in step](#keep-the-ticket-in-step)
-12. [When something fails](#when-something-fails)
-13. [Resuming](#resuming)
+12. [Duplicates](#duplicates)
+13. [When something fails](#when-something-fails)
+14. [Resuming](#resuming)
 
 ## The two model types
 
@@ -176,12 +177,17 @@ swamp model method run <tracker> claim --input issue=<ticket> \
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
+- **`is a duplicate of <primary>; work on <primary> instead`**: the ticket was
+  marked a duplicate, so it takes no work. Claim the primary instead (see
+  [Duplicates](#duplicates)).
 
 If anything fails between `claim` and `start`, run `claim` again: it hands back
 the same key and command. `factory` is only needed when a new key is reserved;
-once a ticket's work item has finished, claiming it again reserves a new one.
-`claim` never comments on or moves the ticket. Never choose a key by hand for a
-ticket's work item; `claim` names it.
+once a ticket's work item has finished, or a retarget moved it to another
+ticket, claiming it again reserves a new one. To only look, add
+`--input dryRun=true`: `claim` then reports the ticket's work item, or that it
+has none, and writes nothing. `claim` never comments on or moves the ticket.
+Never choose a key by hand for a ticket's work item; `claim` names it.
 
 To file a new ticket when the person asks for one, run `create` on the tracker's
 instance, then claim the id it prints:
@@ -630,8 +636,49 @@ were. The next `publish` finishes the old ticket (what it had not been sent yet,
 then a note saying where the work went) and carries on at the new one (a note
 saying where it came from, the status, then every later event). The earlier
 history stays on the old ticket. The reason is kept in the work item, not posted
-on either ticket. After a retarget, `claim` on the old ticket is refused, since
-its index still names this work item.
+on either ticket. That `publish` also moves the ticket index to the new ticket,
+so `claim` there finds this work item, and `claim` on the old ticket reserves a
+new one. Publish right after a retarget: a `claim` on the new ticket before then
+reserves a second work item, and `publish` refuses to move the index onto a
+ticket that already has one.
+
+## Duplicates
+
+A duplicate ticket's work belongs to its primary, the ticket it duplicates.
+There are two ways to mark one.
+
+**A person marks it** on the tracker's instance (or in the tracker itself):
+
+```sh
+swamp model method run <tracker> mark_duplicate --input issue=<duplicate> \
+  --input primary=<primary>
+```
+
+`mark_duplicate` relates the ticket `duplicate_of` the primary and closes it
+(Linear moves a duplicate to its own Duplicate status itself). It moves no work.
+If the duplicate has a work item at work, `publish` for it is then refused with
+`is a duplicate of <primary>` and both moves; make one, on the person's word:
+retarget the work item onto the primary when the primary has no work item (see
+[Keep the ticket in step](#keep-the-ticket-in-step)), or take the definition's
+duplicate exit when it has one. A work item that has finished still publishes to
+the duplicate.
+
+**You find it while working**, in a factory definition with a duplicate mark
+(both shipped examples have one, on `plan`). The stage's prompt says what to do:
+
+1. Check whether the primary has a work item without writing anything:
+   `claim --input issue=<primary> --input dryRun=true`.
+2. Record `duplicate-of` with the primary's stable id, its display id and why,
+   and stop for a person to approve `duplicate-confirmation`.
+3. Once approved, move the work. The primary has no work item: run `retarget`
+   onto the primary's `externalRefs`, then `publish` at once, and carry on with
+   the primary's work in the same work item. The primary has one: take the
+   `duplicate` exit. After a retarget the exit is closed, so the approved gate
+   cannot end what is now the primary's work.
+
+`publish` marks the ticket a duplicate when it delivers the approval: it relates
+it `duplicate_of` the primary and closes it, and no later status write reopens
+it. A declined approval marks nothing.
 
 ## When something fails
 

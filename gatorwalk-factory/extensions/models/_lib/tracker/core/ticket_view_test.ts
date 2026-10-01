@@ -26,11 +26,12 @@ import {
   smallDefinition,
   type TrackerEntry,
 } from "../../engine/tracker_testing.ts";
-import { entriesDefinition } from "./test_support.ts";
+import { duplicateDefinition, entriesDefinition } from "./test_support.ts";
 import {
   chooseEntry,
   commentFor,
   declaresEntries,
+  duplicateMarks,
   projectEntries,
   renderEntry,
   ticketSegments,
@@ -500,5 +501,77 @@ Deno.test("ticketSegments: one segment without a retarget; each retarget of this
   assertEquals(
     ticketSegments(run, definition(), "u")[1].opening?.body,
     `**${KEY}** was linked to this ticket at stage **write**.`,
+  );
+});
+
+// --- duplicate marks --------------------------------------------------------
+
+function duplicateDoc(): FactoryDefinition {
+  const parsed = parseDefinition(duplicateDefinition());
+  assert(parsed.ok);
+  return parsed.value;
+}
+
+const recordedDuplicate = (era: string, version: number): JournalEvent => ({
+  ...BASE,
+  era,
+  stage: "write",
+  type: "recorded",
+  kind: "artifact",
+  name: "duplicate-of",
+  version,
+  digest: `sha256:${version}`,
+});
+
+const decided = (decision: "approve" | "decline"): JournalEvent => ({
+  ...BASE,
+  stage: "write",
+  type: "approval",
+  approvalId: 1,
+  gateId: "duplicate-confirmation",
+  decision,
+});
+
+Deno.test("duplicate marks: an approval the stage names marks from the product recorded last before it", () => {
+  const run = runWith("write", [
+    STARTED,
+    recordedDuplicate("era-1", 1),
+    recordedDuplicate("era-1", 2),
+    decided("approve"),
+  ]);
+  assertEquals(duplicateMarks(run, duplicateDoc()), [{
+    journalVersion: 4,
+    product: {
+      kind: "artifact",
+      name: "duplicate-of",
+      version: 2,
+      digest: "sha256:2",
+    },
+    field: "primary",
+    record: "duplicate-of",
+    gateId: "duplicate-confirmation",
+  }]);
+});
+
+Deno.test("duplicate marks: a decline marks nothing, and a product from an earlier era is not read", () => {
+  const declined = runWith("write", [
+    STARTED,
+    recordedDuplicate("era-1", 1),
+    decided("decline"),
+  ]);
+  assertEquals(duplicateMarks(declined, duplicateDoc()), []);
+  const reset = runWith("write", [
+    STARTED,
+    recordedDuplicate("era-0", 1),
+    decided("approve"),
+  ]);
+  assertEquals(duplicateMarks(reset, duplicateDoc())[0].product, null);
+  // A definition without a mark reads none.
+  assertEquals(
+    duplicateMarks(
+      runWith("write", [STARTED, decided("approve")]),
+      definition(),
+    ),
+    [],
   );
 });

@@ -210,6 +210,12 @@ export interface TrackerAdapter {
   readonly origin: IssueOrigin;
   readonly capabilities: TrackerCapabilities;
   /**
+   * True when marking a ticket duplicate_of another moves it to a closed
+   * status by itself (Linear's reserved Duplicate status). Otherwise marking
+   * a duplicate closes it through the `closed` status key (duplicates.ts).
+   */
+  readonly closesDuplicates?: boolean;
+  /**
    * File a new ticket. An external tracker files it first and its id is
    * used. Not idempotent: a retry after the tracker accepted it but before
    * the caller saw the reply files a second ticket.

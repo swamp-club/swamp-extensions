@@ -386,6 +386,8 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
     tracker: LINEAR,
     origin: "snapshot",
     capabilities: {},
+    // Linear moves a duplicate to its reserved Duplicate status itself.
+    closesDuplicates: true,
 
     async create(draft: IssueDraft): Promise<TrackerIssue> {
       const teamId = options.teamId;

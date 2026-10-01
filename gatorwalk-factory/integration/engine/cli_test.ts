@@ -145,7 +145,7 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
     assertNotEquals(design.code, 0);
     assert(
       design.output.includes(
-        "stages.0.transitions.1 (from stage 'plan'): transition 'shortcut'",
+        "stages.0.transitions.2 (from stage 'plan'): transition 'shortcut'",
       ),
       design.output,
     );

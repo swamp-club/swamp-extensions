@@ -123,6 +123,8 @@ Deno.test("model: saved scenarios are read from the same file, each with its own
   assertEquals(loaded.scenarios.map((s) => [s.name, s.path]), [
     ["plan-feedback", "globalArguments.scenarios.0"],
     ["plan-to-done", "globalArguments.scenarios.1"],
+    ["duplicate-exit", "globalArguments.scenarios.2"],
+    ["duplicate-after-retarget", "globalArguments.scenarios.3"],
   ]);
   const [first] = loaded.scenarios;
   assert(first.text.startsWith("    - scenario: plan-feedback\n"), first.text);

@@ -27,6 +27,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import type { TrackerIssue } from "./adapter.ts";
+import { duplicateRefusal, primaryOf } from "./duplicates.ts";
 import {
   type DataReadingContext,
   freshKey,
@@ -134,6 +135,8 @@ export interface ClaimRequest {
   lead: string;
   /** The name the ticket's first work item takes while it is free. */
   first?: string;
+  /** Report the ticket's work item, or that it has none, and write nothing. */
+  dryRun?: boolean;
   now: Date;
 }
 
@@ -151,6 +154,9 @@ export async function claimTicket(
   const { tracker, issue } = req;
   const refs = externalRefsOf(tracker, issue);
   const label = `${issue.display} (${issue.id})`;
+  // A duplicate takes no work: its primary does (DESIGN.md, "Duplicates").
+  const primary = primaryOf(issue);
+  if (primary !== undefined) throw new Error(duplicateRefusal(issue, primary));
   const raw = await ctx.readResource(req.recordName);
   const prior = raw === null ? null : TicketClaimSchema.parse(raw);
   let previous: string[] = [];
@@ -173,15 +179,22 @@ export async function claimTicket(
       });
       return [];
     }
+    // A retarget moved the work item to another ticket (publish moves the
+    // index there): this ticket's work item is gone, as if it had finished.
+    // Any other disagreement is refused.
     if (run.externalRefs[tracker] !== issue.id) {
-      throw new Error(
-        `the index names '${prior.key}' for ${label}, but that work item ` +
-          `records ${tracker} '${
-            run.externalRefs[tracker] ?? "(none)"
-          }'; the two disagree, so nothing was claimed`,
+      const retargeted = run.journal.some((e) =>
+        e.type === "retargeted" && e.from[tracker] === issue.id
       );
-    }
-    if (run.status === "active") {
+      if (!retargeted) {
+        throw new Error(
+          `the index names '${prior.key}' for ${label}, but that work item ` +
+            `records ${tracker} '${
+              run.externalRefs[tracker] ?? "(none)"
+            }'; the two disagree, so nothing was claimed`,
+        );
+      }
+    } else if (run.status === "active") {
       ctx.logger.info("{summary}", {
         summary: `${label} is already started: '${prior.key}' at stage ` +
           `'${run.stage}'`,
@@ -190,6 +203,17 @@ export async function claimTicket(
       return [];
     }
     previous = [prior.key, ...prior.previous];
+  }
+
+  if (req.dryRun === true) {
+    ctx.logger.info("{summary}", {
+      summary: `${label} has no work item` +
+        (previous.length === 0
+          ? ""
+          : ` (its last one, '${previous[0]}', has finished or moved)`) +
+        "; dry run, nothing was claimed",
+    });
+    return [];
   }
 
   if (req.factory === undefined) {
@@ -228,9 +252,75 @@ export async function claimTicket(
     summary: `${label} is claimed as '${key}'` +
       (previous.length === 0
         ? ""
-        : ` (its last work item, '${previous[0]}', has finished)`) +
+        : ` (its last work item, '${previous[0]}', has finished or moved)`) +
       `. Start it: ${startCommand(key, req.factory, refs)}`,
     key,
+  });
+  return [handle];
+}
+
+export interface ClaimMove {
+  tracker: string;
+  /** The ticket a retarget moved the work item to. */
+  issue: { id: string; display: string };
+  /** Its index record's name. */
+  recordName: string;
+  /** The work item, and the factory it runs in. */
+  key: string;
+  factory: string;
+  now: Date;
+}
+
+/**
+ * Point the ticket index of the ticket a retarget moved a work item to at
+ * that work item (DESIGN.md, "Retargeting"). The old ticket's record keeps
+ * the key, and claim there sees the work item has moved. Refused when the
+ * new ticket already has another work item, reserved or active: one ticket
+ * has one work item at a time. Returns the handles written.
+ */
+export async function moveClaim(
+  ctx: ClaimContext,
+  move: ClaimMove,
+): Promise<unknown[]> {
+  if (ctx.writeResource === undefined || ctx.readResource === undefined) {
+    throw new Error("this method context has no writeResource/readResource");
+  }
+  const raw = await ctx.readResource(move.recordName);
+  const prior = raw === null ? null : TicketClaimSchema.parse(raw);
+  if (prior?.key === move.key) return [];
+  const label = `${move.issue.display} (${move.issue.id})`;
+  let previous: string[] = [];
+  if (prior !== null) {
+    const run = await readClaimedRun(ctx, prior.key);
+    if (
+      run === null ||
+      (run.status === "active" &&
+        run.externalRefs[move.tracker] === move.issue.id)
+    ) {
+      throw new Error(
+        `'${move.key}' was retargeted to ${label}, which already has work ` +
+          `item '${prior.key}' (${run === null ? "reserved" : "active"}); ` +
+          "one ticket has one work item at a time, so nothing was published " +
+          "to it. Finish or abandon one of them",
+      );
+    }
+    previous = [prior.key, ...prior.previous];
+  }
+  const handle = await ctx.writeResource(
+    TICKET_SPEC,
+    move.recordName,
+    {
+      tracker: move.tracker,
+      issue: move.issue.id,
+      display: move.issue.display,
+      key: move.key,
+      factory: move.factory,
+      claimedAt: move.now.toISOString(),
+      previous,
+    } satisfies TicketClaim,
+  );
+  ctx.logger.info("{summary}", {
+    summary: `${label} is now '${move.key}''s ticket in the index`,
   });
   return [handle];
 }

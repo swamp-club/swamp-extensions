@@ -91,6 +91,7 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
       issue: { id: ISSUE, display: `#${ISSUE}`, slug: "2631-lab-adapter" },
       missing: String(MISSING_ISSUE),
       statusNames: ["triaged", "in_progress"],
+      closedStatus: "closed",
       commentsPosted: () => fake.comments.length,
       createType: "feature",
       history: {

@@ -70,6 +70,8 @@ Deno.test("state: a reload re-runs the scenarios and replays the walk; a broken 
     assertEquals(runs.value?.map((r) => [r.name, r.ok && r.played.passed]), [
       ["plan-churn", true],
       ["plan-to-release", true],
+      ["duplicate-exit", true],
+      ["duplicate-after-retarget", true],
     ]);
     assertEquals(scenario.value, "plan-churn");
 

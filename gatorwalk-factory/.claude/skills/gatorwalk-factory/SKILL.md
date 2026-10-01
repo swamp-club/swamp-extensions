@@ -138,11 +138,16 @@ file it with
 `swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'`,
 then claim it. See
 [references/driving.md](references/driving.md#start-from-a-ticket). To link two
-tickets (a parent and its child, a blocker, a duplicate), use
+tickets (a parent and its child, a blocker), use
 `swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
 with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
 second parent, a parent cycle and a duplicate chain the same way. Relations
-belong to the tracker: read them with `fetch_issue`, not from memory.
+belong to the tracker: read them with `fetch_issue`, not from memory. When a
+person says a ticket duplicates another, mark it with
+`swamp model method run <tracker> mark_duplicate --input issue=<duplicate> --input primary=<primary>`,
+which also closes it; its work moves to the primary by a retarget or the
+definition's duplicate exit. See
+[references/driving.md](references/driving.md#duplicates).
 
 ## When something is refused
 

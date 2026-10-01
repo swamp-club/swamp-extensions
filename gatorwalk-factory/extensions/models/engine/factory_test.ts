@@ -153,7 +153,7 @@ Deno.test("factory: validate reports a valid definition", async () => {
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "factory 'team' is valid: 8 stages",
+      "factory 'team' is valid: 9 stages",
     ),
     summary,
   );
@@ -320,7 +320,7 @@ Deno.test("factory: validate fails on a graph error, listing it with its path", 
   assert(text.includes("factory 'team' has design errors:"), text);
   assert(
     text.includes(
-      "stages.0.transitions.1 (from stage 'plan'): transition 'shortcut' (to 'code-review') can never pass",
+      "stages.0.transitions.2 (from stage 'plan'): transition 'shortcut' (to 'code-review') can never pass",
     ),
     text,
   );
@@ -400,7 +400,7 @@ Deno.test("factory: design_page stores the definition as an HTML page", async ()
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   assert(
     summary.startsWith(
-      "design page for factory 'team': 8 stages, 0 error(s), 2 warning(s)",
+      "design page for factory 'team': 9 stages, 0 error(s), 2 warning(s)",
     ),
     summary,
   );

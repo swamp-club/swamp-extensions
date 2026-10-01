@@ -67,6 +67,7 @@ Deno.test("linear: meets the tracker adapter contract", async () => {
       },
       missing: OTHER_UUID,
       statusNames: ["In Progress", "In Review"],
+      closedStatus: "Duplicate",
       commentsPosted: () => fake.comments.length,
       createType: "bug",
     });

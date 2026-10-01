@@ -1807,6 +1807,16 @@ from the cursor, doing steps 3 to 5 for each ticket in turn:
   the old ticket's delivery. The old ticket's status write is keyed on the
   journal version before the retarget (the stage is the same there), and the
   new ticket's on the journal length, so no status key names two tickets.
+  swamp refuses a method's output that names one record twice, so `publish`
+  reports only the last handle of each name; every version is still stored.
+- Before anything reaches the new ticket, its ticket index record is pointed at
+  the work item (`moveClaim` in `claim.ts`), so `claim` there finds it. The old
+  ticket's record keeps the key, and `claim` there sees from the run's
+  `retargeted` event that the work item has moved and reserves a new one. A new
+  ticket whose record names another work item, reserved or active, is refused
+  before anything is written to it: one ticket has one work item at a time. A
+  driver publishes right after a retarget, so no claim of the new ticket comes
+  between.
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different
@@ -1821,6 +1831,69 @@ parked by its stage's dispatch cap is not in the journal, so it is not published
 (#2703). A failed publish does not block the work item, unlike issue-lifecycle,
 whose methods fail when their entry is refused; the ticket falls behind until
 `publish` is re-run, which the driving reference asks for after each step.
+
+### Duplicates
+
+**Decision (swamp-club #2799).** The engine decides where a duplicate's work
+goes, and the tracker projects that decision; the tracker never reads engine
+state to decide an engine move. Marking a ticket a duplicate is a tracker
+write: relate it `duplicate_of` the primary, then close it through the `closed`
+status key, unless the adapter declares `closesDuplicates` (Linear moves a
+duplicate to its reserved Duplicate status itself). Moving its work item is the
+engine's: a driver retargets it onto the primary, or takes the definition's
+duplicate exit. Both paths share `deliveries().duplicate`.
+
+- **A person:** the `mark_duplicate` tracker method relates and closes, and
+  moves no work. With a work item at work on the duplicate, it says the work
+  must be moved.
+- **An agent:** a stage's `tracker.duplicate` (`on: { approve: <gate> }`,
+  `record`, `field`) names a human-approval gate on the stage and the product
+  whose field holds the primary's stable id. `publish` marks the ticket the
+  work item has at that approval (`duplicateMarks` in `ticket_view.ts` reads
+  the product recorded last before it, in the same era), keyed on the
+  approval's journal version. A declined approval marks nothing. Only the
+  tracker reads the field; the engine checks that the gate, product and field
+  are the stage's own.
+- **A duplicate stays closed.** `publish` reads a ticket before it writes a
+  status, and leaves the status of a ticket that is a duplicate alone, however
+  it was marked, so neither the old ticket's status at a retarget nor a later
+  stage reopens it. A mark that names no other ticket the tracker has marks
+  nothing, with a warning: an approval with no product recorded before it, a
+  product with no primary in its field, a primary the tracker cannot find, or
+  the ticket itself (an approval after the retarget onto it). The primary is
+  fetched only when a mark is delivered.
+- **The close needs a `closed` status key.** Where the tracker does not close
+  a duplicate itself, marking checks the mapping before it writes anything, so
+  a ticket is never left related but open.
+- **Marked outside the journal:** `publish` refuses a work item that is still
+  active on a duplicate ticket, naming the primary and both moves. A segment
+  a retarget ends, or a finished work item, still publishes, so the move
+  itself reaches the ticket. So does a work item whose own approval marked
+  the ticket: its product names the ticket's primary. `claim` refuses a duplicate, naming the primary.
+  That is the only inbound signal: reconciling a tracker-side change belongs
+  with inbound webhooks.
+
+The shipped examples put the agent path on `plan`, their first stage: a
+`duplicate-of` product, a `duplicate` exit behind `duplicate-confirmation` to a
+terminal `duplicate` stage, and a prompt that checks the primary with `claim
+--input dryRun=true` first. When the primary has no work item the driver
+retargets instead of taking the exit, so one approval leads to either move. A
+`cel` gate on the exit compares the product's primary with
+`item.externalRefs["builtin"]`, so after a retarget the approved gate cannot
+end what is now the primary's work. A definition for another tracker kind
+names that kind's key there.
+
+**Why the engine decides.** A tracker-side `mark_duplicate` that also chose and
+printed the work-item move would read run records to decide an engine move,
+and the driver would carry the tracker's decision back across the seam.
+Keeping the move in the engine leaves every tracker write a projection of the
+journal, as status and comments already are.
+
+**Known gaps.** A mark the tracker refuses under the relation rules (the
+primary is itself a duplicate, or the ticket has duplicates of its own) is
+skipped and logged, and the ticket is left open. A primary found while working on the primary itself, with a
+duplicate that has its own work item, moves nothing automatically: that work
+item is refused at its next `publish`, and a person or a later driver moves it.
 
 ### The swamp-club Lab adapter
 
@@ -1988,8 +2061,16 @@ record, and reads the named work item's run through swamp's `readModelData`:
 - **An active run:** reported with its stage; the index is not written.
 - **A terminal run** (done or abandoned): the ticket may start a new work item.
   A new key is reserved, and the old one goes to the front of `previous`.
-- **A run whose `externalRefs` name another ticket:** refused, since the index
-  and the work item disagree.
+- **A run a retarget moved to another ticket** (its journal has a `retargeted`
+  event from this ticket): counted as finished, so a new key is reserved. The
+  retarget's `publish` points the new ticket's record at it ("Retargeting",
+  under "The publisher").
+- **A run whose `externalRefs` name another ticket with no such retarget:**
+  refused, since the index and the work item disagree.
+- **A ticket marked a duplicate:** refused, naming its primary ("Duplicates").
+
+`--input dryRun=true` reports the ticket's work item, or that it has none, and
+writes nothing, not even the snapshot: a driver checks a primary with it.
 
 **Two claims of one ticket.** `claim` reads the record and then writes it, so it
 relies on swamp running one method at a time per adapter instance, as the
@@ -2024,11 +2105,9 @@ is the claimed key.
 
 **Known gaps.** The index lives per adapter instance, like the ledger, so keep
 one instance per tracker workspace. A work item started directly with
-`externalRefs`, not through `claim`, is not in the index. A retarget does not
-move the index (#2799 does): the old ticket's record still names the work item,
-whose `externalRefs` now name another ticket, so `claim` of the old ticket is
-refused as a disagreement, and `claim` of the new ticket finds no record and
-reserves a new key. A reserved key has no
+`externalRefs`, not through `claim`, is not in the index. The index follows a
+retarget only once `publish` runs, so a `claim` of the new ticket in between
+reserves a second key, and that `publish` is then refused. A reserved key has no
 definition until it starts, so a fresh key only avoids existing definitions; a
 collision with a reservation is about 1 in 32^8 per key drawn. The same holds
 for a built-in ticket's first key, its id: another ticket's reserved, unstarted
@@ -2184,6 +2263,33 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: mark a duplicate and move its work to the primary (swamp-club #2799)
+
+**Decision.** The engine decides where a duplicate's work goes and the tracker
+projects it (see "Duplicates"). A person marks a duplicate with the tracker's
+`mark_duplicate` (relate and close). An agent records a product and stops at a
+human-approval gate that a stage's `tracker.duplicate` names; `publish` marks
+the ticket when it delivers the approval. The work moves through the engine: a
+`retarget` onto the primary when it has no work item, else the definition's
+duplicate exit. `publish` and `claim` refuse a ticket marked outside the
+journal. `claim` gained `dryRun`, and `publish` moves the ticket index on every
+retarget.
+
+**Choices made with Seth in triage.** The first plan had `mark_duplicate`
+decide the work-item move and print the engine command for the driver to run,
+which ferried a tracker decision across the seam; the engine-decides design
+replaced it. The agent path lives on the examples' `plan` stage (neither has a
+triage stage), with one approval leading to either move, and a `cel` gate
+closing the exit after a retarget. The index moves on every retarget, not only a
+duplicate's. A duplicate is closed through the `closed` status key, except on
+Linear, which closes it itself. `claim` refuses a duplicate rather than
+claiming its primary. The issue's line about superseding a held linked-issues
+draft from #2765 was left out: no such draft was found.
+
+**Found on the way.** A `publish` that crossed a retarget wrote the work item's
+cursor twice in one method run, and the real engine refuses that output (the
+fake swamp did not); `publish` now reports one handle per record name.
 
 ### 2026-10-01: a factory whose file does not parse stays in the studio (swamp-club #2889)
 

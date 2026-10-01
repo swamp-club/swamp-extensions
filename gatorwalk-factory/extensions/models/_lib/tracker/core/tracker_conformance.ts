@@ -16,7 +16,11 @@
 
 import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { fakeSwamp, smallDefinition } from "../../engine/tracker_testing.ts";
-import { TRACKED_ITEM, trackedItem } from "./test_support.ts";
+import {
+  duplicateDefinition,
+  TRACKED_ITEM,
+  trackedItem,
+} from "./test_support.ts";
 import {
   type IssueDraft,
   RELATION_TYPES,
@@ -70,6 +74,11 @@ export interface ConformanceFixture {
   missing: string;
   /** Two status names the ticket's team has. */
   statusNames: [string, string];
+  /**
+   * The status name a marked duplicate ends in: the one the `closed` key
+   * maps to, or the tracker's own for one that closes a duplicate itself.
+   */
+  closedStatus: string;
   /** How many comments the fake has accepted so far. */
   commentsPosted(): number;
   /**
@@ -397,6 +406,167 @@ export async function assertTrackerConformance(
   assertEquals((await adapter.fetchIssue(f.issue.id)).status.name, second);
 
   await assertRelationConformance(f, draft);
+  await assertDuplicateConformance(f, draft);
+}
+
+/**
+ * Duplicates (DESIGN.md, "Duplicates"), on new tickets. A person's
+ * mark_duplicate relates and closes, once. publish projects an approved
+ * duplicate mark the same way, whichever move follows it: the duplicate
+ * exit, or a retarget onto the primary, which also moves the ticket index
+ * and never reopens the duplicate. A declined approval marks nothing. A
+ * ticket marked outside a work item's journal is refused by publish while
+ * that work item is at work on it, and by claim.
+ */
+async function assertDuplicateConformance(
+  f: ConformanceFixture,
+  draft: IssueDraft,
+): Promise<void> {
+  const { adapter } = f;
+  const second = f.statusNames[1];
+  const methods = trackerMethods({
+    tracker: adapter.tracker,
+    adapter: () => adapter,
+    statuses: () => ({
+      in_progress: second,
+      in_review: second,
+      shipped: second,
+      closed: f.closedStatus,
+    }),
+  });
+  const ticket = (title: string) => adapter.create({ ...draft, title });
+  const duplicateOf = async (issue: TrackerIssue) =>
+    (await adapter.fetchIssue(issue.id)).relations.find((r) =>
+      r.type === "duplicate_of" && r.direction === "outgoing"
+    )?.issue;
+  const statusOf = async (issue: TrackerIssue) =>
+    (await adapter.fetchIssue(issue.id)).status.name;
+  const publish = (swamp: ReturnType<typeof fakeSwamp>) =>
+    methods.publish.execute(
+      methods.publish.arguments.parse({ workItem: TRACKED_ITEM }),
+      swamp.context("tracker"),
+    );
+  const refsOf = (issue: TrackerIssue) => ({
+    [adapter.tracker]: issue.id,
+    [`${adapter.tracker}.display`]: issue.display,
+  });
+
+  // A person marks a duplicate, by display ids: related and closed, once.
+  const primary = await ticket("Duplicate primary");
+  const marked = await ticket("Marked by a person");
+  const markArgs = methods.mark_duplicate.arguments.parse({
+    issue: marked.display,
+    primary: primary.display,
+  });
+  const person = fakeSwamp().context("tracker");
+  await methods.mark_duplicate.execute(markArgs, person);
+  assertEquals(await duplicateOf(marked), primary.id);
+  assertEquals(await statusOf(marked), f.closedStatus);
+  await methods.mark_duplicate.execute(markArgs, person);
+  assertEquals(
+    await duplicateOf(marked),
+    primary.id,
+    "marking again is a no-op",
+  );
+
+  // The agent path, then the duplicate exit: marked and closed.
+  const exited = await ticket("Duplicate that exits");
+  const exits = fakeSwamp();
+  const exiting = await trackedItem(
+    exits,
+    refsOf(exited),
+    duplicateDefinition(),
+    { kind: adapter.tracker },
+  );
+  await exiting.record("artifact", "duplicate-of", { primary: primary.id });
+  await exiting.approve("duplicate-confirmation");
+  await exiting.advance("duplicate");
+  await publish(exits);
+  assertEquals(await duplicateOf(exited), primary.id);
+  assertEquals(await statusOf(exited), f.closedStatus);
+
+  // The agent path, then a retarget onto a primary with no work item: the
+  // duplicate stays closed, the primary takes the work and its status, and
+  // the ticket index names the work item on the primary.
+  const moved = await ticket("Duplicate whose work moves");
+  const target = await ticket("Primary that takes the work");
+  const moves = fakeSwamp();
+  const moving = await trackedItem(
+    moves,
+    refsOf(moved),
+    duplicateDefinition(),
+    { kind: adapter.tracker },
+  );
+  await moving.record("artifact", "duplicate-of", { primary: target.id });
+  await moving.approve("duplicate-confirmation");
+  await moving.retarget(refsOf(target));
+  await publish(moves);
+  await publish(moves);
+  assertEquals(await duplicateOf(moved), target.id);
+  assertEquals(await statusOf(moved), f.closedStatus, "never reopened");
+  assertEquals(await statusOf(target), second);
+  const index = moves.resources.get("tracker")?.get(ticketName(target.id));
+  assertEquals(index?.at(-1)?.key, TRACKED_ITEM);
+
+  // A declined approval marks nothing.
+  const declined = await ticket("Not a duplicate after all");
+  const declines = fakeSwamp();
+  const declining = await trackedItem(
+    declines,
+    refsOf(declined),
+    duplicateDefinition(),
+    { kind: adapter.tracker },
+  );
+  await declining.record("artifact", "duplicate-of", { primary: primary.id });
+  await declining.decline("duplicate-confirmation");
+  await publish(declines);
+  assertEquals(await duplicateOf(declined), undefined);
+
+  // Marked outside the work item's journal: publish refuses while the work
+  // item is at work there, and claim refuses the duplicate.
+  const outside = await ticket("Marked while at work");
+  const works = fakeSwamp();
+  works.factory("team", smallDefinition());
+  const working = await trackedItem(
+    works,
+    refsOf(outside),
+    duplicateDefinition(),
+    { kind: adapter.tracker },
+  );
+  await publish(works);
+  await methods.mark_duplicate.execute(
+    methods.mark_duplicate.arguments.parse({
+      issue: outside.id,
+      primary: primary.id,
+    }),
+    works.context("tracker"),
+  );
+  await working.advance("submit");
+  const refused = await assertRejects(() => publish(works), Error);
+  assert(
+    refused.message.includes(`is a duplicate of ${primary.display}`),
+    refused.message,
+  );
+  const claimRefused = await assertRejects(
+    () =>
+      methods.claim.execute(
+        methods.claim.arguments.parse({ issue: outside.id, factory: "team" }),
+        works.context("tracker"),
+      ),
+    Error,
+  );
+  assert(
+    claimRefused.message.includes(`work on ${primary.display}`),
+    claimRefused.message,
+  );
+
+  // The driver moves that work item to a primary with none: the publish
+  // finishes the person's duplicate without reopening it.
+  const elsewhere = await ticket("Primary for the work marked while at work");
+  await working.retarget(refsOf(elsewhere));
+  await publish(works);
+  assertEquals(await statusOf(outside), f.closedStatus, "never reopened");
+  assertEquals(await statusOf(elsewhere), second);
 }
 
 /**

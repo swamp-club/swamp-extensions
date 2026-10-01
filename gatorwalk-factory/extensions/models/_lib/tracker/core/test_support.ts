@@ -179,6 +179,52 @@ export function linkingDefinition(): Record<string, unknown> {
 }
 
 /**
+ * trackedDefinition with a duplicate mark on write: it records duplicate-of
+ * (the primary's stable id), and approving duplicate-confirmation marks the
+ * ticket a duplicate of it. The duplicate exit, behind that gate, ends the
+ * work item at the terminal duplicate stage, whose status key is closed.
+ */
+export function duplicateDefinition(): Record<string, unknown> {
+  const doc = trackedDefinition() as {
+    stages: Record<string, unknown>[];
+  };
+  const [write] = doc.stages;
+  write.artifacts = [{
+    name: "duplicate-of",
+    schema: {
+      type: "object",
+      required: ["primary"],
+      properties: { primary: { type: "string" } },
+    },
+  }];
+  write.tracker = {
+    status: "in_progress",
+    duplicate: {
+      on: { approve: "duplicate-confirmation" },
+      record: "duplicate-of",
+      field: "primary",
+    },
+  };
+  write.transitions = [
+    { name: "submit", to: "review" },
+    {
+      name: "duplicate",
+      to: "duplicate",
+      gates: [{
+        type: "human-approval",
+        config: { id: "duplicate-confirmation" },
+      }],
+    },
+  ];
+  doc.stages.push({
+    id: "duplicate",
+    terminal: true,
+    tracker: { status: "closed" },
+  });
+  return doc;
+}
+
+/**
  * A work item started on trackedDefinition in the fake swamp, with the
  * given externalRefs, and a way to move it on as a person would. Its factory
  * is bound to the tracker instance `tracker` ("tracker" by default, the

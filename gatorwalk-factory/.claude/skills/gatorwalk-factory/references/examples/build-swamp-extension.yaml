@@ -34,11 +34,28 @@ definition:
   stages:
     - id: plan
       initial: true
-      tracker: { status: open }
+      tracker:
+        status: open
+        duplicate:
+          on: { approve: duplicate-confirmation }
+          record: duplicate-of
+          field: primary
       description: Plan the change to the extension.
       work:
         mode: interactive
         systemPrompt: |
+          First, check the work is not a duplicate of another ticket. If it
+          is, find out whether that ticket, the primary, already has a work
+          item: run the tracker's claim on it with dryRun=true, which writes
+          nothing. Record duplicate-of with the primary's stable id, its
+          display id and why, and wait for a person to approve
+          duplicate-confirmation; do not plan. Once it is approved, move the
+          work to the primary. When the primary has no work item, retarget
+          this work item onto the primary's externalRefs and publish at once,
+          so the ticket index follows before anyone claims the primary, then
+          plan the primary's work here. When it has one, take the duplicate
+          exit.
+
           Plan the change. Name the files each step touches, how it will be
           tested, and whether the manifest version needs a bump (any behaviour
           change to a published extension does).
@@ -87,12 +104,47 @@ definition:
                   oldest first.
                 type: array
                 items: { type: string, minLength: 1 }
+        - name: duplicate-of
+          schema:
+            type: object
+            required: [primary, display, reason]
+            additionalProperties: false
+            properties:
+              primary:
+                description: The primary ticket's stable id.
+                type: string
+                minLength: 1
+              display:
+                description: The primary ticket's display id.
+                type: string
+                minLength: 1
+              reason: { type: string, minLength: 1 }
       transitions:
         - name: submit
           to: plan-review
           gates:
             - type: artifact-exists
               config: { artifact: plan }
+        - name: duplicate
+          to: duplicate
+          description: >-
+            The work duplicates a primary ticket that already has a work item;
+            a person confirms it. When the primary has none, the work item is
+            retargeted onto it instead, and the cel gate closes this exit to
+            it. "builtin" there is the built-in tracker's externalRefs key; a
+            definition for Linear names "linear".
+          gates:
+            - type: human-approval
+              config: { id: duplicate-confirmation }
+            - type: cel
+              config:
+                expr: >-
+                  "duplicate-of" in artifacts &&
+                  (!("builtin" in item.externalRefs) ||
+                  item.externalRefs["builtin"] !=
+                  artifacts["duplicate-of"].payload.primary)
+                message: >-
+                  this work item is on the primary ticket now; plan it here
 
     - id: plan-review
       tracker: { status: open }
@@ -479,6 +531,12 @@ definition:
       terminal: true
       tracker: { status: shipped }
 
+    - id: duplicate
+      terminal: true
+      description: >-
+        The work duplicated a primary ticket that has its own work item.
+      tracker: { status: closed }
+
     - id: abandoned
       terminal: true
       tracker: { status: closed }
@@ -583,3 +641,37 @@ scenarios:
           url: https://registry.example.com/extensions/@me/thing
           version: 2026.09.28.1
       - expect: { stage: release }
+  - scenario: duplicate-exit
+    description: >-
+      The ticket duplicates a primary that already has a work item. The agent
+      records duplicate-of, a person approves, and the work item ends at
+      duplicate; publish marks the ticket a duplicate and closes it.
+    externalRefs: { builtin: dup-1, builtin.display: "#dup-1" }
+    steps:
+      - record: { artifact: duplicate-of }
+        payload: { primary: prim-1, display: "#prim-1", reason: same bug }
+      - move: duplicate
+        expect: { refused: duplicate-confirmation }
+      - approve: duplicate-confirmation
+      - move: duplicate
+      - expect: { stage: duplicate }
+  - scenario: duplicate-after-retarget
+    description: >-
+      The primary had no work item, so the work item was retargeted onto it.
+      The approved gate no longer ends it: the duplicate exit is closed on the
+      primary, and the work is planned there.
+    externalRefs: { builtin: prim-1, builtin.display: "#prim-1" }
+    steps:
+      - record: { artifact: duplicate-of }
+        payload: { primary: prim-1, display: "#prim-1", reason: same bug }
+      - approve: duplicate-confirmation
+      - move: duplicate
+        expect: { refused: on the primary ticket now }
+      - record: { artifact: plan }
+        payload:
+          summary: s
+          steps: [{ description: d, files: [] }]
+          testingStrategy: t
+          versionBump: { needed: false, reason: none }
+      - move: submit
+      - expect: { stage: plan-review }

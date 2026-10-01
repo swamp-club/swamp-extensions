@@ -612,6 +612,23 @@ export const TrackerEntrySchema = z.strictObject({
 
 export type TrackerEntry = z.infer<typeof TrackerEntrySchema>;
 
+/**
+ * A person's approval that marks the work item's ticket a duplicate (DESIGN.md,
+ * "Duplicates"). The tracker reads it; the engine never does. When the gate
+ * is approved, publish relates the ticket the work item has then
+ * `duplicate_of` the stable id in the recorded product's field, and closes it.
+ */
+export const TrackerDuplicateSchema = z.strictObject({
+  /** The human-approval gate whose approval marks the duplicate. */
+  on: z.strictObject({ approve: NameSchema }),
+  /** The product that names the primary. */
+  record: NameSchema,
+  /** Its top-level payload field holding the primary's stable id. */
+  field: z.string().regex(IDENTIFIER_PATTERN),
+});
+
+export type TrackerDuplicate = z.infer<typeof TrackerDuplicateSchema>;
+
 /** The key two entries collide on: the same kind of event, same target. */
 export function triggerKey(on: EntryTrigger): string {
   if (on === "enter") return "enter";
@@ -639,6 +656,8 @@ export const StageSchema = z.strictObject({
      * factory definition that declares any is published as entries, not
      * comments, to a tracker that keeps them. */
     entries: z.array(TrackerEntrySchema).optional(),
+    /** The approval that marks the ticket a duplicate of a primary. */
+    duplicate: TrackerDuplicateSchema.optional(),
   }).optional(),
 });
 
@@ -983,9 +1002,10 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     }
   });
   checkTransitions(doc.globalTransitions ?? [], ["globalTransitions"], true);
-  doc.stages.forEach((stage, i) =>
-    checkEntries(stage, ["stages", i, "tracker", "entries"], fail)
-  );
+  doc.stages.forEach((stage, i) => {
+    checkEntries(stage, ["stages", i, "tracker", "entries"], fail);
+    checkDuplicate(stage, ["stages", i, "tracker", "duplicate"], fail);
+  });
 
   // `${{ }}` anywhere else would be evaluated by swamp before each method.
   findTemplates(doc, [], (path) =>
@@ -995,6 +1015,70 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         "declare runtime values in work.bindings as bare CEL and refer to " +
         "them as {{name}}",
     ));
+}
+
+/** The products a stage declares, by name, with their payload schemas. */
+function stageProducts(
+  stage: StageSpec,
+): Map<string, PayloadSchema | undefined> {
+  const products = new Map<string, PayloadSchema | undefined>();
+  for (const spec of stage.artifacts ?? []) {
+    products.set(spec.name, spec.schema);
+  }
+  for (const spec of stage.evidence ?? []) products.set(spec.name, spec.schema);
+  const result = stage.work?.resultEvidence;
+  if (result !== undefined && !products.has(result)) {
+    products.set(result, undefined);
+  }
+  return products;
+}
+
+/** The ids of the human-approval gates on a stage's own transitions. */
+function stageApprovals(stage: StageSpec): Set<string> {
+  return new Set(
+    (stage.transitions ?? []).flatMap((t) =>
+      (t.gates ?? []).flatMap((g) =>
+        g.type === "human-approval" ? [g.config.id] : []
+      )
+    ),
+  );
+}
+
+/**
+ * A stage's duplicate mark: its gate is a human-approval gate on the stage,
+ * its product one the stage declares, and its field one that product's
+ * schema declares, when the schema lists fields.
+ */
+function checkDuplicate(
+  stage: StageSpec,
+  path: Path,
+  fail: (path: Path, message: string) => void,
+): void {
+  const duplicate = stage.tracker?.duplicate;
+  if (duplicate === undefined) return;
+  if (!stageApprovals(stage).has(duplicate.on.approve)) {
+    fail(
+      [...path, "on", "approve"],
+      `'${duplicate.on.approve}' is not a human-approval gate on stage ` +
+        `'${stage.id}'`,
+    );
+  }
+  const products = stageProducts(stage);
+  if (!products.has(duplicate.record)) {
+    fail(
+      [...path, "record"],
+      `'${duplicate.record}' is not a product stage '${stage.id}' declares`,
+    );
+    return;
+  }
+  const properties = products.get(duplicate.record)?.properties;
+  if (typeof properties !== "object" || properties === null) return;
+  if (!Object.hasOwn(properties, duplicate.field)) {
+    fail(
+      [...path, "field"],
+      `'${duplicate.field}' is not a field of '${duplicate.record}'`,
+    );
+  }
 }
 
 /**
@@ -1008,22 +1092,8 @@ function checkEntries(
   fail: (path: Path, message: string) => void,
 ): void {
   const entries = stage.tracker?.entries ?? [];
-  const products = new Map<string, PayloadSchema | undefined>();
-  for (const spec of stage.artifacts ?? []) {
-    products.set(spec.name, spec.schema);
-  }
-  for (const spec of stage.evidence ?? []) products.set(spec.name, spec.schema);
-  const result = stage.work?.resultEvidence;
-  if (result !== undefined && !products.has(result)) {
-    products.set(result, undefined);
-  }
-  const gates = new Set(
-    (stage.transitions ?? []).flatMap((t) =>
-      (t.gates ?? []).flatMap((g) =>
-        g.type === "human-approval" ? [g.config.id] : []
-      )
-    ),
-  );
+  const products = stageProducts(stage);
+  const gates = stageApprovals(stage);
   entries.forEach((entry, j) => {
     const at: Path = [...path, j];
     const on = entry.on;

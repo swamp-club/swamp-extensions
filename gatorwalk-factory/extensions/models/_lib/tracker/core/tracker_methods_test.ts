@@ -17,15 +17,21 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "../../engine/tracker_testing.ts";
 import {
+  duplicateDefinition,
   entriesDefinition,
   linkingDefinition,
   TRACKED_ITEM,
   trackedDefinition,
   trackedItem,
 } from "./test_support.ts";
-import { type TrackerAdapter, TrackerError } from "./adapter.ts";
+import {
+  type TrackerAdapter,
+  TrackerError,
+  type TrackerRelation,
+} from "./adapter.ts";
 import {
   deliveryName,
+  lastPerName,
   type TrackerContext,
   trackerMethods,
 } from "./tracker_methods.ts";
@@ -304,6 +310,10 @@ function ticket() {
     status: "Todo",
     failComment: 0,
     statusError: null as Error | null,
+    /** The relations every ticket reads back with. */
+    relations: [] as TrackerRelation[],
+    /** Ids the tracker reports not_found. */
+    missing: [] as string[],
   };
   let commentCalls = 0;
   const adapter: TrackerAdapter = {
@@ -313,7 +323,17 @@ function ticket() {
     create: () => Promise.reject(new Error("not used")),
     relate: () => Promise.reject(new Error("not used")),
     unrelate: () => Promise.reject(new Error("not used")),
-    fetchIssue: () => Promise.reject(new Error("not used")),
+    // publish reads the ticket to check it is no duplicate.
+    fetchIssue: (id) =>
+      state.missing.includes(id)
+        ? Promise.reject(new TrackerError("not_found", "test", id))
+        : Promise.resolve({
+          id,
+          display: id,
+          title: "A ticket",
+          status: { id: state.status, name: state.status },
+          relations: state.relations,
+        }),
     comment: (issueId, body) => {
       commentCalls++;
       if (commentCalls === state.failComment) {
@@ -709,7 +729,15 @@ function adapterless(): TrackerAdapter {
     create: () => Promise.reject(new Error("not used")),
     relate: () => Promise.reject(new Error("not used")),
     unrelate: () => Promise.reject(new Error("not used")),
-    fetchIssue: () => Promise.reject(new Error("not used")),
+    // publish reads the ticket to check it is no duplicate.
+    fetchIssue: (id) =>
+      Promise.resolve({
+        id,
+        display: id,
+        title: "A ticket",
+        status: { id: "Todo", name: "Todo" },
+        relations: [],
+      }),
     comment: () => Promise.resolve({ id: "c", url: "u" }),
     setStatus: () => Promise.reject(new Error("no status write expected")),
   };
@@ -1056,22 +1084,32 @@ function historyTicket(options: { pullRequests?: boolean } = {}) {
     pr: "",
     failEntry: "",
     failKind: "upstream" as "upstream" | "invalid",
+    relations: [] as TrackerRelation[],
   };
   const adapter: TrackerAdapter = {
     tracker: "test",
     origin: "snapshot",
     create: () => Promise.reject(new Error("not used")),
-    relate: () => Promise.reject(new Error("not used")),
+    relate: (from, type, to) => {
+      writes.push(`relate ${from} ${type} ${to}`);
+      state.relations.push({
+        type,
+        direction: "outgoing",
+        issue: to,
+        display: to,
+      });
+      return Promise.resolve({ changed: true });
+    },
     unrelate: () => Promise.reject(new Error("not used")),
-    fetchIssue: () => {
+    fetchIssue: (id) => {
       writes.push("fetch");
       return Promise.resolve({
-        id: "T1",
-        display: "T-1",
+        id,
+        display: id === "T1" ? "T-1" : id,
         title: "A ticket",
         url: "u",
         status: { id: state.status, name: state.status },
-        relations: [],
+        relations: id === "T1" ? state.relations : [],
       });
     },
     comment: (_issueId, body) => {
@@ -1128,6 +1166,7 @@ function historyTicket(options: { pullRequests?: boolean } = {}) {
     in_progress: "In Progress",
     in_review: "In Review",
     shipped: "Done",
+    closed: "Closed",
   };
   const methods = trackerMethods({
     tracker: "test",
@@ -1159,7 +1198,9 @@ Deno.test("publish, entries: each answered event becomes one entry in place of c
     'entry passed [In Review] Passed {"status":"passed"}',
     "entry ship_approved [Done] Ship approved",
     "entry finished [Done] Done",
-    // The status, once, for the stage the work item is in now.
+    // The status, once, for the stage the work item is in now, after the
+    // read that checks the ticket is no duplicate.
+    "fetch",
     "status Done",
   ]);
   const count = writes.length;
@@ -1250,7 +1291,8 @@ Deno.test("publish, entries: a declined approval and an unanswered event write n
   const before = writes.length;
   await item.decline("ship-approval");
   await publish(swamp, methods);
-  assertEquals(writes.slice(before), []);
+  // Only the read that checks the ticket is no duplicate.
+  assertEquals(writes.slice(before), ["fetch"]);
 });
 
 Deno.test("publish, entries: a failed entry leaves the cursor, and the re-run posts only what did not land", async () => {
@@ -1334,7 +1376,9 @@ Deno.test("publish, entries: a definition without entries, or a tracker without 
   const lab = historyTicket();
   await trackedItem(plain, { test: "T1" }, trackedDefinition());
   await publish(plain, lab.methods);
-  assert(lab.writes[0].startsWith("comment "), lab.writes.join("\n"));
+  // After the read that checks the ticket is no duplicate.
+  assertEquals(lab.writes[0], "fetch");
+  assert(lab.writes[1].startsWith("comment "), lab.writes.join("\n"));
 
   const swamp = fakeSwamp();
   const { posted, methods } = ticket();
@@ -1709,4 +1753,148 @@ Deno.test("publish, assign: the summary names assignees the tracker dropped", as
     summaries.includes("assigned T1 to seth; the tracker dropped gone"),
     summaries.join("\n"),
   );
+});
+
+Deno.test("publish, entries: an approved duplicate mark relates and closes the ticket beside its entries, and nothing reopens it", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const doc = entriesDefinition() as { stages: Record<string, unknown>[] };
+  const write = doc.stages[0] as {
+    artifacts: unknown[];
+    transitions: unknown[];
+    tracker: Record<string, unknown>;
+  };
+  write.artifacts.push({
+    name: "duplicate-of",
+    schema: {
+      type: "object",
+      required: ["primary"],
+      properties: { primary: { type: "string" } },
+    },
+  });
+  write.transitions.push({
+    name: "duplicate",
+    to: "duplicate",
+    gates: [{
+      type: "human-approval",
+      config: { id: "duplicate-confirmation" },
+    }],
+  });
+  write.tracker.duplicate = {
+    on: { approve: "duplicate-confirmation" },
+    record: "duplicate-of",
+    field: "primary",
+  };
+  doc.stages.push({
+    id: "duplicate",
+    terminal: true,
+    tracker: { status: "closed" },
+  });
+  const item = await trackedItem(swamp, { test: "T1" }, doc);
+  await item.record("artifact", "duplicate-of", { primary: "P1" });
+  await item.approve("duplicate-confirmation");
+  await item.advance("duplicate");
+  await publish(swamp, methods);
+  // Reads (fetch) aside: what reached the ticket, in order.
+  const written = writes.filter((w) => w !== "fetch");
+  const relate = written.indexOf("relate T1 duplicate_of P1");
+  assert(relate > 0, written.join("\n"));
+  assert(written[0].startsWith("entry work_started"), written.join("\n"));
+  assertEquals(
+    written.slice(relate + 1).filter((w) => w.startsWith("status")),
+    [
+      "status Closed",
+    ],
+  );
+  const before = writes.filter((w) => w !== "fetch").length;
+  await publish(swamp, methods);
+  assertEquals(
+    writes.filter((w) => w !== "fetch").length,
+    before,
+    "a re-run writes nothing",
+  );
+});
+
+Deno.test("publish: reports one handle per record name, the last written, as swamp requires", () => {
+  const cursor1 = { name: "cursor-x", version: 1 };
+  const ledger = { name: "delivery-x", version: 1 };
+  const cursor2 = { name: "cursor-x", version: 2 };
+  assertEquals(lastPerName([cursor1, ledger, cursor2, { version: 3 }]), [
+    ledger,
+    cursor2,
+    { version: 3 },
+  ]);
+});
+
+Deno.test("publish: a duplicate mark that names no other ticket marks nothing, and the ticket's status still moves", async () => {
+  // ticket() refuses any relate, so a mark that tried one would fail here.
+  const unrecorded = fakeSwamp();
+  const first = ticket();
+  const bare = await trackedItem(
+    unrecorded,
+    { test: "T1" },
+    duplicateDefinition(),
+  );
+  await bare.approve("duplicate-confirmation");
+  await bare.advance("submit");
+  await publish(unrecorded, first.methods);
+  assertEquals(first.moves.at(-1), "In Review");
+  assert(
+    unrecorded.logs.some((l) =>
+      String(l.props?.warning).includes("recorded before it")
+    ),
+  );
+
+  // Approved after the retarget onto the primary: it names this ticket.
+  const itself = fakeSwamp();
+  const second = ticket();
+  const moved = await trackedItem(
+    itself,
+    { test: "T1" },
+    duplicateDefinition(),
+  );
+  await moved.record("artifact", "duplicate-of", { primary: "T1" });
+  await moved.approve("duplicate-confirmation");
+  await moved.advance("submit");
+  await publish(itself, second.methods);
+  assertEquals(second.moves.at(-1), "In Review");
+  assert(
+    itself.logs.some((l) =>
+      String(l.props?.warning).includes("as its own primary")
+    ),
+  );
+});
+
+Deno.test("publish: a duplicate mark naming a ticket the tracker cannot find marks nothing, and publish carries on", async () => {
+  const swamp = fakeSwamp();
+  const { moves, state, methods } = ticket();
+  state.missing.push("GONE");
+  const item = await trackedItem(swamp, { test: "T1" }, duplicateDefinition());
+  await item.record("artifact", "duplicate-of", { primary: "GONE" });
+  await item.approve("duplicate-confirmation");
+  await item.advance("submit");
+  await publish(swamp, methods);
+  assertEquals(moves.at(-1), "In Review");
+  assert(
+    swamp.logs.some((l) =>
+      String(l.props?.warning).includes("which the tracker cannot find")
+    ),
+  );
+  await item.advance("again");
+  await publish(swamp, methods);
+  assertEquals(moves.at(-1), "In Progress", "later publishes are not blocked");
+});
+
+Deno.test("mark_duplicate: without a closed status to close it with, nothing is written", async () => {
+  // ticket() maps no closed key, and refuses any relate.
+  const { methods } = ticket();
+  const error = await assertRejects(
+    () =>
+      methods.mark_duplicate.execute(
+        methods.mark_duplicate.arguments.parse({ issue: "T2", primary: "T1" }),
+        fakeSwamp().context(INSTANCE),
+      ),
+    TrackerError,
+  );
+  assert(error.message.includes("status key 'closed'"), error.message);
 });

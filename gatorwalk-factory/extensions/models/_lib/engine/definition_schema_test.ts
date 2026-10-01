@@ -985,6 +985,54 @@ Deno.test("tracker entries: a step is a lowercase name, and a status label a sta
   );
 });
 
+/** withEntries([]) with the given duplicate mark on stage work. */
+function withDuplicate(duplicate: unknown): Raw {
+  const doc = withEntries([]);
+  set(doc, "stages.0.tracker", { duplicate });
+  return doc;
+}
+
+Deno.test("tracker duplicate: an approval on the stage marks the duplicate from a product's field", () => {
+  assertValid(withDuplicate({
+    on: { approve: "sign-off" },
+    record: "summary",
+    field: "text",
+  }));
+});
+
+Deno.test("tracker duplicate: the gate, product and field are the stage's own", () => {
+  const mark = {
+    on: { approve: "sign-off" },
+    record: "summary",
+    field: "text",
+  };
+  assertRejects(
+    withDuplicate({ ...mark, on: { approve: "nobody" } }),
+    "'nobody' is not a human-approval gate on stage 'work'",
+  );
+  assertRejects(
+    withDuplicate({ ...mark, record: "elsewhere" }),
+    "'elsewhere' is not a product stage 'work' declares",
+  );
+  assertRejects(
+    withDuplicate({ ...mark, field: "primary" }),
+    "'primary' is not a field of 'summary'",
+  );
+});
+
+Deno.test("tracker duplicate: only an approval marks a duplicate, and nothing else is accepted", () => {
+  const mark = {
+    on: { approve: "sign-off" },
+    record: "summary",
+    field: "text",
+  };
+  assertRejects(
+    withDuplicate({ ...mark, on: "enter" }),
+    "stages.0.tracker.duplicate.on",
+  );
+  assertRejects(withDuplicate({ ...mark, close: false }), "close");
+});
+
 // --- evidence-recorded: match and message -------------------------------------
 
 /** base() with evidence 'out' and one evidence-recorded gate on it. */

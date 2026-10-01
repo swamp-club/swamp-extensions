@@ -55,7 +55,7 @@ Deno.test("simulate: a saved entry that does not parse is reported on its own, a
     ...loaded.scenarios,
     {
       name: "broken",
-      path: "globalArguments.scenarios.2",
+      path: "globalArguments.scenarios.4",
       text: "",
       value: {},
     },
@@ -63,9 +63,11 @@ Deno.test("simulate: a saved entry that does not parse is reported on its own, a
   assertEquals(runs.map((r) => [r.name, r.ok]), [
     ["plan-feedback", true],
     ["plan-to-done", true],
+    ["duplicate-exit", true],
+    ["duplicate-after-retarget", true],
     ["broken", false],
   ]);
-  const broken = runs[2];
+  const broken = runs[4];
   assert(!broken.ok);
   assert(broken.error.includes("scenario"), broken.error);
 });

@@ -247,6 +247,7 @@ Deno.test("build-swamp-extension: the stages, in order", async () => {
     "code-review",
     "release",
     "done",
+    "duplicate",
     "abandoned",
   ]);
 });
@@ -264,7 +265,7 @@ Deno.test("build-swamp-extension: graph analysis stays small", async () => {
   );
 });
 
-Deno.test("build-swamp-extension: people decide at plan, quality waiver, release and abandon", async () => {
+Deno.test("build-swamp-extension: people decide at plan, a duplicate, quality waiver, release and abandon", async () => {
   const definition = await load(BUILD);
   const approvals = new Set<string>();
   for (
@@ -277,6 +278,7 @@ Deno.test("build-swamp-extension: people decide at plan, quality waiver, release
   }
   assertEquals([...approvals].sort(), [
     "abandon-confirmation",
+    "duplicate-confirmation",
     "plan-approval",
     "quality-waiver",
     "release-approval",

@@ -291,7 +291,7 @@ Deno.test("claim: refuses when the index and the work item disagree about the ti
   assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
 });
 
-Deno.test("claim: a retargeted work item leaves its old ticket's index behind, so claiming the old ticket is refused (#2799 moves the index)", async () => {
+Deno.test("claim: a work item retargeted away no longer holds its old ticket, which claims a new one", async () => {
   const swamp = await withFactories();
   const { methods } = oneTicket();
   await claim(swamp, methods, { issue: "T1", factory: "team" });
@@ -306,11 +306,13 @@ Deno.test("claim: a retargeted work item leaves its old ticket's index behind, s
     expectedEra: view.expected.expectedEra,
   });
   const before = trackerWrites(swamp);
-  const error = await assertRejects(() =>
-    claim(swamp, methods, { issue: "T1" })
-  );
-  assert(String(error).includes("records test 'T2'"), String(error));
-  assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
+  await claim(swamp, methods, { issue: "T1", dryRun: true });
+  assert(lastSummary(swamp).includes("has no work item"), lastSummary(swamp));
+  assertEquals(trackerWrites(swamp), before, "a dry run writes nothing");
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const claimed = index(swamp).at(-1)!;
+  assert(claimed.key !== key, "the old ticket gets a new work item");
+  assertEquals(claimed.previous, [key]);
 });
 
 Deno.test("claim: a run record with another key under the claimed name is not the claimed work item", async () => {
@@ -426,4 +428,48 @@ Deno.test("claim: every tracker model has the method and declares the ticket ind
     assert("claim" in tracker.methods, tracker.type);
     assert(TICKET_SPEC in tracker.resources, tracker.type);
   }
+});
+
+Deno.test("publish: a retarget onto a ticket that has another active work item is refused, and its index is left alone", async () => {
+  // The factory is bound to the instance that claims, so publish reads the
+  // same ticket index.
+  const swamp = fakeSwamp();
+  swamp.factory(
+    "team",
+    parseExample(await Deno.readTextFile(MINIMAL)).definition,
+    { tracker: TRACKER },
+  );
+  const { methods } = trackerWith((ref) =>
+    Promise.resolve({
+      id: ref,
+      display: ref,
+      title: "A ticket",
+      status: { id: "s1", name: "Todo" },
+      relations: [],
+    })
+  );
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const { key } = index(swamp)[0];
+  await start(swamp, key);
+  const other = "minimal-othrwork";
+  await start(swamp, other, "team", { test: "T2" });
+  const view = await describeStatus(swamp.context(other), systemEnv);
+  await workItemCall(swamp, other, "retarget", {
+    externalRefs: JSON.stringify(REFS),
+    reason: "T-2 duplicates T-1",
+    expectedStage: view.expected.expectedStage,
+    expectedCycle: String(view.expected.expectedCycle),
+    expectedEra: view.expected.expectedEra,
+  });
+  const error = await assertRejects(() =>
+    methods.publish.execute(
+      methods.publish.arguments.parse({ workItem: other }),
+      swamp.context(TRACKER),
+    )
+  );
+  assert(
+    String(error).includes(`which already has work item '${key}'`),
+    String(error),
+  );
+  assertEquals(index(swamp).at(-1)?.key, key);
 });

@@ -223,6 +223,60 @@ export function ticketSegments(
   return segments;
 }
 
+// ---------------------------------------------------------------------------
+// Duplicate marks: the approvals a stage's tracker.duplicate names (DESIGN.md,
+// "Duplicates"). Each marks the ticket the work item has at that journal
+// version a duplicate of the primary in the product recorded last before it,
+// in the same era. A declined approval marks nothing.
+// ---------------------------------------------------------------------------
+
+export interface DuplicateMark {
+  /** The approval's journal version (its index + 1). */
+  journalVersion: number;
+  /** The product naming the primary, or null when none was recorded first. */
+  product: EntryProduct | null;
+  /** Its payload field holding the primary. */
+  field: string;
+  /** For a message: the product's name and the gate. */
+  record: string;
+  gateId: string;
+}
+
+/** Every duplicate mark in the journal, in journal order. */
+export function duplicateMarks(
+  run: RunRecord,
+  definition: FactoryDefinition,
+): DuplicateMark[] {
+  const stages = new Map(definition.stages.map((s) => [s.id, s]));
+  const marks: DuplicateMark[] = [];
+  run.journal.forEach((event, index) => {
+    if (event.type !== "approval" || event.decision !== "approve") return;
+    const duplicate = stages.get(event.stage)?.tracker?.duplicate;
+    if (duplicate === undefined || duplicate.on.approve !== event.gateId) {
+      return;
+    }
+    const recorded = run.journal.slice(0, index).findLast((e) =>
+      e.type === "recorded" && e.name === duplicate.record &&
+      e.era === event.era
+    );
+    marks.push({
+      journalVersion: index + 1,
+      product: recorded?.type === "recorded"
+        ? {
+          kind: recorded.kind,
+          name: recorded.name,
+          version: recorded.version,
+          digest: recorded.digest,
+        }
+        : null,
+      field: duplicate.field,
+      record: duplicate.record,
+      gateId: event.gateId,
+    });
+  });
+  return marks;
+}
+
 function exitLine(exit: AwaitingExit): string {
   const needs = exit.gateIds.length > 0
     ? `approval of ${exit.gateIds.map((g) => `\`${g}\``).join(", ")}`

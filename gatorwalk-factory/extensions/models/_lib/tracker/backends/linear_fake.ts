@@ -99,6 +99,8 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     { id: "state-progress", name: "In Progress" },
     { id: "state-review", name: "In Review" },
     { id: "state-done", name: "Done" },
+    // Linear's reserved status, which marking a duplicate moves an issue to.
+    { id: "state-duplicate", name: "Duplicate" },
   ];
   const issues: FakeIssue[] = [
     {
@@ -271,6 +273,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
           relatedIssueId: related.id,
         };
         relations.push(relation);
+        if (relation.type === "duplicate") issue.stateId = "state-duplicate";
         return json({
           data: {
             issueRelationCreate: {

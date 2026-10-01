@@ -542,6 +542,21 @@ its own. `fetch_issue` reports a ticket's relations, each with its direction;
 `related_to` is read with one too. The built-in tracker keeps them on both
 tickets.
 
+To mark a duplicate, which also closes it (Linear closes a duplicate itself):
+
+```bash
+swamp model method run board mark_duplicate --input issue=<duplicate> \
+  --input primary=<primary>
+```
+
+`mark_duplicate` moves no work. A duplicate takes none: `claim` refuses it,
+naming the primary, and `publish` refuses a work item still at work on it until
+a driver moves the work, by `retarget` onto the primary or the definition's
+duplicate exit. A stage's `tracker.duplicate` (`on: { approve: <gate> }`,
+`record`, `field`) has `publish` do the same marking when that human-approval
+gate is approved, with the primary's stable id read from the recorded product's
+field. See [DESIGN.md](DESIGN.md), "Duplicates".
+
 ## Linear
 
 `@swamp/gatorwalk-factory/linear` connects a Linear workspace. Keep one instance
@@ -667,8 +682,11 @@ work-item `start` command to run, with the ticket's `externalRefs`. The record
 is written before the work item starts, so if anything fails in between, `claim`
 again hands back the same key and command. Once the work item has started,
 `claim` names it and its stage. Once it has finished, the ticket can claim a new
-one; the record keeps the earlier keys. `factory` is needed only when a new key
-is reserved. `claim` never writes to the tracker, and a refused claim writes
+one; the record keeps the earlier keys. A work item `retarget` moved to another
+ticket counts as finished here, and the `publish` after the retarget moves the
+index to the new ticket. `factory` is needed only when a new key is reserved.
+`--input dryRun=true` reports the ticket's work item, or that it has none, and
+writes nothing. `claim` never writes to the tracker, and a refused claim writes
 nothing. A repeat claim refreshes only the ticket's snapshot, not the index
 record, so read the key with `swamp data get board ticket-ext-add-list-r2ne
 --json`. See [DESIGN.md](DESIGN.md), "Start from a ticket".
