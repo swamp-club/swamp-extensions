@@ -88,3 +88,15 @@ export async function loadOk(name: string, text?: string) {
   );
   return loaded;
 }
+
+const PLAN_STAGE = "      - id: plan\n        initial: true\n";
+
+/**
+ * build-swamp-extension's model definition file with plan's cycle limit
+ * raised from the default 5 to 10, so plan-churn's fifth revise, which the
+ * scenario expects refused, goes through.
+ */
+export function raisePlanLimit(text: string): string {
+  assert(text.includes(PLAN_STAGE), "the plan stage is where the test expects");
+  return text.replace(PLAN_STAGE, `${PLAN_STAGE}        maxCycles: 10\n`);
+}

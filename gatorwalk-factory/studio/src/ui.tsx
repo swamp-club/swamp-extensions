@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 // Small pieces the views share: how a work mode is shown (by colour, and
-// always with a glyph and a label, never colour alone), Copy reference
-// buttons, and the 'c' shortcut.
+// always with a glyph and a label, never colour alone), tab lists, Copy
+// reference buttons, and the 'c' shortcut.
 
 import type { JSX } from "preact";
 import { copyReference } from "./state.ts";
@@ -62,6 +62,54 @@ export const modeMeta = (mode: string | undefined) =>
 
 /** The target an element carries for the 'c' shortcut. */
 export const TARGET_ATTR = "data-target";
+
+/** Tabs: Left and Right move between them (the ARIA tabs pattern). */
+export function Tabs<T extends string>(props: {
+  label: string;
+  tabs: [T, string][];
+  value: T;
+  onChange: (tab: T) => void;
+  controls: string;
+  class?: string;
+}) {
+  const onKey = (e: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const i = props.tabs.findIndex(([k]) => k === props.value);
+    const n = props.tabs.length;
+    const next = props.tabs[(i + (e.key === "ArrowRight" ? 1 : n - 1)) % n][0];
+    e.preventDefault();
+    props.onChange(next);
+    // currentTarget is null once the event is done; keep the list now.
+    const list = e.currentTarget;
+    requestAnimationFrame(() =>
+      list.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)?.focus()
+    );
+  };
+  return (
+    <div
+      class={props.class ?? "tabs"}
+      role="tablist"
+      aria-label={props.label}
+      onKeyDown={onKey}
+    >
+      {props.tabs.map(([k, text]) => (
+        <button
+          type="button"
+          role="tab"
+          key={k}
+          data-tab={k}
+          id={`tab-${k}`}
+          aria-selected={props.value === k}
+          aria-controls={props.controls}
+          tabIndex={props.value === k ? 0 : -1}
+          onClick={() => props.onChange(k)}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function CopyButton(
   { target, label }: { target: Target; label: string },

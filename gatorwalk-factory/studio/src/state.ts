@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 // Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
 //
 // This file is part of Swamp.
@@ -29,6 +30,20 @@ import { loadDefinition, type Loaded } from "./model.ts";
 import { navModel } from "./nav.ts";
 import { referenceLine } from "./reference.ts";
 import { follow, type Target, targetKey } from "./selection.ts";
+import {
+  branch,
+  entryYaml,
+  overlay,
+  payloadCatalogue,
+  play,
+  type Played,
+  runAll,
+  type ScenarioRun,
+  toScenarioEntry,
+  type Walk,
+  walkScenario,
+} from "./simulate.ts";
+import type { ScenarioStep } from "../../extensions/models/_lib/engine/scenario.ts";
 
 export interface FactoryEntry {
   name: string;
@@ -48,8 +63,9 @@ export type StudioEvent =
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
-export type Mode = "design" | "scenarios";
+export type Mode = "design" | "simulate";
 export type PanelTab = "inspect" | "findings" | "source";
+export type SimTab = "run" | "journal" | "metrics" | "scenarios";
 
 const PICK_KEY = "gatorwalk-studio.factory";
 const SEEN_KEY = "gatorwalk-studio.seen.";
@@ -76,7 +92,23 @@ export const trace = signal<{ stages: string[]; step: number } | null>(null);
 export const seen = signal<Seen | null>(null);
 export const zoom = signal(1);
 
+// Simulate mode.
+/** Every saved scenario of the factory, as last run; null before the first. */
+export const runs = signal<ScenarioRun[] | null>(null);
+/** The scenario played, or the one the walk branched from. */
 export const scenario = signal<string | null>(null);
+export const frameIndex = signal(0);
+export const playing = signal(false);
+export const speed = signal(1);
+export const simTab = signal<SimTab>("run");
+/** The person's own walk, when they have branched from a frame. */
+export const walk = signal<Walk | null>(null);
+/** The walk as last played, on the definition as it is now. */
+export const walkPlayed = signal<Played | null>(null);
+/** The walk as a scenario entry, re-run on its own to say if it passes. */
+export const copyEntry = signal<
+  { text: string; passed: boolean; failures: string[] } | null
+>(null);
 
 // --- derived -------------------------------------------------------------------
 
@@ -89,6 +121,27 @@ export const scenarios = computed(() => loaded.value?.scenarios ?? null);
 /** The picked scenario's text, as the file holds it. */
 export const scenarioText = computed(() =>
   scenarios.value?.find((s) => s.name === scenario.value)?.text ?? null
+);
+
+/** The picked scenario's run. */
+export const currentRun = computed(() =>
+  runs.value?.find((r) => r.name === scenario.value) ?? null
+);
+
+/** The frames played: the walk's when there is one, else the scenario's. */
+export const frames = computed(() => {
+  if (walk.value !== null) return walkPlayed.value?.frames ?? [];
+  const r = currentRun.value;
+  return r?.ok ? r.played.frames : [];
+});
+
+export const frame = computed(() => frames.value[frameIndex.value] ?? null);
+
+export const catalogue = computed(() => payloadCatalogue(runs.value ?? []));
+
+/** What the graph draws over the factory in Simulate mode. */
+export const simOverlay = computed(() =>
+  mode.value === "simulate" ? overlay(frames.value, frameIndex.value) : null
 );
 
 export const graph = computed(() => {
@@ -245,25 +298,26 @@ export function loadDefinitionFile(): Promise<void> {
   loading = (async () => {
     do {
       again = false;
-      await readDefinition();
+      if (await readDefinition()) await runSimulation();
     } while (again);
   })().finally(() => (loading = null));
   return loading;
 }
 
-async function readDefinition() {
+/** Read and check the file; true when it passed and Simulate should re-run. */
+async function readDefinition(): Promise<boolean> {
   const name = factory.value;
-  if (name === null) return;
+  if (name === null) return false;
   let file: FileText;
   try {
     file = await getJson<FileText>(api(name));
   } catch (e) {
-    if (factory.value !== name) return;
+    if (factory.value !== name) return false;
     batch(() => {
       sourceError.value = message(e);
       loaded.value = null;
     });
-    return;
+    return false;
   }
   let result: Loaded;
   try {
@@ -271,14 +325,14 @@ async function readDefinition() {
   } catch (e) {
     // The schema passed but the analysis threw: say so, and keep the last
     // good graph, marked stale.
-    if (factory.value !== name) return;
+    if (factory.value !== name) return false;
     batch(() => {
       sourceError.value = `${file.path} could not be checked: ${message(e)}`;
       loaded.value = null;
     });
-    return;
+    return false;
   }
-  if (factory.value !== name) return;
+  if (factory.value !== name) return false;
   batch(() => {
     sourceError.value = null;
     loaded.value = result;
@@ -299,6 +353,7 @@ async function readDefinition() {
     if (targetKey(after) !== targetKey(before)) selection.value = after;
     if (after === null || after.kind !== "finding") trace.value = null;
   });
+  return result.ok;
 }
 
 export async function selectFactory(name: string) {
@@ -309,9 +364,15 @@ export async function selectFactory(name: string) {
     selection.value = null;
     trace.value = null;
     seen.value = null;
-    scenario.value = null;
     zoom.value = 1;
+    runs.value = null;
+    scenario.value = null;
+    frameIndex.value = 0;
+    walk.value = null;
+    walkPlayed.value = null;
+    copyEntry.value = null;
   });
+  setPlaying(false);
   write(PICK_KEY, name);
   await loadDefinitionFile();
 }
@@ -330,6 +391,220 @@ export async function reloadFactories() {
   const now = factories.value.find((f) => f.name === pick);
   if (pick !== null && (pick !== before || now?.path !== path)) {
     await selectFactory(pick);
+  }
+}
+
+// --- Simulate ----------------------------------------------------------------------
+
+let reloads = 0;
+
+/** The last walk error said, so a reload does not say it again. */
+let toldWalkError: { walk: Walk; text: string } | null = null;
+
+/** Play a walk on a definition; null when it cannot run. */
+async function playWalk(
+  definition: OkLoaded["definition"],
+  w: Walk,
+): Promise<Played | null> {
+  try {
+    return await play(definition, walkScenario(w));
+  } catch (e) {
+    const text = `The walk could not run: ${message(e)}`;
+    if (toldWalkError?.walk !== w || toldWalkError.text !== text) {
+      toldWalkError = { walk: w, text };
+      flash(text);
+    }
+    return null;
+  }
+}
+
+/** Run the walk's entry on its own, as validate will once it is saved. */
+async function checkCopy(
+  definition: OkLoaded["definition"],
+  w: Walk,
+  p: Played | null,
+): Promise<typeof copyEntry.value> {
+  if (p === null || w.steps.length === 0) return null;
+  const entry = toScenarioEntry(w, p.frames);
+  try {
+    const result = await play(definition, entry);
+    return {
+      text: entryYaml(entry),
+      passed: result.passed,
+      failures: result.failures.map((f) =>
+        `step ${f.step}: ${f.label}: ${f.message}`
+      ),
+    };
+  } catch (e) {
+    return { text: entryYaml(entry), passed: false, failures: [message(e)] };
+  }
+}
+
+function clampFrame() {
+  const n = frames.value.length;
+  frameIndex.value = Math.max(0, Math.min(frameIndex.value, n - 1));
+}
+
+/**
+ * Play the walk, and check its Copy entry, on the definition as it is now. A
+ * result is kept only if neither the walk nor the definition changed while it
+ * ran; otherwise it plays again, so a step taken during a reload, or a reload
+ * during a step, ends with the newest walk on the newest definition. A walk
+ * discarded meanwhile leaves nothing behind.
+ */
+async function settleWalk() {
+  for (;;) {
+    const g = good.value, w = walk.value;
+    if (g === null || w === null) {
+      batch(() => {
+        walkPlayed.value = null;
+        copyEntry.value = null;
+      });
+      return;
+    }
+    const played = await playWalk(g.definition, w);
+    if (good.value !== g || walk.value !== w) continue;
+    walkPlayed.value = played;
+    clampFrame();
+    const copy = await checkCopy(g.definition, w, played);
+    if (good.value !== g || walk.value !== w) continue;
+    copyEntry.value = copy;
+    return;
+  }
+}
+
+/**
+ * Run every saved scenario, and replay the walk, on the definition as last
+ * loaded. A load that failed the schema never gets here: the last results
+ * stay, under the STALE note, and the scenarios of a broken file never run
+ * against the last good definition. Only a newer reload supersedes the
+ * results; a walk step taken meanwhile does not.
+ */
+async function runSimulation() {
+  const l = loaded.value, g = good.value, name = factory.value;
+  if (l === null || !l.ok || g === null) return;
+  const token = ++reloads;
+  const results = await runAll(g.definition, l.scenarios);
+  if (factory.value !== name || token !== reloads) return;
+  batch(() => {
+    runs.value = results;
+    // A walk keeps its base's name even when the base is gone.
+    if (
+      walk.value === null &&
+      !results.some((r) => r.name === scenario.value)
+    ) {
+      scenario.value = results[0]?.name ?? null;
+    }
+    clampFrame();
+  });
+  await settleWalk();
+}
+
+let playTimer: ReturnType<typeof setInterval> | undefined;
+
+export function setPlaying(on: boolean) {
+  clearInterval(playTimer);
+  playing.value = on;
+  if (!on) return;
+  if (frameIndex.value >= frames.value.length - 1) frameIndex.value = 0;
+  playTimer = setInterval(() => {
+    if (frameIndex.value >= frames.value.length - 1) setPlaying(false);
+    else frameIndex.value++;
+  }, 1100 / speed.value);
+}
+
+export function setSpeed(value: number) {
+  speed.value = value;
+  if (playing.value) setPlaying(true);
+}
+
+/** Show a frame; a person stepping or jumping pauses playback. */
+export function goFrame(i: number) {
+  if (playing.value) setPlaying(false);
+  frameIndex.value = Math.max(0, Math.min(i, frames.value.length - 1));
+}
+
+/** Play another scenario; a walk with steps of its own goes after a yes. */
+export function pickScenario(name: string, ask = confirmDiscard) {
+  if (name === scenario.value && walk.value === null) return;
+  if (walk.value !== null && walk.value.steps.length > 0 && !ask()) return;
+  setPlaying(false);
+  batch(() => {
+    walk.value = null;
+    walkPlayed.value = null;
+    copyEntry.value = null;
+    scenario.value = name;
+    frameIndex.value = 0;
+  });
+}
+
+const confirmDiscard = () =>
+  globalThis.confirm(
+    "Discard your walk? Copy it as a scenario first to keep it.",
+  );
+
+/**
+ * Take a step from the frame shown: the first branches from the scenario
+ * there; later ones extend the walk, or cut it back to the frame shown and
+ * go on from there.
+ */
+export async function takeStep(step: ScenarioStep) {
+  const at = frameIndex.value;
+  const w = walk.value;
+  let next: Walk;
+  if (w === null) {
+    const r = currentRun.value;
+    if (r === null || !r.ok) return;
+    next = branch(r.scenario, at);
+  } else if (at >= w.baseSteps.length) {
+    next = { ...w, steps: w.steps.slice(0, at - w.baseSteps.length) };
+  } else {
+    next = {
+      ...w,
+      branchAt: at,
+      baseSteps: w.baseSteps.slice(0, at),
+      steps: [],
+    };
+  }
+  next = { ...next, steps: [...next.steps, step] };
+  setPlaying(false);
+  batch(() => {
+    walk.value = next;
+    // The entry for the walk before this step is not this walk's.
+    copyEntry.value = null;
+  });
+  await settleWalk();
+  // Show where the step landed, unless another step or a discard came first.
+  if (walk.value === next) {
+    frameIndex.value = Math.max(0, frames.value.length - 1);
+  }
+}
+
+/** Leave the walk, back to the scenario at the frame it branched from. */
+export function discardWalk() {
+  const w = walk.value;
+  if (w === null) return;
+  setPlaying(false);
+  batch(() => {
+    walk.value = null;
+    walkPlayed.value = null;
+    copyEntry.value = null;
+    if (!runs.value?.some((r) => r.name === scenario.value)) {
+      scenario.value = runs.value?.[0]?.name ?? null;
+    }
+    frameIndex.value = w.branchAt;
+    clampFrame();
+  });
+}
+
+export async function copyWalk() {
+  const c = copyEntry.value;
+  if (c === null) return;
+  try {
+    await navigator.clipboard.writeText(c.text);
+    flash("Copied the walk as a scenario: paste it to the agent to save");
+  } catch {
+    flash("Could not copy; select the text and copy it instead");
   }
 }
 

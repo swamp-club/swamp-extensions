@@ -16,21 +16,22 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 // The studio page: a factory picker, Design mode (the graph, the inspector,
 // the findings and the source of the factory definition, re-checked in the
-// browser whenever the file changes) and the factory's scenario files. It
-// is read-only: the agent edits the files and the page reloads them. Text
+// browser whenever the file changes) and Simulate mode (the factory's saved
+// scenarios played on the engine, re-run whenever the file changes, and
+// walks a person takes from any frame). It is read-only: the agent edits the
+// files and the page reloads them. Text
 // from a file is only ever rendered as text, never as markup.
 
 import "./jitless.ts";
 import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
-import type { JSX } from "preact";
 import { Findings } from "./findings.tsx";
 import { fitZoom, Graph } from "./graph.tsx";
 import { Inspector } from "./inspector.tsx";
-import { SCENARIOS_PATH } from "./model.ts";
 import { targetKey } from "./selection.ts";
+import { Dock, SimPanel } from "./simulate_view.tsx";
 import { Source } from "./source.tsx";
-import { reveal } from "./ui.tsx";
+import { reveal, Tabs } from "./ui.tsx";
 import {
   changed,
   factories,
@@ -46,63 +47,13 @@ import {
   mode,
   type PanelTab,
   panelTab,
-  scenario,
-  scenarios,
-  scenarioText,
   selectFactory,
   selection,
+  setPlaying,
   sourceError,
   stale,
   zoom,
 } from "./state.ts";
-
-/** Tabs: Left and Right move between them (the ARIA tabs pattern). */
-function Tabs<T extends string>(props: {
-  label: string;
-  tabs: [T, string][];
-  value: T;
-  onChange: (tab: T) => void;
-  controls: string;
-  class?: string;
-}) {
-  const onKey = (e: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    const i = props.tabs.findIndex(([k]) => k === props.value);
-    const n = props.tabs.length;
-    const next = props.tabs[(i + (e.key === "ArrowRight" ? 1 : n - 1)) % n][0];
-    e.preventDefault();
-    props.onChange(next);
-    // currentTarget is null once the event is done; keep the list now.
-    const list = e.currentTarget;
-    requestAnimationFrame(() =>
-      list.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)?.focus()
-    );
-  };
-  return (
-    <div
-      class={props.class ?? "tabs"}
-      role="tablist"
-      aria-label={props.label}
-      onKeyDown={onKey}
-    >
-      {props.tabs.map(([k, text]) => (
-        <button
-          type="button"
-          role="tab"
-          key={k}
-          data-tab={k}
-          id={`tab-${k}`}
-          aria-selected={props.value === k}
-          aria-controls={props.controls}
-          tabIndex={props.value === k ? 0 : -1}
-          onClick={() => props.onChange(k)}
-        >
-          {text}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function Bar() {
   const list = factories.value;
@@ -144,9 +95,13 @@ function Bar() {
       <Tabs<Mode>
         label="Mode"
         class="modes"
-        tabs={[["design", "Design"], ["scenarios", "Scenarios"]]}
+        tabs={[["design", "Design"], ["simulate", "Simulate"]]}
         value={mode.value}
-        onChange={(m) => (mode.value = m)}
+        onChange={(m) => {
+          // Playback runs only where it can be seen.
+          if (m !== "simulate") setPlaying(false);
+          mode.value = m;
+        }}
         controls="mode-panel"
       />
       <span class="flash" role="status" aria-live="polite">
@@ -312,54 +267,24 @@ function DesignMode() {
   );
 }
 
-function ScenariosMode() {
-  const found = scenarios.value;
-  const file = loaded.value?.file ?? "";
+function SimulateMode() {
+  const wrap = useRef<HTMLElement>(null);
   return (
     <div
-      class="main single"
+      class="main"
       id="mode-panel"
       role="tabpanel"
-      aria-labelledby="tab-scenarios"
+      aria-labelledby="tab-simulate"
     >
-      <section class="panel wide" aria-labelledby="scenarios-title">
-        <div class="pane-head">
-          <h2 id="scenarios-title">Scenarios</h2>
-          <span class="dir">
-            {file === "" ? "" : `${file} ${SCENARIOS_PATH}`}
-          </span>
-        </div>
-        <div class="panel-body">
-          <p class="desc muted">
-            Saved scenarios, read-only. Simulate mode runs them here later.
-          </p>
-          {found !== null && found.length === 0 && (
-            <p class="empty">
-              No scenarios yet. The agent saves them under {SCENARIOS_PATH}{" "}
-              in the factory's model definition.
-            </p>
-          )}
-          <ul class="scenarios">
-            {(found ?? []).map((s) => (
-              <li key={s.name}>
-                <button
-                  type="button"
-                  title={s.path}
-                  aria-pressed={s.name === scenario.value}
-                  onClick={() => {
-                    scenario.value = scenario.value === s.name ? null : s.name;
-                  }}
-                >
-                  {s.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {scenarioText.value !== null && (
-            <pre class="code small" tabIndex={0}>{scenarioText.value}</pre>
-          )}
-        </div>
+      <section class="canvas-wrap" aria-label="Graph" ref={wrap}>
+        <Toolbar box={wrap} />
+        {sourceError.value !== null && (
+          <div class="problem">{sourceError.value}</div>
+        )}
+        <Graph />
+        <Dock />
       </section>
+      <SimPanel />
     </div>
   );
 }
@@ -368,7 +293,7 @@ function App() {
   return (
     <div class="app">
       <Bar />
-      {mode.value === "design" ? <DesignMode /> : <ScenariosMode />}
+      {mode.value === "design" ? <DesignMode /> : <SimulateMode />}
     </div>
   );
 }

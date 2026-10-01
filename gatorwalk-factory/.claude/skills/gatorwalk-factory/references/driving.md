@@ -103,10 +103,16 @@ swamp data get <factory> design-page --json
 ```
 
 When a person wants to watch your edits to a factory definition or its
-scenarios, point them at the studio: a read-only local page that reloads the
-factory's model definition as you save it. They start it themselves, since it
-runs until Ctrl-C: `swamp model create @swamp/gatorwalk-factory/studio studio`
-once, then `swamp model method run studio serve`, which logs the URL.
+scenarios, or to play the scenarios and step a work item through by hand, point
+them at the studio: a read-only local page that reloads the factory's model
+definition as you save it, and plays its saved scenarios on the engine
+(Simulate). They start it themselves, since it runs until Ctrl-C:
+`swamp model create @swamp/gatorwalk-factory/studio studio` once, then
+`swamp model method run studio serve`, which logs the URL.
+
+A walk the person copies from Simulate (Copy as scenario) comes to you as a
+scenario entry; see [scenarios.md](scenarios.md), "A walk the person copied from
+the studio".
 
 The studio's Copy reference gives the person one line to paste to you. It names
 the factory's model definition file, a document path in it, and a readable name,

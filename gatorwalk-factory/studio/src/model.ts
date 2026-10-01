@@ -73,6 +73,8 @@ export interface SavedScenario {
   path: string;
   /** Its text in the file, whole lines, as written. */
   text: string;
+  /** The entry as @std/yaml reads it, as validate does; unchecked. */
+  value: unknown;
 }
 
 interface Base {
@@ -184,6 +186,7 @@ function savedScenarios(
       name: typeof named === "string" ? named : `#${i}`,
       path,
       text: slice,
+      value: item,
     };
   });
 }

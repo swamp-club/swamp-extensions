@@ -16,7 +16,10 @@
 // The graph: lanes, tiles, exits with their gate pips, and edges, drawn from
 // the layout. It is one tab stop (role tree) with a roving focus that is the
 // selection: arrows move it (nav.ts), 'c' copies its reference, and the
-// mouse selects the same targets.
+// mouse selects the same targets. In Simulate mode it also draws the frame
+// shown: the stage the work item is at, how often each stage was entered and
+// each exit taken, what the current stage's exits need, a refused move, and a
+// token along each transition taken; and it follows the current stage.
 
 import { useEffect, useRef } from "preact/hooks";
 import type { JSX } from "preact";
@@ -25,13 +28,17 @@ import { ANY_ID, EXIT_H, HEADER_H, type Layout, type Tile } from "./layout.ts";
 import { allTargets, navigate } from "./nav.ts";
 import { pathSegments } from "./model.ts";
 import { gateIdentity, type Target, targetKey } from "./selection.ts";
+import { EXIT_LABELS, exitKey, type Overlay } from "./simulate.ts";
 import {
   changed,
+  frameIndex,
   good,
   graph,
   nav,
   select,
   selection,
+  simOverlay,
+  speed,
   stale,
   trace,
   zoom,
@@ -63,6 +70,75 @@ function stageOfFinding(path: string, stage: string | undefined) {
   return undefined;
 }
 
+const reducedMotion = () =>
+  globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+/** Bring the current stage into view, if it is not, centred. */
+function follow(box: HTMLElement | null, el: Element | null) {
+  if (box === null || el === null) return;
+  const p = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const inView = r.left >= p.left && r.right <= p.right && r.top >= p.top &&
+    r.bottom <= p.bottom;
+  if (inView) return;
+  box.scrollBy({
+    left: r.left + r.width / 2 - (p.left + p.width / 2),
+    top: r.top + r.height / 2 - (p.top + p.height / 2),
+    behavior: reducedMotion() ? "instant" : "smooth",
+  });
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** Run a token along an edge, leaving a trail that fades. */
+function runToken(edge: SVGPathElement, layer: SVGGElement, rate: number) {
+  const dot = document.createElementNS(SVG_NS, "circle");
+  dot.setAttribute("r", "6");
+  dot.setAttribute("class", "token");
+  const trail = document.createElementNS(SVG_NS, "path");
+  trail.setAttribute("d", edge.getAttribute("d") ?? "");
+  trail.setAttribute("class", "token-trail");
+  layer.append(trail, dot);
+  const len = edge.getTotalLength();
+  trail.style.strokeDasharray = `${len}`;
+  const start = performance.now();
+  const duration = Math.min(900, 380 + len * 0.6) / rate;
+  const tick = (now: number) => {
+    const k = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - k, 3);
+    const p = edge.getPointAtLength(eased * len);
+    dot.setAttribute("cx", String(p.x));
+    dot.setAttribute("cy", String(p.y));
+    trail.style.strokeDashoffset = `${len * (1 - eased)}`;
+    if (k < 1) {
+      requestAnimationFrame(tick);
+      return;
+    }
+    dot.remove();
+    trail.classList.add("fade");
+    setTimeout(() => trail.remove(), 700);
+  };
+  requestAnimationFrame(tick);
+}
+
+/**
+ * Times an exit was taken: a global exit's from every stage. Matching a global
+ * exit by name alone is exact, since the schema refuses a stage transition
+ * with a global transition's name.
+ */
+function takenCount(
+  sim: Overlay,
+  stage: string,
+  exit: string,
+  global: boolean,
+): number {
+  if (!global) return sim.taken.get(exitKey(stage, exit)) ?? 0;
+  let n = 0;
+  for (const [key, count] of sim.taken) {
+    if (key.endsWith(`:${exit}`)) n += count;
+  }
+  return n;
+}
+
 export function fitZoom(box: HTMLElement | null, l: Layout | null) {
   if (box === null || l === null) return;
   const r = box.getBoundingClientRect();
@@ -75,10 +151,14 @@ export function Graph() {
   const g = good.value;
   const box = useRef<HTMLDivElement>(null);
   const fitted = useRef<string | null>(null);
+  const fx = useRef<SVGGElement>(null);
+  const shown = useRef<number | null>(null);
   const ids = nodeIds();
   const sel = selection.value;
   const selKey = targetKey(sel);
   const activeId = ids.get(selKey);
+  const sim = simOverlay.value;
+  const index = frameIndex.value;
 
   // Fit a factory's graph to the pane the first time it is drawn.
   useEffect(() => {
@@ -92,6 +172,29 @@ export function Graph() {
     if (activeId === undefined) return;
     reveal(box.current, document.getElementById(activeId));
   }, [activeId]);
+
+  // Simulate: follow the work item, and run a token along the move just
+  // made when the frame shown is the next one, never under reduced motion.
+  useEffect(() => {
+    if (sim === null) {
+      shown.current = null;
+      return;
+    }
+    const tile = box.current?.querySelector(
+      `[data-stage="${CSS.escape(sim.current)}"]`,
+    );
+    follow(box.current, tile ?? null);
+    const stepped = shown.current !== null && index === shown.current + 1;
+    shown.current = index;
+    if (!stepped || sim.moved === null || reducedMotion()) return;
+    const { from, transition } = sim.moved;
+    const edge = box.current?.querySelector<SVGPathElement>(
+      `path.edge[data-exit="${CSS.escape(exitKey(from, transition))}"]`,
+    ) ?? box.current?.querySelector<SVGPathElement>(
+      `path.edge[data-exit="${CSS.escape(exitKey(ANY_ID, transition))}"]`,
+    );
+    if (edge && fx.current) runToken(edge, fx.current, speed.value);
+  }, [sim, index]);
 
   if (l === null || g === null) return <div class="canvas empty-graph" />;
 
@@ -193,24 +296,27 @@ export function Graph() {
         <g role="presentation">
           {l.edges.map((e) => {
             const hot = traceEdges.has(`${e.from}>${e.to}`);
-            const exitKey = `${e.from}:${
-              e.kind === "global"
-                ? g.view.globalTransitions.find((x) => x.path === e.path)?.name
-                : g.view.stages.find((s) => s.id === e.from)?.transitions
-                  .find((x) => x.path === e.path)?.name
-            }`;
+            const name = e.kind === "global"
+              ? g.view.globalTransitions.find((x) => x.path === e.path)?.name
+              : g.view.stages.find((s) => s.id === e.from)?.transitions
+                .find((x) => x.path === e.path)?.name;
+            const key = `${e.from}:${name}`;
+            const taken = sim !== null && name !== undefined &&
+              takenCount(sim, e.from, name, e.kind === "global") > 0;
             const cls = [
               "edge",
               `k-${e.kind}`,
               e.humanStop ? "human" : "",
               hot ? "trace" : "",
-              exitKey === selExit ? "sel" : "",
+              key === selExit ? "sel" : "",
+              taken ? "taken" : "",
             ].filter(Boolean).join(" ");
             return (
               <path
                 key={e.id}
                 class={cls}
                 d={e.d}
+                data-exit={key}
                 marker-end={`url(#arrow-${hot ? "hot" : e.kind})`}
               />
             );
@@ -248,10 +354,12 @@ export function Graph() {
               findings={findingsBy.get(tile.id)}
               traced={traced.get(tile.id)}
               isChanged={changed.value.has(tile.id)}
+              sim={sim}
               pick={pick}
             />
           ))}
         </g>
+        <g class="fx" ref={fx} role="presentation" />
       </svg>
     </div>
   );
@@ -265,9 +373,10 @@ function TileView(props: {
   findings?: { e: number; w: number };
   traced?: number;
   isChanged: boolean;
+  sim: Overlay | null;
   pick: (target: Target) => (e: Event) => void;
 }) {
-  const { tile, ids, selKey, pick } = props;
+  const { tile, ids, selKey, pick, sim } = props;
   const g = good.value!;
   const isAny = tile.kind === "any";
   const s = tile.stage;
@@ -278,6 +387,8 @@ function TileView(props: {
   const sel = targetKey(target) === selKey;
   const inside = props.selExit?.startsWith(`${tile.id}:`) ?? false;
   const { x, y, w, h } = tile;
+  const current = sim !== null && sim.current === tile.id;
+  const entered = sim === null || isAny ? 0 : sim.entries[tile.id] ?? 0;
   const cls = [
     "tile",
     meta.cls,
@@ -287,6 +398,8 @@ function TileView(props: {
     inside ? "inside" : "",
     props.isChanged ? "changed" : "",
     props.traced !== undefined ? "traced" : "",
+    current ? "sim-current" : "",
+    sim !== null && !isAny && entered === 0 ? "sim-unvisited" : "",
   ].filter(Boolean).join(" ");
   const title = isAny ? "ANY STAGE" : tile.id;
   const label = isAny
@@ -299,6 +412,8 @@ function TileView(props: {
       props.findings
         ? `, ${props.findings.e} errors, ${props.findings.w} warnings`
         : ""
+    }${current ? ", the work item is here" : ""}${
+      entered > 0 ? `, entered ${entered} time${entered === 1 ? "" : "s"}` : ""
     }`;
 
   const chips: { text: string; cls: string }[] = [];
@@ -328,6 +443,7 @@ function TileView(props: {
     <g
       class={cls}
       id={ids.get(targetKey(target))}
+      data-stage={isAny ? undefined : tile.id}
       role="treeitem"
       aria-level={1}
       aria-selected={sel}
@@ -351,6 +467,12 @@ function TileView(props: {
           <text x={c.x + c.w / 2} y={y + 19}>{c.text}</text>
         </g>
       ))}
+      {entered > 0 && (
+        <g class="entry-badge">
+          <circle cx={x - 2} cy={y - 2} r="10" />
+          <text x={x - 2} y={y + 2}>{`×${entered}`}</text>
+        </g>
+      )}
       {props.traced !== undefined && (
         <g class="trace-badge">
           <circle cx={x - 2} cy={y - 2} r="10" />
@@ -374,6 +496,17 @@ function TileView(props: {
         };
         const ry = y + HEADER_H + i * EXIT_H;
         const exitSel = targetKey(exitTarget) === selKey;
+        // The exits the work item has now: its own stage's, and the global
+        // ones, which are open from every stage but a terminal one.
+        const live = sim !== null && (current || (isAny && slot.global))
+          ? sim.exits.get(tr.name)
+          : undefined;
+        const taken = sim === null
+          ? 0
+          : takenCount(sim, tile.id, tr.name, slot.global);
+        const refused = sim?.refused !== null && sim?.refused !== undefined &&
+          sim.refused.transition === tr.name &&
+          (slot.global || sim.refused.from === tile.id);
         const ecls = [
           "exit",
           tr.humanStop ? "human" : "",
@@ -381,6 +514,8 @@ function TileView(props: {
           tr.loop ? "loop" : "",
           slot.global ? "global" : "",
           exitSel ? "sel" : "",
+          live !== undefined ? `st-${live.state}` : "",
+          refused ? "refused" : "",
         ].filter(Boolean).join(" ");
         const aria = `Exit ${tr.name} to ${tr.to}${
           tr.humanStop ? ", a person decides" : ""
@@ -390,7 +525,11 @@ function TileView(props: {
             : ""
         }${tr.manual ? ", manual" : ""}${
           tr.loop ? ", loops back" : ""
-        }, ${tr.gates.length} gate${tr.gates.length === 1 ? "" : "s"}`;
+        }, ${tr.gates.length} gate${tr.gates.length === 1 ? "" : "s"}${
+          live !== undefined ? `, ${EXIT_LABELS[live.state]}` : ""
+        }${taken > 0 ? `, taken ${taken} time${taken === 1 ? "" : "s"}` : ""}${
+          refused ? ", refused just now" : ""
+        }`;
         const lead = tr.manual ? "✋" : tr.loop ? "↺" : slot.global ? "⚠" : "→";
         const specGates = exits.find((e) => e.name === tr.name)?.gates ?? [];
         // Every gate is drawn, since each is a target; many share the room.
@@ -414,7 +553,15 @@ function TileView(props: {
             aria-label={aria}
             onClick={pick(exitTarget)}
           >
-            <title>{`${tr.name} → ${tr.to}`}</title>
+            <title>
+              {`${tr.name} → ${tr.to}${
+                live !== undefined
+                  ? `\n${EXIT_LABELS[live.state]}${
+                    live.failures.map((f) => `\n· ${f}`).join("")
+                  }`
+                  : ""
+              }`}
+            </title>
             <rect
               class="row"
               x={x + 4}
@@ -426,6 +573,11 @@ function TileView(props: {
             <text class="e-name" x={x + 28} y={ry + 16}>
               {short(tr.name, nameRoom)}
             </text>
+            {taken > 0 && (
+              <text class="e-taken" x={x + w + 8} y={ry + 16}>
+                {`×${taken}`}
+              </text>
+            )}
             {pips.map(({ gate, k, at }) => {
               const gateTarget: Target = {
                 kind: "gate",

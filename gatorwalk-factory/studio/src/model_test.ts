@@ -127,6 +127,11 @@ Deno.test("model: saved scenarios are read from the same file, each with its own
   const [first] = loaded.scenarios;
   assert(first.text.startsWith("    - scenario: plan-feedback\n"), first.text);
   assert(!first.text.includes("scenario: plan-to-done"));
+  // Its value is the entry as read, for Simulate to run.
+  assertEquals(
+    (first.value as { scenario: string }).scenario,
+    "plan-feedback",
+  );
   // A broken definition still lists its scenarios.
   const broken = await loadDefinition(
     FILE,

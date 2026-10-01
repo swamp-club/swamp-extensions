@@ -1184,9 +1184,10 @@ not an exact npm or JSR version. `studio_assets_test` also compares
 run `deno info`), so an engine import added without a rebuild fails the tests
 too. The same test keeps every generated module under 800 KB, well under the
 registry's 976.6 KB file limit. The script is the one to watch: 670 KB with
-Design mode, most of it zod, cel-js and the yaml packages the engine and page
-need. If Simulate mode takes it near the limit, the next step is to store it
-gzipped and serve it with `content-encoding: gzip`, about a fifth of the size.
+Design mode and 737 KB with Simulate mode, most of it zod, cel-js and the yaml
+packages the engine and page need. If it nears the limit, the next step is to
+store it gzipped and serve it with `content-encoding: gzip`, about a fifth of
+the size.
 
 ## Design mode
 
@@ -1266,6 +1267,63 @@ never the page.
 glyph and a label; human stops are gold. Focus rings are visible, all motion
 stops under `prefers-reduced-motion` (a finding's trace then shows at once), and
 below 980px the panels stack under the graph, which scrolls in its own pane.
+
+## Simulate mode
+
+**Decision** (swamp-club #2808). The studio's Simulate mode plays a factory's
+saved scenarios on the real engine in the browser, re-runs them whenever the
+factory's model definition changes, and lets a person step a work item
+through by hand from any frame. It never writes: a walk worth keeping goes to
+the agent as text, and the agent saves it.
+
+**The runner in the page.** Simulate reads the scenarios through Design mode's
+own loader (`model.ts`, which keeps each entry as `@std/yaml` reads it) and
+the same `definition` event; there is no route or watch of its own. Each entry
+is checked with `parseScenario` and played with the engine's `runScenario`
+(`scenario.ts`, bundled with `metrics.ts`), so a frame in the page is the frame
+`validate` sees: the committed run after one step, every exit's readiness, and
+`computeMetrics` on the scenario's clock. An entry that does not parse is
+reported on its own, and the rest still run. A reload that fails the schema
+does not re-run: the last results stay under the STALE note, so the scenarios
+of a broken file never run against the last good definition.
+
+**Walk from here** (`simulate.ts`). From any frame a person can take a step of
+their own: an exit (every exit, so a refusal can be seen), approve or decline
+on a pending human approval, an override where a cycle limit closes an exit, a
+wait, or a record. A walk is the base scenario's steps up to that frame, copied,
+then the person's, run as a scenario like any other, so it replays on every
+reload and still runs when its base is renamed or removed. Stepping from an
+earlier frame of a walk cuts it back there. Until swamp-club #2809, `record`
+offers only the payloads that the factory's saved scenarios already record
+for that product; a product with none is listed as having nothing to offer.
+Another scenario discards a walk with steps of its own only after a yes.
+
+**Exits as status reads them.** READY, PERSON or BLOCKED comes from an exit's
+gate checks and cycle limit, not its failure messages: PERSON is a manual exit
+that is otherwise ready, or one whose every failing gate is a human approval
+that must be decided now; a closed cycle limit is BLOCKED, with the override
+offered.
+
+**Copy as scenario.** A walk shows as one entry for `globalArguments.scenarios`
+(no `factory` key), indented to paste: the base's steps as they were, the
+person's with `expect: { refused }` on each one the engine refused (its reason,
+word for word, which the deterministic clock keeps stable), and a closing
+`expect: { stage }`. The page re-runs the entry on its own and says whether it
+passes. The person hands it to the agent, which names it, may shorten the
+refusal texts, and saves it; `validate` then runs it with the rest.
+
+**Overlay and dock.** On the graph: the current stage glows, visited stages
+carry their entry count, exits taken carry theirs, the current stage's exits
+are coloured by what they need, a refused move flashes its exit, a token runs
+along each transition taken when stepping forward, and the canvas follows the
+current stage. The dock plays the frames (first, back, play, step, last, speed),
+with a tick per step coloured by kind, outlined red when not as expected and
+marked when it is the person's own, and a ribbon of the stages over them. Space
+plays and the arrow keys step, but only while focus is on no control, so a key
+a focused button, field, tab list or the graph uses is never taken twice. Under
+`prefers-reduced-motion` there is no token, no pulse, and the canvas jumps
+rather than scrolls. Timeline positions are set as style properties through
+the CSSOM, which the CSP allows; the page writes no style attribute.
 
 ## Trackers
 

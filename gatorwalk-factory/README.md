@@ -108,9 +108,11 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
                           and its saved scenarios), and a worked example (a .md)
 studio/                   the studio page's source
   src/                    the page (Preact): index.html, studio.css, app.tsx,
-                          its views (graph, inspector, findings, source), and
-                          the pure parts they use, with their tests: model.ts
-                          (the engine on the model file's text), layout.ts,
+                          its views (graph, inspector, findings, source,
+                          simulate_view), and the pure parts they use, with
+                          their tests: model.ts (the engine on the model
+                          file's text), simulate.ts (scenarios, walks and Copy
+                          as scenario on the engine's runner), layout.ts,
                           selection.ts, reference.ts, changes.ts, nav.ts
   fonts/                  the bundled fonts, with their licences
   build.ts                bundles the page into the studio_asset modules
@@ -430,8 +432,16 @@ shows them as the agent saves.
 - **Keyboard:** the graph is one tab stop. Arrows move between stages, Enter
   steps into a stage's exits, Enter on an exit follows it to the next stage, →
   steps into an exit's gates, Esc steps back out, and `c` copies a reference.
-- **Scenarios** lists the factory's saved scenarios (`globalArguments.scenarios`
-  in the same file) and shows them, read-only.
+- **Simulate** plays the factory's saved scenarios (`globalArguments.scenarios`
+  in the same file) on the real engine in the browser, and plays them again
+  every time the file changes, with a pass or fail for each and the steps that
+  did not go as expected. Step through the frames to see the stage, its exits
+  as `status` reports them (READY, PERSON or BLOCKED, with the engine's
+  messages), the journal and the metrics. From any frame, **walk from here**:
+  take an exit, approve or decline, override a cycle limit, wait, or record a
+  payload a saved scenario uses, and the engine goes on from there. **Copy as
+  scenario** gives the walk as one entry for `globalArguments.scenarios`, to
+  paste to the agent, which saves it. Space plays, ← and → step.
 
 ```bash
 # Once per repo.

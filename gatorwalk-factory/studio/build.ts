@@ -64,10 +64,12 @@ export const ENGINE_INPUTS = [
   "gates.ts",
   "graph.ts",
   "journal.ts",
+  "metrics.ts",
   "payload_schema.ts",
   "run_ops.ts",
   "run_record.ts",
   "run_store.ts",
+  "scenario.ts",
   "template.ts",
   "tracker_binding.ts",
 ];

@@ -78,6 +78,29 @@ pass the definition's schemas, as they would in a real work item. Write the
 steps from the definition: the transitions out of each stage, the gates on them,
 and the payload schemas.
 
+## A walk the person copied from the studio
+
+The studio's Simulate mode lets a person step a work item through by hand from
+any frame of a scenario, and **Copy as scenario** gives them that walk as one
+entry to paste to you, already indented for the `scenarios:` list:
+
+```yaml
+- scenario: plan-churn-walk
+  description: Branched from plan-churn at step 15.
+  steps:
+    ...
+    - move: approve
+      expect: { refused: "transition 'approve' is not ready: ..." }
+    - expect: { stage: plan }
+```
+
+It is a draft. Give it a name that says what the path shows, rewrite the
+description in those terms, shorten each `expect: { refused }` to a distinctive
+part of the refusal (it holds the engine's whole message), drop steps that do
+not matter to the path, and ask the person what they meant it to pin if that is
+not clear. Then add it to the factory's `scenarios:` list and run `validate`, as
+for any scenario you write.
+
 ## After writing one
 
 Run `validate` and fix what it reports:
