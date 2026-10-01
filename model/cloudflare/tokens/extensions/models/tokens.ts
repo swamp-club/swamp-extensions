@@ -71,8 +71,14 @@ const GlobalArgsSchema = z.object({
     permission_groups: z.array(z.object({
       id: z.string(),
       meta: z.object({
-        key: z.string().optional(),
-        value: z.string().optional(),
+        category: z.string().optional(),
+        deprecated: z.string().optional(),
+        description: z.string().optional(),
+        editable: z.string().optional(),
+        eol_at: z.string().optional(),
+        label: z.string().optional(),
+        scopes: z.string().optional(),
+        visibility: z.string().optional(),
       }).optional(),
       name: z.string().optional(),
     })),
@@ -119,8 +125,14 @@ const ResourceSchema = z.object({
     permission_groups: z.array(z.object({
       id: z.string().optional(),
       meta: z.object({
-        key: z.string().optional(),
-        value: z.string().optional(),
+        category: z.string().optional(),
+        deprecated: z.string().optional(),
+        description: z.string().optional(),
+        editable: z.string().optional(),
+        eol_at: z.string().optional(),
+        label: z.string().optional(),
+        scopes: z.string().optional(),
+        visibility: z.string().optional(),
       }).optional(),
       name: z.string().optional(),
     })).optional(),
@@ -155,8 +167,14 @@ const InputsSchema = z.object({
     permission_groups: z.array(z.object({
       id: z.string(),
       meta: z.object({
-        key: z.string().optional(),
-        value: z.string().optional(),
+        category: z.string().optional(),
+        deprecated: z.string().optional(),
+        description: z.string().optional(),
+        editable: z.string().optional(),
+        eol_at: z.string().optional(),
+        label: z.string().optional(),
+        scopes: z.string().optional(),
+        visibility: z.string().optional(),
       }).optional(),
       name: z.string().optional(),
     })),
@@ -173,7 +191,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tokens. Registered at `@swamp/cloudflare/tokens/tokens`. */
 export const model = {
   type: "@swamp/cloudflare/tokens/tokens",
-  version: "2026.09.29.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -213,6 +231,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

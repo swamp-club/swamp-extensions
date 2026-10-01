@@ -32,17 +32,44 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead, update } from "./_lib/digitalocean.ts";
+import { create, read, remove, tryRead } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  id: z.string().optional(),
-  connection_parameters: z.record(z.string(), z.unknown()).optional(),
-  provider: z.string().optional(),
-  user_id: z.string().optional(),
-  scopes: z.array(z.string()).optional(),
+  provider: z.string().describe(
+    "Required provider slug, from the provider list.",
+  ),
+  user_id: z.string().regex(new RegExp("^[A-Za-z0-9._-]{1,64}$")).describe(
+    "Required. Your identifier for the user the connection acts for: 1 to 64 characters from `[A-Za-z0-9._-]`. A session whose `actor_id` equals it uses this connection.",
+  ),
+  scopes: z.array(z.string()).describe(
+    "Optional OAuth scopes to request. Defaults to every scope the provider offers; scopes outside that set are rejected. Ignored for API-key credentials.",
+  ).optional(),
+  connection_parameters: z.record(z.string(), z.unknown()).describe(
+    "Values for the provider's `connection_parameters`, validated against their specifications.",
+  ).optional(),
+  credential: z.object({
+    digitalocean_oauth: z.record(z.string(), z.unknown()).optional(),
+    team_credential: z.object({
+      credential_id: z.string().optional(),
+    }).optional(),
+  }).describe(
+    "Optional credential to connect through. Omitted uses DigitalOcean's shared OAuth application.",
+  ).optional(),
+  network: z.object({
+    vpc: z.object({
+      vpc_uuid: z.string().optional(),
+      destinations: z.array(z.object({
+        host: z.string().optional(),
+        port: z.number().int().optional(),
+        allowed_ip_cidrs: z.array(z.string()).optional(),
+      })).optional(),
+    }).optional(),
+  }).describe(
+    "Optional private network for the connection's calls. Requires VPC networking to be enabled for your account (403 otherwise).",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -51,33 +78,78 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   id: z.string(),
   provider: z.string().optional(),
-  user_id: z.string().optional(),
-  scopes: z.array(z.string()).optional(),
-  status: z.string().optional(),
-  granted_at: z.string().optional(),
-  revoked_at: z.string().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
   provider_display_name: z.string().optional(),
-  connection_parameters: z.record(z.string(), z.unknown()).optional(),
+  user_id: z.string().optional(),
+  status: z.string().optional(),
+  created_at: z.string().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
+  revoked_at: z.string().nullable().optional(),
+  connection_parameters: z.record(z.string(), z.unknown()).nullable()
+    .optional(),
+  credential_kind: z.string().optional(),
+  credential_id: z.string().optional(),
+  network: z.object({
+    vpc: z.object({
+      vpc_uuid: z.string().optional(),
+      region: z.string().optional(),
+      destinations: z.array(z.object({
+        host: z.string().optional(),
+        port: z.number().optional(),
+        allowed_ip_cidrs: z.array(z.string()).optional(),
+      })).optional(),
+    }).optional(),
+  }).nullable().optional(),
+  oauth: z.object({
+    scopes: z.array(z.string()).optional(),
+    granted_at: z.string().optional(),
+  }).optional(),
+  api_key: z.record(z.string(), z.unknown()).optional(),
+  scopes: z.array(z.string()).optional(),
+  granted_at: z.string().nullable().optional(),
+  owning_user_id: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  id: z.string().optional(),
-  connection_parameters: z.record(z.string(), z.unknown()).optional(),
   provider: z.string().optional(),
-  user_id: z.string().optional(),
+  user_id: z.string().regex(new RegExp("^[A-Za-z0-9._-]{1,64}$")).optional(),
   scopes: z.array(z.string()).optional(),
+  connection_parameters: z.record(z.string(), z.unknown()).optional(),
+  credential: z.object({
+    digitalocean_oauth: z.record(z.string(), z.unknown()).optional(),
+    team_credential: z.object({
+      credential_id: z.string().optional(),
+    }).optional(),
+  }).optional(),
+  network: z.object({
+    vpc: z.object({
+      vpc_uuid: z.string().optional(),
+      destinations: z.array(z.object({
+        host: z.string().optional(),
+        port: z.number().int().optional(),
+        allowed_ip_cidrs: z.array(z.string()).optional(),
+      })).optional(),
+    }).optional(),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean action gateway connection. Registered at `@swamp/digitalocean/action-gateway-connection`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-connection",
-  version: "2026.09.24.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: credential, network. Removed: id",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { id: _id, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -105,6 +177,8 @@ export const model = {
         if (g.connection_parameters !== undefined) {
           body.connection_parameters = g.connection_parameters;
         }
+        if (g.credential !== undefined) body.credential = g.credential;
+        if (g.network !== undefined) body.network = g.network;
         const result = await create(
           "/v2/action-gateway/connections",
           body,
@@ -138,43 +212,6 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
-    update: {
-      description: "Update action gateway connection attributes",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) throw new Error("No data found - run create first");
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const body: Record<string, unknown> = {};
-        if (g.id !== undefined) body.id = g.id;
-        if (g.connection_parameters !== undefined) {
-          body.connection_parameters = g.connection_parameters;
-        }
-        const result = await update(
-          "/v2/action-gateway/connections",
-          existing.id ?? existing.id,
-          body,
-          "PATCH",
-          undefined,
-          g.token,
-        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,

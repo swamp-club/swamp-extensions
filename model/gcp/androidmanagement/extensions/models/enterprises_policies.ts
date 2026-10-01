@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
       "COMMON_CRITERIA_MODE_DISABLED",
       "COMMON_CRITERIA_MODE_ENABLED",
     ]).describe(
-      "Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Enabling Common Criteria Mode increases certain security components on a device, see CommonCriteriaMode for details.Warning: Common Criteria Mode enforces a strict security model typically only required for IT products used in national security systems and other highly sensitive organizations. Standard device use may be affected. Only enabled if required. If Common Criteria Mode is turned off after being enabled previously, all user-configured Wi-Fi networks may be lost and any enterprise-configured Wi-Fi networks that require user input may need to be reconfigured.",
+      "Optional. Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Enabling Common Criteria Mode increases certain security components on a device, see CommonCriteriaMode for details.Warning: Common Criteria Mode enforces a strict security model typically only required for IT products used in national security systems and other highly sensitive organizations. Standard device use may be affected. Only enabled if required. If Common Criteria Mode is turned off after being enabled previously, all user-configured Wi-Fi networks may be lost and any enterprise-configured Wi-Fi networks that require user input may need to be reconfigured.",
     ).optional(),
     contentProtectionPolicy: z.enum([
       "CONTENT_PROTECTION_POLICY_UNSPECIFIED",
@@ -174,14 +174,14 @@ const GlobalArgsSchema = z.object({
       "DEVELOPER_SETTINGS_DISABLED",
       "DEVELOPER_SETTINGS_ALLOWED",
     ]).describe(
-      "Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated). On personally-owned devices with a work profile, setting this policy will not disable safe boot. In this case, a NonComplianceDetail with MANAGEMENT_MODE is reported.",
+      "Optional. Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated). On personally-owned devices with a work profile, setting this policy will not disable safe boot. In this case, a NonComplianceDetail with MANAGEMENT_MODE is reported.",
     ).optional(),
     googlePlayProtectVerifyApps: z.enum([
       "GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED",
       "VERIFY_APPS_ENFORCED",
       "VERIFY_APPS_USER_CHOICE",
     ]).describe(
-      "Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated).",
+      "Optional. Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated).",
     ).optional(),
     mtePolicy: z.enum([
       "MTE_POLICY_UNSPECIFIED",
@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
       "Optional. Controls Memory Tagging Extension (MTE) (https://source.android.com/docs/security/test/memory-safety/arm-mte) on the device. The device needs to be rebooted to apply changes to the MTE policy. On Android 15 and above, a NonComplianceDetail with PENDING is reported if the policy change is pending a device reboot.",
     ).optional(),
     personalAppsThatCanReadWorkNotifications: z.array(z.string()).describe(
-      "Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService). By default, no personal apps (aside from system apps) can read work notifications. Each value in the list must be a package name.",
+      "Optional. Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService). By default, no personal apps (aside from system apps) can read work notifications. Each value in the list must be a package name.",
     ).optional(),
     untrustedAppsPolicy: z.enum([
       "UNTRUSTED_APPS_POLICY_UNSPECIFIED",
@@ -200,10 +200,10 @@ const GlobalArgsSchema = z.object({
       "ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY",
       "ALLOW_INSTALL_DEVICE_WIDE",
     ]).describe(
-      "The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated).",
+      "Optional. The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated).",
     ).optional(),
   }).describe(
-    "Advanced security settings. In most cases, setting these is not needed.",
+    "Optional. Advanced security settings. In most cases, setting these is not needed.",
   ).optional(),
   alwaysOnVpnPackage: z.object({
     lockdownEnabled: z.boolean().describe(
@@ -2004,7 +2004,7 @@ const InputsSchema = z.object({
       "COMMON_CRITERIA_MODE_DISABLED",
       "COMMON_CRITERIA_MODE_ENABLED",
     ]).describe(
-      "Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Enabling Common Criteria Mode increases certain security components on a device, see CommonCriteriaMode for details.Warning: Common Criteria Mode enforces a strict security model typically only required for IT products used in national security systems and other highly sensitive organizations. Standard device use may be affected. Only enabled if required. If Common Criteria Mode is turned off after being enabled previously, all user-configured Wi-Fi networks may be lost and any enterprise-configured Wi-Fi networks that require user input may need to be reconfigured.",
+      "Optional. Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Enabling Common Criteria Mode increases certain security components on a device, see CommonCriteriaMode for details.Warning: Common Criteria Mode enforces a strict security model typically only required for IT products used in national security systems and other highly sensitive organizations. Standard device use may be affected. Only enabled if required. If Common Criteria Mode is turned off after being enabled previously, all user-configured Wi-Fi networks may be lost and any enterprise-configured Wi-Fi networks that require user input may need to be reconfigured.",
     ).optional(),
     contentProtectionPolicy: z.enum([
       "CONTENT_PROTECTION_POLICY_UNSPECIFIED",
@@ -2019,14 +2019,14 @@ const InputsSchema = z.object({
       "DEVELOPER_SETTINGS_DISABLED",
       "DEVELOPER_SETTINGS_ALLOWED",
     ]).describe(
-      "Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated). On personally-owned devices with a work profile, setting this policy will not disable safe boot. In this case, a NonComplianceDetail with MANAGEMENT_MODE is reported.",
+      "Optional. Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated). On personally-owned devices with a work profile, setting this policy will not disable safe boot. In this case, a NonComplianceDetail with MANAGEMENT_MODE is reported.",
     ).optional(),
     googlePlayProtectVerifyApps: z.enum([
       "GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED",
       "VERIFY_APPS_ENFORCED",
       "VERIFY_APPS_USER_CHOICE",
     ]).describe(
-      "Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated).",
+      "Optional. Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated).",
     ).optional(),
     mtePolicy: z.enum([
       "MTE_POLICY_UNSPECIFIED",
@@ -2037,7 +2037,7 @@ const InputsSchema = z.object({
       "Optional. Controls Memory Tagging Extension (MTE) (https://source.android.com/docs/security/test/memory-safety/arm-mte) on the device. The device needs to be rebooted to apply changes to the MTE policy. On Android 15 and above, a NonComplianceDetail with PENDING is reported if the policy change is pending a device reboot.",
     ).optional(),
     personalAppsThatCanReadWorkNotifications: z.array(z.string()).describe(
-      "Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService). By default, no personal apps (aside from system apps) can read work notifications. Each value in the list must be a package name.",
+      "Optional. Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService). By default, no personal apps (aside from system apps) can read work notifications. Each value in the list must be a package name.",
     ).optional(),
     untrustedAppsPolicy: z.enum([
       "UNTRUSTED_APPS_POLICY_UNSPECIFIED",
@@ -2045,10 +2045,10 @@ const InputsSchema = z.object({
       "ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY",
       "ALLOW_INSTALL_DEVICE_WIDE",
     ]).describe(
-      "The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated).",
+      "Optional. The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated).",
     ).optional(),
   }).describe(
-    "Advanced security settings. In most cases, setting these is not needed.",
+    "Optional. Advanced security settings. In most cases, setting these is not needed.",
   ).optional(),
   alwaysOnVpnPackage: z.object({
     lockdownEnabled: z.boolean().describe(
@@ -3444,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.09.29.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3618,6 +3618,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

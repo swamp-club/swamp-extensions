@@ -94,6 +94,9 @@ const GlobalArgsSchema = z.object({
   ExactSettings: z.boolean().describe(
     "The property describes the exact settings which can be modified",
   ).optional(),
+  Virtual: z.boolean().describe(
+    "Indicates whether the data provider is virtual.",
+  ).optional(),
   Settings: z.object({
     PostgreSqlSettings: z.object({
       ServerName: z.string(),
@@ -126,6 +129,12 @@ const GlobalArgsSchema = z.object({
       DatabaseName: z.string(),
       SslMode: z.enum(["none", "require", "verify-ca", "verify-full"]),
       CertificateArn: z.string().optional(),
+      S3Path: z.string().describe(
+        "The path for the Amazon S3 bucket that the application uses for accessing the user-defined schema.",
+      ).optional(),
+      S3AccessRoleArn: z.string().describe(
+        "The ARN for the role the application uses to access its Amazon S3 bucket.",
+      ).optional(),
     }).describe("MicrosoftSqlServerSettings property identifier.").optional(),
     RedshiftSettings: z.object({
       ServerName: z.string(),
@@ -162,6 +171,8 @@ const GlobalArgsSchema = z.object({
       DatabaseName: z.string(),
       SslMode: z.enum(["none", "verify-ca"]),
       CertificateArn: z.string().optional(),
+      EncryptionAlgorithm: z.number().int().optional(),
+      SecurityMechanism: z.number().int().optional(),
     }).describe("IbmDb2LuwSettings property identifier.").optional(),
     IbmDb2zOsSettings: z.object({
       ServerName: z.string(),
@@ -194,6 +205,7 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   Engine: z.string().optional(),
   ExactSettings: z.boolean().optional(),
+  Virtual: z.boolean().optional(),
   Settings: z.object({
     PostgreSqlSettings: z.object({
       ServerName: z.string(),
@@ -226,6 +238,8 @@ const StateSchema = z.object({
       DatabaseName: z.string(),
       SslMode: z.string(),
       CertificateArn: z.string(),
+      S3Path: z.string(),
+      S3AccessRoleArn: z.string(),
     }),
     RedshiftSettings: z.object({
       ServerName: z.string(),
@@ -261,6 +275,8 @@ const StateSchema = z.object({
       DatabaseName: z.string(),
       SslMode: z.string(),
       CertificateArn: z.string(),
+      EncryptionAlgorithm: z.number(),
+      SecurityMechanism: z.number(),
     }),
     IbmDb2zOsSettings: z.object({
       ServerName: z.string(),
@@ -317,6 +333,9 @@ const InputsSchema = z.object({
   ExactSettings: z.boolean().describe(
     "The property describes the exact settings which can be modified",
   ).optional(),
+  Virtual: z.boolean().describe(
+    "Indicates whether the data provider is virtual.",
+  ).optional(),
   Settings: z.object({
     PostgreSqlSettings: z.object({
       ServerName: z.string().optional(),
@@ -353,6 +372,12 @@ const InputsSchema = z.object({
       SslMode: z.enum(["none", "require", "verify-ca", "verify-full"])
         .optional(),
       CertificateArn: z.string().optional(),
+      S3Path: z.string().describe(
+        "The path for the Amazon S3 bucket that the application uses for accessing the user-defined schema.",
+      ).optional(),
+      S3AccessRoleArn: z.string().describe(
+        "The ARN for the role the application uses to access its Amazon S3 bucket.",
+      ).optional(),
     }).describe("MicrosoftSqlServerSettings property identifier.").optional(),
     RedshiftSettings: z.object({
       ServerName: z.string().optional(),
@@ -390,6 +415,8 @@ const InputsSchema = z.object({
       DatabaseName: z.string().optional(),
       SslMode: z.enum(["none", "verify-ca"]).optional(),
       CertificateArn: z.string().optional(),
+      EncryptionAlgorithm: z.number().int().optional(),
+      SecurityMechanism: z.number().int().optional(),
     }).describe("IbmDb2LuwSettings property identifier.").optional(),
     IbmDb2zOsSettings: z.object({
       ServerName: z.string().optional(),
@@ -433,7 +460,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS DataProvider. Registered at `@swamp/aws/dms/data-provider`. */
 export const model = {
   type: "@swamp/aws/dms/data-provider",
-  version: "2026.08.17.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -483,6 +510,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: Virtual",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

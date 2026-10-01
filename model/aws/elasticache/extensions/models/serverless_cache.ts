@@ -64,16 +64,16 @@ const ECPUPerSecondSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Value: z.string().min(0).max(256).regex(
-    new RegExp("^[a-zA-Z0-9 _\\.\\/=+:\\-@]*$"),
-  ).describe(
-    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ).optional(),
   Key: z.string().min(1).max(128).regex(
     new RegExp("^(?!aws:)[a-zA-Z0-9 _\\.\\/=+:\\-@]*$"),
   ).describe(
     "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with 'aws:'. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
+  Value: z.string().min(0).max(256).regex(
+    new RegExp("^[a-zA-Z0-9 _\\.\\/=+:\\-@]*$"),
+  ).describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -89,15 +89,15 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  ServerlessCacheName: z.string().describe(
+    "The name of the Serverless Cache. This value must be unique.",
+  ),
   Description: z.string().describe("The description of the Serverless Cache.")
     .optional(),
-  KmsKeyId: z.string().describe(
-    "The ID of the KMS key used to encrypt the cluster.",
+  Engine: z.string().describe("The engine name of the Serverless Cache."),
+  MajorEngineVersion: z.string().describe(
+    "The major engine version of the Serverless Cache.",
   ).optional(),
-  FinalSnapshotName: z.string().describe(
-    "The final snapshot name which is taken before Serverless Cache is deleted.",
-  ).optional(),
-  UserGroupId: z.string().describe("The ID of the user group.").optional(),
   CacheUsageLimits: z.object({
     DataStorage: DataStorageSchema.describe(
       "The cached data capacity of the Serverless Cache.",
@@ -106,67 +106,71 @@ const GlobalArgsSchema = z.object({
       "The ECPU per second of the Serverless Cache.",
     ).optional(),
   }).describe("The cache capacity limit of the Serverless Cache.").optional(),
+  KmsKeyId: z.string().describe(
+    "The ID of the KMS key used to encrypt the cluster.",
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "One or more Amazon VPC security groups associated with this Serverless Cache.",
   ).optional(),
   SnapshotArnsToRestore: z.array(z.string()).describe(
     "The ARN's of snapshot to restore Serverless Cache.",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this Serverless Cache.",
+  ).optional(),
+  UserGroupId: z.string().describe("The ID of the user group.").optional(),
   SubnetIds: z.array(z.string()).describe(
     "The subnet id's of the Serverless Cache.",
-  ).optional(),
-  DailySnapshotTime: z.string().describe(
-    "The daily time range (in UTC) during which the service takes automatic snapshot of the Serverless Cache.",
   ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The snapshot retention limit of the Serverless Cache.",
   ).optional(),
+  DailySnapshotTime: z.string().describe(
+    "The daily time range (in UTC) during which the service takes automatic snapshot of the Serverless Cache.",
+  ).optional(),
   NetworkType: z.enum(["ipv4", "ipv6", "dual_stack"]).describe(
     "The network type for the serverless cache. Valid values are ipv4, ipv6, or dual_stack.",
   ).optional(),
-  ServerlessCacheName: z.string().describe(
-    "The name of the Serverless Cache. This value must be unique.",
-  ),
-  MajorEngineVersion: z.string().describe(
-    "The major engine version of the Serverless Cache.",
+  ConnectionType: z.enum(["vpc", "public"]).describe(
+    "The connection type for the serverless cache. Valid values are vpc or public.",
   ).optional(),
-  Engine: z.string().describe("The engine name of the Serverless Cache."),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this Serverless Cache.",
+  FinalSnapshotName: z.string().describe(
+    "The final snapshot name which is taken before Serverless Cache is deleted.",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  Status: z.string().optional(),
+  ServerlessCacheName: z.string(),
   Description: z.string().optional(),
-  KmsKeyId: z.string().optional(),
-  FinalSnapshotName: z.string().optional(),
-  UserGroupId: z.string().optional(),
-  CreateTime: z.string().optional(),
+  Engine: z.string().optional(),
+  MajorEngineVersion: z.string().optional(),
+  FullEngineVersion: z.string().optional(),
   CacheUsageLimits: z.object({
     DataStorage: DataStorageSchema,
     ECPUPerSecond: ECPUPerSecondSchema,
   }).optional(),
+  KmsKeyId: z.string().optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   SnapshotArnsToRestore: z.array(z.string()).optional(),
+  Tags: z.array(TagSchema).optional(),
+  UserGroupId: z.string().optional(),
   SubnetIds: z.array(z.string()).optional(),
-  DailySnapshotTime: z.string().optional(),
-  ReaderEndpoint: z.object({
-    Address: z.string(),
-    Port: z.string(),
-  }).optional(),
   SnapshotRetentionLimit: z.number().optional(),
-  FullEngineVersion: z.string().optional(),
+  DailySnapshotTime: z.string().optional(),
+  NetworkType: z.string().optional(),
+  ConnectionType: z.string().optional(),
+  CreateTime: z.string().optional(),
+  Status: z.string().optional(),
   Endpoint: z.object({
     Address: z.string(),
     Port: z.string(),
   }).optional(),
-  NetworkType: z.string().optional(),
-  ServerlessCacheName: z.string(),
-  MajorEngineVersion: z.string().optional(),
+  ReaderEndpoint: z.object({
+    Address: z.string(),
+    Port: z.string(),
+  }).optional(),
   ARN: z.string().optional(),
-  Engine: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  FinalSnapshotName: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -176,15 +180,16 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  ServerlessCacheName: z.string().describe(
+    "The name of the Serverless Cache. This value must be unique.",
+  ).optional(),
   Description: z.string().describe("The description of the Serverless Cache.")
     .optional(),
-  KmsKeyId: z.string().describe(
-    "The ID of the KMS key used to encrypt the cluster.",
+  Engine: z.string().describe("The engine name of the Serverless Cache.")
+    .optional(),
+  MajorEngineVersion: z.string().describe(
+    "The major engine version of the Serverless Cache.",
   ).optional(),
-  FinalSnapshotName: z.string().describe(
-    "The final snapshot name which is taken before Serverless Cache is deleted.",
-  ).optional(),
-  UserGroupId: z.string().describe("The ID of the user group.").optional(),
   CacheUsageLimits: z.object({
     DataStorage: DataStorageSchema.describe(
       "The cached data capacity of the Serverless Cache.",
@@ -193,34 +198,36 @@ const InputsSchema = z.object({
       "The ECPU per second of the Serverless Cache.",
     ).optional(),
   }).describe("The cache capacity limit of the Serverless Cache.").optional(),
+  KmsKeyId: z.string().describe(
+    "The ID of the KMS key used to encrypt the cluster.",
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "One or more Amazon VPC security groups associated with this Serverless Cache.",
   ).optional(),
   SnapshotArnsToRestore: z.array(z.string()).describe(
     "The ARN's of snapshot to restore Serverless Cache.",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this Serverless Cache.",
+  ).optional(),
+  UserGroupId: z.string().describe("The ID of the user group.").optional(),
   SubnetIds: z.array(z.string()).describe(
     "The subnet id's of the Serverless Cache.",
-  ).optional(),
-  DailySnapshotTime: z.string().describe(
-    "The daily time range (in UTC) during which the service takes automatic snapshot of the Serverless Cache.",
   ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The snapshot retention limit of the Serverless Cache.",
   ).optional(),
+  DailySnapshotTime: z.string().describe(
+    "The daily time range (in UTC) during which the service takes automatic snapshot of the Serverless Cache.",
+  ).optional(),
   NetworkType: z.enum(["ipv4", "ipv6", "dual_stack"]).describe(
     "The network type for the serverless cache. Valid values are ipv4, ipv6, or dual_stack.",
   ).optional(),
-  ServerlessCacheName: z.string().describe(
-    "The name of the Serverless Cache. This value must be unique.",
+  ConnectionType: z.enum(["vpc", "public"]).describe(
+    "The connection type for the serverless cache. Valid values are vpc or public.",
   ).optional(),
-  MajorEngineVersion: z.string().describe(
-    "The major engine version of the Serverless Cache.",
-  ).optional(),
-  Engine: z.string().describe("The engine name of the Serverless Cache.")
-    .optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this Serverless Cache.",
+  FinalSnapshotName: z.string().describe(
+    "The final snapshot name which is taken before Serverless Cache is deleted.",
   ).optional(),
 });
 
@@ -243,7 +250,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache ServerlessCache. Registered at `@swamp/aws/elasticache/serverless-cache`. */
 export const model = {
   type: "@swamp/aws/elasticache/serverless-cache",
-  version: "2026.09.17.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -298,6 +305,11 @@ export const model = {
     {
       toVersion: "2026.09.17.1",
       description: "Added: NetworkType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: ConnectionType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -410,6 +422,7 @@ export const model = {
             "SnapshotArnsToRestore",
             "SubnetIds",
             "NetworkType",
+            "ConnectionType",
           ],
           credentials,
         );

@@ -939,14 +939,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.09.29.1",
-      description: "Removed: spendCap",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { spendCap: _spendCap, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.09.30.1",
       description: "Added: spendCap",
       upgradeAttributes: (old: Record<string, unknown>) => old,

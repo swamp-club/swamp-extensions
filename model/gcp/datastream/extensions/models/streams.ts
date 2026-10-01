@@ -674,9 +674,17 @@ const GlobalArgsSchema = z.object({
         .optional(),
     }).describe("Spanner data source configuration.").optional(),
     sqlServerSourceConfig: z.object({
-      changeTables: z.object({}).describe(
-        "CDC reader reads from change tables.",
-      ).optional(),
+      changeTables: z.object({
+        ddlConfig: z.object({
+          autoCreateNewCaptureInstanceOnDdl: z.boolean().describe(
+            "Optional. If set to true, Datastream will automatically create a new capture instance when DDL is detected on a table.The customer will be responsible for deleting it so that the next set of DDLs can be handled. The default is false and it means that DDL's will not be handled.",
+          ).optional(),
+          autoDeleteOldCaptureInstance: z.boolean().describe(
+            "Optional. If set to true, Datastream will automatically delete the old capture instance after creating a new one to support a DDL change. The default is false and means that the customer has to delete the old capture instance manually.",
+          ).optional(),
+        }).describe("Optional. DDL configuration for change tables.")
+          .optional(),
+      }).describe("CDC reader reads from change tables.").optional(),
       excludeObjects: z.object({
         schemas: z.array(z.object({
           schema: z.unknown().describe("The schema name.").optional(),
@@ -1057,7 +1065,12 @@ const StateSchema = z.object({
       spannerRpcPriority: z.string(),
     }),
     sqlServerSourceConfig: z.object({
-      changeTables: z.object({}),
+      changeTables: z.object({
+        ddlConfig: z.object({
+          autoCreateNewCaptureInstanceOnDdl: z.boolean(),
+          autoDeleteOldCaptureInstance: z.boolean(),
+        }),
+      }),
       excludeObjects: z.object({
         schemas: z.array(z.object({
           schema: z.unknown(),
@@ -1590,9 +1603,17 @@ const InputsSchema = z.object({
         .optional(),
     }).describe("Spanner data source configuration.").optional(),
     sqlServerSourceConfig: z.object({
-      changeTables: z.object({}).describe(
-        "CDC reader reads from change tables.",
-      ).optional(),
+      changeTables: z.object({
+        ddlConfig: z.object({
+          autoCreateNewCaptureInstanceOnDdl: z.boolean().describe(
+            "Optional. If set to true, Datastream will automatically create a new capture instance when DDL is detected on a table.The customer will be responsible for deleting it so that the next set of DDLs can be handled. The default is false and it means that DDL's will not be handled.",
+          ).optional(),
+          autoDeleteOldCaptureInstance: z.boolean().describe(
+            "Optional. If set to true, Datastream will automatically delete the old capture instance after creating a new one to support a DDL change. The default is false and means that the customer has to delete the old capture instance manually.",
+          ).optional(),
+        }).describe("Optional. DDL configuration for change tables.")
+          .optional(),
+      }).describe("CDC reader reads from change tables.").optional(),
       excludeObjects: z.object({
         schemas: z.array(z.object({
           schema: z.unknown().describe("The schema name.").optional(),
@@ -1691,7 +1712,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Datastream Streams. Registered at `@swamp/gcp/datastream/streams`. */
 export const model = {
   type: "@swamp/gcp/datastream/streams",
-  version: "2026.08.12.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1845,6 +1866,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/connect"
-version: "2026.09.30.1"
+version: "2026.10.01.1"
 description: "AWS CONNECT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: evaluation_form
+  - Added: use_case
+  - Updated: integration_association
 models:
   - agent_status.ts
   - approved_origin.ts
@@ -43,6 +44,7 @@ models:
   - task_template.ts
   - test_case.ts
   - traffic_distribution_group.ts
+  - use_case.ts
   - user.ts
   - user_hierarchy_group.ts
   - user_hierarchy_structure.ts

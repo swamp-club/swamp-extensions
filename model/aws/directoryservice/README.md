@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/directoryservice/simple_ad` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/directoryservice/microsoft_ad` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new simple_ad model
-swamp model create @swamp/aws/directoryservice/simple_ad my-simple_ad
+# Create a new microsoft_ad model
+swamp model create @swamp/aws/directoryservice/microsoft_ad my-microsoft_ad
 
 # Edit the model to configure its properties
-swamp model edit my-simple_ad
+swamp model edit my-microsoft_ad
 
 # Create the resource in AWS
-swamp model method run my-simple_ad create
+swamp model method run my-microsoft_ad create
 
 # Sync current state from AWS
-swamp model method run my-simple_ad sync
+swamp model method run my-microsoft_ad sync
 ```
 
 ## License

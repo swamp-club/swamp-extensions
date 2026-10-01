@@ -387,7 +387,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.09.29.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -454,6 +454,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -495,7 +500,12 @@ export const model = {
         }
         if (g.cache_ttl !== undefined) body.cache_ttl = g.cache_ttl;
         if (g.collect_logs !== undefined) body.collect_logs = g.collect_logs;
+        if (g.dlp !== undefined) body.dlp = g.dlp;
+        if (g.guardrails !== undefined) body.guardrails = g.guardrails;
         if (g.id !== undefined) body.id = g.id;
+        if (g.log_classification !== undefined) {
+          body.log_classification = g.log_classification;
+        }
         if (g.log_management !== undefined) {
           body.log_management = g.log_management;
         }
@@ -506,6 +516,7 @@ export const model = {
         if (g.logpush_public_key !== undefined) {
           body.logpush_public_key = g.logpush_public_key;
         }
+        if (g.otel !== undefined) body.otel = g.otel;
         if (g.rate_limiting_interval !== undefined) {
           body.rate_limiting_interval = g.rate_limiting_interval;
         }
@@ -520,7 +531,9 @@ export const model = {
         if (g.retry_max_attempts !== undefined) {
           body.retry_max_attempts = g.retry_max_attempts;
         }
+        if (g.spend_limits !== undefined) body.spend_limits = g.spend_limits;
         if (g.store_id !== undefined) body.store_id = g.store_id;
+        if (g.stripe !== undefined) body.stripe = g.stripe;
         if (g.workers_ai_billing_mode !== undefined) {
           body.workers_ai_billing_mode = g.workers_ai_billing_mode;
         }

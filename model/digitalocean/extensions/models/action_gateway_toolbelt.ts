@@ -35,11 +35,21 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, remove, tryRead } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().regex(new RegExp("^[a-z][a-z0-9_-]{0,63}$")),
-  version: z.string().regex(new RegExp("^[0-9]+$")).optional(),
-  display_name: z.string().max(128).optional(),
-  description: z.string().max(255).optional(),
-  tools: z.array(z.string()),
+  name: z.string().regex(new RegExp("^[a-z][a-z0-9_-]{0,63}$")).describe(
+    "Toolbelt name, unique among your team's active toolbelts. Must match `^`[a-z]``[a-z0-9_-]`{0,63}$`; `search` is reserved.",
+  ),
+  version: z.string().regex(new RegExp("^[0-9]+$")).describe(
+    "Optional initial version number, a positive integer such as `1`. Defaults to 1.",
+  ).optional(),
+  display_name: z.string().max(128).describe(
+    "Optional human-readable label, separate from name. At most 128 bytes.",
+  ).optional(),
+  description: z.string().max(255).describe(
+    "Optional description. At most 255 bytes.",
+  ).optional(),
+  tools: z.array(z.string()).describe(
+    "Optional initial members, as catalog tool slugs (`<provider>_<name>`). Each may be pinned as `<tool_slug>@<version>`; a pin must equal the tool's current released version, and an unpinned tool is pinned to that version. Every tool must be an active catalog tool. Duplicates are merged; at most 500 tools. Empty creates a toolbelt with no tools.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -73,7 +83,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway toolbelt. Registered at `@swamp/digitalocean/action-gateway-toolbelt`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-toolbelt",
-  version: "2026.09.24.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

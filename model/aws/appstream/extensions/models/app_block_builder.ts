@@ -79,6 +79,7 @@ const GlobalArgsSchema = z.object({
   IamRoleArn: z.string().optional(),
   InstanceType: z.string(),
   AppBlockArns: z.array(z.string()).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 });
 
 const StateSchema = z.object({
@@ -98,6 +99,7 @@ const StateSchema = z.object({
   CreatedTime: z.string().optional(),
   InstanceType: z.string().optional(),
   AppBlockArns: z.array(z.string()).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -121,6 +123,7 @@ const InputsSchema = z.object({
   IamRoleArn: z.string().optional(),
   InstanceType: z.string().optional(),
   AppBlockArns: z.array(z.string()).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -142,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream AppBlockBuilder. Registered at `@swamp/aws/appstream/app-block-builder`. */
 export const model = {
   type: "@swamp/aws/appstream/app-block-builder",
-  version: "2026.08.17.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +195,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: DisableIMDSV1",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

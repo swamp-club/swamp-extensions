@@ -519,7 +519,7 @@ const GlobalArgsSchema = z.object({
         .optional(),
       emptyDir: z.object({
         medium: z.string().describe(
-          'The medium on which the data is stored. The default is "" which means to use the node\'s default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir',
+          'The medium on which the data is stored. The default is "" which means to use the node\'s default medium. Must be an empty string (default), `Memory`, or `Disk`. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir',
         ).optional(),
         sizeLimit: z.string().describe(
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
@@ -1117,7 +1117,7 @@ const InputsSchema = z.object({
         .optional(),
       emptyDir: z.object({
         medium: z.string().describe(
-          'The medium on which the data is stored. The default is "" which means to use the node\'s default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir',
+          'The medium on which the data is stored. The default is "" which means to use the node\'s default medium. Must be an empty string (default), `Memory`, or `Disk`. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir',
         ).optional(),
         sizeLimit: z.string().describe(
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
@@ -1191,7 +1191,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Instances. Registered at `@swamp/gcp/run/namespaces-instances`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-instances",
-  version: "2026.09.24.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1225,6 +1225,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

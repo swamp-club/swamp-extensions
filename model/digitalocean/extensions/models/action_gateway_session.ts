@@ -41,6 +41,10 @@ import {
 } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
+  name: z.string().describe("Required human-readable session name."),
+  actorId: z.string().regex(new RegExp("^[A-Za-z0-9._-]{1,64}$")).describe(
+    "Optional actor binding: the user whose connections the session's tool calls use, matched against connection `user_id`. When set it must use the same alphabet as a connection's `user_id`, `[A-Za-z0-9._-]`, at most 64 characters; anything else is rejected with 400.",
+  ).optional(),
   policy: z.object({
     defaultAction: z.enum(["allow", "ask", "deny"]).optional(),
     rules: z.array(z.object({
@@ -48,18 +52,27 @@ const GlobalArgsSchema = z.object({
       match: z.record(z.string(), z.unknown()).optional(),
       action: z.enum(["allow", "ask", "deny"]).optional(),
     })).optional(),
-  }).describe("Invocation policy. Omit to use a default action of ask.")
-    .optional(),
-  name: z.string(),
-  tools: z.array(z.string()).describe(
-    "Omitted enables every tool. An explicit empty array enables no tools.\nDirect tools may be <tool> or <tool>@<version>; toolbelt references must\nbe version-pinned as toolbelt:<belt-name>@<version>.",
-  ).optional(),
-  config: z.object({
-    preloadTools: z.array(z.string()).optional(),
   }).describe(
-    "Opaque session options. config.preloadTools may contain concrete tool\nnames (optionally version-pinned) and version-pinned toolbelt references.",
+    "Optional tool-permission policy. Omitted asks before every call.",
   ).optional(),
-  actor_id: z.string(),
+  tools: z.array(z.string()).describe(
+    "Omitted enables every tool. An explicit empty array enables no tools. Direct tools may be `<tool>` or `<tool>@<version>`, using provider-qualified tool slugs, and a pinned version must be the released one; toolbelt references must be version-pinned as `toolbelt:<belt-name>@<version>`.",
+  ).optional(),
+  config: z.record(z.string(), z.unknown()).describe(
+    "Optional session options. config.preloadTools may contain concrete tool names (optionally version-pinned) and version-pinned toolbelt references. config.customInstructions is a string of at most 1000 characters. config.outputViews maps up to 100 tool slugs to the name of an output view to apply to that tool's results.",
+  ).optional(),
+  network: z.object({
+    vpcUuid: z.string().optional(),
+  }).describe(
+    "Product-level session network binding. When set, `vpc_uuid` must identify a VPC owned by the session's team.",
+  ).optional(),
+  insights: z.object({
+    metrics: z.boolean().optional(),
+    logs: z.boolean().optional(),
+    traces: z.boolean().optional(),
+  }).describe(
+    "Omitted when the request omitted insights or explicitly sent null.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -67,6 +80,8 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   sessionUrn: z.string().optional(),
+  name: z.string().optional(),
+  actorId: z.string().optional(),
   policy: z.object({
     defaultAction: z.string().optional(),
     rules: z.array(z.object({
@@ -74,11 +89,7 @@ const ResourceSchema = z.object({
       match: z.record(z.string(), z.unknown()).optional(),
       action: z.string().optional(),
     })).optional(),
-  }).optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-  name: z.string().optional(),
-  actorId: z.string().optional(),
+  }).nullable().optional(),
   tools: z.object({
     references: z.array(z.object({
       kind: z.string().optional(),
@@ -87,11 +98,26 @@ const ResourceSchema = z.object({
     })).optional(),
   }).optional(),
   config: z.record(z.string(), z.unknown()).optional(),
+  network: z.object({
+    vpcUuid: z.string().optional(),
+  }).optional(),
+  insights: z.object({
+    metrics: z.boolean().optional(),
+    logs: z.boolean().optional(),
+    traces: z.boolean().optional(),
+  }).optional(),
+  agentUrn: z.string().optional(),
+  agentName: z.string().optional(),
+  createdAt: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+  owning_user_id: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
+  actorId: z.string().regex(new RegExp("^[A-Za-z0-9._-]{1,64}$")).optional(),
   policy: z.object({
     defaultAction: z.enum(["allow", "ask", "deny"]).optional(),
     rules: z.array(z.object({
@@ -100,19 +126,33 @@ const InputsSchema = z.object({
       action: z.enum(["allow", "ask", "deny"]).optional(),
     })).optional(),
   }).optional(),
-  name: z.string().optional(),
   tools: z.array(z.string()).optional(),
-  config: z.object({
-    preloadTools: z.array(z.string()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+  network: z.object({
+    vpcUuid: z.string().optional(),
   }).optional(),
-  actor_id: z.string().optional(),
+  insights: z.object({
+    metrics: z.boolean().optional(),
+    logs: z.boolean().optional(),
+    traces: z.boolean().optional(),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean action gateway session. Registered at `@swamp/digitalocean/action-gateway-session`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-session",
-  version: "2026.09.24.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: actorId, network, insights. Removed: actor_id",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { actor_id: _actor_id, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -149,11 +189,13 @@ export const model = {
           }
         }
         const body: Record<string, unknown> = {};
-        if (g.policy !== undefined) body.policy = g.policy;
         if (g.name !== undefined) body.name = g.name;
+        if (g.actorId !== undefined) body.actorId = g.actorId;
+        if (g.policy !== undefined) body.policy = g.policy;
         if (g.tools !== undefined) body.tools = g.tools;
         if (g.config !== undefined) body.config = g.config;
-        if (g.actor_id !== undefined) body.actor_id = g.actor_id;
+        if (g.network !== undefined) body.network = g.network;
+        if (g.insights !== undefined) body.insights = g.insights;
         const result = await create(
           "/v2/action-gateway/sessions",
           body,

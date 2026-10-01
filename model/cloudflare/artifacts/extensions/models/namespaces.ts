@@ -40,8 +40,9 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   jurisdiction: z.enum(["unrestricted", "us", "eu", "fedramp"]).optional(),
-  namespace: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._-]*$"))
-    .optional(),
+  namespace: z.string().min(2).max(63).regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9._])?$"),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -68,8 +69,9 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
   jurisdiction: z.enum(["unrestricted", "us", "eu", "fedramp"]).optional(),
-  namespace: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._-]*$"))
-    .optional(),
+  namespace: z.string().min(2).max(63).regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9._])?$"),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -78,10 +80,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Namespaces. Registered at `@swamp/cloudflare/artifacts/namespaces`. */
 export const model = {
   type: "@swamp/cloudflare/artifacts/namespaces",
-  version: "2026.09.29.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/comprehend"
-version: "2026.09.30.1"
+version: "2026.10.01.1"
 description: "AWS COMPREHEND infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,10 +9,13 @@ labels:
   - comprehend
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: entity_recognizer_endpoint
 models:
   - document_classifier.ts
   - document_classifier_endpoint.ts
   - entity_recognizer.ts
+  - entity_recognizer_endpoint.ts
   - flywheel.ts
 additionalFiles:
   - LICENSE.txt

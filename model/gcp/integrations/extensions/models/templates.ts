@@ -158,6 +158,12 @@ const GlobalArgsSchema = z.object({
   scopes: z.string().describe(
     "Comma-separated OAuth scopes to request when minting access tokens via gcloud. Defaults to the API's Discovery Document scopes.",
   ).optional(),
+  quotaProject: z.string().describe(
+    "GCP project ID for quota and billing attribution; sets the x-goog-user-project header. Overrides GOOGLE_CLOUD_QUOTA_PROJECT environment variable. Required for APIs like Cloud Identity when using user credentials.",
+  ).optional(),
+  apiEndpoint: z.string().describe(
+    "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
+  ).optional(),
   author: z.string().describe("Optional. Creator of the template.").optional(),
   categories: z.array(
     z.enum([
@@ -322,7 +328,7 @@ const GlobalArgsSchema = z.object({
             "Parameters are a part of Event and can be used to communiticate between different tasks that are part of the same workflow execution.",
           ).optional(),
         }).describe(
-          "Optional. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
+          "Optional. Deprecated: Use `integration_parameters` instead. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
         ).optional(),
         lastModifierEmail: z.string().describe(
           "Optional. The last modifier's email address. Generated based on the End User Credentials/LOAS role of the user making the call.",
@@ -497,7 +503,7 @@ const GlobalArgsSchema = z.object({
           taskType: z.unknown().describe("Defines the type of the task")
             .optional(),
         })).describe(
-          "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
+          "Optional. Deprecated: Use `task_configs` instead. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         teardown: z.object({
           teardownTaskConfigs: z.array(z.unknown()).describe("Required.")
@@ -602,7 +608,9 @@ const GlobalArgsSchema = z.object({
             "Required. A number to uniquely identify each trigger config within the workflow on UI.",
           ).optional(),
           triggerType: z.unknown().optional(),
-        })).describe("Optional. Trigger configurations.").optional(),
+        })).describe(
+          "Optional. Deprecated: Use `trigger_configs` instead. Trigger configurations.",
+        ).optional(),
         updateTime: z.string().describe("Output only. Auto-generated.")
           .optional(),
         userLabel: z.string().describe(
@@ -661,7 +669,7 @@ const GlobalArgsSchema = z.object({
             "Parameters are a part of Event and can be used to communiticate between different tasks that are part of the same workflow execution.",
           ).optional(),
         }).describe(
-          "Optional. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
+          "Optional. Deprecated: Use `integration_parameters` instead. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
         ).optional(),
         lastModifierEmail: z.string().describe(
           "Optional. The last modifier's email address. Generated based on the End User Credentials/LOAS role of the user making the call.",
@@ -706,7 +714,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         taskConfigsInternal: z.array(z.unknown()).describe(
-          "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
+          "Optional. Deprecated: Use `task_configs` instead. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         teardown: z.object({
           teardownTaskConfigs: z.unknown().describe("Required.").optional(),
@@ -717,7 +725,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Trigger configurations.",
         ).optional(),
         triggerConfigsInternal: z.array(z.unknown()).describe(
-          "Optional. Trigger configurations.",
+          "Optional. Deprecated: Use `trigger_configs` instead. Trigger configurations.",
         ).optional(),
         updateTime: z.string().describe("Output only. Auto-generated.")
           .optional(),
@@ -960,6 +968,8 @@ const InputsSchema = z.object({
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
   scopes: z.string().optional(),
+  quotaProject: z.string().optional(),
+  apiEndpoint: z.string().optional(),
   author: z.string().describe("Optional. Creator of the template.").optional(),
   categories: z.array(
     z.enum([
@@ -1124,7 +1134,7 @@ const InputsSchema = z.object({
             "Parameters are a part of Event and can be used to communiticate between different tasks that are part of the same workflow execution.",
           ).optional(),
         }).describe(
-          "Optional. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
+          "Optional. Deprecated: Use `integration_parameters` instead. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
         ).optional(),
         lastModifierEmail: z.string().describe(
           "Optional. The last modifier's email address. Generated based on the End User Credentials/LOAS role of the user making the call.",
@@ -1299,7 +1309,7 @@ const InputsSchema = z.object({
           taskType: z.unknown().describe("Defines the type of the task")
             .optional(),
         })).describe(
-          "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
+          "Optional. Deprecated: Use `task_configs` instead. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         teardown: z.object({
           teardownTaskConfigs: z.array(z.unknown()).describe("Required.")
@@ -1404,7 +1414,9 @@ const InputsSchema = z.object({
             "Required. A number to uniquely identify each trigger config within the workflow on UI.",
           ).optional(),
           triggerType: z.unknown().optional(),
-        })).describe("Optional. Trigger configurations.").optional(),
+        })).describe(
+          "Optional. Deprecated: Use `trigger_configs` instead. Trigger configurations.",
+        ).optional(),
         updateTime: z.string().describe("Output only. Auto-generated.")
           .optional(),
         userLabel: z.string().describe(
@@ -1463,7 +1475,7 @@ const InputsSchema = z.object({
             "Parameters are a part of Event and can be used to communiticate between different tasks that are part of the same workflow execution.",
           ).optional(),
         }).describe(
-          "Optional. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
+          "Optional. Deprecated: Use `integration_parameters` instead. Parameters that are expected to be passed to the integration when an event is triggered. This consists of all the parameters that are expected in the integration execution. This gives the user the ability to provide default values, add information like PII and also provide data types of each parameter.",
         ).optional(),
         lastModifierEmail: z.string().describe(
           "Optional. The last modifier's email address. Generated based on the End User Credentials/LOAS role of the user making the call.",
@@ -1508,7 +1520,7 @@ const InputsSchema = z.object({
           "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         taskConfigsInternal: z.array(z.unknown()).describe(
-          "Optional. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
+          "Optional. Deprecated: Use `task_configs` instead. Task configuration for the integration. It's optional, but the integration doesn't do anything without task_configs.",
         ).optional(),
         teardown: z.object({
           teardownTaskConfigs: z.unknown().describe("Required.").optional(),
@@ -1519,7 +1531,7 @@ const InputsSchema = z.object({
           "Optional. Trigger configurations.",
         ).optional(),
         triggerConfigsInternal: z.array(z.unknown()).describe(
-          "Optional. Trigger configurations.",
+          "Optional. Deprecated: Use `trigger_configs` instead. Trigger configurations.",
         ).optional(),
         updateTime: z.string().describe("Output only. Auto-generated.")
           .optional(),
@@ -1553,6 +1565,8 @@ const _credentialKeys = new Set([
   "credentialsJson",
   "project",
   "scopes",
+  "quotaProject",
+  "apiEndpoint",
 ]);
 
 function _buildGcpCredentials(
@@ -1565,13 +1579,14 @@ function _buildGcpCredentials(
     scopes: typeof g.scopes === "string"
       ? g.scopes.split(",").map((s: string) => s.trim())
       : undefined,
+    quotaProject: g.quotaProject as string | undefined,
   };
 }
 
 /** Swamp extension model for Google Cloud Application Integration Templates. Registered at `@swamp/gcp/integrations/templates`. */
 export const model = {
   type: "@swamp/gcp/integrations/templates",
-  version: "2026.07.21.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1643,6 +1658,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: quotaProject, apiEndpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1660,6 +1680,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -1696,7 +1718,7 @@ export const model = {
           );
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           INSERT_CONFIG,
           params,
           body,
@@ -1731,6 +1753,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -1739,7 +1763,7 @@ export const model = {
           args.identifier,
         );
         const result = await readResource(
-          BASE_URL,
+          baseUrl,
           GET_CONFIG,
           params,
           credentials,
@@ -1766,6 +1790,8 @@ export const model = {
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const instanceName =
@@ -1829,7 +1855,7 @@ export const model = {
           }
         }
         const result = await updateResource(
-          BASE_URL,
+          baseUrl,
           PATCH_CONFIG,
           params,
           body,
@@ -1852,6 +1878,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -1860,7 +1888,7 @@ export const model = {
           args.identifier,
         );
         const { existed } = await deleteResource(
-          BASE_URL,
+          baseUrl,
           DELETE_CONFIG,
           params,
           credentials,
@@ -1887,6 +1915,8 @@ export const model = {
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const instanceName =
@@ -1919,7 +1949,7 @@ export const model = {
             );
           }
           const result = await readResource(
-            BASE_URL,
+            baseUrl,
             GET_CONFIG,
             params,
             credentials,
@@ -1963,6 +1993,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -1982,7 +2014,7 @@ export const model = {
           params["readMask"] = String(args["readMask"]);
         }
         const { items, nextPageToken } = await listResources(
-          BASE_URL,
+          baseUrl,
           LIST_CONFIG,
           params,
           "templates",
@@ -2008,9 +2040,13 @@ export const model = {
     },
     download: {
       description: "download",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+      arguments: z.object({
+        fileFormat: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2020,8 +2056,11 @@ export const model = {
             String(g["name"]),
           );
         }
+        if (args["fileFormat"] !== undefined) {
+          params["fileFormat"] = String(args["fileFormat"]);
+        }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.download",
             "path": "v1/{+name}:download",
@@ -2050,6 +2089,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2067,7 +2108,7 @@ export const model = {
           body["subIntegrations"] = args["subIntegrations"];
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.import",
             "path": "v1/{+name}:import",
@@ -2087,17 +2128,50 @@ export const model = {
     },
     search: {
       description: "search",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+      arguments: z.object({
+        enableNaturalLanguageQueryUnderstanding: z.any().optional(),
+        filter: z.any().optional(),
+        orderBy: z.any().optional(),
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        query: z.any().optional(),
+        readMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
         }`;
+        if (args["enableNaturalLanguageQueryUnderstanding"] !== undefined) {
+          params["enableNaturalLanguageQueryUnderstanding"] = String(
+            args["enableNaturalLanguageQueryUnderstanding"],
+          );
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        if (args["query"] !== undefined) {
+          params["query"] = String(args["query"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.search",
             "path": "v1/{+parent}/templates:search",
@@ -2133,6 +2207,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2147,7 +2223,7 @@ export const model = {
           body["resourceNames"] = args["resourceNames"];
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.share",
             "path": "v1/{+name}:share",
@@ -2172,6 +2248,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2186,7 +2264,7 @@ export const model = {
           body["resourceNames"] = args["resourceNames"];
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.unshare",
             "path": "v1/{+name}:unshare",
@@ -2212,6 +2290,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2224,7 +2304,7 @@ export const model = {
           body["fileFormat"] = args["fileFormat"];
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.upload",
             "path": "v1/{+parent}/templates:upload",
@@ -2253,6 +2333,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
@@ -2273,7 +2355,7 @@ export const model = {
           body["subIntegrations"] = args["subIntegrations"];
         }
         const result = await createResource(
-          BASE_URL,
+          baseUrl,
           {
             "id": "integrations.projects.locations.templates.use",
             "path": "v1/{+name}:use",

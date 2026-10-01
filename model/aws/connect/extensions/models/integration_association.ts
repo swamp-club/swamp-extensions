@@ -85,9 +85,21 @@ const GlobalArgsSchema = z.object({
     "MESSAGE_PROCESSOR",
     "Q_MESSAGE_TEMPLATES",
     "SES_IDENTITY",
+    "EVENT",
   ]).describe(
     "Specifies the integration type to be associated with the instance",
   ),
+  SourceType: z.enum(["SALESFORCE", "ZENDESK", "CASES"]).describe(
+    "The type of the data source. This is only supported for the EVENT integration type",
+  ).optional(),
+  SourceApplicationName: z.string().min(1).max(100).regex(
+    new RegExp("^[a-zA-Z0-9_ -]+$"),
+  ).describe(
+    "The name of the external application. This is only supported for the EVENT integration type",
+  ).optional(),
+  SourceApplicationUrl: z.string().min(1).max(2000).describe(
+    "The URL for the external application. This is only supported for the EVENT integration type",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
   ).optional(),
@@ -98,6 +110,9 @@ const StateSchema = z.object({
   InstanceId: z.string(),
   IntegrationArn: z.string(),
   IntegrationType: z.string(),
+  SourceType: z.string().optional(),
+  SourceApplicationName: z.string().optional(),
+  SourceApplicationUrl: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -129,8 +144,20 @@ const InputsSchema = z.object({
     "MESSAGE_PROCESSOR",
     "Q_MESSAGE_TEMPLATES",
     "SES_IDENTITY",
+    "EVENT",
   ]).describe(
     "Specifies the integration type to be associated with the instance",
+  ).optional(),
+  SourceType: z.enum(["SALESFORCE", "ZENDESK", "CASES"]).describe(
+    "The type of the data source. This is only supported for the EVENT integration type",
+  ).optional(),
+  SourceApplicationName: z.string().min(1).max(100).regex(
+    new RegExp("^[a-zA-Z0-9_ -]+$"),
+  ).describe(
+    "The name of the external application. This is only supported for the EVENT integration type",
+  ).optional(),
+  SourceApplicationUrl: z.string().min(1).max(2000).describe(
+    "The URL for the external application. This is only supported for the EVENT integration type",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
@@ -156,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect IntegrationAssociation. Registered at `@swamp/aws/connect/integration-association`. */
 export const model = {
   type: "@swamp/aws/connect/integration-association",
-  version: "2026.08.17.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +238,12 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "Added: SourceType, SourceApplicationName, SourceApplicationUrl",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -327,7 +360,14 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["InstanceId", "IntegrationArn", "IntegrationType"],
+          [
+            "InstanceId",
+            "IntegrationArn",
+            "IntegrationType",
+            "SourceType",
+            "SourceApplicationName",
+            "SourceApplicationUrl",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

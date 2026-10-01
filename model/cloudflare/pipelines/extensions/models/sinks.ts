@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     inferred: z.boolean().optional(),
   }).describe("Defines the schema of the events in the data stream.")
     .optional(),
-  type: z.enum(["r2", "r2_data_catalog"]).describe(
+  type: z.enum(["r2", "r2_data_catalog", "basin_catalog"]).describe(
     "Specifies the type of sink.",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -192,7 +192,7 @@ const InputsSchema = z.object({
     })).optional(),
     inferred: z.boolean().optional(),
   }).optional(),
-  type: z.enum(["r2", "r2_data_catalog"]).optional(),
+  type: z.enum(["r2", "r2_data_catalog", "basin_catalog"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -201,7 +201,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sinks. Registered at `@swamp/cloudflare/pipelines/sinks`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/sinks",
-  version: "2026.09.29.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -245,6 +245,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

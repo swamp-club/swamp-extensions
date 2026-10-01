@@ -189,6 +189,12 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Output only. Details only set for a ONE_TIME recurrence line item.",
     ).optional(),
+    planType: z.enum([
+      "LINE_ITEM_PLAN_TYPE_UNSPECIFIED",
+      "LINE_ITEM_PLAN_TYPE_BASE",
+      "LINE_ITEM_PLAN_TYPE_ADDON",
+    ]).describe("Optional. Output only. The plan type of the line item.")
+      .optional(),
     product: z.string().describe(
       "Required. Product resource name that identifies the product associated with this line item. The format is 'partners/{partner_id}/products/{product_id}'.",
     ).optional(),
@@ -400,6 +406,7 @@ const StateSchema = z.object({
         startTime: z.string(),
       }),
     }),
+    planType: z.string(),
     product: z.string(),
     productPayload: z.object({
       googleHomePayload: z.object({
@@ -555,6 +562,12 @@ const InputsSchema = z.object({
     }).describe(
       "Output only. Details only set for a ONE_TIME recurrence line item.",
     ).optional(),
+    planType: z.enum([
+      "LINE_ITEM_PLAN_TYPE_UNSPECIFIED",
+      "LINE_ITEM_PLAN_TYPE_BASE",
+      "LINE_ITEM_PLAN_TYPE_ADDON",
+    ]).describe("Optional. Output only. The plan type of the line item.")
+      .optional(),
     product: z.string().describe(
       "Required. Product resource name that identifies the product associated with this line item. The format is 'partners/{partner_id}/products/{product_id}'.",
     ).optional(),
@@ -749,7 +762,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Payments Reseller Subscription Partners.Subscriptions. Registered at `@swamp/gcp/paymentsresellersubscription/partners-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/paymentsresellersubscription/partners-subscriptions",
-  version: "2026.09.07.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -985,6 +998,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
