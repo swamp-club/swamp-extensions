@@ -68,6 +68,17 @@ export const AwaitingExitSchema = z.strictObject({
 
 export type AwaitingExit = z.infer<typeof AwaitingExitSchema>;
 
+/** The dispatch cap a parked stage entry hit, when the dispatch was refused:
+ * dispatches in this stage and cycle, the definition's limit, and dispatch
+ * overrides granted so far. */
+export const DispatchOverrideHoldSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  granted: z.number().int().nonnegative(),
+});
+
+export type DispatchOverrideHold = z.infer<typeof DispatchOverrideHoldSchema>;
+
 const EVENT_BASE = {
   at: z.string().min(1),
   era: z.string().min(1),
@@ -139,6 +150,11 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
      * when the set changes, including to empty; derived from the gates, so
      * its actor is the write that caused the change. */
     exits: z.array(AwaitingExitSchema),
+    /** Set while the stage entry is parked at its dispatch cap: a dispatch
+     * was refused, and only a person granting a dispatch override lets the
+     * next one through. Carried by every awaiting event of the entry until
+     * then. */
+    dispatchOverride: DispatchOverrideHoldSchema.optional(),
   }),
   z.strictObject({
     ...EVENT_BASE,

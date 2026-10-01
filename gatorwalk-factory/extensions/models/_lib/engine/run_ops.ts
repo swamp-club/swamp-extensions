@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import type { Actor, JournalEvent, ProductKind } from "./journal.ts";
+import type {
+  Actor,
+  DispatchOverrideHold,
+  JournalEvent,
+  ProductKind,
+} from "./journal.ts";
 import {
   type FactoryDefinition,
   findStage,
@@ -465,15 +470,7 @@ export function recordDispatch(
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
   const cap = dispatchCap(run, definition);
-  if (!cap.allowed) {
-    return refuse(
-      `runaway loop suspected: stage '${run.stage}' cycle ${
-        currentCycle(run)
-      } has had ${cap.count} dispatch(es), its limit is ${cap.limit}` +
-        (cap.granted > 0 ? ` plus ${cap.granted} granted` : "") +
-        "; a person must grant a dispatch override to dispatch again",
-    );
-  }
+  if (!cap.allowed) return refuse(dispatchCapMessage(run, cap));
   const id = run.dispatches.length + 1;
   const dispatch = {
     id,
@@ -688,6 +685,15 @@ export function cycleLimitMessage(stage: string, limit: Limit): string {
     `; a person must grant a cycle override for '${stage}' to enter it again`;
 }
 
+/** Why one more dispatch is refused, for the refusal. */
+export function dispatchCapMessage(run: RunRecord, cap: Limit): string {
+  return `runaway loop suspected: stage '${run.stage}' cycle ${
+    currentCycle(run)
+  } has had ${cap.count} dispatch(es), its limit is ${cap.limit}` +
+    (cap.granted > 0 ? ` plus ${cap.granted} granted` : "") +
+    "; a person must grant a dispatch override to dispatch again";
+}
+
 /** Whether the current stage and cycle may take one more dispatch. */
 export function dispatchCap(
   run: RunRecord,
@@ -705,6 +711,88 @@ export function dispatchCap(
       o.cycle === cycle
     ).length;
   return { count, limit, granted, allowed: count + 1 <= limit + granted };
+}
+
+type AwaitingEvent = Extract<JournalEvent, { type: "awaiting" }>;
+
+/** The `awaiting` event the journal last recorded in the current stage
+ * entry, if any. */
+export function lastAwaitingEvent(run: RunRecord): AwaitingEvent | undefined {
+  const cycle = currentCycle(run);
+  for (let i = run.journal.length - 1; i >= 0; i--) {
+    const e = run.journal[i];
+    if (e.era !== run.era || e.stage !== run.stage || e.cycle !== cycle) {
+      continue;
+    }
+    if (e.type === "awaiting") return e;
+  }
+  return undefined;
+}
+
+/**
+ * The park the stage entry's last `awaiting` event recorded, while it still
+ * stands: the cap refuses one more dispatch, and no dispatch override has
+ * been granted since it was written (a grant is the only thing that changes
+ * `granted`, and a dispatch needs one once parked).
+ */
+export function currentPark(
+  run: RunRecord,
+  cap: Limit,
+): DispatchOverrideHold | undefined {
+  const hold = lastAwaitingEvent(run)?.dispatchOverride;
+  if (hold === undefined || cap.allowed || hold.granted !== cap.granted) {
+    return undefined;
+  }
+  return hold;
+}
+
+/**
+ * Park the stage entry at its dispatch cap: an `awaiting` event that keeps
+ * the exits already held by a person and adds the dispatch override hold.
+ * Committed by a dispatch the cap refused, so the stop a person must end is
+ * in the journal, its metrics and its tracker; the commit's own awaiting
+ * check then carries the hold until a grant lets one more dispatch through.
+ * Refused, so nothing is written, when the caller's view is stale, the cap
+ * allows a dispatch, or the entry is parked already.
+ */
+export function parkAtDispatchCap(
+  run: RunRecord,
+  definition: FactoryDefinition,
+  expected: Expected,
+  actor: Actor,
+  env: Env,
+): OpResult<Limit> {
+  const inactive = requireActive(run);
+  if (inactive !== null) return refuse(inactive);
+  const stale = checkExpected(run, expected);
+  if (stale !== null) return refuse(stale);
+  const cap = dispatchCap(run, definition);
+  if (cap.allowed) {
+    return refuse(`stage '${run.stage}' may take one more dispatch`);
+  }
+  if (currentPark(run, cap) !== undefined) {
+    return refuse(`stage '${run.stage}' is already parked at its dispatch cap`);
+  }
+  const last = lastAwaitingEvent(run);
+  return {
+    ok: true,
+    value: cap,
+    run: {
+      ...run,
+      journal: [
+        ...run.journal,
+        journal(run, actor, env, {
+          type: "awaiting",
+          exits: last?.exits ?? [],
+          dispatchOverride: {
+            count: cap.count,
+            limit: cap.limit,
+            granted: cap.granted,
+          },
+        }),
+      ],
+    },
+  };
 }
 
 export type OverrideInput =

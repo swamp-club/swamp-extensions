@@ -16,7 +16,11 @@
 
 import { buildCelContext } from "./cel_context.ts";
 import { evaluateGates, type GateCheck } from "./gates.ts";
-import type { AwaitingExit, JournalEvent } from "./journal.ts";
+import type {
+  AwaitingExit,
+  DispatchOverrideHold,
+  JournalEvent,
+} from "./journal.ts";
 import {
   type FactoryDefinition,
   findStage,
@@ -25,7 +29,13 @@ import {
   transitionsFrom,
   type TransitionSpec,
 } from "./definition_schema.ts";
-import { cycleLimitFor, type Env } from "./run_ops.ts";
+import {
+  currentPark,
+  cycleLimitFor,
+  dispatchCap,
+  type Env,
+  lastAwaitingEvent,
+} from "./run_ops.ts";
 import { currentCycle, type RunRecord } from "./run_record.ts";
 import type { RunStore } from "./run_store.ts";
 
@@ -246,35 +256,44 @@ function cooldownEnd(
  * still ahead of `at`, so a cooldown restarted by a new recording is a change,
  * but one that has simply lifted since is not.
  */
-function keyOf(exits: AwaitingExit[], at: string): string {
+function keyOf(
+  exits: AwaitingExit[],
+  hold: DispatchOverrideHold | undefined,
+  at: string,
+): string {
   const now = Date.parse(at);
-  return JSON.stringify(
+  return JSON.stringify([
+    hold !== undefined,
     exits.map((e) => [
       e.transition,
       e.manual,
       [...e.gateIds].sort(),
       e.readyAt !== undefined && Date.parse(e.readyAt) > now ? e.readyAt : null,
     ]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
-  );
-}
-
-/** The exits the journal last recorded as held in the current stage entry. */
-export function lastAwaiting(run: RunRecord): AwaitingExit[] {
-  const cycle = currentCycle(run);
-  for (let i = run.journal.length - 1; i >= 0; i--) {
-    const e = run.journal[i];
-    if (e.era !== run.era || e.stage !== run.stage || e.cycle !== cycle) {
-      continue;
-    }
-    if (e.type === "awaiting") return e.exits;
-  }
-  return [];
+  ]);
 }
 
 /**
- * The run with an `awaiting` event appended when the set of person-held exits
- * differs from the one the journal last recorded for this stage entry;
- * otherwise the run unchanged. Reads payloads through the store for the
+ * The dispatch override hold the stage entry still carries: the one its last
+ * `awaiting` event recorded (written when a dispatch was refused at the cap,
+ * see parkAtDispatchCap), while the cap still refuses one more dispatch and no
+ * dispatch override has been granted since. A grant ends it even when its
+ * commit could not note that, so a hold the journal left behind never outlives
+ * the grant; a new stage entry or era never had it.
+ */
+export function heldDispatchOverride(
+  run: RunRecord,
+  definition: FactoryDefinition,
+): DispatchOverrideHold | undefined {
+  if (run.status !== "active") return undefined;
+  return currentPark(run, dispatchCap(run, definition));
+}
+
+/**
+ * The run with an `awaiting` event appended when the set of person-held exits,
+ * or whether the entry is still parked at its dispatch cap, differs from what
+ * the journal last recorded for this stage entry; otherwise the run
+ * unchanged. Reads payloads through the store for the
  * gates, and makes no network call. When the run data cannot be read, the
  * gates that need it would fail for a reason that says nothing about a
  * person, and the journal cannot take a wrong event back, so nothing is
@@ -293,11 +312,19 @@ export async function noteAwaiting(
   if (!readable) return run;
   const at = env.now();
   const exits = await personHeldExits(run, definition, store, env, at);
-  if (keyOf(exits, at) === keyOf(lastAwaiting(run), at)) return run;
+  const hold = heldDispatchOverride(run, definition);
+  const last = lastAwaitingEvent(run);
+  if (
+    keyOf(exits, hold, at) ===
+      keyOf(last?.exits ?? [], last?.dispatchOverride, at)
+  ) {
+    return run;
+  }
   const cause = run.journal[run.journal.length - 1];
   const event: JournalEvent = {
     type: "awaiting",
     exits,
+    ...(hold !== undefined ? { dispatchOverride: hold } : {}),
     at,
     era: run.era,
     stage: run.stage,

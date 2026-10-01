@@ -326,6 +326,7 @@ Deno.test("metrics: an active item has open stages and waits, measured against n
   assertEquals(m.eras[0].visits.at(-1)?.leftAt, null);
   assertEquals(m.summary.stages.review.open, true);
   assertEquals(m.eras[0].waits, [{
+    kind: "exit",
     stage: "review",
     cycle: 1,
     transition: "approve",
@@ -510,4 +511,63 @@ Deno.test("metrics: a wait still open stays out of the time, beside a finished o
     [["attested", 5 * MINUTE, "declined"], ["complete", null, null]],
   );
   assertEquals(m.summary.waits, { count: 2, open: 1, timeMs: 5 * MINUTE });
+});
+
+Deno.test("metrics: a dispatch refused at the cap waits on a dispatch override until one is granted or the item moves on", async () => {
+  const wi = await driven();
+  wi.at("10:01");
+  await wi.dispatch();
+  wi.at("10:02");
+  await wi.dispatch();
+  wi.at("10:05");
+  await assertRejects(
+    () => wi.dispatch(),
+    Error,
+    "runaway loop suspected: stage 'draft' cycle 1 has had 2 dispatch(es)",
+  );
+  // The park's own commit writes the metrics record.
+  assertEquals(storedMetrics(wi.swamp).eras[0].waits, [{
+    kind: "dispatch-override",
+    stage: "draft",
+    cycle: 1,
+    transition: null,
+    manual: false,
+    gateIds: [],
+    from: "2026-09-29T10:05:00.000Z",
+    until: null,
+    durationMs: null,
+    endedBy: null,
+  }]);
+  wi.at("10:07");
+  await assertRejects(() => wi.dispatch());
+  wi.at("10:15");
+  await wi.grantDispatch();
+  wi.at("10:16");
+  await wi.dispatch();
+  wi.at("10:20");
+  await assertRejects(() => wi.dispatch());
+  wi.at("10:30");
+  await wi.record("artifact", "plan", { text: "the plan" });
+  await wi.move("submit");
+  const m = storedMetrics(wi.swamp);
+  assertEquals(
+    m.eras[0].waits.map((w) => [w.kind, w.from, w.until, w.endedBy]),
+    [
+      [
+        "dispatch-override",
+        "2026-09-29T10:05:00.000Z",
+        "2026-09-29T10:15:00.000Z",
+        "overridden",
+      ],
+      [
+        "dispatch-override",
+        "2026-09-29T10:20:00.000Z",
+        "2026-09-29T10:30:00.000Z",
+        "advanced",
+      ],
+      ["exit", "2026-09-29T10:30:00.000Z", null, null],
+    ],
+  );
+  assertEquals(m.summary.waits, { count: 3, open: 1, timeMs: 20 * MINUTE });
+  assertEquals(m.summary.overrides, { cycle: 0, dispatch: 1 });
 });

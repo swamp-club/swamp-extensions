@@ -24,6 +24,10 @@ import {
   linearFake,
 } from "../_lib/tracker/backends/linear_fake.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/tracker_testing.ts";
+import {
+  TRACKED_ITEM,
+  trackedItem,
+} from "../_lib/tracker/core/test_support.ts";
 
 const INSTANCE = "linear";
 
@@ -124,4 +128,43 @@ Deno.test("linear model: a plain-http apiUrl off loopback fails before any call"
     "http://api.linear.app/graphql",
   );
   assert(!parsed.success && parsed.error.message.includes("must be https"));
+});
+
+Deno.test("linear model: publish comments on a park at the dispatch cap and its grant once each", async () => {
+  await withLinear(
+    (fake) => ({
+      apiToken: FAKE_TOKEN,
+      apiUrl: fake.url,
+      statuses: JSON.stringify({ in_progress: "In Progress" }),
+    }),
+    async (swamp, fake) => {
+      const item = await trackedItem(
+        swamp,
+        { linear: ISSUE_UUID },
+        undefined,
+        { tracker: INSTANCE, kind: "linear" },
+      );
+      assert(await item.tryDispatch());
+      assert(await item.tryDispatch());
+      assertEquals(await item.tryDispatch(), false);
+      await call(swamp, "publish", { workItem: TRACKED_ITEM });
+      await item.grantDispatch();
+      await call(swamp, "publish", { workItem: TRACKED_ITEM });
+      const bodies = fake.comments.map((c) => c.body);
+      assertEquals(bodies.length, 3, bodies.join("\n"));
+      assert(
+        bodies[1].includes(
+          "dispatch limit reached (2 of 2); a person must grant a dispatch " +
+            "override.",
+        ),
+        bodies[1],
+      );
+      assert(
+        bodies[2].includes("granted a dispatch override in **write**."),
+        bodies[2],
+      );
+      await call(swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.comments.length, 3);
+    },
+  );
 });

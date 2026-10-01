@@ -41,11 +41,17 @@ export interface StageVisit {
   terminal: boolean;
 }
 
-/** A period in which an exit was held only by a person. */
+/**
+ * A period in which work was held only by a person: an exit of the stage
+ * (kind `exit`), or the stage's next dispatch, parked at its dispatch cap
+ * until a person grants a dispatch override (kind `dispatch-override`, with
+ * no transition, not manual and no gates).
+ */
 export interface Wait {
+  kind: "exit" | "dispatch-override";
   stage: string;
   cycle: number;
-  transition: string;
+  transition: string | null;
   manual: boolean;
   gateIds: string[];
   from: string;
@@ -54,11 +60,19 @@ export interface Wait {
   durationMs: number | null;
   /**
    * approved / declined: a decision on one of its gates released it;
+   * overridden: a dispatch override released a parked dispatch;
    * advanced: the work item moved on; reset: a reset ended it; cleared: the
    * exit stopped needing a person for another reason (a gate it passed on
    * now fails, or its cooldown restarted); null: still waiting.
    */
-  endedBy: "approved" | "declined" | "advanced" | "reset" | "cleared" | null;
+  endedBy:
+    | "approved"
+    | "declined"
+    | "overridden"
+    | "advanced"
+    | "reset"
+    | "cleared"
+    | null;
 }
 
 export interface StageTotals {
@@ -189,6 +203,9 @@ interface EraState {
   metrics: EraMetrics;
   visit: StageVisit;
   open: Map<string, Wait>;
+  /** The open dispatch-override wait, apart from the exits so no
+   * transition name can collide with it. */
+  parked: Wait | null;
   reviewRounds: Map<string, { reviews: string; rounds: number }>;
   declines: number;
   rejections: number;
@@ -238,6 +255,24 @@ export function computeMetrics(
     const wait = state.open.get(transition);
     if (wait === undefined) return;
     state.open.delete(transition);
+    finishWait(state, wait, at, endedBy);
+  };
+  const closeParked = (
+    state: EraState,
+    at: string,
+    endedBy: NonNullable<Wait["endedBy"]>,
+  ) => {
+    const wait = state.parked;
+    if (wait === null) return;
+    state.parked = null;
+    finishWait(state, wait, at, endedBy);
+  };
+  const finishWait = (
+    state: EraState,
+    wait: Wait,
+    at: string,
+    endedBy: NonNullable<Wait["endedBy"]>,
+  ) => {
     // A wait whose cooldown had not lifted when it ended never happened.
     if (Date.parse(at) < Date.parse(wait.from)) return;
     wait.until = at;
@@ -270,6 +305,7 @@ export function computeMetrics(
       },
       visit,
       open: new Map(),
+      parked: null,
       reviewRounds: new Map(),
       declines: 0,
       rejections: 0,
@@ -298,6 +334,7 @@ export function computeMetrics(
         for (const transition of [...current.open.keys()]) {
           closeWait(current, transition, event.at, "reset");
         }
+        closeParked(current, event.at, "reset");
         endEra(current, event.at, "reset");
       }
       beginEra(event);
@@ -311,6 +348,7 @@ export function computeMetrics(
         for (const transition of [...state.open.keys()]) {
           closeWait(state, transition, event.at, "advanced");
         }
+        closeParked(state, event.at, "advanced");
         const terminal = isTerminal(event.to);
         state.visit = {
           stage: event.to,
@@ -351,6 +389,7 @@ export function computeMetrics(
           }
           if (state.open.has(exit.transition)) continue;
           state.open.set(exit.transition, {
+            kind: "exit",
             stage: event.stage,
             cycle: event.cycle,
             transition: exit.transition,
@@ -361,6 +400,28 @@ export function computeMetrics(
             durationMs: null,
             endedBy: null,
           });
+        }
+        if (event.dispatchOverride === undefined) {
+          closeParked(
+            state,
+            event.at,
+            cause?.type === "override" && cause.kind === "dispatch"
+              ? "overridden"
+              : "cleared",
+          );
+        } else if (state.parked === null) {
+          state.parked = {
+            kind: "dispatch-override",
+            stage: event.stage,
+            cycle: event.cycle,
+            transition: null,
+            manual: false,
+            gateIds: [],
+            from: event.at,
+            until: null,
+            durationMs: null,
+            endedBy: null,
+          };
         }
         return;
       }
@@ -395,7 +456,12 @@ export function computeMetrics(
 
   for (const state of eras) {
     // Waits still open go last, in the order they began.
-    state.metrics.waits.push(...state.open.values());
+    state.metrics.waits.push(
+      ...[
+        ...state.open.values(),
+        ...(state.parked !== null ? [state.parked] : []),
+      ].sort((a, b) => Date.parse(a.from) - Date.parse(b.from)),
+    );
     summarize(state, run, definition);
   }
   const summary = emptySummary();

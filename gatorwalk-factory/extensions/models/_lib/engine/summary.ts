@@ -104,15 +104,26 @@ function detail(event: JournalEvent, run: RunRecord): string {
       return `'${event.transition}' to '${event.to}' (cycle ${event.toCycle})`;
     case "override":
       return `${event.kind} override for '${event.for}'`;
-    case "awaiting":
-      return event.exits.length === 0
-        ? "no exit awaits a person"
-        : "awaiting a person: " + event.exits.map((e) =>
+    case "awaiting": {
+      const held = [
+        ...(event.dispatchOverride !== undefined
+          ? [
+            `a dispatch override (${event.dispatchOverride.count} of ${
+              event.dispatchOverride.limit + event.dispatchOverride.granted
+            } dispatches)`,
+          ]
+          : []),
+        ...event.exits.map((e) =>
           `'${e.transition}'` +
           (e.gateIds.length > 0 ? ` [${e.gateIds.join(", ")}]` : "") +
           (e.manual ? " (manual)" : "") +
           (e.readyAt !== undefined ? ` from ${e.readyAt}` : "")
-        ).join(", ");
+        ),
+      ];
+      return held.length === 0
+        ? "no exit awaits a person"
+        : "awaiting a person: " + held.join(", ");
+    }
     case "reset":
       return `reset from era ${event.previousEra}` +
         (event.repinned !== undefined
@@ -249,9 +260,9 @@ function renderMarkdown(run: RunRecord, metrics: Metrics): string {
         ["Stage", "Exit", "From", "Until", "Waited", "Ended by"],
         era.waits.map((w) => [
           `${w.stage} (${w.cycle})`,
-          w.transition +
-          (w.gateIds.length > 0 ? ` [${w.gateIds.join(", ")}]` : "") +
-          (w.manual ? " (manual)" : ""),
+          w.transition === null ? "dispatch override" : w.transition +
+            (w.gateIds.length > 0 ? ` [${w.gateIds.join(", ")}]` : "") +
+            (w.manual ? " (manual)" : ""),
           w.from,
           w.until ?? "waiting",
           formatDuration(w.durationMs),

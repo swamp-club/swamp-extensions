@@ -551,6 +551,68 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
   });
 });
 
+Deno.test("cli: a dispatch refused at the cap journals the park, and a dispatch override ends it", async () => {
+  await withRepo(async (repo) => {
+    await repo.factory("team", stopsDefinition());
+    const key = await repo.newKey("team", "Integration work");
+    await repo.workItem(key, "start", { factory: "team" });
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+    const refuse = async () => {
+      const refused = await repo.workItem(
+        key,
+        "dispatch",
+        await repo.expected(key),
+        { allowFailure: true },
+      );
+      assertNotEquals(refused.code, 0);
+      assert(
+        refused.output.includes("runaway loop suspected"),
+        refused.output,
+      );
+    };
+    // The refused method still keeps the park it wrote.
+    await refuse();
+    const parked = (await repo.run(key)).journal.at(-1);
+    assert(parked?.type === "awaiting", JSON.stringify(parked));
+    assertEquals(parked.dispatchOverride, { count: 2, limit: 2, granted: 0 });
+    const metrics = await repo.data(key, "metrics") as unknown as Metrics;
+    assertEquals(
+      metrics.eras[0].waits.map((w) => [w.kind, w.endedBy]),
+      [["dispatch-override", null]],
+    );
+    const status = await repo.workItem(key, "status");
+    assert(
+      status.output.includes("parked at the dispatch cap"),
+      status.output,
+    );
+
+    // Parked already: a second refusal writes nothing.
+    const before = await repo.versions(key);
+    await refuse();
+    assertEquals(await repo.versions(key), before);
+
+    await repo.workItem(key, "grant_override", {
+      kind: "dispatch",
+      ...await repo.expected(key),
+    });
+    const run = await repo.run(key);
+    assertEquals(
+      run.journal.slice(-2).map((e) =>
+        e.type === "awaiting"
+          ? `awaiting ${JSON.stringify(e.dispatchOverride ?? null)}`
+          : e.type
+      ),
+      ["override", "awaiting null"],
+    );
+    const after = await repo.data(key, "metrics") as unknown as Metrics;
+    assertEquals(
+      after.eras[0].waits.map((w) => [w.kind, w.endedBy]),
+      [["dispatch-override", "overridden"]],
+    );
+  });
+});
+
 /** Every path under `dir`, relative to it, skipping .swamp. */
 async function pathsUnder(dir: string, rel = ""): Promise<string[]> {
   const out: string[] = [];

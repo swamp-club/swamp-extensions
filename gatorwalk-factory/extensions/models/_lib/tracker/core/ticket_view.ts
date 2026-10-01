@@ -97,10 +97,26 @@ export function commentFor(
       return `${item}: ${who} ${did} \`${event.gateId}\` in ` +
         `**${event.stage}**.`;
     }
-    case "awaiting":
-      if (event.exits.length === 0) return null;
-      return `${item} is waiting on a person in **${event.stage}**:\n\n` +
-        event.exits.map(exitLine).join("\n");
+    case "awaiting": {
+      const hold = event.dispatchOverride;
+      if (hold === undefined) {
+        if (event.exits.length === 0) return null;
+        return `${item} is waiting on a person in **${event.stage}**:\n\n` +
+          event.exits.map(exitLine).join("\n");
+      }
+      return `${item} is waiting on a person in **${event.stage}**: ` +
+        `dispatch limit reached (${hold.count} of ${hold.limit}` +
+        (hold.granted > 0 ? ` plus ${hold.granted} granted` : "") +
+        "); a person must grant a dispatch override." +
+        (event.exits.length === 0 ? "" : "\n\nAlso waiting on a person:\n\n" +
+          event.exits.map(exitLine).join("\n"));
+    }
+    case "override": {
+      if (event.kind !== "dispatch") return null;
+      const who = event.actor.principal ?? "an unidentified caller";
+      return `${item}: ${who} granted a dispatch override in ` +
+        `**${event.for}**.`;
+    }
     case "reset":
       return `${item} was reset: era \`${event.previousEra}\` ended, and ` +
         `era \`${event.era}\` starts at **${event.stage}**` +
@@ -111,7 +127,6 @@ export function commentFor(
     case "usage":
     case "recorded":
     case "rejected":
-    case "override":
     // Said by the notes of each ticket's segment (ticketSegments), since
     // what to say depends on the tracker.
     case "retargeted":

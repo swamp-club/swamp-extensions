@@ -60,3 +60,37 @@ Deno.test("retargeted: the event carries both ref maps and a reason", () => {
   );
   assertEquals(JournalEventSchema.safeParse(base).success, false);
 });
+
+Deno.test("awaiting: a park at the dispatch cap carries the cap it hit", () => {
+  const base = {
+    at: "2026-09-30T00:00:00.000Z",
+    era: "e",
+    stage: "triage",
+    cycle: 1,
+    actor: { principal: null, source: "none" as const },
+    type: "awaiting" as const,
+    exits: [],
+  };
+  assertEquals(JournalEventSchema.safeParse(base).success, true);
+  assertEquals(
+    JournalEventSchema.safeParse({
+      ...base,
+      dispatchOverride: { count: 2, limit: 2, granted: 0 },
+    }).success,
+    true,
+  );
+  assertEquals(
+    JournalEventSchema.safeParse({
+      ...base,
+      dispatchOverride: { count: 2, limit: 0, granted: 0 },
+    }).success,
+    false,
+  );
+  assertEquals(
+    JournalEventSchema.safeParse({
+      ...base,
+      dispatchOverride: { count: 2, limit: 2, granted: 0, extra: 1 },
+    }).success,
+    false,
+  );
+});

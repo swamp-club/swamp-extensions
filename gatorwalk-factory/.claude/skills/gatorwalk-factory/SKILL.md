@@ -151,13 +151,13 @@ definition's duplicate exit. See
 
 ## When something is refused
 
-| Refusal                                   | Do                                                                |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| `stale: ...`                              | Read `status`; act on what it says now.                           |
-| `... rejected and kept as retry feedback` | Fix the payload from the errors (also in `status`); record again. |
-| `transition ... is not ready`             | Do what the failures name, or ask the person about a human gate.  |
-| `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                |
-| cycle limit, `runaway loop suspected`     | Stop and lay out every exit; an override is one, on their word.   |
+| Refusal                                   | Do                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `stale: ...`                              | Read `status`; act on what it says now.                                                                                              |
+| `... rejected and kept as retry feedback` | Fix the payload from the errors (also in `status`); record again.                                                                    |
+| `transition ... is not ready`             | Do what the failures name, or ask the person about a human gate.                                                                     |
+| `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                                                                                   |
+| cycle limit, `runaway loop suspected`     | Stop and lay out every exit; an override is one, on their word. A refused dispatch parks the item: `publish` so the ticket shows it. |
 
 Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops
 and their controls".

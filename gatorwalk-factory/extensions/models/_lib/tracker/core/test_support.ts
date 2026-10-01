@@ -21,6 +21,7 @@ import {
   dispatch,
   expectNow,
   type FakeSwamp,
+  grantOverrideMethod,
   type ProductKind,
   recordProductMethod,
   retargetMethod,
@@ -282,6 +283,22 @@ export async function trackedItem(
         ctx(),
         kind,
         { name, payload, ...(await expected()) },
+        env,
+      ),
+    /** A dispatch: true when recorded, false when refused at the stage's
+     * dispatch cap (which parks the work item); any other failure throws. */
+    tryDispatch: async () =>
+      await dispatch(ctx(), await expected(), env).then(
+        () => true,
+        (error: Error) => {
+          if (!error.message.startsWith("runaway loop suspected")) throw error;
+          return false;
+        },
+      ),
+    grantDispatch: async () =>
+      await grantOverrideMethod(
+        ctx(),
+        { kind: "dispatch", ...(await expected()) },
         env,
       ),
     retarget: async (externalRefs: Record<string, string>, reason = "moved") =>

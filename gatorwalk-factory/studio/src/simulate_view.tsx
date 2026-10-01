@@ -288,16 +288,19 @@ function journalText(e: JournalEvent): string {
       return `${e.transition} → ${e.to} (cycle ${e.toCycle})`;
     case "override":
       return `${e.kind} override for ${e.for}`;
-    case "awaiting":
-      return e.exits.length > 0
-        ? `waiting on a person: ${
-          e.exits.map((x) =>
-            x.gateIds.length > 0
-              ? `${x.transition} (${x.gateIds.join(", ")})`
-              : x.transition
-          ).join(", ")
-        }`
+    case "awaiting": {
+      const held = [
+        ...(e.dispatchOverride !== undefined ? ["dispatch override"] : []),
+        ...e.exits.map((x) =>
+          x.gateIds.length > 0
+            ? `${x.transition} (${x.gateIds.join(", ")})`
+            : x.transition
+        ),
+      ];
+      return held.length > 0
+        ? `waiting on a person: ${held.join(", ")}`
         : "no longer waiting on a person";
+    }
     case "reset":
       return "reset";
     case "dispatched":
@@ -384,7 +387,7 @@ function MetricsTab() {
           <ul class="waits">
             {waits.map((w, i) => (
               <li key={i}>
-                <b>{w.stage}.{w.transition}</b>
+                <b>{w.stage}.{w.transition ?? "dispatch override"}</b>
                 <span>
                   {w.gateIds.join(", ") || (w.manual ? "manual" : "")}
                 </span>

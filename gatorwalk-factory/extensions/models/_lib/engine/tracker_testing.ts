@@ -44,6 +44,7 @@ export {
   describeStatus,
   dispatch,
   FACTORY_TYPE,
+  grantOverrideMethod,
   type MethodContextLike,
   recordProductMethod,
   retargetMethod,

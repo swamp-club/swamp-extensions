@@ -271,7 +271,8 @@ swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
 ```
 
 It records the resolved inputs and prompt for later replay, counts toward the
-stage's dispatch cap, and prints the dispatch id and the packet: the rendered
+stage's dispatch cap (one refused past it parks the work item for a person; see
+"When something fails"), and prints the dispatch id and the packet: the rendered
 prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`,
 `products`, and for workflow and method stages `inputs` with the `workflow` or
 `method` to call). `products` lists every artifact and evidence the stage's work
@@ -688,16 +689,16 @@ it. A declined approval marks nothing.
 
 A failed write exits non-zero with its reason. Nothing is ever half-written.
 
-| What you see                                                          | What happened                                                               | What to do                                                                                                     |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `stale: the work item is at stage ...`                                | Your expectation is out of date. The item moved, or you copied it wrong.    | Read `status` and use its `expect` line. Then decide again: the move may have changed what to do.              |
-| `<kind> '<name>' was rejected and kept as retry feedback:`            | The payload broke its schema. It is kept on the item and shown in `status`. | Fix the payload using the errors, then record it again. The rejection clears when a valid version is recorded. |
-| `transition '<name>' is not ready: ...`                               | A gate failed. Nothing moved.                                               | Read `status`. Do the work the failures name, or ask the person if a human gate is in the way.                 |
-| `transition '<name>' is manual: a person must confirm it`             | You tried a manual exit without `confirm=true`.                             | Ask the person. Only on their word, run it again with `confirm=true`.                                          |
-| `stage '<to>' has been entered N time(s) in this era, its limit is M` | The cycle limit of the stage the exit enters.                               | Stop. Tell them why the stage keeps coming back, and lay out every exit, an override among them.               |
-| `runaway loop suspected: stage ... has had N dispatch(es)`            | The dispatch cap for this stage and cycle.                                  | Stop. The work keeps failing: tell the person what went wrong. Only on their word, grant a dispatch override.  |
-| `stage '<stage>' is not ready to dispatch:`                           | A binding failed or a prompt placeholder has no value.                      | Record the product the binding reads, then dispatch again.                                                     |
-| `the work item finished at stage '<stage>'`                           | It has finished.                                                            | Nothing to do.                                                                                                 |
+| What you see                                                          | What happened                                                                                                               | What to do                                                                                                                                                                      |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stale: the work item is at stage ...`                                | Your expectation is out of date. The item moved, or you copied it wrong.                                                    | Read `status` and use its `expect` line. Then decide again: the move may have changed what to do.                                                                               |
+| `<kind> '<name>' was rejected and kept as retry feedback:`            | The payload broke its schema. It is kept on the item and shown in `status`.                                                 | Fix the payload using the errors, then record it again. The rejection clears when a valid version is recorded.                                                                  |
+| `transition '<name>' is not ready: ...`                               | A gate failed. Nothing moved.                                                                                               | Read `status`. Do the work the failures name, or ask the person if a human gate is in the way.                                                                                  |
+| `transition '<name>' is manual: a person must confirm it`             | You tried a manual exit without `confirm=true`.                                                                             | Ask the person. Only on their word, run it again with `confirm=true`.                                                                                                           |
+| `stage '<to>' has been entered N time(s) in this era, its limit is M` | The cycle limit of the stage the exit enters.                                                                               | Stop. Tell them why the stage keeps coming back, and lay out every exit, an override among them.                                                                                |
+| `runaway loop suspected: stage ... has had N dispatch(es)`            | The dispatch cap for this stage and cycle. The item is now parked, waiting on a dispatch override, and the journal says so. | Run `publish` so the ticket shows the park. Stop. The work keeps failing: tell the person what went wrong. Only on their word, grant a dispatch override, then `publish` again. |
+| `stage '<stage>' is not ready to dispatch:`                           | A binding failed or a prompt placeholder has no value.                                                                      | Record the product the binding reads, then dispatch again.                                                                                                                      |
+| `the work item finished at stage '<stage>'`                           | It has finished.                                                                                                            | Nothing to do.                                                                                                                                                                  |
 
 Overrides, on the person's word:
 

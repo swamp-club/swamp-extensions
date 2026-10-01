@@ -25,6 +25,8 @@ import {
   type Env,
   expectedOf,
   grantOverride,
+  lastAwaitingEvent,
+  parkAtDispatchCap,
   recordApproval,
   recordDispatch,
   recordUsage,
@@ -890,6 +892,79 @@ Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop 
       .ok,
   );
   assertEquals(dispatchCap(run, definition).granted, 1);
+});
+
+Deno.test("parkAtDispatchCap: journals the park once, only when the cap refuses, never on a stale view", () => {
+  const definition = limited();
+  const env = testEnv();
+  let run = start(
+    definition,
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:l",
+    },
+    ALICE,
+    env,
+  );
+  const early = parkAtDispatchCap(run, definition, expectedOf(run), ALICE, env);
+  assert(!early.ok);
+  assertEquals(early.reason, "stage 'loop' may take one more dispatch");
+  const first = recordDispatch(
+    run,
+    definition,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(first.ok);
+  run = first.run;
+  const stale = parkAtDispatchCap(
+    run,
+    definition,
+    { ...expectedOf(run), cycle: 9 },
+    ALICE,
+    env,
+  );
+  assert(!stale.ok && stale.reason.startsWith("stale:"));
+  const parked = parkAtDispatchCap(
+    run,
+    definition,
+    expectedOf(run),
+    ALICE,
+    env,
+  );
+  assert(parked.ok);
+  assertEquals(parked.value, {
+    count: 1,
+    limit: 1,
+    granted: 0,
+    allowed: false,
+  });
+  const event = parked.run.journal.at(-1);
+  assertEquals(event?.type, "awaiting");
+  assertEquals(event?.actor, ALICE);
+  assertEquals(lastAwaitingEvent(parked.run), event);
+  assertEquals(lastAwaitingEvent(parked.run)?.dispatchOverride, {
+    count: 1,
+    limit: 1,
+    granted: 0,
+  });
+  assertEquals(lastAwaitingEvent(parked.run)?.exits, []);
+  const again = parkAtDispatchCap(
+    parked.run,
+    definition,
+    expectedOf(parked.run),
+    ALICE,
+    env,
+  );
+  assert(!again.ok);
+  assertEquals(
+    again.reason,
+    "stage 'loop' is already parked at its dispatch cap",
+  );
 });
 
 Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {

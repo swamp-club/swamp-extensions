@@ -218,7 +218,9 @@ cycle of it. The controls:
 - **The cycle limit** (`maxCycles`, default 5) and cycle overrides, which
   accumulate until a reset.
 - **The dispatch cap** (`maxDispatchesPerCycle`, default 2) and dispatch
-  overrides, against a runaway loop within one pass.
+  overrides, against a runaway loop within one pass. A dispatch refused at the
+  cap parks the work item until a person grants an override; the park is
+  journaled, measured as a wait and published to the ticket.
 - **Routing on the loop count** with a `max-cycles` gate, such as escalating
   after a number of passes.
 - **Escape hatches.** Global transitions are exempt from cycle limits, and a
@@ -474,7 +476,8 @@ swamp report get @swamp/gatorwalk-factory/work-item-summary --model <key>
 
 Every write also stores a `metrics` record on the work item: time in each stage
 and cycle, rework (re-entries, review rounds, declines, rejected payloads),
-waits at human stops, dispatches and retries, overrides, and token usage, marked
+waits at human stops (including a park at the dispatch cap, ended by a
+dispatch override), dispatches and retries, overrides, and token usage, marked
 attested. It is computed from the run record alone and names the journal version
 it was computed from. A dashboard reads every work item's metrics in one query:
 
@@ -593,8 +596,9 @@ swamp does not undo. Up to 250 relations of each kind are read per issue.
 `publish` replays a work item's journal to the issue its `externalRefs` name (to
 a tracker that keeps lifecycle entries, with a factory definition that declares
 them, it writes those instead of comments): a comment for each event a person
-needs (the start, each stage entered, approvals, waits at a human stop, resets,
-the finish), and the status when the stage's status key changes. Run it after
+needs (the start, each stage entered, approvals, waits at a human stop, a park
+at the dispatch cap and the dispatch override that ends it, resets, the
+finish), and the status when the stage's status key changes. Run it after
 any change; it delivers only what is new, and after a failure a re-run picks up
 where it stopped. It is the only writer of a work item's ticket status, and it
 runs only on the tracker instance the work item's factory was bound to at

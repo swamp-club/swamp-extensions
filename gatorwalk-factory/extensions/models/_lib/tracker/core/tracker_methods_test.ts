@@ -405,6 +405,38 @@ Deno.test("publish: comments on each event a person needs, sets the status, and 
   assertEquals(swamp.versionsWritten(INSTANCE), written);
 });
 
+Deno.test("publish: a park at the dispatch cap and its grant are each said once", async () => {
+  const swamp = fakeSwamp();
+  const { posted, methods } = ticket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  assertEquals(posted.length, 1);
+  assert(await item.tryDispatch());
+  assert(await item.tryDispatch());
+  assertEquals(await item.tryDispatch(), false);
+  assertEquals(await item.tryDispatch(), false);
+  await publish(swamp, methods);
+  assertEquals(posted.length, 2, posted.join("\n"));
+  assert(
+    posted[1].includes(
+      "is waiting on a person in **write**: dispatch limit reached (2 of 2)" +
+        "; a person must grant a dispatch override.",
+    ),
+    posted[1],
+  );
+  await item.grantDispatch();
+  await publish(swamp, methods);
+  assertEquals(posted.length, 3, posted.join("\n"));
+  assert(
+    posted[2].includes("granted a dispatch override in **write**."),
+    posted[2],
+  );
+  const written = swamp.versionsWritten(INSTANCE);
+  await publish(swamp, methods);
+  assertEquals(posted.length, 3);
+  assertEquals(swamp.versionsWritten(INSTANCE), written);
+});
+
 Deno.test("publish: a later publish sends only what is new, and the status only when the stage's key changes", async () => {
   const swamp = fakeSwamp();
   const { posted, moves, methods } = ticket();

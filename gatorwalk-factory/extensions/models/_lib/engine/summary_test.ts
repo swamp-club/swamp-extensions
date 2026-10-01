@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { fakeSwamp } from "./fake_swamp.ts";
 import { contextStore, loadRun } from "./run_store.ts";
 import { buildSummary, formatDuration } from "./summary.ts";
@@ -29,6 +29,7 @@ import {
   decide,
   describeStatus,
   dispatch,
+  grantOverrideMethod,
   recordProductMethod,
   recordUsageMethod,
   retargetMethod,
@@ -126,6 +127,33 @@ Deno.test("summary: usage shows the harness total, and dispatches without usage 
       "(claude-opus-5-5), attested",
       "- **Tokens (attested):** 65155 over 1 dispatch(es); 4 tool uses; " +
       "1m 30s reported; 1 without usage: 1 interactive; claude-opus-5-5: 65155",
+    ]
+  ) {
+    assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);
+  }
+});
+
+Deno.test("summary: a park at the dispatch cap is in the timeline and the waits", async () => {
+  const { swamp, env, ctx, expected } = await reviewed();
+  await dispatch(ctx(), await expected(), env);
+  await dispatch(ctx(), await expected(), env);
+  env.at("2026-09-29T11:20:00.000Z");
+  await assertRejects(async () => dispatch(ctx(), await expected(), env));
+  env.at("2026-09-29T11:30:00.000Z");
+  await grantOverrideMethod(
+    ctx(),
+    { kind: "dispatch", ...await expected() },
+    env,
+  );
+  await summary(ctx(), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  for (
+    const expected of [
+      "awaiting a person: a dispatch override (2 of 2 dispatches)",
+      "dispatch override for 'review'",
+      "| review (1) | dispatch override | 2026-09-29T11:20:00.000Z | " +
+      "2026-09-29T11:30:00.000Z | 10m",
+      "| overridden |",
     ]
   ) {
     assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);

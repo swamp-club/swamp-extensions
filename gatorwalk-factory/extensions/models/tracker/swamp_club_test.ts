@@ -372,6 +372,43 @@ Deno.test("swamp-club model: publish ripples each event and skips a status the i
   );
 });
 
+Deno.test("swamp-club model: publish ripples a park at the dispatch cap and its grant once each", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      const item = await trackedItem(
+        swamp,
+        { "swamp-club": ISSUE },
+        undefined,
+        { tracker: INSTANCE, kind: "swamp-club" },
+      );
+      assert(await item.tryDispatch());
+      assert(await item.tryDispatch());
+      assertEquals(await item.tryDispatch(), false);
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      await item.grantDispatch();
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      const bodies = fake.comments.map((c) => c.body);
+      assertEquals(bodies.length, 3, bodies.join("\n"));
+      assert(
+        bodies[1].includes(
+          "dispatch limit reached (2 of 2); a person must grant a dispatch " +
+            "override.",
+        ),
+        bodies[1],
+      );
+      assert(
+        bodies[2].includes("granted a dispatch override in **write**."),
+        bodies[2],
+      );
+      const requests = fake.requests.length;
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.requests.length, requests);
+    },
+  );
+});
+
 /** A second Lab issue, the primary a duplicate's work moves to. */
 const PRIMARY = LAB_ISSUE + 1;
 

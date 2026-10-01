@@ -52,18 +52,21 @@ import {
 } from "./definition_schema.ts";
 import {
   advance,
+  checkExpected,
   dispatchCap,
   type Env,
   type Expected,
   expectedOf,
   grantOverride,
   type OpResult,
+  parkAtDispatchCap,
   recordApproval,
   recordDispatch,
   recordUsage,
   reset,
   retarget,
 } from "./run_ops.ts";
+import { heldDispatchOverride } from "./awaiting.ts";
 import { computeMetrics } from "./metrics.ts";
 import { buildSummary } from "./summary.ts";
 import { currentCycle, type RunRecord, type Usage } from "./run_record.ts";
@@ -1023,6 +1026,10 @@ async function statusView(
     expected: expectationProps(run),
     dispatch: active ? buildDispatch(definition, run, context) : null,
     dispatchCap: active ? dispatchCap(run, definition) : null,
+    /** Parked at the dispatch cap: a dispatch was refused, and the next one
+     * waits on a person granting a dispatch override. */
+    awaitingDispatchOverride:
+      heldDispatchOverride(run, definition) !== undefined,
     exits: active
       ? (await evaluateTransitions(run, definition, store, env)).map((t) => ({
         name: t.name,
@@ -1091,6 +1098,12 @@ function statusLines(view: StatusView): string[] {
       `  work: ${view.dispatch.mode}; dispatches this cycle ${cap.count} of ${
         cap.limit + cap.granted
       }`,
+    );
+  }
+  if (view.awaitingDispatchOverride) {
+    lines.push(
+      "  parked at the dispatch cap: waiting on a person to grant a " +
+        "dispatch override",
     );
   }
   if (view.dispatch !== null && !view.dispatch.ready) {
@@ -1268,8 +1281,13 @@ export async function dispatch(
   // records nothing: a refusal (stale expectation, the dispatch cap) or a
   // store failure.
   let outcome: OpResult<number> | undefined;
+  // Whether the refusal was the dispatch cap, judged on the run it saw.
+  let refusedAtCap = false;
   try {
     outcome = await update(store, (current) => {
+      refusedAtCap = current.status === "active" &&
+        checkExpected(current, expectedFrom(args)) === null &&
+        !dispatchCap(current, pinned.definition).allowed;
       subagentPrompts = resultDir === undefined
         ? []
         : buildSubagentPrompts(pinned.definition, packet, {
@@ -1294,6 +1312,31 @@ export async function dispatch(
   } finally {
     if (outcome?.ok !== true && madeDir && resultDir !== undefined) {
       await resultDirs.remove(resultDir);
+    }
+  }
+  if (!outcome.ok && refusedAtCap) {
+    // The stop the cap makes is a person's: journal it, once, so the wait
+    // is measured and the tracker hears of it. Refused (nothing written)
+    // when the entry is parked already. The cap's refusal is still the
+    // answer; a failure to write the park is reported after it.
+    try {
+      await update(
+        store,
+        (current) =>
+          parkAtDispatchCap(
+            current,
+            pinned.definition,
+            expectedFrom(args),
+            actorOf(ctx, args.onBehalfOf),
+            env,
+          ),
+      );
+    } catch (error) {
+      throw new Error(
+        `${outcome.reason}\n(the park could not be journaled: ${
+          error instanceof Error ? error.message : String(error)
+        })`,
+      );
     }
   }
   const recorded = unwrap(outcome);

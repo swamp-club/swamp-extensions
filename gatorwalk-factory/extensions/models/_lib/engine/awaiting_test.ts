@@ -20,10 +20,16 @@ import type { Actor, AwaitingExit, JournalEvent } from "./journal.ts";
 import {
   advance,
   expectedOf,
+  grantOverride,
+  parkAtDispatchCap,
   recordApproval,
   recordDispatch,
 } from "./run_ops.ts";
-import { noteAwaiting, personHeldExits } from "./awaiting.ts";
+import {
+  heldDispatchOverride,
+  noteAwaiting,
+  personHeldExits,
+} from "./awaiting.ts";
 import { parseDefinition } from "./definition_schema.ts";
 import {
   committingStore,
@@ -130,6 +136,24 @@ async function item(
             expectedOf(run),
             { inputs: {} },
             ALICE,
+            env,
+          )),
+      ),
+    park: async () =>
+      await update(
+        store,
+        (run) =>
+          parkAtDispatchCap(run, definition, expectedOf(run), ALICE, env),
+      ),
+    grant: async () =>
+      ok(
+        await update(store, (run) =>
+          grantOverride(
+            run,
+            definition,
+            expectedOf(run),
+            { kind: "dispatch" },
+            BOB,
             env,
           )),
       ),
@@ -501,4 +525,99 @@ Deno.test("awaiting: an exit gated on another stage's product is no way out for 
   await wi.record("evidence", "x", {});
   await wi.move("next");
   assertEquals(names(awaitings(await wi.run()).at(-1)!.exits), ["complete"]);
+});
+
+Deno.test("awaiting: a park at the dispatch cap is carried by the entry's commits until a dispatch override is granted", async () => {
+  const wi = await inReview();
+  await wi.dispatch();
+  await wi.dispatch();
+  assert((await wi.park()).ok);
+  // Parked once: a second refusal writes nothing.
+  assert(!(await wi.park()).ok);
+  // An unrelated commit keeps the hold without noting anything.
+  await wi.record("artifact", "review", { text: "notes" });
+  await wi.grant();
+  const events = awaitings(await wi.run());
+  assertEquals(
+    events.map((e) => [names(e.exits), e.dispatchOverride ?? null]),
+    [
+      [["approve"], null],
+      [["approve"], { count: 2, limit: 2, granted: 0 }],
+      [["approve"], null],
+    ],
+  );
+  // The grant's commit dropped it, with the granting person as its cause.
+  assertEquals(events.at(-1)?.actor, BOB);
+  // One more dispatch fills the cap again, but nothing is parked until a
+  // dispatch is refused.
+  await wi.dispatch();
+  assertEquals(awaitings(await wi.run()).length, 3);
+});
+
+Deno.test("awaiting: a park ends with its stage entry", async () => {
+  const wi = await inReview();
+  await wi.dispatch();
+  await wi.dispatch();
+  assert((await wi.park()).ok);
+  await wi.decide("go", "approve");
+  await wi.move("approve");
+  const run = await wi.run();
+  const last = awaitings(run).at(-1);
+  // The approval's commit still carries the hold; entering ship does not.
+  assertEquals(last?.stage, "review");
+  assertEquals(last?.dispatchOverride, { count: 2, limit: 2, granted: 0 });
+  assertEquals(run.stage, "ship");
+});
+
+Deno.test("awaiting: a grant ends the park even when its commit noted nothing", async () => {
+  const wi = await inReview();
+  const definition = stopsParsedDefinition();
+  await wi.dispatch();
+  await wi.dispatch();
+  assert((await wi.park()).ok);
+  // The grant and the dispatch it allows, as if neither commit could read the
+  // run data: the last awaiting event still carries the park.
+  const parked = await wi.run();
+  const granted = grantOverride(
+    parked,
+    definition,
+    expectedOf(parked),
+    { kind: "dispatch" },
+    BOB,
+    wi.env,
+  );
+  assert(granted.ok);
+  const dispatched = recordDispatch(
+    granted.run,
+    definition,
+    expectedOf(granted.run),
+    { inputs: {} },
+    ALICE,
+    wi.env,
+  );
+  assert(dispatched.ok);
+  // The cap refuses again, but the park it recorded was granted past.
+  assertEquals(heldDispatchOverride(dispatched.run, definition), undefined);
+  const noted = await noteAwaiting(
+    dispatched.run,
+    definition,
+    wi.store,
+    wi.env,
+  );
+  const last = awaitings(noted).at(-1);
+  assertEquals(last?.dispatchOverride, undefined);
+  // So a dispatch refused now parks again, with the cap as it is.
+  const again = parkAtDispatchCap(
+    dispatched.run,
+    definition,
+    expectedOf(dispatched.run),
+    ALICE,
+    wi.env,
+  );
+  assert(again.ok, JSON.stringify(again));
+  assertEquals(awaitings(again.run).at(-1)?.dispatchOverride, {
+    count: 3,
+    limit: 2,
+    granted: 1,
+  });
 });

@@ -711,6 +711,88 @@ Deno.test("dispatch: without resultDir a dispatch stage gets a new directory; ot
   assertEquals(removed, ["/tmp/gatorwalk-x"]);
 });
 
+Deno.test("dispatch: a dispatch refused at the cap journals the park once, until a dispatch override is granted", async () => {
+  const removed: string[] = [];
+  const makeDir = {
+    make: () => Promise.resolve("/tmp/gatorwalk-x"),
+    remove: (dir: string) => {
+      removed.push(dir);
+      return Promise.resolve();
+    },
+    exists: () => Promise.resolve(false),
+  };
+  const swamp = await atPlanReview();
+  const ctx = () => swamp.context(ITEM);
+  await dispatch(ctx(), await expectedArgs(swamp), systemEnv, makeDir);
+  await dispatch(ctx(), await expectedArgs(swamp), systemEnv, makeDir);
+  assertEquals(removed, []);
+  const refuse = async () =>
+    await assertRejects(
+      async () =>
+        dispatch(ctx(), await expectedArgs(swamp), systemEnv, makeDir),
+      Error,
+      "runaway loop suspected: stage 'plan-review' cycle 1 has had 2 " +
+        "dispatch(es), its limit is 2; a person must grant a dispatch " +
+        "override to dispatch again",
+    );
+  await refuse();
+  assertEquals(removed, ["/tmp/gatorwalk-x"]);
+  const parked = (await runOf(swamp)).journal.at(-1);
+  assert(parked?.type === "awaiting");
+  assertEquals(parked.dispatchOverride, { count: 2, limit: 2, granted: 0 });
+  const metrics = swamp.resources.get(ITEM)?.get("metrics")?.at(-1) as {
+    eras: { waits: { kind: string; until: string | null }[] }[];
+  };
+  assertEquals(
+    metrics.eras[0].waits.map((w) => [w.kind, w.until]),
+    [["dispatch-override", null]],
+  );
+  await call(swamp, "status");
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).includes(
+      "  parked at the dispatch cap: waiting on a person to grant a " +
+        "dispatch override",
+    ),
+  );
+
+  // Refused again: parked already, so nothing is written.
+  const before = swamp.versionsWritten(ITEM);
+  await refuse();
+  assertEquals(swamp.versionsWritten(ITEM), before);
+
+  await call(swamp, "grant_override", {
+    kind: "dispatch",
+    ...await expected(swamp),
+  });
+  const cleared = (await runOf(swamp)).journal.slice(-2);
+  assertEquals(cleared.map((e) => e.type), ["override", "awaiting"]);
+  assert(cleared[1].type === "awaiting");
+  assertEquals(cleared[1].dispatchOverride, undefined);
+  await call(swamp, "status");
+  assert(
+    !String(swamp.logs.at(-1)?.props?.summary).includes("parked at"),
+  );
+});
+
+Deno.test("dispatch: a park that cannot be written is reported after the cap's refusal", async () => {
+  const swamp = await started();
+  await call(swamp, "dispatch", await expected(swamp));
+  await call(swamp, "dispatch", await expected(swamp));
+  const failing = swamp.context(ITEM);
+  failing.writeResource = () => Promise.reject(new Error("store down"));
+  const error = await assertRejects(
+    async () => dispatch(failing, await expectedArgs(swamp), systemEnv),
+    Error,
+  );
+  assert(error.message.startsWith("runaway loop suspected"), error.message);
+  assert(
+    error.message.endsWith(
+      "\n(the park could not be journaled: store down)",
+    ),
+    error.message,
+  );
+});
+
 Deno.test("dispatch: a relative resultDir is refused, since each reader would resolve it differently", async () => {
   const swamp = await atPlanReview();
   await assertRejects(

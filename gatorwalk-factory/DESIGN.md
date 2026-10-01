@@ -151,8 +151,9 @@ the run record indexes each one's version and digest. Code:
   decided on plan-review, about the plan).
 - When the exits that only a person can open change, the commit adds an
   `awaiting` event listing them. It is derived from the gates, not something
-  anyone did, so its actor is the write that caused the change. See "Summary and
-  metrics".
+  anyone did, so its actor is the write that caused the change. A dispatch
+  refused at the dispatch cap adds one too, marked as waiting on a dispatch
+  override; its actor is the caller who dispatched. See "Summary and metrics".
 - Token usage is attached to a dispatch by id, after the work, because it is
   only known then. It is marked attested until a driver measures it.
 - Every event records its actor: the platform's caller
@@ -288,8 +289,10 @@ reset starts a new era, and with it fresh entry counts and no overrides. See
 The cycle limit bounds loops between stages. The dispatch cap bounds a runaway
 loop within one pass: a stage entry may take `maxDispatchesPerCycle` dispatches,
 2 by default, plus once per dispatch override granted for that stage and cycle.
-Past that, `dispatch` is refused as a suspected runaway loop. Neither bundled
-factory definition sets it.
+Past that, `dispatch` is refused as a suspected runaway loop, and the refusal
+journals the park: an `awaiting` event waiting on a dispatch override (see "Why
+`awaiting` is journaled"), so the wait is measured and published. Neither
+bundled factory definition sets it.
 
 ### Routing on the loop count
 
@@ -356,8 +359,9 @@ partial exploration cannot show that the factory definition is sound.
 
 Loops are measured per era and in total in the per-item metrics (GW-19, #2687;
 see "The metrics"): **re-entries** into each stage after its first, **review
-rounds** of each reviewed artifact, **declines** and **rejected payloads**, and
-the cycle and dispatch **overrides** granted.
+rounds** of each reviewed artifact, **declines** and **rejected payloads**, the
+cycle and dispatch **overrides** granted, and the time a work item waited parked
+at a dispatch cap (a `dispatch-override` wait).
 
 ## Gates and limits
 
@@ -437,7 +441,8 @@ the gate evaluator, so no caller can bypass them with a different one:
   one leads to must never close the way out.
 - **Dispatch cap.** A stage entry may take `maxDispatchesPerCycle` dispatches
   (default 2) plus once per dispatch override for that stage and cycle; past
-  that, dispatching is refused as a suspected runaway loop (#916, #899).
+  that, dispatching is refused as a suspected runaway loop (#916, #899). The
+  refusal writes nothing else, but journals the park once (#2703).
 
 Overrides are records of their own (`grantOverride`), checked against the
 caller's expected view. Every grant counts and none resets a count
@@ -931,7 +936,8 @@ schema check of the whole definition; it is not enabled here.
 `summary` method and the `@swamp/gatorwalk-factory/work-item-summary` report
 render the same data as markdown (`_lib/engine/summary.ts`,
 `extensions/reports/work_item_summary_report.ts`). One thing is newly recorded:
-the `awaiting` journal event (`_lib/engine/awaiting.ts`).
+the `awaiting` journal event (`_lib/engine/awaiting.ts`), including a park at
+the dispatch cap.
 
 ### Why a stored record, not only the report
 
@@ -1007,9 +1013,24 @@ payload failing its digest check) notes nothing, since the journal cannot take a
 wrong event back; the next readable commit notes any change. Runs started before
 the event existed have no waits rather than guessed ones.
 
+**A park at the dispatch cap** is a stop too: once a dispatch is refused at
+the cap, the work item waits on a person to grant a dispatch override. It is
+not derived from the gates, and a refusal commits nothing of its own, so the
+refused `dispatch` commits the park itself (`parkAtDispatchCap`): an `awaiting`
+event with the exits already held plus `dispatchOverride` (the count, limit and
+grants the cap had), whose actor is the caller who dispatched. It is written
+once; a dispatch refused again while parked writes nothing. Every later commit
+in the stage entry carries the hold forward, without a new event, while the cap
+still refuses one more dispatch. The commit of a dispatch override drops it
+with a new `awaiting`; so do the end of the stage entry and a reset, which
+start without one. A park stands only for the grants it saw, so a grant whose
+commit could not read the run data still ends it: the next readable commit
+drops it, and a dispatch refused after that parks again. Reaching the cap alone parks nothing: the last allowed
+dispatch may still advance the work item, so only a refused dispatch is a stop.
+
 The event is a new journal variant, so a run that holds one cannot be read by an
-earlier gatorwalk-factory. Before go-live that is accepted: the upgrade is
-one-way.
+earlier gatorwalk-factory; `dispatchOverride` is the same kind of change. Before
+go-live that is accepted: the upgrade is one-way.
 
 ### The metrics
 
@@ -1020,7 +1041,7 @@ Per era, and summed over every era:
 | Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                            |
 | Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
 | Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                    |
-| Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A wait still running has no end. The summary's time is the time covered by finished waits: exits that wait at once count once. |
+| Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A park at the dispatch cap is a wait of kind `dispatch-override` (every other is `exit`), with no transition: from the refused dispatch until the hold is dropped (`overridden` when a dispatch override caused that, otherwise `cleared`, as when the commit of the grant could not read the run data and a later readable one dropped it), the work item moves on, or a reset. A wait still running has no end. The summary's time is the time covered by finished waits: waits at once count once. |
 | Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
 | Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
 | Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it. |
@@ -1641,9 +1662,12 @@ published as entries instead, below):
    finishing when the stage is terminal, so `abandoned` is not announced as
    done), `approval` (given or declined, naming the actor's platform principal
    as the journal records it; an asserted actor is free text and left out),
-   `awaiting` with exits (each exit and what it needs), and `reset`.
-   `dispatched`, `usage`, `recorded`, `rejected`, `override` and an empty
-   `awaiting` post nothing; `retargeted` is said by the two tickets' notes
+   `awaiting` with exits (each exit and what it needs), `awaiting` parked at
+   the dispatch cap (the cap it hit, and that a person must grant a dispatch
+   override; any exits held beside it are listed after), a dispatch `override`
+   (who granted it), and `reset`. `dispatched`, `usage`, `recorded`,
+   `rejected`, a cycle `override` and an `awaiting` with neither exits nor a
+   park post nothing; `retargeted` is said by the two tickets' notes
    (see "Retargeting").
 4. **Writes the status once**, keyed on (work item, journal length), and only
    when the current stage's status key differs from the last one written. The
@@ -1819,11 +1843,10 @@ difference. `comment`, `set_status` and `set_type` keep the strict refusal.
 
 **Known gaps.** A crash between the tracker accepting a comment and the ledger
 recording it repeats that comment (the adapter contract's gap, above). Catching
-up after a long outage posts one comment (or entry) per event. A work item
-parked by its stage's dispatch cap is not in the journal, so it is not published
-(#2703). A failed publish does not block the work item, unlike issue-lifecycle,
-whose methods fail when their entry is refused; the ticket falls behind until
-`publish` is re-run, which the driving reference asks for after each step.
+up after a long outage posts one comment (or entry) per event. A failed publish
+does not block the work item, unlike issue-lifecycle, whose methods fail when
+their entry is refused; the ticket falls behind until `publish` is re-run, which
+the driving reference asks for after each step.
 
 ### Duplicates
 

@@ -198,6 +198,56 @@ Deno.test("ticket view: a human stop lists each exit and what it needs; an empty
   );
 });
 
+Deno.test("ticket view: a park at the dispatch cap asks for a dispatch override, and its grant is said", () => {
+  const doc = definition();
+  const parked = {
+    ...BASE,
+    stage: "write",
+    type: "awaiting" as const,
+    exits: [],
+    dispatchOverride: { count: 2, limit: 2, granted: 0 },
+  };
+  assertEquals(
+    commentFor(KEY, parked, doc),
+    `**${KEY}** is waiting on a person in **write**: dispatch limit ` +
+      "reached (2 of 2); a person must grant a dispatch override.",
+  );
+  assertEquals(
+    commentFor(KEY, {
+      ...parked,
+      stage: "review",
+      dispatchOverride: { count: 3, limit: 2, granted: 1 },
+      exits: [{
+        transition: "ship",
+        to: "done",
+        manual: false,
+        gateIds: ["ship-approval"],
+      }],
+    }, doc),
+    `**${KEY}** is waiting on a person in **review**: dispatch limit ` +
+      "reached (3 of 2 plus 1 granted); a person must grant a dispatch " +
+      "override.\n\nAlso waiting on a person:\n\n" +
+      "- `ship` to **done**: needs approval of `ship-approval`",
+  );
+  const grant = {
+    ...BASE,
+    stage: "write",
+    type: "override" as const,
+    overrideId: 1,
+    kind: "dispatch" as const,
+    for: "write",
+  };
+  assertEquals(
+    commentFor(KEY, grant, doc),
+    `**${KEY}**: user:alice granted a dispatch override in **write**.`,
+  );
+  assertEquals(
+    commentFor(KEY, { ...grant, actor: NOBODY }, doc),
+    `**${KEY}**: an unidentified caller granted a dispatch override in ` +
+      "**write**.",
+  );
+});
+
 Deno.test("ticket view: bookkeeping events get no comment", () => {
   const doc = definition();
   const quiet: JournalEvent[] = [
