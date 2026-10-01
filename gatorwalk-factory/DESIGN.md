@@ -336,7 +336,7 @@ A loop can never wedge a run:
 
 ### Design-time checks
 
-The factory's `validate` analyses the graph (see "Graph validation"), and three
+The factory's `validate` analyses the graph (see "Graph validation"), and four
 of its warnings are about loops:
 
 - **`escape-only`:** a loop whose only way out is a global transition such as
@@ -344,6 +344,8 @@ of its warnings are about loops:
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
   transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
   `build-swamp-extension.yaml` gets it for both of its loops.
+- **`undescribed-way-back`:** a way back with no `description` saying why it
+  goes back.
 - **`needs-cycle-override`:** a transition that only a cycle override opens,
   such as an inverted `max-cycles` above the stage's limit.
 
@@ -570,6 +572,10 @@ Warnings:
   transition, such as `abandon`.
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
   transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
+- **`undescribed-way-back`:** a way back whose `description` is missing or
+  blank. A way back is a transition inside a loop (live and not global) to the
+  same stage or one earlier in the file; every loop has at least one. An edge to
+  an earlier stage that closes no loop is not one.
 - **`product-missing-on-path`:** a stage injects, gates on, or reads in CEL an
   artifact or evidence that some path to it does not produce. An inject is not
   reported when some path produces it and every stage that produces it is in

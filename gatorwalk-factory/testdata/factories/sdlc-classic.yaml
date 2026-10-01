@@ -48,6 +48,7 @@ stages:
             config: { id: plan-approval }
       - name: rework
         to: planning
+        description: The plan was not approved, so planning revises it.
 
   - id: implementing
     work:
@@ -105,6 +106,7 @@ stages:
             config: { name: test-run, requireField: { status: succeeded } }
       - name: failed
         to: implementing
+        description: The tests failed, so implementing fixes the code.
         gates:
           - type: evidence-recorded
             config: { name: test-run, requireField: { status: failed } }
@@ -156,6 +158,7 @@ stages:
             config: { id: uat-signoff }
       - name: reject
         to: implementing
+        description: UAT was not signed off, so implementing addresses it.
 
   - id: done
     terminal: true

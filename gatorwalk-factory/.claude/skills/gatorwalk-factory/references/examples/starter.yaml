@@ -129,6 +129,9 @@ definition:
               config: { id: plan-approval }
         - name: rework
           to: plan
+          description: >-
+            The fresh plan review has an open critical or high finding, so the
+            plan goes back to be fixed.
           gates:
             - type: artifact-fresh
               config: { artifact: plan-review, recordedThisCycle: true }
@@ -236,6 +239,8 @@ definition:
                 message: checks must be for the change-summary commit
         - name: failed
           to: implement
+          description: >-
+            The checks failed, so the change goes back to be fixed.
           gates:
             - type: evidence-recorded
               config: { name: checks, requireField: { status: failed } }
@@ -281,6 +286,9 @@ definition:
               config: { id: release-approval }
         - name: rework
           to: implement
+          description: >-
+            The fresh code review has an open critical or high finding, so the
+            change goes back to be fixed.
           gates:
             - type: artifact-fresh
               config: { artifact: code-review, recordedThisCycle: true }

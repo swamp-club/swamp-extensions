@@ -64,6 +64,7 @@ stages:
             config: { id: plan-approval }
       - name: rework
         to: planning
+        description: The plan was not approved, so planning revises it.
 
   - id: implementing
     description: The primary agent implements the approved plan.
@@ -113,6 +114,7 @@ stages:
             config: { name: test-run, requireField: { status: succeeded } }
       - name: failed
         to: implementing
+        description: The tests failed, so implementing fixes the code.
         gates:
           - type: evidence-recorded
             config: { name: test-run, requireField: { status: failed } }
@@ -145,6 +147,7 @@ stages:
             config: { id: ship-approval }
       - name: rework
         to: implementing
+        description: The code review asked for changes, so implementing makes them.
 
   - id: done
     terminal: true

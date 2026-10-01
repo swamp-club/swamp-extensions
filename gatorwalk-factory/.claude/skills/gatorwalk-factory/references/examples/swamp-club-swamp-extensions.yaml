@@ -443,6 +443,9 @@ definition:
               config: { id: plan-approval }
         - name: rework
           to: plan
+          description: >-
+            The fresh plan review has an open critical or high finding, so the
+            plan goes back to be fixed.
           gates:
             - type: artifact-fresh
               config: { artifact: plan-review, recordedThisCycle: true }
@@ -714,6 +717,9 @@ definition:
               config: { id: checklist-confirmed }
         - name: failed
           to: implement
+          description: >-
+            verify-build or verify-reviews failed, so the change goes back to be
+            fixed.
           gates:
             - type: evidence-recorded
               config: { name: verification, requireField: { status: failed } }

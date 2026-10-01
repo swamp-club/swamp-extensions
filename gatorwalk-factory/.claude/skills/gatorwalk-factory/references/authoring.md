@@ -252,7 +252,7 @@ went through five rounds of plan review.
    so a person chooses it. Give each one a `description` saying why it goes
    back. Bound it with `maxCycles` on one of the loop's stages, or route on the
    count with a `max-cycles` gate. `validate` warns about a loop left on the
-   default limit.
+   default limit, and about a way back with no `description`.
 2. **Review prompts carry a severity rubric and a sense of proportion.** A
    reviewer told only to "not soften" findings rates every concern as high, and
    with an automatic `rework`, each costs a full round. The prompt must say what
@@ -289,6 +289,7 @@ the usual fix:
 | ambiguous-exit          | "can both pass with no person choosing"                  | Two ways out can open at once, and nothing picks one.                 | Make one `manual`, give it a `human-approval` gate, or make gates exclude. |
 | escape-only             | "only through a global transition"                       | The loop's only way out is `abandon`.                                 | Add a real way forward out of the loop.                                    |
 | default-cycle-bound     | "bounded only by the default cycle limit"                | The loop may run five times before anything stops it.                 | Set `maxCycles` on one of its stages, or gate it with `max-cycles`.        |
+| undescribed-way-back    | "goes back with no description"                          | A transition back to this or an earlier stage does not say why.       | Give it a `description` saying why it goes back.                           |
 | product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects, gates on or reads in CEL a product a route lacks.    | Record it on every route, gate where it exists, or guard with `has()`.     |
 | needs-cycle-override    | the transition, then why the cycle limits close it       | A transition opens only if a person grants an override.               | Raise `maxCycles`, or accept it: it is the loop limit working.             |
 | exploration-truncated   | "stopped at ... states"                                  | The graph was too big to check fully, so some checks were skipped.    | Simplify the loops, or accept the warning.                                 |

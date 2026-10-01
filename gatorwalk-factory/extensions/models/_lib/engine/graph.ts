@@ -53,6 +53,7 @@ export type FindingCode =
   | "ambiguous-exit"
   | "escape-only"
   | "default-cycle-bound"
+  | "undescribed-way-back"
   | "product-missing-on-path"
   | "needs-cycle-override"
   | "exploration-truncated";
@@ -1029,6 +1030,26 @@ export function analyzeDefinition(
         stagePath(first),
         `the loop through ${names} is bounded only by the default cycle limit; set maxCycles on one of its stages or gate it with max-cycles`,
         { stage: first, trace: reachedTrace(first) },
+      );
+    }
+    // A way back: a loop edge to the same stage or one earlier in the file.
+    // Every loop has one, so every loop is asked for its reason.
+    for (const e of loopEdges) {
+      if (
+        (g.stageIndex.get(e.to) as number) >
+          (g.stageIndex.get(e.from) as number) ||
+        (e.transition.description ?? "").trim() !== ""
+      ) {
+        continue;
+      }
+      report(
+        warnings,
+        "undescribed-way-back",
+        e.path,
+        `${
+          describe(e)
+        } from stage '${e.from}' goes back with no description; give it a description saying why it goes back`,
+        { stage: e.from, trace: reachedTrace(e.from) },
       );
     }
   }

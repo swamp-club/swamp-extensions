@@ -174,7 +174,7 @@ stages:
     maxCycles: 3
     transitions: [{ name: next, to: b }]
   - id: b
-    transitions: [{ name: back, to: a }]
+    transitions: [{ name: back, to: a, description: goes back }]
   - id: abandoned
     terminal: true
 globalTransitions:
@@ -301,6 +301,7 @@ stages:
       - { name: approve, to: done }
       - name: revise
         to: plan
+        description: goes back
         manual: true
         gates: [{ type: evidence-recorded, config: { name: feedback } }]
   - id: done
@@ -330,7 +331,7 @@ stages:
   - id: check
     evidence: [{ name: result, schema: ${OBJECT} }]
     transitions:
-      - { name: again, to: build, manual: true }
+      - { name: again, to: build, manual: true, description: goes back }
       - { name: finish, to: done }
   - id: done
     terminal: true
@@ -496,6 +497,7 @@ stages:
       - { name: approve, to: done }
       - name: revise
         to: plan
+        description: goes back
         manual: true
         gates: [{ type: evidence-recorded, config: { name: feedback } }]
   - id: done
@@ -567,6 +569,7 @@ stages:
         manual: true
       - name: retry
         to: work
+        description: goes back
         gates: [{ type: max-cycles, config: { stage: work, limit: 3 } }]
       - name: escalate
         to: human
@@ -596,6 +599,7 @@ stages:
         manual: true
       - name: retry
         to: work
+        description: goes back
         manual: true
       - name: escalate
         to: escalated
@@ -628,7 +632,7 @@ stages:
     initial: true
 ${limit}
     transitions:
-      - { name: again, to: a, manual: true }
+      - { name: again, to: a, manual: true, description: goes back }
       - { name: finish, to: done }
   - id: done
     terminal: true
@@ -638,6 +642,104 @@ ${limit}
     ["default-cycle-bound stages.0 [a]"],
   );
   assertEquals(analyzeDefinition(doc("    maxCycles: 5")).warnings, []);
+});
+
+Deno.test("graph: a way back with no description warns at the transition", () => {
+  const doc = (description: string) =>
+    definition(`
+stages:
+  - id: work
+    initial: true
+    maxCycles: 3
+    transitions: [{ name: review, to: review }]
+  - id: review
+    transitions:
+      - { name: finish, to: done }
+      - { name: rework, to: work, manual: true${description} }
+  - id: done
+    terminal: true
+`);
+  const report = analyzeDefinition(doc(""));
+  assertEquals(report.errors, []);
+  assertEquals(codes(report.warnings), [
+    "undescribed-way-back stages.1.transitions.1 [review]",
+  ]);
+  const finding = report.warnings[0];
+  assert(
+    finding.message.includes("transition 'rework' (to 'work')"),
+    finding.message,
+  );
+  assertEquals(finding.trace, ["work", "review"]);
+  // A blank description is no reason.
+  assertEquals(
+    codes(analyzeDefinition(doc(", description: '  '")).warnings),
+    ["undescribed-way-back stages.1.transitions.1 [review]"],
+  );
+  assertEquals(
+    analyzeDefinition(doc(", description: the review sent it back")).warnings,
+    [],
+  );
+});
+
+Deno.test("graph: a transition to its own stage is a way back", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: a
+    initial: true
+    maxCycles: 3
+    transitions:
+      - { name: again, to: a, manual: true }
+      - { name: finish, to: done }
+  - id: done
+    terminal: true
+`));
+  assertEquals(codes(report.warnings), [
+    "undescribed-way-back stages.0.transitions.0 [a]",
+  ]);
+});
+
+Deno.test("graph: only the edge back to an earlier stage is a way back, not the loop's forward edges or a global transition", () => {
+  // Forward edges inside the loop (a -> b -> c) need no reason; the global
+  // restart into the loop is an escape hatch, not a way back.
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: a
+    initial: true
+    maxCycles: 3
+    transitions: [{ name: next, to: b }]
+  - id: b
+    transitions: [{ name: next, to: c }]
+  - id: c
+    transitions:
+      - { name: finish, to: done }
+      - { name: back, to: a, manual: true }
+  - id: done
+    terminal: true
+globalTransitions:
+  - name: restart
+    to: a
+    gates: [{ type: human-approval, config: { id: restart } }]
+`));
+  assertEquals(codes(report.warnings), [
+    "undescribed-way-back stages.2.transitions.1 [c]",
+  ]);
+});
+
+Deno.test("graph: an edge to an earlier stage that closes no loop is not a way back", () => {
+  // The stages are listed out of flow order: b comes first in the file but
+  // second in the flow, and nothing leads from b back to a.
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: b
+    transitions: [{ name: finish, to: done }]
+  - id: a
+    initial: true
+    transitions: [{ name: next, to: b }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(report.warnings, []);
 });
 
 // --- ambiguous exits ----------------------------------------------------------
@@ -725,6 +827,7 @@ stages:
             config: { artifact: review, blocking: [${clear}] }
       - name: rework
         to: write
+        description: goes back
         gates:
           - type: findings-open
             config: { artifact: ${artifact}, blocking: [${open}] }
@@ -776,7 +879,7 @@ stages:
             config: { name: checks, requireField: { status: failed } }
   - id: fix
     maxCycles: 3
-    transitions: [{ name: recheck, to: check }]
+    transitions: [{ name: recheck, to: check, description: goes back }]
   - id: done
     terminal: true
 `));
@@ -805,7 +908,7 @@ stages:
             config: { name: checks, requireField: ${right} }
   - id: fix
     maxCycles: 3
-    transitions: [{ name: recheck, to: check }]
+    transitions: [{ name: recheck, to: check, description: goes back }]
   - id: done
     terminal: true
 `));
@@ -1076,7 +1179,7 @@ stages:
             config: { name: checks, ${right} }
   - id: fix
     maxCycles: 3
-    transitions: [{ name: recheck, to: check }]
+    transitions: [{ name: recheck, to: check, description: goes back }]
   - id: done
     terminal: true
 `));
@@ -1405,6 +1508,7 @@ stages:
         manual: true
       - name: retry
         to: work
+        description: goes back
         manual: true
       - name: escalate
         to: escalated

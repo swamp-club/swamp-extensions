@@ -314,6 +314,7 @@ stages:
     transitions:
       - name: retry
         to: stuck
+        description: goes back
   - id: orphan
     transitions:
       - name: finish

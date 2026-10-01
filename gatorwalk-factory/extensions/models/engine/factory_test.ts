@@ -178,6 +178,27 @@ Deno.test("factory: validate logs each graph warning", async () => {
   );
 });
 
+Deno.test("factory: validate warns about a way back with no description", async () => {
+  const definition = await buildDefinition();
+  const stages = definition.stages as {
+    id: string;
+    transitions?: { name: string; description?: string }[];
+  }[];
+  const review = stages.find((s) => s.id === "plan-review");
+  const rework = review?.transitions?.find((t) => t.name === "rework");
+  assert(rework !== undefined);
+  delete rework.description;
+  const swamp = fakeSwamp();
+  swamp.factory("team", definition);
+  await factory.methods.validate.execute({}, swamp.context("team"));
+  const warnings = swamp.logs.filter((l) => l.message === "{warning}");
+  assertEquals(warnings.map((l) => l.props?.code), [
+    "default-cycle-bound",
+    "undescribed-way-back",
+    "default-cycle-bound",
+  ]);
+});
+
 // --- saved scenarios ---------------------------------------------------------
 
 const PLAN_TO_REVIEW = `scenario: plan-to-review
