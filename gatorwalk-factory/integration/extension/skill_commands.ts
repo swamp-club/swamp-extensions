@@ -20,6 +20,7 @@ import { model as linearModel } from "../../extensions/models/tracker/linear.ts"
 import { model as swampClubModel } from "../../extensions/models/tracker/swamp_club.ts";
 import { model as builtinTrackerModel } from "../../extensions/models/tracker/builtin.ts";
 import { model as workItemModel } from "../../extensions/models/engine/work_item.ts";
+import { model as studioModel } from "../../extensions/models/engine/studio.ts";
 import {
   TRACKER_KINDS,
   type TrackerKind,
@@ -39,7 +40,9 @@ const BUILTIN_TRACKER_TYPE = builtinTrackerModel.type;
 //
 // A command is a line in a ```sh block that starts with `swamp`, continued
 // with a trailing backslash. A `# fails: <why>` comment marks the next
-// command as one that is meant to fail. Placeholders are <name> in angle
+// command as one that is meant to fail, and a `# background: <why>` comment
+// marks it as one that runs until stopped (the studio's serve), which the
+// agent starts in the background. Placeholders are <name> in angle
 // brackets. Commands are split into words the way a POSIX shell would for
 // the forms the skill uses (bare words, single and double quotes); anything
 // that needs a real shell ($, backticks, pipes, redirects) is refused, which
@@ -65,6 +68,8 @@ export interface SkillCommand {
   words: string[];
   /** Why the command is meant to fail, when it is. */
   fails?: string;
+  /** Why the command runs in the background, when it does. */
+  background?: string;
   /** For a ```json result block: the file's contents. words is empty. */
   result?: string;
   /**
@@ -81,6 +86,7 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
   let inSh = false;
   let fence = "";
   let fails: string | undefined;
+  let background: string | undefined;
   let result: { line: number; lines: string[] } | undefined;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -104,6 +110,7 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
       fence = "";
       inSh = false;
       fails = undefined;
+      background = undefined;
       if (result !== undefined) {
         out.push({
           file,
@@ -124,6 +131,11 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
     const failing = trimmed.match(/^# fails: (.+)$/);
     if (failing !== null) {
       fails = failing[1];
+      continue;
+    }
+    const backgrounded = trimmed.match(/^# background: (.+)$/);
+    if (backgrounded !== null) {
+      background = backgrounded[1];
       continue;
     }
     const write = trimmed.match(/^# agent: write (\S+) into (\S+)$/);
@@ -152,8 +164,15 @@ export function commandsIn(file: string, markdown: string): SkillCommand[] {
         }`,
       );
     }
-    out.push({ file, line: start + 1, words, ...(fails ? { fails } : {}) });
+    out.push({
+      file,
+      line: start + 1,
+      words,
+      ...(fails ? { fails } : {}),
+      ...(background ? { background } : {}),
+    });
     fails = undefined;
+    background = undefined;
   }
   return out;
 }
@@ -190,6 +209,7 @@ const SAMPLE: Record<string, string> = {
   "<era>": "00000000-0000-0000-0000-000000000000",
   "<factory>": "team",
   "<starter>": "starter",
+  "<studio>": "studio",
   "<ticket>": "ABC-1",
   "<cycle>": "1",
   "<dispatch-id>": "1",
@@ -319,6 +339,13 @@ export function checkCommand(
     }
     return null;
   }
+  // Studio methods, by its placeholder.
+  if (is("model", "method", "run", "<studio>")) {
+    const [name, ...rest] = args.slice(4);
+    const method = (studioModel.methods as Record<string, MethodLike>)[name];
+    if (method === undefined) return `no studio method '${name}'`;
+    return checkInputs(method, rest);
+  }
   // Factory methods, by instance name.
   if (is("model", "method", "run")) {
     const [_factory, name, ...rest] = args.slice(3);
@@ -345,7 +372,8 @@ export function checkCommand(
         : `model create must be: model create ${BUILTIN_TRACKER_TYPE} ` +
           "<name> --global-arg prefix=<prefix> --json";
     }
-    if (args[2] === linearModel.type) {
+    // The studio has no arguments.
+    if (args[2] === linearModel.type || args[2] === studioModel.type) {
       return args.length === 5 && args[4] === "--json"
         ? null
         : `model create must be: model create ${args[2]} <name> --json`;
@@ -376,6 +404,8 @@ export interface ExampleStep {
   ran: string[];
   code: number;
   output: string;
+  /** For a background command: the 127.0.0.1 URL it logged. */
+  url?: string;
 }
 
 interface RepoLike {
@@ -383,6 +413,8 @@ interface RepoLike {
     args: string[],
     options?: { allowFailure?: boolean },
   ): Promise<{ code: number; output: string; stdout: string }>;
+  /** Start swamp without waiting for it, for a background command. */
+  spawn(args: string[]): Deno.ChildProcess;
   /** Write a definition and scenarios into a factory's model definition. */
   editFactory(
     name: string,
@@ -398,6 +430,9 @@ interface RepoLike {
  * line writes a skill example into a factory, as the agent would. A command
  * runs with allowFailure only
  * when it is marked `# fails:`; a marked command that succeeds is an error.
+ * A `# background:` command is started without waiting, is ready once it logs
+ * a 127.0.0.1 URL, and is stopped with SIGINT when the run ends. onStep runs
+ * after each command, while background commands are still running.
  */
 export async function runExample(
   repo: RepoLike,
@@ -407,7 +442,7 @@ export async function runExample(
     /** Fixed values for the placeholders the commands name, by placeholder. */
     values?: Record<string, string>;
   },
-  onStep: (step: ExampleStep) => void = () => {},
+  onStep: (step: ExampleStep) => void | Promise<void> = () => {},
 ): Promise<ExampleStep[]> {
   const values: Record<string, string> = {
     ...context.values,
@@ -416,10 +451,84 @@ export async function runExample(
   // Result files go to a fresh directory, named in the example as
   // <result-dir>, removed when the run ends.
   values["<result-dir>"] = await Deno.makeTempDir({ prefix: "gw-results-" });
+  const background: Background[] = [];
   try {
-    return await runCommands(repo, commands, values, onStep);
+    return await runCommands(repo, commands, values, onStep, background);
   } finally {
+    await Promise.all(background.map((b) => b.stop()));
     await Deno.remove(values["<result-dir>"], { recursive: true });
+  }
+}
+
+/** A command started in the background: how to stop it. */
+interface Background {
+  stop(): Promise<void>;
+}
+
+/**
+ * Start a background command and wait, up to a bound, for the 127.0.0.1 URL
+ * it logs. A command that exits first, or logs no URL in time, is an error
+ * naming its line, with what it printed.
+ */
+async function startBackground(
+  repo: RepoLike,
+  command: SkillCommand,
+  ran: string[],
+  started: Background[],
+): Promise<{ url: string; output: string }> {
+  const child = repo.spawn(ran);
+  let text = "";
+  // A decoder per stream, so a character split across chunks of one is
+  // never joined to the other's bytes.
+  const drain = (stream: ReadableStream<Uint8Array>) =>
+    (async () => {
+      const decoder = new TextDecoder();
+      for await (const chunk of stream) {
+        text += decoder.decode(chunk, { stream: true });
+      }
+      text += decoder.decode();
+    })();
+  const drained = Promise.all([drain(child.stdout), drain(child.stderr)]);
+  let exited = false;
+  const status = child.status.then((s) => {
+    exited = true;
+    return s;
+  });
+  const kill = (signal: Deno.Signal) => {
+    try {
+      child.kill(signal);
+    } catch {
+      // Already gone, though `exited` has not caught up yet.
+    }
+  };
+  started.push({
+    stop: async () => {
+      if (!exited) {
+        kill("SIGINT");
+        const timer = setTimeout(() => kill("SIGKILL"), 30_000);
+        await status;
+        clearTimeout(timer);
+      }
+      await drained.catch(() => {});
+    },
+  });
+  const where = `${command.file}:${command.line}`;
+  const deadline = Date.now() + 120_000;
+  for (;;) {
+    const url = text.match(/http:\/\/127\.0\.0\.1:\d+\//)?.[0];
+    if (url !== undefined) return { url, output: text };
+    if (exited) {
+      await drained.catch(() => {});
+      throw new Error(`${where}: exited before logging its URL:\n${text}`);
+    }
+    if (Date.now() > deadline) {
+      // For the studio's serve, likely another serve of the same studio
+      // holding its lock, as authoring.md says.
+      throw new Error(
+        `${where}: logged no URL in 120s (is another run holding its lock?):\n${text}`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 }
 
@@ -427,7 +536,8 @@ async function runCommands(
   repo: RepoLike,
   commands: SkillCommand[],
   values: Record<string, string>,
-  onStep: (step: ExampleStep) => void,
+  onStep: (step: ExampleStep) => void | Promise<void>,
+  background: Background[],
 ): Promise<ExampleStep[]> {
   const steps: ExampleStep[] = [];
   const fill = (command: SkillCommand, word: string) =>
@@ -468,6 +578,18 @@ async function runCommands(
       continue;
     }
     const ran = command.words.slice(1).map((w) => fill(command, w));
+    if (command.background !== undefined) {
+      const { url, output } = await startBackground(
+        repo,
+        command,
+        ran,
+        background,
+      );
+      const step = { command, ran, code: 0, output, url };
+      steps.push(step);
+      await onStep(step);
+      continue;
+    }
     // The harness adds the extension source when it makes the repo, so the
     // example's own `extension source add` may only find it there already.
     const addsSource = ran[0] === "extension" && ran[1] === "source" &&
@@ -488,7 +610,7 @@ async function runCommands(
     }
     const step = { command, ran, code: result.code, output: result.output };
     steps.push(step);
-    onStep(step);
+    await onStep(step);
 
     // The key new_key recorded on the factory (`model method run <factory>
     // new_key`), rather than its log line, whose format is swamp's to change.

@@ -83,6 +83,23 @@ Deno.test("skill: marked failures, continuations and indented fences are read fr
   ]);
 });
 
+Deno.test("skill: a background comment marks the next sh command only", () => {
+  const md = [
+    "```text",
+    "# background: not in sh",
+    "```",
+    "```sh",
+    "# background: runs until Ctrl-C",
+    "swamp model method run <studio> serve",
+    "swamp model method run team validate",
+    "```",
+  ].join("\n");
+  assertEquals(
+    commandsIn("x.md", md).map((c) => [c.line, c.background]),
+    [[6, "runs until Ctrl-C"], [7, undefined]],
+  );
+});
+
 Deno.test("skill: an agent: write line is the agent writing an example into a factory, not a command", () => {
   const found = commandsIn(
     "x.md",
@@ -194,6 +211,34 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
 });
 
 const run = ["swamp", "model", "method", "run"];
+
+Deno.test("skill: a studio command is checked against the studio model", () => {
+  const create = [
+    "swamp",
+    "model",
+    "create",
+    "@swamp/gatorwalk-factory/studio",
+  ];
+  assertEquals(checkCommand([...create, "<studio>", "--json"]), null);
+  assert(
+    checkCommand([...create, "<studio>", "--global-arg", "x=1", "--json"])
+      ?.includes("model create must be"),
+    "the studio has no arguments",
+  );
+  assertEquals(checkCommand([...run, "<studio>", "serve"]), null);
+  assertEquals(
+    checkCommand([...run, "<studio>", "serve", "--input", "port=8123"]),
+    null,
+  );
+  assertEquals(
+    checkCommand([...run, "<studio>", "validate"]),
+    "no studio method 'validate'",
+  );
+  assertEquals(
+    checkCommand([...run, "<studio>", "serve", "--input", "host=x"]),
+    "no input 'host'",
+  );
+});
 
 Deno.test("skill: a tracker command is checked against the adapter its placeholder names", () => {
   assertEquals(
@@ -358,8 +403,8 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
     "model create",
     "agent write",
     "validate",
-    "design_page",
-    "data get",
+    "model create",
+    "serve",
     "new_key",
     "start",
     "status",
@@ -383,8 +428,17 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
         "<starter>": "starter",
         "<title>": "Fix a typo",
         "<tracker>": "board",
+        "<studio>": "studio",
       },
+    }, async (step) => {
+      // State 4's studio serves the page while the walk goes on.
+      if (step.url === undefined) return;
+      const page = await fetch(step.url);
+      assertEquals(page.status, 200, step.output);
+      assert((await page.text()).includes("/assets/app.js"));
     });
+    const serve = steps.find((s) => s.ran.includes("serve"));
+    assert(serve?.url !== undefined, "the studio logged no URL");
     const validate = steps.find((s) => s.ran.includes("validate"))!;
     assert(validate.output.includes("is valid"), validate.output);
     const last = steps.at(-1)!;

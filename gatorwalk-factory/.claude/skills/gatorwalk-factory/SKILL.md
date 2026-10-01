@@ -24,8 +24,8 @@ it never does the work itself.
 This skill covers **authoring** a factory and **driving** its work items.
 
 - Authoring a factory: make or change one with the person, never by hand. An
-  interview, an example to start from, `validate` until clean, the design page,
-  the first work item: [references/authoring.md](references/authoring.md)
+  interview, an example to start from, `validate` until clean, the studio, the
+  first work item: [references/authoring.md](references/authoring.md)
 - Driving in full: [references/driving.md](references/driving.md)
 - A whole work item, start to done:
   [references/examples/build-swamp-extension.md](references/examples/build-swamp-extension.md)

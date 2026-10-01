@@ -39,6 +39,8 @@ swamp model search gatorwalk-factory --json
   [Change an existing factory](#change-an-existing-factory).
 - A tracker exists (`@swamp/gatorwalk-factory/tracker` or `.../linear`): the new
   factory uses it, so skip the tracker question.
+- A studio exists (`@swamp/gatorwalk-factory/studio`): State 4 uses it as
+  `<studio>`, so skip creating one there.
 - The command fails, or no `@swamp/gatorwalk-factory` type can be created: the
   extension is not installed in this repo. Tell the person and stop.
 
@@ -155,27 +157,48 @@ for goes back to them as a question, with the choices. Never weaken a scenario's
 
 **Gate:** State 3 passed.
 
-**Action:** show the person the design. Render the page, then read it back:
+**Action:** show the person the design in the studio, a local page that draws
+every factory in the repo and redraws it as you save. Create the studio unless
+[Before starting](#before-starting) found one, then start it in the background,
+since `serve` runs until Ctrl-C:
 
 ```sh
-swamp model method run <factory> design_page
-swamp data get <factory> design-page --json
+swamp model create @swamp/gatorwalk-factory/studio <studio> --json
+# background: runs until Ctrl-C, and logs its URL
+swamp model method run <studio> serve
 ```
 
-Save the `content` field of the record to an `.html` file outside the repo, so
-it is never committed, and tell the person to open it in a browser. It shows the
-stage graph, the gates, the human stops, the handoffs and the graph findings
-with their traces. Walk them through it: the path a work item takes, where it
-stops for them, and where it can loop back.
+`serve` logs a line such as `studio: http://127.0.0.1:38813/`. Give the person
+that URL to open in a browser, and leave the studio running.
 
-Take their change requests. Apply each one as an edit to the definition in the
-factory's model definition, then go back to State 3. Show the page again after
-the changes.
+Walk them through Design mode: the path a work item takes, where it stops for
+them (the gold gates), where it can loop back, and any findings `validate` left,
+each of which they can select to see its trace on the graph.
+
+Then tell them how to change the factory while the page is open:
+
+- The page is read-only. Every change goes through you: they ask for it in plain
+  words, or select a stage, exit, gate or finding, use **Copy reference**, and
+  paste you the line (read it as [driving.md](driving.md#set-up-a-factory)
+  says).
+- You edit the factory's model definition and run `validate`. The studio redraws
+  and checks the definition again on each save, and marks the stages that
+  changed until they select them, so they see each change land.
+- **Simulate** is there if they want to explore: it plays the saved scenarios
+  from State 3 on the engine, and from any frame they can walk the work item on
+  by hand. A walk they paste you from **Copy as scenario** is a draft: see
+  [scenarios.md](scenarios.md#a-walk-the-person-copied-from-the-studio).
+
+Apply each change request as an edit to the definition, or to its scenarios,
+then go back to State 3. The page is already showing the result.
 
 **Verify:** the person says the design is right.
 
-**On failure:** if they cannot open the page, describe the stages, the human
-stops and the loops in a short list instead.
+**On failure:** if `serve` logs no URL, another `serve` of the same studio is
+already running and holds its lock: ask the person for its URL. If you cannot
+run a command in the background, ask the person to run `serve` and paste you the
+URL. If they cannot open the page, describe the stages, the human stops and the
+loops in a short list instead.
 
 ## State 5: started
 

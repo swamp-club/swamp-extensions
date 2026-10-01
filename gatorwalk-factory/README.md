@@ -673,8 +673,8 @@ record, so read the key with `swamp data get board ticket-ext-add-list-r2ne
 A factory is made and changed by an agent with the gatorwalk-factory skill,
 never by hand: the skill's `references/authoring.md` interviews the person,
 writes the closest example into the factory, applies the authoring rules, runs
-`validate` until it is clean, shows the design page, and starts the first work
-item. It also covers changing a factory that has work items running.
+`validate` until it is clean, shows the factory in the studio, and starts the
+first work item. It also covers changing a factory that has work items running.
 
 ## Driving it
 
