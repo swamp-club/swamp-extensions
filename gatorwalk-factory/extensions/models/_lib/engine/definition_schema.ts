@@ -23,6 +23,7 @@ import {
   SEVERITIES,
 } from "./payload_schema.ts";
 import type { CelContext } from "./cel_context.ts";
+import { isCelNode, productKind, productRefs } from "./cel_refs.ts";
 import {
   IDENTIFIER_PATTERN,
   parseTemplate,
@@ -99,8 +100,8 @@ const TEMPLATE_OPEN = "${{";
 /**
  * The names CEL reads from its context (cel_context.ts). A macro or cel.bind
  * variable may not reuse one: it would hide the context's value for the rest
- * of the expression, and apply renames products on the assumption that these
- * names always mean the context's.
+ * of the expression, and tools that read CEL, such as the product reference
+ * check (cel_refs.ts), take these names to always mean the context's.
  */
 export const CEL_VOCABULARY = [
   "item",
@@ -128,16 +129,6 @@ const COMPREHENSIONS = new Set([
   "transformMap",
   "transformMapEntry",
 ]);
-
-interface CelNode {
-  op: string;
-  args: unknown;
-}
-
-function isCelNode(value: unknown): value is CelNode {
-  return value !== null && typeof value === "object" && "op" in value &&
-    "args" in value;
-}
 
 /** Variables the expression's macros and cel.bind calls bind. */
 function boundVariables(node: unknown, out: string[] = []): string[] {
@@ -671,7 +662,7 @@ type Doc = {
   globalTransitions?: TransitionSpec[];
 };
 
-type Path = (string | number)[];
+export type Path = (string | number)[];
 
 /** Cross-reference checks over a whole factory definition. */
 function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
@@ -820,6 +811,41 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
       }
     });
   });
+
+  // CEL: every fixed product reference names a declared product of the kind
+  // its map holds. Expressions that do not parse are reported by
+  // CelExpressionSchema.
+  for (const { path, expr } of celExpressions(doc)) {
+    let ast: unknown;
+    try {
+      ast = parseCel(expr).ast;
+    } catch {
+      continue;
+    }
+    const seen = new Set<string>();
+    for (const ref of productRefs(ast)) {
+      const key = `${ref.map}:${ref.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const kind = productKind(ref.map);
+      const declared = kind === "artifact" ? artifacts : evidence;
+      if (declared.has(ref.name)) continue;
+      const other = kind === "artifact" ? evidence : artifacts;
+      const verb = ref.use === "read" ? "reads" : "tests for";
+      fail(
+        path,
+        other.has(ref.name)
+          ? `${verb} '${ref.name}' in ${ref.map}, but '${ref.name}' is ${
+            kind === "artifact"
+              ? "evidence, not an artifact"
+              : "an artifact, not evidence"
+          }`
+          : `${verb} '${ref.name}' in ${ref.map}, which is not ${
+            kind === "artifact" ? "a declared artifact" : "declared evidence"
+          }`,
+      );
+    }
+  }
 
   // Transitions and gates.
   const globalNames = new Set(
@@ -1087,9 +1113,10 @@ function checkEntries(
 }
 
 /** The positions that hold CEL: a stage's `work.bindings`, a cel gate's
- * `config.expr` and a human-approval gate's `config.when`. Matched on the whole path, never on key names alone, so
- * user data shaped like these (a literal input called `bindings`, a payload
- * schema `default`) is still scanned. */
+ * `config.expr` and a human-approval gate's `config.when`. Matched on the
+ * whole path, never on key names alone, so user data shaped like these (a
+ * literal input called `bindings`, a payload schema `default`) is still
+ * scanned. */
 const CEL_POSITIONS: (string | "#")[][] = [
   ["stages", "#", "work", "bindings"],
   ["stages", "#", "transitions", "#", "gates", "#", "config", "expr"],
@@ -1105,6 +1132,36 @@ function isCelPosition(path: Path): boolean {
       segment === "#" ? typeof path[i] === "number" : segment === path[i]
     )
   );
+}
+
+/** Every CEL expression in a factory definition, with its path: each
+ * `work.bindings` entry, cel gate `expr` and human-approval `when`. */
+export function celExpressions(
+  doc: unknown,
+): { path: Path; expr: string }[] {
+  const out: { path: Path; expr: string }[] = [];
+  const visit = (node: unknown, path: Path) => {
+    if (isCelPosition(path)) {
+      if (typeof node === "string") out.push({ path, expr: node });
+      else if (node !== null && typeof node === "object") {
+        for (const [key, expr] of Object.entries(node)) {
+          if (typeof expr === "string") {
+            out.push({ path: [...path, key], expr });
+          }
+        }
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((child, i) => visit(child, [...path, i]));
+    } else if (node !== null && typeof node === "object") {
+      for (const [key, child] of Object.entries(node)) {
+        visit(child, [...path, key]);
+      }
+    }
+  };
+  visit(doc, []);
+  return out;
 }
 
 /** Report every string containing `${{`, skipping CEL positions (which

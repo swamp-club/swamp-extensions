@@ -17,6 +17,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
+  celExpressions,
   type FactoryDefinition,
   parseDefinition,
   transitionsFrom,
@@ -321,6 +322,120 @@ Deno.test("cel: macro variables with other names, and reading the context in a m
     c: 'stage.id.startsWith("w")',
   });
   assertValid(doc);
+});
+
+// --- CEL product references ------------------------------------------------
+
+/** base() with evidence `out` declared beside the artifact `summary`. */
+function withEvidence(): Raw {
+  const doc = base();
+  set(doc, "stages.0.evidence", [{ name: "out", schema: { type: "object" } }]);
+  return doc;
+}
+
+Deno.test("cel refs: declared products of the right kind are fine", () => {
+  const doc = withEvidence();
+  set(doc, "stages.0.work.bindings", {
+    a: "artifacts.summary.payload.text",
+    b: 'evidence["out"].payload',
+    c: '"summary" in validations.artifacts ? validations["artifacts"]["summary"] : null',
+    d: 'has(evidence.out.payload.x) && "out" in evidence',
+    e: "artifacts[stage.id]",
+  });
+  assertValid(doc);
+});
+
+Deno.test("cel refs: an undeclared name is an error at the expression's path", () => {
+  const doc = withEvidence();
+  set(doc, "stages.0.work.bindings", {
+    a: "artifacts.sumary.payload.text",
+    b: '"outt" in evidence',
+    c: "has(artifacts.plan.payload)",
+  });
+  set(doc, "globalTransitions", [{
+    name: "abandon",
+    to: "done",
+    gates: [
+      {
+        type: "cel",
+        config: { expr: 'validations["evidence"]["gone"] != null' },
+      },
+      {
+        type: "human-approval",
+        config: { id: "sure", when: "validations.artifacts.missing != null" },
+      },
+    ],
+  }]);
+  assertRejects(
+    doc,
+    "stages.0.work.bindings.a: reads 'sumary' in artifacts, which is not a declared artifact",
+    "stages.0.work.bindings.b: tests for 'outt' in evidence, which is not declared evidence",
+    "stages.0.work.bindings.c: tests for 'plan' in artifacts, which is not a declared artifact",
+    "globalTransitions.0.gates.0.config.expr: reads 'gone' in validations.evidence, which is not declared evidence",
+    "globalTransitions.0.gates.1.config.when: reads 'missing' in validations.artifacts, which is not a declared artifact",
+  );
+});
+
+Deno.test("cel refs: a name of the other kind is an error, in both directions", () => {
+  const doc = withEvidence();
+  set(doc, "stages.0.work.bindings", {
+    a: "evidence.summary",
+    b: '"out" in artifacts',
+  });
+  assertRejects(
+    doc,
+    "stages.0.work.bindings.a: reads 'summary' in evidence, but 'summary' is an artifact, not evidence",
+    "stages.0.work.bindings.b: tests for 'out' in artifacts, but 'out' is evidence, not an artifact",
+  );
+});
+
+Deno.test("cel refs: a stage's resultEvidence is declared evidence", () => {
+  const doc = base();
+  set(doc, "stages.0.work", {
+    mode: "workflow",
+    workflow: { name: "@acme/tests" },
+    resultEvidence: "test-run",
+  });
+  push(doc, "stages.0.transitions.0.gates", {
+    type: "cel",
+    config: { expr: 'evidence["test-run"].payload.status == "succeeded"' },
+  });
+  assertValid(doc);
+});
+
+Deno.test("cel refs: a name read and tested in one expression is reported once", () => {
+  const doc = base();
+  set(doc, "stages.0.work.bindings", {
+    a: '"plan" in artifacts && artifacts["plan"].payload.x && has(artifacts.plan.y)',
+  });
+  const errors = errorsOf(doc).filter((e) => e.includes("'plan'"));
+  assertEquals(errors.length, 1, errors.join("\n"));
+});
+
+Deno.test("cel refs: celExpressions lists every CEL position with its path", () => {
+  const doc = base();
+  set(doc, "stages.0.work.bindings", { a: "item.key", b: "stage.id" });
+  push(doc, "stages.0.transitions.0.gates", {
+    type: "cel",
+    config: { expr: "true" },
+  });
+  set(doc, "globalTransitions", [{
+    name: "abandon",
+    to: "done",
+    gates: [{ type: "human-approval", config: { id: "sure", when: "false" } }],
+  }]);
+  assertEquals(celExpressions(doc), [
+    { path: ["stages", 0, "work", "bindings", "a"], expr: "item.key" },
+    { path: ["stages", 0, "work", "bindings", "b"], expr: "stage.id" },
+    {
+      path: ["stages", 0, "transitions", 0, "gates", 1, "config", "expr"],
+      expr: "true",
+    },
+    {
+      path: ["globalTransitions", 0, "gates", 0, "config", "when"],
+      expr: "false",
+    },
+  ]);
 });
 
 // --- templates ---------------------------------------------------------------

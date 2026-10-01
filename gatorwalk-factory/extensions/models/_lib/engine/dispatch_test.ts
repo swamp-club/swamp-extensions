@@ -124,6 +124,9 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
       {
         id: "review",
         initial: true,
+        // Declared, so the definition is valid, but never recorded: the
+        // binding fails when the stage is dispatched.
+        artifacts: [{ name: "plan", schema: { type: "object" } }],
         work: {
           mode: "dispatch",
           systemPrompt: "Review {{plan}}.",

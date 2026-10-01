@@ -199,6 +199,16 @@ CEL take these names to mean the context's. The list is `CEL_VOCABULARY` in
 the vocabulary under a single prefix would also do this, at the cost of changing
 every factory definition; that is left for later.
 
+One such tool is the product reference check. When a factory definition is
+checked, every fixed product name in its CEL must be a declared product of the
+kind its map holds: `artifacts.x`, `artifacts["x"]` and
+`validations.artifacts.x` must name an artifact, and the same forms on
+`evidence` must name evidence (a stage's `resultEvidence` counts). Tests for
+presence, `has(...)` and `"x" in artifacts`, are checked too, since a typo
+there leaves the test false forever. A lookup by variable (`artifacts[k]`) is
+not checked, nor are payload field paths against payload schemas. The walk is
+`productRefs` in `_lib/engine/cel_refs.ts`, and it tells reads from tests.
+
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
 (`version + 1.0`) or a conversion (`int(version) + 1`).

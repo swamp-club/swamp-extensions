@@ -54,6 +54,7 @@ extensions/models/
       metrics.ts            per-work-item metrics from the run and journal
       summary.ts            the summary: timeline and metrics as markdown
       cel_context.ts        the CEL vocabulary for bindings, cel gates and when
+      cel_refs.ts           the products a CEL expression reads or tests for
       dispatch.ts           dispatch packets: bindings, inputs, rendered prompts,
                             products, subagent prompts
       gates.ts              gate evaluation and transition readiness
@@ -142,7 +143,9 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   every problem is reported with its path. A name is one kind: an artifact and
   evidence may not share it, since `context.inject` names a product alone. A CEL
   macro or `cel.bind` may not bind a variable named after the CEL vocabulary
-  (`item`, `stage`, `artifacts`, `evidence`, `validations`).
+  (`item`, `stage`, `artifacts`, `evidence`, `validations`). A fixed product
+  name in CEL (`artifacts.plan`, `evidence["ci"]`, `"plan" in artifacts`,
+  `has(...)`) must name a declared product of that kind.
 - **The factory definition is analysed as a graph** by `validate`. Errors are
   stages that cannot be reached, stages with no way to a terminal stage,
   transitions whose gates can never pass (such as `evidence-recorded` on
