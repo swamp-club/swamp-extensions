@@ -23,7 +23,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import type { JSX } from "preact";
-import type { GateView } from "../../extensions/models/_lib/engine/design_page.ts";
+import type { GateView } from "../../extensions/models/_lib/engine/design_view.ts";
 import { ANY_ID, EXIT_H, HEADER_H, type Layout, type Tile } from "./layout.ts";
 import { allTargets, navigate } from "./nav.ts";
 import { pathSegments } from "./model.ts";

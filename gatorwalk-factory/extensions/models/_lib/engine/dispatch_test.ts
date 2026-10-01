@@ -225,9 +225,9 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
 });
 
 Deno.test("dispatch: no description reaches whoever does the work, in any mode", async () => {
-  // Descriptions are for the factory definition's authors (the design page, the
-  // studio). Each carries a marker; none may appear in a packet, which is
-  // what the agent reads and what recordDispatch stores.
+  // Descriptions are for the factory definition's authors (the studio). Each
+  // carries a marker; none may appear in a packet, which is what the agent
+  // reads and what recordDispatch stores.
   const marker = (where: string) => `DESCRIPTION-MARKER-${where}`;
   const calls = {
     interactive: {},

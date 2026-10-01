@@ -32,7 +32,7 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
   `globalArguments` hold its factory definition (stages, work, products,
   transitions, gates), the tracker instance it publishes to, and its saved
   scenarios: `{ definition: {...}, tracker: <instance>, scenarios: [...] }`.
-  Methods: `validate`, `design_page`, `new_key`.
+  Methods: `validate`, `new_key`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
   named by a key from `new_key`. `start` reads the factory's definition and pins
   a copy, so editing the factory never changes a running item; `reset` with
@@ -92,16 +92,6 @@ swamp model method run <factory> validate
 work. It also runs the factory's saved scenarios, the known paths through it,
 from its `scenarios:` list; write one for each path the factory must keep
 ([scenarios.md](scenarios.md)).
-
-To see the factory definition as a page (the stage graph, gates, human stops,
-handoffs and the graph findings with their traces), render it, then save the
-`content` field of the stored page to an `.html` file and open that in a
-browser:
-
-```sh
-swamp model method run <factory> design_page
-swamp data get <factory> design-page --json
-```
 
 When a person wants to watch your edits to a factory definition or its
 scenarios, or to play the scenarios and step a work item through by hand, point

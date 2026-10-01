@@ -187,38 +187,6 @@ Deno.test("cli: validate runs the factory's saved scenarios and names a failing 
   });
 });
 
-Deno.test("cli: design_page stores the build-swamp-extension definition as an HTML file", async () => {
-  await withRepo(async (repo) => {
-    const { definition } = await readExample(BUILD_DEFINITION);
-    await repo.factory("process", definition);
-    const run = await repo.factoryMethod("process", "design_page");
-    assert(
-      run.output.includes(
-        "design page for factory 'process'",
-      ),
-      run.output,
-    );
-    // The command the log gives for saving the page, less the jq.
-    const { stdout } = await repo.swamp([
-      "data",
-      "get",
-      "process",
-      "design-page",
-      "--json",
-    ]);
-    const page = JSON.parse(stdout) as {
-      contentType: string;
-      content: string;
-      tags: Record<string, string>;
-    };
-    assertEquals(page.contentType, "text/html");
-    assertEquals(page.tags.specName, "design-page");
-    assert(page.content.startsWith("<!doctype html>"));
-    assert(page.content.includes("<h1>process</h1>"));
-    assert(page.content.includes('id="stage-plan-review"'));
-  });
-});
-
 Deno.test("cli: start, status, a rejected payload and a stale write", async () => {
   await withRepo(async (repo) => {
     const key = await started(repo);
@@ -595,7 +563,7 @@ async function pathsUnder(dir: string, rel = ""): Promise<string[]> {
   return out;
 }
 
-Deno.test("cli: a factory holds its definition: created with only its tracker, the definition written in, then validate, design_page and start read it", async () => {
+Deno.test("cli: a factory holds its definition: created with only its tracker, the definition written in, then validate and start read it", async () => {
   await withRepo(async (repo) => {
     await repo.swamp([
       "model",
@@ -639,13 +607,6 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
           `${scenarios.length} saved scenario(s) passed`,
         ),
       valid.output,
-    );
-    const page = await repo.factoryMethod("team", "design_page");
-    assert(
-      page.output.includes(
-        "design page for factory 'team'",
-      ),
-      page.output,
     );
 
     const key = await repo.newKey("team", "From the model");

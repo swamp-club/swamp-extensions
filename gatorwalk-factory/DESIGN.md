@@ -867,7 +867,7 @@ kept beside it.
 
 **Who reads it.** `start` pins the parsed definition and its digest, and every
 later method reads the pinned copy, so only the methods that pin or check read
-the factory's definition: `validate`, `design_page`, `new_key`, `start`,
+the factory's definition: `validate`, `new_key`, `start`,
 `reset` with `repin=true`, and the tracker's `claim`, which starts a work item.
 All of them go through `loadFactory` in `_lib/engine/work_item_ops.ts`. The
 studio reads the model definition file too, and does not hand-edit it: edits
@@ -1032,77 +1032,41 @@ open until the gate passes.
 The summary shows product versions and digests, never payload contents. Team
 roll-ups are out of scope: they are a query over these records.
 
-## The design page
+## The design view
 
-**Decision.** The factory's `design_page` method renders the factory definition
-as one static HTML page and stores it as the factory's `design-page` file
-(`text/html`). The page shows the stage graph, each transition's gates, the
-human stops, each stage's handoff (work mode, what it calls, skills, injected
-context, bindings, result evidence, prompts) and products, and the graph
-analysis's findings with their traces (`_lib/engine/design_page.ts`).
+**Decision.** `designView` (`_lib/engine/design_view.ts`) derives, once, what
+the studio shows of a factory definition: its stages with their handoffs (work
+mode, what it calls, skills, injected context, bindings, result evidence,
+prompts) and products, each transition's gates in words, the human stops, the
+loops back, and the graph analysis's findings with their traces. The studio
+bundles it and draws from it rather than re-deriving the graph. It is pure and
+reads no clock, so the same factory definition always gives the same view.
 
 **Descriptions, not comments.** The factory definition, its stages, transitions,
 gates, work, artifacts and evidence each take an optional `description`, and the
-page shows every one. A description is for the factory definition's authors: no
+studio shows them. A description is for the factory definition's authors: no
 engine path sends one to whoever does the work, which gets `systemPrompt`,
 `command` and `constraints` (`dispatch_test.ts` pins this). Factory definition
 files carry no YAML comments: agents rewrite the YAML, which drops them, and the
-read-only studio and this page show descriptions, not comments. A note inside a
-payload schema uses JSON Schema's own `description` or `$comment`.
+read-only studio shows descriptions, not comments. A note inside a payload
+schema uses JSON Schema's own `description` or `$comment`.
 
-**A method, not a report.** A swamp report produces markdown and JSON, is kept
-for 30 days and five versions, and only exists once a run triggers it. The page
-is HTML an author asks for when they want to look, so it is a file the method
-writes on demand, kept like the factory's other records. A report could wrap the
-same renderer later. swamp stores the file without an extension, so the page is
-saved for a browser with
-`swamp data get <factory> design-page --json | jq -r .content > <name>.html`,
-the command the method logs.
+**It shows what `validate` refuses.** Graph errors do not stop the view: it
+carries every finding, and the studio is where an author sees them, with each
+trace walked across the graph.
 
-**It renders what `validate` refuses.** A factory definition the schema rejects
-fails the method with every error, as `validate` does. Graph errors and a
-truncated analysis do not: the page is where an author sees them. A finding that
-has a trace can be selected, and the page walks the trace across the graph one
-stage at a time.
-
-**Mermaid from a CDN, pinned.** The issue asked for no network at view time; in
-triage it was agreed that loading a standard JS dependency is fine, and that the
-diagram may later be animated. The page loads Mermaid from `cdn.jsdelivr.net` at
-one exact version (`MERMAID_VERSION`) with a Subresource Integrity hash
-(`MERMAID_INTEGRITY`), with `securityLevel: strict`. To move to a new version,
-change both together: the hash is the `sha384` of that version's
-`dist/mermaid.min.js`, base64 encoded. The script runs only in the viewer's
-browser, never in swamp or in tests. Without it (offline, or a refused hash) the
-page shows the Mermaid source as text, and every table still renders.
-
-**The view is embedded.** Everything the page shows is derived once, as a view
-(`designView`), embedded in the page as JSON and read by the page's own script.
-A later view, such as an animated d3 one, reads the same data rather than
-re-deriving the graph. Diagram nodes are `s<index>` rather than stage ids,
-because a stage id can be a Mermaid keyword (`end`); factory definition text
-never reaches the diagram, only names, and every piece of text is escaped in the
-HTML and the embedded JSON. Global transitions are drawn once, from an "any
-non-terminal stage" node, when that layer is on. The page reads no clock, so the
-same factory definition always gives the same bytes.
-
-**The forward flow first; loops and escapes are layers.** A real process has
-many rework edges, and drawn all at once they bury the main line. The graph
-first shows only the forward flow. Two checkboxes add layers: **loops back**,
-the transitions that close a cycle, and **global transitions**. A transition
-closes a cycle when a depth-first walk along stage transitions (from the initial
-stage, then from any stage it never reached, in document order) meets its target
-on its current path. Leaving those out leaves a graph with no cycles in which
-every stage keeps the edge it was entered by, so hiding loops never strands a
-stage. A stage only a global transition enters (`abandoned`) appears with the
-global layer. Loops are drawn thin and dotted even when a person takes them.
-Selecting a finding whose trace takes a hidden edge turns that edge's layer on
-first. The page carries one diagram per combination of layers, so Mermaid lays
-each out afresh.
+**Loops back.** A real process has many rework edges, and drawn all at once
+they bury the main line, so each transition says whether it closes a cycle. It
+does when a depth-first walk along stage transitions (from the initial stage,
+then from any stage it never reached, in document order) meets its target on
+its current path. Leaving those out leaves a graph with no cycles in which
+every stage keeps the edge it was entered by, so leaving out loops never
+strands a stage. A global transition is never a loop back.
 
 **Human stops.** A manual transition and a human-approval gate without `when`
-are human stops, drawn as thick arrows. A human-approval gate with `when` is a
-conditional one, shown with its condition, because the graph analysis treats it
-the same way: it may not apply.
+are human stops. A human-approval gate with `when` is a conditional one, shown
+with its condition, because the graph analysis treats it the same way: it may
+not apply.
 
 ## The studio server
 
@@ -2305,6 +2269,22 @@ that reaches it. An include step would be its own change.
 
 ## Decision log
 
+### 2026-10-01: the studio is the only visualization; the design page is removed (swamp-club #2911)
+
+**Decision.** The factory's static design page is gone: the `design_page`
+method, its `design-page` file, and the HTML and Mermaid renderer. The studio
+is the only way to look at a factory definition. `designView`, which the studio
+bundles, stays in `_lib/engine/design_view.ts`, without the fields only the
+page read (the diagram sources, the drawn edges and their node ids, the
+truncation flag, and evidence's `recordedBy`). "The design view" above replaces
+the section on the page, and older entries here were edited to drop it.
+
+**Why.** Seth, 2026-10-01, on static exports: "we have the studio. leave it at
+that for now." #2811, a static export of the studio to replace this page, was
+closed for the same reason. Without this, public users would get two
+visualizations at launch. The extension was never published, so there is no
+upgrade.
+
 ### 2026-10-01: mark a duplicate and move its work to the primary (swamp-club #2799)
 
 **Decision.** The engine decides where a duplicate's work goes and the tracker
@@ -2434,8 +2414,8 @@ adapter to a team-only extension was left for later.
 **Decision.** A factory definition has no `name` field. The factory model's
 name is the factory's only name: `new_key` leads keys with it, the run record
 and the `started` journal event carry it as `factory` (beside `definition: {
-digest, version }`), and `validate`, `design_page`, the summary, ticket
-comments, the design page and the studio show it. A definition that still has
+digest, version }`), and `validate`, the summary, ticket comments and the
+studio show it. A definition that still has
 `name` is a schema error, from swamp's checks and from `validate`.
 
 **Why.** Since #2884 the definition sits in the factory's model definition,

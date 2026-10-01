@@ -18,8 +18,6 @@ import { z } from "npm:zod@4.3.6";
 import { DefinitionSchema } from "../_lib/engine/definition_schema.ts";
 import { SavedScenariosSchema } from "../_lib/engine/scenario.ts";
 import {
-  DESIGN_PAGE_SPEC,
-  designPageMethod,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
@@ -53,9 +51,6 @@ import {
 // not swamp's evaluated globalArguments (work_item_ops.ts, loadFactory). The
 // full check is the validate method (schema, tracker, graph analysis, saved
 // scenarios), and its schema check runs again whenever a work item starts.
-//
-// design_page renders the factory definition, with its graph findings, as a
-// static HTML page stored as the factory's design-page file.
 // ---------------------------------------------------------------------------
 
 export const FactoryArgumentsSchema = z.object({
@@ -92,16 +87,6 @@ export const model = {
       garbageCollection: 10,
     },
   },
-  files: {
-    [DESIGN_PAGE_SPEC]: {
-      description:
-        "The definition as a static HTML page: the stage graph, gates, human " +
-        "stops, handoffs and graph findings",
-      contentType: "text/html",
-      lifetime: "infinite" as const,
-      garbageCollection: 10,
-    },
-  },
   methods: {
     validate: {
       description:
@@ -110,14 +95,6 @@ export const model = {
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         validateFactory(context),
-    },
-    design_page: {
-      description:
-        "Render the definition, with its graph findings, as a static HTML page stored as the design-page file",
-      // Not a read method: it stores the page.
-      arguments: z.object({}),
-      execute: (_args: Record<string, never>, context: MethodContextLike) =>
-        designPageMethod(context),
     },
     new_key: {
       description:

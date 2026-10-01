@@ -25,7 +25,7 @@ import type {
   GateSpec,
   TransitionSpec,
 } from "../../extensions/models/_lib/engine/definition_schema.ts";
-import type { FindingView } from "../../extensions/models/_lib/engine/design_page.ts";
+import type { FindingView } from "../../extensions/models/_lib/engine/design_view.ts";
 import { pathSegments } from "./model.ts";
 
 /**

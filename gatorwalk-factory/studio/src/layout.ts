@@ -27,7 +27,7 @@ import type {
   DesignView,
   StageView,
   TransitionView,
-} from "../../extensions/models/_lib/engine/design_page.ts";
+} from "../../extensions/models/_lib/engine/design_view.ts";
 
 export const TILE_W = 184;
 export const HEADER_H = 48;

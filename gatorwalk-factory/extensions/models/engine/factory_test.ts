@@ -27,8 +27,6 @@ import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
 import { z } from "npm:zod@4.3.6";
 import {
-  DESIGN_PAGE_NAME,
-  DESIGN_PAGE_SPEC,
   FACTORY_TYPE,
   freshKey,
   generateKey,
@@ -381,74 +379,6 @@ Deno.test("factory: validate reads the raw definition, so a platform expression 
   assert(text.includes("targets unknown stage 'missing'"), text);
 });
 
-Deno.test("factory: design_page stores the definition as an HTML page", async () => {
-  const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  const out = await factory.methods.design_page.execute(
-    {},
-    swamp.context("team"),
-  );
-  assertEquals(out.dataHandles.length, 1);
-  const pages = swamp.files.get("team")?.get(
-    `${DESIGN_PAGE_SPEC}/${DESIGN_PAGE_NAME}`,
-  );
-  assertEquals(pages?.length, 1);
-  const html = pages?.[0] ?? "";
-  assert(html.startsWith("<!doctype html>"));
-  assert(html.includes("<h1>team</h1>"));
-  assertEquals(factory.files[DESIGN_PAGE_SPEC].contentType, "text/html");
-  const summary = String(swamp.logs.at(-1)?.props?.summary);
-  assert(
-    summary.startsWith(
-      "design page for factory 'team': 9 stages, 0 error(s), 2 warning(s)",
-    ),
-    summary,
-  );
-});
-
-Deno.test("factory: design_page renders a definition whose graph has errors", async () => {
-  const swamp = fakeSwamp();
-  const definition = await buildDefinition();
-  const stages = definition.stages as { transitions: unknown[] }[];
-  // The same unpassable shortcut validate fails on.
-  stages[0].transitions.push({
-    name: "shortcut",
-    to: "code-review",
-    gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
-  });
-  swamp.factory("team", definition);
-  await factory.methods.design_page.execute({}, swamp.context("team"));
-  const html =
-    swamp.files.get("team")?.get(`${DESIGN_PAGE_SPEC}/${DESIGN_PAGE_NAME}`)
-      ?.[0] ??
-      "";
-  assert(html.includes("gate-never-passes"), "the error is on the page");
-  assert(html.includes("1 error(s), 2 warning(s)"));
-  assertEquals(swamp.logs.at(-1)?.props?.errors, 1);
-});
-
-Deno.test("factory: design_page fails with every schema error, writing nothing", async () => {
-  const swamp = fakeSwamp();
-  const definition = await buildDefinition();
-  const stages = definition.stages as { transitions: unknown[] }[];
-  stages[1].transitions.push({ name: "nowhere", to: "missing" });
-  stages[2].transitions.push({ name: "elsewhere", to: "absent" });
-  swamp.factory("team", definition);
-  const error = await assertRejects(() =>
-    factory.methods.design_page.execute({}, swamp.context("team"))
-  );
-  const text = (error as Error).message;
-  assert(
-    text.includes(
-      "factory 'team': globalArguments.definition is not a valid definition",
-    ),
-    text,
-  );
-  assert(text.includes("targets unknown stage 'missing'"), text);
-  assert(text.includes("targets unknown stage 'absent'"), text);
-  assertEquals(swamp.files.size, 0);
-});
-
 Deno.test("factory: new_key logs and records an unused key for this factory", async () => {
   const swamp = fakeSwamp();
   swamp.factory("team", await buildDefinition());
@@ -624,7 +554,6 @@ Deno.test("factory: validate refuses a factory with no definition yet, saying wh
 
 Deno.test("factory: has no init method; the skill writes the definition in", () => {
   assertEquals(Object.keys(factory.methods).sort(), [
-    "design_page",
     "new_key",
     "validate",
   ]);

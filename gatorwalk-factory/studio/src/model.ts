@@ -34,7 +34,7 @@ import {
   type DesignView,
   designView,
   type FindingView,
-} from "../../extensions/models/_lib/engine/design_page.ts";
+} from "../../extensions/models/_lib/engine/design_view.ts";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
 
 /** Where a factory's definition sits in its model definition file. */

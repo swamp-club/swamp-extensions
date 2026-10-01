@@ -82,8 +82,8 @@ export const PROTECTED: RegExp[] = [
 const VOCABULARY = `## Vocabulary
 
 - **factory**: a model of type \`@swamp/gatorwalk-factory/factory\`, created
-  once and named, for example \`team\`. You run \`validate\`, \`design_page\` and
-  \`new_key\` on it, and start work items on it.
+  once and named, for example \`team\`. You run \`validate\` and \`new_key\` on
+  it, and start work items on it.
 - **factory definition**: the YAML document a factory keeps as its
   \`globalArguments\`: stages, work, transitions and gates. \`validate\` checks
   it, and a work item pins a copy of it when it starts. In code and data it is

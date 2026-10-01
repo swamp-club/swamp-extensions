@@ -8,8 +8,8 @@ It is **not published**, and its public name is chosen at go-live.
 ## Vocabulary
 
 - **factory**: a model of type `@swamp/gatorwalk-factory/factory`, created
-  once and named, for example `team`. You run `validate`, `design_page` and
-  `new_key` on it, and start work items on it.
+  once and named, for example `team`. You run `validate` and `new_key` on
+  it, and start work items on it.
 - **factory definition**: the YAML document of a factory's stages, work,
   transitions and gates. It lives in the factory's own model definition,
   `models/@swamp/gatorwalk-factory/factory/<factory>.yaml`, under
@@ -62,7 +62,7 @@ extensions/models/
       gates.ts              gate evaluation and transition readiness
       graph.ts              graph analysis of a definition
       scenario.ts           saved scenarios: the file format and the runner
-      design_page.ts        a definition as a static HTML page
+      design_view.ts        the view of a definition the studio draws
       work_item_ops.ts      the methods of the factory and work-item types
       studio_server.ts      the studio's routes and their checks
       studio_watch.ts       the studio's file watch, for live reload
@@ -387,8 +387,6 @@ swamp model create @swamp/gatorwalk-factory/factory team \
   --global-arg tracker=board --json
 swamp model validate team                        # swamp's own schema check
 swamp model method run team validate       # that, the graph, scenarios
-swamp model method run team design_page    # the definition as a page
-swamp data get team design-page --json | jq -r .content > team.html
 # Prints a work-item key made from the title, such as
 # build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
 swamp model method run team new_key --input 'title=Add a list method'

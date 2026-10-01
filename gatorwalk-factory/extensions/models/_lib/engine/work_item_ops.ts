@@ -27,7 +27,6 @@ import {
   type GateCheck,
   makeGateEvaluator,
 } from "./gates.ts";
-import { designView, renderDesignPage } from "./design_page.ts";
 import { runScenario, SavedScenariosSchema } from "./scenario.ts";
 import {
   CURSOR_SPEC,
@@ -106,10 +105,6 @@ export const DEFINITION_NAME = "definition";
 export const KEY_SPEC = "key";
 export const KEY_NAME = "key";
 
-/** The file spec and fixed name of a factory's design page. */
-export const DESIGN_PAGE_SPEC = "design-page";
-export const DESIGN_PAGE_NAME = "design-page";
-
 /** The resource spec and fixed name of a work item's derived metrics. */
 export const METRICS_SPEC = "metrics";
 export const METRICS_NAME = "metrics";
@@ -125,18 +120,12 @@ export interface DefinitionLookup {
   ): Promise<{ definition: unknown; type: unknown } | null>;
 }
 
-/** The part of swamp's file writer the methods use. */
-export interface FileWriterLike {
-  writeText(content: string): Promise<unknown>;
-}
-
 /** The part of swamp's method context the methods use. */
 export interface MethodContextLike extends ResourceContext {
   definition?: { name: string };
   tagOverrides?: Record<string, string>;
   logger: Logger;
   definitionRepository?: DefinitionLookup;
-  createFileWriter?(specName: string, instanceName: string): FileWriterLike;
 }
 
 /**
@@ -543,43 +532,6 @@ async function runSavedScenarios(
     );
   }
   return passed;
-}
-
-/**
- * The factory's design_page method: the factory definition as a static HTML
- * page (design_page.ts), stored as the factory's design-page file. A factory
- * definition the schema rejects fails as validate does; graph errors and a
- * truncated analysis do not, because the page is where they are shown.
- */
-export async function designPageMethod(
-  ctx: MethodContextLike,
-): Promise<MethodOutput> {
-  const name = selfName(ctx);
-  const definition = await loadFactoryDefinition(ctx, name);
-  if (ctx.createFileWriter === undefined) {
-    throw new Error("this method context cannot write files");
-  }
-  const graph = analyzeDefinition(definition, {
-    maxStates: DEFAULT_MAX_STATES,
-  });
-  const digest = await digestOf(definition);
-  const html = renderDesignPage(designView(name, definition, graph, digest));
-  const handle = await ctx.createFileWriter(DESIGN_PAGE_SPEC, DESIGN_PAGE_NAME)
-    .writeText(html);
-  ctx.logger.info("{summary}", {
-    summary: `design page for factory '${name}': ` +
-      `${definition.stages.length} stages, ${graph.errors.length} error(s), ` +
-      `${graph.warnings.length} warning(s)` +
-      (graph.truncated ? ", analysis truncated" : "") +
-      `; save it with: swamp data get ${name} ${DESIGN_PAGE_NAME} --json ` +
-      `| jq -r .content > ${name}.html`,
-    factory: name,
-    digest,
-    errors: graph.errors.length,
-    warnings: graph.warnings.length,
-    truncated: graph.truncated,
-  });
-  return { dataHandles: [handle] };
 }
 
 const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";

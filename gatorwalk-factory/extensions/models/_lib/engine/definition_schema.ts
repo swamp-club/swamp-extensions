@@ -207,8 +207,8 @@ export const CelExpressionSchema = z.string().min(1).superRefine(
 // ---------------------------------------------------------------------------
 
 /**
- * Prose for the factory definition's authors: why the gate is there. Shown on
- * the design page and in the studio; no engine path sends it to an agent.
+ * Prose for the factory definition's authors: why the gate is there. Shown in
+ * the studio; no engine path sends it to an agent.
  */
 const GateDescriptionSchema = z.string().optional();
 
@@ -405,8 +405,8 @@ export const WorkSchema = z.strictObject({
   mode: z.enum(WORK_MODES),
   /**
    * Prose for the factory definition's authors: what the work is and why. Shown
-   * on the design page and in the studio; never sent to whoever does the work
-   * (that is systemPrompt and command).
+   * in the studio; never sent to whoever does the work (that is systemPrompt
+   * and command).
    */
   description: z.string().optional(),
   skills: z.array(z.string().min(1)).optional(),

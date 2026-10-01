@@ -144,8 +144,8 @@ Deno.test("examples: each description says what it is for and what to change fir
 });
 
 // Agents rewrite factory definition YAML, which drops comments, and the studio
-// and the design page show descriptions, not comments; so what is worth keeping
-// goes in a description, and no factory definition file carries a comment.
+// shows descriptions, not comments; so what is worth keeping goes in a
+// description, and no factory definition file carries a comment.
 Deno.test("examples and fixtures: no definition file carries a comment", async () => {
   const dirs = [
     EXAMPLES,

@@ -287,8 +287,8 @@ went through five rounds of plan review.
    reviews (the plan, the change summary) and what it checks against, not
    everything recorded so far.
 4. **Say why in `description` fields, not comments.** You will rewrite this
-   file, and comments do not survive that; the design page shows descriptions,
-   not comments. Every stage, gate and way back that needs a reason has a
+   file, and comments do not survive that; the studio shows descriptions, not
+   comments. Every stage, gate and way back that needs a reason has a
    `description`, and the definition's own `description` says what the factory
    is for.
 5. **Declare every product with a schema.** An artifact or evidence without a

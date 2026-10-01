@@ -22,7 +22,7 @@
 import type {
   StageView,
   TransitionView,
-} from "../../extensions/models/_lib/engine/design_page.ts";
+} from "../../extensions/models/_lib/engine/design_view.ts";
 import { ANY_ID } from "./layout.ts";
 import { gateIdentity, type Target, targetAt, targetKey } from "./selection.ts";
 import { changed, good, graph, select, selection } from "./state.ts";

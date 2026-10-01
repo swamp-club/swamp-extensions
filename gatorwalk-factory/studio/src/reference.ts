@@ -31,7 +31,7 @@
 //     review) ambiguous-exit: <the finding's message>
 
 import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
-import type { FindingView } from "../../extensions/models/_lib/engine/design_page.ts";
+import type { FindingView } from "../../extensions/models/_lib/engine/design_view.ts";
 import { DEFINITION_PATH } from "./model.ts";
 import { pathOf, type Target, targetAt } from "./selection.ts";
 
