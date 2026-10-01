@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
+import { parse as parseCel } from "npm:@marcbachmann/cel-js@7.6.1";
 import { canonicalJson, fieldAt, type Json } from "./canonical.ts";
+import { productKind, productRefs } from "./cel_refs.ts";
 import {
   type FactoryDefinition,
   type GateSpec,
@@ -244,6 +246,38 @@ function pathProducts(g: Graph, gate: GateSpec): [ProductKind, string][] {
     default:
       return [];
   }
+}
+
+/**
+ * Products a CEL expression reads without testing for them, one entry per
+ * product. A test anywhere in the expression (`has(artifacts.x)`,
+ * `"x" in artifacts`) exempts its reads of that product; `artifacts.x` and
+ * `validations.artifacts.x` are the same product. An expression that does not
+ * parse reads nothing here: the schema has already reported it.
+ */
+function celReads(expr: string): [ProductKind, string][] {
+  let ast: unknown;
+  try {
+    ast = parseCel(expr).ast;
+  } catch {
+    return [];
+  }
+  const refs = productRefs(ast).map((ref) => ({
+    key: `${productKind(ref.map)}:${ref.name}`,
+    kind: productKind(ref.map),
+    name: ref.name,
+    use: ref.use,
+  }));
+  const tested = new Set(
+    refs.filter((r) => r.use === "test").map((r) => r.key),
+  );
+  const out = new Map<string, [ProductKind, string]>();
+  for (const r of refs) {
+    if (r.use === "read" && !tested.has(r.key) && !out.has(r.key)) {
+      out.set(r.key, [r.kind, r.name]);
+    }
+  }
+  return [...out.values()];
 }
 
 /**
@@ -1021,6 +1055,11 @@ export function analyzeDefinition(
   // satisfies is reported here too. An inject whose every producer is in the
   // stage's own loop is context from an earlier pass (the last review, a
   // person's feedback): absent on the first pass by design, so not reported.
+  // A product CEL reads without testing for it is reported on any path that
+  // lacks it, with neither exemption: the read fails at run time
+  // (gate-never-passes assumes cel gates can pass). Bindings are evaluated
+  // when the stage is entered, before it records anything, so the stage's own
+  // products do not count for them.
   const fromOwnLoop = (id: string, kind: ProductKind, name: string) => {
     const loop = loopOf.get(id);
     const producers =
@@ -1038,7 +1077,8 @@ export function analyzeDefinition(
       kind: ProductKind;
       name: string;
       what: string;
-      gate: boolean;
+      source: "inject" | "gate" | "cel";
+      onEntry: boolean;
     }[] = [];
     (stage.work?.context?.inject ?? []).forEach((name, j) => {
       const kind: ProductKind = g.artifactProducers.has(name)
@@ -1049,18 +1089,49 @@ export function analyzeDefinition(
         kind,
         name,
         what: "injects",
-        gate: false,
+        source: "inject",
+        onEntry: false,
       });
     });
+    for (const [binding, expr] of Object.entries(stage.work?.bindings ?? {})) {
+      for (const [kind, name] of celReads(expr)) {
+        refs.push({
+          path: ["stages", index, "work", "bindings", binding],
+          kind,
+          name,
+          what: `binding '${binding}' reads`,
+          source: "cel",
+          onEntry: true,
+        });
+      }
+    }
     (stage.transitions ?? []).forEach((t, j) =>
       (t.gates ?? []).forEach((gate, k) => {
+        const path: Path = ["stages", index, "transitions", j, "gates", k];
         for (const [kind, name] of pathProducts(g, gate)) {
           refs.push({
-            path: ["stages", index, "transitions", j, "gates", k],
+            path,
             kind,
             name,
             what: `transition '${t.name}' (${gate.type}) needs`,
-            gate: true,
+            source: "gate",
+            onEntry: false,
+          });
+        }
+        const cel = gate.type === "cel"
+          ? { field: "expr", expr: gate.config.expr }
+          : gate.type === "human-approval" && gate.config.when !== undefined
+          ? { field: "when", expr: gate.config.when }
+          : null;
+        if (cel === null) return;
+        for (const [kind, name] of celReads(cel.expr)) {
+          refs.push({
+            path: [...path, "config", cel.field],
+            kind,
+            name,
+            what: `transition '${t.name}' (${gate.type} ${cel.field}) reads`,
+            source: "cel",
+            onEntry: false,
           });
         }
       })
@@ -1072,15 +1143,21 @@ export function analyzeDefinition(
       node.stage === id ? [i] : []
     );
     for (const ref of refsOf(id)) {
-      const lacking = visits.find((i) =>
-        !available(g, ref.kind, ref.name, structure.nodes[i].state)
-      );
+      const has = (i: number) => {
+        const state = structure.nodes[i].state;
+        if (!ref.onEntry) return available(g, ref.kind, ref.name, state);
+        const others = new Set(state);
+        others.delete(id);
+        return available(g, ref.kind, ref.name, others);
+      };
+      const lacking = visits.find((i) => !has(i));
       if (lacking === undefined) continue;
-      const someHave = visits.some((i) =>
-        available(g, ref.kind, ref.name, structure.nodes[i].state)
-      );
-      if (ref.gate && !someHave) continue;
-      if (!ref.gate && someHave && fromOwnLoop(id, ref.kind, ref.name)) {
+      const someHave = visits.some(has);
+      if (ref.source === "gate" && !someHave) continue;
+      if (
+        ref.source === "inject" && someHave &&
+        fromOwnLoop(id, ref.kind, ref.name)
+      ) {
         continue;
       }
       report(

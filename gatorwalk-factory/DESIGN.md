@@ -570,16 +570,34 @@ Warnings:
   transition, such as `abandon`.
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
   transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
-- **`product-missing-on-path`:** a stage injects, or gates on, an artifact or
-  evidence that some path to it does not produce. A product read only by CEL (a
-  binding, a `cel` gate or an approval's `when`) is not checked yet; that is
-  swamp-club #2792. An inject is not reported when some path produces it and
-  every stage that produces it is in the injecting stage's own loop (its
-  strongly connected component over live, non-global edges): that is context
-  from an earlier pass, such as the last review and a person's feedback handed
-  to the next plan, absent on the first pass by design (swamp-club #2770). A
-  producer upstream of the stage but outside its loop is still reported, and
-  gates are judged as before.
+- **`product-missing-on-path`:** a stage injects, gates on, or reads in CEL an
+  artifact or evidence that some path to it does not produce. An inject is not
+  reported when some path produces it and every stage that produces it is in
+  the injecting stage's own loop (its strongly connected component over live,
+  non-global edges): that is context from an earlier pass, such as the last
+  review and a person's feedback handed to the next plan, absent on the first
+  pass by design (swamp-club #2770). A producer upstream of the stage but
+  outside its loop is still reported, and gates are judged as before.
+  CEL reads (swamp-club #2792) are the fixed product references of a stage's
+  `work.bindings`, its `cel` gates and its approvals' `when`, found by the same
+  walker as the declared-name check (`cel_refs.ts`). A read of a product the
+  expression also tests for anywhere (`has(artifacts.plan)`,
+  `"plan" in artifacts`) is guarded and not reported; the guard need not sit
+  around the read, so this is generous on purpose. `artifacts.plan` and
+  `validations.artifacts.plan` are the same product, reported once per
+  expression. An unguarded read of a missing product fails at run time (cel-js
+  throws "No such key"), so a CEL read is reported even when no path produces
+  it (gate-never-passes assumes cel gates can pass) and even when it comes from
+  the stage's own loop. Bindings are evaluated when the stage is entered, before
+  it records anything, so the stage's own products do not count for them; a
+  gate or `when` is evaluated at the transition, where they do. Availability is
+  the stages entered, as for injects, which matches the CEL context (the era's
+  latest record of each product, from whichever stage recorded it); a work item
+  reset, which starts a new era, is not modelled. Payload field paths are not
+  checked, nor are global transitions, whose CEL runs from every stage (the
+  same as their named gates). A binding read in a loop is judged as on the
+  loop's first pass, so its message can say no path produces a product that a
+  later pass has.
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
@@ -1982,5 +2000,5 @@ factory definition of its own.
 only by a CEL binding is produced on every path into the stage template
 (`productsMissingOnEntry`). Its general form, for any factory definition, is to
 warn when a product only CEL reads is not produced on every path to the reading
-stage. That needs design of its own (which guarded reads count as tolerant) and
-shares a CEL reference walker with #2680, so it is swamp-club #2792.
+stage. That came back as part of `product-missing-on-path` (swamp-club #2792;
+see "Graph validation").

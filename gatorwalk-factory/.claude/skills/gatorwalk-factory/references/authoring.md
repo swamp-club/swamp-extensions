@@ -276,7 +276,7 @@ the usual fix:
 | ambiguous-exit          | "can both pass with no person choosing"                  | Two ways out can open at once, and nothing picks one.                 | Make one `manual`, give it a `human-approval` gate, or make gates exclude. |
 | escape-only             | "only through a global transition"                       | The loop's only way out is `abandon`.                                 | Add a real way forward out of the loop.                                    |
 | default-cycle-bound     | "bounded only by the default cycle limit"                | The loop may run five times before anything stops it.                 | Set `maxCycles` on one of its stages, or gate it with `max-cycles`.        |
-| product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects or gates on a product some route to it never records. | Record it on every route, or gate on it only where it exists.              |
+| product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects, gates on or reads in CEL a product a route lacks.    | Record it on every route, gate where it exists, or guard with `has()`.     |
 | needs-cycle-override    | the transition, then why the cycle limits close it       | A transition opens only if a person grants an override.               | Raise `maxCycles`, or accept it: it is the loop limit working.             |
 | exploration-truncated   | "stopped at ... states"                                  | The graph was too big to check fully, so some checks were skipped.    | Simplify the loops, or accept the warning.                                 |
 

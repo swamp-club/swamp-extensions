@@ -342,6 +342,217 @@ stages:
   ]);
 });
 
+// --- products CEL reads ------------------------------------------------------
+
+/** start reaches build directly or through design, which records the spec
+ * artifact and the review evidence. `build` is the build stage's body. */
+function twoPaths(build: string): FactoryDefinition {
+  return definition(`
+stages:
+  - id: start
+    initial: true
+    transitions:
+      - { name: long, to: design }
+      - { name: short, to: build, manual: true }
+  - id: design
+    artifacts: [{ name: spec, schema: ${OBJECT} }]
+    evidence: [{ name: review, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: build }]
+  - id: build
+${build}
+  - id: done
+    terminal: true
+`);
+}
+
+Deno.test("graph: a binding reading a product one path does not produce warns at the binding", () => {
+  const report = analyzeDefinition(twoPaths(`
+    work:
+      mode: interactive
+      bindings: { summary: 'artifacts["spec"].payload.summary' }
+    transitions: [{ name: finish, to: done }]`));
+  assertEquals(report.errors, []);
+  const finding = only(report, "product-missing-on-path");
+  assertEquals(finding.path, "stages.2.work.bindings.summary");
+  assertEquals(finding.stage, "build");
+  assertEquals(finding.trace, ["start", "build"]);
+  assertEquals(
+    finding.message,
+    "stage 'build' binding 'summary' reads artifact 'spec', which this path to it does not produce",
+  );
+});
+
+Deno.test("graph: a binding reading a product no path produces warns", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: a
+    initial: true
+    work:
+      mode: interactive
+      bindings: { later: 'artifacts.later.payload' }
+    transitions: [{ name: next, to: b }]
+  - id: b
+    artifacts: [{ name: later, schema: ${OBJECT} }]
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  const finding = only(report, "product-missing-on-path");
+  assert(finding.message.includes("no path to it produces"), finding.message);
+});
+
+Deno.test("graph: member, index and validations reads are all caught, once per product per expression", () => {
+  const report = analyzeDefinition(twoPaths(`
+    work:
+      mode: interactive
+      bindings:
+        a: 'artifacts.spec.payload'
+        b: 'artifacts["spec"].version + validations.artifacts.spec.errors.size()'
+        c: 'validations["evidence"]["review"]'
+        d: 'evidence.review.payload'
+    transitions: [{ name: finish, to: done }]`));
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.2.work.bindings.a [build]",
+    "product-missing-on-path stages.2.work.bindings.b [build]",
+    "product-missing-on-path stages.2.work.bindings.c [build]",
+    "product-missing-on-path stages.2.work.bindings.d [build]",
+  ]);
+  assert(report.warnings[2].message.includes("evidence 'review'"));
+});
+
+Deno.test("graph: a test for a product exempts the expression's reads of it, and only of it", () => {
+  const report = analyzeDefinition(twoPaths(`
+    work:
+      mode: interactive
+      bindings:
+        guarded: 'has(artifacts.spec) ? artifacts.spec.payload.summary : ""'
+        nested: 'has(artifacts.spec.payload.summary) ? artifacts.spec.payload.summary : ""'
+        inMap: '"spec" in artifacts ? artifacts["spec"].version : 0'
+        other: 'has(artifacts.spec) ? evidence.review.payload : null'
+    transitions: [{ name: finish, to: done }]`));
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.2.work.bindings.other [build]",
+  ]);
+  assert(report.warnings[0].message.includes("evidence 'review'"));
+});
+
+Deno.test("graph: a cel gate and an approval's when that read a missing product warn at the expression", () => {
+  const report = analyzeDefinition(twoPaths(`
+    transitions:
+      - name: finish
+        to: done
+        gates:
+          - type: cel
+            config: { expr: 'artifacts.spec.version > 0' }
+          - type: human-approval
+            config: { id: ok, when: 'evidence.review.payload.risky == true' }`));
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.2.transitions.0.gates.0.config.expr [build]",
+    "product-missing-on-path stages.2.transitions.0.gates.1.config.when [build]",
+  ]);
+  assertEquals(
+    report.warnings[0].message,
+    "stage 'build' transition 'finish' (cel expr) reads artifact 'spec', which this path to it does not produce",
+  );
+});
+
+Deno.test("graph: a cel gate reading a product no path produces still warns", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: a
+    initial: true
+    transitions:
+      - name: next
+        to: b
+        gates: [{ type: cel, config: { expr: 'has(item.key) && artifacts.later.version > 0' } }]
+  - id: b
+    artifacts: [{ name: later, schema: ${OBJECT} }]
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  const finding = only(report, "product-missing-on-path");
+  assertEquals(finding.path, "stages.0.transitions.0.gates.0.config.expr");
+  assert(finding.message.includes("no path to it produces"), finding.message);
+});
+
+Deno.test("graph: a binding reading a product of its own loop warns, unlike an inject", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: plan
+    initial: true
+    maxCycles: 3
+    work:
+      mode: interactive
+      context: { inject: [feedback] }
+      bindings: { notes: 'evidence.feedback.payload' }
+    artifacts: [{ name: plan, schema: ${OBJECT} }]
+    transitions: [{ name: submit, to: review }]
+  - id: review
+    evidence:
+      - { name: feedback, recordedBy: person, schema: ${OBJECT} }
+    transitions:
+      - { name: approve, to: done }
+      - name: revise
+        to: plan
+        manual: true
+        gates: [{ type: evidence-recorded, config: { name: feedback } }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.0.work.bindings.notes [plan]",
+  ]);
+  assertEquals(report.warnings[0].trace, ["plan"]);
+});
+
+Deno.test("graph: a binding reading its stage's own product warns; a gate reading it does not", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: plan
+    initial: true
+    work:
+      mode: interactive
+      bindings: { previous: 'artifacts.plan.payload' }
+    artifacts: [{ name: plan, schema: ${OBJECT} }]
+    transitions:
+      - name: finish
+        to: done
+        gates: [{ type: cel, config: { expr: 'artifacts.plan.version >= 1' } }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.0.work.bindings.previous [plan]",
+  ]);
+  assert(
+    report.warnings[0].message.includes("no path to it produces"),
+    report.warnings[0].message,
+  );
+});
+
+Deno.test("graph: CEL reads produced on every path are not reported", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: design
+    initial: true
+    artifacts: [{ name: spec, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: build }]
+  - id: build
+    work:
+      mode: interactive
+      bindings: { summary: 'artifacts.spec.payload.summary', key: 'item.key' }
+    transitions:
+      - name: finish
+        to: done
+        gates: [{ type: cel, config: { expr: 'artifacts.spec.version > 0' } }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(report.warnings, []);
+});
+
 // --- cycle limits -------------------------------------------------------------
 
 Deno.test("graph: retry and escalate split by max-cycles are exclusive and bounded", () => {

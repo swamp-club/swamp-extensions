@@ -156,8 +156,10 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   is a global transition such as `abandon`, loops bounded only by the default
   cycle limit, products that some path to a stage does not produce (except
   context from an earlier pass: a product injected from the stage's own loop),
-  and transitions only a cycle override opens. Each finding gives its path, the
-  stage it is judged from, and a trace of stages from the initial stage. See
+  including products a binding, `cel` gate or approval's `when` reads without
+  testing for them with `has()`, and transitions only a cycle override opens.
+  Each finding gives its path, the stage it is judged from, and a trace of
+  stages from the initial stage. See
   [DESIGN.md](DESIGN.md), "Graph validation".
 - **A factory definition names the kind of tracker it is written for**,
   `tracker: { kind: builtin | linear }` (the built-in tracker when absent), new
