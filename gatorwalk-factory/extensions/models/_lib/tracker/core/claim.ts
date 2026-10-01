@@ -93,7 +93,7 @@ export function startCommand(
   factory: string,
   externalRefs: Record<string, string>,
 ): string {
-  return `swamp model ${WORK_ITEM_TYPE} method run start ${key} ` +
+  return `swamp model ${WORK_ITEM_TYPE} method run start ${shellQuote(key)} ` +
     `--input ${shellQuote(`factory=${factory}`)} ` +
     `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)}`;
 }
@@ -164,13 +164,26 @@ export async function claimTicket(
   if (prior !== null) {
     const run = await readClaimedRun(ctx, prior.key);
     if (run === null) {
-      // Reserved, never started: the same key and command again.
+      // Reserved, never started: the same key and command again, unless the
+      // reservation moves to another factory because its own no longer loads.
       if (req.factory !== undefined && req.factory !== prior.factory) {
-        throw new Error(
-          `${label} is claimed as '${prior.key}' under factory ` +
-            `'${prior.factory}', not '${req.factory}'; start it with ` +
-            `'${prior.factory}'`,
+        const unusable = await loadError(ctx, prior.factory);
+        if (unusable === null) {
+          throw new Error(
+            `${label} is claimed as '${prior.key}' under factory ` +
+              `'${prior.factory}', not '${req.factory}'; start it with ` +
+              `'${prior.factory}'`,
+          );
+        }
+        const handle = await reassignReservation(
+          ctx,
+          req,
+          req.factory,
+          prior,
+          unusable,
+          label,
         );
+        return handle === null ? [] : [handle];
       }
       ctx.logger.info("{summary}", {
         summary: `${label} is claimed as '${prior.key}', not started yet. ` +
@@ -197,7 +210,10 @@ export async function claimTicket(
     } else if (run.status === "active") {
       ctx.logger.info("{summary}", {
         summary: `${label} is already started: '${prior.key}' at stage ` +
-          `'${run.stage}'`,
+          `'${run.stage}', under factory '${run.factory}'` +
+          (req.factory === undefined || req.factory === run.factory
+            ? ""
+            : `; factory '${req.factory}' was not used`),
         key: prior.key,
       });
       return [];
@@ -323,4 +339,66 @@ export async function moveClaim(
     summary: `${label} is now '${move.key}''s ticket in the index`,
   });
   return [handle];
+}
+
+/** Why a factory does not load, or null when it does. */
+async function loadError(
+  ctx: ClaimContext,
+  factory: string,
+): Promise<string | null> {
+  try {
+    await loadFactoryDefinition(ctx, factory);
+    return null;
+  } catch (error) {
+    return (error instanceof Error ? error.message : String(error))
+      .split("\n")[0];
+  }
+}
+
+/**
+ * Move a reservation that never started to another factory, because its own
+ * no longer loads. The key stays: the failed start may have left a
+ * definition under it, which a fresh key would orphan. Returns the handle
+ * written, or null on a dry run.
+ */
+async function reassignReservation(
+  ctx: ClaimContext,
+  req: ClaimRequest,
+  factory: string,
+  prior: TicketClaim,
+  unusable: string,
+  label: string,
+): Promise<unknown | null> {
+  if (ctx.writeResource === undefined) {
+    throw new Error("this method context has no writeResource");
+  }
+  await loadFactoryDefinition(ctx, factory);
+  const because = `its reserved factory '${prior.factory}' no longer loads ` +
+    `(${unusable})`;
+  if (req.dryRun === true) {
+    ctx.logger.info("{summary}", {
+      summary: `${label} is claimed as '${prior.key}', not started yet; ` +
+        `${because}, so a claim would move it to factory '${factory}'. ` +
+        "Dry run, nothing was claimed",
+      key: prior.key,
+    });
+    return null;
+  }
+  const handle = await ctx.writeResource(
+    TICKET_SPEC,
+    req.recordName,
+    {
+      ...prior,
+      display: req.issue.display,
+      factory,
+      claimedAt: req.now.toISOString(),
+    } satisfies TicketClaim,
+  );
+  ctx.logger.info("{summary}", {
+    summary: `${label} is claimed as '${prior.key}', now under factory ` +
+      `'${factory}': ${because}. Start it: ` +
+      startCommand(prior.key, factory, externalRefsOf(req.tracker, req.issue)),
+    key: prior.key,
+  });
+  return handle;
 }

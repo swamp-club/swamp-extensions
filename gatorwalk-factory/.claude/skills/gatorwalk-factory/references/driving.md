@@ -175,8 +175,14 @@ swamp model method run <tracker> claim --input issue=<ticket> \
   gets `cue-<slug>-<suffix>`. Run the printed `start` command exactly as
   printed; it carries the ticket's `externalRefs`.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
-  its `start` never ran (or failed). Run the printed command.
+  its `start` never ran (or failed). Run the printed command. If it fails
+  because the reserved factory no longer loads, claim again with another
+  `factory`.
+- **`is claimed as '<key>', now under factory '<factory>'`**: the reserved
+  factory no longer loads, so the reservation moved to the factory you passed,
+  under the same key. Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
+  The answer names its factory; a different `factory` you passed was not used.
 - **`is a duplicate of <primary>; work on <primary> instead`**: the ticket was
   marked a duplicate, so it takes no work. Claim the primary instead (see
   [Duplicates](#duplicates)).

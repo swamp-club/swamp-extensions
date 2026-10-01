@@ -1242,10 +1242,21 @@ export function trackerMethods(options: TrackerModelOptions) {
           now: now(),
         });
         // The snapshot only once the claim has succeeded: a refused claim,
-        // or a dry run, writes nothing.
-        const handles = args.dryRun === true
-          ? []
-          : await recordSnapshot(ctx, adapter, issue);
+        // or a dry run, writes nothing. The index record is the claim's
+        // result, so a failed snapshot is a warning, refreshed by the next
+        // read.
+        let handles: unknown[] = [];
+        if (args.dryRun !== true) {
+          try {
+            handles = await recordSnapshot(ctx, adapter, issue);
+          } catch (error) {
+            ctx.logger.info("{warning}", {
+              warning: `did not refresh the snapshot of ${issue.display}: ` +
+                (error instanceof Error ? error.message : String(error)),
+              issue: issue.id,
+            });
+          }
+        }
         return { dataHandles: [...written, ...handles] };
       },
     },

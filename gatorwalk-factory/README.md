@@ -683,7 +683,9 @@ Linear issue; a built-in ticket's first work item takes the ticket's own id),
 records it in the adapter's ticket index (`ticket-<stable id>`), and prints the
 work-item `start` command to run, with the ticket's `externalRefs`. The record
 is written before the work item starts, so if anything fails in between, `claim`
-again hands back the same key and command. Once the work item has started,
+again hands back the same key and command. If the reserved factory no longer
+loads, claiming with another factory moves the reservation to it under the
+same key. Once the work item has started,
 `claim` names it and its stage. Once it has finished, the ticket can claim a new
 one; the record keeps the earlier keys. A work item `retarget` moved to another
 ticket counts as finished here, and the `publish` after the retarget moves the

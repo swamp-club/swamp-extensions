@@ -2086,8 +2086,15 @@ record, and reads the named work item's run through swamp's `readModelData`:
   it.
 - **A record whose key has no run:** a reservation whose start never ran. The
   same key and command are printed again, and the index is not written. A
-  different factory is refused.
-- **An active run:** reported with its stage; the index is not written.
+  different factory is refused while the reserved one loads. Once the reserved
+  factory no longer loads (deleted, renamed or made invalid), so its start
+  can only fail, a different factory that loads takes the reservation over:
+  the record is rewritten with the new factory and the **same key**, and the
+  new start command is printed. The key stays because the failed start may
+  have left a definition under it, which a fresh key would orphan. A dry run
+  says the reservation would move and writes nothing.
+- **An active run:** reported with its stage and its factory; the index is
+  not written. A different factory passed is named as not used.
 - **A terminal run** (done or abandoned): the ticket may start a new work item.
   A new key is reserved, and the old one goes to the front of `previous`.
 - **A run a retarget moved to another ticket** (its journal has a `retargeted`
@@ -2109,6 +2116,9 @@ the first one's reservation.
 
 A claim that succeeds also refreshes the ticket's `issue-<id>` snapshot, as
 `fetch_issue` does, after the index is settled. A refused claim writes nothing.
+A failed snapshot write is logged as a warning and does not fail the claim:
+the index record is the claim's result, and the next read refreshes the
+snapshot.
 
 `factory` is only needed when a new key is reserved. `claim` never comments,
 moves or assigns the ticket; that is the publisher's (GW-17).
@@ -2125,7 +2135,9 @@ printed command is the whole hand-off.
 
 **Retention.** Index records are never collected by age: a ticket's record must
 outlive its work items. Only the latest version is read, so twenty versions are
-kept.
+kept. A record's `previous` list is kept whole: it grows by one key for each
+finished work item of the ticket, which is accepted because a ticket rarely
+has many.
 
 **Only the run's own key counts.** swamp's `readModelData` labels every record
 it returns with the name asked for, including data it attributes to that name

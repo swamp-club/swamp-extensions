@@ -235,6 +235,112 @@ Deno.test("claim: a reservation under one factory refuses another", async () => 
   assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
 });
 
+Deno.test("claim: a reservation whose factory no longer loads moves to another under the same key (#2712)", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const [reserved] = index(swamp);
+  // team stops loading, so the printed start fails.
+  swamp.factory("team", { name: "team" });
+  await assertRejects(() => start(swamp, reserved.key, "team"));
+
+  const output = await claim(swamp, methods, {
+    issue: "T1",
+    factory: "other",
+  });
+  const moved = index(swamp).at(-1);
+  assertEquals(moved, {
+    ...reserved,
+    factory: "other",
+    claimedAt: NOW.toISOString(),
+  });
+  // The snapshot and the index record.
+  assertEquals(output.dataHandles.length, 2);
+  const summary = lastSummary(swamp);
+  assert(
+    summary.startsWith(
+      `T-1 (T1) is claimed as '${reserved.key}', now under factory 'other': ` +
+        `its reserved factory 'team' no longer loads`,
+    ),
+    summary,
+  );
+  assert(
+    summary.endsWith(startCommand(reserved.key, "other", REFS)),
+    summary,
+  );
+  await start(swamp, reserved.key, "other");
+  await claim(swamp, methods, { issue: "T1" });
+  assert(lastSummary(swamp).includes("is already started"), lastSummary(swamp));
+});
+
+Deno.test("claim: a dry run says a reservation whose factory no longer loads would move, and writes nothing", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const [reserved] = index(swamp);
+  swamp.factory("team", { name: "team" });
+  const before = trackerWrites(swamp);
+  const output = await claim(swamp, methods, {
+    issue: "T1",
+    factory: "other",
+    dryRun: true,
+  });
+  assertEquals(output.dataHandles.length, 0);
+  assertEquals(trackerWrites(swamp), before, "a dry run writes nothing");
+  assertEquals(index(swamp).at(-1), reserved);
+  const summary = lastSummary(swamp);
+  assert(
+    summary.includes("so a claim would move it to factory 'other'"),
+    summary,
+  );
+  assert(summary.endsWith("Dry run, nothing was claimed"), summary);
+});
+
+Deno.test("claim: a reservation whose factory no longer loads is not moved to one that does not load either", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  swamp.factory("team", { name: "team" });
+  swamp.factory("broken", { name: "broken" });
+  const before = trackerWrites(swamp);
+  await assertRejects(() =>
+    claim(swamp, methods, { issue: "T1", factory: "broken" })
+  );
+  assertEquals(index(swamp).length, 1);
+  assertEquals(index(swamp)[0].factory, "team");
+  assertEquals(trackerWrites(swamp), before, "a refused claim writes nothing");
+});
+
+Deno.test("claim: a failed snapshot write leaves the claim standing and logs a warning", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  const ctx = swamp.context(TRACKER);
+  const write = ctx.writeResource;
+  assert(write !== undefined);
+  const output = await methods.claim.execute(
+    methods.claim.arguments.parse({ issue: "T1", factory: "team" }),
+    {
+      ...ctx,
+      writeResource: (spec, name, data) =>
+        spec === TICKET_SPEC
+          ? write(spec, name, data)
+          : Promise.reject(new Error("disk full")),
+    },
+  );
+  assertEquals(output.dataHandles.length, 1, "only the index record");
+  assertEquals(index(swamp).length, 1);
+  const warning = String(swamp.logs.at(-1)?.props?.warning);
+  assertEquals(warning, "did not refresh the snapshot of T-1: disk full");
+});
+
+Deno.test("claim: the printed start command quotes the key", () => {
+  assert(
+    startCommand("t-1-ticket-abcd", "team", REFS).includes(
+      "method run start 't-1-ticket-abcd' --input",
+    ),
+  );
+});
+
 Deno.test("claim: a started work item is reported, not started twice", async () => {
   const swamp = await withFactories();
   const { methods } = oneTicket();
@@ -245,9 +351,25 @@ Deno.test("claim: a started work item is reported, not started twice", async () 
     await claim(swamp, methods, raw);
     assertEquals(
       lastSummary(swamp),
-      `T-1 (T1) is already started: '${key}' at stage 'work'`,
+      `T-1 (T1) is already started: '${key}' at stage 'work', under ` +
+        `factory 'team'`,
     );
   }
+  assertEquals(index(swamp).length, 1);
+});
+
+Deno.test("claim: a started work item claimed with another factory names its own, and the other is not used", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const { key } = index(swamp)[0];
+  await start(swamp, key);
+  await claim(swamp, methods, { issue: "T1", factory: "other" });
+  assertEquals(
+    lastSummary(swamp),
+    `T-1 (T1) is already started: '${key}' at stage 'work', under ` +
+      `factory 'team'; factory 'other' was not used`,
+  );
   assertEquals(index(swamp).length, 1);
 });
 
