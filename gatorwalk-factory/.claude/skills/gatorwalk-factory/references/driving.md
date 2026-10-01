@@ -72,13 +72,13 @@ swamp model create @swamp/gatorwalk-factory/factory <factory> \
 ```
 
 Then write an example into the factory: put the `definition:` and `scenarios:`
-blocks of the closest one in [examples/](examples/) (`minimal`, `starter`,
-`build-swamp-extension` or `swamp-club-swamp-extensions`) under the factory's
-`globalArguments:`, right after its `tracker:` line and before `methods:`, each
-indented two more spaces. Never replace a definition that is already there. Then
-edit it: change what its description's "Change first" paragraph names, and
-rewrite the description for your process. swamp does not check the file when it
-is saved: it checks the definition's schema before each factory method runs, and
+blocks of the closest one in [examples/](examples/) (`minimal`, `starter` or
+`build-swamp-extension`) under the factory's `globalArguments:`, right after its
+`tracker:` line and before `methods:`, each indented two more spaces. Never
+replace a definition that is already there. Then edit it: change what its
+description's "Change first" paragraph names, and rewrite the description for
+your process. swamp does not check the file when it is saved: it checks the
+definition's schema before each factory method runs, and
 `swamp model validate <factory>` runs that check alone. `validate` checks the
 rest too, and refuses a factory whose tracker instance is missing or of another
 kind than the definition's:
@@ -148,32 +148,28 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 
 ## Start from a ticket
 
-When the work comes from a tracker ticket (a Linear issue, a swamp-club Lab
-issue, or a built-in tracker's ticket), start it through the tracker's adapter
-instance, so the same ticket never starts twice:
+When the work comes from a tracker ticket (a Linear issue or a built-in
+tracker's ticket), start it through the tracker's adapter instance, so the same
+ticket never starts twice:
 
 ```sh
 swamp model method run <tracker> claim --input issue=<ticket> \
   --input factory=<factory>
 ```
 
-`issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`,
+`issue` is the ticket's id or its display identifier (`ABC-1`,
 `cue-board-shortcuts-r2ne`). `claim` answers in one of these ways:
 
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
-  The key starts with the ticket's display id, then its title (Lab:
-  `2734-drive-lab-issue-k3xq`; Linear: `abc-12-...`), for reading only. A
-  built-in ticket's first work item takes the ticket's id as its key
-  (`cue-board-shortcuts-r2ne`); a later one gets `cue-<slug>-<suffix>`. Run the
-  printed `start` command exactly as printed; it carries the ticket's
-  `externalRefs`.
+  The key starts with the ticket's display id, then its title (Linear:
+  `abc-12-add-list-k3xq`), for reading only. A built-in ticket's first work item
+  takes the ticket's id as its key (`cue-board-shortcuts-r2ne`); a later one
+  gets `cue-<slug>-<suffix>`. Run the printed `start` command exactly as
+  printed; it carries the ticket's `externalRefs`.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command.
 - **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
-- **`is driven by issue-lifecycle here (instance 'issue-<N>')`** (the Lab only):
-  `@swamp/issue-lifecycle` already drives this issue. Stop and drive it with
-  issue-lifecycle; do not delete its instance unless the person says to.
 
 If anything fails between `claim` and `start`, run `claim` again: it hands back
 the same key and command. `factory` is only needed when a new key is reserved;
@@ -189,10 +185,9 @@ swamp model method run <tracker> create --input 'title=<title>' \
   --input 'body=<body>' --input 'type=<type>'
 ```
 
-The type must be one the tracker has (the Lab: `feature`, `bug`, `security`; the
-built-in tracker: its `types`; Linear: a type its `types` argument maps to a
-label). Never re-run a `create` that may have gone through: check the tracker
-first, since a retry files a second ticket.
+The type must be one the tracker has (the built-in tracker: its `types`; Linear:
+a type its `types` argument maps to a label). Never re-run a `create` that may
+have gone through: check the tracker first, since a retry files a second ticket.
 
 ## Read status
 
@@ -585,24 +580,25 @@ a person run `status` and make sure it no longer says so. If it says
 
 `publish` posts a comment for each new event a person on the ticket needs, and
 moves the ticket when the stage's status key changes. When the factory
-definition declares tracker entries and the tracker keeps them (the Lab), it
-writes those lifecycle entries instead of comments, and sets the ticket type an
-entry names. The publish that delivers the work item's start also assigns the
-ticket to the person logged in to swamp (the built-in tracker and the Lab), so
-there is no separate assign step; if it cannot, it warns once, and you tell the
-person. It is the only thing that writes the ticket's status and type: never
-call `set_status` or `set_type` for a work item yourself. Running it again
-delivers only what is new. A failed publish never blocks the work item, but the
-ticket falls behind until it succeeds, and on the Lab that ticket is the audit
-trail: after a failure, run it again before moving on. An entry the tracker
-refuses outright is skipped and logged as a warning; tell the person which one.
+definition declares tracker entries and the tracker keeps them (the built-in
+tracker does), it writes those lifecycle entries instead of comments, and sets
+the ticket type an entry names. The publish that delivers the work item's start
+also assigns the ticket to the person logged in to swamp (on the built-in
+tracker), so there is no separate assign step; if it cannot, it warns once, and
+you tell the person. It is the only thing that writes the ticket's status and
+type: never call `set_status` or `set_type` for a work item yourself. Running it
+again delivers only what is new. A failed publish never blocks the work item,
+but the ticket falls behind until it succeeds, and the ticket may be the team's
+audit trail: after a failure, run it again before moving on. An entry the
+tracker refuses outright is skipped and logged as a warning; tell the person
+which one.
 
 When the work belongs to another ticket (for example the ticket turned out to
 duplicate another), a person may move the work item there, on their word:
 
 ```sh
 swamp model @swamp/gatorwalk-factory/work-item method run retarget <key> \
-  --input 'externalRefs={"swamp-club":"<id>","swamp-club.display":"#<id>"}' \
+  --input 'externalRefs={"builtin":"<id>"}' \
   --input reason="<their words>" \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```

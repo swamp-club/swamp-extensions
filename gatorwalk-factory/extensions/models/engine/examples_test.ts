@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp, parseExample } from "../_lib/engine/fake_swamp.ts";
@@ -47,7 +47,6 @@ const EXPECTED: Record<string, string[]> = {
     "default-cycle-bound stages.0 (from stage 'plan')",
     "default-cycle-bound stages.2 (from stage 'implement')",
   ],
-  "swamp-club-swamp-extensions.yaml": [],
 };
 
 async function examples(): Promise<string[]> {
@@ -129,33 +128,6 @@ Deno.test("examples: every example but minimal has saved scenarios", async () =>
   );
 });
 
-Deno.test("examples: a changed gate message fails validate, naming the scenario and step", async () => {
-  const file = "swamp-club-swamp-extensions.yaml";
-  // conformance-review's conforms gate; bug-to-done pins its message.
-  const gate = "message: >-\n                  every step not implemented as " +
-    "planned needs a justification";
-  const message = "needs a justification";
-  const { swamp, name, scenarios } = await exampleFactory(file, (text) => {
-    assert(text.includes(gate));
-    return text.replace(gate, gate.replace(message, "needs a reason"));
-  });
-  const at = scenarios.findIndex((s) =>
-    (s as { scenario?: unknown }).scenario === "bug-to-done"
-  );
-  assert(at >= 0);
-  const error = await assertRejects(
-    () => factory.methods.validate.execute({}, swamp.context(name)),
-    Error,
-  );
-  assert(
-    error.message.includes(
-      `scenarios.${at} (bug-to-done) step 28 (move conforms): ` +
-        `expected a refusal mentioning "${message}"`,
-    ),
-    error.message,
-  );
-});
-
 Deno.test("examples: each description says what it is for and what to change first", async () => {
   for (const file of await examples()) {
     const description = (await readExample(file)).definition.description;
@@ -195,9 +167,7 @@ Deno.test("examples and fixtures: no definition file carries a comment", async (
 // A reviewer told not to soften, with no bar, rates logistics as high, and a
 // high finding sends the work round again with no person involved
 // (swamp-club #2781). So each review prompt carries a severity bar and asks
-// for fixes in proportion to the change. swamp-club-swamp-extensions.yaml
-// reimplements @swamp/issue-lifecycle and keeps that model's review
-// guidance, so it is left out.
+// for fixes in proportion to the change.
 const RUBRIC_EXAMPLES = ["build-swamp-extension.yaml", "starter.yaml"];
 
 interface ExampleStage {

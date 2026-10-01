@@ -27,10 +27,6 @@ const EXAMPLE_DIR = new URL(
 );
 
 const FILES: Record<string, URL> = {
-  "swamp-club-swamp-extensions": new URL(
-    "swamp-club-swamp-extensions.yaml",
-    EXAMPLE_DIR,
-  ),
   "build-swamp-extension": new URL("build-swamp-extension.yaml", EXAMPLE_DIR),
   "minimal": new URL("minimal.yaml", EXAMPLE_DIR),
   "starter": new URL("starter.yaml", EXAMPLE_DIR),

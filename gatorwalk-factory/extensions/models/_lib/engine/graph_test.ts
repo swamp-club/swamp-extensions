@@ -1361,22 +1361,22 @@ Deno.test("graph: pruning the count pass agrees with the full exploration on eve
       checked++;
     }
   }
-  assert(checked >= 7, `only ${checked} documents found`);
+  assert(checked >= 6, `only ${checked} documents found`);
 });
 
-Deno.test("graph: swamp-club-swamp-extensions at the default cycle limits finishes under the cap", async () => {
-  // Without pruning this is 716,220 count states, past the 100,000 cap.
-  const raw = parseExample(
-    await Deno.readTextFile(
-      new URL(`${EXAMPLES}swamp-club-swamp-extensions.yaml`, ROOT),
-    ),
-  ).definition as { stages: { maxCycles?: number }[] };
-  for (const stage of raw.stages) delete stage.maxCycles;
-  const doc = parsed(raw, "swamp-club-swamp-extensions without maxCycles");
-  const { pruned, full } = assertPruningExact(
-    doc,
-    "swamp-club-swamp-extensions without maxCycles",
+Deno.test("graph: seven self-loops at the default cycle limit finish under the cap", () => {
+  // Each stage loops on itself up to the default limit, so the unpruned count
+  // pass multiplies the loops: 175,780 count states, past the 100,000 cap.
+  const stages = Array.from({ length: 7 }, (_, i) =>
+    `  - id: s${i}\n` +
+    (i === 0 ? "    initial: true\n" : "") +
+    "    transitions:\n" +
+    `      - { name: next, to: ${i < 6 ? `s${i + 1}` : "done"} }\n` +
+    `      - { name: again, to: s${i} }`);
+  const doc = definition(
+    `stages:\n${stages.join("\n")}\n  - id: done\n    terminal: true\n`,
   );
+  const { pruned, full } = assertPruningExact(doc, "seven self-loops");
   assert(
     full.statesExplored.counts > 100_000,
     JSON.stringify(full.statesExplored),

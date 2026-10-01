@@ -19,7 +19,7 @@ definition:
   stages:
     - id: plan
       initial: true
-      tracker: { status: triaged }
+      tracker: { status: open }
       description: Plan the change.
       work:
         mode: interactive
@@ -73,7 +73,7 @@ definition:
               config: { artifact: plan }
 
     - id: plan-review
-      tracker: { status: triaged }
+      tracker: { status: open }
       description: >-
         Adversarial review of the current plan. Open blocking findings send it
         back; none lets it through. With nothing blocking, approving carries the

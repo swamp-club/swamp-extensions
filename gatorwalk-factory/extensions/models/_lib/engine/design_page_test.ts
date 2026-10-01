@@ -134,7 +134,7 @@ async function shippedDefinitions(): Promise<[string, FactoryDefinition][]> {
 
 Deno.test("design page: every shipped definition renders its stages, transitions, gates and human stops", async () => {
   const definitions = await shippedDefinitions();
-  assert(definitions.length >= 7, `found ${definitions.length}`);
+  assert(definitions.length >= 6, `found ${definitions.length}`);
   for (const [file, lc] of definitions) {
     const { view, html } = await render(lc);
     const nodes = declaredNodes(view.diagrams.all);
@@ -200,9 +200,9 @@ Deno.test("design page: findings-clear and findings-open read as opposites", () 
   );
 });
 
-Deno.test("design page: the swamp-club-swamp-extensions definition shows its handoffs", async () => {
+Deno.test("design page: the build-swamp-extension definition shows its handoffs", async () => {
   const text = await Deno.readTextFile(
-    new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
+    new URL("build-swamp-extension.yaml", SHIPPED[0]),
   );
   const lc = example(text);
   const { view, html } = await render(lc);
@@ -410,10 +410,10 @@ Deno.test("design page: loops back and global transitions are layers, both off a
   }
 });
 
-Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first", async () => {
+Deno.test("design page: build-swamp-extension draws its forward flow first", async () => {
   const lc = example(
     await Deno.readTextFile(
-      new URL("swamp-club-swamp-extensions.yaml", SHIPPED[0]),
+      new URL("build-swamp-extension.yaml", SHIPPED[0]),
     ),
   );
   const { view } = await render(lc);
@@ -421,17 +421,15 @@ Deno.test("design page: swamp-club-swamp-extensions draws its forward flow first
     s.transitions.filter((t) => t.loop).map((t) => `${s.id}.${t.name}`)
   );
   assertEquals(loopNames, [
-    "reproduce.reclassify",
     "plan-review.rework",
     "plan-review.revise",
-    "conformance-review.rework",
-    "verify.failed",
-    "verify.revise",
-    "attest.revise",
-    "merge.new-pr",
-    "merge.rework",
+    "check.failed",
+    "check.quality-failed",
+    "code-review.rework",
+    "code-review.revise",
+    "release.rework",
   ]);
-  // recheck skips conformance review; it goes forward, not back.
+  // recheck checks the same commit again; it goes forward, not back.
   const implement = view.stages.find((s) => s.id === "implement");
   assertFalse(implement?.transitions.find((t) => t.name === "recheck")?.loop);
   // abandoned is entered only by the global abandon, so it waits for that

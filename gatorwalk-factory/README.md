@@ -39,6 +39,7 @@ extensions/models/
     builtin.ts            the built-in tracker model type
     linear.ts             the Linear tracker adapter model type
     swamp_club.ts         the swamp-club Lab tracker adapter model type
+                          (swamp-club team only)
   boundary_test.ts        the seam: engine and tracker code keep apart
   _lib/
     engine/
@@ -87,8 +88,10 @@ extensions/models/
         builtin.ts            the built-in tracker: tickets in swamp data
         linear.ts             the Linear GraphQL client
         linear_fake.ts        a local fake of Linear's API, for tests
-        swamp_club.ts         the swamp-club Lab REST client
-        swamp_club_fake.ts    a local fake of the Lab API, for tests
+        swamp_club.ts         the swamp-club Lab REST client (swamp-club
+                              team only)
+        swamp_club_fake.ts    a local fake of the Lab API, for tests (swamp-club
+                              team only)
 extensions/reports/
   work_item_summary_report.ts  the summary report, run after `summary`
 integration/              the real-engine suite: gatorwalk through the swamp CLI
@@ -102,8 +105,7 @@ integration/              the real-engine suite: gatorwalk through the swamp CLI
   references/             authoring (authoring.md), driving in full, and saved
                           scenarios (scenarios.md)
     examples/             the examples to start from (each a definition block
-                          and its saved scenarios), a worked example, and the
-                          swamp-club-swamp-extensions mapping (a .md)
+                          and its saved scenarios), and a worked example (a .md)
 studio/                   the studio page's source
   src/                    the page (Preact): index.html, studio.css, app.tsx,
                           its views (graph, inspector, findings, source), and
@@ -180,7 +182,7 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   [DESIGN.md](DESIGN.md), "The publisher".
 - **A stage may list tracker entries**, `tracker.entries`, new in
   gatorwalk: which of its journal events become structured entries in the
-  ticket's history (the Lab's lifecycle entries). Each has a trigger
+  ticket's history. Each has a trigger
   (`on:
   enter`, `on: { record: <product> }` or `on: { approve: <gate id> }`),
   a `step`, `emoji` and `summary` (whose `{{field}}` placeholders are fields of
@@ -235,7 +237,7 @@ what to change first, and each example passes the factory type's schema and
 - `minimal.yaml`: one stage of work, then done.
 - `starter.yaml`: a general change, from plan through plan review, implement,
   verify and code review to release.
-- `build-swamp-extension.yaml` and `swamp-club-swamp-extensions.yaml`, below.
+- `build-swamp-extension.yaml`, below.
 
 `build-swamp-extension.yaml` takes a change to a swamp extension from plan to
 release:
@@ -264,47 +266,11 @@ plan → plan-review → implement → check → code-review → release → don
 
 This is the tier 1 factory definition and gatorwalk-factory's own process.
 
-`swamp-club-swamp-extensions.yaml` is a real-world example, to read rather than
-copy whole: the process this repository runs with `@swamp/issue-lifecycle` and
-its verification conventions, from a Lab issue to the session summary:
-
-```
-triage → [reproduce] → plan → plan-review → implement → conformance-review
-  → verify → attest → pull-request → merge → release → notify → summary
-  → done
-```
-
-- **It drives a Lab issue as issue-lifecycle does.** Through the swamp-club
-  adapter (`@swamp/gatorwalk-factory/swamp-club`), `publish` moves the issue's
-  status, writes issue-lifecycle's lifecycle entries under the same step names
-  and sets the type from the classification; `attest` and `notify` post the
-  attestation and the thank-you through the adapter. issue-lifecycle stays and
-  drives every other issue: the adapter's `claim` refuses an issue it already
-  drives. `swamp-club-swamp-extensions.md` lists each entry and where its
-  summary differs.
-- **People decide at six points:** a bug that cannot be reproduced, plan
-  approval, the verification checklist, opening the pull request, what to do
-  after a failed pull request, and abandoning the work. Five are approvals;
-  after a failed pull request the person picks one of two manual exits.
-- **Verification runs as one workflow stage.** Its wrapper workflow,
-  `verification/workflow-verify.yaml`, runs verify-build and verify-reviews at
-  the same time as nested runs. The stage records one outcome with both runs in
-  it. This is how a factory definition, which is in one stage at a time, runs
-  things in parallel; see DESIGN.md, "Parallel work inside one stage". Every
-  exit from verification to the merge is bound to the commit in
-  `change-summary`.
-
-These two and `starter.yaml` name a status key on their stages, using the Lab's
-own status names: the planning stages are `triaged`
-(swamp-club-swamp-extensions' `triage` stage has no key, so the issue's status
-is left alone while it is triaged), the work through release is `in_progress`,
-`done` is `shipped` (in swamp-club-swamp-extensions, also `notify` and
-`summary`), and `abandoned` is `closed`. The Lab adapter maps them as they are;
-a Linear instance maps them to its team's names.
-
-`swamp-club-swamp-extensions.md` is not a factory definition. It maps every
-phase, gate and human stop of today's process onto the format, and lists what
-the format could not express.
+`build-swamp-extension.yaml` and `starter.yaml` name a status key on their
+stages, using the built-in tracker's default statuses: the planning stages are
+`open`, the work through release is `in_progress`, `done` is `shipped`, and
+`abandoned` is `closed`. The built-in tracker takes them as they are; a Linear
+instance maps them to its team's names.
 
 ## Saved scenarios
 
@@ -321,7 +287,7 @@ creates them. One entry:
 ```yaml
 scenario: plan-waits-for-approval
 description: A reviewed plan waits for a person's approval, then goes on to implement.
-externalRefs: { swamp-club: "2805" }
+externalRefs: { builtin: "ext-add-list-r2ne" }
 steps:
   - record: { artifact: plan }
     payload:
@@ -386,9 +352,9 @@ you do.
 
 `deno task test` runs the unit tests against fakes, and the studio page's tests
 on the skill's example definitions. It needs read access, network access to
-127.0.0.1 only, where the tracker tests serve fakes of Linear's and swamp-club's
-APIs, and the environment variables `LOG_TOKENS` and `LOG_STREAM` only, which
-the `yaml` package the page uses reads. `deno task test:integration` runs gatorwalk
+127.0.0.1 only, where the tracker tests serve fakes of the trackers' APIs, and
+the environment variables `LOG_TOKENS` and `LOG_STREAM` only, which the `yaml`
+package the page uses reads. `deno task test:integration` runs gatorwalk
 through the installed `swamp` CLI, each test in a throwaway swamp repo. It fails
 if `swamp` is not on `PATH`. It uses your swamp config and login and deno's npm
 cache, and needs no network once that cache is warm. See [DESIGN.md](DESIGN.md),
@@ -536,7 +502,7 @@ work-item key rules, with no counter. A ticket's `issue-<id>` record is the
 ticket itself. A new ticket starts in the first status, and a ticket may move
 between any two statuses; `statuses` keys are also the status names, so a
 factory definition's status keys name them directly. It keeps lifecycle
-entries and the ticket type, like the Lab, so `publish` writes entries for a
+entries and the ticket type, so `publish` writes entries for a
 factory definition that declares them, and `set_type` sets a type by hand. A
 ticket has assignees, swamp usernames: `publish` assigns your stored login's
 user when it delivers the work item's start.
@@ -576,7 +542,7 @@ swamp vault put secrets linear-token          # prompts for the key
 swamp model create @swamp/gatorwalk-factory/linear linear --json
 # In the printed definition file, set globalArguments:
 #   apiToken: ${{ vault.get(secrets, linear-token) }}
-#   statuses: { triaged: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
+#   statuses: { open: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
 #   teamId: <the team create files issues in>
 #   types: { bug: Bug, feature: Feature }
 swamp model method run linear fetch_issue --input issue=ABC-1
@@ -608,16 +574,22 @@ start. The work item's `status` reads that instance's publish cursor, with no
 network call, and says `tracker '<instance>' behind by N event(s)` while
 `publish` has events to deliver.
 
-## swamp-club Lab
+## swamp-club Lab (swamp-club team only)
 
-`@swamp/gatorwalk-factory/swamp-club` connects a swamp-club server. It uses the
-same key as swamp and issue-lifecycle: the `apiKey` global argument if set,
-otherwise `SWAMP_API_KEY`, otherwise your `swamp auth login` (whose key is only
-ever sent to the server you logged in to). Status moves past open or closed,
+The swamp-club Lab tracker is for the swamp-club team's own repositories. It
+drives swamp-club Lab issues and needs a swamp-club team account, so it is not
+an option for anyone else: use the built-in tracker or Linear.
+
+`@swamp/gatorwalk-factory/swamp-club` connects a swamp-club server, for the
+swamp-club team. It uses the same key as swamp and issue-lifecycle: the
+`apiKey` global argument if set, otherwise `SWAMP_API_KEY`, otherwise your
+`swamp auth login` (whose key is only ever sent to the server you logged in
+to). Status moves past open or closed,
 assignment, attestations, lifecycle entries, the type and the team check need an
 admin key. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
 
 ```bash
+# swamp-club team only
 swamp model create @swamp/gatorwalk-factory/swamp-club lab --json
 swamp model method run lab fetch_issue --input issue=2631
 swamp model method run lab create --input title="A new issue" \
@@ -631,35 +603,33 @@ swamp model method run lab team_member --input issue=2631
 swamp model method run lab thank_author --input issue=2631
 ```
 
-`publish` assigns the issue to your stored login's user when it delivers the
-work item's start, so you need not run `assign`; it tries once, and if it
-cannot (no login, a login for another server) it warns and goes on. `assign`
-is for assigning someone else, or by hand.
-`assign` without `username` assigns your stored login's user, and only on the
-server that login is for. It drops, and names, any assignee no longer on
-swamp-club's team, since swamp-club refuses the whole list otherwise. `comment`
-posts a ripple. Statuses only move forward, one step at a time, which
-`set_status` walks for you; moving back is refused. `publish` works as it does
-for Linear (above), and skips a status move the issue cannot make, such as back
-to `triaged` after a reset, rather than failing. For a factory definition that
-declares tracker entries it writes lifecycle entries instead of ripples, and
-the type an entry reads (`setsType`) just before it; it is the only writer of a
-work item's status and type. `claim` refuses an issue that issue-lifecycle
-drives in the repository (an instance `issue-<N>`), even a finished one.
-`post_attestation` posts an attestation built elsewhere (`deno task
-build-attestation`), and posting the same one again for a commit writes nothing.
-`create` files an issue of type feature, bug or security (platform needs an
-admin key) and records it from swamp-club's reply. `fetch_issue` records the
-issue's body, type, author and ripples too. `set_type`
-sets the type by hand. `team_member` says whether the issue's author is on
-swamp-club's team, failing rather than guessing when a lookup fails.
-`relate` and `unrelate` (see "Built-in tracker") take issue numbers;
-`blocked_by` needs an admin key, as do relations on another user's issues,
-and `duplicate_of` leaves the issue's status alone.
-`thank_author` posts issue-lifecycle's thank-you ripple to an author outside the
-team and skips a team member; a failed lookup posts nothing, and `force=true`
-skips only the team check. `assign` also records issue-lifecycle's `assigned`
-entry, best effort.
+For the swamp-club team: `publish` assigns the issue to your stored login's user
+when it delivers the work item's start, so you need not run `assign`; it tries
+once, and if it cannot (no login, a login for another server) it warns and goes
+on. `assign` is for assigning someone else, or by hand. `assign` without
+`username` assigns your stored login's user, and only on the server that login
+is for. It drops, and names, any assignee no longer on swamp-club's team, since
+swamp-club refuses the whole list otherwise. `comment` posts a ripple. Statuses
+only move forward, one step at a time, which `set_status` walks for you; moving
+back is refused. `publish` works as it does for Linear (above), and skips a
+status move the issue cannot make, such as back to `triaged` after a reset,
+rather than failing. For a factory definition that declares tracker entries it
+writes lifecycle entries instead of ripples, and the type an entry reads
+(`setsType`) just before it; it is the only writer of a work item's status and
+type. `claim` refuses an issue that issue-lifecycle drives in the repository (an
+instance `issue-<N>`), even a finished one. `post_attestation` posts an
+attestation built elsewhere (`deno task build-attestation`), and posting the
+same one again for a commit writes nothing. `create` files an issue of type
+feature, bug or security (platform needs an admin key) and records it from
+swamp-club's reply. `fetch_issue` records the issue's body, type, author and
+ripples too. `set_type` sets the type by hand. `team_member` says whether the
+issue's author is on swamp-club's team, failing rather than guessing when a
+lookup fails. `relate` and `unrelate` (see "Built-in tracker") take issue
+numbers; `blocked_by` needs an admin key, as do relations on another user's
+issues, and `duplicate_of` leaves the issue's status alone. `thank_author` posts
+issue-lifecycle's thank-you ripple to an author outside the team and skips a
+team member; a failed lookup posts nothing, and `force=true` skips only the team
+check. `assign` also records issue-lifecycle's `assigned` entry, best effort.
 
 ## Start from a ticket
 
@@ -667,22 +637,23 @@ Every tracker adapter has `claim`, which starts a work item from a ticket and
 makes sure the same ticket never starts two at once:
 
 ```bash
-swamp model method run lab claim --input issue=2631 --input factory=team
+swamp model method run board claim --input issue=ext-add-list-r2ne \
+  --input factory=team
 ```
 
 With no work item for the ticket, `claim` reserves a fresh key (the ticket's
-display id, then its title, then a random suffix: `2631-lab-adapter-r2ne`; a
-built-in ticket's first work item takes the ticket's own id), records it in
-the adapter's ticket index (`ticket-<stable id>`), and prints the work-item
-`start` command to run, with the ticket's `externalRefs`. The record is written
-before the work item starts, so if anything fails in between, `claim` again
-hands back the same key and command. Once the work item has started, `claim`
-names it and its stage. Once it has finished, the ticket can claim a new one;
-the record keeps the earlier keys. `factory` is needed only when a new key is
-reserved. `claim` never writes to the tracker, and a refused claim writes
+display id, then its title, then a random suffix: `abc-12-add-list-k3xq` for a
+Linear issue; a built-in ticket's first work item takes the ticket's own id),
+records it in the adapter's ticket index (`ticket-<stable id>`), and prints the
+work-item `start` command to run, with the ticket's `externalRefs`. The record
+is written before the work item starts, so if anything fails in between, `claim`
+again hands back the same key and command. Once the work item has started,
+`claim` names it and its stage. Once it has finished, the ticket can claim a new
+one; the record keeps the earlier keys. `factory` is needed only when a new key
+is reserved. `claim` never writes to the tracker, and a refused claim writes
 nothing. A repeat claim refreshes only the ticket's snapshot, not the index
-record, so read the key with `swamp data get lab ticket-2631 --json`. See
-[DESIGN.md](DESIGN.md), "Start from a ticket".
+record, so read the key with `swamp data get board ticket-ext-add-list-r2ne
+--json`. See [DESIGN.md](DESIGN.md), "Start from a ticket".
 
 ## Authoring a factory
 

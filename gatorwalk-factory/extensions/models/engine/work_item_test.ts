@@ -924,11 +924,10 @@ Deno.test("status: a run naming no pinned definition version fails clearly", asy
   );
 });
 
-Deno.test("swamp-extensions: a feature from triage to done through the work-item operations, with CLI string inputs, retargeted on the way", async () => {
-  // The methods run on the system clock, and merge waits three minutes
-  // after the pull request. So this calls the operations the methods wrap,
-  // with the methods' own argument schemas and a clock the test moves.
-  const item = "swamp-extensions-abcdefgh";
+Deno.test("build-swamp-extension: plan to done through the work-item operations, with CLI string inputs, retargeted on the way", async () => {
+  // This calls the operations the methods wrap, with the methods' own
+  // argument schemas and a clock the test moves.
+  const item = "build-swamp-extension-abcdefgh";
   let ms = Date.UTC(2026, 8, 28, 12, 0, 0);
   const env: Env = {
     now: () => new Date(ms += 1000).toISOString(),
@@ -940,7 +939,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     parseExample(
       await Deno.readTextFile(
         new URL(
-          "../../../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
+          "../../../.claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
           import.meta.url,
         ),
       ),
@@ -972,101 +971,39 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
         }),
       env,
     );
-  const go = async (transition: string, confirm?: string) =>
+  const go = async (transition: string) =>
     advanceMethod(
       ctx(),
       methods.advance.arguments.parse({
         transition,
-        ...(confirm !== undefined ? { confirm } : {}),
         ...await expectation(),
       }),
       env,
     );
-  const approve = async (
-    gateId: string,
-    decision: "approve" | "decline" = "approve",
-  ) =>
+  const approve = async (gateId: string) =>
     decide(
       ctx(),
-      decision,
+      "approve",
       methods.approve.arguments.parse({ gateId, ...await expectation() }),
       env,
     );
-  const packet = async () => {
-    const packet = (await describeStatus(ctx(), env)).dispatch;
-    assert(packet !== null);
-    return packet;
-  };
 
   await startWorkItem(
     ctx(),
     methods.start.arguments.parse({
       factory: "team",
-      externalRefs: JSON.stringify({
-        "swamp-club": "2630",
-        "swamp-club.display": "#2630",
-      }),
+      externalRefs: JSON.stringify({ builtin: "ext-add-list-r2ne" }),
     }),
     env,
   );
-  await record("evidence", "classification", {
-    type: "feature",
-    confidence: "high",
-    reasoning: "New definition",
-    isRegression: false,
-  });
-  await go("feature");
-  const unplanned = await assertRejects(() => go("submit"), Error);
-  assert(
-    unplanned.message.includes("artifact 'plan' has not been recorded") &&
-      !unplanned.message.includes("could not evaluate"),
-    unplanned.message,
-  );
   await record("artifact", "plan", {
-    summary: "Add the definition",
-    scopeAnalysis: "gatorwalk-factory only",
-    steps: [{ order: 1, description: "Write it", files: ["x.yaml"] }],
-    testingStrategy: "FactoryDefinition tests",
+    summary: "Add list",
+    steps: [{ description: "Add list", files: ["x.ts"] }],
+    testingStrategy: "Unit tests",
+    versionBump: { needed: true, reason: "New method" },
   });
   await go("submit");
-  await record("artifact", "plan-review", {
-    findings: [{
-      id: "ADV-1",
-      severity: "low",
-      category: "scope",
-      description: "No scenario",
-    }],
-  });
-
-  // A person declines with feedback (swamp-club #2873): the old plan cannot
-  // be submitted again, and the second review is given the first and the
-  // feedback.
-  await approve("plan-approval", "decline");
-  await record("evidence", "plan-feedback", { feedback: "Add a scenario" });
-  await go("revise", "true");
-  await assertRejects(() => go("submit"), Error, "an earlier cycle");
-  await record("artifact", "plan", {
-    summary: "Add the definition and a scenario",
-    scopeAnalysis: "gatorwalk-factory only",
-    steps: [{ order: 1, description: "Write it", files: ["x.yaml"] }],
-    testingStrategy: "FactoryDefinition tests",
-    feedbackIncorporated: ["Add a scenario"],
-  });
-  await go("submit");
-  const review = await packet();
-  assertEquals([review.stage, review.cycle], ["plan-review", 2]);
-  assertEquals(review.inject, ["plan", "plan-review", "plan-feedback"]);
-  await record("artifact", "plan-review", {
-    findings: [
-      {
-        id: "ADV-1",
-        severity: "low",
-        category: "scope",
-        description: "No scenario",
-        resolved: true,
-      },
-    ],
-  });
+  await record("artifact", "plan-review", { findings: [] });
   await approve("plan-approval");
   await go("approve");
 
@@ -1078,8 +1015,8 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await retargetMethod(
     ctx(),
     methods.retarget.arguments.parse({
-      externalRefs: '{"swamp-club": "2631", "swamp-club.display": "#2631"}',
-      reason: "2630 duplicates 2631",
+      externalRefs: '{"builtin": "ext-list-k3xq"}',
+      reason: "ext-add-list-r2ne duplicates ext-list-k3xq",
       onBehalfOf: "seth",
       ...await expectation(),
     }),
@@ -1087,10 +1024,7 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   );
   const after = await loadRun(contextStore(ctx()));
   assert(after !== null);
-  assertEquals(after.externalRefs, {
-    "swamp-club": "2631",
-    "swamp-club.display": "#2631",
-  });
+  assertEquals(after.externalRefs, { builtin: "ext-list-k3xq" });
   for (
     const field of [
       "stage",
@@ -1108,95 +1042,51 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   assertEquals((await describeStatus(ctx(), env)).exits, exitsBefore);
   const moved = after.journal.at(-1);
   assert(moved?.type === "retargeted");
-  assertEquals(moved.from, {
-    "swamp-club": "2630",
-    "swamp-club.display": "#2630",
-  });
-  assertEquals(moved.reason, "2630 duplicates 2631");
+  assertEquals(moved.from, { builtin: "ext-add-list-r2ne" });
+  assertEquals(moved.reason, "ext-add-list-r2ne duplicates ext-list-k3xq");
   assertEquals(moved.actor.asserted, "seth");
   assertEquals([moved.stage, moved.cycle], ["implement", 1]);
 
   await record("artifact", "change-summary", {
-    summary: "Added the definition",
+    summary: "Added list",
     commit: SHA,
-    branch: "gw",
-    files: ["x.yaml"],
+    files: ["x.ts"],
+    manifestVersion: "2026.09.28.1",
   });
   await go("submit");
-  assertEquals((await packet()).inject, [
-    "plan",
-    "plan-review",
-    "change-summary",
-  ]);
-  await record("artifact", "conformance", {
-    steps: [{ order: 1, status: "implemented", description: "Written" }],
-  });
-  await go("conforms");
-  await record("evidence", "verification", {
-    status: "succeeded",
-    runId: "w1",
+  await record("evidence", "checks", {
     commit: SHA,
-    buildStatus: "succeeded",
-    buildRunId: "b1",
-    reviewsStatus: "succeeded",
-    reviewsRunId: "v1",
+    status: "passed",
+    results: [{ name: "test", status: "passed" }],
   });
-  await approve("checklist-confirmed");
+  await record("evidence", "quality", {
+    commit: SHA,
+    status: "passed",
+    allPassed: true,
+  });
   await go("passed");
-  await record("evidence", "attestation", {
-    attestationId: "a-1",
+  await record("artifact", "code-review", { findings: [] });
+  await approve("release-approval");
+  await go("accept");
+  await record("evidence", "release", {
+    via: "registry-push",
     commit: SHA,
-    buildRunId: "b1",
-    reviewsRunId: "v1",
+    url: "https://registry.example.com/extensions/@me/thing",
+    version: "2026.09.28.1",
   });
-  await approve("open-pr");
-  await go("attested");
-  await record("evidence", "pull-request", {
-    url: "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346",
-    commit: SHA,
-  });
-  await go("opened");
-  await record("evidence", "merge", {
-    status: "merged",
-    mergeCommit: "8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde",
-  });
-  await assertRejects(() => go("merged"), Error, "cooldown");
-  ms += 180_000;
-  await go("merged");
-  await record("evidence", "release", { outcome: "completed" });
   await go("released");
-  // The notify stage reads the ticket from item.externalRefs: the new one,
-  // and thanks the author for what was committed, not what was planned.
-  const notify = await packet();
-  assertEquals(notify.values.issue, "2631");
-  assertEquals(notify.values.summary, "Added the definition");
-  await record("evidence", "notification", {
-    action: "skipped",
-    author: "skunk-ape",
-    reason: "on the swamp-club team",
-  });
-  await go("notified");
-  await record("artifact", "summary", {
-    originalProblem: "No definition for this repo",
-    deliveredOutcome: "swamp-club-swamp-extensions.yaml",
-    outcomeMet: true,
-  });
-  await go("finish");
 
   const run = await loadRun(contextStore(ctx()));
   assert(run !== null);
   assertEquals(run.stage, "done");
   assertEquals(run.status, "terminal");
-  assertEquals(run.externalRefs, {
-    "swamp-club": "2631",
-    "swamp-club.display": "#2631",
-  });
+  assertEquals(run.externalRefs, { builtin: "ext-list-k3xq" });
   await summary(ctx(), env);
   const markdown = String(swamp.logs.at(-1)?.props?.summary);
   for (
     const expected of [
-      "- **Tracker:** swamp-club 2631, swamp-club.display #2631",
-      "- **Previously:** swamp-club 2630, swamp-club.display #2630",
+      "- **Tracker:** builtin ext-list-k3xq",
+      "- **Previously:** builtin ext-add-list-r2ne",
     ]
   ) {
     assert(markdown.includes(expected), `missing ${expected}\n${markdown}`);

@@ -518,7 +518,7 @@ swamp model @swamp/gatorwalk-factory/work-item method run dispatch <key> \
   --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/gatorwalk-factory/work-item method run record_evidence <key> \
   --input name=release \
-  --input payload='{"via":"pull-request","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","mergeCommit":"9e1f0c7b3a5d2e4f6a8b0c1d3e5f7a9b1c3d5e7f","url":"https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/400","pullRequest":"https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/400","attestationId":"att-0001"}' \
+  --input payload='{"via":"pull-request","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","mergeCommit":"9e1f0c7b3a5d2e4f6a8b0c1d3e5f7a9b1c3d5e7f","url":"https://git.example.com/me/thing/pulls/400","pullRequest":"https://git.example.com/me/thing/pulls/400","attestationId":"att-0001"}' \
   --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 ```
 

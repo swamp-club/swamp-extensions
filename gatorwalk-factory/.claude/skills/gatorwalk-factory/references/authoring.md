@@ -206,10 +206,9 @@ to start the next one.
 ## The tracker
 
 Offer only the built-in tracker and Linear. Never offer or set up the swamp-club
-Lab tracker (`@swamp/gatorwalk-factory/swamp-club`) or the
-`swamp-club-swamp-extensions` example: they are for the swamp-club team's own
-repositories, not for anyone else. When an example's description mentions the
-Lab or swamp-club issues, remove that from the copy.
+Lab tracker (`@swamp/gatorwalk-factory/swamp-club`): it is for the swamp-club
+team's own repositories and needs a swamp-club team account, so it is not an
+option for anyone else.
 
 Create the tracker's adapter instance once per project, next to the factory. The
 factory names it (its `tracker` argument), and `validate` refuses the factory
@@ -225,11 +224,11 @@ swamp model create @swamp/gatorwalk-factory/tracker <tracker> \
   --global-arg prefix=<prefix> --json
 ```
 
-Its statuses default to `open`, `in_progress`, `shipped` and `closed`. Every
-`tracker: { status: <key> }` in the definition must be one of them, or `publish`
-refuses that stage. The examples use `triaged` for their first stages, so either
-change those keys to `open`, or add a `statuses` list to the tracker's global
-arguments that has every key the definition uses.
+Its statuses default to `open`, `in_progress`, `shipped` and `closed`, the keys
+the examples use. Every `tracker: { status: <key> }` in the definition must be
+one of them, or `publish` refuses that stage. To use other keys, add a
+`statuses` list to the tracker's global arguments that has every key the
+definition uses.
 
 **Linear**: add `tracker: { kind: linear }` at the top of the definition, create
 the instance, then set its global arguments in the model file that

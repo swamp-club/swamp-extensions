@@ -29,7 +29,6 @@ import {
   BUILD_DEFINITION,
   FACTORY_TYPE,
   readExample,
-  SWAMP_EXTENSIONS_DEFINITION,
   type SwampRepo,
   withRepo,
   WORK_ITEM_TYPE,
@@ -153,30 +152,11 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
   });
 });
 
-Deno.test("cli: swamp-club-swamp-extensions validates on the real engine, and a work item starts on it", async () => {
-  await withRepo(async (repo) => {
-    const { definition } = await readExample(SWAMP_EXTENSIONS_DEFINITION);
-    await repo.factory("process", definition);
-    const ok = await repo.factoryMethod("process", "validate");
-    assert(
-      ok.output.includes(
-        "factory 'process' is valid",
-      ),
-      ok.output,
-    );
-    const key = await repo.newKey("process", "Integration work");
-    await repo.workItem(key, "start", { factory: "process" });
-    assertEquals((await repo.expected(key)).expectedStage, "triage");
-  });
-});
-
 Deno.test("cli: validate runs the factory's saved scenarios and names a failing step", async () => {
   await withRepo(async (repo) => {
-    const { definition, scenarios } = await readExample(
-      SWAMP_EXTENSIONS_DEFINITION,
-    );
+    const { definition, scenarios } = await readExample(BUILD_DEFINITION);
     const saved = scenarios.find((s) =>
-      (s as { scenario?: unknown }).scenario === "bug-to-done"
+      (s as { scenario?: unknown }).scenario === "plan-churn"
     );
     assert(saved !== undefined);
     await repo.factory("process", definition, { scenarios: [saved] });
@@ -187,7 +167,10 @@ Deno.test("cli: validate runs the factory's saved scenarios and names a failing 
     );
 
     const changed = JSON.parse(
-      JSON.stringify(saved).replace("needs a justification", "needs a reason"),
+      JSON.stringify(saved).replace(
+        "cycle override for 'plan'",
+        "needs a reason",
+      ),
     );
     await repo.editFactory("process", definition, [changed]);
     const failed = await repo.factoryMethod("process", "validate", {
@@ -196,7 +179,7 @@ Deno.test("cli: validate runs the factory's saved scenarios and names a failing 
     assertNotEquals(failed.code, 0);
     assert(
       failed.output.includes(
-        "scenarios.0 (bug-to-done) step 28 (move conforms): " +
+        "scenarios.0 (plan-churn) step 16 (move revise): " +
           'expected a refusal mentioning "needs a reason"',
       ),
       failed.output,
@@ -204,9 +187,9 @@ Deno.test("cli: validate runs the factory's saved scenarios and names a failing 
   });
 });
 
-Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as an HTML file", async () => {
+Deno.test("cli: design_page stores the build-swamp-extension definition as an HTML file", async () => {
   await withRepo(async (repo) => {
-    const { definition } = await readExample(SWAMP_EXTENSIONS_DEFINITION);
+    const { definition } = await readExample(BUILD_DEFINITION);
     await repo.factory("process", definition);
     const run = await repo.factoryMethod("process", "design_page");
     assert(
@@ -232,7 +215,7 @@ Deno.test("cli: design_page stores the swamp-club-swamp-extensions definition as
     assertEquals(page.tags.specName, "design-page");
     assert(page.content.startsWith("<!doctype html>"));
     assert(page.content.includes("<h1>process</h1>"));
-    assert(page.content.includes('id="stage-triage"'));
+    assert(page.content.includes('id="stage-plan-review"'));
   });
 });
 

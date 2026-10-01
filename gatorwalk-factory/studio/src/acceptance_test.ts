@@ -24,20 +24,20 @@ import { referenceLine } from "./reference.ts";
 import { findingTarget, follow, type Target } from "./selection.ts";
 import { exampleText, loadOk, modelPath } from "./test_support.ts";
 
-const FILE = modelPath("swamp-club-swamp-extensions");
+const FILE = modelPath("build-swamp-extension");
 // As the model definition file holds them: four spaces in, under
 // globalArguments.definition.
 const EXIT = "          - name: submit\n            to: plan-review\n";
 const SHORTCUT = "          - name: shortcut\n            to: implement\n";
 
 Deno.test("acceptance: adding an exit from plan to implement shows its findings and marks plan", async () => {
-  const text = await exampleText("swamp-club-swamp-extensions");
+  const text = await exampleText("build-swamp-extension");
   assertEquals(
     text.split(EXIT).length,
     2,
     "the plan stage's exit is where the test expects",
   );
-  const before = await loadOk("swamp-club-swamp-extensions", text);
+  const before = await loadOk("build-swamp-extension", text);
   const codes = (l: typeof before) => new Set(l.findings.map((f) => f.code));
   assert(!codes(before).has("ambiguous-exit"));
 
@@ -46,7 +46,7 @@ Deno.test("acceptance: adding an exit from plan to implement shows its findings 
   const selected: Target = { kind: "stage", stage: "implement" };
 
   const after = await loadOk(
-    "swamp-club-swamp-extensions",
+    "build-swamp-extension",
     text.replace(EXIT, EXIT + SHORTCUT),
   );
   assert(codes(after).has("ambiguous-exit"));

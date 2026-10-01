@@ -35,7 +35,7 @@ Deno.test("changes: an edited stage and a new stage are marked until seen", () =
 });
 
 Deno.test("changes: fingerprints follow a stage's spec, and the global transitions", async () => {
-  const { definition } = await loadOk("swamp-club-swamp-extensions");
+  const { definition } = await loadOk("build-swamp-extension");
   const before = fingerprints(definition);
   const plan = definition.stages.find((s) => s.id === "plan")!;
   plan.transitions = [...plan.transitions ?? [], {

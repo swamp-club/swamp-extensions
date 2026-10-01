@@ -34,7 +34,7 @@ definition:
   stages:
     - id: plan
       initial: true
-      tracker: { status: triaged }
+      tracker: { status: open }
       description: Plan the change to the extension.
       work:
         mode: interactive
@@ -95,7 +95,7 @@ definition:
               config: { artifact: plan }
 
     - id: plan-review
-      tracker: { status: triaged }
+      tracker: { status: open }
       description: >-
         Adversarial review of the current plan. Approval needs a fresh review
         with no open critical or high findings and a person's sign-off; open
@@ -580,6 +580,6 @@ scenarios:
         payload:
           via: registry-push
           commit: c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd
-          url: https://swamp-club.com/extensions/@me/thing
+          url: https://registry.example.com/extensions/@me/thing
           version: 2026.09.28.1
       - expect: { stage: release }

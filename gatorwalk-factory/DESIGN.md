@@ -223,9 +223,8 @@ The swamp workflows that do a stage's work are acyclic (they have no loops),
 which is why parallel work belongs there (#2699; see "Parallel work inside one
 stage"). Looping happens between stages; concurrency happens inside one.
 
-The examples are from `build-swamp-extension.yaml` and
-`swamp-club-swamp-extensions.yaml`, under
-`.claude/skills/gatorwalk-factory/references/examples/`, except where marked.
+The examples are from `build-swamp-extension.yaml`, under
+`.claude/skills/gatorwalk-factory/references/examples/`.
 
 ### A loop is an ordinary transition back
 
@@ -275,10 +274,9 @@ A way back either reads the run data or waits for a person:
 ### The cycle limit
 
 A stage may be entered `maxCycles` times, 5 by default, plus once per cycle
-override granted for it. `advance` refuses the entry past that. In
-`swamp-club-swamp-extensions.yaml`, `triage` and `pull-request` set 2 and `plan`
-and `implement` set 3; `build-swamp-extension.yaml` keeps the default
-everywhere.
+override granted for it. `advance` refuses the entry past that. A stage that
+should rarely repeat sets a lower limit (`maxCycles: 2`);
+`build-swamp-extension.yaml` keeps the default everywhere.
 
 Cycle overrides (`grant_override` with `kind=cycle`) are granted by a person.
 They accumulate: every grant in the era counts, and none resets the count. A
@@ -524,8 +522,9 @@ one entry, so the breadth-first order always reaches the state with fewer
 entries first. This is exact, not an approximation: the findings are those of
 the full exploration, which the tests keep as the reference. It also bounds the
 count pass by the structural pass, times the counts an inverted gate's stage can
-take. `swamp-club-swamp-extensions.yaml` at the default limits takes 159 count
-states instead of 716,220. A `needs-cycle-override` finding gives the refusal
+take. Seven stages that each loop on themselves, at the default limit, take 8
+count states instead of 175,780 (`graph_test.ts`). A `needs-cycle-override`
+finding gives the refusal
 seen in the state with the fewest entries, so its message does not depend on the
 order states are explored in.
 
@@ -789,8 +788,8 @@ it says what the work is: `<factory>-<slug>-<suffix>`, for example
   work with the same factory and slug can collide, in practice a
   ticket claimed again, and a key some definition already has is drawn again.
 - **From a ticket,** `claim` puts the ticket's display id where the factory
-  name would go, all its words kept: `2734-drive-lab-issue-r2ne` for
-  the Lab's `#2734`, `abc-12-...` for Linear's `ABC-12`. The id there is for
+  name would go, all its words kept: `abc-12-add-list-r2ne` for
+  Linear's `ABC-12`. The id there is for
   reading only (see "Tracker ids are data"). A built-in ticket's first work
   item takes the ticket's own id (`cue-board-shortcuts-r2ne`), and a later one
   on the same ticket is `<prefix>-<slug>-<suffix>` (see "The built-in
@@ -1270,8 +1269,8 @@ below 980px the panels stack under the graph, which scrolls in its own pane.
 
 ## Trackers
 
-**Decision.** A tracker (the built-in tracker, Linear, and the swamp-club Lab)
-is reached only through an **adapter**: its own model type, never part of the
+**Decision.** A tracker (the built-in tracker, Linear, and the swamp-club Lab,
+which is the swamp-club team's own: see "The swamp-club Lab adapter") is reached only through an **adapter**: its own model type, never part of the
 work item. The contract is written once, in `_lib/tracker/core/adapter.ts` and
 `_lib/tracker/core/tracker_methods.ts`, and each tracker is a thin model over it
 (`extensions/models/tracker/builtin.ts`, with its backend in
@@ -1289,7 +1288,7 @@ The contract:
 - **A ticket's own facts belong to its tracker, and each record says who
   holds them.** A ticket's identity, title, type and status belong to the
   tracker, and the adapter's `issue-<id>` record carries an `origin`. With an
-  external tracker (the Lab, Linear) it is `snapshot`: the tracker owns the
+  external tracker (Linear, the Lab) it is `snapshot`: the tracker owns the
   facts, and the record is its last read, stamped `fetchedAt`. `fetch_issue`,
   `claim` and `create` write it, and it may be stale: a change made in the
   tracker since is seen at the next of those reads, which is acceptable because
@@ -1310,9 +1309,8 @@ The contract:
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
-  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}` or
-  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`, or
-  `{"builtin": "cue-board-shortcuts-r2ne", ...}` for a built-in ticket.
+  `{"builtin": "cue-board-shortcuts-r2ne", ...}` for a built-in ticket, or
+  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`.
   `claim` leads the key with the display id for a person to read, but no code
   reads it back: `externalRefs` is the only link. It changes only through
   `start`, which sets it, and `retarget`, which replaces it whole and journals a
@@ -1370,7 +1368,7 @@ The contract:
   like its status. Swamp reads them at decision points (`fetch_issue`, `claim`,
   and before each `relate`), never reconciles them, and a relation changed in
   the tracker is seen at the next read; `relate` and `unrelate` do not refresh
-  a snapshot. Every tracker keeps the Lab's rules
+  a snapshot. Every tracker keeps the same rules
   (`_lib/tracker/core/relations.ts`): one parent per child, no parent cycle
   (walked 10 deep), one canonical per duplicate, and no duplicate chain. The
   Lab enforces them itself and Linear does not, so each adapter checks them
@@ -1409,8 +1407,8 @@ entry mode from whether the capability is present, so it never asks for one an
 adapter lacks.
 
 **The history capability.** A tracker that keeps a structured history of each
-ticket and a ticket type (the Lab's lifecycle entries and issue type, and the
-built-in tracker's own records) offers it as `capabilities.history`
+ticket and a ticket type (the built-in tracker's own records, and the Lab's
+lifecycle entries and issue type) offers it as `capabilities.history`
 (`postEntry`, `setType`). Linear has neither, so it lacks the capability. `publish` uses it when the factory definition declares
 tracker entries; its writes go through the same ledger (actions
 `lifecycle_entry` and `set_type`). The conformance suite checks it for an
@@ -1504,8 +1502,8 @@ what the tracker depends on.
 **Decision.** A factory definition names the kind of tracker it is written for,
 `tracker: { kind: builtin | swamp-club | linear }`, and the built-in tracker
 when it names none. The kind belongs to the definition because what the
-definition says depends on it: the Lab example's stage entries, status keys and
-type fields only make sense on the Lab. The factory names the tracker
+definition says depends on it: its stage entries need a tracker that keeps
+history, and its status keys and type fields must be ones that tracker has. The factory names the tracker
 instance, its required `tracker` global argument, because which instance is a
 choice per repo and the definition is portable. The instance keeps the
 tracker's own settings (the built-in tracker's `prefix`, `statuses` and
@@ -1539,8 +1537,8 @@ for it.
 
 **Not checked yet.** Whether each stage's `tracker.status` key is one the bound
 tracker has, and whether a definition with entries is bound to a tracker that
-keeps history. The Lab's default status map is tracker code the engine cannot
-import, so this is a tracker-side check method (swamp-club #2847).
+keeps history. Each adapter's default status map is tracker code the engine
+cannot import, so this is a tracker-side check method (swamp-club #2847).
 
 ### The publisher
 
@@ -1595,7 +1593,7 @@ assigns the ticket through the assign capability to the user the stored login
 maps to, under its own ledger key (action `assign`, the `started` event's
 journal version). It is best effort and never retried, as issue-lifecycle's
 `start` assigns: any failure, finding the user included (no stored login, a
-login for another server, a user not on the Lab's team, a tracker that is
+login for another server, a user the tracker does not know, a tracker that is
 down), is logged as a warning and recorded in the ledger as skipped, so a
 re-run tries nothing and the replay goes on. Assigning a ticket is a
 convenience, not a lifecycle fact, and a person can assign it by hand; a
@@ -1615,9 +1613,11 @@ the stage (or starting in it), a product it declares being recorded, or one of
 its human-approval gates being approved. When the pinned factory definition
 declares any and the adapter has the history capability, `publish` writes those
 entries and no comments: one event, one entry, or none if no entry answers it (a
-decline, a wait, a reset, a stage without entries). This is how a work item's
-Lab issue reads like one issue-lifecycle drives: the bundled `swamp-extensions`
-factory definition reuses issue-lifecycle's step names, emoji and status labels.
+decline, a wait, a reset, a stage without entries). This is how a built-in
+ticket keeps a history of steps rather than a stream of comments; a definition
+names each entry's step, emoji and status label. (The swamp-club team's own
+factory definition uses it to write issue-lifecycle's step names on its Lab
+issues.)
 Which event is which step belongs to the factory definition, pinned with it, for
 the same reason as the status key. For a recorded product, `publish` reads the
 payload at the version the journal names (by query, falling back to the latest
@@ -1630,8 +1630,7 @@ before its `classified` entry. An entry's `targetStatus` is a label only
 (swamp-club never moves the issue for it): the entry's own `status` key, else
 its stage's, else the last stage's before it, else the ticket's current status.
 Summaries are a template over the payload, not CEL, so what issue-lifecycle
-computes (counts, versions, attempts) is left out;
-`swamp-club-swamp-extensions.md` lists where. A summary needs fixed text besides
+computes (counts, versions, attempts) is left out. A summary needs fixed text besides
 its placeholders, and names only scalar fields. The payload sent is the recorded
 one without keys that start with `$`, which swamp-club refuses. An entry or type
 the tracker still refuses outright (`invalid`) is recorded in the ledger as
@@ -1646,9 +1645,9 @@ gatorwalk status key (`tracker: { status: in_progress }`), and the adapter's
 factory definition because only its author knows what a stage means, and there
 it is pinned by digest with the rest of the run. The tracker's names belong to
 whoever runs the workspace, and differ per team. The example factory definitions
-use the Lab's own status names as keys (`triaged`, `in_progress`, `shipped`,
-`closed`), so the Lab adapter's default map needs no configuration and Linear
-maps the same keys to its team's names. A stage without a key leaves the status
+use the built-in tracker's default statuses as keys (`open`, `in_progress`,
+`shipped`, `closed`), so the built-in tracker needs no `statuses` list and
+Linear maps the same keys to its team's names. A stage without a key leaves the status
 alone.
 
 **Retargeting.** A `retargeted` event whose old and new maps name different
@@ -1692,10 +1691,14 @@ recording it repeats that comment (the adapter contract's gap, above). Catching
 up after a long outage posts one comment (or entry) per event. A work item
 parked by its stage's dispatch cap is not in the journal, so it is not published
 (#2703). A failed publish does not block the work item, unlike issue-lifecycle,
-whose methods fail when their entry is refused; the Lab falls behind until
+whose methods fail when their entry is refused; the ticket falls behind until
 `publish` is re-run, which the driving reference asks for after each step.
 
 ### The swamp-club Lab adapter
+
+This adapter is the swamp-club team's own, for its own repositories: it needs a
+swamp-club team account, so it is not an option for anyone else, and the skill
+and README offer only the built-in tracker and Linear.
 
 `@swamp/gatorwalk-factory/swamp-club` is the Lab's adapter. What is particular
 to it:
@@ -2023,8 +2026,7 @@ What it rests on:
   operations a work item's methods do (`startRun`, `recordProduct`,
   `recordApproval`, `advance`, `grantOverride`) with the real gate evaluator,
   against a store that keeps nothing. That is good enough for now; revisit with
-  data. The fifteen swamp-club-swamp-extensions scenarios run in well under a
-  second.
+  data. A factory's dozen or so scenarios run in well under a second.
 - **A simulated clock.** It moves one second per engine reading, plus each
   `wait`, so cooldowns and waits are exact and a run is repeatable. Reading a
   frame's readiness does not move it.
@@ -2040,17 +2042,37 @@ What it rests on:
   match the directory. In the factory's model definition they are
   schema-checked by swamp, travel with the definition to a remote worker (where
   `validate` could not read the files), and need no factory key, path rules or
-  symlink checks. The cost is one longer file: the swamp-club example with its
-  sixteen scenarios is about 2,000 lines, which the studio parses whole on each
+  symlink checks. The cost is one longer file: a definition with fifteen or so
+  scenarios runs to about 2,000 lines, which the studio parses whole on each
   change.
 - **An agent writes them.** The studio views and simulates but never edits, so
   the skill says where scenarios go, the verbs, and to run `validate` after
   writing one (`references/scenarios.md`).
 
-Scenarios have no includes: the swamp-club `complete` variants each repeat the
-walk to attest. An include step would be its own change.
+Scenarios have no includes: variants of one late path each repeat the walk
+that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: the swamp-club Lab is the swamp-club team's own, and the shipped docs say so (swamp-club #2842)
+
+**Decision.** The skill, the README and the examples name only the built-in
+tracker and Linear. The `swamp-club-swamp-extensions` example, its mapping and
+the tests that pinned its process are deleted: the team's definition lives in
+its own factory model (#2884), not in the skill. Tests that used it only as a
+large definition moved to `build-swamp-extension`, and the graph pruning test to
+seven inline self-loops. The examples' status keys are
+the built-in tracker's default statuses (`open`, `in_progress`, `shipped`,
+`closed`), not the Lab's `triaged`. The swamp-club adapter still ships,
+unchanged, and its README section and "The swamp-club Lab adapter" say it is
+for the swamp-club team. A guard in `integration/extension/skill_test.ts` fails
+on any paragraph of the skill or README that mentions swamp-club or the Lab
+without saying so.
+
+**Why.** The first acceptance run of the authoring skill offered the Lab in its
+interview (#2818). swamp-club is not a secret, but nobody outside the
+swamp-club team can use its Lab, so it must never read as an option. Moving the
+adapter to a team-only extension was left for later.
 
 ### 2026-10-01: a factory has one name, its model's (swamp-club #2816)
 

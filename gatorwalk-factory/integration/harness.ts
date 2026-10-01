@@ -53,11 +53,6 @@ export const BUILD_DEFINITION = new URL(
   import.meta.url,
 );
 
-export const SWAMP_EXTENSIONS_DEFINITION = new URL(
-  "../.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml",
-  import.meta.url,
-);
-
 /** A skill example's definition and saved scenarios, as data. */
 export async function readExample(
   url: URL,
@@ -65,8 +60,7 @@ export async function readExample(
   return parseExample(await Deno.readTextFile(url));
 }
 
-/** The wrapper swamp-club-swamp-extensions.yaml's verify stage runs; see
- * DESIGN.md. */
+/** The repository's verification workflow; see DESIGN.md. */
 export const VERIFY_WORKFLOW = new URL(
   "../../verification/workflow-verify.yaml",
   import.meta.url,

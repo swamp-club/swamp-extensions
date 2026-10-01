@@ -34,9 +34,8 @@ This skill covers **authoring** a factory and **driving** its work items.
   (its `definition:` and `scenarios:` blocks, under `globalArguments:`), then
   run `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general
   change from plan to release; `build-swamp-extension.yaml` builds a swamp
-  extension; `swamp-club-swamp-extensions.yaml` is a real repository's process,
-  to read rather than copy whole. Each factory definition's description says
-  what it is for and what to change first.
+  extension. Each factory definition's description says what it is for and what
+  to change first.
 - Saved scenarios, the paths `validate` checks a factory still allows: add one
   to the factory's `scenarios:` list, beside its definition, when you change a
   factory definition or the person names a path to keep, then run `validate`.
@@ -151,7 +150,6 @@ belong to the tracker: read them with `fetch_issue`, not from memory.
 | `transition ... is not ready`             | Do what the failures name, or ask the person about a human gate.  |
 | `transition ... is manual`                | Ask the person; `confirm=true` only on their word.                |
 | cycle limit, `runaway loop suspected`     | Stop and lay out every exit; an override is one, on their word.   |
-| `claim`: `driven by issue-lifecycle here` | Drive the issue with issue-lifecycle; gatorwalk does not take it. |
 
 Why each limit exists, and how a person gets past it, is in DESIGN.md, "Loops
 and their controls".

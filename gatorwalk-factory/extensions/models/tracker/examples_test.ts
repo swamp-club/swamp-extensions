@@ -17,35 +17,16 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   type FactoryDefinition,
-  fakeSwamp,
   findStage,
   parseDefinition,
   parseExample,
   type StageSpec,
 } from "../_lib/engine/tracker_testing.ts";
-import {
-  LAB_STATUSES,
-  swampClubAdapter,
-} from "../_lib/tracker/backends/swamp_club.ts";
-import {
-  ADMIN_KEY,
-  LAB_ISSUE,
-  swampClubFake,
-} from "../_lib/tracker/backends/swamp_club_fake.ts";
-import {
-  chooseEntry,
-  type EntryEvent,
-  renderEntry,
-} from "../_lib/tracker/core/ticket_view.ts";
-import {
-  TRACKED_ITEM,
-  trackedItem,
-} from "../_lib/tracker/core/test_support.ts";
-import { swampClubMethods } from "./swamp_club.ts";
+import { DEFAULT_STATUSES } from "../_lib/tracker/backends/builtin.ts";
 
 // ---------------------------------------------------------------------------
-// The example factory definitions the skill ships, as the Lab adapter sees
-// them. engine/factories_test.ts tests how each behaves.
+// The example factory definitions the skill ships, as the built-in tracker
+// sees them. engine/factories_test.ts tests how each behaves.
 // ---------------------------------------------------------------------------
 
 const DEFINITIONS = new URL(
@@ -72,11 +53,10 @@ function stage(definition: FactoryDefinition, id: string): StageSpec {
 
 const STARTER = "starter.yaml";
 const BUILD = "build-swamp-extension.yaml";
-const SWX = "swamp-club-swamp-extensions.yaml";
 
-Deno.test("every projecting example's status keys are Lab statuses, so the Lab adapter needs no status map", async () => {
+Deno.test("every projecting example's status keys are the built-in tracker's default statuses, so it needs no statuses list", async () => {
   // minimal projects nothing, by design.
-  for (const file of [STARTER, BUILD, SWX]) {
+  for (const file of [STARTER, BUILD]) {
     const definition = await load(file);
     const keyed = definition.stages.filter((s) =>
       s.tracker?.status !== undefined
@@ -84,16 +64,16 @@ Deno.test("every projecting example's status keys are Lab statuses, so the Lab a
     assert(keyed.length > 0, `${file} projects no status`);
     for (const s of keyed) {
       assert(
-        (LAB_STATUSES as readonly string[]).includes(
+        (DEFAULT_STATUSES as readonly string[]).includes(
           s.tracker?.status ?? "",
         ),
         `${file}: stage '${s.id}' has status key ` +
-          `'${s.tracker?.status}', not one of ${LAB_STATUSES.join(", ")}`,
+          `'${s.tracker?.status}', not one of ${DEFAULT_STATUSES.join(", ")}`,
       );
     }
-    // In stage order the keys only move forward along the Lab's order, so
-    // a work item going forward never asks the Lab to move back.
-    const order = ["open", "triaged", "in_progress", "shipped"];
+    // In stage order the keys only move forward, so a work item going
+    // forward never moves its ticket back.
+    const order = ["open", "in_progress", "shipped"];
     const forward = keyed.filter((s) => s.tracker?.status !== "closed")
       .map((s) => order.indexOf(s.tracker?.status ?? ""));
     assertEquals(
@@ -103,217 +83,5 @@ Deno.test("every projecting example's status keys are Lab statuses, so the Lab a
     );
     assertEquals(stage(definition, "done").tracker?.status, "shipped");
     assertEquals(stage(definition, "abandoned").tracker?.status, "closed");
-  }
-});
-
-Deno.test("swamp-club-swamp-extensions: a classified entry sets the Lab's regression flag only for a confirmed regression, and clears it otherwise", async () => {
-  const definition = await load(SWX);
-  const candidates = (stage(definition, "triage").tracker?.entries ?? [])
-    .filter((e) => e.step === "classified");
-  assertEquals(candidates.length, 2);
-  const claim = {
-    type: "bug",
-    confidence: "high",
-    reasoning: "r",
-    regressionEvidence: "e",
-    regressionCounterEvidence: "c",
-    regressionVerdictReasoning: "v",
-  };
-  const confirmed = {
-    ...claim,
-    isRegression: true,
-    regressionVerdict: "confirmed",
-    regressionIntroducedIn: "2026.09.21.1",
-  };
-  const downgraded = {
-    ...claim,
-    isRegression: false,
-    regressionVerdict: "downgraded",
-  };
-  const plain = {
-    type: "bug",
-    confidence: "high",
-    reasoning: "r",
-    isRegression: false,
-  };
-  const fake = swampClubFake();
-  try {
-    const lab = swampClubAdapter({
-      credentials: () => Promise.resolve({ url: fake.url, apiKey: ADMIN_KEY }),
-    });
-    const classify = async (payload: Record<string, unknown>) => {
-      const event: EntryEvent = {
-        journalVersion: 1,
-        candidates,
-        status: "triaged",
-        product: {
-          kind: "evidence",
-          name: "classification",
-          version: 1,
-          digest: "d",
-        },
-      };
-      const entry = chooseEntry(candidates, payload);
-      assert(entry !== null, JSON.stringify(payload));
-      const rendered = renderEntry(entry, event, payload);
-      await lab.capabilities.history.postEntry(String(LAB_ISSUE), {
-        step: rendered.step,
-        targetStatus: "triaged",
-        summary: rendered.summary,
-        emoji: rendered.emoji,
-        payload: rendered.payload,
-        isVerbose: rendered.isVerbose,
-      });
-      return {
-        summary: fake.entries[fake.entries.length - 1].summary,
-        flag: fake.issues[0].isRegression,
-      };
-    };
-    assertEquals(await classify(confirmed), {
-      summary: "Classified as bug (regression) (high)",
-      flag: true,
-    });
-    // A downgraded claim clears a flag set earlier, as after a reclassify.
-    assertEquals(await classify(downgraded), {
-      summary: "Classified as bug (high)",
-      flag: false,
-    });
-    await classify(confirmed);
-    assertEquals(await classify(plain), {
-      summary: "Classified as bug (high)",
-      flag: false,
-    });
-    // On an issue never flagged, a downgraded claim leaves the flag clear.
-    fake.issues[0].isRegression = undefined;
-    assertEquals((await classify(downgraded)).flag, false);
-  } finally {
-    await fake.close();
-  }
-});
-
-Deno.test("swamp-club-swamp-extensions: a person's plan feedback reaches the Lab with the revised plan", async () => {
-  const raw = parseExample(
-    await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
-  ).definition;
-  const fake = swampClubFake();
-  try {
-    const swamp = fakeSwamp();
-    swamp.globalArgs.set("lab", { apiKey: ADMIN_KEY, url: fake.url });
-    const item = await trackedItem(
-      swamp,
-      {
-        "swamp-club": String(LAB_ISSUE),
-      },
-      raw,
-      { tracker: "lab" },
-    );
-    const plan = {
-      summary: "Add a list method",
-      scopeAnalysis: "One extension",
-      steps: [{ order: 1, description: "Add list", files: ["x.ts"] }],
-      testingStrategy: "A test against a mock server",
-    };
-    await item.record("evidence", "classification", {
-      type: "feature",
-      confidence: "high",
-      reasoning: "A new method",
-      isRegression: false,
-    });
-    await item.advance("feature");
-    await item.record("artifact", "plan", plan);
-    await item.advance("submit");
-    await item.record("artifact", "plan-review", { findings: [] });
-    await item.decline("plan-approval");
-    await item.record("evidence", "plan-feedback", {
-      feedback: "Page the results",
-    });
-    await item.advance("revise");
-    await item.record("artifact", "plan", {
-      ...plan,
-      summary: "Add a paged list method",
-      feedbackIncorporated: ["Page the results"],
-    });
-
-    const methods = swampClubMethods({
-      sources: {
-        env: () => undefined,
-        readAuthFile: () => Promise.resolve(null),
-      },
-    });
-    const publish = methods.publish.execute as (
-      args: unknown,
-      ctx: ReturnType<typeof swamp.context>,
-    ) => Promise<unknown>;
-    await publish(
-      methods.publish.arguments.parse({ workItem: TRACKED_ITEM }),
-      swamp.context("lab"),
-    );
-    const planned = fake.entries.filter((e) =>
-      e.step === "plan_generated" || e.step === "plan_revised"
-    );
-    assertEquals(planned.map((e) => e.step), [
-      "plan_generated",
-      "plan_revised",
-    ]);
-    assertEquals(planned[0].payload.feedbackIncorporated, undefined);
-    assertEquals(planned[1].payload.feedbackIncorporated, [
-      "Page the results",
-    ]);
-  } finally {
-    await fake.close();
-  }
-});
-
-Deno.test("swamp-club-swamp-extensions: a work item started and published once is assigned, triage_started then assigned, with no assign call", async () => {
-  const raw = parseExample(
-    await Deno.readTextFile(new URL(SWX, DEFINITIONS)),
-  ).definition;
-  const fake = swampClubFake();
-  try {
-    const swamp = fakeSwamp();
-    swamp.globalArgs.set("lab", { apiKey: ADMIN_KEY, url: fake.url });
-    await trackedItem(
-      swamp,
-      { "swamp-club": String(LAB_ISSUE) },
-      raw,
-      { tracker: "lab" },
-    );
-    const methods = swampClubMethods({
-      sources: {
-        env: () => undefined,
-        readAuthFile: () =>
-          Promise.resolve({
-            serverUrl: fake.url,
-            apiKey: "swamp_other",
-            username: "seth",
-          }),
-      },
-    });
-    const publish = () =>
-      (methods.publish.execute as (
-        args: unknown,
-        ctx: ReturnType<typeof swamp.context>,
-      ) => Promise<unknown>)(
-        methods.publish.arguments.parse({ workItem: TRACKED_ITEM }),
-        swamp.context("lab"),
-      );
-    await publish();
-    assertEquals(fake.entries.map((e) => e.step), [
-      "triage_started",
-      "assigned",
-    ]);
-    const assigned = fake.entries[1];
-    assertEquals(assigned.summary, "Assigned to seth");
-    assertEquals(assigned.payload.username, "seth");
-    assert(typeof assigned.payload.userId === "string");
-    assertEquals(fake.issues[0].assignees.map((a) => a.username), ["seth"]);
-
-    // A re-run writes nothing to the Lab.
-    const writes = () => fake.requests.filter((r) => r.method !== "GET").length;
-    const before = writes();
-    await publish();
-    assertEquals(writes(), before);
-  } finally {
-    await fake.close();
   }
 });

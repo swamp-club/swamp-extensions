@@ -504,3 +504,61 @@ Deno.test("skill: authoring never offers the swamp-club Lab", async () => {
     [],
   );
 });
+
+/** Every file under a directory, as paths relative to it. */
+async function filesUnder(dir: string, prefix = ""): Promise<string[]> {
+  const files: string[] = [];
+  for await (const entry of Deno.readDir(`${dir}${prefix}`)) {
+    const path = `${prefix}${entry.name}`;
+    if (entry.isDirectory) files.push(...await filesUnder(dir, `${path}/`));
+    else if (entry.isFile) files.push(path);
+  }
+  return files.sort();
+}
+
+/** A text's paragraphs: blocks between blank lines, a fenced block whole. */
+function paragraphs(text: string): { line: number; text: string }[] {
+  const found: { line: number; text: string }[] = [];
+  let current: string[] = [];
+  let start = 0;
+  let fenced = false;
+  text.split("\n").forEach((line, i) => {
+    if (line.trim() === "" && !fenced) {
+      if (current.length > 0) {
+        found.push({ line: start, text: current.join("\n") });
+      }
+      current = [];
+      return;
+    }
+    if (current.length === 0) start = i + 1;
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    current.push(line);
+  });
+  if (current.length > 0) found.push({ line: start, text: current.join("\n") });
+  return found;
+}
+
+// The swamp-club Lab tracker is not a secret, but only the swamp-club team can
+// use it (swamp-club #2842). So wherever the shipped skill or the README names
+// it, the same paragraph says it is the swamp-club team's; and no example is
+// named for it, so none reads as an option.
+Deno.test("skill and README: the swamp-club Lab is named only as the swamp-club team's own", async () => {
+  const mentions = /swamp-club|swamp_club|\bLab\b/;
+  const texts: [string, string][] = [
+    ["README.md", await Deno.readTextFile(`${EXTENSION_ROOT}README.md`)],
+  ];
+  const skillFiles = await filesUnder(SKILL_DIR);
+  assert(skillFiles.includes("SKILL.md"), skillFiles.join(", "));
+  for (const file of skillFiles) {
+    texts.push([file, await Deno.readTextFile(`${SKILL_DIR}${file}`)]);
+  }
+  const unlabelled = texts.flatMap(([file, text]) =>
+    paragraphs(text).flatMap((p) =>
+      mentions.test(p.text) && !/swamp-club\s+team/.test(p.text)
+        ? [`${file}:${p.line}`]
+        : []
+    )
+  );
+  assertEquals(unlabelled, []);
+  assertEquals(skillFiles.filter((f) => mentions.test(f)), []);
+});

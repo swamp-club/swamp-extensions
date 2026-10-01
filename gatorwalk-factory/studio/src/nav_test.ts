@@ -57,7 +57,7 @@ for (const name of EXAMPLES) {
 }
 
 Deno.test("nav: into an exit and its gates, back out, and along the exit", async () => {
-  const { definition, view } = await loadOk("swamp-club-swamp-extensions");
+  const { definition, view } = await loadOk("build-swamp-extension");
   const model = navModel(definition, layout(definition, view));
   const plan: Target = { kind: "stage", stage: "plan" };
   const exit = navigate(model, plan, "Enter")!;
