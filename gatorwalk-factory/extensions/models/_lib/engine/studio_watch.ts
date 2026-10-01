@@ -32,8 +32,10 @@ import type {
 // directory of a path swamp's definition repository gave. Paths nobody asked
 // about are dropped. Events are coalesced for a short debounce, since one save
 // is often several file-system events. A factory created or removed shows
-// when serve reads the list again. The unit tests use a fake event source;
-// this runs in the integration suite.
+// when serve reads the list again. A watched directory deleted and made again
+// keeps the old watch silent, so each is known by its inode too: the next
+// list watches the new one, and reloads the factories in it. The unit tests
+// use a fake event source; this runs in the integration suite.
 // ---------------------------------------------------------------------------
 
 export interface StudioWatcher extends StudioEvents {
@@ -45,17 +47,30 @@ export interface StudioWatcher extends StudioEvents {
   close(): void;
 }
 
+/** How long a refresh waits for a closed watch's loop to end. */
+const CLOSE_WAIT_MS = 1000;
+
+/** A directory's watch, and its event loop, which ends once it has closed. */
+interface Watch {
+  watcher: Deno.FsWatcher;
+  ended: Promise<void>;
+}
+
 export function watchStudio(
   files: RepoFiles = denoRepoFiles,
   debounceMs = 100,
 ): StudioWatcher {
   const listeners = new Set<(event: StudioEvent) => void>();
-  let watchers: Deno.FsWatcher[] = [];
-  let key = "";
+  // The watch on each directory, with the directory's inode when it opened
+  // (null where the platform gives none).
+  const watchers = new Map<string, Watch & { ino: number | null }>();
+  // Closed watches whose loops have not ended yet, by directory.
+  const closing = new Map<string, Promise<void>>();
   let closed = false;
   let listed = "[]";
   // Factory names by the real path of their model definition file.
   let definitions = new Map<string, string[]>();
+  let started = false;
 
   const pending = new Map<string, StudioEvent>();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -76,15 +91,15 @@ export function watchStudio(
     }
   };
 
-  const watch = (path: string): Deno.FsWatcher => {
-    const w = Deno.watchFs(path, { recursive: false });
-    (async () => {
-      for await (const event of w) event.paths.forEach(changed);
+  const watch = (path: string): Watch => {
+    const watcher = Deno.watchFs(path, { recursive: false });
+    const ended = (async () => {
+      for await (const event of watcher) event.paths.forEach(changed);
     })().catch(() => {
       // The watch closed under its loop, or its directory went; the next
       // refresh watches afresh.
     });
-    return w;
+    return { watcher, ended };
   };
 
   async function refresh(
@@ -109,44 +124,87 @@ export function watchStudio(
       defs.set(real, [...(defs.get(real) ?? []), name]);
       dirs.add(dirname(real));
     }
-    const nextKey = JSON.stringify([
-      [...dirs].sort(),
-      [...defs.entries()].sort(),
-    ]);
-    definitions = defs;
-    if (nextKey === key || closed) return;
-    // The new watches first: if one fails, the old ones stay.
-    const fresh: Deno.FsWatcher[] = [];
-    try {
-      for (const d of dirs) fresh.push(watch(d));
-    } catch (error) {
-      for (const w of fresh) w.close();
-      throw error;
+    // Before the watch opens: a directory replaced in between then shows as
+    // changed on the next list, never the other way round.
+    const ids = new Map<string, number | null>();
+    for (const dir of dirs) {
+      try {
+        ids.set(dir, (await Deno.stat(dir)).ino);
+      } catch {
+        // Gone since its file resolved; the next listing sees it.
+        continue;
+      }
     }
-    for (const w of watchers) w.close();
-    watchers = fresh;
-    key = nextKey;
-    if (closed) close();
+    // A factory newly resolved, or in a directory not watched as it is now
+    // (made again, or not watched before), may have changed unseen. They are
+    // told once the new watches are open, so no edit falls between the two.
+    const unseen: string[] = [];
+    if (started) {
+      for (const [real, names] of defs) {
+        const dir = dirname(real);
+        const moved = watchers.get(dir)?.ino !== ids.get(dir);
+        const before = definitions.get(real) ?? [];
+        for (const factory of names) {
+          if (moved || !before.includes(factory)) unseen.push(factory);
+        }
+      }
+    }
+    started = true;
+    definitions = defs;
+    if (closed) return;
+    // A directory dropped from the list, or made again, loses its watch
+    // before any new one opens: Deno keeps one watch per path, so a new watch
+    // on a path whose old watch has not finished closing (its loop has not
+    // ended) stays on the deleted directory and sees nothing.
+    for (const [dir, { watcher, ended, ino }] of watchers) {
+      if (ino === ids.get(dir)) continue;
+      watchers.delete(dir);
+      try {
+        watcher.close();
+      } catch {
+        // Already closed; its loop ends all the same.
+      }
+      const done: Promise<void> = ended.then(() => {
+        if (closing.get(dir) === done) closing.delete(dir);
+      });
+      closing.set(dir, done);
+    }
+    // Bounded, so a watch whose loop never ends cannot hold up every later
+    // refresh. A directory whose old watch is still closing is left
+    // unwatched, and the next refresh tries it again.
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      Promise.all(closing.values()),
+      new Promise((resolve) => (timeout = setTimeout(resolve, CLOSE_WAIT_MS))),
+    ]);
+    clearTimeout(timeout);
+    if (closed) return;
+    try {
+      for (const [dir, ino] of ids) {
+        if (watchers.has(dir) || closing.has(dir)) continue;
+        watchers.set(dir, { ...watch(dir), ino });
+      }
+    } finally {
+      for (const factory of unseen) emit({ kind: "definition", factory });
+    }
   }
 
   // One refresh at a time, in order, so a slow one never overwrites a newer
-  // list. A failed refresh (a directory removed under it) never rejects:
-  // it leaves the old watches and clears the key, so the next one retries.
+  // list. A failed refresh (a directory removed under it) never rejects: the
+  // watches it opened stay, and the next one opens the rest.
   let queue: Promise<void> = Promise.resolve();
   function follow(
     next: FactoryEntry[],
     paths: Map<string, string>,
   ): Promise<void> {
-    queue = queue.then(() => refresh(next, paths)).catch(() => {
-      key = "";
-    });
+    queue = queue.then(() => refresh(next, paths)).catch(() => {});
     return queue;
   }
 
   function close() {
     closed = true;
-    for (const w of watchers) w.close();
-    watchers = [];
+    for (const { watcher } of watchers.values()) watcher.close();
+    watchers.clear();
     if (timer !== undefined) clearTimeout(timer);
     listeners.clear();
   }

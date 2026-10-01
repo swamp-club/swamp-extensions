@@ -615,8 +615,21 @@ export async function copyWalk() {
 
 export function listen() {
   const events = new EventSource("/api/events");
-  events.addEventListener("open", () => (live.value = true));
-  events.addEventListener("error", () => (live.value = false));
+  // A change while the stream was down sent nothing, so a reconnect reads
+  // the list and the definition again.
+  let dropped = false;
+  events.addEventListener("open", () => {
+    live.value = true;
+    if (!dropped) return;
+    dropped = false;
+    reloadFactories().then(() => loadDefinitionFile()).catch((e) => {
+      sourceError.value = message(e);
+    });
+  });
+  events.addEventListener("error", () => {
+    live.value = false;
+    dropped = true;
+  });
   events.addEventListener("message", (m) => {
     let event: StudioEvent;
     try {

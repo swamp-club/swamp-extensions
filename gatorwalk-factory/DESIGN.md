@@ -1178,6 +1178,14 @@ selected factory has gone, the page says so and shows the next. The watch drops
 paths nobody asked about, coalesces a save's several events, and sends
 `{ kind: "definition", factory }` to every open event stream. Deno's server waits for
 open responses when it stops, so the event streams close on the same signal.
+A watched directory deleted and made again leaves its watch silent, so each
+watched directory is known by its inode too: the next list closes the old watch,
+waits for it to end (Deno keeps one watch per path, and a new one opened before
+the old has closed sees nothing), watches the new directory, and sends
+`definition` for each factory in it, as it does for a factory whose file newly
+resolves. Nothing is sent for a change while the page's event stream is down, so
+the page lists the factories and reads its definition again when the stream
+reconnects.
 
 **The page is embedded, not beside the module.** The page's source is
 `studio/src/` (Preact with signals, grown from the prototype; its tokens follow

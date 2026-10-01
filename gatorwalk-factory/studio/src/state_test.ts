@@ -19,6 +19,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import {
+  api,
   copyEntry,
   discardWalk,
   factory,
@@ -26,6 +27,7 @@ import {
   frameIndex,
   frames,
   goFrame,
+  listen,
   loadDefinitionFile,
   pickScenario,
   playing,
@@ -194,5 +196,63 @@ Deno.test("state: a selected factory removed for real says so, and the page move
     assertEquals(factory.value, "other");
   } finally {
     globalThis.fetch = real;
+  }
+});
+
+Deno.test("state: after its event stream reconnects, the page reads the list and the definition again", async () => {
+  const text = await exampleText(NAME);
+  const asked: string[] = [];
+  const realFetch = globalThis.fetch;
+  const realEventSource = globalThis.EventSource;
+  let stream: EventTarget | undefined;
+  globalThis.fetch = (input) => {
+    const url = String(input);
+    asked.push(url);
+    const body = url === "/api/factories"
+      ? { factories: [{ name: NAME, path: modelPath(NAME) }] }
+      : { path: modelPath(NAME), text, digest: "sha256:x" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  globalThis.EventSource = class extends EventTarget {
+    constructor() {
+      super();
+      stream = this;
+    }
+  } as unknown as typeof EventSource;
+  // Until no request has come for a while: a reload may read twice.
+  const settled = async () => {
+    let seen = -1;
+    while (seen !== asked.length) {
+      seen = asked.length;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  };
+  try {
+    await selectFactory(NAME);
+    listen();
+    asked.length = 0;
+    // The first connection reads nothing again.
+    stream!.dispatchEvent(new Event("open"));
+    await settled();
+    assertEquals(asked, []);
+
+    stream!.dispatchEvent(new Event("error"));
+    stream!.dispatchEvent(new Event("open"));
+    await settled();
+    assertEquals(asked[0], "/api/factories");
+    assert(asked.includes(api(NAME)), JSON.stringify(asked));
+
+    // An open with no error before it does not.
+    asked.length = 0;
+    stream!.dispatchEvent(new Event("open"));
+    await settled();
+    assertEquals(asked, []);
+  } finally {
+    globalThis.fetch = realFetch;
+    globalThis.EventSource = realEventSource;
   }
 });
