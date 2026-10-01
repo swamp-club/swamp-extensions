@@ -10549,3 +10549,178 @@ Deno.test("pullChanged ignores stray index entries pushed by the bug (swamp-club
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- swamp-club#2888: a failed push survives an unscoped pull ---------------
+//
+// A push fails, another writer changes the bucket, and an unscoped pull
+// runs before the retry. The pull used to mark the sidecar clean while
+// leaving the failed push's dirty paths listed, so the retry's markDirty
+// returned early and its push took the zero-diff fast path: it reported
+// success and sent nothing.
+
+async function writeV2Sidecar(
+  cachePath: string,
+  state: {
+    localDirty: boolean;
+    dirtyPaths: string[];
+    bulkInvalidated: boolean;
+  },
+): Promise<void> {
+  await Deno.mkdir(cachePath, { recursive: true });
+  await Deno.writeTextFile(
+    join(cachePath, SYNC_STATE_FILE),
+    JSON.stringify({
+      version: 2,
+      remoteIndexETag: "",
+      lastVerifiedAt: new Date().toISOString(),
+      lazyPullActive: false,
+      ...state,
+    }),
+  );
+}
+
+Deno.test("swamp-club#2888: markDirty re-dirties a path still listed under a clean sidecar", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2888-a-" });
+  try {
+    await writeV2Sidecar(cachePath, {
+      localDirty: false,
+      dirtyPaths: ["config/lock.json"],
+      bulkInvalidated: false,
+    });
+    const service = new S3CacheSyncService(createMockS3Client(), cachePath);
+    await service.markDirty({ relPath: "config/lock.json" });
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.dirtyPaths, ["config/lock.json"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2888: markDirty re-dirties a bulk-invalidated clean sidecar", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2888-b-" });
+  try {
+    await writeV2Sidecar(cachePath, {
+      localDirty: false,
+      dirtyPaths: [],
+      bulkInvalidated: true,
+    });
+    const service = new S3CacheSyncService(createMockS3Client(), cachePath);
+    await service.markDirty({ relPath: "config/lock.json" });
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.bulkInvalidated, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2888: a shard-first unscoped pull keeps unpushed changes dirty", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2888-c-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.pullChanged();
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.dirtyPaths, ["config/models/b.yaml"]);
+    assertEquals(sidecar.commitSeq, 5);
+
+    await service.pushChanged();
+    assert(
+      mock.storage.has("config/models/b.yaml"),
+      "the next push must send the change the pull kept dirty",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2888: a monolithic-index unscoped pull keeps unpushed changes dirty", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2888-d-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    await seedFile(cachePath, "data/local.yaml", "local\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "data/local.yaml" });
+    await service.pullChanged();
+
+    const sidecar = await requireSidecar(cachePath);
+    assert(sidecar.remoteIndexETag, "the pull records the verified index");
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.dirtyPaths, ["data/local.yaml"]);
+
+    await service.pushChanged();
+    assert(
+      mock.storage.has("data/local.yaml"),
+      "the next push must send the change the pull kept dirty",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2888: a change whose push failed is sent after a peer's write and an unscoped pull", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "s3sync-2888-e-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "s3sync-2888-e-b-" });
+  try {
+    const lock = "config/upstream_extensions.json";
+    const mock = createMockS3Client();
+    seedV2Repo(mock, { [lock]: indexEntry(lock, 2) }, 1);
+    mock.storage.set(lock, new TextEncoder().encode("{}"));
+    const a = new S3CacheSyncService(mock, cacheA);
+    const b = new S3CacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    // A's push fails: the bucket refuses config writes.
+    const put = mock.putObject.bind(mock);
+    mock.putObject = (key, body, signal) =>
+      key.startsWith("config/")
+        ? Promise.reject(opError(403))
+        : put(key, body, signal);
+    try {
+      // Each copy has its own size: the pull skips a same-size file whose
+      // mtime matches the index, which same-millisecond writes can hit.
+      await Deno.writeTextFile(join(cacheA, lock), "local");
+      await a.markDirty({ relPath: lock });
+      await assertRejects(() => a.pushChanged());
+    } finally {
+      mock.putObject = put;
+    }
+
+    // A peer publishes, then an unscoped pull on A (`datastore sync
+    // --pull`, a serve restart) fetches the peer's copy.
+    await Deno.writeTextFile(join(cacheB, lock), "peer");
+    await b.markDirty({ relPath: lock });
+    await b.pushChanged();
+    await a.pullChanged();
+    assertEquals(await Deno.readTextFile(join(cacheA, lock)), "peer");
+
+    // A replays its change onto the fetched copy and publishes again.
+    await Deno.writeTextFile(join(cacheA, lock), "peer+local");
+    await a.markDirty({ relPath: lock });
+    const pushed = await a.pushChanged();
+
+    assert((pushed ?? 0) > 0, "the push must report what it sent");
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(lock)),
+      "peer+local",
+    );
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});

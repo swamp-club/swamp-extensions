@@ -221,6 +221,13 @@ The `markDirty` method now accepts an optional `relPath` parameter for per-path
 tracking. When `relPath` is provided, only that directory is walked on the next
 push. Without `relPath`, the entire cache is walked (bulk invalidation).
 
+A pull never marks the cache clean. A pull still replaces a changed file with
+the bucket's copy when they differ, but the cache stays marked dirty until a
+push succeeds. A retry that writes the change again and calls `markDirty` (which
+re-marks a path still listed from the failed push) therefore pushes it instead
+of taking the zero-diff fast path. The cost is one slow-path push after such a
+pull, even when nothing is left to send.
+
 When `markDirty({ relPath })` is called before removing a file from the cache,
 the next `pushChanged` detects the absence and issues an S3 `DeleteObject` for
 the corresponding remote key and removes it from the index. If per-path dirty

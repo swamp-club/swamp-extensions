@@ -1749,7 +1749,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const relPath = options?.relPath;
 
     if (relPath) {
-      if (this.bulkInvalidated) return;
+      // A pull after a failed push can leave paths listed (or the bulk
+      // flag set) under a clean sidecar. Skip the write only while the
+      // sidecar still says dirty, or the next push takes the zero-diff
+      // fast path and drops the change.
+      const alreadyDirty = current?.localDirty === true;
+      if (this.bulkInvalidated) {
+        if (alreadyDirty) return;
+        await this.writeSyncState(
+          this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+        );
+        return;
+      }
       // Normalize the path relative to cachePath. Core may pass absolute
       // or ../‑relative paths for repos that resolve outside the cache
       // dir (e.g. definitions-evaluated, outputs). Resolve and re-derive
@@ -1771,7 +1782,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
         );
         return;
       }
-      if (this.dirtyPaths.has(normalizedRel)) return;
+      if (this.dirtyPaths.has(normalizedRel)) {
+        if (alreadyDirty) return;
+        await this.writeSyncState(this.buildV2State({ localDirty: true }));
+        return;
+      }
       if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
         this.bulkInvalidated = true;
         this.dirtyPathsOverflowed = true;
@@ -1816,7 +1831,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * timestamp would spuriously bail out of the happy path on fast
    * machines — paying the slow path on every second sync.
    */
-  private async markSynced(remoteIndexETag: string): Promise<void> {
+  private async markSynced(
+    remoteIndexETag: string,
+    options?: { keepLocalDirty?: boolean },
+  ): Promise<void> {
     const normalized = normalizeETag(remoteIndexETag);
     if (!normalized || isMultipartETag(remoteIndexETag)) return;
     let baselineMs = Date.now();
@@ -1828,18 +1846,23 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // No local index yet (e.g. first push against an empty cache);
       // wall-clock baseline is fine.
     }
-    this.dirtyPaths.clear();
-    this.bulkInvalidated = false;
-    this.dirtyPathsOverflowed = false;
+    // A pull records the remote it verified against but keeps a cache
+    // with unpushed changes dirty, so the next push still sends them.
+    const keepLocalDirty = options?.keepLocalDirty === true;
+    if (!keepLocalDirty) {
+      this.dirtyPaths.clear();
+      this.bulkInvalidated = false;
+      this.dirtyPathsOverflowed = false;
+    }
     await this.writeSyncState({
       version: 2,
       remoteIndexETag: normalized,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
-      localDirty: false,
-      dirtyPaths: [],
-      bulkInvalidated: false,
+      localDirty: keepLocalDirty,
+      dirtyPaths: [...this.dirtyPaths],
+      bulkInvalidated: this.bulkInvalidated,
       lazyPullActive: this.lazyPullActive,
-      dirtyPathsOverflowed: false,
+      dirtyPathsOverflowed: this.dirtyPathsOverflowed,
       lastCatalogHash: this.lastCatalogHash ?? undefined,
     });
   }
@@ -2708,7 +2731,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
                   indexETag = putResult?.etag ?? indexETag;
                 }
               }
-              if (!scoped) await this.markSynced(indexETag);
+              if (!scoped) {
+                await this.markSynced(indexETag, {
+                  keepLocalDirty: this.syncState?.localDirty === true,
+                });
+              }
             } catch {
               // Non-fatal: sidecar update is opportunistic. Disk-full /
               // permissions / unmount must not turn a successful sync into
@@ -2739,7 +2766,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
               this.indexMutated = false;
 
               if (!scoped) {
-                const sidecar = this.buildV2State({ localDirty: false });
+                // Keeps localDirty: see the clean-pull branch below.
+                const sidecar = this.buildV2State();
                 if (committed.upToDate) {
                   sidecar.commitSeq = committed.commitSeq;
                 }
@@ -2756,7 +2784,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
             // index ETag). Record commitSeq in the sidecar so the fast
             // path can arm on the next pull (swamp-club #1931).
             try {
-              const sidecar = this.buildV2State({ localDirty: false });
+              // A pull records the remote it verified but leaves
+              // localDirty as it is: only a push sends the changes a dirty
+              // sidecar tracks, and a failed push leaves some unsent.
+              const sidecar = this.buildV2State();
               sidecar.commitSeq = v2CommitSeq;
               sidecar.remoteIndexETag = "";
               await this.writeSyncState(sidecar);

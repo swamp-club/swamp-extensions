@@ -291,6 +291,11 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   `atomicWriteFile`) MUST call `DatastoreSyncService.markDirty()` so the
   fast-path short-circuit knows to run a full walk on the next `pushChanged`.
   Without `markDirty`, the external write is silently skipped on the next sync.
+  A pull never marks the cache clean. It still replaces a changed file with the
+  bucket's copy when they differ, but the cache stays marked dirty until a push
+  succeeds, so a retry that writes the change again and calls `markDirty` pushes
+  it instead of taking the fast path. The cost is one slow-path push after such
+  a pull, even when nothing is left to send.
 - **Tracing** — set `SWAMP_GCS_SYNC_TRACE=1` to emit coarse per-phase timing
   lines (`[gcs-sync] pullChanged.fastpath <ms> hit`,
   `[gcs-sync] pushChanged.walk <ms> toPush=<n>`, etc.). Off by default; useful
