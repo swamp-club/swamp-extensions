@@ -190,8 +190,10 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   a `step`, `emoji` and `summary` (whose `{{field}}` placeholders are fields of
   the recorded payload), and optionally `match` (payload fields that must hold a
   value), `cycle` (`first` or `later`), `status` (the status key labelling it,
-  defaulting to the stage's), `verbose` and `setsType` (a payload field holding
-  the ticket type to set first). Two entries on one trigger must be told apart
+  defaulting to the stage's), `verbose`, `setsType` (a payload field holding
+  the ticket type to set first) and `linkPr` (a payload field holding a pull
+  request url to link on the ticket first, where the tracker links pull
+  requests). Two entries on one trigger must be told apart
   by `cycle` or `match`. To a tracker that keeps entries, a factory definition
   that declares any is published as entries instead of comments.
 
@@ -624,9 +626,10 @@ only move forward, one step at a time, which `set_status` walks for you; moving
 back is refused. `publish` works as it does for Linear (above), and skips a
 status move the issue cannot make, such as back to `triaged` after a reset,
 rather than failing. For a factory definition that declares tracker entries it
-writes lifecycle entries instead of ripples, and the type an entry reads
-(`setsType`) just before it; it is the only writer of a work item's status and
-type. `claim` refuses an issue that issue-lifecycle drives in the repository (an
+writes lifecycle entries instead of ripples, and the type (`setsType`) and the
+pull request (`linkPr`, the issue's `githubPrUrl` and `githubPrNumber`, a later
+one replacing it) an entry reads just before it; it is the only writer of a
+work item's status, type and pull request link. `claim` refuses an issue that issue-lifecycle drives in the repository (an
 instance `issue-<N>`), even a finished one. `post_attestation` posts an
 attestation built elsewhere (`deno task build-attestation`), and posting the
 same one again for a commit writes nothing. `create` files an issue of type

@@ -44,6 +44,8 @@ export interface FakeLabIssue {
   authorId?: string;
   authorUsername?: string;
   isRegression?: boolean;
+  githubPrUrl?: string;
+  githubPrNumber?: number;
 }
 
 export interface FakeLabEntry {
@@ -192,6 +194,13 @@ export function swampClubFake(): SwampClubFake {
       }
       if (!admin) return error("Forbidden", 403);
       issue.type = body.type;
+    }
+    // As issue-lifecycle's fake keeps it: the number only beside a url.
+    if (typeof body.githubPrUrl === "string") {
+      issue.githubPrUrl = body.githubPrUrl;
+      if (typeof body.githubPrNumber === "number") {
+        issue.githubPrNumber = body.githubPrNumber;
+      }
     }
     if (body.status !== undefined) {
       const status = body.status;

@@ -890,6 +890,23 @@ Deno.test("tracker entries: payload fields are the recorded product's own", () =
     withEntries([entry({ on: { record: "summary" }, setsType: "type" })]),
     "'type' is not a field of 'summary'",
   );
+  assertRejects(
+    withEntries([entry({ on: { record: "summary" }, linkPr: "url" })]),
+    "'url' is not a field of 'summary'",
+  );
+});
+
+Deno.test("tracker entries: linkPr names a string field holding the pull request url", () => {
+  const doc = withEntries([
+    entry({ on: { record: "summary" }, linkPr: "url" }),
+  ]);
+  set(doc, "stages.0.artifacts.0.schema.properties.url", {
+    type: "string",
+    format: "uri",
+  });
+  assertValid(doc);
+  set(doc, "stages.0.artifacts.0.schema.properties.url", { type: "number" });
+  assertRejects(doc, "linkPr needs a string field");
 });
 
 Deno.test("tracker entries: a summary needs fixed text, since an absent field fills as empty", () => {
@@ -924,6 +941,10 @@ Deno.test("tracker entries: enter and approve have no payload to match, fill or 
   assertRejects(
     withEntries([entry({ on: { approve: "sign-off" }, setsType: "text" })]),
     "setsType",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", linkPr: "text" })]),
+    "(linkPr)",
   );
 });
 

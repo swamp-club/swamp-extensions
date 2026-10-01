@@ -39,6 +39,7 @@ import {
 } from "../_lib/engine/tracker_testing.ts";
 import {
   entriesDefinition,
+  linkingDefinition,
   TRACKED_ITEM,
   trackedItem,
 } from "../_lib/tracker/core/test_support.ts";
@@ -717,5 +718,56 @@ Deno.test("swamp-club model: the issue-lifecycle guard fails closed when it cann
       ),
     Error,
     "cannot check whether issue-lifecycle drives",
+  );
+});
+
+Deno.test("swamp-club model: publish links an entry's pull request on the Lab issue once, and a later one replaces it", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({
+      apiKey: ADMIN_KEY,
+      url: fake.url,
+      statuses: JSON.stringify({
+        open: "open",
+        triaged: "triaged",
+        in_review: "triaged",
+        shipped: "shipped",
+      }),
+    }),
+    async (swamp, fake) => {
+      const item = await trackedItem(
+        swamp,
+        { "swamp-club": ISSUE },
+        linkingDefinition(),
+        { tracker: INSTANCE, kind: "swamp-club" },
+      );
+      const first = "https://git.example.com/o/r/pulls/401";
+      await item.record("artifact", "note", { text: "first", url: first });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      const prPatches = () =>
+        fake.requests.filter((r) =>
+          r.method === "PATCH" &&
+          Object.hasOwn(r.body as Record<string, unknown>, "githubPrUrl")
+        );
+      assertEquals(prPatches().map((r) => r.body), [
+        { githubPrUrl: first, githubPrNumber: 401 },
+      ]);
+      assertEquals(fake.issues[0].githubPrUrl, first);
+      assertEquals(fake.issues[0].githubPrNumber, 401);
+
+      // A re-run writes nothing.
+      const requests = fake.requests.length;
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.requests.length, requests);
+
+      const second = "https://git.example.com/o/r/pulls/402";
+      await item.advance("submit");
+      await item.advance("again");
+      await item.record("artifact", "note", { text: "second", url: second });
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(prPatches().length, 2);
+      assertEquals(fake.issues[0].githubPrUrl, second);
+      assertEquals(fake.issues[0].githubPrNumber, 402);
+    },
   );
 });

@@ -163,6 +163,21 @@ export function entriesDefinition(): Record<string, unknown> {
   return doc;
 }
 
+/** entriesDefinition with a pull request url on the note, which both of
+ * write's note entries link. */
+export function linkingDefinition(): Record<string, unknown> {
+  const doc = entriesDefinition() as {
+    stages: {
+      artifacts: { schema: { properties: Record<string, unknown> } }[];
+      tracker: { entries: Record<string, unknown>[] };
+    }[];
+  };
+  const [write] = doc.stages;
+  write.artifacts[0].schema.properties.url = { type: "string" };
+  for (const entry of write.tracker.entries.slice(1)) entry.linkPr = "url";
+  return doc;
+}
+
 /**
  * A work item started on trackedDefinition in the fake swamp, with the
  * given externalRefs, and a way to move it on as a person would. Its factory

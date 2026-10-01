@@ -374,6 +374,32 @@ Deno.test("tracker entries: the payload chooses between matching entries, and fi
   });
 });
 
+Deno.test("tracker entries: linkPr reads the pull request url from the payload, when it holds one", () => {
+  const entry: TrackerEntry = {
+    on: { record: "pull-request" },
+    step: "pr_linked",
+    emoji: "x",
+    summary: "PR linked: {{url}}",
+    linkPr: "url",
+  };
+  const event = {
+    journalVersion: 2,
+    candidates: [entry],
+    status: "in_progress",
+    product: {
+      kind: "evidence" as const,
+      name: "pull-request",
+      version: 1,
+      digest: "d",
+    },
+  };
+  const url = "https://git.example.com/o/r/pulls/7";
+  assertEquals(renderEntry(entry, event, { url }).pr, url);
+  for (const payload of [{}, { url: "" }, { url: 7 }]) {
+    assertEquals("pr" in renderEntry(entry, event, payload), false);
+  }
+});
+
 Deno.test("tracker entries: payload keys starting with $ are dropped at any depth, as swamp-club refuses them", () => {
   assertEquals(
     withoutDollarKeys({

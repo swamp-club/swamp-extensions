@@ -83,6 +83,7 @@ export const DELIVERY_ACTIONS = [
   "comment",
   "set_status",
   "set_type",
+  "link_pr",
   "lifecycle_entry",
   "relate",
   "unrelate",
@@ -345,7 +346,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
   const guarded = async (
     ctx: TrackerContext,
     write: Write,
-    action: "set_type" | "lifecycle_entry" | "relate" | "unrelate",
+    action: "set_type" | "link_pr" | "lifecycle_entry" | "relate" | "unrelate",
     request: Record<string, unknown>,
     perform: () => Promise<Record<string, unknown>>,
     done: (result: Record<string, unknown>) => string,
@@ -434,6 +435,27 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
         r.changed === true
           ? `set ${write.issue}'s type to '${write.type}'`
           : `${write.issue} is already '${write.type}'; wrote nothing`,
+    );
+
+  const linkPr = (
+    ctx: TrackerContext,
+    write: Write & { url: string },
+  ): Promise<Delivered> =>
+    guarded(
+      ctx,
+      write,
+      "link_pr",
+      { url: write.url },
+      async () => ({
+        ...await requireCapability(options.adapter(ctx), "pullRequests").linkPr(
+          write.issue,
+          write.url,
+        ),
+      }),
+      (r) =>
+        r.changed === true
+          ? `linked ${write.url} on ${write.issue}`
+          : `${write.issue} already links ${write.url}; wrote nothing`,
     );
 
   const entry = (
@@ -695,7 +717,7 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     return { handles: [handle], wrote: result.changed === true, result };
   };
 
-  return { comment, setStatus, setType, entry, relation, assign };
+  return { comment, setStatus, setType, linkPr, entry, relation, assign };
 }
 
 const publishArguments = z.object({
@@ -1218,6 +1240,7 @@ export function trackerMethods(options: TrackerModelOptions) {
         // Assigning when the work item starts: where the tracker can, and a
         // login maps to its user. Once, on the started event's version.
         const assigner = adapter.capabilities.assign;
+        const linksPrs = adapter.capabilities.pullRequests !== undefined;
         const assignee = options.assignee;
         const startedVersion =
           run.journal.findIndex((e) => e.type === "started") + 1;
@@ -1344,6 +1367,17 @@ export function trackerMethods(options: TrackerModelOptions) {
               const done = await deliver.setType(ctx, {
                 issue,
                 type: entry.type,
+                key,
+                replay: true,
+              });
+              handles.push(...done.handles);
+            }
+            // Then the pull request the entry reads, where the tracker
+            // links one; a tracker without links has nothing to write.
+            if (entry.pr !== undefined && linksPrs) {
+              const done = await deliver.linkPr(ctx, {
+                issue,
+                url: entry.pr,
                 key,
                 replay: true,
               });

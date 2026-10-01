@@ -126,6 +126,24 @@ export interface LifecycleEntryWriter {
   ): Promise<{ changed: boolean; type: string }>;
 }
 
+/** What a linkPr did. */
+export interface PullRequestLink {
+  /** False when the ticket already linked the url: nothing was written. */
+  changed: boolean;
+  url: string;
+}
+
+/**
+ * The pull request capability: a tracker that links a pull request on a
+ * ticket. publish links one when an entry reads its url (`linkPr`); a
+ * tracker without it is never asked.
+ */
+export interface PullRequestLinker {
+  /** Link the pull request at this url on the ticket, replacing an earlier
+   * one where the tracker keeps only one; already linked writes nothing. */
+  linkPr(issueId: string, url: string): Promise<PullRequestLink>;
+}
+
 /** What an assign did. */
 export interface Assignment {
   /** False when the user was already assigned: nothing was written. */
@@ -181,6 +199,8 @@ export interface TrackerCapabilities {
   readonly history?: LifecycleEntryWriter;
   /** Ticket assignees, where the tracker has them. */
   readonly assign?: Assigner;
+  /** Pull requests linked on a ticket, where the tracker has them. */
+  readonly pullRequests?: PullRequestLinker;
 }
 export type CapabilityName = keyof TrackerCapabilities;
 

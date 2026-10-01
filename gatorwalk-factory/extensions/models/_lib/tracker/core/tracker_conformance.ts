@@ -90,6 +90,13 @@ export interface ConformanceFixture {
     user: string;
     assignees(): string[];
   };
+  /**
+   * For an adapter with the optional pullRequests capability: the url the
+   * ticket links, as the fake holds it.
+   */
+  pullRequests?: {
+    linked(): string | undefined;
+  };
 }
 
 async function rejectsWith(
@@ -255,6 +262,45 @@ export async function assertTrackerConformance(
       await rejectsWith("auth", () => badAssign.assign(f.issue.id, user));
     }
     await rejectsWith("not_found", () => assigner.assign(f.missing, user));
+  }
+
+  // Pull request links, where the adapter has them: linked once, the same
+  // url again writes nothing, and another replaces it. Where it has not,
+  // asking is refused.
+  const linker = adapter.capabilities.pullRequests;
+  if ((linker === undefined) !== (f.pullRequests === undefined)) {
+    throw new Error(
+      "fixture: pullRequests needs both the capability and a probe",
+    );
+  }
+  if (linker === undefined) {
+    const refused = await rejectsWith(
+      "invalid",
+      // deno-lint-ignore require-await
+      async () => requireCapability(adapter, "pullRequests"),
+    );
+    assert(refused.message.includes("pullRequests"), refused.message);
+  }
+  if (linker !== undefined && f.pullRequests !== undefined) {
+    const [one, two] = [
+      "https://git.example.com/o/r/pulls/1",
+      "https://git.example.com/o/r/pulls/2",
+    ];
+    assertEquals(await linker.linkPr(f.issue.id, one), {
+      changed: true,
+      url: one,
+    });
+    assertEquals(await linker.linkPr(f.issue.id, one), {
+      changed: false,
+      url: one,
+    });
+    assertEquals((await linker.linkPr(f.issue.id, two)).changed, true);
+    assertEquals(f.pullRequests.linked(), two);
+    const badLinker = badAuth?.capabilities.pullRequests;
+    if (badLinker !== undefined) {
+      await rejectsWith("auth", () => badLinker.linkPr(f.issue.id, one));
+    }
+    await rejectsWith("not_found", () => linker.linkPr(f.missing, one));
   }
 
   // The ledger, through the shared methods: one delivery key, one write.

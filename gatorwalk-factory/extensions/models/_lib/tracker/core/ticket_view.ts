@@ -360,6 +360,8 @@ export interface RenderedEntry {
   payload: Record<string, unknown>;
   /** The ticket type to set first, when the entry reads one. */
   type?: string;
+  /** The pull request url to link first, when the entry reads one. */
+  pr?: string;
 }
 
 /**
@@ -411,6 +413,7 @@ export function renderEntry(
   const type = entry.setsType === undefined
     ? undefined
     : payload[entry.setsType];
+  const pr = entry.linkPr === undefined ? undefined : payload[entry.linkPr];
   return {
     step: entry.step,
     emoji: entry.emoji,
@@ -419,5 +422,6 @@ export function renderEntry(
     isVerbose: entry.verbose === true,
     payload: event.product === undefined ? {} : withoutDollarKeys(payload),
     ...(typeof type === "string" && type !== "" ? { type } : {}),
+    ...(typeof pr === "string" && pr !== "" ? { pr } : {}),
   };
 }

@@ -22,6 +22,8 @@ import {
   type LifecycleEntry,
   type LifecycleEntryWriter,
   type PostedEntry,
+  type PullRequestLink,
+  type PullRequestLinker,
   RELATION_TYPES,
   type RelationChange,
   type RelationType,
@@ -322,6 +324,7 @@ export interface SwampClubAdapter extends TrackerAdapter {
   readonly capabilities: {
     readonly history: LifecycleEntryWriter;
     readonly assign: Assigner;
+    readonly pullRequests: PullRequestLinker;
   };
   /**
    * Whether the issue's author is on swamp-club's team, from a fresh read
@@ -368,6 +371,7 @@ interface LabIssueBody {
     type?: unknown;
     authorId?: unknown;
     authorUsername?: unknown;
+    githubPrUrl?: unknown;
   };
   comments?: unknown;
   relationships?: unknown;
@@ -377,6 +381,13 @@ interface LabIssueBody {
 interface LabRelationship {
   id: string;
   relation: TrackerRelation;
+}
+
+/** The number in a pull request url's /pulls/<n>, as issue-lifecycle's
+ * parsePrNumber reads it. */
+function prNumberOf(url: string): number | undefined {
+  const match = /\/pulls\/(\d+)(?:[/?#]|$)/.exec(url);
+  return match ? Number(match[1]) : undefined;
 }
 
 function fail(
@@ -632,6 +643,7 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
       assignees,
       details,
       relationships,
+      prUrl: typeof found.githubPrUrl === "string" ? found.githubPrUrl : "",
     };
   }
 
@@ -734,6 +746,27 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
     },
   };
 
+  // The Lab keeps one pull request per issue, as a field of its own that
+  // puts the link in the reporter's shipped notification. A new url
+  // replaces the old, as issue-lifecycle's latest link_pr does.
+  const pullRequests: PullRequestLinker = {
+    async linkPr(issueId: string, url: string): Promise<PullRequestLink> {
+      const issue = numberFrom(issueId, false);
+      if ((await getIssue(issue)).prUrl === url) {
+        return { changed: false, url };
+      }
+      const number = prNumberOf(url);
+      await call(
+        "PATCH",
+        `/api/v1/lab/issues/${issue}`,
+        number === undefined
+          ? { githubPrUrl: url }
+          : { githubPrUrl: url, githubPrNumber: number },
+      );
+      return { changed: true, url };
+    },
+  };
+
   async function labUrl(issue: number): Promise<string> {
     return `${(await credentials()).url}/lab/${issue}`;
   }
@@ -757,6 +790,7 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
     origin: "snapshot",
     capabilities: {
       history,
+      pullRequests,
       // The Lab's own assign, in the contract's terms.
       assign: {
         async assign(issueId: string, user: string): Promise<Assignment> {

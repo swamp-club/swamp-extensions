@@ -1489,6 +1489,16 @@ capability for an adapter that declares it (the user is added once, bad
 credentials are `auth`, a missing ticket is `not_found`) and that one without
 it refuses.
 
+**The pull request capability.** A tracker that links a pull request on a
+ticket offers `capabilities.pullRequests` (`linkPr`): it links the url, and a
+url already linked writes nothing. Only the Lab has it, as the issue's
+`githubPrUrl` and `githubPrNumber`, which keep one pull request, so a new url
+replaces the old. `publish` links one when an entry reads its url (`linkPr`),
+through the same ledger (action `link_pr`); a tracker without the capability
+publishes the entry without a link. The conformance suite checks it for an
+adapter that declares it (linked once, another url replaces it, bad credentials
+are `auth`, a missing ticket is `not_found`) and that one without it refuses.
+
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
 and are matched by exact name, then resolved to an id at call time). An unmapped
@@ -1684,7 +1694,10 @@ entry never describes a later version. `match` picks between entries on one
 trigger, `{{field}}` fills the summary from the payload (an absent field is
 empty text), and `setsType` names a payload field whose value is written as the
 ticket type first, under its own ledger key, as issue-lifecycle writes the type
-before its `classified` entry. An entry's `targetStatus` is a label only
+before its `classified` entry. `linkPr` names a payload field holding a pull
+request url, linked next (where the tracker has the pull request capability)
+under its own ledger key, as issue-lifecycle's `link_pr` links the pull request
+with its `pr_linked` entry. An entry's `targetStatus` is a label only
 (swamp-club never moves the issue for it): the entry's own `status` key, else
 its stage's, else the last stage's before it, else the ticket's current status.
 Summaries are a template over the payload, not CEL, so what issue-lifecycle
@@ -1802,7 +1815,10 @@ to it:
   published before `publish` assigned. The history capability posts lifecycle
   entries (the server's step, emoji and summary limits checked before the
   call, a summary over 2000 characters cut as issue-lifecycle cuts it) and sets
-  the type.
+  the type. The pull request capability sets `githubPrUrl`, and
+  `githubPrNumber` when the url has a `/pulls/<n>`, as issue-lifecycle's
+  `link_pr` does: swamp-club does not derive them from a `pr_linked` entry, and
+  they put the link in the reporter's shipped notification.
   `fetch_issue` records the body, type, author and ripples in `details`.
   `post_attestation` posts a verification attestation that was built elsewhere
   (`deno task build-attestation`); the adapter only checks that `subject.commit`
@@ -2111,6 +2127,27 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: publish links the pull request on the Lab issue, as issue-lifecycle's link_pr does (swamp-club #2872)
+
+**Decision.** A tracker entry may declare `linkPr`, a payload field holding a
+pull request url. `publish` links it after the entry's type and before the
+entry, under its own ledger key (`link_pr`), through a new optional
+`pullRequests` capability. Only the swamp-club team's Lab adapter has it: it
+PATCHes `githubPrUrl`, and `githubPrNumber` when the url has a `/pulls/<n>`,
+and writes nothing when the issue already links that url. A later pull request
+replaces the link.
+
+**Why.** The dogfood run on #2711 shipped with no pull request on the issue:
+swamp-club does not derive the fields from the `pr_linked` entry, so the
+reporter's shipped notification had no link.
+
+**Choices made with Seth in triage.** A capability of its own, not part of
+history, so the built-in tracker and Linear need nothing. The field is
+`linkPr`, since an issue could one day link several pull requests. Issues
+already published past `pr_linked` are not backfilled. The team's factory
+declares `linkPr: url` on its `pr_linked` entry when it is rebuilt; nothing in
+this repository carries that definition since #2842.
 
 ### 2026-10-01: the swamp-club Lab is the swamp-club team's own, and the shipped docs say so (swamp-club #2842)
 

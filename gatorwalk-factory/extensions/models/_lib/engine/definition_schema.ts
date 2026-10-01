@@ -606,6 +606,8 @@ export const TrackerEntrySchema = z.strictObject({
   verbose: z.boolean().optional(),
   /** A payload field holding the ticket type to set before the entry. */
   setsType: z.string().regex(IDENTIFIER_PATTERN).optional(),
+  /** A payload field holding a pull request url to link before the entry. */
+  linkPr: z.string().regex(IDENTIFIER_PATTERN).optional(),
 });
 
 export type TrackerEntry = z.infer<typeof TrackerEntrySchema>;
@@ -1050,6 +1052,7 @@ function checkEntries(
       const payloadOnly: [string, boolean][] = [
         ["match", entry.match !== undefined],
         ["setsType", entry.setsType !== undefined],
+        ["linkPr", entry.linkPr !== undefined],
         ["summary", placeholders.length > 0],
       ];
       for (const [field, used] of payloadOnly) {
@@ -1082,6 +1085,9 @@ function checkEntries(
       ...(entry.setsType === undefined
         ? []
         : [[[...at, "setsType"], entry.setsType] as [Path, string]]),
+      ...(entry.linkPr === undefined
+        ? []
+        : [[[...at, "linkPr"], entry.linkPr] as [Path, string]]),
     ];
     for (const [where, name] of fields) {
       if (!declared(name)) {
@@ -1101,6 +1107,19 @@ function checkEntries(
             "placeholder needs a string, number or boolean field",
         );
       }
+    }
+    // A pull request is linked by its url, which is text.
+    const prType = entry.linkPr !== undefined && declared(entry.linkPr)
+      ? (properties as Record<string, { type?: unknown }>)[entry.linkPr]?.type
+      : undefined;
+    if (prType !== undefined && prType !== "string") {
+      fail(
+        [...at, "linkPr"],
+        `'${entry.linkPr}' is a ${
+          JSON.stringify(prType)
+        } field of '${on.record}'; linkPr needs a string field holding the ` +
+          "pull request url",
+      );
     }
   });
   // Exclusive: two entries on one trigger must differ in cycle, or require

@@ -105,6 +105,10 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
             a.username
           ) ?? [],
       },
+      pullRequests: {
+        linked: () =>
+          fake.issues.find((i) => i.number === LAB_ISSUE)?.githubPrUrl,
+      },
     });
   });
 });
@@ -192,6 +196,40 @@ Deno.test("swamp-club: setType patches only when the type differs, and needs an 
         ),
       "admin",
     );
+  });
+});
+
+Deno.test("swamp-club: linkPr sets the issue's pull request, writes nothing when it is already linked, and a new one replaces it", async () => {
+  await withFake(async (fake) => {
+    const { linkPr } = adapterFor(fake).capabilities.pullRequests;
+    const first = "https://git.example.com/o/r/pulls/401";
+    assertEquals(await linkPr(ISSUE, first), { changed: true, url: first });
+    assertEquals(fake.requests.at(-1)?.body, {
+      githubPrUrl: first,
+      githubPrNumber: 401,
+    });
+    assertEquals(fake.issues[0].githubPrUrl, first);
+    assertEquals(fake.issues[0].githubPrNumber, 401);
+
+    const patches = () =>
+      fake.requests.filter((r) => r.method === "PATCH").length;
+    const before = patches();
+    assertEquals(await linkPr(ISSUE, first), { changed: false, url: first });
+    assertEquals(patches(), before);
+
+    const second = "https://git.example.com/o/r/pulls/402";
+    assertEquals(await linkPr(ISSUE, second), { changed: true, url: second });
+    assertEquals(fake.issues[0].githubPrUrl, second);
+    assertEquals(fake.issues[0].githubPrNumber, 402);
+  });
+});
+
+Deno.test("swamp-club: linkPr sends only the url when it names no /pulls/<n>", async () => {
+  await withFake(async (fake) => {
+    const url = "https://example.com/review/7";
+    await adapterFor(fake).capabilities.pullRequests.linkPr(ISSUE, url);
+    assertEquals(fake.requests.at(-1)?.body, { githubPrUrl: url });
+    assertEquals(fake.issues[0].githubPrNumber, undefined);
   });
 });
 

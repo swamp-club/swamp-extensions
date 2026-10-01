@@ -18,6 +18,7 @@ import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "../../engine/tracker_testing.ts";
 import {
   entriesDefinition,
+  linkingDefinition,
   TRACKED_ITEM,
   trackedDefinition,
   trackedItem,
@@ -823,11 +824,12 @@ Deno.test("publish: a failing version query falls back to the latest copy of the
 // --- entry mode ------------------------------------------------------------------
 
 /** A tracker with the history capability, recording every write in order. */
-function historyTicket() {
+function historyTicket(options: { pullRequests?: boolean } = {}) {
   const writes: string[] = [];
   const state = {
     status: "Todo",
     type: "feature",
+    pr: "",
     failEntry: "",
     failKind: "upstream" as "upstream" | "invalid",
   };
@@ -882,6 +884,18 @@ function historyTicket() {
           return Promise.resolve({ changed, type });
         },
       },
+      ...(options.pullRequests === true
+        ? {
+          pullRequests: {
+            linkPr: (_issueId: string, url: string) => {
+              writes.push(`pr ${url}`);
+              const changed = state.pr !== url;
+              state.pr = url;
+              return Promise.resolve({ changed, url });
+            },
+          },
+        }
+        : {}),
     },
   };
   const statuses = {
@@ -950,6 +964,56 @@ Deno.test("publish, entries: a later cycle picks its own entry, and a stage with
   ]);
   // No type field, no type write.
   assert(!writes.some((w) => w.startsWith("type")));
+});
+
+const PR_ONE = "https://git.example.com/o/r/pulls/1";
+const PR_TWO = "https://git.example.com/o/r/pulls/2";
+
+Deno.test("publish, entries: linkPr links the pull request after the type and before the entry, once, and a later one replaces it", async () => {
+  const swamp = fakeSwamp();
+  const { writes, state, methods } = historyTicket({ pullRequests: true });
+  const item = await trackedItem(swamp, { test: "T1" }, linkingDefinition());
+  await item.record("artifact", "note", {
+    text: "first",
+    type: "bug",
+    url: PR_ONE,
+  });
+  await publish(swamp, methods);
+  const typed = writes.indexOf("type bug");
+  assertEquals(writes.slice(typed, typed + 3), [
+    "type bug",
+    `pr ${PR_ONE}`,
+    `entry noted [Triaged] Noted: first (verbose) ` +
+    `{"text":"first","type":"bug","url":"${PR_ONE}"}`,
+  ]);
+  assert(
+    swamp.resources.get(INSTANCE)?.has(
+      `delivery-publish-link_pr-${TRACKED_ITEM}-2`,
+    ),
+  );
+  const count = writes.length;
+  await publish(swamp, methods);
+  assertEquals(writes.length, count, "a re-run writes nothing");
+
+  await item.advance("submit");
+  await item.advance("again");
+  await item.record("artifact", "note", { text: "second", url: PR_TWO });
+  await publish(swamp, methods);
+  assertEquals(writes.filter((w) => w.startsWith("pr ")), [
+    `pr ${PR_ONE}`,
+    `pr ${PR_TWO}`,
+  ]);
+  assertEquals(state.pr, PR_TWO);
+});
+
+Deno.test("publish, entries: a tracker without pull request links publishes a linkPr entry without one", async () => {
+  const swamp = fakeSwamp();
+  const { writes, methods } = historyTicket();
+  const item = await trackedItem(swamp, { test: "T1" }, linkingDefinition());
+  await item.record("artifact", "note", { text: "first", url: PR_ONE });
+  await publish(swamp, methods);
+  assert(!writes.some((w) => w.startsWith("pr ")), writes.join("\n"));
+  assert(writes.some((w) => w.startsWith("entry noted")), writes.join("\n"));
 });
 
 Deno.test("publish, entries: a declined approval and an unanswered event write nothing", async () => {
