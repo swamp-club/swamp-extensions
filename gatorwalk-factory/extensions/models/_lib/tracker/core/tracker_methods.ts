@@ -52,21 +52,23 @@ import {
 import {
   type DeliveryKey,
   type LifecycleEntry,
+  RELATION_TYPES,
+  type RelationType,
   requireCapability,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
 } from "./adapter.ts";
+import { TrackerRelationSchema } from "./relations.ts";
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
-// contract: create, fetch_issue, comment, set_status and publish, and claim,
-// which starts from a ticket (claim.ts).
+// contract: create, fetch_issue, comment, set_status, relate, unrelate and
+// publish, and claim, which starts from a ticket (claim.ts).
 //
-// Delivery ledger: a comment, status, type or lifecycle-entry write that
-// carries a delivery key (workItem + journalVersion) records what the
-// tracker returned under a name
-// built from the key. A second call with the same key finds the record and
+// Delivery ledger: a comment, status, type, lifecycle-entry or relation write
+// that carries a delivery key (workItem + journalVersion) records what the
+// tracker returned under a name built from the key. A second call with the same key finds the record and
 // writes nothing to the tracker. The ledger lives on the tracker instance
 // and relies on swamp running one method at a time per instance; a crash
 // after the tracker accepted a write but before the ledger record lands can
@@ -81,6 +83,8 @@ export const DELIVERY_ACTIONS = [
   "set_status",
   "set_type",
   "lifecycle_entry",
+  "relate",
+  "unrelate",
 ] as const;
 
 export const DeliverySchema = z.object({
@@ -117,6 +121,8 @@ export const SnapshotIssueSchema = z.object({
   status: TrackerStatusSchema,
   /** What only this tracker reports (the Lab's body, type and author). */
   details: z.record(z.string(), z.unknown()).optional(),
+  /** Absent on a snapshot recorded before trackers read relations. */
+  relations: z.array(TrackerRelationSchema).optional(),
   fetchedAt: z.string(),
 });
 
@@ -130,6 +136,9 @@ export const BuiltinIssueSchema = z.object({
   body: z.string(),
   type: z.string(),
   status: TrackerStatusSchema,
+  /** Both ends keep the relation; the subject's (outgoing) side is written
+   * first and removed last (builtin.ts). */
+  relations: z.array(TrackerRelationSchema).default([]),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -324,15 +333,19 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
   const guarded = async (
     ctx: TrackerContext,
     write: Write,
-    action: "set_type" | "lifecycle_entry",
+    action: "set_type" | "lifecycle_entry" | "relate" | "unrelate",
     request: Record<string, unknown>,
     perform: () => Promise<Record<string, unknown>>,
     done: (result: Record<string, unknown>) => string,
+    suffix?: string,
   ): Promise<Delivered> => {
     const { key } = write;
-    const name = key === null
-      ? null
-      : deliveryName(action, key, write.replay ? "publish" : "method");
+    const name = key === null ? null : deliveryName(
+      action,
+      key,
+      write.replay ? "publish" : "method",
+      suffix,
+    );
     const digest = await digestOf(request);
     if (name !== null) {
       const prior = await priorDelivery(
@@ -562,7 +575,41 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     return { handles, wrote: true };
   };
 
-  return { comment, setStatus, setType, entry };
+  /**
+   * Relate or unrelate two tickets. One journal version may write several
+   * relations (a breakdown relates each child), so the ledger record is
+   * named for the relation too: its source, type and target.
+   */
+  const relation = (
+    ctx: TrackerContext,
+    write: Write & { type: RelationType; to: string; remove: boolean },
+  ): Promise<Delivered> => {
+    const action = write.remove ? "unrelate" : "relate";
+    const phrase = `${write.issue} ${write.type} ${write.to}`;
+    return guarded(
+      ctx,
+      write,
+      action,
+      { type: write.type, to: write.to },
+      async () => {
+        const adapter = options.adapter(ctx);
+        return {
+          ...await (write.remove
+            ? adapter.unrelate(write.issue, write.type, write.to)
+            : adapter.relate(write.issue, write.type, write.to)),
+        };
+      },
+      (r) =>
+        r.changed === true
+          ? `${write.remove ? "removed" : "recorded"} ${phrase}`
+          : `${phrase} is already ${
+            write.remove ? "absent" : "recorded"
+          }; wrote nothing`,
+      `${write.issue}-${write.type}-${write.to}`,
+    );
+  };
+
+  return { comment, setStatus, setType, entry, relation };
 }
 
 const publishArguments = z.object({
@@ -760,6 +807,20 @@ const setStatusArguments = z.object({
   ...DeliveryInputs,
 });
 
+const relateArguments = z.object({
+  issue: z.string().min(1).describe(
+    "The relation's subject, by stable id: the parent, the blocked ticket, " +
+      "or the duplicate",
+  ),
+  type: z.enum(RELATION_TYPES).describe(
+    "parent_of, blocked_by, related_to or duplicate_of",
+  ),
+  to: z.string().min(1).describe(
+    "The other ticket's stable id: the child, the blocker, or the canonical",
+  ),
+  ...DeliveryInputs,
+});
+
 export function ticketName(issueId: string): string {
   return `ticket-${safePart("issue id", issueId)}`;
 }
@@ -810,8 +871,8 @@ export const trackerResources = {
   },
 };
 
-/** The create, fetch_issue, claim, comment, set_status and publish methods,
- * over one adapter. */
+/** The create, fetch_issue, claim, comment, set_status, relate, unrelate and
+ * publish methods, over one adapter. */
 export function trackerMethods(options: TrackerModelOptions) {
   const now = options.now ?? (() => new Date());
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
@@ -944,6 +1005,44 @@ export function trackerMethods(options: TrackerModelOptions) {
           key: deliveryKeyOf(args),
           replay: false,
           skipUnreachable: false,
+        });
+        return { dataHandles: handles };
+      },
+    },
+    relate: {
+      description:
+        "Relate one ticket to another (parent_of, blocked_by, related_to, duplicate_of) under the rules every tracker shares; already related writes nothing",
+      arguments: relateArguments,
+      execute: async (
+        args: z.infer<typeof relateArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const { handles } = await deliver.relation(ctx, {
+          issue: args.issue,
+          type: args.type,
+          to: args.to,
+          remove: false,
+          key: deliveryKeyOf(args),
+          replay: false,
+        });
+        return { dataHandles: handles };
+      },
+    },
+    unrelate: {
+      description:
+        "Remove a relation between two tickets; already absent writes nothing",
+      arguments: relateArguments,
+      execute: async (
+        args: z.infer<typeof relateArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const { handles } = await deliver.relation(ctx, {
+          issue: args.issue,
+          type: args.type,
+          to: args.to,
+          remove: true,
+          key: deliveryKeyOf(args),
+          replay: false,
         });
         return { dataHandles: handles };
       },

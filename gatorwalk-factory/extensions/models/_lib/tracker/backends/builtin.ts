@@ -21,13 +21,17 @@ import {
   type LifecycleEntry,
   type LifecycleEntryWriter,
   type PostedEntry,
+  type RelationChange,
+  type RelationType,
   type StatusChange,
   type TrackerAdapter,
   type TrackerComment,
   TrackerError,
   type TrackerErrorKind,
   type TrackerIssue,
+  type TrackerRelation,
 } from "../core/adapter.ts";
+import { checkRelate } from "../core/relations.ts";
 import {
   type BuiltinIssue,
   BuiltinIssueSchema,
@@ -44,7 +48,10 @@ import {
 // counter, so several people can file tickets without one place minting
 // numbers. Statuses and types are the instance's own lists, and a status
 // may move in any direction. It keeps lifecycle entries and the ticket type,
-// so it has the history capability. It never makes a network call.
+// so it has the history capability. A relation is kept on both tickets'
+// records, the subject's side written first and removed last; a re-run after
+// a crash between the two finishes the job, checking the rules again first.
+// It never makes a network call.
 // ---------------------------------------------------------------------------
 
 export const BUILTIN = "builtin";
@@ -150,6 +157,45 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
       title: issue.title,
       status: issue.status,
       details: { body: issue.body, type: issue.type },
+      relations: issue.relations,
+    };
+  }
+
+  /** Add or drop one side of a relation; true when the record changed. */
+  async function setSide(
+    issue: BuiltinIssue,
+    side: TrackerRelation,
+    present: boolean,
+  ): Promise<boolean> {
+    const same = (r: TrackerRelation) =>
+      r.type === side.type && r.direction === side.direction &&
+      r.issue === side.issue;
+    if (issue.relations.some(same) === present) return false;
+    await write({
+      ...issue,
+      relations: present
+        ? [...issue.relations, side]
+        : issue.relations.filter((r) => !same(r)),
+      updatedAt: now(),
+    });
+    return true;
+  }
+
+  /** Both sides of `from type to`, as each ticket keeps it. */
+  function sides(from: TrackerIssue, type: RelationType, to: TrackerIssue) {
+    return {
+      out: {
+        type,
+        direction: "outgoing" as const,
+        issue: to.id,
+        display: to.display,
+      },
+      in: {
+        type,
+        direction: "incoming" as const,
+        issue: from.id,
+        display: from.display,
+      },
     };
   }
 
@@ -238,6 +284,7 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
           body: draft.body,
           type: draft.type,
           status: status(statuses[0]),
+          relations: [],
           createdAt: at,
           updatedAt: at,
         };
@@ -279,6 +326,65 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
       // Any direction: the factory decides the order, not the tracker.
       await write({ ...issue, status: status(statusName), updatedAt: now() });
       return { changed: true, status: status(statusName) };
+    },
+
+    async relate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      const source = await read(from);
+      const target = await read(to);
+      const side = sides(toIssue(source), type, toIssue(target));
+      const holds = (issue: BuiltinIssue, s: TrackerRelation) =>
+        issue.relations.some((r) =>
+          r.type === s.type && r.direction === s.direction &&
+          r.issue === s.issue
+        );
+      if (holds(source, side.out) && holds(target, side.in)) {
+        return { changed: false };
+      }
+      // Neither side, or one left by a crash between the two writes: the
+      // rules run as though the relation were absent, so finishing a half
+      // relation never lets through what a new one would be refused (a
+      // second parent related while this one was half-written).
+      const without = (issue: BuiltinIssue): TrackerIssue => ({
+        ...toIssue(issue),
+        relations: issue.relations.filter((r) =>
+          !(r.type === type &&
+            ((issue.id === source.id && r.direction === "outgoing" &&
+              r.issue === target.id) ||
+              (issue.id === target.id && r.direction === "incoming" &&
+                r.issue === source.id)))
+        ),
+      });
+      const check = await checkRelate(
+        async (id) => without(await read(id)),
+        BUILTIN,
+        source.id,
+        type,
+        target.id,
+      );
+      if (check.exists) return { changed: false };
+      // The subject's side first: the target's side mirrors it.
+      const wroteOut = await setSide(await read(source.id), side.out, true);
+      const wroteIn = await setSide(await read(target.id), side.in, true);
+      return { changed: wroteOut || wroteIn };
+    },
+
+    async unrelate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      const source = await read(from);
+      const target = await read(to);
+      const side = sides(toIssue(source), type, toIssue(target));
+      // The target's side first, so the subject's side, which counts, goes
+      // last.
+      const wroteIn = await setSide(target, side.in, false);
+      const wroteOut = await setSide(source, side.out, false);
+      return { changed: wroteIn || wroteOut };
     },
   };
 }

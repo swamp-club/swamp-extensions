@@ -349,3 +349,55 @@ Deno.test("linear: create is refused without a teamId, for an unmapped type, and
     assertEquals(fake.issues.length, 1, "nothing was filed");
   });
 });
+
+Deno.test("linear: blocked_by is Linear's blocks read the other way", async () => {
+  await withFake(async (fake) => {
+    const linear = adapterFor(fake);
+    const other = await linear.create({
+      title: "Other",
+      body: "b",
+      type: "bug",
+    });
+    await linear.relate(ISSUE_UUID, "blocked_by", other.id);
+    assertEquals(
+      fake.relations.map((r) => [r.issueId, r.type, r.relatedIssueId]),
+      [[other.id, "blocks", ISSUE_UUID]],
+    );
+    const blocked = await linear.fetchIssue(ISSUE_UUID);
+    assertEquals(blocked.relations, [{
+      type: "blocked_by",
+      direction: "outgoing",
+      issue: other.id,
+      display: other.display,
+    }]);
+  });
+});
+
+Deno.test("linear: unrelate clears a parent only when it is the one named", async () => {
+  await withFake(async (fake) => {
+    const linear = adapterFor(fake);
+    const draft = { title: "Parent", body: "b", type: "bug" };
+    const parent = await linear.create(draft);
+    const third = await linear.create(draft);
+    await linear.relate(parent.id, "parent_of", ISSUE_UUID);
+    // third is not ISSUE's parent: unrelating it as one changes nothing.
+    assertEquals(await linear.unrelate(third.id, "parent_of", ISSUE_UUID), {
+      changed: false,
+    });
+    assertEquals(fake.issues[0].parentId, parent.id);
+    assertEquals(await linear.unrelate(parent.id, "parent_of", ISSUE_UUID), {
+      changed: true,
+    });
+    assertEquals(fake.issues[0].parentId, null);
+  });
+});
+
+Deno.test("linear: relations take UUIDs, as every write does", async () => {
+  await withFake(async (fake) => {
+    await failsWith(
+      "invalid",
+      () => adapterFor(fake).relate("GW-16", "related_to", ISSUE_UUID),
+      "not an issue UUID",
+    );
+  });
+});

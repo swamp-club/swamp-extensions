@@ -19,7 +19,10 @@
 // 127.0.0.1 and a free port. It answers the operations the adapter sends,
 // with the response and error shapes Linear documents: GraphQL errors with
 // extensions.code (AUTHENTICATION_ERROR, RATELIMITED, INVALID_INPUT and
-// "Entity not found"). A test can queue raw responses to exercise malformed
+// "Entity not found"). Relations are Linear's: a parent field, and
+// blocks/duplicate/related links, none of them checked for anything (Linear
+// keeps no rule against a second canonical or a duplicate chain, and a new
+// parent replaces the old). A test can queue raw responses to exercise malformed
 // ones, including a body that stalls or drops mid-stream. Never the live
 // service.
 // ---------------------------------------------------------------------------
@@ -36,6 +39,15 @@ export interface FakeIssue {
   stateId: string;
   description?: string;
   labelIds?: string[];
+  parentId?: string | null;
+}
+
+/** A Linear issue relation: `issueId type relatedIssueId`. */
+export interface FakeRelation {
+  id: string;
+  type: "blocks" | "duplicate" | "related" | "similar";
+  issueId: string;
+  relatedIssueId: string;
 }
 
 /** A label: a team's own, or the workspace's (team null). */
@@ -68,6 +80,7 @@ export interface LinearFake {
   states: FakeState[];
   labels: FakeLabel[];
   comments: { id: string; issueId: string; body: string }[];
+  relations: FakeRelation[];
   requests: FakeRequest[];
   /** Raw responses to send, in order, before answering normally again. */
   queue: RawResponse[];
@@ -101,6 +114,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     { id: "label-elsewhere", name: "Elsewhere", team: { id: "team-other" } },
   ];
   const comments: LinearFake["comments"] = [];
+  const relations: FakeRelation[] = [];
   const requests: FakeRequest[] = [];
   const queue: RawResponse[] = [];
   const stalled = new Set<ReadableStreamDefaultController<Uint8Array>>();
@@ -134,6 +148,11 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
   const urlOf = (issue: FakeIssue) =>
     `https://linear.app/fake/issue/${issue.identifier}`;
   const notFound = () => error("Entity not found: Issue", "INVALID_INPUT", 200);
+  const ref = (issue: FakeIssue) => ({
+    id: issue.id,
+    identifier: issue.identifier,
+  });
+  const byId = (id: string) => issues.find((i) => i.id === id)!;
 
   const server = Deno.serve(
     { hostname: "127.0.0.1", port: 0, onListen: () => {} },
@@ -229,6 +248,57 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
           },
         });
       }
+      if (query.includes("issueRelationCreate")) {
+        const input = (variables.input ?? {}) as {
+          issueId?: unknown;
+          relatedIssueId?: unknown;
+          type?: unknown;
+        };
+        const issue = find(input.issueId);
+        const related = find(input.relatedIssueId);
+        if (issue === undefined || related === undefined) return notFound();
+        if (
+          !["blocks", "duplicate", "related", "similar"].includes(
+            String(input.type),
+          )
+        ) {
+          return error("Invalid relation type", "INVALID_INPUT", 400);
+        }
+        const relation: FakeRelation = {
+          id: crypto.randomUUID(),
+          type: input.type as FakeRelation["type"],
+          issueId: issue.id,
+          relatedIssueId: related.id,
+        };
+        relations.push(relation);
+        return json({
+          data: {
+            issueRelationCreate: {
+              success: true,
+              issueRelation: { id: relation.id },
+            },
+          },
+        });
+      }
+      if (query.includes("issueRelationDelete")) {
+        const at = relations.findIndex((r) => r.id === variables.id);
+        if (at < 0) {
+          return error("Entity not found: IssueRelation", "INVALID_INPUT", 200);
+        }
+        relations.splice(at, 1);
+        return json({ data: { issueRelationDelete: { success: true } } });
+      }
+      if (query.includes("issueUpdate") && "parentId" in variables) {
+        const issue = find(variables.id);
+        if (issue === undefined) return notFound();
+        if (
+          variables.parentId !== null && find(variables.parentId) === undefined
+        ) {
+          return notFound();
+        }
+        issue.parentId = variables.parentId as string | null;
+        return json({ data: { issueUpdate: { success: true } } });
+      }
       if (query.includes("issueUpdate")) {
         const issue = find(variables.id);
         if (issue === undefined) return notFound();
@@ -253,6 +323,27 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
               url: urlOf(issue),
               state: stateOf(issue),
               team: { states: { nodes: states } },
+              parent: issue.parentId ? ref(byId(issue.parentId)) : null,
+              children: {
+                nodes: issues.filter((i) => i.parentId === issue.id).map(ref),
+              },
+              relations: {
+                nodes: relations.filter((r) => r.issueId === issue.id).map((
+                  r,
+                ) => ({
+                  id: r.id,
+                  type: r.type,
+                  relatedIssue: ref(byId(r.relatedIssueId)),
+                })),
+              },
+              inverseRelations: {
+                nodes: relations.filter((r) => r.relatedIssueId === issue.id)
+                  .map((r) => ({
+                    id: r.id,
+                    type: r.type,
+                    issue: ref(byId(r.issueId)),
+                  })),
+              },
             },
           },
         });
@@ -268,6 +359,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     states,
     labels,
     comments,
+    relations,
     requests,
     queue,
     close: () => {

@@ -129,7 +129,12 @@ with no external tracker has the built-in one
 file it with
 `swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>' --log`,
 then claim it. See
-[references/driving.md](references/driving.md#start-from-a-ticket).
+[references/driving.md](references/driving.md#start-from-a-ticket). To link two
+tickets (a parent and its child, a blocker, a duplicate), use
+`swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id> --log`
+with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
+second parent, a parent cycle and a duplicate chain the same way. Relations
+belong to the tracker: read them with `fetch_issue`, not from memory.
 
 ## When something is refused
 

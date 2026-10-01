@@ -712,6 +712,7 @@ Deno.test("swamp-club model: the issue-lifecycle guard fails closed when it cann
           title: "t",
           url: "u",
           status: { id: "open", name: "open" },
+          relations: [],
         },
       ),
     Error,

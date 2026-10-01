@@ -509,6 +509,25 @@ definition names only the kind of tracker (`builtin` unless it says
 otherwise), and a factory names the instance with `--global-arg
 tracker=board`.
 
+Every tracker relates tickets the same way, by stable id:
+
+```bash
+swamp model method run board relate --input issue=<parent> \
+  --input type=parent_of --input to=<child> --log
+swamp model method run board unrelate --input issue=<parent> \
+  --input type=parent_of --input to=<child> --log
+```
+
+`type` is `parent_of` (`issue` is the parent), `blocked_by` (`issue` waits on
+`to`), `related_to` or `duplicate_of` (`to` is the canonical). Relating again,
+or removing what is absent, writes nothing, and `workItem` with
+`journalVersion` makes either idempotent through the ledger. Every tracker
+refuses the same relations: a second parent, a parent cycle, a second
+canonical, a duplicate of a duplicate, and a duplicate that has duplicates of
+its own. `fetch_issue` reports a ticket's relations, each with its direction;
+`related_to` is read with one too. The built-in tracker keeps them on both
+tickets.
+
 ## Linear
 
 `@swamp/gatorwalk-factory/linear` connects a Linear workspace. Keep one instance
@@ -536,6 +555,10 @@ item with. `comment` and `set_status` take the UUID; given `workItem` and
 files an issue in the `teamId` team. Linear has no issue type, so `types` maps
 each type to a label name, matched exactly among the team's and the workspace's
 labels; an unmapped type, or a label the team cannot use, is refused.
+`relate` and `unrelate` (see "Built-in tracker") take UUIDs: `parent_of` sets
+the child's parent, `blocked_by` is Linear's blocks read the other way, and
+Linear may move an issue marked a duplicate to its own Duplicate status, which
+swamp does not undo. Up to 250 relations of each kind are read per issue.
 
 `publish` replays a work item's journal to the issue its `externalRefs` name (to
 a tracker that keeps lifecycle entries, with a factory definition that declares
@@ -590,6 +613,9 @@ admin key) and records it from swamp-club's reply. `fetch_issue` records the
 issue's body, type, author and ripples too. `set_type`
 sets the type by hand. `team_member` says whether the issue's author is on
 swamp-club's team, failing rather than guessing when a lookup fails.
+`relate` and `unrelate` (see "Built-in tracker") take issue numbers;
+`blocked_by` needs an admin key, as do relations on another user's issues,
+and `duplicate_of` leaves the issue's status alone.
 `thank_author` posts issue-lifecycle's thank-you ripple to an author outside the
 team and skips a team member; a failed lookup posts nothing, and `force=true`
 skips only the team check. `assign` also records issue-lifecycle's `assigned`

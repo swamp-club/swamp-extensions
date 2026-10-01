@@ -120,6 +120,7 @@ Deno.test("swamp-club: sends the key as a Bearer token, to the configured URL", 
         authorId: "user-outsider",
         comments: [],
       },
+      relations: [],
     });
   });
 });
@@ -994,6 +995,7 @@ Deno.test("swamp-club: create files a Lab issue and reports it from the reply", 
         authorId: "user-member",
         comments: [],
       },
+      relations: [],
     });
     // One request: the issue is built from the reply, never read back.
     assertEquals(fake.requests.length, 1);
@@ -1051,5 +1053,70 @@ Deno.test("swamp-club: a create reply without an issue number is upstream", asyn
       () => adapterFor(fake).create({ title: "t", body: "b", type: "bug" }),
       "without its number",
     );
+  });
+});
+
+Deno.test("swamp-club: a member key cannot add blocked_by, and the refusal is auth", async () => {
+  await withFake(async (fake) => {
+    const member = adapterFor(fake, MEMBER_KEY);
+    const draft = { title: "Mine", body: "b", type: "bug" };
+    const a = await member.create(draft);
+    const b = await member.create(draft);
+    await failsWith(
+      "auth",
+      () => member.relate(a.id, "blocked_by", b.id),
+      "blocked_by relations",
+    );
+    // A member may relate their own issues.
+    assertEquals(await member.relate(a.id, "related_to", b.id), {
+      changed: true,
+    });
+  });
+});
+
+Deno.test("swamp-club: unrelate deletes the relationship by id, and the 204 reads as success", async () => {
+  await withFake(async (fake) => {
+    const lab = adapterFor(fake);
+    const other = await lab.create({ title: "Other", body: "b", type: "bug" });
+    await lab.relate(ISSUE, "blocked_by", other.id);
+    const [stored] = fake.relationships;
+    assertEquals(stored.type, "blocked_by");
+    assertEquals(await lab.unrelate(ISSUE, "blocked_by", other.id), {
+      changed: true,
+    });
+    const deletion = fake.requests.find((r) => r.method === "DELETE");
+    assertEquals(deletion?.path, `/api/v1/lab/issues/${ISSUE}/relationships`);
+    assertEquals(deletion?.body, { relationshipId: stored.id });
+    assertEquals(fake.relationships, []);
+  });
+});
+
+Deno.test("swamp-club: a relationship the adapter cannot read is skipped, so the lookup still works", async () => {
+  await withFake(async (fake) => {
+    fake.queue.push({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        issue: { title: "t", status: "open" },
+        relationships: [
+          { id: "r1", type: "parent_of", direction: "sideways" },
+          { id: "r2", type: "follows", direction: "outgoing" },
+          {
+            id: "r3",
+            type: "related_to",
+            direction: "incoming",
+            sourceIssueNumber: 7,
+            targetIssueNumber: LAB_ISSUE,
+          },
+        ],
+      }),
+    });
+    const issue = await adapterFor(fake).fetchIssue(ISSUE);
+    assertEquals(issue.relations, [{
+      type: "related_to",
+      direction: "incoming",
+      issue: "7",
+      display: "#7",
+    }]);
   });
 });

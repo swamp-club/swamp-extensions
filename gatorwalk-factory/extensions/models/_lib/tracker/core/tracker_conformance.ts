@@ -18,10 +18,14 @@ import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { fakeSwamp, smallDefinition } from "../../engine/tracker_testing.ts";
 import { TRACKED_ITEM, trackedItem } from "./test_support.ts";
 import {
+  type IssueDraft,
+  RELATION_TYPES,
+  type RelationType,
   requireCapability,
   type TrackerAdapter,
   TrackerError,
   type TrackerErrorKind,
+  type TrackerIssue,
 } from "./adapter.ts";
 import {
   deliveries,
@@ -305,4 +309,97 @@ export async function assertTrackerConformance(
     "publish posts the started event once",
   );
   assertEquals((await adapter.fetchIssue(f.issue.id)).status.name, second);
+
+  await assertRelationConformance(f, draft);
+}
+
+/**
+ * Relations, on four new tickets: each kind is written, read back on both
+ * ends with its direction, and removed, and a repeat of either writes
+ * nothing; every shared rule refuses as invalid, whether or not the tracker
+ * keeps it itself; a missing ticket is not_found; and a keyed relate
+ * through the methods writes once.
+ */
+async function assertRelationConformance(
+  f: ConformanceFixture,
+  draft: IssueDraft,
+): Promise<void> {
+  const { adapter } = f;
+  const [a, b, c, d] = [
+    await adapter.create({ ...draft, title: "Relation A" }),
+    await adapter.create({ ...draft, title: "Relation B" }),
+    await adapter.create({ ...draft, title: "Relation C" }),
+    await adapter.create({ ...draft, title: "Relation D" }),
+  ];
+  const relationsOf = async (issue: TrackerIssue) =>
+    (await adapter.fetchIssue(issue.id)).relations.map((r) =>
+      `${r.direction} ${r.type} ${r.issue}`
+    ).sort();
+  const relate = (x: TrackerIssue, type: RelationType, y: TrackerIssue) =>
+    adapter.relate(x.id, type, y.id);
+  const unrelate = (x: TrackerIssue, type: RelationType, y: TrackerIssue) =>
+    adapter.unrelate(x.id, type, y.id);
+
+  // Each kind: written once, read on both ends, removed once.
+  for (const type of RELATION_TYPES) {
+    assertEquals(await relate(a, type, b), { changed: true }, type);
+    assertEquals(await relate(a, type, b), { changed: false }, type);
+    assertEquals(await relationsOf(a), [`outgoing ${type} ${b.id}`], type);
+    assertEquals(await relationsOf(b), [`incoming ${type} ${a.id}`], type);
+    assertEquals(await unrelate(a, type, b), { changed: true }, type);
+    assertEquals(await unrelate(a, type, b), { changed: false }, type);
+    assertEquals(await relationsOf(a), [], type);
+    assertEquals(await relationsOf(b), [], type);
+  }
+
+  // The rules.
+  await rejectsWith("invalid", () => relate(a, "related_to", a));
+  await relate(a, "parent_of", b);
+  await relate(b, "parent_of", c);
+  await rejectsWith("invalid", () => relate(d, "parent_of", b)); // 2nd parent
+  await rejectsWith("invalid", () => relate(c, "parent_of", a)); // a cycle
+  await unrelate(b, "parent_of", c);
+  await unrelate(a, "parent_of", b);
+  await relate(d, "duplicate_of", a);
+  await rejectsWith("invalid", () => relate(d, "duplicate_of", b)); // 2nd
+  await rejectsWith("invalid", () => relate(c, "duplicate_of", d)); // chain
+  await rejectsWith("invalid", () => relate(a, "duplicate_of", b)); // has dups
+  await unrelate(d, "duplicate_of", a);
+  for (const issue of [a, b, c, d]) {
+    assertEquals(await relationsOf(issue), [], "every refusal wrote nothing");
+  }
+
+  // Missing tickets, either end.
+  await rejectsWith(
+    "not_found",
+    () => adapter.relate(a.id, "related_to", f.missing),
+  );
+  await rejectsWith(
+    "not_found",
+    () => adapter.relate(f.missing, "related_to", a.id),
+  );
+  await rejectsWith(
+    "not_found",
+    () => adapter.unrelate(a.id, "related_to", f.missing),
+  );
+
+  // The ledger: a repeat of the key writes nothing, even once the relation
+  // has been removed by hand.
+  const methods = trackerMethods({
+    tracker: adapter.tracker,
+    adapter: () => adapter,
+    statuses: () => ({}),
+  });
+  const ctx: TrackerContext = fakeSwamp().context("tracker");
+  const args = methods.relate.arguments.parse({
+    issue: a.id,
+    type: "blocked_by",
+    to: b.id,
+    workItem: "conformance-abcdefgh",
+    journalVersion: "4",
+  });
+  await methods.relate.execute(args, ctx);
+  await unrelate(a, "blocked_by", b);
+  await methods.relate.execute(args, ctx);
+  assertEquals(await relationsOf(a), [], "a repeated key relates nothing");
 }

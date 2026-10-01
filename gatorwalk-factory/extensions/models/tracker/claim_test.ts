@@ -57,6 +57,8 @@ function trackerWith(fetchIssue: TrackerAdapter["fetchIssue"]) {
     capabilities: {},
     create: () => Promise.reject(new Error("not used")),
     fetchIssue,
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
     comment: (issueId) => {
       writes.push(`comment ${issueId}`);
       return Promise.resolve({ id: "c", url: "u" });
@@ -87,6 +89,7 @@ function oneTicket() {
       title: "A ticket",
       url: "https://tracker.example/T-1",
       status: { id: "s1", name: "Todo" },
+      relations: [],
     });
   });
 }
@@ -385,6 +388,7 @@ Deno.test("claim: a ticket title with no ASCII letters leaves the display id alo
       display: "T-1",
       title: "\u{1F525}\u{1F525}",
       status: { id: "s1", name: "Todo" },
+      relations: [],
     })
   );
   await claim(swamp, methods, { issue: "T1", factory: "team" });

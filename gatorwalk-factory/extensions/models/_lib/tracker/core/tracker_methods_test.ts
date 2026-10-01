@@ -51,6 +51,7 @@ function scripted() {
         title: "A ticket",
         url: "https://tracker.example/T-1",
         status,
+        relations: [],
       });
     },
     comment: (issueId, body) => {
@@ -62,6 +63,14 @@ function scripted() {
       const changed = status.name !== name;
       status = { id: name, name };
       return Promise.resolve({ changed, status });
+    },
+    relate: (from, type, to) => {
+      calls.push(`relate ${from} ${type} ${to}`);
+      return Promise.resolve({ changed: true });
+    },
+    unrelate: (from, type, to) => {
+      calls.push(`unrelate ${from} ${type} ${to}`);
+      return Promise.resolve({ changed: true });
     },
   };
   const methods = trackerMethods({
@@ -127,6 +136,43 @@ Deno.test("comment: a delivery key records the tracker's id; the same key again 
   // A later journal version is a new delivery.
   await run(swamp, methods, "comment", { ...args, journalVersion: "5" });
   assertEquals(calls.length, 2);
+});
+
+Deno.test("relate: one key may relate several tickets, and each repeat writes nothing", async () => {
+  const swamp = fakeSwamp();
+  const { calls, methods } = scripted();
+  const key = { workItem: "wi-abcd", journalVersion: "3" };
+  for (const to of ["T2", "T3", "T2"]) {
+    await run(swamp, methods, "relate", {
+      issue: "T1",
+      type: "parent_of",
+      to,
+      ...key,
+    });
+  }
+  assertEquals(calls, ["relate T1 parent_of T2", "relate T1 parent_of T3"]);
+  // Another source to the same target, under the same key, is its own write.
+  await run(swamp, methods, "relate", {
+    issue: "T4",
+    type: "parent_of",
+    to: "T2",
+    ...key,
+  });
+  assertEquals(calls.at(-1), "relate T4 parent_of T2");
+  const ledger = swamp.resources.get(INSTANCE);
+  assertEquals(
+    ledger?.get("delivery-relate-wi-abcd-3-T1-parent_of-T2")?.[0]?.result,
+    { changed: true },
+  );
+  // unrelate keeps records of its own, so the same key removes once.
+  await run(swamp, methods, "unrelate", {
+    issue: "T1",
+    type: "parent_of",
+    to: "T2",
+    ...key,
+  });
+  assertEquals(calls.at(-1), "unrelate T1 parent_of T2");
+  assert(ledger?.has("delivery-unrelate-wi-abcd-3-T1-parent_of-T2"));
 });
 
 Deno.test("comment: without a delivery key it posts every time and records nothing", async () => {
@@ -264,6 +310,8 @@ function ticket() {
     origin: "snapshot",
     capabilities: {},
     create: () => Promise.reject(new Error("not used")),
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
     fetchIssue: () => Promise.reject(new Error("not used")),
     comment: (issueId, body) => {
       commentCalls++;
@@ -454,6 +502,8 @@ function adapterless(): TrackerAdapter {
     origin: "snapshot",
     capabilities: {},
     create: () => Promise.reject(new Error("not used")),
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
     fetchIssue: () => Promise.reject(new Error("not used")),
     comment: () => Promise.resolve({ id: "c", url: "u" }),
     setStatus: () => Promise.reject(new Error("no status write expected")),
@@ -785,6 +835,8 @@ function historyTicket() {
     tracker: "test",
     origin: "snapshot",
     create: () => Promise.reject(new Error("not used")),
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
     fetchIssue: () => {
       writes.push("fetch");
       return Promise.resolve({
@@ -793,6 +845,7 @@ function historyTicket() {
         title: "A ticket",
         url: "u",
         status: { id: state.status, name: state.status },
+        relations: [],
       });
     },
     comment: (_issueId, body) => {
@@ -1046,8 +1099,11 @@ Deno.test("create: an external tracker's new ticket is recorded as a snapshot, w
         title: draft.title,
         url: "https://tracker.example/T-9",
         status: { id: "s1", name: "Todo" },
+        relations: [],
       });
     },
+    relate: () => Promise.reject(new Error("not used")),
+    unrelate: () => Promise.reject(new Error("not used")),
     fetchIssue: () => Promise.reject(new Error("not used")),
     comment: () => Promise.reject(new Error("not used")),
     setStatus: () => Promise.reject(new Error("not used")),
@@ -1071,6 +1127,7 @@ Deno.test("create: an external tracker's new ticket is recorded as a snapshot, w
     display: "T-9",
     title: "New",
     url: "https://tracker.example/T-9",
+    relations: [],
     status: { id: "s1", name: "Todo" },
     fetchedAt: NOW.toISOString(),
   }]);

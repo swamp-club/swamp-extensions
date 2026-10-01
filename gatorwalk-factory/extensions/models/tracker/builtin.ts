@@ -187,7 +187,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/gatorwalk-factory/tracker",
-  version: "2026.09.30.2",
+  version: "2026.09.30.3",
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,

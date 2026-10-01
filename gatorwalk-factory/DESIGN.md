@@ -1199,9 +1199,23 @@ The contract:
   ticket or a different request is refused rather than silently skipped. One
   journal version can need a write on two tickets: a retarget's notes to the
   old and the new ticket. `publish` names the new ticket's note with an
-  `-opening` suffix, so each ticket has its own key.
+  `-opening` suffix, so each ticket has its own key. `relate` and `unrelate`
+  name theirs for the relation too (`-<issue>-<type>-<to>`), so one journal
+  version can relate several tickets, as a breakdown relates each child.
+- **The tracker owns relations.** A ticket's relations to other tickets
+  (`parent_of`, `blocked_by`, `related_to`, `duplicate_of`) are tracker facts,
+  like its status. Swamp reads them at decision points (`fetch_issue`, `claim`,
+  and before each `relate`), never reconciles them, and a relation changed in
+  the tracker is seen at the next read; `relate` and `unrelate` do not refresh
+  a snapshot. Every tracker keeps the Lab's rules
+  (`_lib/tracker/core/relations.ts`): one parent per child, no parent cycle
+  (walked 10 deep), one canonical per duplicate, and no duplicate chain. The
+  Lab enforces them itself and Linear does not, so each adapter checks them
+  before it writes; two relates racing on Linear can both pass. The built-in
+  tracker keeps a relation on both tickets' records. A Lab `duplicate_of`
+  leaves the issue's status alone.
 
-Every adapter provides six operations, as swamp methods built by
+Every adapter provides eight operations, as swamp methods built by
 `trackerMethods`:
 
 | Method        | Inputs                                             | Writes                                                    |
@@ -1210,6 +1224,8 @@ Every adapter provides six operations, as swamp methods built by
 | `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot                                  |
 | `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed                             |
 | `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
+| `relate`      | `issue`, `type`, `to` (stable ids), optional key   | the ledger record, when keyed                             |
+| `unrelate`    | `issue`, `type`, `to` (stable ids), optional key   | the ledger record, when keyed                             |
 | `claim`       | `issue`: id or display, optional `factory`       | the snapshot, and the ticket index when it reserves a key |
 | `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 

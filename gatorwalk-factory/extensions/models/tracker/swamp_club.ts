@@ -515,7 +515,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.
   type: "@swamp/gatorwalk-factory/swamp-club",
-  version: "2026.09.30.1",
+  version: "2026.09.30.2",
   globalArguments: SwampClubArgumentsSchema,
   resources: {
     ...trackerResources,

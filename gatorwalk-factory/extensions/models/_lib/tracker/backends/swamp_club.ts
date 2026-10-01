@@ -20,6 +20,9 @@ import {
   type LifecycleEntry,
   type LifecycleEntryWriter,
   type PostedEntry,
+  RELATION_TYPES,
+  type RelationChange,
+  type RelationType,
   type StatusChange,
   type TrackerAdapter,
   type TrackerComment,
@@ -27,7 +30,9 @@ import {
   type TrackerErrorKind,
   type TrackerErrorReason,
   type TrackerIssue,
+  type TrackerRelation,
 } from "../core/adapter.ts";
+import { checkRelate } from "../core/relations.ts";
 
 // ---------------------------------------------------------------------------
 // The swamp-club Lab adapter: REST over fetch. The stable id is the issue
@@ -40,7 +45,9 @@ import {
 // reader with its swamp.club rewrite, the credential precedence and the
 // eligible-assignee lookup. What differs: the issue number is per call, not
 // per client; failures are TrackerErrors, never best-effort nulls or
-// warnings; there is no /healthz probe; and assignment is strict. Calls are
+// warnings; there is no /healthz probe; and assignment is strict. The
+// relationship calls are the root client's addRelationship and
+// removeRelationship, behind the shared relation rules (relations.ts). Calls are
 // not retried: every write is idempotent through the delivery ledger or by
 // being a no-op when already done, so the caller re-runs.
 // ---------------------------------------------------------------------------
@@ -77,8 +84,9 @@ const FORWARD: readonly LabStatus[] = [
 ];
 
 const ADMIN_HINT = "status moves past open or closed, assignment, " +
-  "attestations, lifecycle entries, the issue type and the team roster need " +
-  "a swamp-club admin key";
+  "attestations, lifecycle entries, the issue type, the team roster, " +
+  "blocked_by relations and relations on another user's issues need a " +
+  "swamp-club admin key";
 
 // The key goes out as a Bearer token, so the server must be https. Plain
 // http is allowed only to loopback, where the tests run a local fake; the
@@ -357,6 +365,13 @@ interface LabIssueBody {
     authorUsername?: unknown;
   };
   comments?: unknown;
+  relationships?: unknown;
+}
+
+/** A Lab relationship, with the id a removal names. */
+interface LabRelationship {
+  id: string;
+  relation: TrackerRelation;
 }
 
 function fail(
@@ -498,6 +513,8 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         }${extra}`,
       );
     }
+    // A removal answers 204 with no body.
+    if (response.status === 204 && text === "") return null;
     if (!isJson) {
       return fail(
         "upstream",
@@ -569,7 +586,48 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
       authorId: typeof found.authorId === "string" ? found.authorId : "",
       comments,
     };
-    return { title: found.title, status: found.status, assignees, details };
+    // Read as issue-lifecycle's client reads them: an entry this adapter
+    // cannot read (a type the Lab added later, a missing number) is skipped,
+    // so a lookup that has no use for relations never fails on one. The Lab
+    // keeps the relation rules itself, so a skipped entry is still guarded.
+    const relationships: LabRelationship[] = [];
+    const rawRelationships = Array.isArray(body?.relationships)
+      ? body.relationships
+      : [];
+    for (const raw of rawRelationships) {
+      const r = raw as {
+        id?: unknown;
+        type?: unknown;
+        direction?: unknown;
+        sourceIssueNumber?: unknown;
+        targetIssueNumber?: unknown;
+      } | null;
+      const other = r?.direction === "outgoing"
+        ? r.targetIssueNumber
+        : r?.sourceIssueNumber;
+      if (
+        typeof r?.id !== "string" ||
+        !(RELATION_TYPES as readonly unknown[]).includes(r.type) ||
+        (r.direction !== "outgoing" && r.direction !== "incoming") ||
+        typeof other !== "number"
+      ) continue;
+      relationships.push({
+        id: r.id,
+        relation: {
+          type: r.type as RelationType,
+          direction: r.direction,
+          issue: String(other),
+          display: `#${other}`,
+        },
+      });
+    }
+    return {
+      title: found.title,
+      status: found.status,
+      assignees,
+      details,
+      relationships,
+    };
   }
 
   /** The team roster: swamp-club's eligible assignees. */
@@ -675,6 +733,20 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
     return `${(await credentials()).url}/lab/${issue}`;
   }
 
+  async function fetchIssue(ref: string): Promise<TrackerIssue> {
+    const issue = numberFrom(ref, true);
+    const found = await getIssue(issue);
+    return {
+      id: String(issue),
+      display: `#${issue}`,
+      title: found.title,
+      url: await labUrl(issue),
+      status: { id: found.status, name: found.status },
+      details: { ...found.details },
+      relations: found.relationships.map((r) => r.relation),
+    };
+  }
+
   return {
     tracker: SWAMP_CLUB,
     origin: "snapshot",
@@ -727,21 +799,11 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         url: await labUrl(issue),
         status: { id: found.status, name: found.status },
         details: { ...details },
+        relations: [],
       };
     },
 
-    async fetchIssue(ref: string): Promise<TrackerIssue> {
-      const issue = numberFrom(ref, true);
-      const found = await getIssue(issue);
-      return {
-        id: String(issue),
-        display: `#${issue}`,
-        title: found.title,
-        url: await labUrl(issue),
-        status: { id: found.status, name: found.status },
-        details: { ...found.details },
-      };
-    },
+    fetchIssue,
 
     async teamMembership(issueId: string): Promise<TeamMembership> {
       const issue = numberFrom(issueId, false);
@@ -813,6 +875,49 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         landed.push(step);
       }
       return { changed: true, status: { id: statusName, name: statusName } };
+    },
+
+    async relate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      const source = numberFrom(from, false);
+      const target = numberFrom(to, false);
+      const check = await checkRelate(
+        fetchIssue,
+        SWAMP_CLUB,
+        String(source),
+        type,
+        String(target),
+      );
+      if (check.exists) return { changed: false };
+      await call("POST", `/api/v1/lab/issues/${source}/relationships`, {
+        type,
+        targetIssueNumber: target,
+      });
+      return { changed: true };
+    },
+
+    async unrelate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      const source = numberFrom(from, false);
+      const target = numberFrom(to, false);
+      const { relationships } = await getIssue(source);
+      // The other end too, so a missing one is not_found, as on relate.
+      await getIssue(target);
+      const found = relationships.find((r) =>
+        r.relation.type === type && r.relation.direction === "outgoing" &&
+        r.relation.issue === String(target)
+      );
+      if (found === undefined) return { changed: false };
+      await call("DELETE", `/api/v1/lab/issues/${source}/relationships`, {
+        relationshipId: found.id,
+      });
+      return { changed: true };
     },
 
     async assign(issueId: string, username: string): Promise<AssignResult> {

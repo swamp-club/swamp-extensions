@@ -16,19 +16,28 @@
 
 import {
   type IssueDraft,
+  type RelationChange,
+  type RelationType,
   type StatusChange,
   type TrackerAdapter,
   type TrackerComment,
   TrackerError,
   type TrackerErrorKind,
   type TrackerIssue,
+  type TrackerRelation,
   type TrackerStatus,
 } from "../core/adapter.ts";
+import { checkRelate } from "../core/relations.ts";
 
 // ---------------------------------------------------------------------------
 // The Linear adapter: GraphQL over fetch. The stable id is the issue UUID;
 // the identifier (ABC-1) changes when an issue moves team, so it is for
-// display and for finding an issue, never for keying one. Calls are not
+// display and for finding an issue, never for keying one. Relations map onto
+// Linear's: parent_of is the child's parent field, blocked_by is Linear's
+// blocks read the other way (X blocked_by Y is Y blocks X), duplicate_of is
+// duplicate and related_to is related; similar is not read. Linear keeps no
+// rules on them, so the shared ones (relations.ts) are checked before each
+// write. Up to 250 of each kind are read per issue. Calls are not
 // retried: every write is idempotent through the delivery ledger or by
 // being a no-op when already done, so the caller re-runs.
 // ---------------------------------------------------------------------------
@@ -81,6 +90,80 @@ interface GraphQLError {
 }
 
 const ISSUE_FIELDS = "id identifier title url state { id name }";
+
+// What fetchIssue reads beside ISSUE_FIELDS: every relation, both ways.
+const RELATION_FIELDS = "parent { id identifier } " +
+  "children(first: 250) { nodes { id identifier } } " +
+  "relations(first: 250) { nodes { id type relatedIssue { id identifier } } } " +
+  "inverseRelations(first: 250) { nodes { id type issue { id identifier } } }";
+
+interface IssueRef {
+  id: string;
+  identifier: string;
+}
+
+interface RelatedNode extends IssueNode {
+  parent: IssueRef | null;
+  children: { nodes: IssueRef[] };
+  relations: { nodes: { id: string; type: string; relatedIssue: IssueRef }[] };
+  inverseRelations: {
+    nodes: { id: string; type: string; issue: IssueRef }[];
+  };
+}
+
+/** A relation as the issue reads it, and the Linear relation id behind it
+ * (absent for parent_of, which is a field). */
+interface LinearRelation {
+  relation: TrackerRelation;
+  linearId?: string;
+}
+
+/**
+ * Linear's relation types, from the side of the issue that holds them
+ * (`issue type relatedIssue`), as the shared type and direction.
+ */
+const FROM_LINEAR: Record<
+  string,
+  { type: RelationType; holder: "outgoing" | "incoming" }
+> = {
+  // issue blocks relatedIssue: relatedIssue blocked_by issue.
+  blocks: { type: "blocked_by", holder: "incoming" },
+  duplicate: { type: "duplicate_of", holder: "outgoing" },
+  related: { type: "related_to", holder: "outgoing" },
+};
+
+function relationsOf(node: RelatedNode): LinearRelation[] {
+  const out: LinearRelation[] = [];
+  const of = (
+    type: RelationType,
+    direction: "outgoing" | "incoming",
+    other: IssueRef,
+    linearId?: string,
+  ) =>
+    out.push({
+      relation: { type, direction, issue: other.id, display: other.identifier },
+      ...(linearId === undefined ? {} : { linearId }),
+    });
+  if (node.parent) of("parent_of", "incoming", node.parent);
+  for (const child of node.children?.nodes ?? []) {
+    of("parent_of", "outgoing", child);
+  }
+  const flip = (d: "outgoing" | "incoming") =>
+    d === "outgoing" ? "incoming" : "outgoing";
+  for (const r of node.relations?.nodes ?? []) {
+    const known = FROM_LINEAR[r.type];
+    if (known !== undefined) {
+      of(known.type, known.holder, r.relatedIssue, r.id);
+    }
+  }
+  for (const r of node.inverseRelations?.nodes ?? []) {
+    const known = FROM_LINEAR[r.type];
+    if (known !== undefined) {
+      of(known.type, flip(known.holder), r.issue, r.id);
+    }
+  }
+  return out;
+}
 
 interface IssueNode {
   id: string;
@@ -213,7 +296,45 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
       title: node.title,
       url: node.url,
       status: { id: node.state.id, name: node.state.name },
+      relations: [],
     };
+  }
+
+  /** An issue with its relations, and the Linear ids behind them. */
+  async function readRelated(
+    ref: string,
+  ): Promise<{ issue: TrackerIssue; relations: LinearRelation[] }> {
+    const data = await graphql<{ issue: RelatedNode | null }>(
+      `query GatorwalkIssue($id: String!) {
+        issue(id: $id) { ${ISSUE_FIELDS} ${RELATION_FIELDS} }
+      }`,
+      { id: ref },
+    );
+    const issue = toIssue(data.issue, ref);
+    const relations = relationsOf(data.issue!);
+    return {
+      issue: { ...issue, relations: relations.map((r) => r.relation) },
+      relations,
+    };
+  }
+
+  async function fetchIssue(ref: string): Promise<TrackerIssue> {
+    return (await readRelated(ref)).issue;
+  }
+
+  async function setParent(
+    child: string,
+    parentId: string | null,
+  ): Promise<void> {
+    const data = await graphql<{ issueUpdate: { success: boolean } }>(
+      `mutation GatorwalkSetParent($id: String!, $parentId: String) {
+        issueUpdate(id: $id, input: { parentId: $parentId }) { success }
+      }`,
+      { id: child, parentId },
+    );
+    if (!data.issueUpdate?.success) {
+      fail("upstream", `issueUpdate (parent) on ${child} did not succeed`);
+    }
   }
 
   /**
@@ -298,13 +419,7 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
       return toIssue(created.issue, draft.title);
     },
 
-    async fetchIssue(ref: string): Promise<TrackerIssue> {
-      const data = await graphql<{ issue: IssueNode | null }>(
-        `query GatorwalkIssue($id: String!) { issue(id: $id) { ${ISSUE_FIELDS} } }`,
-        { id: ref },
-      );
-      return toIssue(data.issue, ref);
-    },
+    fetchIssue,
 
     async comment(issueId: string, body: string): Promise<TrackerComment> {
       requireUuid(issueId);
@@ -384,6 +499,83 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
         return fail("upstream", `issueUpdate on ${issueId} did not succeed`);
       }
       return { changed: true, status: result.issue.state };
+    },
+
+    async relate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      requireUuid(from);
+      requireUuid(to);
+      const check = await checkRelate(fetchIssue, LINEAR, from, type, to);
+      if (check.exists) return { changed: false };
+      if (type === "parent_of") {
+        await setParent(to, from);
+        return { changed: true };
+      }
+      // X blocked_by Y is held by Y: Y blocks X.
+      const [issueId, relatedIssueId, linearType] = type === "blocked_by"
+        ? [to, from, "blocks"]
+        : [from, to, type === "duplicate_of" ? "duplicate" : "related"];
+      const data = await graphql<{
+        issueRelationCreate: { success: boolean };
+      }>(
+        `mutation GatorwalkRelate($input: IssueRelationCreateInput!) {
+          issueRelationCreate(input: $input) { success }
+        }`,
+        { input: { issueId, relatedIssueId, type: linearType } },
+      );
+      if (!data.issueRelationCreate?.success) {
+        return fail(
+          "upstream",
+          `issueRelationCreate on ${from} did not succeed`,
+        );
+      }
+      return { changed: true };
+    },
+
+    async unrelate(
+      from: string,
+      type: RelationType,
+      to: string,
+    ): Promise<RelationChange> {
+      requireUuid(from);
+      requireUuid(to);
+      // Both ends: a missing one is not_found, as on relate, and either may
+      // be the one that shows the relation (a parent lists only its first
+      // 250 children; the child's parent field is always read).
+      const source = await readRelated(from);
+      const target = await readRelated(to);
+      const found =
+        source.relations.find((r) =>
+          r.relation.type === type && r.relation.direction === "outgoing" &&
+          r.relation.issue === to
+        ) ?? target.relations.find((r) =>
+          r.relation.type === type && r.relation.direction === "incoming" &&
+          r.relation.issue === from
+        );
+      if (found === undefined) return { changed: false };
+      if (found.linearId === undefined) {
+        // parent_of: from is to's parent, so clearing to's parent removes it.
+        await setParent(to, null);
+        return { changed: true };
+      }
+      const data = await graphql<{
+        issueRelationDelete: { success: boolean };
+      }>(
+        `mutation GatorwalkUnrelate($id: String!) {
+          issueRelationDelete(id: $id) { success }
+        }`,
+        { id: found.linearId },
+      );
+      if (!data.issueRelationDelete?.success) {
+        return fail(
+          "upstream",
+          `issueRelationDelete on ${from} did not succeed`,
+        );
+      }
+      return { changed: true };
     },
   };
 }

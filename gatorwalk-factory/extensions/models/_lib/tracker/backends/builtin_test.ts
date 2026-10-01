@@ -130,6 +130,7 @@ Deno.test("builtin: create files a lowercase <prefix>-<slug>-<rnd> ticket in the
     body: "Keys for the board.",
     type: "feature",
     status: { id: "open", name: "open" },
+    relations: [],
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
   });
@@ -239,4 +240,58 @@ Deno.test("builtin: a title with no ASCII letters files a <prefix>-<rnd> ticket"
     type: "bug",
   });
   assertMatch(issue.id, /^cue-[a-z2-7]{4}$/);
+});
+
+Deno.test("builtin: finishing a half-written relation checks the rules again", async () => {
+  const { store } = memoryStore();
+  const board = builtinAdapter({
+    prefix: "cue",
+    statuses: DEFAULT_STATUSES,
+    types: DEFAULT_TYPES,
+    store,
+    now: () => NOW,
+  });
+  const draft = { title: "Ticket", body: "b", type: "bug" };
+  const [p1, p2, child, other] = [
+    await board.create(draft),
+    await board.create(draft),
+    await board.create(draft),
+    await board.create(draft),
+  ];
+  // A crash after p1's side of `p1 parent_of child` was written.
+  const half = async (from: string, to: string) => {
+    const raw = await store.read(`issue-${from}`);
+    await store.write(ISSUE_SPEC, `issue-${from}`, {
+      ...raw,
+      relations: [{
+        type: "parent_of",
+        direction: "outgoing",
+        issue: to,
+        display: to,
+      }],
+    });
+  };
+  await half(p1.id, child.id);
+  // The child shows no parent, so p2 may become its parent...
+  assertEquals(await board.relate(p2.id, "parent_of", child.id), {
+    changed: true,
+  });
+  // ...and finishing p1's half relation is then refused, not a second parent.
+  const refused = await assertRejects(
+    () => board.relate(p1.id, "parent_of", child.id),
+    TrackerError,
+    "already has a parent",
+  );
+  assertEquals(refused.kind, "invalid");
+  // With no conflict, a re-run finishes the half relation.
+  await half(p1.id, other.id);
+  assertEquals(await board.relate(p1.id, "parent_of", other.id), {
+    changed: true,
+  });
+  assertEquals((await board.fetchIssue(other.id)).relations, [{
+    type: "parent_of",
+    direction: "incoming",
+    issue: p1.id,
+    display: p1.id,
+  }]);
 });

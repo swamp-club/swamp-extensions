@@ -39,6 +39,40 @@ export interface TrackerIssue {
    * tracker has nothing beyond the fields above.
    */
   details?: Record<string, unknown>;
+  /** The ticket's relations to other tickets, as the tracker holds them. */
+  relations: TrackerRelation[];
+}
+
+/**
+ * How one ticket relates to another. `X parent_of Y`: X is Y's parent.
+ * `X blocked_by Y`: X waits on Y. `X duplicate_of Y`: Y is the canonical.
+ * `X related_to Y` links them, with no meaning beyond that.
+ */
+export const RELATION_TYPES = [
+  "parent_of",
+  "blocked_by",
+  "related_to",
+  "duplicate_of",
+] as const;
+export type RelationType = typeof RELATION_TYPES[number];
+
+/**
+ * A relation as one of its two tickets reads it: `outgoing` when this ticket
+ * is the relation's subject (X in `X parent_of Y`), `incoming` when it is the
+ * object.
+ */
+export interface TrackerRelation {
+  type: RelationType;
+  direction: "outgoing" | "incoming";
+  /** The other ticket's stable id. */
+  issue: string;
+  /** The other ticket's human identifier. */
+  display: string;
+}
+
+export interface RelationChange {
+  /** False when the relation was already so: nothing was written. */
+  changed: boolean;
 }
 
 export interface TrackerStatus {
@@ -137,6 +171,17 @@ export interface TrackerAdapter {
   comment(issueId: string, body: string): Promise<TrackerComment>;
   /** Move a ticket, by stable id, to the tracker's status of this name. */
   setStatus(issueId: string, statusName: string): Promise<StatusChange>;
+  /**
+   * Relate one ticket to another, both by stable id, under the rules every
+   * tracker shares (relations.ts); already related writes nothing.
+   */
+  relate(from: string, type: RelationType, to: string): Promise<RelationChange>;
+  /** Remove a relation, both by stable id; already absent writes nothing. */
+  unrelate(
+    from: string,
+    type: RelationType,
+    to: string,
+  ): Promise<RelationChange>;
 }
 
 export const TRACKER_ERROR_KINDS = [

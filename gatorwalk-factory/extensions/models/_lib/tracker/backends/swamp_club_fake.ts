@@ -25,8 +25,13 @@
 // targetStatus is only a label, and a classified entry with isRegression
 // sets or clears the regression flag; a status moves one step forward at a time
 // and a refused move is a 422 with the aggregate's message; errors are
-// {"error": message}. A test can queue raw responses to exercise malformed
-// ones. Never the live service.
+// {"error": message}. Relationships follow lib/app/lab/manage-relationships.ts:
+// only an admin may add blocked_by; a member may add parent_of only to a child
+// they filed, related_to and duplicate_of only from an issue they filed, and
+// remove only what they added (403 otherwise); the invariants (no self link,
+// one parent, no parent cycle, one canonical, no duplicate chain) are 422s;
+// adding one that exists returns it; a removal is a 204. A test can queue raw
+// responses to exercise malformed ones. Never the live service.
 // ---------------------------------------------------------------------------
 
 export interface FakeLabIssue {
@@ -50,6 +55,14 @@ export interface FakeLabEntry {
   emoji: string;
   payload: Record<string, unknown>;
   isVerbose: boolean;
+}
+
+export interface FakeLabRelationship {
+  id: string;
+  type: string;
+  sourceIssueNumber: number;
+  targetIssueNumber: number;
+  createdByUserId: string;
 }
 
 export interface FakeLabRequest {
@@ -79,6 +92,7 @@ export interface SwampClubFake {
   /** Lifecycle entries, in the order they were posted. */
   entries: FakeLabEntry[];
   attestations: Record<string, unknown>[];
+  relationships: FakeLabRelationship[];
   requests: FakeLabRequest[];
   /** Raw responses to send, in order, before answering normally again. */
   queue: RawResponse[];
@@ -103,6 +117,12 @@ const VERB: Record<string, string> = {
   shipped: "ship",
 };
 const STATUSES = ["open", "triaged", "in_progress", "shipped", "closed"];
+const RELATIONSHIP_TYPES = [
+  "parent_of",
+  "blocked_by",
+  "related_to",
+  "duplicate_of",
+];
 const TYPES = ["feature", "bug", "security", "platform"];
 
 export function swampClubFake(): SwampClubFake {
@@ -125,6 +145,7 @@ export function swampClubFake(): SwampClubFake {
   const comments: SwampClubFake["comments"] = [];
   const entries: FakeLabEntry[] = [];
   const attestations: Record<string, unknown>[] = [];
+  const relationships: FakeLabRelationship[] = [];
   const requests: FakeLabRequest[] = [];
   const queue: RawResponse[] = [];
 
@@ -202,6 +223,152 @@ export function swampClubFake(): SwampClubFake {
       issue.status = status;
     }
     return json({ issue, events: [] });
+  }
+
+  const relationshipsOf = (number: number) =>
+    relationships.filter((r) =>
+      r.sourceIssueNumber === number || r.targetIssueNumber === number
+    ).map((r) => ({
+      ...r,
+      direction: r.sourceIssueNumber === number ? "outgoing" : "incoming",
+    }));
+
+  const userOf = (role: string) =>
+    role === "admin" ? "user-seth" : "user-member";
+
+  function relationshipCall(
+    method: string,
+    number: number,
+    body: unknown,
+    role: string | null,
+  ): Response {
+    if (role === null) return error("Unauthorized", 401);
+    const admin = role === "admin";
+    const data = (typeof body === "object" && body !== null ? body : {}) as {
+      type?: unknown;
+      targetIssueNumber?: unknown;
+      relationshipId?: unknown;
+    };
+    const source = issues.find((i) => i.number === number);
+    if (method === "DELETE") {
+      if (typeof data.relationshipId !== "string") {
+        return error("relationshipId must be a string", 400);
+      }
+      if (source === undefined) return error("Issue not found", 404);
+      const at = relationships.findIndex((r) => r.id === data.relationshipId);
+      if (at < 0) return error("Relationship not found.", 422);
+      if (!admin && relationships[at].createdByUserId !== userOf(role)) {
+        return error("You can only remove relationships you created.", 403);
+      }
+      relationships.splice(at, 1);
+      return new Response(null, { status: 204 });
+    }
+    if (method !== "POST") return error("Method not allowed", 405);
+    const type = data.type;
+    if (typeof type !== "string" || !RELATIONSHIP_TYPES.includes(type)) {
+      return error(
+        "type must be parent_of, blocked_by, related_to, or duplicate_of",
+        400,
+      );
+    }
+    const targetNumber = data.targetIssueNumber;
+    if (typeof targetNumber !== "number" || targetNumber < 1) {
+      return error("targetIssueNumber must be a positive number", 400);
+    }
+    if (source === undefined) return error("Issue not found", 404);
+    const target = issues.find((i) => i.number === targetNumber);
+    if (target === undefined) {
+      return error(`Issue #${targetNumber} not found.`, 422);
+    }
+    const mine = (issue: FakeLabIssue) => issue.authorId === userOf(role);
+    if (type === "blocked_by" && !admin) {
+      return error("Only admins can create blocked_by relationships.", 403);
+    }
+    if (type === "parent_of" && !admin && !mine(target)) {
+      return error(
+        "You can only mark your own issue as a child of another issue.",
+        403,
+      );
+    }
+    if (
+      (type === "related_to" || type === "duplicate_of") && !admin &&
+      !mine(source)
+    ) {
+      return error("You can only relate your own issues.", 403);
+    }
+    if (source.number === target.number) {
+      return error(
+        "Cannot create a relationship between an issue and itself.",
+        422,
+      );
+    }
+    const of = (t: string) => relationships.filter((r) => r.type === t);
+    if (type === "parent_of") {
+      if (of("parent_of").some((r) => r.targetIssueNumber === target.number)) {
+        return error(
+          "Issue already has a parent. Remove the existing parent relationship first.",
+          422,
+        );
+      }
+      const seen = new Set([target.number]);
+      let current = source.number;
+      for (let depth = 0; depth < 10; depth++) {
+        const up = of("parent_of").find((r) => r.targetIssueNumber === current);
+        if (up === undefined) break;
+        current = up.sourceIssueNumber;
+        if (seen.has(current)) {
+          return error(
+            "Cannot create relationship: would form a circular parent chain.",
+            422,
+          );
+        }
+        seen.add(current);
+      }
+    }
+    if (type === "duplicate_of") {
+      const duplicates = of("duplicate_of");
+      const other = duplicates.find((r) =>
+        r.sourceIssueNumber === source.number &&
+        r.targetIssueNumber !== target.number
+      );
+      if (other !== undefined) {
+        return error(
+          `Issue is already a duplicate of #${other.targetIssueNumber}. Remove that link first.`,
+          422,
+        );
+      }
+      const chain = duplicates.find((r) =>
+        r.sourceIssueNumber === target.number
+      );
+      if (chain !== undefined) {
+        return error(
+          `Issue #${chain.sourceIssueNumber} is a duplicate of #${chain.targetIssueNumber}.`,
+          422,
+        );
+      }
+      if (duplicates.some((r) => r.targetIssueNumber === source.number)) {
+        return error(
+          "Issues are duplicates of this issue. Re-point them.",
+          422,
+        );
+      }
+    }
+    const existing = relationships.find((r) =>
+      r.type === type && r.sourceIssueNumber === source.number &&
+      r.targetIssueNumber === target.number
+    );
+    if (existing !== undefined) {
+      return json({ relationship: existing, events: [] }, 201);
+    }
+    const relationship: FakeLabRelationship = {
+      id: crypto.randomUUID(),
+      type,
+      sourceIssueNumber: source.number,
+      targetIssueNumber: target.number,
+      createdByUserId: userOf(role),
+    };
+    relationships.push(relationship);
+    return json({ relationship, events: [] }, 201);
   }
 
   const server = Deno.serve(
@@ -300,10 +467,11 @@ export function swampClubFake(): SwampClubFake {
         issues.push(created);
         return json({ issue: created, audience: "public" }, 201);
       }
-      const match = /^\/api\/v1\/lab\/issues\/([^/]+)(\/comments|\/lifecycle)?$/
-        .exec(
-          pathname,
-        );
+      const match =
+        /^\/api\/v1\/lab\/issues\/([^/]+)(\/comments|\/lifecycle|\/relationships)?$/
+          .exec(
+            pathname,
+          );
       if (match === null) return error("Not found", 404);
       const number = Number(match[1]);
       if (!Number.isInteger(number) || number <= 0) {
@@ -372,6 +540,9 @@ export function swampClubFake(): SwampClubFake {
         entries.push(stored);
         return json(stored, 201);
       }
+      if (match[2] === "/relationships") {
+        return relationshipCall(request.method, number, body, role);
+      }
       if (match[2] === "/comments") {
         if (request.method !== "POST") return error("Method not allowed", 405);
         if (role === null) return error("Unauthorized", 401);
@@ -406,6 +577,7 @@ export function swampClubFake(): SwampClubFake {
             createdAt: "2026-09-29T00:00:00.000Z",
           })),
           lifecycleEntries: entries.filter((e) => e.issue === number),
+          relationships: relationshipsOf(number),
         });
       }
       if (request.method === "PATCH") {
@@ -428,6 +600,7 @@ export function swampClubFake(): SwampClubFake {
     comments,
     entries,
     attestations,
+    relationships,
     requests,
     queue,
     close: () => server.shutdown(),
