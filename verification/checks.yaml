@@ -84,8 +84,11 @@ groups:
           # build fails here without rebuilding.
           # --allow-net=127.0.0.1 is for the local fakes of Linear's and
           # swamp-club's APIs the tracker tests serve; nothing reaches a live
-          # service.
-          test: deno test --allow-read --allow-net=127.0.0.1 extensions/models/ extensions/reports/ scripts/
+          # service. studio/ holds the studio page's tests, which run the
+          # engine on the skill's example factory definitions; the yaml
+          # package the page uses for source positions reads LOG_TOKENS and
+          # LOG_STREAM from the environment, and only those two are allowed.
+          test: deno test --allow-read --allow-net=127.0.0.1 --allow-env=LOG_TOKENS,LOG_STREAM extensions/models/ extensions/reports/ scripts/ studio/
           # The real-engine suite (integration/) drives the installed swamp
           # CLI in a temp repo, so it needs more than the unit tests. These
           # flags are not a sandbox: --allow-run=swamp lets the spawned

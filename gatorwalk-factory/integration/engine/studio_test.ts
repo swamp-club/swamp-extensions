@@ -150,7 +150,23 @@ Deno.test("studio: serve shows the files, reloads an edit, refuses strangers, an
         page.headers.get("content-security-policy") ?? "",
         /default-src 'self'/,
       );
-      assertMatch(await page.text(), /GATORWALK/);
+      assertMatch(await page.text(), /src="\/assets\/app\.js"/);
+
+      // The page's files, from the three generated modules: the script (the
+      // engine and Design mode), the styles, and a font.
+      const assetOf = async (name: string, type: RegExp, body?: RegExp) => {
+        const res = await fetch(`${base}/assets/${name}`);
+        assertEquals(res.status, 200, name);
+        assertMatch(res.headers.get("content-type") ?? "", type);
+        const text = await res.text();
+        if (body !== undefined) assertMatch(text, body);
+      };
+      await assetOf("app.js", /^text\/javascript/, /GATORWALK/);
+      await assetOf("studio.css", /^text\/css/, /\.canvas/);
+      await assetOf(
+        "fonts/orbitron-latin-700-normal.woff2",
+        /^font\/woff2$/,
+      );
 
       // The factory list and the definition file.
       const list = await (await fetch(`${base}/api/factories`)).json();

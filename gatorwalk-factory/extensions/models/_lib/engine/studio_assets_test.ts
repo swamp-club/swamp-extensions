@@ -16,7 +16,13 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { STUDIO_ASSETS, STUDIO_SOURCE_DIGEST } from "./studio_assets.ts";
-import { ASSETS_MODULE, studioSourceDigest } from "../../../../studio/build.ts";
+import {
+  ASSET_MODULES,
+  ENGINE_INPUTS,
+  engineImports,
+  importSpecifiers,
+  studioSourceDigest,
+} from "../../../../studio/build.ts";
 
 // The embedded page matches its source. Compared by a digest of the build's
 // inputs rather than by rebuilding, since the bundle's bytes depend on the
@@ -39,9 +45,44 @@ Deno.test("studio assets: the page, its script, its styles and its fonts are all
   );
 });
 
-// The registry refuses an extension file over 976.6 KB. Design mode adds the
-// engine bundle to this module; split it by asset before it gets close.
-Deno.test("studio assets: the generated module stays well under the registry's file limit", async () => {
-  const { size } = await Deno.stat(ASSETS_MODULE);
-  assert(size < 800_000, `studio_assets.ts is ${size} bytes`);
+// The registry refuses an extension file over 976.6 KB, so the page is split
+// by asset: the script, the fonts, and the rest each have a module.
+Deno.test("studio assets: every generated module stays well under the registry's file limit", async () => {
+  for (const url of ASSET_MODULES) {
+    const { size } = await Deno.stat(url);
+    assert(size < 800_000, `${url.pathname} is ${size} bytes`);
+  }
+});
+
+// The digest covers the engine modules the page bundles. A new engine import
+// the list lacks would leave part of the bundle outside the digest, so a
+// change there would not be caught as a stale page.
+Deno.test("studio assets: the digest covers every engine module the page imports", async () => {
+  assertEquals(
+    await engineImports(),
+    [...ENGINE_INPUTS].sort(),
+    "update ENGINE_INPUTS in studio/build.ts, then run deno task build:studio",
+  );
+});
+
+Deno.test("studio assets: the import walk reads statements, not comments or strings", () => {
+  const text = [
+    `// import the page's state`,
+    `import { x } from "./state.ts";`,
+    `import "./jitless.ts";`,
+    `import type { Y } from "../engine/graph.ts";`,
+    `export { z } from './model.ts';`,
+    `export const NOTE = "comes from somewhere";`,
+    `import {`,
+    `  a,`,
+    `  b,`,
+    `} from "./multi.ts";`,
+  ].join("\n");
+  assertEquals(importSpecifiers(text), [
+    "./state.ts",
+    "./jitless.ts",
+    "../engine/graph.ts",
+    "./model.ts",
+    "./multi.ts",
+  ]);
 });

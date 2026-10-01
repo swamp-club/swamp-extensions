@@ -1045,7 +1045,8 @@ one instance per repo and one method, `serve`. `serve` runs a web server on
 runs until swamp aborts the method on Ctrl-C (`ctx.signal`). The page lists
 every factory in the repo and shows its definition file and its scenario files,
 `scenarios/<factory>/<scenario>.yaml`, reloading them as they change
-(`_lib/engine/studio_server.ts`, `studio_watch.ts`, `studio_serve.ts`).
+(`_lib/engine/studio_server.ts`, `studio_watch.ts`, `studio_serve.ts`). What the
+page shows is in "Design mode".
 
 **Its own type, not a factory method.** One studio covers every factory in the
 repo through a picker, rather than one server per factory. It finds the
@@ -1102,26 +1103,114 @@ paths nobody asked about, coalesces a save's several events, and sends
 open responses when it stops, so the event streams close on the same signal.
 
 **The page is embedded, not beside the module.** The page's source is
-`studio/src/` (plain TypeScript and DOM, grown from the prototype; its tokens
-follow swamp-club's HUD style) with the fonts in `studio/fonts/`.
+`studio/src/` (Preact with signals, grown from the prototype; its tokens follow
+swamp-club's HUD style) with the fonts in `studio/fonts/`.
 `deno task build:studio` bundles it with `deno bundle --platform browser` and
-writes every served file into the generated `_lib/engine/studio_assets.ts`,
-which `serve` serves from. A model added as an extension source runs from
+writes every served file into generated modules beside the engine, which
+`serve` serves from: the script in `_lib/engine/studio_asset_app.ts`, the fonts
+in `studio_asset_fonts.ts`, and the HTML and CSS, with the map of them all, in
+`studio_assets.ts`. A model added as an extension source runs from
 swamp's bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the
 source module can be found from `import.meta.url`, and `ctx.extensionFile()`
 needs a manifest. Embedding works the same before and after go-live; the
 starters are embedded the same way.
 
-**Fresh by digest.** The generated module records a sha256 of the build's inputs
-(`studio/src`, `studio/fonts`, `studio/build.ts`), and `studio_assets_test`
-recomputes it, so a stale page fails the unit tests. Text inputs are hashed with
+**Fresh by digest.** `studio_assets.ts` records a sha256 of the build's inputs,
+and `studio_assets_test` recomputes it, so a stale page fails the unit tests.
+The inputs are `studio/src` (its tests aside), `studio/fonts`,
+`studio/build.ts`, the engine modules the page bundles (`ENGINE_INPUTS` in
+`build.ts`), and `deno.json` and `deno.lock`, which pin the packages in the
+bundle. So a change to one of those engine modules needs
+`deno task build:studio` in the same change (accepted 2026-09-30). Text inputs are hashed with
 LF line endings, so a checkout that writes CRLF gives the same digest. Rebuilding
 and diffing
 would depend on the Deno version that bundles, which verification does not pin.
-`build.ts` refuses to build if `app.ts` imports anything outside `studio/src`,
-so the digest covers the whole page; Design mode, which imports the engine,
-widens the inputs first. The same test keeps the module well under the
-registry's 976.6 KB file limit.
+`build.ts` refuses to build when the bundle's graph differs from the inputs:
+a local module outside `studio/src` and `ENGINE_INPUTS`, an engine module
+missing from the list or listed but not imported, or a remote module that is
+not an exact npm or JSR version. `studio_assets_test` also compares
+`ENGINE_INPUTS` with a walk of the import lines (it may only read, so it cannot
+run `deno info`), so an engine import added without a rebuild fails the tests
+too. The same test keeps every generated module under 800 KB, well under the
+registry's 976.6 KB file limit. The script is the one to watch: 670 KB with
+Design mode, most of it zod, cel-js and the yaml packages the engine and page
+need. If Simulate mode takes it near the limit, the next step is to store it
+gzipped and serve it with `content-encoding: gzip`, about a fifth of the size.
+
+## Design mode
+
+**Decision** (swamp-club #2807). The studio's Design mode shows one factory
+definition on one screen, and runs gatorwalk's own checks on it in the browser
+every time the file changes. It never edits: the agent writes the file, and the
+page hands the agent a reference to what a person is looking at.
+
+**The engine in the page.** `studio/src/model.ts` reads the file's text with
+`@std/yaml`, as `validate` reads the file, so the page shows what `validate`
+would; checks it with `DefinitionSchema`, keeping each issue's path; then runs
+`analyzeDefinition` and `designView`. The engine is imported by relative path,
+never copied. The `yaml` package parses the same text again only for positions,
+so a document path (`stages.2.transitions.0`) maps to a line, falling back to
+its nearest parent that exists. The server's CSP forbids eval, so the page sets
+zod's `jitless` before the engine loads (`jitless.ts`); otherwise zod's probe
+for eval logs a violation on every load.
+
+**The layout** (`layout.ts`, from the prototype). One row per tracker status: a
+stage's `tracker.status`, else the status its enter entry sets, else its
+latest predecessor's in flow order. Columns follow the longest forward path from
+the initial stage, loops left out. Each exit is a port on the right of its tile,
+with a pip per gate, gold where a person decides. Edges are orthogonal and run
+through the channels between columns and rows, one track per edge per channel,
+forward edges nearest the tiles. Each edge enters its target at a point of its
+own on the tile's left side: ports sit halfway down an exit row and entries on
+the row lines, so an exit leaving one tile never runs along an entry into the
+next, and the tile grows when it has more entries than rows. Global transitions
+leave one ANY STAGE tile. The layout is pure, and the tests check, on every
+example definition, that no two edges overlap, no edge passes through a tile,
+every edge has its own port and entry, and the same definition gives the same
+layout.
+
+**Selection by identity.** A document path is positional, so when the agent
+inserts a stage or an exit, the same path names something else. The page holds
+the selection by what it is (`selection.ts`): a stage by id, an exit by its
+stage and name, a finding by code, stage and message. Gates have no names, so a
+gate is its type, the name it is about (the artifact, the approval id, the
+evidence, the stage of a max-cycles gate, a cel gate's expression), and which of
+the gates sharing those it is. After each reload the path is found again; a
+target that is gone falls back to its exit, then its stage, then nothing. Gates
+were not given names: most already have a natural key, and a field every
+definition must carry was not worth it for this.
+
+**Copy reference** (`reference.ts`). Every stage, exit, gate and finding has a
+button, and `c`, that copies one plain line: the file, the document path, and a
+readable name, plus the code and message for a finding. For example
+`factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)`. That
+is the whole hand-off: no chat, no request form.
+
+**Changed marks** (`changes.ts`). Each stage, and the global transitions as ANY
+STAGE, has a fingerprint of its parsed spec. The browser keeps, per factory in
+`localStorage`, the fingerprints it last showed. A stage counts as seen when it
+is selected, or on Mark all seen; the first visit records a baseline and marks
+nothing. Storage that throws (private windows) only means the marks last as
+long as the page.
+
+**A file that fails the schema** shows its problems in Findings and underlines
+them in the source; the graph keeps the last version that passed, dimmed and
+labelled stale. Reloads coalesce: one in flight is followed by at most one more.
+
+**Keyboard** (`nav.ts`). The graph is one tab stop (an ARIA tree) whose roving
+focus is the selection. Arrows move between stages (left and right in a row, up
+and down to the nearest stage in the next row); Enter steps into a stage's
+exits; on an exit, Enter follows it to the stage it leads to and → steps into
+its gates; Esc or ← steps back out. `c` copies a reference only while focus is
+in the graph, the findings or the inspector, never page-wide (WCAG 2.2 SC
+2.1.4). The tests check that every stage, exit and gate is reachable from the
+first stage by keys. Scrolling to a selection moves only the pane that holds it,
+never the page.
+
+**Theme.** swamp-club's HUD. A work mode is shown by colour and always with a
+glyph and a label; human stops are gold. Focus rings are visible, all motion
+stops under `prefers-reduced-motion` (a finding's trace then shows at once), and
+below 980px the panels stack under the graph, which scrolls in its own pane.
 
 ## Trackers
 
@@ -1861,6 +1950,25 @@ the walk to attest. Each file reads whole in the studio; an include step would
 be its own change.
 
 ## Decision log
+
+### 2026-09-30: Design mode, in the browser, read-only (swamp-club #2807)
+
+**Decision.** The studio's Design mode, built from the prototype: the engine
+runs in the page, a pure lane layout draws the definition, and an inspector,
+findings with trace walks, a read-only source and Copy reference explain it.
+See "Design mode".
+
+**Why.** The issue predates #2803, so its `lifecycles/`, `parseLifecycle` and
+`analyzeLifecycle` became `factories/`, `parseDefinition` and
+`analyzeDefinition`. Decided with Seth: an engine change the page bundles
+needs a studio rebuild in the same change; Preact, signals and the `yaml`
+package are added, pinned; changed marks last per browser until a stage is
+selected; the graph scrolls in its own pane at phone width. Found in the work:
+the bundle passes the single module's size budget, so the page is split into
+three generated modules; the `yaml` package reads two environment variables, so
+the unit tests allow exactly those; edges sharing an entry point overlapped in
+the prototype, so each now has its own; selection is held by identity, since
+paths shift; and, from Seth's first use, Enter on an exit follows it.
 
 ### 2026-09-30: a factory chooses its tracker, and status shows the lag (swamp-club #2795)
 

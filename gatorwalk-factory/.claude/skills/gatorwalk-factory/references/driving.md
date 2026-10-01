@@ -101,6 +101,21 @@ file as you save it. They start it themselves, since it runs until Ctrl-C:
 `swamp model create @swamp/gatorwalk-factory/studio studio` once, then
 `swamp model method run studio serve`, which logs the URL.
 
+The studio's Copy reference gives the person one line to paste to you. It names
+the file, a document path, and a readable name, and for a finding its code and
+message:
+
+```text
+factories/team.yaml stages.2.transitions.0 (exit submit: plan → review)
+factories/team.yaml stages.2.transitions.0 (exit submit: plan → review) ambiguous-exit: <message>
+```
+
+Find the path in the file: `stages.2.transitions.0` is the first exit of the
+third stage, and `.gates.1` after it would be that exit's second gate. Check
+that the readable name matches what is there, since the file may have changed
+since the line was copied. Make the change the person asks for, then run the
+factory's `validate` method. The page re-checks the file when you save it.
+
 ## Start a work item
 
 ```sh

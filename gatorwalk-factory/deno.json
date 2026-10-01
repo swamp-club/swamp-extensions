@@ -4,12 +4,16 @@
     "lint": "deno lint extensions/models/ extensions/reports/ integration/ scripts/ studio/",
     "fmt": "deno fmt extensions/models/ extensions/reports/ integration/ scripts/ studio/ testdata/ .claude/skills/",
     "fmt:check": "deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ studio/ testdata/ .claude/skills/",
-    "test": "deno test --allow-read --allow-net=127.0.0.1 extensions/models/ extensions/reports/ scripts/",
+    "test": "deno test --allow-read --allow-net=127.0.0.1 --allow-env=LOG_TOKENS,LOG_STREAM extensions/models/ extensions/reports/ scripts/ studio/",
     "test:integration": "deno test --allow-run=swamp --allow-read --allow-write --allow-env --allow-net=127.0.0.1 integration/",
     "gen:starters": "deno run --allow-read=. --allow-write=extensions/models/_lib/engine/starters.ts scripts/gen_starters.ts && deno fmt extensions/models/_lib/engine/starters.ts",
-    "build:studio": "deno run --allow-read=. --allow-write=studio/dist,extensions/models/_lib/engine/studio_assets.ts --allow-run=deno studio/build.ts && deno fmt extensions/models/_lib/engine/studio_assets.ts"
+    "build:studio": "deno run --allow-read=. --allow-write=studio/dist,extensions/models/_lib/engine/studio_assets.ts,extensions/models/_lib/engine/studio_asset_app.ts,extensions/models/_lib/engine/studio_asset_fonts.ts --allow-run=deno studio/build.ts && deno fmt extensions/models/_lib/engine/studio_assets.ts extensions/models/_lib/engine/studio_asset_app.ts extensions/models/_lib/engine/studio_asset_fonts.ts"
   },
   "exclude": ["studio/dist/"],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  },
   "lint": {
     "rules": {
       "exclude": ["no-import-prefix"]
@@ -21,6 +25,10 @@
     "cel-js": "npm:@marcbachmann/cel-js@7.6.1",
     "@std/assert": "jsr:@std/assert@1.0.19",
     "@std/path": "jsr:@std/path@1.1.4",
-    "@std/yaml": "jsr:@std/yaml@1.0.10"
+    "@std/yaml": "jsr:@std/yaml@1.0.10",
+    "preact": "npm:preact@10.27.2",
+    "preact/": "npm:/preact@10.27.2/",
+    "@preact/signals": "npm:@preact/signals@2.3.1",
+    "yaml": "npm:yaml@2.8.1"
   }
 }
