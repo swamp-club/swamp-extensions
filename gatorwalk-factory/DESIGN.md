@@ -1120,7 +1120,11 @@ page shows is in "Design mode".
 repo through a picker, rather than one server per factory. It finds the
 factories with the definition repository's `findAllGlobal`, and each one's file
 with the repository's `getPath`, which answers from the path the listing just
-cached; it is only called on a definition that listing returned. A file swamp
+cached; it is only called on a definition that listing returned. swamp skips a
+model definition file it cannot parse, such as one an agent has left mid-edit,
+so `serve` remembers the factories it has listed: one swamp now skips stays
+listed, with its file, while that file is there and no factory listed now
+claims it, and the page shows why the file does not parse (#2889). A file swamp
 keeps outside the repo (a managed-config datastore) is shown by its absolute
 path. It takes only its
 own instance's lock, which `serve` holds while it runs, and never a factory's,
@@ -1169,7 +1173,8 @@ time the page reads it, one refresh at a time so a slow one never wins over a
 newer list; a refresh that fails keeps the old watches and the next one retries.
 swamp says nothing when a factory is created or removed, so `serve`
 reads the factory list again every three seconds, and a change sends
-`{ kind: "factories" }`, on which the page lists them again. The watch drops
+`{ kind: "factories" }`, on which the page lists them again; when the
+selected factory has gone, the page says so and shows the next. The watch drops
 paths nobody asked about, coalesces a save's several events, and sends
 `{ kind: "definition", factory }` to every open event stream. Deno's server waits for
 open responses when it stops, so the event streams close on the same signal.
@@ -2179,6 +2184,27 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-01: a factory whose file does not parse stays in the studio (swamp-club #2889)
+
+**Decision.** swamp's `findAllGlobal` skips a model definition file it cannot
+parse, so while an agent had a factory's file mid-edit, the studio's listing
+left the factory out, the page fell back to another factory (dropping an open
+walk unasked), and it stayed there once the file was fixed. `serve` now keeps
+a memory of the factories it has listed, by name and file, which
+`listFactories` is given. A factory swamp now skips stays listed while its file
+is there and no factory listed now claims the file. It keeps its route, so the
+page reads the text and shows the YAML problem with the last good graph marked
+STALE, and the watch keeps following the file, so the fix reloads in place. A
+factory whose file is gone is forgotten. The page says when the selected
+factory was removed. The memory is replaced in one step after a listing's last
+read; a slower listing may write it last, which the next one corrects.
+
+**Left out.** A studio started while a file is already broken does not list
+that factory until it parses: finding it would mean walking swamp's `models/`
+layout. A file that is valid YAML but fails swamp's own definition check is
+kept the same way, and the page may draw it. swamp's warning for the skipped
+file is not shown.
 
 ### 2026-10-01: small driving fixes from the #2711 dogfood (swamp-club #2875)
 

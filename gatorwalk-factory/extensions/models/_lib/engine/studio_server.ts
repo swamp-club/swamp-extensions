@@ -93,6 +93,12 @@ export interface StudioDeps {
   assets: Readonly<Record<string, StudioAsset>>;
   events: StudioEvents;
   /**
+   * The factories listed before, by name, with their model definition files,
+   * so a factory whose file swamp skips stays listed (see listFactories).
+   * serve keeps one for its life; without it, a listing is swamp's alone.
+   */
+  remembered?: Map<string, string>;
+  /**
    * Told each time the factory list is read, with each factory's model
    * definition file by name, so the watch can follow them.
    */
@@ -181,10 +187,18 @@ export function shownPath(repoDir: string, file: string): string {
 /**
  * Every factory in the repo, by name, with its model definition file as an
  * absolute path in `files` (by name) and as shown in each entry.
+ *
+ * swamp skips a model definition file it cannot parse, such as one an agent
+ * has left mid-edit. With `remembered`, the factories listed before, a
+ * factory swamp now skips stays listed while its file is still there and no
+ * factory listed now claims it, so the page keeps it and shows why the file
+ * does not parse. One whose file is gone is forgotten. `remembered` is then
+ * this listing.
  */
 export async function listFactories(
   lister: FactoryLister,
   repoDir: string,
+  remembered?: { factories: Map<string, string>; files: RepoFiles },
 ): Promise<{ entries: FactoryEntry[]; files: Map<string, string> }> {
   const entries: FactoryEntry[] = [];
   const files = new Map<string, string>();
@@ -207,6 +221,25 @@ export async function listFactories(
     }
     files.set(name, file);
     entries.push({ name, path: shownPath(repoDir, file) });
+  }
+  if (remembered !== undefined) {
+    const listed = new Set(entries.map((e) => e.name));
+    const claimed = new Set(files.values());
+    const kept = new Map<string, string>();
+    for (const [name, file] of remembered.factories) {
+      if (listed.has(name) || claimed.has(file)) continue;
+      if (await remembered.files.lstat(file) === null) continue;
+      kept.set(name, file);
+    }
+    // No await from here on, so the memory is replaced in one step. A slower
+    // listing may still write it last; it keeps only files that exist, and
+    // the next listing corrects it.
+    for (const [name, file] of kept) {
+      files.set(name, file);
+      entries.push({ name, path: shownPath(repoDir, file) });
+    }
+    remembered.factories.clear();
+    for (const [name, file] of files) remembered.factories.set(name, file);
   }
   entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   return { entries, files };
@@ -341,6 +374,7 @@ export async function handleStudioRequest(
     const { entries, files } = await listFactories(
       deps.factories,
       deps.repoDir,
+      deps.remembered && { factories: deps.remembered, files: deps.files },
     );
     if (parts.length === 2) {
       deps.onFactories?.(entries, files);

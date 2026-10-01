@@ -21,12 +21,15 @@ import { assert, assertEquals } from "@std/assert";
 import {
   copyEntry,
   discardWalk,
+  factory,
+  flashText,
   frameIndex,
   frames,
   goFrame,
   loadDefinitionFile,
   pickScenario,
   playing,
+  reloadFactories,
   runs,
   scenario,
   selectFactory,
@@ -160,4 +163,34 @@ Deno.test("state: stepping or jumping pauses playback, and a new step's Copy ent
     await step;
     assert(copyEntry.value?.text.includes("wait: 60"));
   });
+});
+
+Deno.test("state: a selected factory removed for real says so, and the page moves to the next", async () => {
+  const text = await exampleText(NAME);
+  let listed = [NAME, "other"];
+  const real = globalThis.fetch;
+  globalThis.fetch = (input) => {
+    const url = String(input);
+    const body = url === "/api/factories"
+      ? { factories: listed.map((name) => ({ name, path: modelPath(name) })) }
+      : { path: modelPath(NAME), text, digest: "sha256:x" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  try {
+    await selectFactory(NAME);
+    await reloadFactories();
+    assertEquals(factory.value, NAME);
+    assertEquals(flashText.value, null);
+
+    listed = ["other"];
+    await reloadFactories();
+    assertEquals(flashText.value, `factory '${NAME}' was removed`);
+    assertEquals(factory.value, "other");
+  } finally {
+    globalThis.fetch = real;
+  }
 });

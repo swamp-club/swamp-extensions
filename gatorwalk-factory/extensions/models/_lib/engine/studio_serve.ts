@@ -65,19 +65,23 @@ export async function serveStudio(
     findAllGlobal: () => repository.findAllGlobal(),
     getPath: (type, id) => repository.getPath(type, id),
   };
+  // The factories listed so far, so one whose file swamp skips mid-edit
+  // stays listed; shared by the relist and every request.
+  const remembered = new Map<string, string>();
+  const memory = { factories: remembered, files: denoRepoFiles };
   const watcher = watchStudio();
   // A factory created or removed while the studio is open: swamp says
   // nothing, so the list is read again every few seconds. The watch tells
   // the page when it changed.
   const relist = setInterval(() => {
-    listFactories(factories, repoDir).then(({ entries, files }) =>
+    listFactories(factories, repoDir, memory).then(({ entries, files }) =>
       watcher.follow(entries, files)
     ).catch(() => {
       // A definition mid-write; the next read sees it whole.
     });
   }, RELIST_SECONDS * 1000);
   try {
-    const first = await listFactories(factories, repoDir);
+    const first = await listFactories(factories, repoDir, memory);
     await watcher.follow(first.entries, first.files);
     const deps: StudioDeps = {
       repoDir,
@@ -85,6 +89,7 @@ export async function serveStudio(
       port: 0,
       files: denoRepoFiles,
       factories,
+      remembered,
       assets,
       events: watcher,
       onFactories: (list, files) => void watcher.follow(list, files),

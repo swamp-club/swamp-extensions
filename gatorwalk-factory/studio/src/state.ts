@@ -388,6 +388,11 @@ export async function reloadFactories() {
     sourceError.value = message(e);
     return;
   }
+  // The studio keeps a factory whose file does not parse, so one that went
+  // is gone for real.
+  if (before !== null && pick !== before) {
+    flash(`factory '${before}' was removed`);
+  }
   const now = factories.value.find((f) => f.name === pick);
   if (pick !== null && (pick !== before || now?.path !== path)) {
     await selectFactory(pick);

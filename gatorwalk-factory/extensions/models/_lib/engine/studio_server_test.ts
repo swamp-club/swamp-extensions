@@ -200,6 +200,84 @@ Deno.test("studio: a model definition kept outside the repo is shown by its abso
   assertEquals(file.text, "name: managed\n");
 });
 
+/** Drop a factory from the listing, as swamp skips a file it cannot parse. */
+function skip(
+  definitions: { definition: unknown; type: unknown }[],
+  name: string,
+) {
+  const at = definitions.findIndex((d) =>
+    (d.definition as { name: unknown }).name === name
+  );
+  definitions.splice(at, 1);
+}
+
+const names = (list: Record<string, unknown>) =>
+  (list.factories as { name: string }[]).map((f) => f.name);
+
+Deno.test("studio: a factory whose file swamp skips stays listed while the file is there", async () => {
+  const { deps, definitions, followed, repo } = setup();
+  deps.remembered = new Map();
+  await handleStudioRequest(get("/api/factories"), deps);
+  // The agent leaves the file mid-edit: not valid YAML, so swamp skips it.
+  skip(definitions, "team");
+  repo.write(TEAM_FILE, "name: team\n  definition: [\n");
+  const list = await body(
+    await handleStudioRequest(get("/api/factories"), deps),
+  );
+  assertEquals(names(list), ["pathless", "team"]);
+  assert(
+    JSON.stringify(list.factories).includes(
+      `{"name":"team","path":"${TEAM_FILE}"}`,
+    ),
+  );
+  // The watch still follows it, so the fix reloads the page.
+  assertEquals(followed.at(-1)?.[1], { team: `${repo.dir}/${TEAM_FILE}` });
+  // The page reads the text and shows why it does not parse.
+  const file = await body(
+    await handleStudioRequest(get("/api/factories/team"), deps),
+  );
+  assertEquals(file.text, "name: team\n  definition: [\n");
+
+  // Removed for real: the file is gone, and so is the factory.
+  repo.remove(TEAM_FILE);
+  assertEquals(
+    names(await body(await handleStudioRequest(get("/api/factories"), deps))),
+    ["pathless"],
+  );
+  // Forgotten: the file coming back unparsed does not list it again.
+  repo.write(TEAM_FILE, "name: team\n  definition: [\n");
+  assertEquals(
+    names(await body(await handleStudioRequest(get("/api/factories"), deps))),
+    ["pathless"],
+  );
+});
+
+Deno.test("studio: a remembered factory gives way to the one now listed at its file", async () => {
+  const { deps, definitions, paths, repo } = setup();
+  deps.remembered = new Map();
+  await handleStudioRequest(get("/api/factories"), deps);
+  skip(definitions, "team");
+  definitions.push({
+    definition: { id: "id-crew", name: "crew", globalArguments: {} },
+    type: FACTORY_TYPE,
+  });
+  paths["id-crew"] = `${repo.dir}/${TEAM_FILE}`;
+  assertEquals(
+    names(await body(await handleStudioRequest(get("/api/factories"), deps))),
+    ["crew", "pathless"],
+  );
+});
+
+Deno.test("studio: without a memory, a skipped factory is not listed", async () => {
+  const { deps, definitions } = setup();
+  await handleStudioRequest(get("/api/factories"), deps);
+  skip(definitions, "team");
+  assertEquals(
+    names(await body(await handleStudioRequest(get("/api/factories"), deps))),
+    ["pathless"],
+  );
+});
+
 Deno.test("studio: /api/factories/<f> reads the factory's model definition file", async () => {
   const { deps } = setup();
   const res = await handleStudioRequest(get("/api/factories/team"), deps);
