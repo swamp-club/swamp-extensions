@@ -18,10 +18,11 @@ import {
   type AwaitingExit,
   type FactoryDefinition,
   type JournalEvent,
-  parseTemplate,
+  parseSummary,
   type ProductKind,
-  renderTemplate,
+  renderSummary,
   type RunRecord,
+  type SummaryMeta,
   type TrackerEntry,
   triggerKey,
 } from "../../engine/tracker.ts";
@@ -309,21 +310,29 @@ export interface EntryProduct {
 export interface EntryEvent {
   /** The journal's length once this event was written (its index + 1). */
   journalVersion: number;
+  /** Set when the event is a second entry on its journal version: an
+   * advance is both a transition out of one stage and an entry into the
+   * next, and each is written under its own ledger key. */
+  suffix?: string;
   /** The candidates in the factory definition's order: those on the event's
    * trigger and cycle. A match decides between them once the payload is read.
    */
   candidates: TrackerEntry[];
   /** The status key labelling the entry unless it names its own: the
-   * stage's, else the last one entered before it, else null. */
+   * stage's, else the last one entered before it. For a transition, the
+   * stage it goes to. Null when nothing names one. */
   status: string | null;
   /** Set for a recorded product. */
   product?: EntryProduct;
+  /** The event's values for the summary besides the payload. */
+  meta: SummaryMeta;
 }
 
 /**
  * The journal events after `since` that some entry answers, in journal
- * order. Status labels are worked out from the start of the journal, so a
- * stage without a status key carries the one before it.
+ * order. Status labels, product versions and first dispatches are worked out
+ * from the start of the journal, so a stage without a status key carries the
+ * one before it.
  */
 export function projectEntries(
   run: RunRecord,
@@ -333,41 +342,80 @@ export function projectEntries(
   const stages = new Map(definition.stages.map((s) => [s.id, s]));
   const out: EntryEvent[] = [];
   let status: string | null = null;
+  // Each product's latest version in the current era: a reset clears the
+  // run's products, so it starts the count over.
+  let era: string | null = null;
+  let versions: Record<string, number> = {};
+  const dispatched = new Set<string>();
   for (let i = 0; i < run.journal.length; i++) {
     const event = run.journal[i];
-    const at = triggerOf(event);
-    if (at === null) continue;
-    const stage = stages.get(at.stage);
-    status = stage?.tracker?.status ?? status;
+    if (event.era !== era) {
+      era = event.era;
+      versions = {};
+    }
+    if (event.type === "recorded") versions[event.name] = event.version;
+    let first = false;
+    if (event.type === "dispatched") {
+      const entry = `${event.era} ${event.stage} ${event.cycle}`;
+      first = !dispatched.has(entry);
+      dispatched.add(entry);
+    }
+    const triggers = triggersOf(event, first);
+    // An advance labels its transition with the stage it goes to.
+    for (const at of triggers) {
+      status = stages.get(at.stage)?.tracker?.status ?? status;
+    }
     if (i < since) continue;
-    const candidates = (stage?.tracker?.entries ?? []).filter((e) =>
-      triggerKey(e.on) === at.key &&
-      (e.cycle === undefined || (e.cycle === "first") === (at.cycle === 1))
-    );
-    if (candidates.length === 0) continue;
-    out.push({
-      journalVersion: i + 1,
-      candidates,
-      status,
-      ...(at.product === undefined ? {} : { product: at.product }),
-    });
+    for (const at of triggers) {
+      const candidates = (stages.get(at.stage)?.tracker?.entries ?? []).filter(
+        (e) =>
+          triggerKey(e.on) === at.key &&
+          (e.cycle === undefined || (e.cycle === "first") === (at.cycle === 1)),
+      );
+      if (candidates.length === 0) continue;
+      out.push({
+        journalVersion: i + 1,
+        ...(at.suffix === undefined ? {} : { suffix: at.suffix }),
+        candidates,
+        status,
+        ...(at.product === undefined ? {} : { product: at.product }),
+        meta: metaOf(run, event, at, versions),
+      });
+    }
   }
   return out;
 }
 
-function triggerOf(event: JournalEvent): {
+interface Trigger {
   stage: string;
   key: string;
   cycle: number;
+  suffix?: string;
   product?: EntryProduct;
-} | null {
+}
+
+/** What one journal event answers to, in the order its entries are
+ * written. `first`: a dispatch is its stage entry's first. */
+function triggersOf(event: JournalEvent, first: boolean): Trigger[] {
   switch (event.type) {
     case "started":
-      return { stage: event.stage, key: "enter", cycle: 1 };
+      return [{ stage: event.stage, key: "enter", cycle: 1 }];
     case "advanced":
-      return { stage: event.to, key: "enter", cycle: event.toCycle };
+      return [
+        {
+          stage: event.stage,
+          key: triggerKey({ transition: event.transition }),
+          cycle: event.cycle,
+          suffix: "transition",
+        },
+        { stage: event.to, key: "enter", cycle: event.toCycle },
+      ];
+    case "dispatched":
+      return first
+        ? [{ stage: event.stage, key: "dispatch", cycle: event.cycle }]
+        : [];
     case "recorded":
-      return {
+      return [{
         stage: event.stage,
         key: triggerKey({ record: event.name }),
         cycle: event.cycle,
@@ -377,18 +425,46 @@ function triggerOf(event: JournalEvent): {
           version: event.version,
           digest: event.digest,
         },
-      };
+      }];
     case "approval":
       return event.decision === "approve"
-        ? {
+        ? [{
           stage: event.stage,
           key: triggerKey({ approve: event.gateId }),
           cycle: event.cycle,
-        }
-        : null;
+        }]
+        : [];
     default:
-      return null;
+      return [];
   }
+}
+
+/** The summary values an event has besides its payload. An approval reads
+ * product versions from what it was given against, not the journal. */
+function metaOf(
+  run: RunRecord,
+  event: JournalEvent,
+  at: Trigger,
+  versions: Record<string, number>,
+): SummaryMeta {
+  const meta: SummaryMeta = { cycle: at.cycle, versions: { ...versions } };
+  if (at.product !== undefined) meta.version = at.product.version;
+  if (event.type === "approval") {
+    const approval = run.approvals.find((a) => a.id === event.approvalId);
+    if (approval !== undefined) {
+      meta.versions = Object.fromEntries(
+        [
+          ...Object.entries(approval.products.evidence),
+          ...Object.entries(approval.products.artifacts),
+        ].map(([name, ref]) => [name, ref.version]),
+      );
+    }
+  }
+  if (event.type === "dispatched") {
+    const dispatch = run.dispatches.find((d) => d.id === event.dispatchId);
+    if (dispatch !== undefined) meta.inputs = dispatch.inputs;
+  }
+  return meta;
 }
 
 /** The first candidate whose match the payload holds, or null. */
@@ -439,31 +515,20 @@ export function withoutDollarKeys(
 }
 
 /**
- * Fill an entry from its event and the recorded payload (empty for enter
- * and approve). A placeholder whose field is absent reads as empty text,
- * so an optional field never blocks the history.
+ * Fill an entry from its event and the recorded payload (empty for every
+ * trigger but a recorded product). A placeholder whose value is absent reads
+ * as empty text, so an optional field never blocks the history.
  */
 export function renderEntry(
   entry: TrackerEntry,
   event: EntryEvent,
   payload: Record<string, unknown>,
 ): RenderedEntry {
-  const values: Record<string, unknown> = {};
-  for (const part of parseTemplate(entry.summary)) {
-    if (part.kind !== "placeholder") continue;
-    const value = Object.hasOwn(payload, part.name)
-      ? payload[part.name]
-      : undefined;
-    values[part.name] = value === null || value === undefined ? "" : value;
-  }
-  // Every value is filled above, so the render cannot come back missing one.
-  const rendered = renderTemplate(entry.summary, values);
-  if (!rendered.ok) {
-    throw new Error(
-      `entry '${entry.step}' left ${rendered.missing.join(", ")} unfilled`,
-    );
-  }
-  const summary = rendered.text;
+  const summary = renderSummary(
+    parseSummary(entry.summary).parts,
+    payload,
+    event.meta,
+  );
   const type = entry.setsType === undefined
     ? undefined
     : payload[entry.setsType];

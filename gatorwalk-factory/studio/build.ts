@@ -61,6 +61,7 @@ export const ENGINE_INPUTS = [
   "definition_schema.ts",
   "design_page.ts",
   "dispatch.ts",
+  "entry_summary.ts",
   "gates.ts",
   "graph.ts",
   "journal.ts",

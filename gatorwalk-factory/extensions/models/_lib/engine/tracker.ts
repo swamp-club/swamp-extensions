@@ -29,7 +29,11 @@ export {
 } from "./definition_schema.ts";
 export { parseRun, type RunRecord, RunRecordSchema } from "./run_record.ts";
 export { payloadName, RUN_NAME, RUN_SPEC } from "./run_store.ts";
-export { parseTemplate, renderTemplate } from "./template.ts";
+export {
+  parseSummary,
+  renderSummary,
+  type SummaryMeta,
+} from "./entry_summary.ts";
 export { CURSOR_SPEC, cursorName, CursorSchema } from "./tracker_binding.ts";
 export {
   checkPinned,

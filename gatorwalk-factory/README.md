@@ -185,10 +185,13 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
 - **A stage may list tracker entries**, `tracker.entries`, new in
   gatorwalk: which of its journal events become structured entries in the
   ticket's history. Each has a trigger
-  (`on:
-  enter`, `on: { record: <product> }` or `on: { approve: <gate id> }`),
+  (`on: enter`, `on: dispatch` for the stage's first dispatch in a cycle,
+  `on: { record: <product> }`, `on: { approve: <gate id> }` or
+  `on: { transition: <name> }` for leaving the stage by it),
   a `step`, `emoji` and `summary` (whose `{{field}}` placeholders are fields of
-  the recorded payload), and optionally `match` (payload fields that must hold a
+  the recorded payload; `{{$cycle}}`, `{{$version}}`, `{{$version.<product>}}`
+  and, on dispatch, `{{$input.<name>}}` come from the event, and
+  `{{count findings severity=critical}}` counts a list's items), and optionally `match` (payload fields that must hold a
   value), `cycle` (`first` or `later`), `status` (the status key labelling it,
   defaulting to the stage's), `verbose`, `setsType` (a payload field holding
   the ticket type to set first) and `linkPr` (a payload field holding a pull

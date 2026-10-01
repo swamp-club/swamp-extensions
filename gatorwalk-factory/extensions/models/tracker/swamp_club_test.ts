@@ -780,3 +780,225 @@ Deno.test("swamp-club model: publish links an entry's pull request on the Lab is
     },
   );
 });
+
+/**
+ * A factory definition shaped like issue-lifecycle's history (#2772): a plan
+ * revised in a second round, a findings review of it, an approval bound to a
+ * plan version, verification that names its commit and branch, a pull
+ * request tried twice, and a complete exit that posts complete.
+ */
+function issueLifecycleShaped(): Record<string, unknown> {
+  const entry = (on: unknown, step: string, summary: string, extra = {}) => ({
+    on,
+    step,
+    emoji: "x",
+    summary,
+    ...extra,
+  });
+  return {
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "planning",
+        initial: true,
+        work: { mode: "interactive" },
+        artifacts: [
+          {
+            name: "plan",
+            schema: {
+              type: "object",
+              required: ["summary"],
+              properties: { summary: { type: "string" } },
+            },
+          },
+          { name: "plan-review", kind: "findings", reviews: "plan" },
+        ],
+        transitions: [
+          {
+            name: "approve",
+            to: "verify",
+            gates: [{
+              type: "human-approval",
+              config: { id: "plan-approval" },
+            }],
+          },
+          { name: "revise", to: "planning", manual: true },
+        ],
+        tracker: {
+          status: "open",
+          entries: [
+            entry(
+              { record: "plan" },
+              "plan_generated",
+              "Plan generated (v{{$version}})",
+              {
+                cycle: "first",
+              },
+            ),
+            entry(
+              { record: "plan" },
+              "plan_revised",
+              "Plan revised (v{{$version}}) — feedback round {{$cycle}}",
+              { cycle: "later" },
+            ),
+            entry(
+              { record: "plan-review" },
+              "adversarial_review",
+              "Adversarial review (plan v{{$version.plan}}): " +
+                "{{count findings severity=critical}} critical, " +
+                "{{count findings severity=high}} high",
+            ),
+            entry(
+              { approve: "plan-approval" },
+              "plan_approved",
+              "Plan approved (v{{$version.plan}})",
+            ),
+          ],
+        },
+      },
+      {
+        id: "verify",
+        work: {
+          mode: "interactive",
+          bindings: { commit: `'${COMMIT}'`, branch: "'fix-2772'" },
+        },
+        transitions: [{ name: "open-pr", to: "pull-request" }],
+        tracker: {
+          status: "in_progress",
+          entries: [
+            entry(
+              "dispatch",
+              "verification_started",
+              "Verification started on {{$input.branch}} at {{$input.commit}}",
+            ),
+          ],
+        },
+      },
+      {
+        id: "pull-request",
+        evidence: [{
+          name: "pr",
+          schema: {
+            type: "object",
+            required: ["url", "state"],
+            properties: {
+              url: { type: "string" },
+              state: { enum: ["open", "failed"] },
+            },
+          },
+        }],
+        transitions: [
+          { name: "retry", to: "pull-request", manual: true },
+          { name: "complete", to: "done" },
+        ],
+        tracker: {
+          status: "in_progress",
+          entries: [
+            entry(
+              { record: "pr" },
+              "pr_linked",
+              "PR linked (attempt {{$cycle}}): {{url}}",
+              { match: { state: "open" } },
+            ),
+            entry(
+              { record: "pr" },
+              "pr_failed",
+              "PR failed (attempt {{$cycle}})",
+              { match: { state: "failed" } },
+            ),
+            entry({ transition: "complete" }, "complete", "Completed"),
+          ],
+        },
+      },
+      {
+        id: "done",
+        terminal: true,
+        tracker: {
+          status: "shipped",
+          entries: [entry("enter", "done", "Done")],
+        },
+      },
+    ],
+  };
+}
+
+Deno.test("swamp-club model: entries carry issue-lifecycle's versions, counts and attempts (#2772)", async () => {
+  const methods = swampClubMethods({ sources: sources() });
+  await withLab(
+    (fake) => ({
+      apiKey: ADMIN_KEY,
+      url: fake.url,
+      statuses: JSON.stringify({
+        open: "open",
+        in_progress: "in_progress",
+        shipped: "shipped",
+      }),
+    }),
+    async (swamp, fake) => {
+      const item = await trackedItem(
+        swamp,
+        { "swamp-club": ISSUE },
+        issueLifecycleShaped(),
+        { tracker: INSTANCE, kind: "swamp-club" },
+      );
+      const finding = (id: string, severity: string) => ({
+        id,
+        severity,
+        description: "a finding",
+      });
+      await item.record("artifact", "plan", { summary: "first" });
+      await item.advance("revise");
+      await item.record("artifact", "plan", { summary: "second" });
+      await item.record("artifact", "plan-review", {
+        findings: [finding("ADV-1", "critical"), finding("ADV-2", "low")],
+      });
+      await item.approve("plan-approval");
+      await item.advance("approve");
+      await item.dispatch();
+      await item.advance("open-pr");
+      await item.record("evidence", "pr", {
+        url: "https://git.example.com/o/r/pulls/1",
+        state: "failed",
+      });
+      await item.advance("retry");
+      await item.record("evidence", "pr", {
+        url: "https://git.example.com/o/r/pulls/2",
+        state: "open",
+      });
+      await item.advance("complete");
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(
+        fake.entries.map((e) => [e.step, e.summary, e.targetStatus]),
+        [
+          ["plan_generated", "Plan generated (v1)", "open"],
+          ["plan_revised", "Plan revised (v2) — feedback round 2", "open"],
+          [
+            "adversarial_review",
+            "Adversarial review (plan v2): 1 critical, 0 high",
+            "open",
+          ],
+          ["plan_approved", "Plan approved (v2)", "open"],
+          [
+            "verification_started",
+            `Verification started on fix-2772 at ${COMMIT}`,
+            "in_progress",
+          ],
+          ["pr_failed", "PR failed (attempt 1)", "in_progress"],
+          [
+            "pr_linked",
+            "PR linked (attempt 2): https://git.example.com/o/r/pulls/2",
+            "in_progress",
+          ],
+          // The complete exit posts complete, then done is entered.
+          ["complete", "Completed", "shipped"],
+          ["done", "Done", "shipped"],
+        ],
+      );
+
+      // Both entries of the one advance landed; a re-run writes nothing.
+      const requests = fake.requests.length;
+      await call(methods, swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.requests.length, requests);
+    },
+  );
+});

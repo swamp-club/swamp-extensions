@@ -17,6 +17,7 @@
 import { z } from "npm:zod@4.3.6";
 import { parse as parseCel } from "npm:@marcbachmann/cel-js@7.6.1";
 import {
+  FINDINGS_SCHEMA,
   lintFieldSchema,
   lintPayloadSchema,
   type PayloadSchema,
@@ -29,11 +30,8 @@ import {
   TRACKER_KINDS,
   type TrackerKind,
 } from "./tracker_binding.ts";
-import {
-  IDENTIFIER_PATTERN,
-  parseTemplate,
-  undeclaredPlaceholders,
-} from "./template.ts";
+import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
+import { parseSummary } from "./entry_summary.ts";
 
 // ---------------------------------------------------------------------------
 // The factory definition meta-schema: what a gatorwalk factory definition looks
@@ -570,13 +568,17 @@ export type TransitionSpec = z.infer<typeof TransitionSchema>;
 
 /**
  * What a tracker entry answers to: the work item entering the stage
- * (including starting in it), a product the stage declares being recorded,
- * or a person approving one of its human-approval gates.
+ * (including starting in it), the stage's first dispatch in a cycle, a
+ * product the stage declares being recorded, a person approving one of its
+ * human-approval gates, or the work item leaving it by a transition (its
+ * own, or a global one).
  */
 export const EntryTriggerSchema = z.union([
   z.literal("enter"),
+  z.literal("dispatch"),
   z.strictObject({ record: NameSchema }),
   z.strictObject({ approve: NameSchema }),
+  z.strictObject({ transition: NameSchema }),
 ]);
 
 export type EntryTrigger = z.infer<typeof EntryTriggerSchema>;
@@ -597,8 +599,10 @@ export const TrackerEntrySchema = z.strictObject({
   /** The entry's step, e.g. issue-lifecycle's classified. */
   step: z.string().regex(/^[a-z][a-z0-9_]*$/).max(100),
   emoji: z.string().min(1).max(32),
-  /** The entry's summary; `{{field}}` is a top-level field of the recorded
-   * product's payload. */
+  /** The entry's summary: `{{field}}` is a top-level field of the recorded
+   * product's payload, and `{{$cycle}}`, `{{$version}}`,
+   * `{{$version.<product>}}`, `{{$input.<name>}}` and `{{count ...}}` come
+   * from the event (entry_summary.ts). */
   summary: z.string().min(1).max(2000),
   /** The status key that labels the entry; defaults to the stage's. */
   status: NameSchema.optional(),
@@ -631,8 +635,10 @@ export type TrackerDuplicate = z.infer<typeof TrackerDuplicateSchema>;
 
 /** The key two entries collide on: the same kind of event, same target. */
 export function triggerKey(on: EntryTrigger): string {
-  if (on === "enter") return "enter";
-  return "record" in on ? `record:${on.record}` : `approve:${on.approve}`;
+  if (on === "enter" || on === "dispatch") return on;
+  if ("record" in on) return `record:${on.record}`;
+  if ("approve" in on) return `approve:${on.approve}`;
+  return `transition:${on.transition}`;
 }
 
 export const StageSchema = z.strictObject({
@@ -1002,8 +1008,23 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     }
   });
   checkTransitions(doc.globalTransitions ?? [], ["globalTransitions"], true);
+  const entryContext = {
+    products: new Set([
+      ...artifacts.keys(),
+      ...evidence,
+      ...doc.stages.flatMap((s) =>
+        s.work?.resultEvidence === undefined ? [] : [s.work.resultEvidence]
+      ),
+    ]),
+    globalTransitions: globalNames,
+  };
   doc.stages.forEach((stage, i) => {
-    checkEntries(stage, ["stages", i, "tracker", "entries"], fail);
+    checkEntries(
+      stage,
+      ["stages", i, "tracker", "entries"],
+      fail,
+      entryContext,
+    );
     checkDuplicate(stage, ["stages", i, "tracker", "duplicate"], fail);
   });
 
@@ -1017,13 +1038,26 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     ));
 }
 
+/** The fields an artifact's payload has: its declared schema's, and for
+ * `kind: findings` the built-in contract's as well. */
+function productSchema(spec: ArtifactSpec): PayloadSchema | undefined {
+  if (spec.kind !== "findings") return spec.schema;
+  return {
+    ...FINDINGS_SCHEMA,
+    properties: {
+      ...(spec.schema?.properties as Record<string, unknown> | undefined),
+      ...(FINDINGS_SCHEMA.properties as Record<string, unknown>),
+    },
+  };
+}
+
 /** The products a stage declares, by name, with their payload schemas. */
 function stageProducts(
   stage: StageSpec,
 ): Map<string, PayloadSchema | undefined> {
   const products = new Map<string, PayloadSchema | undefined>();
   for (const spec of stage.artifacts ?? []) {
-    products.set(spec.name, spec.schema);
+    products.set(spec.name, productSchema(spec));
   }
   for (const spec of stage.evidence ?? []) products.set(spec.name, spec.schema);
   const result = stage.work?.resultEvidence;
@@ -1083,54 +1117,124 @@ function checkDuplicate(
 
 /**
  * A stage's tracker entries: each names something the stage has, only a
- * recorded product has payload fields to match, fill or read a type from,
- * and no two entries can answer the same event.
+ * recorded product has payload fields to match, fill, count or read a type
+ * from, every event value in a summary is one its trigger has, and no two
+ * entries can answer the same event.
  */
 function checkEntries(
   stage: StageSpec,
   path: Path,
   fail: (path: Path, message: string) => void,
+  doc: { products: Set<string>; globalTransitions: Set<string> },
 ): void {
   const entries = stage.tracker?.entries ?? [];
   const products = stageProducts(stage);
   const gates = stageApprovals(stage);
+  const transitions = new Set([
+    ...(stage.transitions ?? []).map((t) => t.name),
+    ...doc.globalTransitions,
+  ]);
+  const work = stage.work;
+  const inputs = new Set([
+    ...Object.keys(work?.bindings ?? {}),
+    ...Object.keys(work?.workflow?.inputs ?? work?.method?.inputs ?? {}),
+  ]);
   entries.forEach((entry, j) => {
     const at: Path = [...path, j];
     const on = entry.on;
-    const parts = parseTemplate(entry.summary);
-    const placeholders = parts.flatMap((p) =>
-      p.kind === "placeholder" ? [p.name] : []
-    );
-    // An absent field fills as empty text, and the tracker refuses an empty
+    const parsed = parseSummary(entry.summary);
+    for (const error of parsed.errors) fail([...at, "summary"], error);
+    const parts = parsed.parts;
+    // An absent value fills as empty text, and the tracker refuses an empty
     // summary, so some fixed text must always be there.
     if (
       !parts.some((p) => p.kind === "text" && p.text.trim() !== "")
     ) {
       fail(
         [...at, "summary"],
-        "a summary needs some text besides its {{field}} placeholders, " +
-          "since an absent field fills as empty",
+        "a summary needs some text besides its {{...}} placeholders, " +
+          "since an absent value fills as empty",
       );
     }
-    if (on === "enter" || "approve" in on) {
-      if (on !== "enter" && !gates.has(on.approve)) {
+    const record = typeof on === "object" && "record" in on;
+    const placeholders: string[] = [];
+    const counts: { field: string; key?: string }[] = [];
+    for (const part of parts) {
+      switch (part.kind) {
+        case "field":
+          placeholders.push(part.name);
+          break;
+        case "count":
+          counts.push({ field: part.field, key: part.where?.key });
+          break;
+        case "version":
+          if (part.product === undefined && !record) {
+            fail(
+              [...at, "summary"],
+              "{{$version}} is the recorded product's version, so only an " +
+                "entry on a recorded product has it; name the product, " +
+                "{{$version.<product>}}",
+            );
+          }
+          if (part.product !== undefined && !doc.products.has(part.product)) {
+            fail(
+              [...at, "summary"],
+              `{{$version.${part.product}}}: '${part.product}' is not a ` +
+                "product the factory definition declares",
+            );
+          }
+          break;
+        case "input":
+          if (on !== "dispatch") {
+            fail(
+              [...at, "summary"],
+              `{{$input.${part.name}}}: only an entry on dispatch has ` +
+                "resolved inputs",
+            );
+          } else if (!inputs.has(part.name)) {
+            fail(
+              [...at, "summary"],
+              `{{$input.${part.name}}}: '${part.name}' is not a binding or ` +
+                `input of stage '${stage.id}'`,
+            );
+          }
+          break;
+      }
+    }
+    if (!record) {
+      if (typeof on === "object" && "approve" in on && !gates.has(on.approve)) {
         fail(
           [...at, "on", "approve"],
           `'${on.approve}' is not a human-approval gate on stage '${stage.id}'`,
         );
       }
+      if (
+        typeof on === "object" && "transition" in on &&
+        !transitions.has(on.transition)
+      ) {
+        fail(
+          [...at, "on", "transition"],
+          `'${on.transition}' is not a transition out of stage ` +
+            `'${stage.id}', nor a global one`,
+        );
+      }
+      if (on === "dispatch" && work === undefined) {
+        fail([...at, "on"], `stage '${stage.id}' has no work to dispatch`);
+      }
       const payloadOnly: [string, boolean][] = [
         ["match", entry.match !== undefined],
         ["setsType", entry.setsType !== undefined],
         ["linkPr", entry.linkPr !== undefined],
-        ["summary", placeholders.length > 0],
+        ["summary", placeholders.length > 0 || counts.length > 0],
       ];
       for (const [field, used] of payloadOnly) {
         if (used) {
           fail(
             [...at, field],
             `only an entry on a recorded product has payload fields ` +
-              `(${field === "summary" ? "{{field}} placeholders" : field})`,
+              `(${
+                field === "summary" ? "{{field}} and {{count ...}}" : field
+              })`,
           );
         }
       }
@@ -1146,8 +1250,13 @@ function checkEntries(
     const properties = products.get(on.record)?.properties;
     if (typeof properties !== "object" || properties === null) return;
     const declared = (name: string) => Object.hasOwn(properties, name);
+    const typeOf = (name: string) =>
+      declared(name)
+        ? (properties as Record<string, { type?: unknown }>)[name]?.type
+        : undefined;
     const fields: [Path, string][] = [
       ...placeholders.map((n): [Path, string] => [[...at, "summary"], n]),
+      ...counts.map((c): [Path, string] => [[...at, "summary"], c.field]),
       ...Object.keys(entry.match ?? {}).map((n): [Path, string] => [
         [...at, "match", n],
         n,
@@ -1167,9 +1276,7 @@ function checkEntries(
     // A summary is one line of text: an object or a list would be pasted in
     // as JSON.
     for (const name of placeholders) {
-      const type = declared(name)
-        ? (properties as Record<string, { type?: unknown }>)[name]?.type
-        : undefined;
+      const type = typeOf(name);
       if (type === "object" || type === "array") {
         fail(
           [...at, "summary"],
@@ -1178,9 +1285,38 @@ function checkEntries(
         );
       }
     }
+    // A count reads a list, and its key from the list's items where they
+    // declare theirs.
+    for (const count of counts) {
+      if (!declared(count.field)) continue;
+      const type = typeOf(count.field);
+      if (type !== undefined && type !== "array") {
+        fail(
+          [...at, "summary"],
+          `{{count ${count.field}}}: '${count.field}' is a ` +
+            `${JSON.stringify(type)} field of '${on.record}'; a count needs ` +
+            "an array field",
+        );
+        continue;
+      }
+      const items = (properties as Record<string, { items?: unknown }>)[
+        count.field
+      ]?.items as { properties?: unknown } | undefined;
+      const itemProps = items?.properties;
+      if (
+        count.key !== undefined && typeof itemProps === "object" &&
+        itemProps !== null && !Object.hasOwn(itemProps, count.key)
+      ) {
+        fail(
+          [...at, "summary"],
+          `{{count ${count.field} ${count.key}=...}}: '${count.key}' is not ` +
+            `a field of the items of '${count.field}'`,
+        );
+      }
+    }
     // A pull request is linked by its url, which is text.
-    const prType = entry.linkPr !== undefined && declared(entry.linkPr)
-      ? (properties as Record<string, { type?: unknown }>)[entry.linkPr]?.type
+    const prType = entry.linkPr !== undefined
+      ? typeOf(entry.linkPr)
       : undefined;
     if (prType !== undefined && prType !== "string") {
       fail(

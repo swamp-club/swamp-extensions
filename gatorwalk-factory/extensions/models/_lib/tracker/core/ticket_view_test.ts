@@ -360,6 +360,7 @@ Deno.test("tracker entries: the payload chooses between matching entries, and fi
       candidates,
       status: "in_review",
       product: { kind: "evidence", name: "result", version: 1, digest: "d" },
+      meta: { cycle: 1, version: 1, versions: { result: 1 } },
     },
     { status: "passed" },
   );
@@ -393,12 +394,152 @@ Deno.test("tracker entries: linkPr reads the pull request url from the payload, 
       version: 1,
       digest: "d",
     },
+    meta: { cycle: 1, version: 1, versions: { "pull-request": 1 } },
   };
   const url = "https://git.example.com/o/r/pulls/7";
   assertEquals(renderEntry(entry, event, { url }).pr, url);
   for (const payload of [{}, { url: "" }, { url: 7 }]) {
     assertEquals("pr" in renderEntry(entry, event, payload), false);
   }
+});
+
+/** entriesDefinition with entries that read event values: write's first
+ * dispatch and its submit, versions on the note and the approval. */
+function metaDefinition(): FactoryDefinition {
+  const doc = entriesDefinition() as {
+    stages: {
+      work?: unknown;
+      tracker: { entries: Record<string, unknown>[] };
+    }[];
+  };
+  const [write, review] = doc.stages;
+  write.work = { mode: "interactive", bindings: { branch: "'fix-1'" } };
+  write.tracker.entries[1].summary = "Noted (v{{$version}}): {{text}}";
+  write.tracker.entries.push(
+    {
+      on: "dispatch",
+      step: "writing",
+      emoji: "x",
+      summary: "Writing on {{$input.branch}}, try {{$cycle}}",
+    },
+    {
+      on: { transition: "submit" },
+      step: "submitted",
+      emoji: "x",
+      summary: "Submitted note v{{$version.note}}",
+    },
+  );
+  review.tracker.entries.find((e) => e.step === "ship_approved")!.summary =
+    "Ship approved (note v{{$version.note}})";
+  const result = parseDefinition(doc);
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}
+
+const recordedNote = (version: number, era = "era-1"): JournalEvent => ({
+  ...RECORDED,
+  era,
+  version,
+  digest: `sha256:n${version}`,
+});
+
+/** The summaries publish would write for a run, by ledger key. */
+function summaries(run: RunRecord, doc: FactoryDefinition, since = 0) {
+  return projectEntries(run, doc, since).map((event) => {
+    const payload = event.product === undefined ? {} : { text: "hi" };
+    const entry = chooseEntry(event.candidates, payload)!;
+    return [
+      `${event.journalVersion}${
+        event.suffix === undefined ? "" : `-${event.suffix}`
+      }`,
+      renderEntry(entry, event, payload).summary,
+      event.status,
+    ];
+  });
+}
+
+Deno.test("tracker entries: a summary reads the event's cycle, versions and first dispatch", () => {
+  const doc = metaDefinition();
+  const dispatch = (id: number) => ({
+    id,
+    era: "era-1",
+    stage: "write",
+    cycle: 1,
+    at: BASE.at,
+    actor: ALICE,
+    inputs: { branch: `fix-${id}` },
+  });
+  const approval: JournalEvent = {
+    ...BASE,
+    stage: "review",
+    type: "approval",
+    approvalId: 1,
+    gateId: "ship-approval",
+    decision: "approve",
+  };
+  const run: RunRecord = {
+    ...runWith("review", [
+      STARTED,
+      DISPATCHED,
+      { ...DISPATCHED, dispatchId: 2 },
+      recordedNote(1),
+      recordedNote(2),
+      SUBMITTED,
+      recordedNote(3),
+      approval,
+    ]),
+    dispatches: [dispatch(1), dispatch(2)],
+    approvals: [{
+      id: 1,
+      gateId: "ship-approval",
+      decision: "approve",
+      era: "era-1",
+      stage: "review",
+      cycle: 1,
+      at: BASE.at,
+      actor: ALICE,
+      products: {
+        artifacts: { note: { version: 2, digest: "sha256:n2" } },
+        evidence: {},
+      },
+    }],
+  };
+  assertEquals(summaries(run, doc), [
+    ["1", "Work started", null],
+    // Only the stage entry's first dispatch, with what it resolved.
+    ["2", "Writing on fix-1, try 1", null],
+    // Both in write's first cycle: noted each time, with its version.
+    ["4", "Noted (v1): hi", null],
+    ["5", "Noted (v2): hi", null],
+    // An advance is the transition out of write, then the entry into
+    // review, each under its own key; both labelled with review's status.
+    ["6-transition", "Submitted note v2", "in_review"],
+    ["6", "Review", "in_review"],
+    ["7", "Noted (v3): hi", "in_review"],
+    // The approval names the version it was given against (2), not the
+    // latest one recorded (3).
+    ["8", "Ship approved (note v2)", "in_review"],
+  ]);
+});
+
+Deno.test("tracker entries: product versions start over in a new era", () => {
+  const doc = metaDefinition();
+  const run = runWith("review", [
+    STARTED,
+    recordedNote(2),
+    {
+      ...BASE,
+      era: "era-2",
+      stage: "write",
+      type: "reset",
+      previousEra: "era-1",
+    },
+    { ...SUBMITTED, era: "era-2" },
+  ]);
+  assertEquals(
+    summaries(run, doc, 2).map(([key, summary]) => [key, summary]),
+    [["4-transition", "Submitted note v"], ["4", "Review"]],
+  );
 });
 
 Deno.test("tracker entries: payload keys starting with $ are dropped at any depth, as swamp-club refuses them", () => {

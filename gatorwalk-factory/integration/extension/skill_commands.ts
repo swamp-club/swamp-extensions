@@ -389,10 +389,16 @@ export function checkCommand(
     return args.length === 4 ? null : "extension source add takes one path";
   }
   if (is("data", "get")) {
+    // An earlier version of a record is read by its number.
     const rest = args.slice(4);
+    const version = rest.indexOf("--version");
+    if (version !== -1 && rest[version + 1] !== undefined) {
+      rest.splice(version, 2);
+    }
     return args.length >= 4 && rest.every((w) => w === "--json")
       ? null
-      : "data get takes an instance, a record name and --json";
+      : "data get takes an instance, a record name, --json and " +
+        "optionally --version";
   }
   return `not a command form the skill test knows: ${args.join(" ")}`;
 }

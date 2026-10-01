@@ -246,6 +246,14 @@ payload is under `content`:
 swamp data get <key> artifact-<name> --json
 ```
 
+That is the latest version. An earlier one, such as the plan version a ticket
+entry says was approved, is read by its number (gatorwalk's answer to
+issue-lifecycle's `review --input version`):
+
+```sh
+swamp data get <key> artifact-<name> --version <version> --json
+```
+
 ## The loop
 
 1. `status`.

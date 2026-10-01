@@ -42,6 +42,7 @@ export {
   advanceMethod,
   decide,
   describeStatus,
+  dispatch,
   FACTORY_TYPE,
   type MethodContextLike,
   recordProductMethod,

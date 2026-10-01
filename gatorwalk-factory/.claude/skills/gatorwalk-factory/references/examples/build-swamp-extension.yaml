@@ -25,6 +25,11 @@ definition:
     Commits are full 40-character SHAs, so the same commit always compares
     equal.
 
+    Stages declare tracker entries, so a tracker that keeps a ticket history
+    (the built-in one does) records which plan version was reviewed and
+    approved, how many findings each review had, and which check attempt
+    passed.
+
     The CEL vocabulary in bindings and cel gates is defined in
     extensions/models/_lib/engine/cel_context.ts. This factory definition relies
     on one rule of it: in CEL, evidence["x"] is the latest record of x in the era
@@ -36,6 +41,17 @@ definition:
       initial: true
       tracker:
         status: open
+        entries:
+          - on: { record: plan }
+            cycle: first
+            step: plan_generated
+            emoji: "📝"
+            summary: "Plan generated (v{{$version}}): {{summary}}"
+          - on: { record: plan }
+            cycle: later
+            step: plan_revised
+            emoji: "🔄"
+            summary: "Plan revised (v{{$version}}), round {{$cycle}}: {{summary}}"
         duplicate:
           on: { approve: duplicate-confirmation }
           record: duplicate-of
@@ -147,7 +163,20 @@ definition:
                   this work item is on the primary ticket now; plan it here
 
     - id: plan-review
-      tracker: { status: open }
+      tracker:
+        status: open
+        entries:
+          - on: { record: plan-review }
+            step: plan_reviewed
+            emoji: "🔍"
+            summary: >-
+              Plan review (plan v{{$version.plan}}): {{count findings
+              severity=critical}} critical, {{count findings severity=high}}
+              high, {{count findings}} in all
+          - on: { approve: plan-approval }
+            step: plan_approved
+            emoji: "✅"
+            summary: "Plan approved (v{{$version.plan}})"
       description: >-
         Adversarial review of the current plan. Approval needs a fresh review
         with no open critical or high findings and a person's sign-off; open
@@ -276,7 +305,23 @@ definition:
             (a flaky test, a broken tool). A person decides.
 
     - id: check
-      tracker: { status: in_progress }
+      tracker:
+        status: in_progress
+        entries:
+          - on: dispatch
+            step: checks_started
+            emoji: "🧪"
+            summary: "Checks started on {{$input.commit}}, attempt {{$cycle}}"
+          - on: { record: checks }
+            match: { status: passed }
+            step: checks_passed
+            emoji: "✅"
+            summary: "Checks passed on {{commit}}"
+          - on: { record: checks }
+            match: { status: failed }
+            step: checks_failed
+            emoji: "❌"
+            summary: "Checks failed on {{commit}}"
       description: >-
         Run the extension's checks (swamp extension fmt, type check, lint,
         tests) and swamp extension quality on the change-summary commit. An
@@ -397,7 +442,20 @@ definition:
               config: { name: quality, requireField: { allPassed: false } }
 
     - id: code-review
-      tracker: { status: in_progress }
+      tracker:
+        status: in_progress
+        entries:
+          - on: { record: code-review }
+            step: code_reviewed
+            emoji: "🔍"
+            summary: >-
+              Code review (change v{{$version.change-summary}}): {{count
+              findings severity=critical}} critical, {{count findings
+              severity=high}} high, {{count findings}} in all
+          - on: { approve: release-approval }
+            step: release_approved
+            emoji: "✅"
+            summary: "Release approved (change v{{$version.change-summary}})"
       description: >-
         Adversarial review of the checked change. Releasing needs a fresh review
         with no open critical or high findings and a person's approval; open
@@ -459,7 +517,17 @@ definition:
             work. Manual, so it never fires on its own.
 
     - id: release
-      tracker: { status: in_progress }
+      tracker:
+        status: in_progress
+        entries:
+          - on: { record: release }
+            step: released
+            emoji: "🚀"
+            summary: "Released by {{via}}, attempt {{$cycle}}: {{url}}"
+          - on: { transition: released }
+            step: complete
+            emoji: "🏁"
+            summary: Complete
       description: >-
         Release the reviewed commit: swamp extension push, or a pull request
         that CI publishes when it merges. commit is the reviewed head that

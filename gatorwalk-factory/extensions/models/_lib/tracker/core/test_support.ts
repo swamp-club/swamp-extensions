@@ -18,6 +18,7 @@ import {
   advanceMethod,
   contextStore,
   decide,
+  dispatch,
   expectNow,
   type FakeSwamp,
   type ProductKind,
@@ -269,6 +270,7 @@ export async function trackedItem(
       ),
     approve: async (gateId: string) =>
       await decide(ctx(), "approve", { gateId, ...(await expected()) }, env),
+    dispatch: async () => await dispatch(ctx(), await expected(), env),
     decline: async (gateId: string) =>
       await decide(ctx(), "decline", { gateId, ...(await expected()) }, env),
     record: async (

@@ -912,7 +912,7 @@ Deno.test("tracker entries: linkPr names a string field holding the pull request
 Deno.test("tracker entries: a summary needs fixed text, since an absent field fills as empty", () => {
   assertRejects(
     withEntries([entry({ on: { record: "summary" }, summary: " {{text}} " })]),
-    "a summary needs some text besides its {{field}} placeholders",
+    "a summary needs some text besides its {{...}} placeholders",
   );
 });
 
@@ -932,7 +932,11 @@ Deno.test("tracker entries: a summary placeholder names a scalar field, not an o
 Deno.test("tracker entries: enter and approve have no payload to match, fill or read a type from", () => {
   assertRejects(
     withEntries([entry({ on: "enter", summary: "At {{text}}" })]),
-    "{{field}} placeholders",
+    "({{field}} and {{count ...}})",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "{{count text}} found" })]),
+    "({{field}} and {{count ...}})",
   );
   assertRejects(
     withEntries([entry({ on: "enter", match: { text: "a" } })]),
@@ -945,6 +949,98 @@ Deno.test("tracker entries: enter and approve have no payload to match, fill or 
   assertRejects(
     withEntries([entry({ on: "enter", linkPr: "text" })]),
     "(linkPr)",
+  );
+});
+
+Deno.test("tracker entries: dispatch and transition triggers", () => {
+  const doc = withEntries([
+    entry({ on: "dispatch", summary: "Started on {{$input.branch}}" }),
+    entry({ on: { transition: "finish" }, step: "finished" }),
+    entry({ on: { transition: "abort" }, step: "aborted" }),
+  ]);
+  set(doc, "stages.0.work.bindings", { branch: "'main'" });
+  set(doc, "globalTransitions", [{ name: "abort", to: "done" }]);
+  assertValid(doc);
+  assertRejects(
+    withEntries([entry({ on: { transition: "elsewhere" } })]),
+    "'elsewhere' is not a transition out of stage 'work', nor a global one",
+  );
+  const idle = withEntries([]);
+  set(idle, "stages.1.tracker", { entries: [entry({ on: "dispatch" })] });
+  assertRejects(idle, "stage 'done' has no work to dispatch");
+});
+
+Deno.test("tracker entries: event values in a summary are the trigger's own", () => {
+  assertValid(withEntries([
+    entry({
+      on: { record: "summary" },
+      summary: "Summary v{{$version}}, round {{$cycle}}",
+    }),
+    entry({
+      on: { approve: "sign-off" },
+      step: "approved",
+      summary: "Approved (v{{$version.summary}})",
+    }),
+    entry({ on: "enter", step: "entered", summary: "Try {{$cycle}}" }),
+  ]));
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "At v{{$version}}" })]),
+    "{{$version}} is the recorded product's version",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "v{{$version.nothing}}" })]),
+    "'nothing' is not a product the factory definition declares",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "On {{$input.branch}}" })]),
+    "only an entry on dispatch has resolved inputs",
+  );
+  assertRejects(
+    withEntries([entry({ on: "dispatch", summary: "On {{$input.branch}}" })]),
+    "'branch' is not a binding or input of stage 'work'",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "At {{$when}}" })]),
+    "{{$when}} is not a summary value",
+  );
+  assertRejects(
+    withEntries([entry({ on: "enter", summary: "{{count a b c}} found" })]),
+    "a count is {{count <field>}}",
+  );
+});
+
+Deno.test("tracker entries: a count reads an array field, and a key its items have", () => {
+  const doc = withEntries([
+    entry({
+      on: { record: "review" },
+      summary: "{{count findings severity=critical}} critical of " +
+        "{{count findings}}",
+    }),
+  ]);
+  // A findings artifact without a schema of its own has the contract's.
+  set(doc, "stages.0.artifacts.1", {
+    name: "review",
+    kind: "findings",
+    reviews: "summary",
+  });
+  assertValid(doc);
+  set(
+    doc,
+    "stages.0.tracker.entries.0.summary",
+    "{{count findings level=critical}} critical",
+  );
+  assertRejects(doc, "'level' is not a field of the items of 'findings'");
+  assertRejects(
+    withEntries([
+      entry({ on: { record: "summary" }, summary: "{{count text}} found" }),
+    ]),
+    "'text' is a \"string\" field of 'summary'; a count needs an array field",
+  );
+  assertRejects(
+    withEntries([
+      entry({ on: { record: "summary" }, summary: "{{count gone}} found" }),
+    ]),
+    "'gone' is not a field of 'summary'",
   );
 });
 

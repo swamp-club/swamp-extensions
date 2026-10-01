@@ -181,6 +181,28 @@ Deno.test("layout: a stage's own status, its enter entry's, or its predecessor's
   assertEquals(l.tiles.get("c")!.col, 1);
 });
 
+Deno.test("layout: a transition entry's status labels the entry, not its stage's lane", async () => {
+  const loaded = await loadDefinition(
+    modelPath("tiny"),
+    tinyFile(`  - id: a
+    initial: true
+    tracker:
+      status: open
+    transitions: [{ name: go, to: b }]
+  - id: b
+    tracker:
+      entries:
+        - { on: { transition: go }, step: went, emoji: "🚧", summary: went, status: shipped }
+    transitions: [{ name: go, to: c }]
+  - id: c
+    terminal: true
+`),
+  );
+  assert(loaded.ok, JSON.stringify(!loaded.ok && loaded.problems));
+  const lanes = stageLanes(loaded.definition, loaded.view, ranks(loaded.view));
+  assertEquals(Object.fromEntries(lanes), { a: "open", b: "open", c: "open" });
+});
+
 Deno.test("layout: without statuses every stage is in one lane with no status", async () => {
   const loaded = await loadDefinition(
     modelPath("tiny"),

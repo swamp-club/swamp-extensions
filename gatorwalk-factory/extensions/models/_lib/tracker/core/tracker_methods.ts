@@ -1703,6 +1703,7 @@ export function trackerMethods(options: TrackerModelOptions) {
               issue,
               key,
               replay: true,
+              ...(event.suffix === undefined ? {} : { suffix: event.suffix }),
               entry: {
                 step: entry.step,
                 targetStatus: await statusNameOf(

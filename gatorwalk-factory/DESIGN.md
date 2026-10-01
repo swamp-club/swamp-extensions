@@ -1721,11 +1721,16 @@ tracker without the capability, or without a login mapping, is never asked.
 
 **Entries instead of comments.** A stage's `tracker.entries` says which of
 its journal events become structured entries in the ticket's history: entering
-the stage (or starting in it), a product it declares being recorded, or one of
-its human-approval gates being approved. When the pinned factory definition
-declares any and the adapter has the history capability, `publish` writes those
-entries and no comments: one event, one entry, or none if no entry answers it (a
-decline, a wait, a reset, a stage without entries). This is how a built-in
+the stage (or starting in it), its first dispatch in a cycle, a product it
+declares being recorded, one of its human-approval gates being approved, or the
+work item leaving it by a transition (its own or a global one). When the pinned
+factory definition declares any and the adapter has the history capability,
+`publish` writes those entries and no comments: one entry per event, or none if
+no entry answers it (a decline, a wait, a reset, a stage without entries). An
+advance is the one event that can be two: the transition out of one stage,
+written first and labelled with the status of the stage it goes to, then the
+entry into the next. The transition's entry is written under the advance's
+ledger key with a `-transition` suffix, so each lands once. This is how a built-in
 ticket keeps a history of steps rather than a stream of comments; a definition
 names each entry's step, emoji and status label. (The swamp-club team's own
 factory definition uses it to write issue-lifecycle's step names on its Lab
@@ -1747,9 +1752,25 @@ its stage's, else the last stage's before it, else the ticket's current status.
 A key missing from the `statuses` argument labels the entry with the ticket's
 current status too, with a warning naming the key: a label is no reason to
 hold back the entry and every later one.
-Summaries are a template over the payload, not CEL, so what issue-lifecycle
-computes (counts, versions, attempts) is left out. A summary needs fixed text besides
-its placeholders, and names only scalar fields. The payload sent is the recorded
+Summaries are a template, not CEL (`_lib/engine/entry_summary.ts`). Besides
+`{{field}}` from the payload, a summary reads what issue-lifecycle computes
+for its entries from the event: `{{$cycle}}` (the stage's cycle, so a stage
+re-entered for each try counts attempts), `{{$version}}` (the recorded
+product's version), `{{$version.<product>}}` (a product's version as of the
+event, counted in its era since a reset clears the products; for an approval,
+the version in the approval's own products snapshot, which is the one the
+person approved), `{{$input.<name>}}` (a binding or input the first dispatch
+resolved, only on `dispatch`, since bindings are resolved at dispatch and not
+on entering the stage) and `{{count <field>}}` or
+`{{count <field> <key>=<value>}}` (items of an array field, or those whose key
+holds the value). A fixed set rather than CEL keeps a summary one line of text
+whose every name is checked when the factory definition is saved, against the
+trigger (payload fields and counts only on a recorded product), the product's
+schema (the findings contract for `kind: findings`) and the stage's bindings.
+The `$` prefix cannot collide with a payload field: those keys are dropped
+before sending. Any other `{{$...}}` or `{{count ...}}` is an error rather than
+literal text. A summary needs fixed text besides its placeholders, and names
+only scalar fields. The payload sent is the recorded
 one without keys that start with `$`, which swamp-club refuses. An entry or type
 the tracker still refuses outright (`invalid`) is recorded in the ledger as
 skipped and logged, and the replay moves past it: its request comes from a
