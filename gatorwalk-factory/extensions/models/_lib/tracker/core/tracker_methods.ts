@@ -23,6 +23,7 @@ import {
   DEFINITION_NAME,
   DEFINITION_SPEC,
   digestOf,
+  type FactoryDefinition,
   type MethodOutput,
   type ModelDataRecord,
   parseRun,
@@ -277,6 +278,41 @@ async function priorDelivery(
     });
   }
   return prior;
+}
+
+/**
+ * The status key publish last wrote to `issue` for journal versions `from`
+ * through `through`, from its own ledger: undefined when it wrote none
+ * there, and null when it wrote one that no status key of the definition
+ * names. A move skipped as unreachable counts as written.
+ */
+async function statusWritten(
+  ctx: TrackerContext,
+  definition: FactoryDefinition,
+  workItem: string,
+  issue: string,
+  from: number,
+  through: number,
+): Promise<string | null | undefined> {
+  for (let v = through; v >= Math.max(from, 1); v--) {
+    const raw = await resources(ctx).read(
+      deliveryName("set_status", { workItem, journalVersion: v }, "publish"),
+    );
+    if (raw === null) continue;
+    const record = DeliverySchema.parse(raw);
+    if (record.issue !== issue) continue;
+    // The record keeps a digest of the key, as setStatus asked it.
+    const keys = new Set(
+      definition.stages.flatMap((s) =>
+        s.tracker?.status === undefined ? [] : [s.tracker.status]
+      ),
+    );
+    for (const key of keys) {
+      if (await digestOf({ status: key }) === record.request) return key;
+    }
+    return null;
+  }
+  return undefined;
 }
 
 async function recordDelivery(
@@ -1242,10 +1278,44 @@ export function trackerMethods(options: TrackerModelOptions) {
         // ref) have nowhere to go, so they are never pending.
         const lastTicket = segments.findLastIndex((s) => s.issue !== null);
         const resumed = segments[resume];
+        // The cursor is written after the status, so a lost cursor write
+        // leaves it behind the ledger: the key last written is the ledger's,
+        // from the cursor's own version on (a failed move's retry is keyed
+        // there), so a person's move since is not undone.
+        const resumedIssue = cursor?.issue ?? resumed.issue;
+        const written = resumedIssue === null ? undefined : await statusWritten(
+          ctx,
+          definition,
+          workItem,
+          resumedIssue,
+          since,
+          resumed.through,
+        );
+        const resumedStatus = written === undefined
+          ? cursor?.status ?? null
+          : written;
         if (
           resume === lastTicket && since === resumed.through &&
-          moveOf(resumed, cursor?.status ?? null) === null
+          moveOf(resumed, resumedStatus) === null
         ) {
+          // Nothing to deliver, but a cursor behind the ledger is brought
+          // level, and a failed move that has since landed is cleared.
+          if (
+            cursor !== null && written !== undefined &&
+            written !== cursor.status
+          ) {
+            const { statusFailed } = cursor;
+            await resources(ctx).write(CURSOR_SPEC, recordName, {
+              workItem,
+              issue: cursor.issue,
+              journalVersion: since,
+              status: written,
+              ...(statusFailed === undefined || statusFailed.status === written
+                ? {}
+                : { statusFailed }),
+              at: now().toISOString(),
+            });
+          }
           ctx.logger.info("{summary}", {
             summary: `${workItem} is up to date on ${resumed.issue}` +
               (lastTicket < segments.length - 1
@@ -1304,7 +1374,7 @@ export function trackerMethods(options: TrackerModelOptions) {
           const first = k === resume;
           // The resumed segment's opening note went out with its cursor.
           const from = first ? since : segment.after;
-          const lastStatus = first ? cursor?.status ?? null : null;
+          const lastStatus = first ? resumedStatus : null;
           if (issue === null) {
             ctx.logger.info("{summary}", {
               summary: `journal versions ${from + 1} to ${segment.through} ` +

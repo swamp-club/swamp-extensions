@@ -497,6 +497,176 @@ Deno.test("publish: a status the tracker cannot reach is recorded as skipped, no
   assertEquals(moves, [], "the skipped key is not tried again");
 });
 
+/** A context whose cursor writes are lost: everything else lands. */
+function losingCursor(swamp: FakeSwamp): TrackerContext {
+  const ctx = swamp.context(INSTANCE);
+  const write = ctx.writeResource?.bind(ctx);
+  return {
+    ...ctx,
+    writeResource: (spec, name, data) =>
+      name === `cursor-${TRACKED_ITEM}`
+        ? Promise.reject(new Error("cursor write lost"))
+        : write!(spec, name, data),
+  };
+}
+
+Deno.test("publish: a status written before a lost cursor write is not written again over a person's move", async () => {
+  const swamp = fakeSwamp();
+  const { moves, state, methods } = ticket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  await item.advance("submit");
+  await assertRejects(
+    () => publish(swamp, methods, losingCursor(swamp)),
+    Error,
+    "cursor write lost",
+  );
+  assertEquals(moves, ["In Progress", "In Review"]);
+  assertEquals(cursorOf(swamp)?.status, "in_progress", "the cursor is behind");
+
+  // A person moves the ticket; an approval leaves the stage as it was.
+  state.status = "In Progress";
+  await item.approve("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(moves, ["In Progress", "In Review"], "the person's move stands");
+  assertEquals(state.status, "In Progress");
+  assertEquals(cursorOf(swamp)?.status, "in_review");
+
+  // A stage whose key differs still moves the ticket.
+  await item.advance("ship");
+  await publish(swamp, methods);
+  assertEquals(moves, ["In Progress", "In Review", "Done"]);
+});
+
+Deno.test("publish: after a lost cursor write, a stage back at the cursor's key moves the ticket", async () => {
+  const swamp = fakeSwamp();
+  const { moves, methods } = ticket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  await item.advance("submit");
+  await assertRejects(
+    () => publish(swamp, methods, losingCursor(swamp)),
+    Error,
+    "cursor write lost",
+  );
+  // Back to write, whose key is the one the stale cursor holds.
+  await item.advance("again");
+  await publish(swamp, methods);
+  assertEquals(moves, ["In Progress", "In Review", "In Progress"]);
+  assertEquals(cursorOf(swamp)?.status, "in_progress");
+});
+
+Deno.test("publish: a move skipped as unreachable before a lost cursor write is not tried again", async () => {
+  const swamp = fakeSwamp();
+  const { moves, state, methods } = ticket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await publish(swamp, methods);
+  await item.advance("submit");
+  state.statusError = new TrackerError(
+    "invalid",
+    "test",
+    "only moves forward",
+    "unreachable",
+  );
+  await assertRejects(
+    () => publish(swamp, methods, losingCursor(swamp)),
+    Error,
+    "cursor write lost",
+  );
+  assertEquals(cursorOf(swamp)?.status, "in_progress", "the cursor is behind");
+
+  state.statusError = null;
+  await item.approve("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(moves, ["In Progress"], "the skipped key counts as written");
+  assertEquals(cursorOf(swamp)?.status, "in_review");
+});
+
+Deno.test("publish: a ledger status write whose key the definition does not name is written again", async () => {
+  const swamp = fakeSwamp();
+  const { moves, methods } = ticket();
+  const item = await trackedItem(swamp, { test: "T1" });
+  await item.advance("submit");
+  await publish(swamp, methods);
+  const since = Number(cursorOf(swamp)?.journalVersion);
+  assertEquals(moves, ["In Review"]);
+
+  // At the cursor's own version, a write of a key no stage names.
+  await swamp.context(INSTANCE).writeResource?.(
+    "delivery",
+    deliveryName(
+      "set_status",
+      { workItem: TRACKED_ITEM, journalVersion: since },
+      "publish",
+    ),
+    {
+      action: "set_status",
+      issue: "T1",
+      workItem: TRACKED_ITEM,
+      journalVersion: since,
+      request: "an-unknown-key",
+      result: {},
+      at: NOW.toISOString(),
+    },
+  );
+  await item.approve("ship-approval");
+  await publish(swamp, methods);
+  assertEquals(moves, ["In Review", "In Review"]);
+  assertEquals(cursorOf(swamp)?.status, "in_review");
+});
+
+Deno.test("publish: a retried move that landed before a lost cursor write is not written again, and the cursor is repaired", async () => {
+  // The retry is keyed on the cursor's own version: #2710's failed move
+  // moved the cursor past the events before it.
+  const failedThenLost = async () => {
+    const swamp = fakeSwamp();
+    const t = ticket();
+    const item = await trackedItem(swamp, { test: "T1" });
+    await publish(swamp, t.methods);
+    await item.advance("submit");
+    t.state.statusError = new TrackerError("rate_limited", "test", "slow");
+    await assertRejects(() => publish(swamp, t.methods), TrackerError);
+    assertEquals(
+      (cursorOf(swamp)?.statusFailed as { status?: string } | undefined)
+        ?.status,
+      "in_review",
+    );
+    t.state.statusError = null;
+    await assertRejects(
+      () => publish(swamp, t.methods, losingCursor(swamp)),
+      Error,
+      "cursor write lost",
+    );
+    assertEquals(t.moves, ["In Progress", "In Review"]);
+    // A person moves the ticket.
+    t.state.status = "In Progress";
+    return { swamp, item, ...t };
+  };
+
+  // An event that leaves the stage alone writes no status.
+  const later = await failedThenLost();
+  await later.item.approve("ship-approval");
+  await publish(later.swamp, later.methods);
+  assertEquals(later.moves, ["In Progress", "In Review"]);
+  assertEquals(later.state.status, "In Progress");
+  assertEquals(cursorOf(later.swamp)?.status, "in_review");
+  assertEquals(cursorOf(later.swamp)?.statusFailed, undefined);
+
+  // Nothing new: no write, and the cursor is brought level with the
+  // ledger, its failed move cleared.
+  const idle = await failedThenLost();
+  const versions = idle.swamp.versionsWritten(INSTANCE);
+  await publish(idle.swamp, idle.methods);
+  assertEquals(idle.moves, ["In Progress", "In Review"]);
+  assertEquals(cursorOf(idle.swamp)?.status, "in_review");
+  assertEquals(cursorOf(idle.swamp)?.statusFailed, undefined);
+  assertEquals(
+    idle.swamp.versionsWritten(INSTANCE),
+    versions + 1,
+    "the cursor",
+  );
+});
+
 Deno.test("publish: any other invalid status write fails, and an unmapped key names the mapped ones", async () => {
   const swamp = fakeSwamp();
   const { state, methods } = ticket();

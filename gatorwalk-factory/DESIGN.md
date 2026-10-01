@@ -1649,8 +1649,9 @@ published as entries instead, below):
    `externalRefs[<tracker>]`, one ticket per segment of the journal (see
    "Retargeting" below); a work item that never had one is refused.
 2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
-   version delivered so far, the ticket, the last status key written, and the
-   status move the last publish could not make, if any (`statusFailed`). The
+   version delivered so far, the ticket, the last status key written as of the
+   cursor's own write, and the status move the last publish could not make, if
+   any (`statusFailed`). The
    cursor's ticket must be the one its journal version belongs to: a cursor for
    an older ticket is where the publish resumes, and one for a ticket no
    retarget explains is refused, since one work item projects to one ticket at
@@ -1668,7 +1669,10 @@ published as entries instead, below):
    `awaiting` post nothing; `retargeted` is said by the two tickets' notes
    (see "Retargeting").
 4. **Writes the status once**, keyed on (work item, journal length), and only
-   when the current stage's status key differs from the last one written. A
+   when the current stage's status key differs from the last one written. The
+   last one written is publish's own: the latest `set_status` ledger record
+   from the cursor's journal version on, else the cursor's key, since a cursor
+   write that failed after the status landed leaves the cursor behind. A
    person who moves the ticket in the tracker is not undone by a publish that
    did not change the stage; the next stage whose key differs moves it again. A
    move the tracker refuses as `unreachable` is recorded in the ledger as
@@ -1687,7 +1691,8 @@ published as entries instead, below):
 5. **Writes the cursor last.** A failure part-way leaves the cursor where it
    was (except for the status move, step 4); the re-run replays from there and
    the ledger turns every write that landed into a no-op. A publish with
-   nothing new writes nothing.
+   nothing new writes nothing, except a cursor the ledger shows is behind: it
+   is brought level, and a failed move that has since landed is cleared.
 
 **Assigning when work starts.** On the work item's `started` event, after
 that event's own comment or entry and before any later event's, `publish`
