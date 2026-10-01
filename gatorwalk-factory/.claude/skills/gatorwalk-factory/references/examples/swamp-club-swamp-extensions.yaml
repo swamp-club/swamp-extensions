@@ -372,6 +372,18 @@ definition:
           gates:
             - type: artifact-exists
               config: { artifact: plan }
+            - type: cel
+              description: >-
+                The plan was recorded in this entry into plan, so a revised
+                plan, not the one review already saw, goes back to review.
+                artifact-fresh cannot say this: plan reviews nothing.
+              config:
+                expr: >-
+                  "plan" in artifacts && artifacts["plan"].stage == "plan" &&
+                  artifacts["plan"].cycle == stage.cycle
+                message: >-
+                  the plan was recorded in an earlier cycle; record the new
+                  plan before submitting it
 
     - id: plan-review
       tracker:
@@ -402,13 +414,20 @@ definition:
           against the code. Report findings with a severity and the dimension
           as category; do not soften them.
 
+          On a later review, read the injected plan-review (the last review)
+          and plan-feedback (the person's latest feedback, which the plan's
+          feedbackIncorporated lists once answered); the first review has
+          neither. Say for each earlier finding whether this plan resolves
+          it: carry it over with its id, and resolved: true only when the
+          plan resolves it. Check the plan answers the feedback.
+
           gatorwalk drives this issue: do not use the issue-lifecycle skill or
           run any @swamp/issue-lifecycle method, even when a request would
           trigger it.
         bindings:
           planSummary: artifacts["plan"].payload.summary
         context:
-          inject: [plan]
+          inject: [plan, plan-review, plan-feedback]
       artifacts:
         - name: plan-review
           kind: findings
@@ -566,7 +585,10 @@ definition:
           partially_implemented or missing. Add a step numbered 100 or more,
           with status added, for each change no plan step covers. Justify
           every step not implemented as planned, and judge the code against
-          agent-constraints/code-conformance-dimensions.md.
+          agent-constraints/code-conformance-dimensions.md. The injected
+          plan-review is the review the plan was approved with: a deviation
+          one of its findings asked for is justified by that finding; cite
+          its id.
 
           gatorwalk drives this issue: do not use the issue-lifecycle skill or
           run any @swamp/issue-lifecycle method, even when a request would
@@ -574,7 +596,7 @@ definition:
         bindings:
           commit: artifacts["change-summary"].payload.commit
         context:
-          inject: [plan, change-summary]
+          inject: [plan, plan-review, change-summary]
       artifacts:
         - name: conformance
           reviews: change-summary
@@ -1107,7 +1129,10 @@ definition:
           trigger it.
         bindings:
           issue: item.externalRefs["swamp-club"]
-          summary: artifacts["plan"].payload.summary
+          summary: >-
+            "change-summary" in artifacts
+            ? artifacts["change-summary"].payload.summary
+            : artifacts["plan"].payload.summary
           prUrl: >-
             "pull-request" in evidence && "change-summary" in artifacts &&
             evidence["pull-request"].payload.commit ==
@@ -1806,6 +1831,49 @@ scenarios:
       - approve: plan-approval
       - move: approve
       - expect: { stage: implement }
+  - scenario: plan-resubmit-needs-new-plan
+    description: >-
+      After revise, submit at plan cycle 2 is refused until a new plan is
+      recorded: the cycle-1 plan, which review already saw, cannot go back to
+      review (swamp-club #2873).
+    steps:
+      - record: { evidence: classification }
+        payload: {
+          type: feature,
+          confidence: high,
+          reasoning: A new exit,
+          isRegression: false,
+        }
+      - move: feature
+      - move: submit
+        expect: { refused: "artifact 'plan' has not been recorded" }
+        note: No plan yet; the freshness gate refuses too, without an error
+      - record: { artifact: plan }
+        payload:
+          summary: Add a list method
+          scopeAnalysis: One extension; one file
+          steps: [{ order: 1, description: Add list, files: [x.ts] }]
+          testingStrategy: A test against a mock server
+      - move: submit
+      - record: { artifact: plan-review }
+        payload: { findings: [] }
+      - decline: plan-approval
+      - record: { evidence: plan-feedback }
+        payload: { feedback: Page the results }
+      - move: revise
+        manual: true
+      - move: submit
+        expect: { refused: "the plan was recorded in an earlier cycle" }
+        note: Only the cycle-1 plan exists
+      - record: { artifact: plan }
+        payload:
+          summary: Add a paged list method
+          scopeAnalysis: One extension; one file
+          steps: [{ order: 1, description: Add paged list, files: [x.ts] }]
+          testingStrategy: A test against a mock server
+          feedbackIncorporated: [Page the results]
+      - move: submit
+      - expect: { stage: plan-review }
   - scenario: regression-confirmed
     description: >-
       A regression claim waits for regression-review whatever its verdict; this

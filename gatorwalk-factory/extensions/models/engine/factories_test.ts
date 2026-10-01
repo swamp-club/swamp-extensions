@@ -183,7 +183,8 @@ for (const [file, example, name] of PLAN_FEEDBACK) {
     assert(context.evidence["plan-feedback"] !== undefined);
     assert(context.artifacts["plan"] !== undefined);
 
-    // The reviewer is never asked to write the person's feedback.
+    // The reviewer is never asked to write the person's feedback; it may
+    // read it (swamp-club #2873).
     const inReview = frames.find((f) =>
       f.moved?.transition === "submit" && f.moved.to === "plan-review"
     )?.run;
@@ -201,7 +202,7 @@ for (const [file, example, name] of PLAN_FEEDBACK) {
         resultDir: "/scratch",
       })
     ) {
-      assert(!prompt.includes("plan-feedback"), prompt);
+      assert(!prompt.includes("-plan-feedback.json"), prompt);
     }
   });
 }

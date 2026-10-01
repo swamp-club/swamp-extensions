@@ -66,7 +66,7 @@ from every stage.
 | Check                      | Where it applies         | gatorwalk                                                                                                                                                                                                                                |
 | -------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `valid-transition`         | every method             | The stage graph: a transition exists only from its stage                                                                                                                                                                                 |
-| `plan-exists`              | `approve`                | `plan.submit` needs `artifact-exists` `plan`                                                                                                                                                                                             |
+| `plan-exists`              | `approve`                | `plan.submit` needs `artifact-exists` `plan`, and a `cel` gate that it was recorded in this cycle, so a revised plan is never the old one sent back                                                                                      |
 | `adversarial-review-clear` | `approve`                | `artifact-fresh` `plan-review` (recorded this cycle, so it reviews the current plan) plus `findings-clear` on critical and high                                                                                                          |
 | `plan-approved`            | `implement`              | `human-approval` `plan-approval` on the only way into `implement` from planning                                                                                                                                                          |
 | `code-conformance-clear`   | `link_pr`, `complete`    | `conformance-review.conforms`: a fresh review, and a `cel` gate that every step not `implemented` has a justification. Checked before verification, as the skill orders it. `attest.complete` and `merge.complete` repeat the `cel` gate |
@@ -111,8 +111,11 @@ chose. The graph analysis finishes at these limits (gap 8).
 issue-lifecycle marks findings resolved on the review (`resolve_findings`), then
 reviews the new plan version. Here a blocking finding sends the plan back
 (`rework`); the next `plan-review` cycle records a fresh findings artifact
-against the new plan. A finding can carry `resolved` and `resolutionNote`, as
-issue-lifecycle's do. Nothing is lost, so this is not a gap.
+against the new plan. That review is given the last one and the person's latest
+feedback, and says for each earlier finding whether the new plan resolves it. A
+finding can carry `resolved` and `resolutionNote`, as issue-lifecycle's do.
+`conformance-review` is given the approving review too, so a deviation it asked
+for is justified by its finding. Nothing is lost, so this is not a gap.
 
 ### Lifecycle entries
 
@@ -160,10 +163,11 @@ finding is resolved by recording the review again. `attest.complete` and
 `merge.complete` post no `complete` entry: an entry comes from entering a stage
 or recording a product, never from taking a transition, and neither exit records
 anything. Entering `notify` still moves the issue to `shipped`, as
-issue-lifecycle's `complete` does. The thank-you links a pull request only when
-it is for the `change-summary` commit, so after `attest.complete` it links none,
-even when an earlier round's pull request failed; issue-lifecycle links
-whichever it has.
+issue-lifecycle's `complete` does. The thank-you describes the work with the
+`change-summary` summary, what was committed, not the plan's. It links a pull
+request only when it is for the `change-summary` commit, so after
+`attest.complete` it links none, even when an earlier round's pull request
+failed; issue-lifecycle links whichever it has.
 
 ## Format gaps
 

@@ -967,22 +967,31 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
         }),
       env,
     );
-  const go = async (transition: string) =>
+  const go = async (transition: string, confirm?: string) =>
     advanceMethod(
       ctx(),
       methods.advance.arguments.parse({
         transition,
+        ...(confirm !== undefined ? { confirm } : {}),
         ...await expectation(),
       }),
       env,
     );
-  const approve = async (gateId: string) =>
+  const approve = async (
+    gateId: string,
+    decision: "approve" | "decline" = "approve",
+  ) =>
     decide(
       ctx(),
-      "approve",
+      decision,
       methods.approve.arguments.parse({ gateId, ...await expectation() }),
       env,
     );
+  const packet = async () => {
+    const packet = (await describeStatus(ctx(), env)).dispatch;
+    assert(packet !== null);
+    return packet;
+  };
 
   await startWorkItem(
     ctx(),
@@ -1002,6 +1011,12 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     isRegression: false,
   });
   await go("feature");
+  const unplanned = await assertRejects(() => go("submit"), Error);
+  assert(
+    unplanned.message.includes("artifact 'plan' has not been recorded") &&
+      !unplanned.message.includes("could not evaluate"),
+    unplanned.message,
+  );
   await record("artifact", "plan", {
     summary: "Add the definition",
     scopeAnalysis: "gatorwalk-factory only",
@@ -1009,7 +1024,44 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     testingStrategy: "FactoryDefinition tests",
   });
   await go("submit");
-  await record("artifact", "plan-review", { findings: [] });
+  await record("artifact", "plan-review", {
+    findings: [{
+      id: "ADV-1",
+      severity: "low",
+      category: "scope",
+      description: "No scenario",
+    }],
+  });
+
+  // A person declines with feedback (swamp-club #2873): the old plan cannot
+  // be submitted again, and the second review is given the first and the
+  // feedback.
+  await approve("plan-approval", "decline");
+  await record("evidence", "plan-feedback", { feedback: "Add a scenario" });
+  await go("revise", "true");
+  await assertRejects(() => go("submit"), Error, "an earlier cycle");
+  await record("artifact", "plan", {
+    summary: "Add the definition and a scenario",
+    scopeAnalysis: "gatorwalk-factory only",
+    steps: [{ order: 1, description: "Write it", files: ["x.yaml"] }],
+    testingStrategy: "FactoryDefinition tests",
+    feedbackIncorporated: ["Add a scenario"],
+  });
+  await go("submit");
+  const review = await packet();
+  assertEquals([review.stage, review.cycle], ["plan-review", 2]);
+  assertEquals(review.inject, ["plan", "plan-review", "plan-feedback"]);
+  await record("artifact", "plan-review", {
+    findings: [
+      {
+        id: "ADV-1",
+        severity: "low",
+        category: "scope",
+        description: "No scenario",
+        resolved: true,
+      },
+    ],
+  });
   await approve("plan-approval");
   await go("approve");
 
@@ -1066,6 +1118,11 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
     files: ["x.yaml"],
   });
   await go("submit");
+  assertEquals((await packet()).inject, [
+    "plan",
+    "plan-review",
+    "change-summary",
+  ]);
   await record("artifact", "conformance", {
     steps: [{ order: 1, status: "implemented", description: "Written" }],
   });
@@ -1103,11 +1160,11 @@ Deno.test("swamp-extensions: a feature from triage to done through the work-item
   await go("merged");
   await record("evidence", "release", { outcome: "completed" });
   await go("released");
-  // The notify stage reads the ticket from item.externalRefs: the new one.
-  assertEquals(
-    (await describeStatus(ctx(), env)).dispatch?.values.issue,
-    "2631",
-  );
+  // The notify stage reads the ticket from item.externalRefs: the new one,
+  // and thanks the author for what was committed, not what was planned.
+  const notify = await packet();
+  assertEquals(notify.values.issue, "2631");
+  assertEquals(notify.values.summary, "Added the definition");
   await record("evidence", "notification", {
     action: "skipped",
     author: "skunk-ape",
