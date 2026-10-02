@@ -46,10 +46,11 @@ const GlobalArgsSchema = z.object({
   slug: z.string().optional().describe(
     "Vercel team slug (alternative to teamId)",
   ),
-  name: z.string().max(255).describe("The name of the network"),
+  name: z.string().max(255).describe("The name of the network").optional(),
   awsAvailabilityZoneIds: z.array(z.string()).optional(),
-  cidr: z.string().describe("The CIDR block of the network"),
-  region: z.string().describe("The region where the network will be created"),
+  cidr: z.string().describe("The CIDR block of the network").optional(),
+  region: z.string().describe("The region where the network will be created")
+    .optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -95,7 +96,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Networks. Registered at `@swamp/vercel/networking/networks`. */
 export const model = {
   type: "@swamp/vercel/networking/networks",
-  version: "2026.09.01.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -137,6 +138,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -154,6 +160,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["cidr", "name", "region"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/connect/networks";
         const body: Record<string, unknown> = {};
         if (g.awsAvailabilityZoneIds !== undefined) {

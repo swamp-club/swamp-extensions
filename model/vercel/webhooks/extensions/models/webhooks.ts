@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  url: z.string().regex(new RegExp("^https?://")),
+  url: z.string().regex(new RegExp("^https?://")).optional(),
   events: z.array(
     z.enum([
       "budget.reached",
@@ -158,7 +158,7 @@ const GlobalArgsSchema = z.object({
       "comment.reaction-removed",
       "comment.mentioned",
     ]),
-  ),
+  ).optional(),
   projectIds: z.array(z.string().regex(new RegExp("^[a-zA-z0-9_]+$")))
     .optional(),
   token: z.string().meta({ sensitive: true }).describe(
@@ -308,7 +308,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Webhooks. Registered at `@swamp/vercel/webhooks/webhooks`. */
 export const model = {
   type: "@swamp/vercel/webhooks/webhooks",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -350,6 +350,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -367,6 +372,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["events", "url"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/webhooks";
         const body: Record<string, unknown> = {};
         if (g.url !== undefined) body.url = g.url;

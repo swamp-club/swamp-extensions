@@ -23,6 +23,7 @@ import {
   type ModelDefinition,
   parseModel,
   pathTestTarget,
+  registryTarget,
 } from "./check_upgrades.ts";
 
 const SOURCE = `
@@ -164,4 +165,65 @@ Deno.test("pathTestTarget: a published extension is pulled by name", () => {
     kind: "pull",
     name: "@swamp/ssh",
   });
+});
+
+// `swamp extension info <name> --json`, as the registry answers it: metadata
+// on stdout with exit 0, or an error on stderr with exit 1.
+const INFO_PUBLISHED = JSON.stringify({
+  name: "@swamp/ssh",
+  latestVersion: "2026.09.25.1",
+  latestRc: null,
+});
+const INFO_NOT_FOUND = JSON.stringify({
+  error: "Extension @swamp/ssh not found in the registry.",
+});
+
+Deno.test("registryTarget: a published extension is pulled by name", () => {
+  assertEquals(registryTarget("@swamp/ssh", 0, INFO_PUBLISHED, ""), {
+    kind: "pull",
+    name: "@swamp/ssh",
+  });
+});
+
+Deno.test("registryTarget: an extension the registry has never seen is skipped", () => {
+  // A manifest on the base branch does not prove a publish happened.
+  assertEquals(registryTarget("@swamp/ssh", 1, "", INFO_NOT_FOUND), {
+    kind: "skip",
+    reason: "not published to the registry",
+  });
+});
+
+Deno.test("registryTarget: output on the other stream does not break the parse", () => {
+  const notice = "A new version of swamp is available\n";
+  assertEquals(
+    registryTarget("@swamp/ssh", 0, INFO_PUBLISHED, notice).kind,
+    "pull",
+  );
+  assertEquals(
+    registryTarget("@swamp/ssh", 1, notice, INFO_NOT_FOUND).kind,
+    "skip",
+  );
+});
+
+Deno.test("registryTarget: any other registry failure is an error, not a skip", () => {
+  for (
+    const [code, stdout, stderr] of [
+      [1, "", JSON.stringify({ error: "fetch failed: connection refused" })],
+      [1, "", "not json"],
+      [0, JSON.stringify({ name: "@swamp/ssh", latestVersion: null }), ""],
+      // A not-found message with a zero exit is not trusted.
+      [0, "", INFO_NOT_FOUND],
+      // Not found for a different extension does not count.
+      [
+        1,
+        "",
+        JSON.stringify({
+          error: "Extension @swamp/ssh-x not found in the registry.",
+        }),
+      ],
+    ] as const
+  ) {
+    const target = registryTarget("@swamp/ssh", code, stdout, stderr);
+    assertEquals(target.kind, "error", `${code} ${stdout} ${stderr}`);
+  }
 });

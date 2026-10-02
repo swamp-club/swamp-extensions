@@ -147,6 +147,26 @@ const GlobalArgsSchema = z.object({
 The lib's `request()` function merges `teamId`/`slug` into query parameters when
 present.
 
+### Resource properties named like a team scope or auth arg
+
+Some resources have their own property named `slug` (Edge Configs, feature flags
+and segments, teams, custom environments), which would be shadowed by the team
+`slug` arg. A resource property named `teamId`, `slug` or `token` is therefore
+exposed under `resource` plus the capitalised name: an Edge Config's own slug is
+`resourceSlug`, while `slug` stays the team slug. The generated code maps it
+back to the API name wherever the API sees it: `body.slug = g.resourceSlug` in
+create and update bodies, the lookup filter on `item.slug`, and the PUT live
+fill. The create and update checks name the global arg (`resourceSlug`). Upgrade
+entries list it under the global arg name (`globalArgsFieldNames` in
+`pipeline.ts`).
+
+On `teams/teams`, `resourceSlug` is the slug of the team being created. A team
+`slug` set there is still sent as a query parameter, as on every other model.
+
+A parent path param keeps its name even when it matches one of these
+(`teams/members` takes `teamId` in its path); the path param and the team scope
+arg are then the same value.
+
 ---
 
 ## 5. Resource Discovery
@@ -229,6 +249,37 @@ Since Vercel defines most schemas inline, the pipeline extracts properties by:
 
 Properties present in POST but absent from PATCH/PUT are flagged as
 `createOnlyProperties`, same as Cloudflare.
+
+### Create-required properties
+
+Method runs validate `GlobalArgsSchema` with `.partial()`, but swamp checks the
+full schema in two places: `swamp model create` with any `--global-arg`, and
+`swamp workflow validate` for steps that name a model type rather than a
+definition. A field marked required there therefore blocks a model configured
+for `get`, `lookup` or `sync` — before this rule, `projects/env` with only
+`idOrName` and `name` was rejected until callers passed placeholder `key`,
+`type` and `value` values.
+
+So no resource property is required in `GlobalArgsSchema`. The create body's
+required list becomes `createRequiredProperties` (limited to properties the body
+actually defines, since the flattened schema's required list is not filtered
+against them, and excluding parent path params, which are emitted separately).
+As with Cloudflare, nothing else stays required: no non-create method reads a
+resource property from globalArgs as required — parent params and team scope
+args have their own lines, and the naming field falls back when unset. Parent
+params and the synthetic `name` stay required.
+
+- **`create`** throws `create requires global arguments: <names>` before any API
+  call when one of them is unset.
+- **`PUT` update** fills every create-required field in the update body from the
+  live resource (see below), even when the response describes it with a
+  different shape, and throws `update requires global arguments: <names>` before
+  the `PUT` when one is missing from the live resource too. A create-required
+  value echoed from `GET` can still be shaped differently from the request body;
+  set the field explicitly if Vercel rejects it. A create-required field named
+  like a secret is never filled (see below), so a `PUT` update that leaves it
+  unset always throws rather than clearing it.
+- **`PATCH` update** sends only the fields set in globalArgs, as before.
 
 ### PUT updates keep unset fields
 
@@ -332,8 +383,9 @@ const GlobalArgsSchema = z.object({
 });
 ```
 
-No collision guard needed — `token` is unlikely to clash with resource property
-names.
+A resource property named `token` would be exposed as `resourceToken`, the same
+rule as for `slug` (see "Resource properties named like a team scope or auth
+arg"); none does today.
 
 ---
 

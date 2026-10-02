@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   slug: z.string().optional().describe(
     "Vercel team slug (alternative to teamId)",
   ),
-  name: z.string().describe("The name of the issuer."),
+  name: z.string().describe("The name of the issuer.").optional(),
   claimsSchema: z.record(z.string(), z.unknown()).describe(
     "A JSON Schema used to validate the resolved token claims when signing tokens for this issuer.",
   ).optional(),
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.09.17.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -181,6 +181,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -201,6 +206,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/kms/issuers";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
     key: z.string(),
     value: z.string(),
     comment: z.string().max(500).optional(),
-  })),
+  })).optional(),
   type: z.enum(["encrypted", "sensitive"]).describe(
     "The type of environment variable",
   ).optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/environment/env`. */
 export const model = {
   type: "@swamp/vercel/environment/env",
-  version: "2026.09.24.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -157,6 +157,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -174,6 +179,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["evs"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/env";
         const body: Record<string, unknown> = {};
         if (g.evs !== undefined) body.evs = g.evs;

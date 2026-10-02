@@ -53,7 +53,9 @@ or failed.
    - Dynamic check: the upgrade path from `implementation-conventions.md` — an
      instance of the published extension, swapped for the local source, must
      step `typeVersion` to the new version. Once per extension; skipped for
-     extensions not yet published.
+     extensions not yet published — new in the change, or reported not found
+     by `swamp extension info` (a manifest on `main` does not prove a publish
+     happened). Any other registry failure fails the gate.
 
    Both steps list every model they examined, so a run that found nothing to
    check says so. Run it locally with

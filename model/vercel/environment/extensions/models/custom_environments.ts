@@ -49,6 +49,9 @@ const GlobalArgsSchema = z.object({
   idOrName: z.string().describe(
     "The unique project identifier or the project name",
   ),
+  resourceSlug: z.string().max(32).describe(
+    "The slug of the custom environment to create.",
+  ).optional(),
   description: z.string().max(256).describe(
     "Description of the custom environment. This is optional.",
   ).optional(),
@@ -103,6 +106,7 @@ const InputsSchema = z.object({
   teamId: z.string().optional(),
   slug: z.string().optional(),
   idOrName: z.string().optional(),
+  resourceSlug: z.string().max(32).optional(),
   description: z.string().max(256).optional(),
   branchMatcher: z.object({
     type: z.enum(["equals", "startsWith", "endsWith"]),
@@ -115,7 +119,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Custom Environments. Registered at `@swamp/vercel/environment/custom-environments`. */
 export const model = {
   type: "@swamp/vercel/environment/custom-environments",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -157,6 +161,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -177,6 +186,7 @@ export const model = {
         const endpoint = "/v9/projects/" + encodeURIComponent(g.idOrName) +
           "/custom-environments";
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.description !== undefined) body.description = g.description;
         if (g.branchMatcher !== undefined) body.branchMatcher = g.branchMatcher;
         if (g.copyEnvVarsFrom !== undefined) {
@@ -233,6 +243,9 @@ export const model = {
         const endpoint = "/v9/projects/" + encodeURIComponent(g.idOrName) +
           "/custom-environments";
         const filters: [string, string][] = [];
+        if (g.resourceSlug !== undefined) {
+          filters.push(["slug", String(g.resourceSlug)]);
+        }
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
         }
@@ -346,6 +359,7 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.description !== undefined) body.description = g.description;
         if (g.branchMatcher !== undefined) body.branchMatcher = g.branchMatcher;
         const result = await update(endpoint, existing.id, body, "PATCH", {

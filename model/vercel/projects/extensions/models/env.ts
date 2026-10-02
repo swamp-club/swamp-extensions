@@ -52,7 +52,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  key: z.string().describe("The name of the environment variable"),
+  key: z.string().describe("The name of the environment variable").optional(),
   target: z.array(z.enum(["production", "preview", "development"])).describe(
     "The target environment of the environment variable",
   ).optional(),
@@ -61,8 +61,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   type: z.enum(["system", "encrypted", "plain", "sensitive"]).describe(
     "The type of environment variable",
-  ),
-  value: z.string().describe("The value of the environment variable"),
+  ).optional(),
+  value: z.string().describe("The value of the environment variable")
+    .optional(),
   customEnvironmentIds: z.array(z.string()).describe(
     "The custom environment IDs associated with the environment variable",
   ).optional(),
@@ -98,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/projects/env`. */
 export const model = {
   type: "@swamp/vercel/projects/env",
-  version: "2026.08.03.4",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -135,6 +136,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -152,6 +158,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["key", "type", "value"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v10/projects/" + encodeURIComponent(g.idOrName) +
           "/env";
         const body: Record<string, unknown> = {};

@@ -45,8 +45,8 @@ const GlobalArgsSchema = z.object({
   ),
   role: z.enum(["ADMIN", "PROJECT_VIEWER", "PROJECT_DEVELOPER"]).describe(
     "The project role that will be added to this Access Group.",
-  ),
-  projectId: z.string().max(256).describe("The ID of the project."),
+  ).optional(),
+  projectId: z.string().max(256).describe("The ID of the project.").optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/access-groups/projects`. */
 export const model = {
   type: "@swamp/vercel/access-groups/projects",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -124,6 +124,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -141,6 +146,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["projectId", "role"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/access-groups/" +
           encodeURIComponent(g.accessGroupIdOrName) + "/projects";
         const body: Record<string, unknown> = {};

@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
   })).describe("The variants of the flag").optional(),
   environments: z.record(z.string(), z.unknown()).describe(
     "The configuration for the flag in different environments",
-  ),
+  ).optional(),
   seed: z.number().min(0).max(100000).describe(
     "A random seed to prevent split points in different flags from having the same targets",
   ).optional(),
@@ -72,9 +72,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   tags: z.array(z.string().max(64)).describe("Tags for categorizing the flag")
     .optional(),
+  resourceSlug: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,512}$")).describe(
+    "A unique (per project) key for the flag, composed of letters, numbers, dashes, and underscores",
+  ).optional(),
   kind: z.enum(["boolean", "string", "number", "json"]).describe(
     "The kind of flag",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -134,6 +137,8 @@ const InputsSchema = z.object({
   maintainerIds: z.array(z.string().max(24)).optional(),
   permanent: z.boolean().optional(),
   tags: z.array(z.string().max(64)).optional(),
+  resourceSlug: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,512}$"))
+    .optional(),
   kind: z.enum(["boolean", "string", "number", "json"]).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -141,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -203,6 +208,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -220,9 +230,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["environments", "kind", "resourceSlug"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/projects/" +
           encodeURIComponent(g.projectIdOrName) + "/feature-flags/flags";
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.kind !== undefined) body.kind = g.kind;
         if (g.variants !== undefined) body.variants = g.variants;
         if (g.environments !== undefined) body.environments = g.environments;
@@ -294,6 +313,9 @@ export const model = {
         if (g.state !== undefined) filters.push(["state", String(g.state)]);
         if (g.permanent !== undefined) {
           filters.push(["permanent", String(g.permanent)]);
+        }
+        if (g.resourceSlug !== undefined) {
+          filters.push(["slug", String(g.resourceSlug)]);
         }
         if (g.kind !== undefined) filters.push(["kind", String(g.kind)]);
         if (g.createdAt !== undefined) {

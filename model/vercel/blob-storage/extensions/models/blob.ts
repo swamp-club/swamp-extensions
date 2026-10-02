@@ -39,7 +39,7 @@ const GlobalArgsSchema = z.object({
   slug: z.string().optional().describe(
     "Vercel team slug (alternative to teamId)",
   ),
-  name: z.string().max(70),
+  name: z.string().max(70).optional(),
   region: z.enum([
     "arn1",
     "bom1",
@@ -149,7 +149,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Blob. Registered at `@swamp/vercel/blob-storage/blob`. */
 export const model = {
   type: "@swamp/vercel/blob-storage/blob",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -181,6 +181,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +203,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/storage/stores/blob";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

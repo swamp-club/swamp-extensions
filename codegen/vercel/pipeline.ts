@@ -4,7 +4,10 @@
 
 import $RefParser from "@apidevtools/json-schema-ref-parser";
 import { dirname } from "@std/path";
-import { generateVercelExtensionModel } from "./extensionModelGenerator.ts";
+import {
+  generateVercelExtensionModel,
+  globalArgName,
+} from "./extensionModelGenerator.ts";
 import { generateVercelLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
 import { generateLicense } from "../shared/licenseGenerator.ts";
@@ -75,8 +78,14 @@ export interface VercelResource {
   updateProperties: Record<string, VercelProperty>;
   /** Properties from GET response (resource state) */
   resourceProperties: Record<string, VercelProperty>;
-  /** Required properties for create */
-  requiredProperties: string[];
+  /**
+   * Property names (API names) required by create. Optional in
+   * GlobalArgsSchema; the generated create method rejects them when unset.
+   * No resource property stays required there: no non-create method reads
+   * one from globalArgs as required (parent params and the synthetic name are
+   * emitted separately, and the naming field falls back when unset).
+   */
+  createRequiredProperties: string[];
   /** Available CRUD handlers */
   handlers: {
     create: boolean;
@@ -295,6 +304,34 @@ const MANUAL_RESOURCES: ManualResourceDef[] = [
 
 // --- Model generation ---
 
+/**
+ * GlobalArgsSchema field names as the generator emits them, for upgrade
+ * entries. A property renamed to avoid a team scope arg (slug ->
+ * resourceSlug) is listed under its global arg name, or a later upgrade
+ * would report it removed and strip it from stored definitions. Parent
+ * params are emitted as is.
+ */
+export function globalArgsFieldNames(resource: VercelResource): string[] {
+  const mergedPropNames = new Set([
+    ...Object.keys(resource.updateProperties),
+    ...Object.keys(resource.createProperties),
+  ]);
+  const parentNames = new Set(resource.parentParams.map((pp) => pp.paramName));
+  const emittedFields: string[] = ["teamId", "slug", ...parentNames];
+  if (resource.syntheticName && !mergedPropNames.has(resource.namingField)) {
+    emittedFields.push("name");
+  }
+  for (const name of mergedPropNames) {
+    emittedFields.push(
+      parentNames.has(name) ? name : globalArgName(resource, name),
+    );
+  }
+  emittedFields.push("token");
+
+  const validFieldName = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  return emittedFields.filter((n) => validFieldName.test(n));
+}
+
 export async function generateVercelModels(options: {
   services?: string[];
   outputDir: string;
@@ -367,27 +404,7 @@ export async function generateVercelModels(options: {
 
         if (status !== "unchanged") hasChanges = true;
 
-        const mergedPropNames = new Set([
-          ...Object.keys(resource.updateProperties),
-          ...Object.keys(resource.createProperties),
-        ]);
-        const emittedFields: string[] = [];
-        emittedFields.push("teamId", "slug");
-        for (const pp of resource.parentParams) {
-          emittedFields.push(pp.paramName);
-        }
-        if (
-          resource.syntheticName && !mergedPropNames.has(resource.namingField)
-        ) {
-          emittedFields.push("name");
-        }
-        for (const name of mergedPropNames) emittedFields.push(name);
-        emittedFields.push("token");
-
-        const validFieldName = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-        const newFieldNames = emittedFields.filter((n) =>
-          validFieldName.test(n)
-        );
+        const newFieldNames = globalArgsFieldNames(resource);
         const upgradesBlock = computeUpgradesBlock(
           status,
           version,
@@ -967,6 +984,23 @@ interface ResolvedPaths {
   deletePath: string | null;
 }
 
+/**
+ * swamp checks the full GlobalArgsSchema on `model create` and type-based
+ * `workflow validate`, so create-only required fields there would block
+ * definitions meant for get/lookup/sync. They are kept out of the schema's
+ * required set and enforced inside create instead. Limit them to real create
+ * properties (the schema's required list is not filtered against its
+ * properties) and drop parent params, which are emitted separately.
+ */
+function createRequiredFor(
+  required: string[],
+  createProps: Record<string, VercelProperty>,
+  parentParams: { paramName: string }[],
+): string[] {
+  const parents = new Set(parentParams.map((pp) => pp.paramName));
+  return required.filter((name) => name in createProps && !parents.has(name));
+}
+
 function buildResource(
   basePath: string,
   idPath: string,
@@ -1061,7 +1095,11 @@ function buildResource(
     createProperties: createProps,
     updateProperties: updateProps,
     resourceProperties: responseProps,
-    requiredProperties: createRequired,
+    createRequiredProperties: createRequiredFor(
+      createRequired,
+      createProps,
+      parentParams,
+    ),
     handlers: {
       create: true,
       read: true,
@@ -1200,7 +1238,11 @@ function buildManualResource(
     createProperties: createProps,
     updateProperties: updateProps,
     resourceProperties: responseProps,
-    requiredProperties: createRequired,
+    createRequiredProperties: createRequiredFor(
+      createRequired,
+      createProps,
+      manual.parentParams ?? [],
+    ),
     handlers: {
       create: true,
       read: true,

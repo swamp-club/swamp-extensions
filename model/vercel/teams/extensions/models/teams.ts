@@ -66,6 +66,8 @@ const GlobalArgsSchema = z.object({
     enforced: z.boolean().optional(),
     roles: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
+  resourceSlug: z.string().max(48).describe("The desired slug for the Team")
+    .optional(),
   enablePreviewFeedback: z.string().describe(
     "Enable preview toolbar: one of on, off or default.",
   ).optional(),
@@ -471,6 +473,7 @@ const InputsSchema = z.object({
     enforced: z.boolean().optional(),
     roles: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
+  resourceSlug: z.string().max(48).optional(),
   enablePreviewFeedback: z.string().optional(),
   enableProductionFeedback: z.string().optional(),
   sensitiveEnvironmentVariablePolicy: z.string().optional(),
@@ -633,7 +636,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.01.1",
+  version: "2026.10.01.2",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -710,6 +713,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.2",
+      description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -727,8 +735,15 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["resourceSlug"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/teams";
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.name !== undefined) body.name = g.name;
         if (g.attribution !== undefined) body.attribution = g.attribution;
         const raw = await create(endpoint, body, { token: g.token }, {
@@ -797,6 +812,9 @@ export const model = {
             "regenerateInviteCode",
             String(g.regenerateInviteCode),
           ]);
+        }
+        if (g.resourceSlug !== undefined) {
+          filters.push(["slug", String(g.resourceSlug)]);
         }
         if (g.enablePreviewFeedback !== undefined) {
           filters.push([
@@ -1014,6 +1032,7 @@ export const model = {
           body.regenerateInviteCode = g.regenerateInviteCode;
         }
         if (g.saml !== undefined) body.saml = g.saml;
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.enablePreviewFeedback !== undefined) {
           body.enablePreviewFeedback = g.enablePreviewFeedback;
         }

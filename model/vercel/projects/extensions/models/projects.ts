@@ -150,7 +150,8 @@ const GlobalArgsSchema = z.object({
   installCommand: z.string().max(256).describe(
     "The install command for this project. When `null` is used this value will be automatically detected",
   ).optional(),
-  name: z.string().max(100).describe("The desired name for the project"),
+  name: z.string().max(100).describe("The desired name for the project")
+    .optional(),
   nodeVersion: z.enum([
     "24.x",
     "22.x",
@@ -1758,7 +1759,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.01.1",
+  version: "2026.10.01.2",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1920,6 +1921,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1937,6 +1943,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v11/projects";
         const body: Record<string, unknown> = {};
         if (g.enablePreviewFeedback !== undefined) {

@@ -48,19 +48,19 @@ const GlobalArgsSchema = z.object({
   ),
   name: z.string().max(255).describe(
     "The name of the PrivateLink endpoint, used as its label in the Vercel dashboard.",
-  ),
+  ).optional(),
   enablePrivateDns: z.boolean().describe(
     "Whether to resolve the endpoint service through its private DNS names, which are then returned in `privateDnsNames`. Defaults to `false`, in which case the endpoint is reachable through the DNS names in `awsDnsEntries`.",
   ).optional(),
   projectId: z.string().describe(
     "The project ID to create the PrivateLink endpoint for.",
-  ),
+  ).optional(),
   vercelRegion: z.string().describe(
     "The Vercel region to provision the endpoint in. Advanced Networking must be enabled for the project in that region. The endpoint service itself may live in another AWS region.",
-  ),
+  ).optional(),
   awsServiceName: z.string().describe(
     "The name of the AWS VPC endpoint service to connect to. Its AWS region is read from the name; when that region differs from the one behind `vercelRegion`, the service must allow cross-region access.",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -98,10 +98,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Endpoints. Registered at `@swamp/vercel/networking/endpoints`. */
 export const model = {
   type: "@swamp/vercel/networking/endpoints",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -122,6 +127,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["awsServiceName", "name", "projectId", "vercelRegion"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/networking/privatelink/endpoints";
         const body: Record<string, unknown> = {};
         if (g.projectId !== undefined) body.projectId = g.projectId;

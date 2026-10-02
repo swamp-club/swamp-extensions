@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
     "Vercel team slug (alternative to teamId)",
   ),
   edgeConfigId: z.string().describe("Edge Config ID"),
-  key: z.string().describe("The key of the Edge Config item"),
+  key: z.string().describe("The key of the Edge Config item").optional(),
   value: z.string().describe("The value of the Edge Config item").optional(),
   description: z.string().describe("A description of the Edge Config item")
     .optional(),
@@ -74,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Items. Registered at `@swamp/vercel/edge-config/items`. */
 export const model = {
   type: "@swamp/vercel/edge-config/items",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -129,6 +129,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -146,6 +151,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["key"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/global-config/" +
           encodeURIComponent(g.edgeConfigId) + "/items";
         const body: Record<string, unknown> = {};

@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
       })).optional(),
       respectOriginCacheControl: z.boolean().optional(),
     }),
-  }),
+  }).optional(),
   restore: z.boolean().describe(
     "If true, restores the staged route to the value in the production version.",
   ).optional(),
@@ -143,7 +143,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Routes. Registered at `@swamp/vercel/project-routes/routes`. */
 export const model = {
   type: "@swamp/vercel/project-routes/routes",
-  version: "2026.08.03.3",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -175,6 +175,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -192,6 +197,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["route"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/projects/" + encodeURIComponent(g.projectId) +
           "/routes";
         const body: Record<string, unknown> = {};

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { generateVercelModels } from "./pipeline.ts";
+import { generateVercelModels, parseResources } from "./pipeline.ts";
 
 const SCHEMA_PATH = new URL("../schemas/vercel.json", import.meta.url)
   .pathname;
@@ -135,4 +135,57 @@ Deno.test({
       await Deno.remove(tmpDir, { recursive: true });
     }
   },
+});
+
+Deno.test("parseResources records create-required fields, dropping parent params and undefined names", () => {
+  const body = (properties: Record<string, unknown>, required: string[]) => ({
+    requestBody: {
+      content: {
+        "application/json": {
+          schema: { type: "object", properties, required },
+        },
+      },
+    },
+  });
+  const ok = (properties: Record<string, unknown>) => ({
+    responses: {
+      "200": {
+        content: {
+          "application/json": { schema: { type: "object", properties } },
+        },
+      },
+    },
+  });
+  const spec = {
+    paths: {
+      "/v1/projects/{idOrName}/widgets": {
+        post: {
+          tags: ["widgets"],
+          ...body(
+            {
+              idOrName: { type: "string" },
+              key: { type: "string" },
+              slug: { type: "string" },
+              note: { type: "string" },
+            },
+            // `ghost` is required but never defined as a property.
+            ["idOrName", "key", "slug", "ghost"],
+          ),
+        },
+      },
+      "/v1/projects/{idOrName}/widgets/{id}": {
+        get: { tags: ["widgets"], ...ok({ id: { type: "string" } }) },
+        delete: { tags: ["widgets"] },
+      },
+    },
+  } as unknown as Parameters<typeof parseResources>[0];
+
+  const { resources } = parseResources(spec);
+
+  assertEquals(resources.length, 1);
+  assertEquals(resources[0].parentParams.map((pp) => pp.paramName), [
+    "idOrName",
+  ]);
+  // slug is kept under its API name, like every other create property.
+  assertEquals(resources[0].createRequiredProperties, ["key", "slug"]);
 });

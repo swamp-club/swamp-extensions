@@ -86,7 +86,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "A string with the project name used in the deployment URL",
-  ),
+  ).optional(),
   project: z.string().describe(
     "The target project identifier in which the deployment will be created. When defined, this parameter overrides name",
   ).optional(),
@@ -348,7 +348,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.09.25.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -410,6 +410,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -427,6 +432,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v13/deployments";
         const body: Record<string, unknown> = {};
         if (g.buildMachine !== undefined) body.buildMachine = g.buildMachine;

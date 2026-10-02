@@ -30,7 +30,8 @@
  * - `--path-test`: an instance created from the published extension upgrades
  *   to the new version once the local source replaces it — pull, create,
  *   remove, `extension source add`, run a method, read `typeVersion`. Run once
- *   per extension; skipped for extensions with no published version.
+ *   per extension; skipped for extensions with no published version (new in
+ *   the change, or not found by `swamp extension info`).
  *
  * Every model it examined is printed, so a run that checked nothing says so
  * rather than passing in silence.
@@ -169,13 +170,61 @@ export function pathTestTarget(
   return { kind: "pull", name };
 }
 
+/**
+ * Whether the registry has a published version to pull, from the exit code and
+ * output streams of `swamp extension info <name> --json`. A manifest on the
+ * base branch does not mean the extension was ever published (a publish can be
+ * missed), so an extension the registry reports as not found is skipped. Any
+ * other failure is an error, so a registry outage cannot skip the path test.
+ *
+ * The CLI writes the metadata to stdout on success and the error to stderr on
+ * failure; each is parsed on its own, so output on the other stream (an update
+ * notice, a warning) cannot break the parse.
+ */
+export function registryTarget(
+  name: string,
+  code: number,
+  stdout: string,
+  stderr: string,
+): PathTestTarget {
+  const parse = (
+    text: string,
+  ): { latestVersion?: unknown; error?: unknown } => {
+    try {
+      const value = JSON.parse(text);
+      return typeof value === "object" && value !== null ? value : {};
+    } catch {
+      return {};
+    }
+  };
+  if (code === 0) {
+    const { latestVersion } = parse(stdout);
+    if (typeof latestVersion === "string" && latestVersion !== "") {
+      return { kind: "pull", name };
+    }
+  } else {
+    const { error } = parse(stderr);
+    if (
+      typeof error === "string" &&
+      error.includes(`${name} not found in the registry`)
+    ) {
+      return { kind: "skip", reason: "not published to the registry" };
+    }
+  }
+  return {
+    kind: "error",
+    message:
+      `swamp extension info ${name} gave no published version (exit ${code}):\n${stdout}${stderr}`,
+  };
+}
+
 // -- I/O ------------------------------------------------------------------------
 
 async function run(
   cmd: string,
   args: string[],
   cwd?: string,
-): Promise<{ code: number; out: string }> {
+): Promise<{ code: number; out: string; stdout: string; stderr: string }> {
   try {
     const { code, stdout, stderr } = await new Deno.Command(cmd, {
       args,
@@ -184,9 +233,10 @@ async function run(
       stderr: "piped",
     }).output();
     const d = new TextDecoder();
-    return { code, out: d.decode(stdout) + d.decode(stderr) };
+    const [o, e] = [d.decode(stdout), d.decode(stderr)];
+    return { code, out: o + e, stdout: o, stderr: e };
   } catch (err) {
-    return { code: -1, out: String(err) };
+    return { code: -1, out: String(err), stdout: "", stderr: String(err) };
   }
 }
 
@@ -215,6 +265,23 @@ async function pathTest(
   if (target.kind === "error") return `${extDir}: ${target.message}`;
   if (target.kind === "skip") {
     console.log(`  ${extDir}: ${target.reason}, path test skipped`);
+    return null;
+  }
+  const info = await run("swamp", [
+    "extension",
+    "info",
+    target.name,
+    "--json",
+  ]);
+  const published = registryTarget(
+    target.name,
+    info.code,
+    info.stdout,
+    info.stderr,
+  );
+  if (published.kind === "error") return `${extDir}: ${published.message}`;
+  if (published.kind === "skip") {
+    console.log(`  ${extDir}: ${published.reason}, path test skipped`);
     return null;
   }
   const { name } = target;

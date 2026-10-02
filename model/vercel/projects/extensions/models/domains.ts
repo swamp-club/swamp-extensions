@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
     z.literal(307),
     z.literal(308),
   ]).describe("Status code for domain redirect").optional(),
-  name: z.string().describe("The project domain name"),
+  name: z.string().describe("The project domain name").optional(),
   customEnvironmentId: z.string().describe(
     "The unique custom environment identifier within the project",
   ).optional(),
@@ -112,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Domains. Registered at `@swamp/vercel/projects/domains`. */
 export const model = {
   type: "@swamp/vercel/projects/domains",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -159,6 +159,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -176,6 +181,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v10/projects/" + encodeURIComponent(g.idOrName) +
           "/domains";
         const body: Record<string, unknown> = {};

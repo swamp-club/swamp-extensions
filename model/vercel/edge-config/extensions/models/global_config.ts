@@ -49,6 +49,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  resourceSlug: z.string().max(64).regex(new RegExp("^[\\w-]+$")).optional(),
   items: z.record(z.string(), z.unknown()).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -85,6 +86,7 @@ const InputsSchema = z.object({
   teamId: z.string().optional(),
   slug: z.string().optional(),
   name: z.string().optional(),
+  resourceSlug: z.string().max(64).regex(new RegExp("^[\\w-]+$")).optional(),
   items: z.record(z.string(), z.unknown()).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -92,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Global Config. Registered at `@swamp/vercel/edge-config/global-config`. */
 export const model = {
   type: "@swamp/vercel/edge-config/global-config",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -129,6 +131,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -146,8 +153,15 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["resourceSlug"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/global-config";
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.items !== undefined) body.items = g.items;
         const raw = await create(endpoint, body, { token: g.token }, {
           teamId: g.teamId,
@@ -198,6 +212,9 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v1/global-config";
         const filters: [string, string][] = [];
+        if (g.resourceSlug !== undefined) {
+          filters.push(["slug", String(g.resourceSlug)]);
+        }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
@@ -322,6 +339,26 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
+        const unset = ["slug"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, { token: g.token }, {
+            teamId: g.teamId,
+            slug: g.slug,
+          }) as Record<string, unknown>;
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const missingForUpdate = ["slug"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " +
+              missingForUpdate.map((k) =>
+                ({ "slug": "resourceSlug" } as Record<string, string>)[k] ?? k
+              ).join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           token: g.token,
         }, { teamId: g.teamId, slug: g.slug }) as ResourceData;

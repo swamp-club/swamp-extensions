@@ -54,7 +54,8 @@ const GlobalArgsSchema = z.object({
     "SRV",
     "TXT",
     "NS",
-  ]).describe("The type of record, it could be one of the valid DNS records."),
+  ]).describe("The type of record, it could be one of the valid DNS records.")
+    .optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -89,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Records. Registered at `@swamp/vercel/dns/records`. */
 export const model = {
   type: "@swamp/vercel/dns/records",
-  version: "2026.08.03.2",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -116,6 +117,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -133,6 +139,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v2/domains/" + encodeURIComponent(g.domain) +
           "/records";
         const body: Record<string, unknown> = {};

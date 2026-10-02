@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
       value: z.string(),
     }),
   })).optional(),
-  label: z.string(),
+  label: z.string().optional(),
   description: z.string().optional(),
   data: z.object({
     rules: z.array(z.object({
@@ -109,8 +109,9 @@ const GlobalArgsSchema = z.object({
     })).optional(),
     include: z.record(z.string(), z.unknown()).optional(),
     exclude: z.record(z.string(), z.unknown()).optional(),
-  }).describe("The data of the segment"),
-  hint: z.string(),
+  }).describe("The data of the segment").optional(),
+  hint: z.string().optional(),
+  resourceSlug: z.string().optional(),
   createdBy: z.string().describe("The entity who created the segment")
     .optional(),
   token: z.string().meta({ sensitive: true }).describe(
@@ -229,6 +230,7 @@ const InputsSchema = z.object({
     exclude: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
   hint: z.string().optional(),
+  resourceSlug: z.string().optional(),
   createdBy: z.string().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -236,7 +238,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Segments. Registered at `@swamp/vercel/feature-flags/segments`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/segments",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -278,6 +280,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -295,9 +302,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["data", "hint", "label", "resourceSlug"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/projects/" +
           encodeURIComponent(g.projectIdOrName) + "/feature-flags/segments";
         const body: Record<string, unknown> = {};
+        if (g.resourceSlug !== undefined) body.slug = g.resourceSlug;
         if (g.createdBy !== undefined) body.createdBy = g.createdBy;
         if (g.label !== undefined) body.label = g.label;
         if (g.description !== undefined) body.description = g.description;
@@ -359,6 +375,9 @@ export const model = {
           filters.push(["description", String(g.description)]);
         }
         if (g.hint !== undefined) filters.push(["hint", String(g.hint)]);
+        if (g.resourceSlug !== undefined) {
+          filters.push(["slug", String(g.resourceSlug)]);
+        }
         if (g.createdBy !== undefined) {
           filters.push(["createdBy", String(g.createdBy)]);
         }

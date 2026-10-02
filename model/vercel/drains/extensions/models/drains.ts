@@ -46,8 +46,8 @@ const GlobalArgsSchema = z.object({
   slug: z.string().optional().describe(
     "Vercel team slug (alternative to teamId)",
   ),
-  name: z.string(),
-  projects: z.enum(["some", "all"]),
+  name: z.string().optional(),
+  projects: z.enum(["some", "all"]).optional(),
   projectIds: z.array(z.string()).optional(),
   filter: z.object({
     version: z.string(),
@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
       }).optional(),
     }),
   }).optional(),
-  schemas: z.record(z.string(), z.unknown()),
+  schemas: z.record(z.string(), z.unknown()).optional(),
   delivery: z.object({
     type: z.string(),
     endpoint: z.string(),
@@ -162,7 +162,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Drains. Registered at `@swamp/vercel/drains/drains`. */
 export const model = {
   type: "@swamp/vercel/drains/drains",
-  version: "2026.08.03.3",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -189,6 +189,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -206,6 +211,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "projects", "schemas"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/drains";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

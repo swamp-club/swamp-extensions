@@ -73,9 +73,14 @@ export function generateVercelExtensionModel(
   );
   lines.push("");
 
-  // Injected field names that must not collide with resource properties
-  const injectedFields = new Set(["teamId", "slug", "token"]);
+  // Parent path params are emitted as their own global args, so a resource
+  // property with the same name is skipped. A property named like a team
+  // scope or auth arg (teamId, slug, token) is renamed instead; see
+  // globalArgName.
+  const injectedFields = new Set<string>();
   for (const pp of resource.parentParams) injectedFields.add(pp.paramName);
+  const argOf = (name: string) => globalArgName(resource, name);
+  const namingArg = argOf(resource.namingField);
 
   // --- GlobalArgsSchema ---
   const globalArgsProps = buildGlobalArgsProperties(resource, injectedFields);
@@ -246,16 +251,27 @@ export function generateVercelExtensionModel(
     `      execute: async (_args: Record<string, never>, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
+  // Create-only required fields are optional in GlobalArgsSchema so other
+  // methods can run without them; enforce them here before any API call.
+  const createRequired = resource.createRequiredProperties
+    .filter((k) => !injectedFields.has(k))
+    .map(argOf)
+    .sort();
+  if (createRequired.length > 0) {
+    lines.push(
+      `        const missing = ${
+        JSON.stringify(createRequired)
+      }.filter((k) => g[k] === undefined);`,
+    );
+    lines.push(
+      `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+    );
+  }
   lines.push(...createEp);
   lines.push(`        const body: Record<string, unknown> = {};`);
   for (const name of Object.keys(resource.createProperties)) {
     if (injectedFields.has(name)) continue;
-    const access = VALID_JS_IDENT.test(name)
-      ? `.${name}`
-      : `[${JSON.stringify(name)}]`;
-    lines.push(
-      `        if (g${access} !== undefined) body${access} = g${access};`,
-    );
+    lines.push(`        ${copyToBody(name, argOf(name))}`);
   }
   // Transform the body for APIs that expect non-standard shapes
   const bodyExpr = resource.bodyTransform === "wrapArray"
@@ -288,7 +304,7 @@ export function generateVercelExtensionModel(
   }
   lines.push(
     `        const instanceName = ${
-      wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
+      wrapWithSanitize(`g.${namingArg}?.toString() ?? "current"`)
     };`,
   );
   lines.push(
@@ -318,7 +334,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `g.${namingField}?.toString() ?? args.id`,
+          `g.${namingArg}?.toString() ?? args.id`,
         )
       };`,
     );
@@ -331,16 +347,18 @@ export function generateVercelExtensionModel(
   }
 
   // --- lookup method ---
-  const skipFields = new Set(["teamId", "slug", "token"]);
+  const skipFields = new Set<string>();
   for (const pp of resource.parentParams) skipFields.add(pp.paramName);
   if (resource.syntheticName && !allPropNames.has(resource.namingField)) {
     skipFields.add("name");
   }
   const filterFields = collectFilterableFields(resource, skipFields);
-  // Also add response-schema scalar fields as filterable for lookup
+  // Also add response-schema scalar fields as filterable for lookup. A
+  // response-only teamId/slug/token is not a resource global arg (the team
+  // scope args mean something else), so it is not a filter.
   const responseFilterFields = collectResponseFilterableFields(
     resource,
-    skipFields,
+    new Set([...skipFields, ...TEAM_SCOPE_ARGS]),
     new Set(filterFields),
   );
   const allFilterFields = [...filterFields, ...responseFilterFields];
@@ -360,9 +378,7 @@ export function generateVercelExtensionModel(
       `        const filters: [string, string][] = [];`,
     );
     for (const name of allFilterFields) {
-      const access = VALID_JS_IDENT.test(name)
-        ? `.${name}`
-        : `[${JSON.stringify(name)}]`;
+      const access = propAccess(argOf(name));
       lines.push(
         `        if (g${access} !== undefined) filters.push([${
           JSON.stringify(name)
@@ -407,7 +423,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `g.${namingField}?.toString() ?? result.${idField}?.toString() ?? "current"`,
+          `g.${namingArg}?.toString() ?? result.${idField}?.toString() ?? "current"`,
         )
       };`,
     );
@@ -441,7 +457,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `result.${namingField}?.toString() ?? g.${namingField}?.toString() ?? args.id`,
+          `result.${namingField}?.toString() ?? g.${namingArg}?.toString() ?? args.id`,
         )
       };`,
     );
@@ -468,7 +484,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `g.${namingField}?.toString() ?? args.identifier ?? "current"`,
+          `g.${namingArg}?.toString() ?? args.identifier ?? "current"`,
         )
       };`,
     );
@@ -491,22 +507,25 @@ export function generateVercelExtensionModel(
       : Object.keys(resource.createProperties).filter(
         (k) => !resource.createOnlyProperties.has(k),
       );
+    // Create-only required fields are optional in GlobalArgsSchema, so a
+    // full-replacement PUT update must still make sure it sends them.
+    const isFullReplacement = resource.updateMethod === "PUT";
+    const createRequiredSet = new Set(resource.createRequiredProperties);
+    const updateRequired: string[] = [];
     for (const name of updateKeys) {
       if (injectedFields.has(name)) continue;
-      const access = VALID_JS_IDENT.test(name)
-        ? `.${name}`
-        : `[${JSON.stringify(name)}]`;
-      lines.push(
-        `        if (g${access} !== undefined) body${access} = g${access};`,
-      );
+      lines.push(`        ${copyToBody(name, argOf(name))}`);
+      if (isFullReplacement && createRequiredSet.has(name)) {
+        updateRequired.push(name);
+      }
     }
     // A PUT body replaces the resource, so every field left unset in
     // globalArgs would be cleared or reset to its default. Fill unset fields
     // from the live resource, not stored state (which can be stale), so an
     // unset field keeps its current value. See liveFillFields for which
-    // fields qualify. The read reuses the update endpoint, so it needs an
-    // individual read at the same path.
-    const liveFill = resource.updateMethod === "PUT" &&
+    // fields qualify; create-required ones are always filled. The read reuses
+    // the update endpoint, so it needs an individual read at the same path.
+    const liveFill = isFullReplacement &&
         resource.hasIndividualRead &&
         resource.readBasePath === resource.updateBasePath
       ? liveFillFields(
@@ -515,6 +534,7 @@ export function generateVercelExtensionModel(
           ? resource.updateProperties
           : resource.createProperties,
         resource.resourceProperties,
+        new Set(updateRequired),
       )
       : [];
     if (liveFill.length > 0) {
@@ -537,6 +557,26 @@ export function generateVercelExtensionModel(
         `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
       );
       lines.push(`        }`);
+    }
+    if (updateRequired.length > 0) {
+      // Throw before the PUT rather than send a body that drops a field the
+      // resource requires.
+      lines.push(
+        `        const missingForUpdate = ${
+          JSON.stringify([...updateRequired].sort())
+        }.filter((k) => body[k] === undefined);`,
+      );
+      const renamed = Object.fromEntries(
+        updateRequired.filter((k) => argOf(k) !== k).map((k) => [k, argOf(k)]),
+      );
+      const names = Object.keys(renamed).length > 0
+        ? `missingForUpdate.map((k) => (${
+          JSON.stringify(renamed)
+        } as Record<string, string>)[k] ?? k)`
+        : "missingForUpdate";
+      lines.push(
+        `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + ${names}.join(", "));`,
+      );
     }
     lines.push(
       ...resultAssign(
@@ -569,7 +609,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `context.globalArgs.${namingField}?.toString() ?? args.id`,
+          `context.globalArgs.${namingArg}?.toString() ?? args.id`,
         )
       };`,
     );
@@ -603,7 +643,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `g.${namingField}?.toString() ?? args.identifier ?? "current"`,
+          `g.${namingArg}?.toString() ?? args.identifier ?? "current"`,
         )
       };`,
     );
@@ -691,6 +731,39 @@ function buildEndpointLines(resource: VercelResource, path: string): string[] {
   ];
 }
 
+/** Global args every model injects for team scoping and auth. */
+const TEAM_SCOPE_ARGS = new Set(["teamId", "slug", "token"]);
+
+/**
+ * The global arg name for a resource property. A property named like an
+ * injected team scope or auth arg would otherwise be shadowed by it and never
+ * sent (e.g. an Edge Config's own `slug`), so it is exposed as `resource`
+ * plus the capitalised name (`resourceSlug`) and mapped back to the API name
+ * in request bodies, checks and lookup filters.
+ */
+export function globalArgName(resource: VercelResource, name: string): string {
+  if (!TEAM_SCOPE_ARGS.has(name)) return name;
+  const renamed = `resource${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+  if (
+    renamed in resource.createProperties || renamed in resource.updateProperties
+  ) {
+    throw new Error(
+      `${resource.service}/${resource.modelSlug}: property ${name} cannot be renamed to ${renamed}, which is also a property`,
+    );
+  }
+  return renamed;
+}
+
+function propAccess(name: string): string {
+  return VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
+}
+
+/** `if (g.<arg> !== undefined) body.<api> = g.<arg>;` */
+function copyToBody(apiName: string, argName: string): string {
+  const g = `g${propAccess(argName)}`;
+  return `if (${g} !== undefined) body${propAccess(apiName)} = ${g};`;
+}
+
 function buildGlobalArgsProperties(
   resource: VercelResource,
   injectedFields: Set<string>,
@@ -705,17 +778,16 @@ function buildGlobalArgsProperties(
   for (const [name, prop] of Object.entries(allProps)) {
     if (injectedFields.has(name)) continue;
     const baseExpr = generateFullFidelityZod(prop);
-    const qName = quoteProp(name);
+    const qName = quoteProp(globalArgName(resource, name));
     let line = `${qName}: ${baseExpr}`;
 
     if (prop.description) {
       line += `.describe(${JSON.stringify(prop.description)})`;
     }
 
-    const isRequired = resource.requiredProperties.includes(name);
-    if (!isRequired) {
-      line += `.optional()`;
-    }
+    // Every resource field is optional: create-required ones are enforced by
+    // the generated create method (see createRequiredProperties).
+    line += `.optional()`;
 
     result.push({ line, nameOnly: qName, baseExpr });
   }

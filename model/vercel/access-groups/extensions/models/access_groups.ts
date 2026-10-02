@@ -41,7 +41,7 @@ const GlobalArgsSchema = z.object({
   ),
   name: z.string().max(50).regex(new RegExp("^[A-z0-9_ -]+$")).describe(
     "The name of the access group",
-  ),
+  ).optional(),
   projects: z.array(z.object({
     projectId: z.string().max(256),
     role: z.enum(["ADMIN", "PROJECT_VIEWER", "PROJECT_DEVELOPER"]),
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Access Groups. Registered at `@swamp/vercel/access-groups/access-groups`. */
 export const model = {
   type: "@swamp/vercel/access-groups/access-groups",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -132,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -149,6 +154,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/access-groups";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

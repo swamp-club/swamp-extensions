@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
     repoPath: z.string().optional(),
     gitUserId: z.string().optional(),
     gitUserLogin: z.string().optional(),
-  }),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Vercel API token; overrides the VERCEL_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -121,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Request. Registered at `@swamp/vercel/teams/request`. */
 export const model = {
   type: "@swamp/vercel/teams/request",
-  version: "2026.09.16.1",
+  version: "2026.10.01.1",
   upgrades: [
     {
       toVersion: "2026.08.01.2",
@@ -168,6 +168,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -185,6 +190,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["joinedFrom"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/v1/teams/" + encodeURIComponent(g.teamId) +
           "/request";
         const body: Record<string, unknown> = {};
