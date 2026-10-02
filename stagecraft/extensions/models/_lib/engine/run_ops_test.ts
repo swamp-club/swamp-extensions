@@ -637,6 +637,14 @@ Deno.test("recordApproval: a finished run takes no decisions", async () => {
   assert(!late.ok && late.reason.includes("finished"));
 });
 
+Deno.test("reset: the work's title stays, as the key does", () => {
+  const env = testEnv();
+  const run = { ...fresh(env), title: "Add a board view" };
+  const result = reset(run, DEFINITION, expectedOf(run), ALICE, env);
+  assert(result.ok);
+  assertEquals(result.run.title, "Add a board view");
+});
+
 Deno.test("reset: a finished run can be started over", async () => {
   const env = testEnv();
   const run = fresh(env);

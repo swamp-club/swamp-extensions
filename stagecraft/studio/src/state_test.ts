@@ -20,15 +20,19 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   api,
+  board,
   copyEntry,
   discardWalk,
+  factories,
   factory,
   flashText,
   frameIndex,
   frames,
+  go,
   goFrame,
   listen,
   loadDefinitionFile,
+  mode,
   pickScenario,
   playing,
   reloadFactories,
@@ -40,6 +44,7 @@ import {
   takeStep,
   walk,
   walkPlayed,
+  workItemKey,
 } from "./state.ts";
 import { exampleText, modelPath, raisePlanLimit } from "./test_support.ts";
 
@@ -254,5 +259,97 @@ Deno.test("state: after its event stream reconnects, the page reads the list and
   } finally {
     globalThis.fetch = realFetch;
     globalThis.EventSource = realEventSource;
+  }
+});
+
+// --- the address -------------------------------------------------------------------
+
+/** A browser's address bar and history, for the routing tests. */
+function withAddress(start: string) {
+  const g = globalThis as unknown as Record<string, unknown>;
+  const before = { location: g.location, history: g.history };
+  const pushed: string[] = [];
+  const location = { pathname: start };
+  g.location = location;
+  g.history = {
+    pushState: (_: unknown, __: string, href: string) => {
+      pushed.push(href);
+      location.pathname = href;
+    },
+    replaceState: (_: unknown, __: string, href: string) => {
+      location.pathname = href;
+    },
+  };
+  return {
+    location,
+    pushed,
+    restore() {
+      g.location = before.location;
+      g.history = before.history;
+      mode.value = "design";
+      workItemKey.value = null;
+    },
+  };
+}
+
+Deno.test("state: each view is an address: the tabs and the picker push it, and a work item's page keeps its own", async () => {
+  const text = await exampleText(NAME);
+  const address = withAddress("/");
+  const asked: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (input: string | URL | Request) => {
+    const url = String(input);
+    asked.push(url);
+    const body = url.startsWith("/api/work-items")
+      ? { factory: NAME, items: [], problems: [] }
+      : { path: modelPath(NAME), text, digest: "sha256:x" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  try {
+    await selectFactory(NAME, "push");
+    assertEquals(address.location.pathname, `/f/${NAME}/design`);
+    await go({ view: "board", factory: NAME });
+    assertEquals(mode.value, "board");
+    assertEquals(address.location.pathname, `/f/${NAME}/board`);
+    // Asking for the board keeps the server's poll of its work items alive.
+    for (let i = 0; i < 10 && board.value === null; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    assert(asked.includes(`/api/work-items?factory=${NAME}`), asked.join());
+    assertEquals(board.value?.factory, NAME);
+    await go({ view: "work-item", key: "team-a" });
+    assertEquals([mode.value, workItemKey.value], ["work-item", "team-a"]);
+    assertEquals(address.location.pathname, "/w/team-a");
+    // The picker on a work item's page leaves its address alone.
+    await selectFactory(NAME, "push");
+    assertEquals(address.location.pathname, "/w/team-a");
+    assertEquals(address.pushed, [
+      `/f/${NAME}/design`,
+      `/f/${NAME}/board`,
+      "/w/team-a",
+    ]);
+    // Going to the view already shown adds no entry.
+    await go({ view: "work-item", key: "team-a" });
+    assertEquals(address.pushed.length, 3);
+  } finally {
+    globalThis.fetch = real;
+    address.restore();
+  }
+});
+
+Deno.test("state: an address naming a factory the repo does not have says so", async () => {
+  const address = withAddress("/");
+  try {
+    factories.value = [{ name: NAME, path: modelPath(NAME) }];
+    await go({ view: "simulate", factory: "nobody" });
+    assertEquals(mode.value, "simulate");
+    assert(factory.value !== "nobody");
+    assertEquals(flashText.value, "no factory named 'nobody'");
+  } finally {
+    address.restore();
   }
 });

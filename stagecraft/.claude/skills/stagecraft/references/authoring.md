@@ -219,7 +219,7 @@ tracker:
 ```sh
 swamp model method run <factory> new_key --input 'title=<title>'
 swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=<factory>
+  --input factory=<factory> --input 'title=<title>'
 swamp model @swamp/stagecraft/work-item method run status <key>
 ```
 

@@ -285,11 +285,15 @@ swamp model method run team validate       # that, the graph, scenarios
 # build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
 swamp model method run team new_key --input 'title=Add a list method'
 
-# A work item, named by that key.
+# A work item, named by that key. The title is kept in its run record, for
+# the studio's Board; new_key prints this command with it filled in.
 swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=team
+  --input factory=team --input 'title=Add a list method'
 swamp model @swamp/stagecraft/work-item method run status <key>
 ```
+
+`title` is optional: a work item started without one shows its key where a
+title would be.
 
 `status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
 `expectedEra` every write must pass back; each exit's readiness, with its
@@ -339,6 +343,27 @@ shows them as the agent saves.
   payload a saved scenario uses, and the engine goes on from there. **Copy as
   scenario** gives the walk as one entry for `globalArguments.scenarios`, to
   paste to the agent, which saves it. Space plays, ← and → step.
+- **Board** lists every work item started on the factory, in a column for its
+  stage, in the order Design draws the stages; a work item in a stage the
+  current definition no longer has gets a column of its own at the end.
+  Finished stages show a count, and **Show finished** lists their work items.
+  Each card shows the title (else the key), the ticket's display id, time in
+  the stage, the cycle when above 1, and, in words and colour: **waiting on a
+  person** (the exits a person holds, as the run's `awaiting` events record
+  them, and for how long), **parked** at the dispatch cap or by a cycle limit
+  (an exit whose gates all pass but whose target stage is at its limit, so only
+  a cycle override lets it through), and **stale pin** (pinned to another
+  definition than the file's current one). Filters keep any of those, and
+  search matches the key or title. A column shows 50 cards, then **Show
+  more**. The cards move as work items change: while a board is open, `serve`
+  reads each of its work items' run record versions every 3 seconds and tells
+  the page when one is written, added or removed. **Keyboard:** each column is
+  one tab stop; ↑ and ↓ move between its cards, ← and → to the next column's,
+  Home and End to the first and last, and Enter opens the work item.
+- **Addresses:** each view has its own path: `/f/<factory>/design`,
+  `/f/<factory>/simulate`, `/f/<factory>/board`, and `/w/<key>` for one work
+  item. `/` opens the last factory you looked at. Back and forward move between
+  views.
 
 ```bash
 # Once per repo.
@@ -349,8 +374,11 @@ swamp model method run studio serve --input port=8123   # a fixed port
 ```
 
 The server listens on 127.0.0.1 only, answers only requests addressed to it from
-its own page, and serves nothing but the page and each factory's model
-definition file, at the path swamp's definition repository gives. `serve` holds the
+its own page, and serves nothing but the page, each factory's model
+definition file, at the path swamp's definition repository gives, and what
+the Board needs of its work items, which it reads with swamp's data query
+(`GET /api/work-items?factory=<name>`), so it works whatever datastore holds
+them. `serve` holds the
 studio's lock while it runs, so a second `serve` of the same studio waits; it
 never takes a factory's lock. See [DESIGN.md](DESIGN.md), "The studio server".
 
@@ -531,7 +559,7 @@ With no work item for the ticket, `claim` reserves a fresh key (the ticket's
 display id, then its title, then a random suffix: `abc-12-add-list-k3xq` for a
 Linear issue; a built-in ticket's first work item takes the ticket's own id),
 records it in the adapter's ticket index (`ticket-<stable id>`), and prints the
-work-item `start` command to run, with the ticket's `externalRefs`. The record
+work-item `start` command to run, with the ticket's `externalRefs` and title. The record
 is written before the work item starts, so if anything fails in between, `claim`
 again hands back the same key and command. If the reserved factory no longer
 loads, claiming with another factory moves the reservation to it under the

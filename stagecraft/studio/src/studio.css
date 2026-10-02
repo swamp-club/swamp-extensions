@@ -1978,3 +1978,199 @@ button.finding:hover,
     scroll-behavior: auto !important;
   }
 }
+
+/* the Board: a column per stage, a card per work item */
+.board-mode {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+.board-tools {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.board-tools .sep {
+  flex: 1;
+}
+.filter {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 24px;
+}
+.filter input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+.filter.search input {
+  background: var(--panel);
+  border: 1px solid var(--rule-2);
+  color: var(--text);
+  font: 12.5px var(--mono);
+  padding: 4px 8px;
+  min-height: 26px;
+  width: 22ch;
+}
+.filter.search input::placeholder {
+  color: var(--faint);
+}
+.board-count {
+  margin: 8px 12px 0;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+.board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  overflow: auto;
+  align-items: flex-start;
+}
+.col {
+  flex: 0 0 260px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+.col.terminal {
+  flex-basis: 200px;
+  background: var(--canvas);
+}
+.col.unknown {
+  border-style: dashed;
+}
+.col-head {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+  font: 700 11px var(--display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.col-name {
+  overflow-wrap: anywhere;
+}
+.col-count {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+.col-note {
+  margin: 6px 10px 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.col-cards {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule-2);
+  border-left-width: 3px;
+  background: var(--panel-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.card:hover {
+  border-color: var(--muted);
+}
+/* The edge shows the most pressing state: a person waited on, then a
+   park, then a stale pin. Each is also written on the card. */
+.card.stale {
+  border-left-color: var(--pink);
+}
+.card.parked {
+  border-left-color: var(--orange);
+}
+.card.waiting {
+  border-left-color: var(--gold);
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+.card-key {
+  overflow-wrap: anywhere;
+}
+.card-ref {
+  flex: none;
+  color: var(--cyan);
+}
+.card-title {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+.card-title.untitled {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.card-meta {
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+.badge {
+  font: 700 10.5px var(--mono);
+  letter-spacing: .02em;
+  padding: 2px 6px;
+  border: 1px solid;
+  overflow-wrap: anywhere;
+}
+.b-wait {
+  color: var(--gold);
+  background: rgba(251, 191, 36, .08);
+}
+.b-park {
+  color: var(--orange);
+  background: rgba(251, 146, 60, .08);
+}
+.b-stale {
+  color: var(--pink);
+  background: rgba(240, 98, 168, .08);
+}
+.card-problem {
+  font-size: 11.5px;
+  color: #fbc4c4;
+}
+.more {
+  margin: 0 8px 8px;
+  background: transparent;
+  border: 1px solid var(--rule-2);
+  color: var(--muted);
+  padding: 4px 8px;
+  min-height: 26px;
+}
+.more:hover {
+  color: var(--text);
+}
+.board-mode .problem ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

@@ -199,7 +199,9 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
   // The snapshot and the index record.
   assertEquals(output.dataHandles.length, 2);
   assert(
-    lastSummary(swamp).endsWith(startCommand(record.key, "team", REFS)),
+    lastSummary(swamp).endsWith(
+      startCommand(record.key, "team", REFS, "A ticket"),
+    ),
     lastSummary(swamp),
   );
   assertEquals(writes, [], "claim never writes to the tracker");
@@ -220,7 +222,10 @@ Deno.test("claim: a crash before start leaves a reservation that the next claim 
   assertEquals(again.dataHandles.length, 1, "only the snapshot");
   const summary = lastSummary(swamp);
   assert(summary.includes("not started yet"), summary);
-  assert(summary.endsWith(startCommand(record.key, "team", REFS)), summary);
+  assert(
+    summary.endsWith(startCommand(record.key, "team", REFS, "A ticket")),
+    summary,
+  );
 });
 
 Deno.test("claim: a reservation under one factory refuses another", async () => {
@@ -265,7 +270,7 @@ Deno.test("claim: a reservation whose factory no longer loads moves to another u
     summary,
   );
   assert(
-    summary.endsWith(startCommand(reserved.key, "other", REFS)),
+    summary.endsWith(startCommand(reserved.key, "other", REFS, "A ticket")),
     summary,
   );
   await start(swamp, reserved.key, "other");
@@ -335,10 +340,19 @@ Deno.test("claim: a failed snapshot write leaves the claim standing and logs a w
 
 Deno.test("claim: the printed start command quotes the key", () => {
   assert(
-    startCommand("t-1-ticket-abcd", "team", REFS).includes(
+    startCommand("t-1-ticket-abcd", "team", REFS, "A ticket").includes(
       "method run start 't-1-ticket-abcd' --input",
     ),
   );
+});
+
+Deno.test("claim: the printed start command carries the ticket's title, quoted, and leaves a blank one out", () => {
+  assert(
+    startCommand("k", "team", REFS, " Don't break it ").includes(
+      `--input 'title=Don'\\''t break it' --input`,
+    ),
+  );
+  assert(!startCommand("k", "team", REFS, "  ").includes("title="));
 });
 
 Deno.test("claim: a started work item is reported, not started twice", async () => {

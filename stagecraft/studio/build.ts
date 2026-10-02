@@ -71,6 +71,7 @@ export const ENGINE_INPUTS = [
   "run_record.ts",
   "run_store.ts",
   "scenario.ts",
+  "studio_cards.ts",
   "template.ts",
   "tracker_binding.ts",
 ];

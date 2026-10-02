@@ -15,7 +15,15 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { isAbsolute, relative, SEPARATOR } from "jsr:@std/path@1.1.4";
+import { type Env, systemEnv } from "./run_ops.ts";
 import type { RepoFiles } from "./studio_files.ts";
+import { FACTORY_VIEWS } from "./studio_cards.ts";
+import {
+  type QueryData,
+  readBoard,
+  runsPredicate,
+  type WorkItemWatch,
+} from "./studio_work_items.ts";
 import { FACTORY_TYPE, typeNameOf } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
@@ -24,7 +32,12 @@ import { FACTORY_TYPE, typeNameOf } from "./work_item_ops.ts";
 // reads is a factory's model definition file, at the path swamp's definition
 // repository gives: a request names a factory, never a path. The model
 // definition holds the factory definition and its saved scenarios, so one
-// file and one change event cover both.
+// file and one change event cover both. Work items are read through swamp's
+// data query (studio_work_items.ts), never from files.
+//
+// The page is served on each view's path, so every view has an address a
+// person can reload, bookmark or share: / and /f/<factory>/<view> for the
+// factory views, /w/<key> for a work item.
 //
 // A request is refused before routing when:
 // - its Host is not 127.0.0.1:<port> or localhost:<port> (DNS rebinding);
@@ -75,7 +88,9 @@ export interface StudioAsset {
 /** A file an agent changed, as the page hears of it. */
 export type StudioEvent =
   | { kind: "factories" }
-  | { kind: "definition"; factory: string };
+  | { kind: "definition"; factory: string }
+  /** A run record of a factory's work items was written, added or removed. */
+  | { kind: "work-items"; factory: string };
 
 export interface StudioEvents {
   /** Returns the unsubscribe function. */
@@ -92,6 +107,15 @@ export interface StudioDeps {
   /** The page's files by served name; "index.html" is served at /. */
   assets: Readonly<Record<string, StudioAsset>>;
   events: StudioEvents;
+  /**
+   * swamp's data query, from the method context, for work items. Without
+   * it, the work-item routes answer that the studio cannot read them.
+   */
+  query?: QueryData;
+  /** The poll that tells the page when work items change. */
+  workItems?: WorkItemWatch;
+  /** The clock cards measure time against; the system's by default. */
+  env?: Env;
   /**
    * The factories listed before, by name, with their model definition files,
    * so a factory whose file swamp skips stays listed (see listFactories).
@@ -140,13 +164,28 @@ function error(status: number, message: string): Response {
 }
 
 /**
- * Opening the page from a link in another site or app: a top-level GET of /
- * that the browser shows the person. The linking page cannot read it, and
- * frame-ancestors 'none' keeps it out of frames, so it is let through;
- * nothing else from another site is.
+ * Whether a path is one the page is served on: /, a factory view
+ * (/f/<factory>/<view>), or a work item (/w/<key>). The page reads the rest
+ * of the address itself.
+ */
+export function isPagePath(parts: string[]): boolean {
+  if (parts.length === 0) return true;
+  if (parts[0] === "f") {
+    return parts.length === 3 && parts[1] !== "" &&
+      (FACTORY_VIEWS as readonly string[]).includes(parts[2]);
+  }
+  return parts[0] === "w" && parts.length === 2 && parts[1] !== "";
+}
+
+/**
+ * Opening the page from a link in another site or app: a top-level GET of a
+ * page path that the browser shows the person. The linking page cannot read
+ * it, and frame-ancestors 'none' keeps it out of frames, so it is let
+ * through; nothing else from another site is.
  */
 function pageNavigation(req: Request): boolean {
-  return req.method === "GET" && new URL(req.url).pathname === "/" &&
+  const parts = segments(new URL(req.url).pathname);
+  return req.method === "GET" && parts !== null && isPagePath(parts) &&
     req.headers.get("sec-fetch-mode") === "navigate" &&
     req.headers.get("sec-fetch-dest") === "document";
 }
@@ -341,6 +380,39 @@ function eventStream(deps: StudioDeps): Response {
   });
 }
 
+/**
+ * The board's work items: a card for each work item started on the
+ * factory, and what could not be read. The factory must be one the repo
+ * lists; asking also keeps its poll alive, so the page hears of changes.
+ */
+async function workItems(
+  deps: StudioDeps,
+  factory: string | null,
+): Promise<Response> {
+  if (factory === null || factory === "") {
+    return error(400, "name a factory: /api/work-items?factory=<name>");
+  }
+  if (deps.query === undefined) {
+    return error(422, "this studio cannot read work items");
+  }
+  try {
+    const { entries } = await listFactories(deps.factories, deps.repoDir);
+    if (!entries.some((f) => f.name === factory)) {
+      return error(404, `no factory named '${factory}'`);
+    }
+    // Live updates degrade, never the board: a poll that cannot start is
+    // asked for again on the page's next read.
+    await deps.workItems?.ask(
+      { kind: "work-items", factory },
+      runsPredicate(factory),
+    ).catch(() => {});
+    const board = await readBoard(deps.query, factory, deps.env ?? systemEnv);
+    return json({ factory, items: board.cards, problems: board.problems });
+  } catch (e) {
+    return error(422, message(e));
+  }
+}
+
 function segments(pathname: string): string[] | null {
   try {
     return pathname.split("/").filter((s) => s !== "").map(decodeURIComponent);
@@ -360,13 +432,16 @@ export async function handleStudioRequest(
   const parts = segments(url.pathname);
   if (parts === null) return error(400, "the path is not valid");
 
-  if (parts.length === 0) return asset(deps, "index.html");
+  if (isPagePath(parts)) return asset(deps, "index.html");
   if (parts[0] === "assets" && parts.length >= 2) {
     return asset(deps, parts.slice(1).join("/"));
   }
   if (parts[0] !== "api") return error(404, "not found");
   if (parts.length === 2 && parts[1] === "events") {
     return eventStream(deps);
+  }
+  if (parts.length === 2 && parts[1] === "work-items") {
+    return await workItems(deps, url.searchParams.get("factory"));
   }
   if (parts[1] !== "factories") return error(404, "not found");
 

@@ -149,6 +149,8 @@ function stageOf(definition: FactoryDefinition, run: RunRecord): StageSpec {
 
 export interface StartInput {
   key: string;
+  /** The work's title, if given. */
+  title?: string;
   /** The factory the work item starts in: its model's name. */
   factory: string;
   externalRefs?: Record<string, string>;
@@ -171,6 +173,7 @@ export function start(
   const run: RunRecord = {
     schemaVersion: RUN_SCHEMA_VERSION,
     key: input.key,
+    ...(input.title !== undefined ? { title: input.title } : {}),
     externalRefs: input.externalRefs ?? {},
     tracker: { ...input.tracker },
     factory: input.factory,

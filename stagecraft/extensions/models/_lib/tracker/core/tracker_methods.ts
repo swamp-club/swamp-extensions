@@ -28,9 +28,11 @@ import {
   type ModelDataRecord,
   parseRun,
   payloadName,
+  recordObject,
   RUN_NAME,
   RUN_SPEC,
   type RunRecord,
+  safePart,
 } from "../../engine/tracker.ts";
 import {
   type ClaimContext,
@@ -171,18 +173,6 @@ export interface TrackerContext extends ClaimContext {
   globalArgs?: Record<string, unknown>;
   /** A CEL query over all data; one that names `version` reaches history. */
   queryData?(predicate: string, select?: string): Promise<unknown[]>;
-}
-
-// Record names come from ids and keys; keep them to a path-safe alphabet.
-const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-function safePart(what: string, value: string): string {
-  if (!SAFE.test(value) || value.includes("..")) {
-    throw new Error(
-      `${what} '${value}' can only use letters, digits, '.', '_' and '-'`,
-    );
-  }
-  return value;
 }
 
 /**
@@ -846,30 +836,6 @@ const publishArguments = z.object({
     "The work item's name (its key); its externalRefs name the ticket",
   ),
 });
-
-/**
- * A record's data as an object: its content, or its attributes. swamp
- * parses JSON content for readModelData and queryData, but a query result
- * may carry it as the JSON text instead, so that is parsed here; anything
- * else is no object.
- */
-function recordObject(record: unknown): Record<string, unknown> | null {
-  const r = record !== null && typeof record === "object"
-    ? record as { content?: unknown; attributes?: unknown }
-    : {};
-  let content = r.content ?? r.attributes;
-  if (typeof content === "string") {
-    try {
-      content = JSON.parse(content);
-    } catch {
-      return null;
-    }
-  }
-  return content !== null && typeof content === "object" &&
-      !Array.isArray(content)
-    ? content as Record<string, unknown>
-    : null;
-}
 
 /**
  * One handle per record name, the last written: swamp refuses a method's

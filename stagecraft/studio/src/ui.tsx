@@ -92,7 +92,7 @@ export function Tabs<T extends string>(props: {
       aria-label={props.label}
       onKeyDown={onKey}
     >
-      {props.tabs.map(([k, text]) => (
+      {props.tabs.map(([k, text], i) => (
         <button
           type="button"
           role="tab"
@@ -101,7 +101,12 @@ export function Tabs<T extends string>(props: {
           id={`tab-${k}`}
           aria-selected={props.value === k}
           aria-controls={props.controls}
-          tabIndex={props.value === k ? 0 : -1}
+          // With no tab selected (a view the tabs do not list), the first
+          // still takes the tab stop.
+          tabIndex={props.value === k ||
+              (i === 0 && !props.tabs.some(([t]) => t === props.value))
+            ? 0
+            : -1}
           onClick={() => props.onChange(k)}
         >
           {text}

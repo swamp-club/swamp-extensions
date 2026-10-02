@@ -399,7 +399,8 @@ Deno.test("factory: new_key logs and records an unused key for this factory", as
   assert(!swamp.definitions.has(key));
   assert(
     String(swamp.logs.at(-1)?.props?.next).includes(
-      `run start ${key} --input factory=team`,
+      `run start ${key} --input 'factory=team' ` +
+        `--input 'title=Add JSON output to status'`,
     ),
   );
 });

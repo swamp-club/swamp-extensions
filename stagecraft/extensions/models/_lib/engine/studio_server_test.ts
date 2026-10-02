@@ -21,6 +21,15 @@ import {
   type StudioDeps,
   type StudioEvent,
 } from "./studio_server.ts";
+import { digestOf, jsonSafe } from "./canonical.ts";
+import { start } from "./run_ops.ts";
+import { type QueryData, watchWorkItems } from "./studio_work_items.ts";
+import {
+  ALICE,
+  settableEnv,
+  smallDefinition,
+  TEST_TRACKER,
+} from "./test_support.ts";
 import { FACTORY_TYPE } from "./work_item_ops.ts";
 
 // The studio's handler on an in-memory repo: each route, each refusal, and
@@ -153,6 +162,144 @@ Deno.test("studio: / and /assets serve the page, text and binary", async () => {
     const res = await handleStudioRequest(get(path), deps);
     assertEquals(res.status, 404, path);
     assertSecurityHeaders(res);
+    await res.body?.cancel();
+  }
+});
+
+Deno.test("studio: the page is served on each view's path, and nowhere else", async () => {
+  const { deps } = setup();
+  for (
+    const path of [
+      "/f/team/design",
+      "/f/team/simulate",
+      "/f/team/board",
+      "/w/team-add-board-k3xq",
+    ]
+  ) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 200, path);
+    assertEquals(await res.text(), "<!doctype html>", path);
+  }
+  for (
+    const path of [
+      "/f",
+      "/f/team",
+      "/f/team/nope",
+      "/f/team/board/more",
+      "/w",
+      "/w/a/b",
+    ]
+  ) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 404, path);
+    await res.body?.cancel();
+  }
+});
+
+/** A query over one titled work item of team, as swamp's would answer. */
+async function workItemQuery(): Promise<QueryData & { asked: string[] }> {
+  const definition = smallDefinition();
+  const digest = await digestOf(definition);
+  const run = start(
+    definition,
+    {
+      key: "team-a",
+      title: "Add a board",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: digest,
+      definitionVersion: 1,
+    },
+    ALICE,
+    settableEnv("2026-10-02T10:00:00.000Z"),
+  );
+  const asked: string[] = [];
+  const query = (predicate: string, select?: string) => {
+    asked.push(predicate);
+    if (select !== undefined) return Promise.resolve([["team-a", 1]]);
+    if (predicate.includes('name == "run"')) {
+      return Promise.resolve([{
+        modelName: "team-a",
+        attributes: JSON.parse(JSON.stringify(run)),
+      }]);
+    }
+    return Promise.resolve([{
+      modelName: "team-a",
+      attributes: { factory: "team", digest, definition: jsonSafe(definition) },
+    }]);
+  };
+  return Object.assign(query, { asked });
+}
+
+Deno.test("studio: /api/work-items gives the board a card per work item of the factory, and keeps its poll alive", async () => {
+  const { deps } = setup();
+  const query = await workItemQuery();
+  const told: StudioEvent[] = [];
+  deps.query = query;
+  deps.workItems = watchWorkItems(query, (e) => told.push(e));
+  deps.env = settableEnv("2026-10-02T11:00:00.000Z");
+  const res = await handleStudioRequest(
+    get("/api/work-items?factory=team"),
+    deps,
+  );
+  assertEquals(res.status, 200);
+  assertSecurityHeaders(res);
+  const answer = await body(res);
+  assertEquals(answer.factory, "team");
+  assertEquals(answer.problems, []);
+  const [card] = answer.items as Record<string, unknown>[];
+  assertEquals(card.key, "team-a");
+  assertEquals(card.title, "Add a board");
+  assertEquals(card.stage, "write");
+  assertEquals(deps.workItems.size(), 1);
+  assert(
+    query.asked.every((p) => p.includes('"team-a"') || p.includes('"team"')),
+    query.asked.join("\n"),
+  );
+});
+
+Deno.test("studio: a poll that cannot start leaves the board readable", async () => {
+  const { deps } = setup();
+  const query = await workItemQuery();
+  deps.query = query;
+  deps.workItems = watchWorkItems(
+    (predicate, select) =>
+      select === undefined
+        ? query(predicate)
+        : Promise.reject(new Error("no projections here")),
+    () => {},
+  );
+  const res = await handleStudioRequest(
+    get("/api/work-items?factory=team"),
+    deps,
+  );
+  assertEquals(res.status, 200);
+  assertEquals((await body(res)).factory, "team");
+});
+
+Deno.test("studio: /api/work-items needs a factory the repo lists, and a query to read with", async () => {
+  const { deps } = setup();
+  const answers: [string, number][] = [
+    ["/api/work-items", 400],
+    ["/api/work-items?factory=", 400],
+    ["/api/work-items?factory=team", 422],
+  ];
+  for (const [path, status] of answers) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, status, path);
+    await res.body?.cancel();
+  }
+  deps.query = await workItemQuery();
+  for (
+    const [path, status] of [
+      ["/api/work-items?factory=nobody", 404],
+      ["/api/work-items?factory=issue-1", 404],
+      // One work item's route is the work-item page's (#2944).
+      ["/api/work-items/team-a", 404],
+    ] as [string, number][]
+  ) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, status, path);
     await res.body?.cancel();
   }
 });
@@ -395,7 +542,15 @@ Deno.test("studio: a cross-site fetch is refused even without an Origin", async 
 Deno.test("studio: anything but GET gets 405, on every route", async () => {
   const { deps } = setup();
   for (const method of ["POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]) {
-    for (const path of ["/", "/api/factories/team", "/api/events"]) {
+    for (
+      const path of [
+        "/",
+        "/api/factories/team",
+        "/api/events",
+        "/api/work-items?factory=team",
+        "/f/team/board",
+      ]
+    ) {
       const res = await handleStudioRequest(get(path, {}, method), deps);
       assertEquals(res.status, 405, `${method} ${path}`);
       assertEquals(res.headers.get("allow"), "GET");
@@ -495,14 +650,18 @@ Deno.test("studio: an event stream opened as the server stops closes at once", a
 Deno.test("studio: opening the page from a link in another site is allowed, and nothing else is", async () => {
   const { deps } = setup();
   const nav = { "sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate" };
-  const page = await handleStudioRequest(
-    get("/", { ...nav, "sec-fetch-dest": "document" }),
-    deps,
-  );
-  assertEquals(page.status, 200);
-  await page.body?.cancel();
+  for (const path of ["/", "/f/team/board", "/w/team-a"]) {
+    const page = await handleStudioRequest(
+      get(path, { ...nav, "sec-fetch-dest": "document" }),
+      deps,
+    );
+    assertEquals(page.status, 200, path);
+    await page.body?.cancel();
+  }
   const refused: [string, Record<string, string>][] = [
     ["/api/factories", { ...nav, "sec-fetch-dest": "document" }],
+    ["/api/work-items?factory=team", { ...nav, "sec-fetch-dest": "document" }],
+    ["/f/team/nope", { ...nav, "sec-fetch-dest": "document" }],
     ["/assets/fonts/a.woff2", { ...nav, "sec-fetch-dest": "document" }],
     ["/", { ...nav, "sec-fetch-dest": "iframe" }],
     ["/", {

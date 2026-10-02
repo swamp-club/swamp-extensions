@@ -28,6 +28,13 @@ import {
 import { ANY_ID, layout } from "./layout.ts";
 import { loadDefinition, type Loaded } from "./model.ts";
 import { navModel } from "./nav.ts";
+import {
+  type FactoryView,
+  parseRoute,
+  type Route,
+  routeHref,
+  sameRoute,
+} from "./route.ts";
 import { referenceLine } from "./reference.ts";
 import { follow, type Target, targetKey } from "./selection.ts";
 import {
@@ -44,6 +51,11 @@ import {
   walkScenario,
 } from "./simulate.ts";
 import type { ScenarioStep } from "../../extensions/models/_lib/engine/scenario.ts";
+import type {
+  BoardCard,
+  WorkItemProblem,
+} from "../../extensions/models/_lib/engine/studio_cards.ts";
+import { type BoardFilter, NO_FILTER } from "./board.ts";
 
 export interface FactoryEntry {
   name: string;
@@ -59,11 +71,13 @@ export interface FileText {
 
 export type StudioEvent =
   | { kind: "factories" }
-  | { kind: "definition"; factory: string };
+  | { kind: "definition"; factory: string }
+  | { kind: "work-items"; factory: string };
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
-export type Mode = "design" | "simulate";
+/** The view shown: a factory view, or one work item. */
+export type Mode = Route["view"];
 export type PanelTab = "inspect" | "findings" | "source";
 export type SimTab = "run" | "journal" | "metrics" | "scenarios";
 
@@ -79,6 +93,21 @@ export const sourceError = signal<string | null>(null);
 export const live = signal(false);
 export const flashText = signal<string | null>(null);
 export const mode = signal<Mode>("design");
+/** The work item a /w/<key> address names. */
+export const workItemKey = signal<string | null>(null);
+
+// The Board.
+/** The factory's work items as last read; null before the first read. */
+export const board = signal<
+  { factory: string; items: BoardCard[]; problems: WorkItemProblem[] } | null
+>(null);
+export const boardError = signal<string | null>(null);
+export const boardFilter = signal<BoardFilter>(NO_FILTER);
+export const showFinished = signal(false);
+/** How many cards each column shows, where Show more was pressed. */
+export const shown = signal<Record<string, number>>({});
+/** The time cards measure against; ticks so durations stay current. */
+export const clock = signal(Date.now());
 export const panelTab = signal<PanelTab>("inspect");
 export const sourceScope = signal<"stage" | "file">("stage");
 
@@ -267,10 +296,13 @@ export async function copyReference(target: Target) {
   }
 }
 
-export async function loadFactories() {
+export async function loadFactories(asked: string | null = null) {
   const found = await getJson<{ factories: FactoryEntry[] }>("/api/factories");
   factories.value = found.factories;
-  const wanted = factory.value ?? rememberedFactory();
+  if (asked !== null && !found.factories.some((f) => f.name === asked)) {
+    flash(`no factory named '${asked}'`);
+  }
+  const wanted = factory.value ?? asked ?? rememberedFactory();
   const pick = found.factories.find((f) => f.name === wanted)?.name ??
     found.factories[0]?.name ?? null;
   if (pick === null) {
@@ -356,7 +388,106 @@ async function readDefinition(): Promise<boolean> {
   return result.ok;
 }
 
-export async function selectFactory(name: string) {
+// --- the address -----------------------------------------------------------------
+
+/** The route the page shows now. */
+export function currentRoute(): Route {
+  const view = mode.value;
+  return view === "work-item"
+    ? { view, key: workItemKey.value ?? "" }
+    : { view, factory: factory.value };
+}
+
+/** Put the current route in the address bar: a new entry, or in place. */
+function writeAddress(how: "push" | "replace") {
+  // Outside a browser (the unit tests) there is no address to write.
+  if (typeof location === "undefined" || typeof history === "undefined") {
+    return;
+  }
+  const href = routeHref(currentRoute());
+  if (href === location.pathname) return;
+  if (how === "push") history.pushState(null, "", href);
+  else history.replaceState(null, "", href);
+}
+
+/** Show a view: another factory view, or a work item. */
+export async function go(next: Route) {
+  if (sameRoute(next, currentRoute())) return;
+  await showRoute(next);
+  writeAddress("push");
+}
+
+/** Show what a route names, leaving the address alone. */
+async function showRoute(next: Route) {
+  // Playback runs only where it can be seen.
+  if (next.view !== "simulate") setPlaying(false);
+  batch(() => {
+    mode.value = next.view;
+    workItemKey.value = next.view === "work-item" ? next.key : null;
+  });
+  if (next.view === "work-item" || next.factory === null) return;
+  if (next.factory === factory.value) {
+    if (next.view === "board") void loadBoard();
+    return;
+  }
+  if (factories.value.some((f) => f.name === next.factory)) {
+    await selectFactory(next.factory);
+  } else if (factories.value.length > 0) {
+    flash(`no factory named '${next.factory}'`);
+  }
+}
+
+/**
+ * While the Board is shown: durations tick every half minute, and the
+ * board is read again every two minutes. The second keeps the server's
+ * poll alive (it forgets a board not asked for in five minutes), and
+ * catches a change whose event was lost.
+ */
+export function keepBoardCurrent() {
+  setInterval(() => (clock.value = Date.now()), 30 * 1000);
+  setInterval(() => {
+    if (mode.value === "board" && !document.hidden) void loadBoard();
+  }, 2 * 60 * 1000);
+  // A tab hidden for a while may have outlived the poll: read on return.
+  document.addEventListener("visibilitychange", () => {
+    if (mode.value === "board" && !document.hidden) void loadBoard();
+  });
+}
+
+/** The browser's back and forward: show the route the address names. */
+export function followAddress() {
+  addEventListener("popstate", () => {
+    void showRoute(parseRoute(location.pathname) ?? defaultRoute()).then(() =>
+      writeAddress("replace")
+    );
+  });
+}
+
+/** The route the page opens at: the address's, or the design view. */
+export function startRoute(): Route {
+  const found = parseRoute(location.pathname);
+  if (found === null) flash(`no view at ${location.pathname}`);
+  const start = found ?? defaultRoute();
+  batch(() => {
+    mode.value = start.view;
+    workItemKey.value = start.view === "work-item" ? start.key : null;
+  });
+  return start;
+}
+
+function defaultRoute(): Route {
+  return { view: "design", factory: null };
+}
+
+/** A factory view, for the mode tabs. */
+export function isFactoryView(view: Mode): view is FactoryView {
+  return view !== "work-item";
+}
+
+export async function selectFactory(
+  name: string,
+  how: "push" | "replace" = "replace",
+) {
   batch(() => {
     factory.value = name;
     loaded.value = null;
@@ -371,10 +502,57 @@ export async function selectFactory(name: string) {
     walk.value = null;
     walkPlayed.value = null;
     copyEntry.value = null;
+    board.value = null;
+    boardError.value = null;
+    shown.value = {};
   });
   setPlaying(false);
   write(PICK_KEY, name);
+  // A work item's page keeps its own address; a factory view shows the
+  // factory in its path.
+  if (mode.value !== "work-item") writeAddress(how);
+  if (mode.value === "board") void loadBoard();
   await loadDefinitionFile();
+}
+
+// --- the Board ----------------------------------------------------------------------
+
+let boardLoading: Promise<void> | null = null;
+let boardAgain = false;
+
+/**
+ * Read the factory's work items. Asking also keeps the server's poll of
+ * them alive, which tells the page when one changes. A read while one is in
+ * flight asks for one more after it, never more.
+ */
+export function loadBoard(): Promise<void> {
+  if (boardLoading !== null) {
+    boardAgain = true;
+    return boardLoading;
+  }
+  boardLoading = (async () => {
+    do {
+      boardAgain = false;
+      const name = factory.value;
+      if (name === null) return;
+      try {
+        const read = await getJson<{
+          factory: string;
+          items: BoardCard[];
+          problems: WorkItemProblem[];
+        }>(`/api/work-items?factory=${encodeURIComponent(name)}`);
+        if (factory.value !== name) continue;
+        batch(() => {
+          board.value = read;
+          boardError.value = null;
+          clock.value = Date.now();
+        });
+      } catch (e) {
+        if (factory.value === name) boardError.value = message(e);
+      }
+    } while (boardAgain);
+  })().finally(() => (boardLoading = null));
+  return boardLoading;
 }
 
 /** The factory list again; the selection is kept, or reloaded if it moved. */
@@ -625,6 +803,7 @@ export function listen() {
     reloadFactories().then(() => loadDefinitionFile()).catch((e) => {
       sourceError.value = message(e);
     });
+    if (mode.value === "board") void loadBoard();
   });
   events.addEventListener("error", () => {
     live.value = false;
@@ -643,6 +822,10 @@ export function listen() {
       return;
     }
     if (event.factory !== factory.value) return;
+    if (event.kind === "work-items") {
+      if (mode.value === "board") void loadBoard();
+      return;
+    }
     flash("definition reloaded");
     void loadDefinitionFile();
   });

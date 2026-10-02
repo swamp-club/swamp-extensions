@@ -45,6 +45,26 @@ Deno.test("parseRun: a started run round-trips through JSON", () => {
   assertEquals(parsed.value, run);
 });
 
+Deno.test("parseRun: a title is kept; a record without one still reads; an empty one is refused", () => {
+  const titled = start(
+    smallDefinition(),
+    {
+      key: "wi-1",
+      title: "Add a board view",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:abc",
+    },
+    ALICE,
+    testEnv(),
+  );
+  const parsed = parseRun(JSON.parse(JSON.stringify(titled)));
+  assert(parsed.ok);
+  assertEquals(parsed.value.title, "Add a board view");
+  assert(!("title" in started()));
+  assert(!parseRun({ ...titled, title: "" }).ok);
+});
+
 Deno.test("parseRun: an unknown schemaVersion is refused, not guessed", () => {
   const parsed = parseRun({ ...started(), schemaVersion: 2 });
   assert(!parsed.ok);

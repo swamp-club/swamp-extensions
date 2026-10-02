@@ -27,6 +27,7 @@ import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { Findings } from "./findings.tsx";
 import { fitZoom, Graph } from "./graph.tsx";
+import { BoardMode, WorkItemMode } from "./board_view.tsx";
 import { Inspector } from "./inspector.tsx";
 import { targetKey } from "./selection.ts";
 import { Dock, SimPanel } from "./simulate_view.tsx";
@@ -37,7 +38,11 @@ import {
   factories,
   factory,
   flashText,
+  followAddress,
+  go,
   graph,
+  isFactoryView,
+  keepBoardCurrent,
   listen,
   live,
   loaded,
@@ -49,9 +54,10 @@ import {
   panelTab,
   selectFactory,
   selection,
-  setPlaying,
   sourceError,
   stale,
+  startRoute,
+  workItemKey,
   zoom,
 } from "./state.ts";
 
@@ -71,7 +77,7 @@ function Bar() {
           id="factory-pick"
           disabled={list.length === 0}
           value={factory.value ?? ""}
-          onChange={(e) => void selectFactory(e.currentTarget.value)}
+          onChange={(e) => void selectFactory(e.currentTarget.value, "push")}
         >
           {list.map((f) => <option key={f.name} value={f.name}>{f.name}
           </option>)}
@@ -95,12 +101,13 @@ function Bar() {
       <Tabs<Mode>
         label="Mode"
         class="modes"
-        tabs={[["design", "Design"], ["simulate", "Simulate"]]}
+        tabs={[["design", "Design"], ["simulate", "Simulate"], [
+          "board",
+          "Board",
+        ]]}
         value={mode.value}
         onChange={(m) => {
-          // Playback runs only where it can be seen.
-          if (m !== "simulate") setPlaying(false);
-          mode.value = m;
+          if (isFactoryView(m)) void go({ view: m, factory: factory.value });
         }}
         controls="mode-panel"
       />
@@ -289,22 +296,41 @@ function SimulateMode() {
   );
 }
 
+function View() {
+  switch (mode.value) {
+    case "design":
+      return <DesignMode />;
+    case "simulate":
+      return <SimulateMode />;
+    case "board":
+      return <BoardMode />;
+    case "work-item":
+      return <WorkItemMode itemKey={workItemKey.value} />;
+  }
+}
+
 function App() {
   return (
     <div class="app">
       <Bar />
-      {mode.value === "design" ? <DesignMode /> : <SimulateMode />}
+      <View />
     </div>
   );
 }
 
 async function main() {
+  // The address names the view, and the factory if it is a factory view.
+  const start = startRoute();
   render(<App />, document.getElementById("root")!);
   // Listen first, so a file saved while the first load is in flight is
   // reloaded rather than missed.
   listen();
+  followAddress();
+  keepBoardCurrent();
   try {
-    const pick = await loadFactories();
+    const pick = await loadFactories(
+      start.view === "work-item" ? null : start.factory,
+    );
     if (pick !== null) await selectFactory(pick);
   } catch (e) {
     sourceError.value = e instanceof Error ? e.message : String(e);

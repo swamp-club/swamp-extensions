@@ -21,8 +21,11 @@ import {
   listFactories,
   type StudioAsset,
   type StudioDeps,
+  type StudioEvent,
+  type StudioEvents,
 } from "./studio_server.ts";
 import { watchStudio } from "./studio_watch.ts";
+import { type QueryData, watchWorkItems } from "./studio_work_items.ts";
 import type { Logger, MethodOutput } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
@@ -34,10 +37,15 @@ import type { Logger, MethodOutput } from "./work_item_ops.ts";
 /** How often serve reads the factory list again. */
 const RELIST_SECONDS = 3;
 
+/** How often serve polls the work items a page has open. */
+const WORK_ITEM_POLL_SECONDS = 3;
+
 /** The part of swamp's method context serve uses. */
 export interface StudioContext {
   repoDir?: string;
   definitionRepository?: unknown;
+  /** swamp's data query, for work items. */
+  queryData?: QueryData;
   logger: Logger;
   signal?: AbortSignal;
 }
@@ -58,6 +66,10 @@ export async function serveStudio(
   ) {
     throw new Error("this method context cannot list model definitions");
   }
+  if (typeof ctx.queryData !== "function") {
+    throw new Error("this method context cannot query data");
+  }
+  const query: QueryData = ctx.queryData.bind(ctx);
   // getPath is a method of swamp's repository class: bound, so it keeps its
   // this when called through the lister.
   const repository = lister as FactoryLister;
@@ -70,6 +82,30 @@ export async function serveStudio(
   const remembered = new Map<string, string>();
   const memory = { factories: remembered, files: denoRepoFiles };
   const watcher = watchStudio();
+  // The page hears of file changes from the watch, and of work items from
+  // the poll: one stream carries both.
+  const polled = new Set<(event: StudioEvent) => void>();
+  const workItems = watchWorkItems(
+    query,
+    (event) => polled.forEach((listener) => listener(event)),
+  );
+  const events: StudioEvents = {
+    subscribe(listener) {
+      const off = watcher.subscribe(listener);
+      polled.add(listener);
+      return () => {
+        off();
+        polled.delete(listener);
+      };
+    },
+  };
+  // One poll at a time: a slow datastore skips a beat rather than piling up.
+  let polling = false;
+  const poll = setInterval(() => {
+    if (polling) return;
+    polling = true;
+    workItems.tick().finally(() => (polling = false));
+  }, WORK_ITEM_POLL_SECONDS * 1000);
   // A factory created or removed while the studio is open: swamp says
   // nothing, so the list is read again every few seconds. The watch tells
   // the page when it changed.
@@ -91,7 +127,9 @@ export async function serveStudio(
       factories,
       remembered,
       assets,
-      events: watcher,
+      events,
+      query,
+      workItems,
       onFactories: (list, files) => void watcher.follow(list, files),
       // Deno.serve waits for open responses when it stops, so the event
       // streams close on the same signal.
@@ -109,6 +147,7 @@ export async function serveStudio(
   } finally {
     // Also when the port cannot be bound.
     clearInterval(relist);
+    clearInterval(poll);
     watcher.close();
   }
   return { dataHandles: [] };

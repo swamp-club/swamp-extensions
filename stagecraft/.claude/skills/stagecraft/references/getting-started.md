@@ -207,7 +207,9 @@ swamp model @swamp/stagecraft/work-item method run status <key>
 ```
 
 **Verify:** `status` shows the work item waiting on the person at a human stop,
-and you have laid it out for them.
+and you have laid it out for them. If the studio is open, point them at its
+Board (`/f/<factory>/board` after the studio's URL): the work item's card is in
+that stage, marked as waiting on them.
 
 **On failure:** a refused `start` or write is in
 [SKILL.md](../SKILL.md#when-something-is-refused). If they would rather not

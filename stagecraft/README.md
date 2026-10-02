@@ -65,6 +65,15 @@ your agent makes the edits, and you watch them land.
   listing anything it finds. You use **copy reference** on any stage and paste
   into your agent session to have it help you modify that stage.
 - **Simulate** plays saved scenarios so you can see how work items flow.
+- **Board** shows every work item in the factory, in a column for the stage
+  it is in, and moves the cards as your agent advances them. A card says how
+  long the item has been in the stage, whether it is waiting on a person
+  (highlighted, with how long), whether a limit has parked it, and whether
+  it runs an older version of the factory than the current one. Filter by
+  any of those, or search by key or title.
+
+Each view has its own address, such as `/f/team/board`, so you can bookmark
+it or share it with someone on the same machine.
 
 Your agent starts it for you, or run it yourself:
 

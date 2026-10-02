@@ -37,6 +37,7 @@ import {
   RUN_SPEC,
   type RunRecord,
   RunRecordSchema,
+  shellQuote,
   WORK_ITEM_TYPE,
 } from "../../engine/tracker.ts";
 
@@ -69,12 +70,6 @@ export function externalRefsOf(
   return { [tracker]: issue.id, [`${tracker}.display`]: issue.display };
 }
 
-// Single-quoted for a POSIX shell, so no factory name or display identifier
-// can break the printed command.
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
-}
-
 // The room a key's leading words may take: the work-item key rules cut the
 // lead at 55 characters anyway (DESIGN.md, "The model types").
 const LEAD_MAX = 55;
@@ -87,14 +82,20 @@ export function displayLead(display: string): string {
   return keySlug("", LEAD_MAX, display);
 }
 
-/** The command that starts a claimed key, as claim prints it. */
+/**
+ * The command that starts a claimed key, as claim prints it. It carries the
+ * ticket's title, so the run records it; a blank title is left out.
+ */
 export function startCommand(
   key: string,
   factory: string,
   externalRefs: Record<string, string>,
+  title: string,
 ): string {
+  const named = title.trim();
   return `swamp model ${WORK_ITEM_TYPE} method run start ${shellQuote(key)} ` +
     `--input ${shellQuote(`factory=${factory}`)} ` +
+    (named === "" ? "" : `--input ${shellQuote(`title=${named}`)} `) +
     `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)}`;
 }
 
@@ -187,7 +188,9 @@ export async function claimTicket(
       }
       ctx.logger.info("{summary}", {
         summary: `${label} is claimed as '${prior.key}', not started yet. ` +
-          `Start it: ${startCommand(prior.key, prior.factory, refs)}`,
+          `Start it: ${
+            startCommand(prior.key, prior.factory, refs, issue.title)
+          }`,
         key: prior.key,
       });
       return [];
@@ -269,7 +272,7 @@ export async function claimTicket(
       (previous.length === 0
         ? ""
         : ` (its last work item, '${previous[0]}', has finished or moved)`) +
-      `. Start it: ${startCommand(key, req.factory, refs)}`,
+      `. Start it: ${startCommand(key, req.factory, refs, issue.title)}`,
     key,
   });
   return [handle];
@@ -397,7 +400,12 @@ async function reassignReservation(
   ctx.logger.info("{summary}", {
     summary: `${label} is claimed as '${prior.key}', now under factory ` +
       `'${factory}': ${because}. Start it: ` +
-      startCommand(prior.key, factory, externalRefsOf(req.tracker, req.issue)),
+      startCommand(
+        prior.key,
+        factory,
+        externalRefsOf(req.tracker, req.issue),
+        req.issue.title,
+      ),
     key: prior.key,
   });
   return handle;

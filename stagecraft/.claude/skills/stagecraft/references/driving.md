@@ -97,8 +97,11 @@ from its `scenarios:` list; write one for each path the factory must keep
 When a person wants to watch your edits to a factory definition or its
 scenarios, or to play the scenarios and step a work item through by hand, point
 them at the studio: a read-only local page that reloads the factory's model
-definition as you save it, and plays its saved scenarios on the engine
-(Simulate). They start it themselves, since it runs until Ctrl-C:
+definition as you save it, plays its saved scenarios on the engine (Simulate),
+and shows every work item of the factory by stage (Board), moving the cards as
+you drive them, with the ones waiting on a person highlighted. Each view has its
+own address, such as `/f/<factory>/board` after the logged URL. They start it
+themselves, since it runs until Ctrl-C:
 `swamp model create @swamp/stagecraft/studio studio` once, then
 `swamp model method run studio serve`, which logs the URL.
 
@@ -127,13 +130,15 @@ page re-checks the file when you save it.
 ```sh
 swamp model method run <factory> new_key --input 'title=<title>'
 swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=<factory>
+  --input factory=<factory> --input 'title=<title>'
 ```
 
 `new_key` prints an unused key made from the work's title, such as
 `team-add-list-method-r2ne`: the factory's name, a slug of the title, and a
 short random suffix. Use it as the work item's name from then on; it does not
 change if the work does. A title with no ASCII letters or digits is refused.
+Pass the same title to `start`: the run record keeps it, and the studio's Board
+shows it on the work item's card (`new_key` prints the start command with it).
 `start` takes any unused name, so a person may choose a key by hand instead. To
 link a tracker ticket, pass `externalRefs` as a JSON object mapping tracker to
 id; the code links a work item to a ticket only through `externalRefs`.

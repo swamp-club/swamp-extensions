@@ -144,6 +144,30 @@ export interface ModelDataRecord {
   content?: unknown;
 }
 
+/**
+ * A record's data as an object: its content, or its attributes. swamp
+ * parses JSON content for readModelData and queryData, but a query result
+ * may carry it as the JSON text instead, so that is parsed here; anything
+ * else is no object.
+ */
+export function recordObject(record: unknown): Record<string, unknown> | null {
+  const r = record !== null && typeof record === "object"
+    ? record as { content?: unknown; attributes?: unknown }
+    : {};
+  let content = r.content ?? r.attributes;
+  if (typeof content === "string") {
+    try {
+      content = JSON.parse(content);
+    } catch {
+      return null;
+    }
+  }
+  return content !== null && typeof content === "object" &&
+      !Array.isArray(content)
+    ? content as Record<string, unknown>
+    : null;
+}
+
 /** A method context that can also read another model's data. */
 export interface DataReadingContext extends MethodContextLike {
   readModelData?(
@@ -676,12 +700,34 @@ export async function newKey(
   const handle = await ctx.writeResource(KEY_SPEC, KEY_NAME, { key });
   ctx.logger.info("{key}", {
     key,
-    next:
-      `swamp model @swamp/stagecraft/work-item method run start ${key} --input factory=${
-        selfName(ctx)
-      }`,
+    next: `swamp model ${WORK_ITEM_TYPE} method run start ${key} ` +
+      `--input ${shellQuote(`factory=${selfName(ctx)}`)} ` +
+      `--input ${shellQuote(`title=${title}`)}`,
   });
   return { dataHandles: [handle] };
+}
+
+// Record names and query predicates are built from ids, keys and factory
+// names; keep them to a path-safe alphabet, which also has no quote or
+// operator that could change a predicate.
+const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** `value`, refused unless it is a path-safe name. */
+export function safePart(what: string, value: string): string {
+  if (!SAFE.test(value) || value.includes("..")) {
+    throw new Error(
+      `${what} '${value}' can only use letters, digits, '.', '_' and '-'`,
+    );
+  }
+  return value;
+}
+
+/**
+ * A value single-quoted for a POSIX shell, so no factory name, title or
+ * display identifier can break a command a method prints.
+ */
+export function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 function selfName(ctx: MethodContextLike): string {
@@ -855,6 +901,7 @@ export async function startWorkItem(
   ctx: MethodContextLike,
   args: {
     factory: string;
+    title?: string;
     externalRefs?: Record<string, string> | string;
     onBehalfOf?: string;
   },
@@ -882,6 +929,7 @@ export async function startWorkItem(
       definition,
       {
         key,
+        ...(args.title !== undefined ? { title: args.title } : {}),
         factory: args.factory,
         externalRefs,
         tracker,

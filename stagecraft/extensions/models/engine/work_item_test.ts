@@ -119,6 +119,24 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
   );
 });
 
+Deno.test("start: records the work's title when given, and none when not", async () => {
+  const untitled = await runOf(await started());
+  assertEquals(untitled.title, undefined);
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await call(swamp, "start", { factory: "team", title: "Add a board view" });
+  assertEquals((await runOf(swamp)).title, "Add a board view");
+});
+
+Deno.test("start: refuses an empty title, and writes nothing", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await assertRejects(() =>
+    call(swamp, "start", { factory: "team", title: "" })
+  );
+  assertEquals(swamp.resources.get(ITEM), undefined);
+});
+
 // --- the tracker binding -------------------------------------------------------
 
 Deno.test("start: pins the tracker the factory is bound to", async () => {

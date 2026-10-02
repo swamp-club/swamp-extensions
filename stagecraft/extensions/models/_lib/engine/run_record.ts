@@ -168,6 +168,9 @@ export const RunRecordSchema = z.strictObject({
   schemaVersion: z.literal(RUN_SCHEMA_VERSION),
   /** The work item's key: swamp-generated, stable, not a ticket number. */
   key: z.string().min(1),
+  /** The work's title, given at start. Absent on a record written before
+   * titles were kept, or started without one; the key stands in for it. */
+  title: z.string().min(1).optional(),
   /** Tracker ids (a Linear UUID, a display identifier), kept as data. */
   externalRefs: z.record(z.string(), z.string()),
   /** The tracker the factory was bound to at start: the instance publish

@@ -134,12 +134,16 @@ export const model = {
         "Start the work item on a factory's current definition, pinning a copy",
       arguments: z.object({
         factory: z.string().min(1).describe("The factory's name"),
+        title: z.string().min(1).optional().describe(
+          "The work's title, the one given to new_key; the studio shows it",
+        ),
         externalRefs: ExternalRefsInput.optional(),
         ...ActorInputs,
       }),
       execute: (
         args: {
           factory: string;
+          title?: string;
           externalRefs?: Record<string, string> | string;
           onBehalfOf?: string;
         },
