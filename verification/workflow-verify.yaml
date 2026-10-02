@@ -2,10 +2,8 @@ id: 63078dbb-621e-4f43-92d9-bf9b5a98074b
 name: verify
 description: |
   verify-build and verify-reviews at the same commit, run concurrently as one
-  run that fails if either fails. The gatorwalk swamp-club-swamp-extensions
-  example factory definition, at
-  gatorwalk-factory/.claude/skills/gatorwalk-factory/references/examples/swamp-club-swamp-extensions.yaml,
-  runs this as its one verify stage; see gatorwalk-factory/DESIGN.md,
+  run that fails if either fails. A factory definition can
+  run this as its one verify stage; see stagecraft/DESIGN.md,
   "Parallel work inside one stage". It is not a verification workflow of
   its own: it is not listed in attestation.yaml, and the attestation is built
   from its two child runs, each of which keeps its own run record. Launching

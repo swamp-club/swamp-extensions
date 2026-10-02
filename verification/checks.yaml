@@ -68,7 +68,7 @@ groups:
           check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts
           paths: extensions/models/ extensions/reports/
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
-      - dir: gatorwalk-factory
+      - dir: stagecraft
         vars:
           check: extensions/models/ extensions/reports/ integration/ scripts/ studio/
           paths: extensions/models/ extensions/reports/ integration/ scripts/ studio/
@@ -78,7 +78,7 @@ groups:
           # lint in a directory of markdown.
           fmt: deno fmt --check extensions/models/ extensions/reports/ integration/ scripts/ studio/ .claude/skills/
           # The unit tests only read files and never reach integration/. scripts/
-          # holds the lifecycle -> factory codemod (swamp-club #2785) and its test.
+          # holds the stagecraft rename codemod (swamp-club #2932) and its test.
           # studio_assets_test (under extensions/models/) checks the embedded
           # studio page against its source in studio/ by digest, so a stale
           # build fails here without rebuilding.
@@ -95,7 +95,7 @@ groups:
           # binary do anything, and --allow-write is unscoped because the
           # temp dir is only known at run time. They apply to integration/
           # only. --allow-net=127.0.0.1 serves the local tracker fakes. See
-          # gatorwalk-factory/DESIGN.md, "Tests on the real engine".
+          # stagecraft/DESIGN.md, "Tests on the real engine".
           integration: deno test --allow-run=swamp --allow-read --allow-write --allow-env --allow-net=127.0.0.1 integration/
       - dir: container-image
         vars:
