@@ -8,17 +8,16 @@ Each names the code that carries it out.
 This section is for people changing stagecraft itself. Using it is in the
 [README](README.md) and [REFERENCE.md](REFERENCE.md).
 
-### Not published until go-live
+### Publishing
 
-CI publishes any directory whose `manifest.yaml` changes on main. This directory
-therefore has **no `manifest.yaml` at any depth** until go-live, and
-`extensions/models/no_manifest_test.ts` fails if one appears. The manifest is
-written and checked on the branch `cue/2947-stagecraft-manifest` (swamp-club
-#2947): swamp's `extension fmt`, `quality` and `push --dry-run`, and an install
-of the packaged archive into a fresh repository. It merges with the publish
-(#2820), which deletes that test.
+CI publishes any directory whose `manifest.yaml` changes on main, so merging a
+change to `manifest.yaml` is a release. `extensions/models/manifest_test.ts`
+checks the manifest lists every model and report entry point but the
+swamp-club Lab's, the skill and each additional file. swamp bundles each entry
+point with everything it imports, so `_lib/` and the embedded studio page need
+no entry, and the Lab adapter, which no shipped module imports (rule 7 of
+`boundary_test.ts`), stays out of the package.
 
-Before then, everything a published extension needs already holds on main.
 Shipped code names its packages by `npm:` or `jsr:` specifier (rule 6 of
 `boundary_test.ts`), since the registry's quality scorer refuses an import-map
 name. `scripts/audit_deps.ts` scans this directory's lockfile. Every generated
@@ -37,8 +36,9 @@ extensions/models/
     builtin.ts            the built-in tracker model type
     linear.ts             the Linear tracker adapter model type
     swamp_club.ts         the swamp-club Lab tracker adapter model type
-                          (swamp-club team only)
+                          (swamp-club team only; not shipped)
   boundary_test.ts        the seam: engine and tracker code keep apart
+  manifest_test.ts        the manifest lists every shipped entry point
   _lib/
     engine/
       definition_schema.ts   the definition meta-schema
@@ -89,6 +89,8 @@ extensions/models/
         tracker_methods.ts    the methods every tracker model has, and its ledger
         tracker_conformance.ts  the contract, checked the same way per adapter
         claim.ts              start from a ticket: the ticket index and claim
+        stored_login.ts       swamp's stored login (auth.json), read for the
+                              built-in tracker's assignee and the Lab's key
         ticket_view.ts        what a ticket shows, from the journal
         test_support.ts       the publish tests' work item
       backends/
@@ -96,7 +98,7 @@ extensions/models/
         linear.ts             the Linear GraphQL client
         linear_fake.ts        a local fake of Linear's API, for tests
         swamp_club.ts         the swamp-club Lab REST client (swamp-club
-                              team only)
+                              team only; not shipped)
         swamp_club_fake.ts    a local fake of the Lab API, for tests (swamp-club
                               team only)
 extensions/reports/
@@ -2594,6 +2596,30 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-02: the swamp-club Lab adapter is kept, not shipped (swamp-club #2820)
+
+**Decision.** `@swamp/stagecraft` publishes without the swamp-club Lab tracker.
+`tracker/swamp_club.ts` is not in the manifest's `models:`, and
+`manifest_test.ts` fails if the manifest names it, its backend, its fake or the
+auth test data. The built-in tracker read swamp's stored login through the Lab
+backend; that reader (`AuthFile`, `CredentialSources`, `readSwampAuthFile`,
+and `defaultSources` in place of `DEFAULT_SOURCES`) moved to
+`_lib/tracker/core/stored_login.ts`, and both trackers import it from there.
+It now takes the reading tracker's name, so a broken `auth.json` is a
+`builtin auth` error for the built-in tracker rather than a `swamp-club` one;
+the Lab backend keeps its `readSwampAuthFile` and `DEFAULT_SOURCES`, bound to
+swamp-club. Rule 7 of `boundary_test.ts` fails on
+any production module, other than the Lab's own two, that imports either of
+them. The Lab code stays in the repository with its tests, which run from
+source. This supersedes "The swamp-club adapter still ships" in the #2842
+entry. Other shipped modules name the Lab only in strings: `"swamp-club"` is
+still a tracker kind in `tracker_binding.ts`, and the studio's Ticket tab
+calls that tracker "the Lab".
+
+**Why.** Nobody outside the swamp-club team can use the Lab, so it should not
+arrive with a public install (Seth, 2026-10-02). Whether to delete the Lab code
+or move it to a team-only extension is decided after launch.
 
 ### 2026-10-02: the studio's Ticket tab, and the nav shows where you are (swamp-club #2969)
 

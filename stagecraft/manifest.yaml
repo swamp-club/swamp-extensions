@@ -1,0 +1,68 @@
+manifestVersion: 1
+name: "@swamp/stagecraft"
+version: "2026.10.02.1"
+description: |
+  stagecraft builds factories. A factory describes your process as a set of
+  stages: in each one, work makes an artifact or records evidence, and gates
+  decide when a work item may move on. Agents, people and plain code can each
+  drive different parts of the flow; where a person must decide, the work
+  stops and waits for them. stagecraft defines the stages and gates, keeps
+  each work item's state and journal, and enforces the transitions.
+
+  A factory can be for anything you can describe that way: writing software,
+  building swamp extensions, editorial review, incident follow-up, or swamp
+  models from an OpenAPI spec.
+
+  ## Getting started
+
+  In a directory for your project (skip `swamp init` if it is already a
+  swamp repo):
+
+  ```
+  swamp init
+  swamp extension pull @swamp/stagecraft
+  ```
+
+  That installs the stagecraft models and the stagecraft skill. Then ask your
+  agent to "set up a stagecraft factory" for your process: the skill
+  interviews you, writes the factory from the closest example, validates it,
+  shows it in the studio, and drives your first work item.
+
+  ## Models
+
+  - `@swamp/stagecraft/factory`: holds a factory definition; validates and
+    describes it
+  - `@swamp/stagecraft/work-item`: starts work items and drives them through
+    the stages, gates and human stops
+  - `@swamp/stagecraft/studio`: a local page showing every factory and its
+    work items
+  - `@swamp/stagecraft/tracker`: the built-in tracker, kept in swamp data
+  - `@swamp/stagecraft/linear`: publishes work items as Linear issues
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+skills:
+  - stagecraft
+
+models:
+  - engine/factory.ts
+  - engine/work_item.ts
+  - engine/studio.ts
+  - tracker/builtin.ts
+  - tracker/linear.ts
+
+reports:
+  - work_item_summary_report.ts
+
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+
+platforms: []
+
+labels:
+  - stagecraft
+  - factory
+  - agents
+  - process
+  - state-machine

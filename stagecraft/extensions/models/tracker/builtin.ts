@@ -33,11 +33,11 @@ import {
   DEFAULT_TYPES,
   ENTRY_SPEC,
 } from "../_lib/tracker/backends/builtin.ts";
+import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import {
   type CredentialSources,
-  DEFAULT_SOURCES,
-} from "../_lib/tracker/backends/swamp_club.ts";
-import { TrackerError } from "../_lib/tracker/core/adapter.ts";
+  defaultSources,
+} from "../_lib/tracker/core/stored_login.ts";
 import {
   deliveries,
   DeliveryInputs,
@@ -199,7 +199,7 @@ export interface BuiltinMethodOptions {
 /** The shared tracker methods over the built-in tracker, plus set_type. */
 export function builtinMethods(options: BuiltinMethodOptions = {}) {
   const now = options.now ?? (() => new Date());
-  const sources = options.sources ?? DEFAULT_SOURCES;
+  const sources = options.sources ?? defaultSources(BUILTIN);
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
   const trackerOptions: TrackerModelOptions = {
     tracker: BUILTIN,

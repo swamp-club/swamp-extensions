@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { join } from "jsr:@std/path@1.1.4";
 import {
   type Assigner,
   type Assignment,
@@ -38,6 +37,15 @@ import {
   type TrackerRelation,
 } from "../core/adapter.ts";
 import { checkRelate } from "../core/relations.ts";
+import {
+  type AuthFile,
+  type CredentialSources,
+  defaultSources,
+  readSwampAuthFile as readStoredLogin,
+  SWAMP_CLUB_URL,
+} from "../core/stored_login.ts";
+
+export { type AuthFile, type CredentialSources, SWAMP_CLUB_URL };
 
 // ---------------------------------------------------------------------------
 // The swamp-club Lab adapter: REST over fetch. The stable id is the issue
@@ -57,8 +65,17 @@ import { checkRelate } from "../core/relations.ts";
 // being a no-op when already done, so the caller re-runs.
 // ---------------------------------------------------------------------------
 
-export const SWAMP_CLUB_URL = "https://swamp-club.com";
 export const SWAMP_CLUB = "swamp-club";
+
+/** swamp's stored login, read for the Lab: an auth error names swamp-club. */
+export function readSwampAuthFile(
+  env: (name: string) => string | undefined,
+): Promise<AuthFile | null> {
+  return readStoredLogin(env, SWAMP_CLUB);
+}
+
+/** The real environment and the real auth.json, for the Lab. */
+export const DEFAULT_SOURCES: CredentialSources = defaultSources(SWAMP_CLUB);
 export const SWAMP_CLUB_TYPE = "@swamp/stagecraft/swamp-club";
 
 /** Every Lab issue status. */
@@ -124,106 +141,10 @@ export function sameServer(a: string, b: string): boolean {
   }
 }
 
-/** Whether a url is on swamp-club's legacy domain. */
-function isLegacyDomain(url: string): boolean {
-  try {
-    return new URL(url).hostname === "swamp.club";
-  } catch {
-    return false;
-  }
-}
-
-export interface AuthFile {
-  serverUrl: string;
-  apiKey: string;
-  username?: string;
-}
-
-/** Where credentials come from; injected in tests. */
-export interface CredentialSources {
-  env(name: string): string | undefined;
-  readAuthFile(): Promise<AuthFile | null>;
-}
-
 export interface LabCredentials {
   url: string;
   apiKey: string;
 }
-
-/**
- * Read swamp's stored login: $XDG_CONFIG_HOME/swamp/auth.json, or
- * $HOME/.config/swamp/auth.json. Null when there is none; a file that is
- * there but cannot be read or parsed is an auth error, not "logged out".
- */
-export async function readSwampAuthFile(
-  env: (name: string) => string | undefined,
-): Promise<AuthFile | null> {
-  const xdg = env("XDG_CONFIG_HOME");
-  const home = env("HOME");
-  const dir = xdg
-    ? join(xdg, "swamp")
-    : home
-    ? join(home, ".config", "swamp")
-    : null;
-  if (dir === null) return null;
-  const path = join(dir, "auth.json");
-  let text: string;
-  try {
-    text = await Deno.readTextFile(path);
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return null;
-    throw new TrackerError(
-      "auth",
-      SWAMP_CLUB,
-      `could not read the stored login at ${path}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
-  const broken = (why: string) =>
-    new TrackerError(
-      "auth",
-      SWAMP_CLUB,
-      `the stored login at ${path} ${why}; run \`swamp auth login\``,
-    );
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw broken("is not valid JSON");
-  }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw broken("is not a JSON object");
-  }
-  const creds = parsed as Record<string, unknown>;
-  for (const field of ["serverUrl", "apiKey", "username"]) {
-    if (creds[field] !== undefined && typeof creds[field] !== "string") {
-      throw broken(`has a ${field} that is not a string`);
-    }
-  }
-  const { serverUrl: stored, apiKey, username } = creds as {
-    serverUrl?: string;
-    apiKey?: string;
-    username?: string;
-  };
-  if (!apiKey) return null;
-  // The CLI rewrites the legacy domain when it saves the file; here we only
-  // read it, so translate at the read site.
-  const serverUrl = stored === undefined || isLegacyDomain(stored)
-    ? SWAMP_CLUB_URL
-    : stored;
-  return {
-    serverUrl,
-    apiKey,
-    username: username || undefined,
-  };
-}
-
-/** The real environment and the real auth.json. */
-export const DEFAULT_SOURCES: CredentialSources = {
-  env: (name) => Deno.env.get(name),
-  readAuthFile: () => readSwampAuthFile((name) => Deno.env.get(name)),
-};
 
 /**
  * The key and URL, as issue-lifecycle resolves them. The key: the apiKey

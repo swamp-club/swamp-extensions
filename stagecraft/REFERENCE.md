@@ -633,7 +633,9 @@ See [DESIGN.md](DESIGN.md), "Start from a ticket".
 
 The swamp-club Lab tracker is for the swamp-club team's own repositories. It
 drives swamp-club Lab issues and needs a swamp-club team account, so it is not
-an option for anyone else: use the built-in tracker or Linear.
+an option for anyone else: use the built-in tracker or Linear. It is not in the
+published `@swamp/stagecraft` package; the swamp-club team runs it from this
+repository's source.
 
 `@swamp/stagecraft/swamp-club` connects a swamp-club server, for the
 swamp-club team. It uses the same key as swamp and issue-lifecycle: the

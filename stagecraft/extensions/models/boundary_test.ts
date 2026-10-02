@@ -42,6 +42,11 @@ import * as posix from "@std/path/posix";
 // 6. Production code names packages by npm: or jsr: specifier, never by an
 //    import-map name: the registry's quality scorer cannot resolve one, and
 //    refuses to score the extension.
+// 7. Production code imports nothing of the swamp-club Lab's but the Lab's
+//    own: its adapter is kept in the repository but not shipped (DESIGN.md,
+//    "the swamp-club Lab adapter is kept, not shipped"), and every model
+//    entry point the manifest lists is production code, so nothing the
+//    package bundles reaches it.
 //
 // A dynamic import() must name a package: a relative or computed one is
 // refused, since this scan could not follow it.
@@ -62,6 +67,12 @@ const TRACKER_CORE = "extensions/models/_lib/tracker/core/";
 const TRACKER_OUTSIDE_CORE = [
   "extensions/models/_lib/tracker/backends/",
   "extensions/models/tracker/",
+];
+
+/** The swamp-club Lab's production modules, which the package leaves out. */
+const LAB = [
+  "extensions/models/tracker/swamp_club.ts",
+  "extensions/models/_lib/tracker/backends/swamp_club.ts",
 ];
 
 type Layer = "engine" | "tracker" | "extension";
@@ -189,6 +200,9 @@ function violations(files: Map<string, string>): string[] {
       }
       if (!isTest(path) && isTest(target)) {
         found.push(`${path}: production code imports test code ${target}`);
+      }
+      if (!isTest(path) && !LAB.includes(path) && LAB.includes(target)) {
+        found.push(`${path}: production code imports the Lab's ${target}`);
       }
       if (
         target === ENGINE_SURFACE && layer === "tracker" && !isTest(path)
@@ -370,6 +384,29 @@ Deno.test("boundary: tracker core importing a backend fails", () => {
   assertEquals(violations(files), [
     `${LIB}/tracker/core/claim.ts: tracker core imports ` +
     `${LIB}/tracker/backends/linear.ts`,
+  ]);
+});
+
+Deno.test("boundary: production code importing the Lab fails", () => {
+  const files = withFile(
+    "extensions/models/tracker/builtin.ts",
+    `import { DEFAULT_SOURCES } from "../_lib/tracker/backends/swamp_club.ts";\n`,
+  );
+  files.set(
+    `${LIB}/tracker/backends/swamp_club.ts`,
+    `import { claim } from "../core/claim.ts";\n`,
+  );
+  files.set(
+    "extensions/models/tracker/swamp_club.ts",
+    `import { lab } from "../_lib/tracker/backends/swamp_club.ts";\n`,
+  );
+  files.set(
+    `${LIB}/tracker/backends/swamp_club_test.ts`,
+    `import { lab } from "./swamp_club.ts";\n`,
+  );
+  assertEquals(violations(files), [
+    "extensions/models/tracker/builtin.ts: production code imports the " +
+    `Lab's ${LIB}/tracker/backends/swamp_club.ts`,
   ]);
 });
 
