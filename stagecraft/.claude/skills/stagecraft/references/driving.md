@@ -617,14 +617,14 @@ definition declares tracker entries and the tracker keeps them (the built-in
 tracker does), it writes those lifecycle entries instead of comments, and sets
 the ticket type an entry names. The publish that delivers the work item's start
 also assigns the ticket to the person logged in to swamp (on the built-in
-tracker), so there is no separate assign step; if it cannot, it warns once, and
-you tell the person. It is the only thing that writes the ticket's status and
-type: never call `set_status` or `set_type` for a work item yourself. Running it
-again delivers only what is new. A failed publish never blocks the work item,
-but the ticket falls behind until it succeeds, and the ticket may be the team's
-audit trail: after a failure, run it again before moving on. An entry the
-tracker refuses outright is skipped and logged as a warning; tell the person
-which one.
+tracker; on Linear, the owner of the API key), so there is no separate assign
+step; if it cannot, it warns once, and you tell the person. It is the only thing
+that writes the ticket's status and type: never call `set_status` or `set_type`
+for a work item yourself. Running it again delivers only what is new. A failed
+publish never blocks the work item, but the ticket falls behind until it
+succeeds, and the ticket may be the team's audit trail: after a failure, run it
+again before moving on. An entry the tracker refuses outright is skipped and
+logged as a warning; tell the person which one.
 
 When the work belongs to another ticket (for example the ticket turned out to
 duplicate another), a person may move the work item there, on their word:

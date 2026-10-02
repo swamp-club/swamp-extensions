@@ -22,7 +22,8 @@
 // "Entity not found"). Relations are Linear's: a parent field, and
 // blocks/duplicate/related links, none of them checked for anything (Linear
 // keeps no rule against a second canonical or a duplicate chain, and a new
-// parent replaces the old). A test can queue raw responses to exercise malformed
+// parent replaces the old). An issue has one assignee, and the viewer is
+// the token's own user. A test can queue raw responses to exercise malformed
 // ones, including a body that stalls or drops mid-stream. Never the live
 // service.
 // ---------------------------------------------------------------------------
@@ -40,6 +41,14 @@ export interface FakeIssue {
   description?: string;
   labelIds?: string[];
   parentId?: string | null;
+  assigneeId?: string | null;
+}
+
+/** A workspace user. */
+export interface FakeUser {
+  id: string;
+  name: string;
+  displayName: string;
 }
 
 /** A Linear issue relation: `issueId type relatedIssueId`. */
@@ -79,6 +88,8 @@ export interface LinearFake {
   issues: FakeIssue[];
   states: FakeState[];
   labels: FakeLabel[];
+  /** The workspace's users; the first is the token's own, the viewer. */
+  users: FakeUser[];
   comments: { id: string; issueId: string; body: string }[];
   relations: FakeRelation[];
   requests: FakeRequest[];
@@ -90,6 +101,9 @@ export interface LinearFake {
 export const FAKE_TOKEN = "lin_api_fake_token_for_tests";
 export const ISSUE_UUID = "5b0e7a52-3f0c-4d8e-9a51-2c7d4a1e9b10";
 export const OTHER_UUID = "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0";
+/** The token's own user, the viewer. */
+export const VIEWER_ID = "b0b0b0b0-1111-4222-8333-444455556666";
+export const OTHER_USER_ID = "c1c1c1c1-1111-4222-8333-444455556666";
 /** The team the fake's issues belong to and create files in. */
 export const TEAM_ID = "team-gw";
 
@@ -114,6 +128,10 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     { id: "label-bug", name: "Bug", team: { id: TEAM_ID } },
     { id: "label-feature", name: "Feature", team: null },
     { id: "label-elsewhere", name: "Elsewhere", team: { id: "team-other" } },
+  ];
+  const users: FakeUser[] = [
+    { id: VIEWER_ID, name: "Pat Viewer", displayName: "pat" },
+    { id: OTHER_USER_ID, name: "Sam Other", displayName: "sam" },
   ];
   const comments: LinearFake["comments"] = [];
   const relations: FakeRelation[] = [];
@@ -155,6 +173,8 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     identifier: issue.identifier,
   });
   const byId = (id: string) => issues.find((i) => i.id === id)!;
+  const assigneeOf = (issue: FakeIssue) =>
+    users.find((u) => u.id === issue.assigneeId) ?? null;
 
   const server = Deno.serve(
     { hostname: "127.0.0.1", port: 0, onListen: () => {} },
@@ -181,6 +201,9 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
         return error("Authentication required", "AUTHENTICATION_ERROR", 400);
       }
       const query = raw.query;
+      if (query.includes("viewer")) {
+        return json({ data: { viewer: users[0] } });
+      }
       if (query.includes("issueLabels")) {
         const name = variables.name;
         return json({
@@ -231,6 +254,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
                 title: issue.title,
                 url: urlOf(issue),
                 state: stateOf(issue),
+                assignee: assigneeOf(issue),
               },
             },
           },
@@ -302,6 +326,27 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
         issue.parentId = variables.parentId as string | null;
         return json({ data: { issueUpdate: { success: true } } });
       }
+      if (query.includes("issueUpdate") && "assigneeId" in variables) {
+        const issue = find(variables.id);
+        if (issue === undefined) return notFound();
+        if (!users.some((u) => u.id === variables.assigneeId)) {
+          // Linear's own wording, seen live.
+          return error(
+            "Entity not found in validateAccess: assigneeId",
+            "INVALID_INPUT",
+            200,
+          );
+        }
+        issue.assigneeId = variables.assigneeId as string;
+        return json({
+          data: {
+            issueUpdate: {
+              success: true,
+              issue: { assignee: assigneeOf(issue) },
+            },
+          },
+        });
+      }
       if (query.includes("issueUpdate")) {
         const issue = find(variables.id);
         if (issue === undefined) return notFound();
@@ -325,6 +370,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
               title: issue.title,
               url: urlOf(issue),
               state: stateOf(issue),
+              assignee: assigneeOf(issue),
               team: { states: { nodes: states } },
               parent: issue.parentId ? ref(byId(issue.parentId)) : null,
               children: {
@@ -361,6 +407,7 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
     issues,
     states,
     labels,
+    users,
     comments,
     relations,
     requests,

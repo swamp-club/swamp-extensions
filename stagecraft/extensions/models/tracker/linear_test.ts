@@ -22,6 +22,8 @@ import {
   ISSUE_UUID,
   type LinearFake,
   linearFake,
+  OTHER_USER_ID,
+  VIEWER_ID,
 } from "../_lib/tracker/backends/linear_fake.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/tracker_testing.ts";
 import {
@@ -78,11 +80,15 @@ Deno.test("linear model: fetch, comment once per delivery key, and set a mapped 
       statuses: JSON.stringify({ started: "In Progress" }),
     }),
     async (swamp, fake) => {
+      fake.issues[0].assigneeId = VIEWER_ID;
       await call(swamp, "fetch_issue", { issue: "GW-16" });
       const snapshot = swamp.resources.get(INSTANCE)?.get(
         `issue-${ISSUE_UUID}`,
       )?.[0];
       assertEquals(snapshot?.display, "GW-16");
+      assertEquals(snapshot?.details, {
+        assignee: { id: VIEWER_ID, name: "Pat Viewer", displayName: "pat" },
+      });
 
       const key = { workItem: "build-abcdefgh", journalVersion: "7" };
       await call(swamp, "comment", { issue: ISSUE_UUID, body: "hi", ...key });
@@ -165,6 +171,56 @@ Deno.test("linear model: publish comments on a park at the dispatch cap and its 
       );
       await call(swamp, "publish", { workItem: TRACKED_ITEM });
       assertEquals(fake.comments.length, 3);
+    },
+  );
+});
+
+Deno.test("linear model: publish assigns the API key's owner when a work item starts, once", async () => {
+  await withLinear(
+    (fake) => ({
+      apiToken: FAKE_TOKEN,
+      apiUrl: fake.url,
+      statuses: JSON.stringify({ in_progress: "In Progress" }),
+    }),
+    async (swamp, fake) => {
+      await trackedItem(
+        swamp,
+        { linear: ISSUE_UUID },
+        undefined,
+        { tracker: INSTANCE, kind: "linear" },
+      );
+      await call(swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.issues[0].assigneeId, VIEWER_ID);
+      // A person reassigns it by hand; a later publish leaves that alone.
+      fake.issues[0].assigneeId = OTHER_USER_ID;
+      await call(swamp, "publish", { workItem: TRACKED_ITEM });
+      assertEquals(fake.issues[0].assigneeId, OTHER_USER_ID);
+      const logged = JSON.stringify(swamp.logs);
+      // The display name, not the user id.
+      assert(logged.includes(`assigned ${ISSUE_UUID} to pat`), logged);
+      assert(!logged.includes(`to ${VIEWER_ID}`), logged);
+      assert(!logged.includes(FAKE_TOKEN), "the token is never logged");
+    },
+  );
+});
+
+Deno.test("linear model: assign defaults to the API key's owner and names whom it replaced", async () => {
+  await withLinear(
+    (fake) => ({ apiToken: FAKE_TOKEN, apiUrl: fake.url }),
+    async (swamp, fake) => {
+      fake.issues[0].assigneeId = OTHER_USER_ID;
+      await call(swamp, "assign", { issue: ISSUE_UUID });
+      assertEquals(fake.issues[0].assigneeId, VIEWER_ID);
+      await call(swamp, "assign", { issue: ISSUE_UUID });
+      await call(swamp, "assign", { issue: ISSUE_UUID, user: OTHER_USER_ID });
+      assertEquals(fake.issues[0].assigneeId, OTHER_USER_ID);
+      const summaries = swamp.logs.map((l) => String(l.props?.summary ?? ""))
+        .filter((m) => m.includes("assigned"));
+      assertEquals(summaries, [
+        `assigned ${ISSUE_UUID} to pat; replaced sam`,
+        `${ISSUE_UUID} is already assigned to pat; wrote nothing`,
+        `assigned ${ISSUE_UUID} to sam; replaced pat`,
+      ]);
     },
   );
 });

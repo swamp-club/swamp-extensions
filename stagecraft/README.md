@@ -133,9 +133,11 @@ globalArguments:
   types: { bug: Bug, feature: Feature }
 ```
 
-`statuses` maps the factory's status keys to your team's workflow states, and
-`types` maps each issue type to one of your Linear labels. Check the
-connection by fetching an issue:
+The key needs write access; you can limit it to the team. `teamId` is the
+team's UUID, not its short key such as ENG. `statuses` maps the factory's status
+keys to your team's workflow states, and `types` maps each issue type to one of
+your Linear labels. When work starts, the issue is assigned to the key's owner.
+Check the connection by fetching an issue:
 
 ```sh
 swamp model method run linear fetch_issue --input issue=ABC-1

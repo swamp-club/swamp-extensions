@@ -1654,12 +1654,14 @@ ripples).
 **The assign capability.** A tracker whose tickets have assignees offers
 `capabilities.assign` (`assign`): it adds the tracker's user to the ticket's
 assignees, keeping those already there, and an already-assigned user writes
-nothing. The Lab and the built-in tracker have it; Linear lacks it until its
-users can be mapped. Whom to assign is a separate mapping, from swamp's stored
-login to the tracker's user, which each tracker model supplies as `assignee`
-in its options: the built-in tracker takes the login's username, from
-whichever server, since its assignees are swamp users; the Lab takes it only
-when the login is for the server it writes to. `publish` assigns only when a
+nothing. Every tracker has it. A Linear issue has one assignee, so Linear's
+replaces whoever is there and reports them in `dropped`. Whom to assign is a
+separate mapping, to the tracker's user, which each tracker model supplies as
+`assignee` in its options: the built-in tracker takes the stored login's
+username, from whichever server, since its assignees are swamp users; the Lab
+takes it only when the login is for the server it writes to; Linear takes the
+API key's owner (its `viewer`), since every Linear write already acts as that
+user and no swamp login maps to a Linear user. `publish` assigns only when a
 tracker has both (see "The publisher"). The conformance suite checks the
 capability for an adapter that declares it (the user is added once, bad
 credentials are `auth`, a missing ticket is `not_found`) and that one without
@@ -1855,8 +1857,8 @@ published as entries instead, below):
 
 **Assigning when work starts.** On the work item's `started` event, after
 that event's own comment or entry and before any later event's, `publish`
-assigns the ticket through the assign capability to the user the stored login
-maps to, under its own ledger key (action `assign`, the `started` event's
+assigns the ticket through the assign capability to the tracker model's
+`assignee` (the stored login's user, or Linear's API key owner), under its own ledger key (action `assign`, the `started` event's
 journal version). It is best effort and never retried, as issue-lifecycle's
 `start` assigns: any failure, finding the user included (no stored login, a
 login for another server, a user the tracker does not know, a tracker that is
@@ -2449,6 +2451,24 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-02: Linear assigns the issue to the API key's owner (swamp-club #2945)
+
+**Decided.** The Linear adapter has the `assign` capability, so `publish`
+assigns a Linear issue when it delivers the work item's start, as it does on
+the built-in tracker and the Lab. Whom: the API key's owner, Linear's `viewer`.
+A Linear issue has one assignee, so assign replaces whoever is there and
+reports them in `dropped`. An `Assignment` may carry a `display` name, which
+publish's log uses where the tracker's user is an opaque id. The Linear model
+has an `assign` method, and `fetch_issue` records the assignee.
+
+**Why.** #2801 left Linear out until its users could be mapped, and a live
+test against a real Linear workspace showed issues reaching In Progress with
+no assignee and no warning. Every Linear write already acts as the key's owner
+and no swamp login maps to a Linear user, so the key's owner is the user the
+work is done as. Replacing, not refusing, keeps assigning on start useful on a
+team where someone triages and assigns before the work starts; the log names
+whom it replaced.
 
 ### 2026-10-02: the README is for people using stagecraft (swamp-club #2819)
 

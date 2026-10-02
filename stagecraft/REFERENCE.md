@@ -472,10 +472,15 @@ swamp model method run linear fetch_issue --input issue=ABC-1
 swamp model method run linear create --input title="A new issue" \
   --input body="What and why." --input type=bug
 swamp model method run linear publish --input workItem=<key>
+swamp model method run linear assign --input issue=<UUID>
 ```
 
+The API key needs write access, and may be limited to the teams the factory
+files in. `teamId` is the team's UUID, not its key (ENG). A new issue starts in
+the team's default status, often Backlog, until `publish` moves it.
+
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
-item with. `comment` and `set_status` take the UUID; given `workItem` and
+item with, and records the issue's assignee. `comment` and `set_status` take the UUID; given `workItem` and
 `journalVersion`, a repeat of the same pair writes nothing to Linear. `create`
 files an issue in the `teamId` team. Linear has no issue type, so `types` maps
 each type to a label name, matched exactly among the team's and the workspace's
@@ -483,7 +488,16 @@ labels; an unmapped type, or a label the team cannot use, is refused.
 `relate` and `unrelate` (see "Built-in tracker") take UUIDs: `parent_of` sets
 the child's parent, `blocked_by` is Linear's blocks read the other way, and
 Linear may move an issue marked a duplicate to its own Duplicate status, which
-swamp does not undo. Up to 250 relations of each kind are read per issue.
+swamp does not undo; Linear moves it back out when the relation is removed. Up
+to 250 relations of each kind are read per issue.
+
+`publish` assigns the issue to the API key's owner when it delivers the work
+item's start: every Linear write acts as that user, and no swamp login maps to
+a Linear user. A Linear issue has one assignee, so a person already assigned is
+replaced, and the log names them. It tries once, and if it cannot it warns and
+goes on. `assign` assigns by hand, to the key's owner or, with
+`--input user=<Linear user id>`, to someone else; assigning the one already
+assigned writes nothing.
 
 `publish` replays a work item's journal to the issue its `externalRefs` name (to
 a tracker that keeps lifecycle entries, with a factory definition that declares

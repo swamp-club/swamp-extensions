@@ -247,11 +247,11 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
       "method",
       "run",
       "<tracker>",
-      "assign",
+      "thank_author",
       "--input",
       "issue=1",
     ])?.includes(
-      "no method 'assign' that every tracker has: <board> and <linear> lack it",
+      "no method 'thank_author' that every tracker has: <board> and <linear> lack it",
     ),
     "a method only one tracker has is not a <tracker> method",
   );
@@ -324,8 +324,13 @@ Deno.test("skill: a tracker command is checked against the adapter its placehold
     "the built-in tracker has set_type",
   );
   assertEquals(
+    checkCommand([...run, "<linear>", "thank_author", "--input", "issue=1"]),
+    "no <linear> method 'thank_author'",
+  );
+  assertEquals(
     checkCommand([...run, "<linear>", "assign", "--input", "issue=1"]),
-    "no <linear> method 'assign'",
+    null,
+    "Linear has assign",
   );
   assertEquals(
     checkCommand([

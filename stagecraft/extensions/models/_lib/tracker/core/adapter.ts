@@ -150,6 +150,11 @@ export interface Assignment {
   changed: boolean;
   /** The tracker's user, as assign was given it. */
   user: string;
+  /**
+   * How a person reads that user, where the tracker's user is an opaque id
+   * (Linear's display name); absent where `user` is already a name.
+   */
+  display?: string;
   /** The ticket's status name when it was read. */
   status: string;
   /**
@@ -168,7 +173,9 @@ export interface Assignment {
  */
 export interface Assigner {
   /** Add the tracker's user to the ticket's assignees, keeping those
-   * already there; already assigned writes nothing. */
+   * already there where the tracker allows several (Linear allows one, so
+   * it replaces them and reports them dropped); already assigned writes
+   * nothing. */
   assign(issueId: string, user: string): Promise<Assignment>;
 }
 

@@ -21,16 +21,19 @@ import {
   linearAdapter,
 } from "../_lib/tracker/backends/linear.ts";
 import {
+  type TrackerContext,
   trackerMethods,
   trackerResources,
 } from "../_lib/tracker/core/tracker_methods.ts";
-import { stringMapFrom } from "../_lib/engine/tracker.ts";
+import { type MethodOutput, stringMapFrom } from "../_lib/engine/tracker.ts";
 
 // ---------------------------------------------------------------------------
 // The Linear adapter: one instance per Linear workspace, holding the API
 // token (from a vault), the map from status keys to Linear status names, and
 // for create the team new issues are filed in and the map from issue types
-// to labels.
+// to labels. Whom publish assigns at a work item's start is the API key's
+// owner: every write already acts as that user, and no swamp login maps to
+// a Linear user.
 // It is the only stagecraft code that talks to Linear; see DESIGN.md,
 // "Trackers".
 // ---------------------------------------------------------------------------
@@ -72,33 +75,71 @@ function argumentsOf(globalArgs: Record<string, unknown>) {
   return LinearArgumentsSchema.partial().parse(globalArgs);
 }
 
+function adapterOf(ctx: TrackerContext) {
+  const args = argumentsOf(ctx.globalArgs ?? {});
+  if (args.apiToken === undefined || args.apiToken === "") {
+    throw new Error(
+      "no apiToken: set the apiToken global argument to a " +
+        "${{ vault.get(<vault>, <key>) }} expression",
+    );
+  }
+  return linearAdapter({
+    apiToken: args.apiToken,
+    apiUrl: args.apiUrl,
+    teamId: args.teamId,
+    types: args.types === undefined
+      ? undefined
+      : stringMapFrom("types", args.types),
+  });
+}
+
+const assignArguments = z.object({
+  issue: z.string().min(1).describe("The issue's UUID (fetch_issue finds it)"),
+  user: z.string().min(1).optional().describe(
+    "The Linear user id to assign; defaults to the API key's owner",
+  ),
+});
+
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.
   type: "@swamp/stagecraft/linear",
-  version: "2026.09.30.2",
+  version: "2026.10.02.1",
   globalArguments: LinearArgumentsSchema,
   resources: trackerResources,
-  methods: trackerMethods({
-    tracker: LINEAR,
-    adapter: (ctx) => {
-      const args = argumentsOf(ctx.globalArgs ?? {});
-      if (args.apiToken === undefined || args.apiToken === "") {
-        throw new Error(
-          "no apiToken: set the apiToken global argument to a " +
-            "${{ vault.get(<vault>, <key>) }} expression",
+  methods: {
+    ...trackerMethods({
+      tracker: LINEAR,
+      adapter: adapterOf,
+      statuses: (globalArgs) =>
+        stringMapFrom("statuses", argumentsOf(globalArgs).statuses),
+      assignee: async (ctx) => (await adapterOf(ctx).viewer()).id,
+    }),
+    assign: {
+      description:
+        "Assign a Linear issue, by UUID, to a user (the API key's owner by default), replacing the one assignee Linear allows; already assigned writes nothing",
+      arguments: assignArguments,
+      execute: async (
+        args: z.infer<typeof assignArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const adapter = adapterOf(ctx);
+        const user = args.user ?? (await adapter.viewer()).id;
+        const result = await adapter.capabilities.assign.assign(
+          args.issue,
+          user,
         );
-      }
-      return linearAdapter({
-        apiToken: args.apiToken,
-        apiUrl: args.apiUrl,
-        teamId: args.teamId,
-        types: args.types === undefined
-          ? undefined
-          : stringMapFrom("types", args.types),
-      });
+        const who = result.display ?? user;
+        const done = result.changed
+          ? `assigned ${args.issue} to ${who}`
+          : `${args.issue} is already assigned to ${who}; wrote nothing`;
+        ctx.logger.info("{summary}", {
+          summary: result.dropped.length === 0
+            ? done
+            : `${done}; replaced ${result.dropped.join(", ")}`,
+        });
+        return { dataHandles: [] };
+      },
     },
-    statuses: (globalArgs) =>
-      stringMapFrom("statuses", argumentsOf(globalArgs).statuses),
-  }),
+  },
 };

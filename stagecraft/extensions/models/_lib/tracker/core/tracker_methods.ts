@@ -358,9 +358,10 @@ export interface TrackerModelOptions {
     issue: TrackerIssue,
   ): ClaimNaming;
   /**
-   * The tracker's user for swamp's stored login: whom publish assigns when
-   * a work item starts. Absent where no login maps to a user yet (Linear),
-   * and then publish never assigns. Throws when there is no one to assign.
+   * The tracker's user for whoever is running swamp: whom publish assigns
+   * when a work item starts. The stored login's user where the tracker's
+   * users are swamp's; Linear's API key owner. Absent, publish never
+   * assigns. Throws when there is no one to assign.
    */
   assignee?(ctx: TrackerContext): Promise<string>;
   now?: () => Date;
@@ -760,10 +761,11 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       // Say who the tracker took off (the Lab drops those no longer on its
       // team), as the Lab's own assign method does.
       const dropped = Array.isArray(result.dropped) ? result.dropped : [];
+      const who = typeof result.display === "string" ? result.display : user;
       ctx.logger.info("{summary}", {
         summary: (result.changed === true
-          ? `assigned ${write.issue} to ${user}`
-          : `${write.issue} is already assigned to ${user}; wrote nothing`) +
+          ? `assigned ${write.issue} to ${who}`
+          : `${write.issue} is already assigned to ${who}; wrote nothing`) +
           (dropped.length === 0
             ? ""
             : `; the tracker dropped ${dropped.join(", ")}`),

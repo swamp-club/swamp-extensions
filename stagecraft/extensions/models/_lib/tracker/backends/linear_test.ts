@@ -21,8 +21,10 @@ import {
   ISSUE_UUID,
   type LinearFake,
   linearFake,
+  OTHER_USER_ID,
   OTHER_UUID,
   TEAM_ID,
+  VIEWER_ID,
 } from "./linear_fake.ts";
 import { TrackerError, type TrackerErrorKind } from "../core/adapter.ts";
 import { assertTrackerConformance } from "../core/tracker_conformance.ts";
@@ -70,6 +72,73 @@ Deno.test("linear: meets the tracker adapter contract", async () => {
       closedStatus: "Duplicate",
       commentsPosted: () => fake.comments.length,
       createType: "bug",
+      assign: {
+        user: VIEWER_ID,
+        assignees: () => {
+          const id = fake.issues[0].assigneeId;
+          return id ? [id] : [];
+        },
+      },
+    });
+  });
+});
+
+Deno.test("linear: viewer is the API key's own user", async () => {
+  await withFake(async (fake) => {
+    const me = await adapterFor(fake).viewer();
+    assertEquals(me.id, VIEWER_ID);
+    assertEquals(me.displayName, "pat");
+  });
+});
+
+Deno.test("linear: assign replaces the one assignee and reports them dropped", async () => {
+  await withFake(async (fake) => {
+    fake.issues[0].assigneeId = OTHER_USER_ID;
+    const adapter = adapterFor(fake);
+    const done = await adapter.capabilities.assign.assign(
+      ISSUE_UUID,
+      VIEWER_ID,
+    );
+    assertEquals(done.changed, true);
+    assertEquals(done.display, "pat");
+    assertEquals(done.dropped, ["sam"]);
+    assertEquals(done.status, "Todo");
+    assertEquals(fake.issues[0].assigneeId, VIEWER_ID);
+    const again = await adapter.capabilities.assign.assign(
+      ISSUE_UUID,
+      VIEWER_ID,
+    );
+    assertEquals(again.changed, false);
+    assertEquals(again.dropped, []);
+  });
+});
+
+Deno.test("linear: assign keys on the UUID and refuses an unknown user", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    await failsWith(
+      "invalid",
+      () => adapter.capabilities.assign.assign("GW-16", VIEWER_ID),
+      "not an issue UUID",
+    );
+    await failsWith(
+      "not_found",
+      () => adapter.capabilities.assign.assign(ISSUE_UUID, OTHER_UUID),
+      "assigneeId",
+    );
+    assertEquals(fake.issues[0].assigneeId, undefined);
+  });
+});
+
+Deno.test("linear: fetchIssue reports the assignee in details", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    assertEquals((await adapter.fetchIssue("GW-16")).details, {
+      assignee: null,
+    });
+    fake.issues[0].assigneeId = VIEWER_ID;
+    assertEquals((await adapter.fetchIssue("GW-16")).details, {
+      assignee: { id: VIEWER_ID, name: "Pat Viewer", displayName: "pat" },
     });
   });
 });
@@ -400,5 +469,38 @@ Deno.test("linear: relations take UUIDs, as every write does", async () => {
       () => adapterFor(fake).relate("GW-16", "related_to", ISSUE_UUID),
       "not an issue UUID",
     );
+  });
+});
+
+Deno.test("linear: a malformed assign or viewer reply is an upstream error", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    const json = (data: unknown) => ({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data }),
+    });
+    const read = json({
+      issue: { state: { id: "state-todo", name: "Todo" }, assignee: null },
+    });
+    const sam = { id: OTHER_USER_ID, name: "Sam Other", displayName: "sam" };
+    for (
+      const update of [
+        { issueUpdate: { success: false, issue: null } },
+        // Linear said yes, but someone else holds the issue.
+        { issueUpdate: { success: true, issue: { assignee: sam } } },
+        { issueUpdate: { success: true, issue: { assignee: null } } },
+      ]
+    ) {
+      fake.queue.push(read, json(update));
+      await failsWith(
+        "upstream",
+        () => adapter.capabilities.assign.assign(ISSUE_UUID, VIEWER_ID),
+        "did not succeed",
+      );
+    }
+    fake.queue.push(json({ viewer: null }));
+    await failsWith("upstream", () => adapter.viewer(), "no viewer");
+    assertEquals(fake.issues[0].assigneeId, undefined);
   });
 });

@@ -15,6 +15,8 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import {
+  type Assigner,
+  type Assignment,
   type IssueDraft,
   type RelationChange,
   type RelationType,
@@ -39,7 +41,9 @@ import { checkRelate } from "../core/relations.ts";
 // rules on them, so the shared ones (relations.ts) are checked before each
 // write. Up to 250 of each kind are read per issue. Calls are not
 // retried: every write is idempotent through the delivery ledger or by
-// being a no-op when already done, so the caller re-runs.
+// being a no-op when already done, so the caller re-runs. An issue has one
+// assignee, so assign replaces whoever is there and reports them dropped;
+// whom publish assigns is the API key's owner, Linear's viewer.
 // ---------------------------------------------------------------------------
 
 export const LINEAR_API_URL = "https://api.linear.app/graphql";
@@ -89,7 +93,10 @@ interface GraphQLError {
   extensions?: { code?: unknown; type?: unknown };
 }
 
-const ISSUE_FIELDS = "id identifier title url state { id name }";
+const USER_FIELDS = "id name displayName";
+
+const ISSUE_FIELDS =
+  `id identifier title url state { id name } assignee { ${USER_FIELDS} }`;
 
 // What fetchIssue reads beside ISSUE_FIELDS: every relation, both ways.
 const RELATION_FIELDS = "parent { id identifier } " +
@@ -165,12 +172,27 @@ function relationsOf(node: RelatedNode): LinearRelation[] {
   return out;
 }
 
+/** A Linear user, as the adapter reads one. */
+export interface LinearUser {
+  id: string;
+  name: string;
+  displayName: string;
+}
+
 interface IssueNode {
   id: string;
   identifier: string;
   title: string;
   url: string;
   state: TrackerStatus;
+  assignee?: LinearUser | null;
+}
+
+/** The Linear adapter: the contract, and the API key's own user. */
+export interface LinearAdapter extends TrackerAdapter {
+  readonly capabilities: { readonly assign: Assigner };
+  /** The API key's owner: whom publish assigns when a work item starts. */
+  viewer(): Promise<LinearUser>;
 }
 
 function fail(kind: TrackerErrorKind, detail: string): never {
@@ -208,7 +230,7 @@ function preview(text: string): string {
 }
 
 /** A Linear client that speaks the tracker adapter contract. */
-export function linearAdapter(options: LinearOptions): TrackerAdapter {
+export function linearAdapter(options: LinearOptions): LinearAdapter {
   const apiUrl = options.apiUrl ?? LINEAR_API_URL;
   const problem = apiUrlProblem(apiUrl);
   if (problem !== undefined) fail("invalid", problem);
@@ -296,6 +318,9 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
       title: node.title,
       url: node.url,
       status: { id: node.state.id, name: node.state.name },
+      ...(node.assignee === undefined
+        ? {}
+        : { details: { assignee: node.assignee } }),
       relations: [],
     };
   }
@@ -382,10 +407,79 @@ export function linearAdapter(options: LinearOptions): TrackerAdapter {
     return label.id;
   }
 
+  async function viewer(): Promise<LinearUser> {
+    const data = await graphql<{ viewer: LinearUser | null }>(
+      `query StagecraftViewer { viewer { ${USER_FIELDS} } }`,
+      {},
+    );
+    if (!data.viewer) return fail("upstream", "no viewer for the API key");
+    return data.viewer;
+  }
+
+  const assign: Assigner = {
+    async assign(issueId: string, user: string): Promise<Assignment> {
+      requireUuid(issueId);
+      if (user.trim() === "") return fail("invalid", "no user to assign");
+      const data = await graphql<{
+        issue: { state: TrackerStatus; assignee: LinearUser | null } | null;
+      }>(
+        `query StagecraftAssignee($id: String!) {
+          issue(id: $id) { state { id name } assignee { ${USER_FIELDS} } }
+        }`,
+        { id: issueId },
+      );
+      if (data.issue === null) {
+        return fail("not_found", `no issue '${issueId}'`);
+      }
+      const status = data.issue.state.name;
+      const prior = data.issue.assignee;
+      if (prior?.id === user) {
+        return {
+          changed: false,
+          user,
+          display: prior.displayName,
+          status,
+          dropped: [],
+          details: { assignee: prior },
+        };
+      }
+      const updated = await graphql<{
+        issueUpdate: {
+          success: boolean;
+          issue: { assignee: LinearUser | null } | null;
+        };
+      }>(
+        `mutation StagecraftAssign($id: String!, $assigneeId: String!) {
+          issueUpdate(id: $id, input: { assigneeId: $assigneeId }) {
+            success issue { assignee { ${USER_FIELDS} } }
+          }
+        }`,
+        { id: issueId, assigneeId: user },
+      );
+      const result = updated.issueUpdate;
+      if (!result?.success || result.issue?.assignee?.id !== user) {
+        return fail(
+          "upstream",
+          `issueUpdate (assignee) on ${issueId} did not succeed`,
+        );
+      }
+      return {
+        changed: true,
+        user,
+        display: result.issue.assignee.displayName,
+        status,
+        // One assignee: whoever was there is replaced.
+        dropped: prior ? [prior.displayName] : [],
+        details: { assignee: result.issue.assignee },
+      };
+    },
+  };
+
   return {
     tracker: LINEAR,
     origin: "snapshot",
-    capabilities: {},
+    capabilities: { assign },
+    viewer,
     // Linear moves a duplicate to its reserved Duplicate status itself.
     closesDuplicates: true,
 
