@@ -157,6 +157,9 @@ groups:
       - dir: model/digitalocean
         triggers: [model/, codegen/]
         commands: *single-dir
+      - dir: model/tailscale
+        triggers: [model/, codegen/]
+        commands: *single-dir
       - dir: model/aws/healthimaging
         triggers: &generated [model/, codegen/]
       - dir: model/aws/quicksight

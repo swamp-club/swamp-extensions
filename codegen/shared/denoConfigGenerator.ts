@@ -124,3 +124,19 @@ export function generateVercelDenoConfig(): string {
     2,
   ) + "\n";
 }
+
+/**
+ * Generates a deno.json with import mappings for a Tailscale extension package.
+ */
+export function generateTailscaleDenoConfig(): string {
+  return JSON.stringify(
+    {
+      lint: LINT_CONFIG,
+      imports: {
+        "zod": "npm:zod@4.3.6",
+      },
+    },
+    null,
+    2,
+  ) + "\n";
+}

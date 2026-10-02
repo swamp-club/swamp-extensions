@@ -108,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [hetzner-cloud, digitalocean]
+        model: [hetzner-cloud, digitalocean, tailscale]
     defaults:
       run:
         working-directory: model/${{ matrix.model }}

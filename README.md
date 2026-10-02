@@ -68,6 +68,7 @@ end-to-end with a single `swamp workflow run`.
 | [`@swamp/gcp/*`](model/gcp/)                   | Google Cloud infrastructure models  |
 | [`@swamp/hetzner-cloud`](model/hetzner-cloud/) | Hetzner Cloud infrastructure models |
 | [`@swamp/digitalocean`](model/digitalocean/)   | DigitalOcean infrastructure models  |
+| [`@swamp/tailscale`](model/tailscale/)         | Tailscale tailnet management models |
 
 AWS, Cloudflare, and GCP models are published per-service (e.g.,
 `@swamp/aws/ec2`, `@swamp/cloudflare/dns`, `@swamp/gcp/compute`). All model
@@ -230,7 +231,7 @@ service factories. See `datastore/s3/` for the canonical example.
 **Model extensions** under `model/` are auto-generated — never edit by hand.
 AWS models are structured as `model/aws/<service>/` (one directory per service,
 ~249 services). Cloudflare uses the same per-service layout (~69 services).
-Hetzner and DigitalOcean each have a single directory.
+Hetzner, DigitalOcean and Tailscale each have a single directory.
 
 **Workflow extensions** live in `workflows/<name>/` and list a workflow YAML
 under `extensions/workflows/` plus any helper models under `extensions/models/`
@@ -261,11 +262,13 @@ deno task fetch-schema:cloudflare
 deno task fetch-schema:gcp
 deno task fetch-schema:hetzner
 deno task fetch-schema:digitalocean
+deno task fetch-schema:tailscale
 deno task generate:aws
 deno task generate:cloudflare
 deno task generate:gcp
 deno task generate:hetzner
 deno task generate:digitalocean
+deno task generate:tailscale
 ```
 
 AWS, Cloudflare, and GCP support service filtering:
@@ -280,6 +283,7 @@ Design documents explain how each provider's schema is mapped to swamp models:
 - [GCP](codegen/designs/gcp.md)
 - [Hetzner Cloud](codegen/designs/hetzner.md)
 - [DigitalOcean](codegen/designs/digitalocean.md)
+- [Tailscale](codegen/designs/tailscale.md)
 
 ## Publishing
 

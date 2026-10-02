@@ -5,6 +5,7 @@ import { generateCloudflareModels } from "../cloudflare/pipeline.ts";
 import { generateDigitalOceanModels } from "../digitalocean/pipeline.ts";
 import { generateGcpModels } from "../gcp/pipeline.ts";
 import { generateHetznerModels } from "../hetzner/pipeline.ts";
+import { generateTailscaleModels } from "../tailscale/pipeline.ts";
 import { generateVercelModels } from "../vercel/pipeline.ts";
 import { stripReleaseNotes } from "../shared/version.ts";
 
@@ -33,9 +34,12 @@ export async function generateModels(options: {
     case "vercel":
       await generateVercelProvider(options);
       break;
+    case "tailscale":
+      await generateTailscaleProvider(options);
+      break;
     default:
       throw new Error(
-        `Unsupported provider: ${options.provider}. Supported: "aws", "cloudflare", "gcp", "hetzner", "digitalocean", "vercel".`,
+        `Unsupported provider: ${options.provider}. Supported: "aws", "cloudflare", "gcp", "hetzner", "digitalocean", "vercel", "tailscale".`,
       );
   }
 }
@@ -883,4 +887,90 @@ async function generateVercelProvider(options: {
   }
   console.log(`  Date prefix: ${vercelDatePrefix}`);
   console.log(`  Output directory: ${options.outputDir}`);
+}
+
+async function generateTailscaleProvider(options: {
+  outputDir: string;
+  schemaPath?: string;
+}): Promise<void> {
+  const outputDir = `${options.outputDir}/tailscale`;
+  console.log(`Generating tailscale models...`);
+  console.log(`Output directory: ${outputDir}`);
+
+  const {
+    version,
+    models,
+    libFile,
+    manifest,
+    readmeFile,
+    licenseFile,
+    denoConfigFile,
+    skipped,
+    errors,
+    modelChanges,
+    hasChanges,
+  } = await generateTailscaleModels({
+    outputDir,
+    schemaPath: options.schemaPath,
+  });
+
+  for (
+    const file of [libFile, ...models, readmeFile, licenseFile, denoConfigFile]
+  ) {
+    const path = `${outputDir}/${file.filePath}`;
+    await Deno.mkdir(path.substring(0, path.lastIndexOf("/")), {
+      recursive: true,
+    });
+    await Deno.writeTextFile(path, file.sourceCode);
+  }
+
+  // Write the manifest only when its content (minus per-run release notes)
+  // differs from disk, as for Hetzner.
+  {
+    const manifestPath = `${outputDir}/${manifest.filePath}`;
+    let manifestChanged = true;
+    try {
+      manifestChanged =
+        stripReleaseNotes(await Deno.readTextFile(manifestPath)) !==
+          stripReleaseNotes(manifest.sourceCode);
+    } catch {
+      // File doesn't exist — write it
+    }
+    if (manifestChanged) {
+      await Deno.writeTextFile(manifestPath, manifest.sourceCode);
+    }
+  }
+
+  console.log(`\nFormatting generated files...`);
+  const fmtResult = await new Deno.Command("deno", {
+    args: ["fmt", "--no-config", outputDir],
+  }).output();
+  if (!fmtResult.success) {
+    console.warn(
+      `  Warning: deno fmt failed: ${
+        new TextDecoder().decode(fmtResult.stderr)
+      }`,
+    );
+  }
+
+  const changedCount = modelChanges.filter((c) => c.status !== "unchanged")
+    .length;
+  console.log(`\nGeneration complete!`);
+  console.log(
+    `  Models: ${changedCount} changed, ${
+      modelChanges.length - changedCount
+    } unchanged`,
+  );
+  console.log(`  Manifest: ${hasChanges ? "changed" : "unchanged"}`);
+  console.log(`  Skipped operations: ${skipped.length}`);
+  for (const s of skipped) console.log(`    ${s.path}: ${s.reason}`);
+  if (errors.length > 0) {
+    console.log(`  Errors: ${errors.length}`);
+    for (const err of errors) console.log(`    ${err}`);
+    // Everything that generated is written above; exit 2 so the nightly
+    // regeneration keeps the output but fails the run (see the AWS provider).
+    Deno.exitCode = 2;
+  }
+  console.log(`  Version: ${version}`);
+  console.log(`  Output directory: ${outputDir}`);
 }

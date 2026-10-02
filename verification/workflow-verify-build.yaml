@@ -237,13 +237,19 @@ jobs:
               set -e
               cd codegen
 
-              echo "=== Fetching schemas (Hetzner + DigitalOcean) ==="
+              echo "=== Fetching schemas (Hetzner + DigitalOcean + Tailscale) ==="
               deno task fetch-schema:hetzner
               deno task fetch-schema:digitalocean
+              deno task fetch-schema:tailscale
 
-              echo "=== First generation (Hetzner + DigitalOcean) ==="
+              echo "=== First generation (Hetzner + DigitalOcean + Tailscale) ==="
               deno task generate:hetzner
               deno task generate:digitalocean
+              # Exit 2 means generation finished but the coverage gate found
+              # spec operations not in codegen/tailscale/resources.ts. That
+              # is reported by the nightly regeneration; here only
+              # determinism matters, so it must not fail unrelated PRs.
+              deno task generate:tailscale || [ "$?" -eq 2 ]
 
               echo "=== Checking for diffs after first generation ==="
               FIRST_DIFF=$(git diff --name-only)
@@ -255,6 +261,7 @@ jobs:
               echo "=== Second generation (idempotency canary) ==="
               deno task generate:hetzner
               deno task generate:digitalocean
+              deno task generate:tailscale || [ "$?" -eq 2 ]
 
               echo "=== Checking for NEW diffs after second generation ==="
               SECOND_DIFF=$(git diff --name-only)

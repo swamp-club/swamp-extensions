@@ -43,8 +43,8 @@ or failed.
    scan of every lockfile, not just changed ones — a new CVE can land in a
    dependency nobody touched; each distinct package version is queried once) and
    `scripts/audit_actions.ts` (unpinned or outdated Actions).
-3. **Codegen idempotency** — when `codegen/` changed: generate Hetzner +
-   DigitalOcean twice. The second run must produce zero new diffs.
+3. **Codegen idempotency** — when `codegen/` changed: generate Hetzner,
+   DigitalOcean and Tailscale twice. The second run must produce zero new diffs.
 4. **Model upgrade gate** (`scripts/check_upgrades.ts`) — for every model whose
    own `version` the change bumps, generated or hand-written. The gate reads the
    model files, not `manifest.yaml`: instances pin the model's `version`.

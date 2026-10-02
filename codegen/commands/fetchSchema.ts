@@ -5,6 +5,7 @@ import { fetchCloudflareSchema } from "../cloudflare/pipeline.ts";
 import { fetchDigitalOceanSchema } from "../digitalocean/pipeline.ts";
 import { fetchGcpSchema } from "../gcp/pipeline.ts";
 import { fetchHetznerSchema } from "../hetzner/pipeline.ts";
+import { fetchTailscaleSchema } from "../tailscale/pipeline.ts";
 import { fetchVercelSchema } from "../vercel/pipeline.ts";
 
 /**
@@ -34,9 +35,12 @@ export async function fetchSchema(options: {
     case "vercel":
       await fetchVercelSchema({ outputPath: options.outputPath });
       break;
+    case "tailscale":
+      await fetchTailscaleSchema({ outputPath: options.outputPath });
+      break;
     default:
       throw new Error(
-        `Unsupported provider: ${options.provider}. Supported: "aws", "cloudflare", "gcp", "hetzner", "digitalocean", "vercel".`,
+        `Unsupported provider: ${options.provider}. Supported: "aws", "cloudflare", "gcp", "hetzner", "digitalocean", "vercel", "tailscale".`,
       );
   }
 }

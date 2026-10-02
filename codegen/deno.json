@@ -28,6 +28,8 @@
     "bump-versions:gcp": "deno run --allow-read --allow-write --allow-run=deno scripts/bump-versions.ts ../model/gcp",
     "fetch-schema:vercel": "deno run --allow-read --allow-write --allow-env --allow-net main.ts fetch-schema --provider vercel",
     "generate:vercel": "deno run --allow-read --allow-write --allow-env --allow-net --allow-run=deno main.ts generate-models --provider vercel",
+    "fetch-schema:tailscale": "deno run --allow-read --allow-write --allow-env --allow-net main.ts fetch-schema --provider tailscale",
+    "generate:tailscale": "deno run --allow-read --allow-write --allow-env --allow-net --allow-run=deno main.ts generate-models --provider tailscale",
     "generate:aws-credentials": "deno run --allow-read --allow-write scripts/generate-aws-credentials.ts"
   },
   "imports": {

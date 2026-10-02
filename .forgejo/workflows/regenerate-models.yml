@@ -18,6 +18,7 @@ on:
           - hetzner
           - digitalocean
           - vercel
+          - tailscale
 
 permissions: {}
 
@@ -236,6 +237,37 @@ jobs:
             exit 1
           fi
 
+      - name: Fetch and generate Tailscale models
+        id: tailscale
+        continue-on-error: true
+        if: >-
+          github.event_name == 'schedule' ||
+          inputs.provider == 'all' ||
+          inputs.provider == 'tailscale'
+        working-directory: codegen
+        run: |
+          rc=0
+          echo "::group::Fetch Tailscale schema"
+          deno task fetch-schema:tailscale || rc=$?
+          echo "::endgroup::"
+          if [ "$rc" -eq 0 ]; then
+            echo "::group::Generate Tailscale models"
+            deno task generate:tailscale || rc=$?
+            echo "::endgroup::"
+          fi
+          if [ "$rc" -eq 2 ]; then
+            # The generator finished but reported errors: its output is
+            # complete, so keep it for the PR.
+            echo "::error::Tailscale generation reported errors (see above)"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            # A crash or fetch failure can leave partial output; drop it.
+            echo "::error::Tailscale failed (exit $rc); discarding its model/ changes"
+            git checkout -- ../model/tailscale
+            git clean -fdq -- ../model/tailscale
+            exit 1
+          fi
+
       - name: Update lockfiles for changed directories
         run: |
           changed=$(git status --porcelain -- '*/deno.json' | sed 's/^...//')
@@ -264,7 +296,7 @@ jobs:
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
           SUMMARY=""
-          for provider in aws gcp cloudflare hetzner-cloud digitalocean vercel; do
+          for provider in aws gcp cloudflare hetzner-cloud digitalocean vercel tailscale; do
             count=$(git status --porcelain -- "model/$provider/" | wc -l | tr -d ' ')
             if [ "$count" -gt 0 ]; then
               SUMMARY="${SUMMARY}- **${provider}**: ${count} files changed"$'\n'
@@ -334,6 +366,7 @@ jobs:
           - **Hetzner**: Hetzner Cloud OpenAPI spec
           - **DigitalOcean**: DigitalOcean OpenAPI spec
           - **Vercel**: Vercel OpenAPI spec
+          - **Tailscale**: Tailscale OpenAPI spec
 
           ### Changes
 
@@ -374,9 +407,10 @@ jobs:
           HETZNER: ${{ steps.hetzner.outcome }}
           DIGITALOCEAN: ${{ steps.digitalocean.outcome }}
           VERCEL: ${{ steps.vercel.outcome }}
+          TAILSCALE: ${{ steps.tailscale.outcome }}
         run: |
           failed=""
-          for provider in AWS GCP CLOUDFLARE HETZNER DIGITALOCEAN VERCEL; do
+          for provider in AWS GCP CLOUDFLARE HETZNER DIGITALOCEAN VERCEL TAILSCALE; do
             if [ "${!provider}" = "failure" ]; then
               failed="$failed $provider"
             fi

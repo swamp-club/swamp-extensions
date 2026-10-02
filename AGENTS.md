@@ -59,10 +59,12 @@ deno task fetch-schema:aws
 deno task fetch-schema:gcp
 deno task fetch-schema:hetzner
 deno task fetch-schema:digitalocean
+deno task fetch-schema:tailscale
 deno task generate:aws
 deno task generate:gcp
 deno task generate:hetzner
 deno task generate:digitalocean
+deno task generate:tailscale
 ```
 
 AWS and GCP support service filtering: `deno task generate:aws ec2 s3 lambda`
@@ -78,8 +80,8 @@ auto-generated — do not hand-edit.
 
 **Note:** AWS and GCP models live under `model/aws/<service>/` and
 `model/gcp/<service>/` (one directory per service, ~249 AWS / ~260 GCP).
-Hetzner and DigitalOcean each have a single directory. Each service directory
-has its own `deno.json`, `deno.lock`, and `manifest.yaml`.
+Hetzner, DigitalOcean and Tailscale each have a single directory. Each service
+directory has its own `deno.json`, `deno.lock`, and `manifest.yaml`.
 
 ### Benchmarks (run from datastore/benchmarks/)
 
@@ -132,6 +134,7 @@ Design documents explain each provider's schema-to-model mapping decisions:
 - [GCP](codegen/designs/gcp.md) — Cloud Asset Inventory schema → GCP models
 - [Hetzner Cloud](codegen/designs/hetzner.md) — OpenAPI → Hetzner models
 - [DigitalOcean](codegen/designs/digitalocean.md) — OpenAPI → DigitalOcean models
+- [Tailscale](codegen/designs/tailscale.md) — OpenAPI → Tailscale models
 
 **Read the relevant design doc before modifying a provider's codegen pipeline.**
 
