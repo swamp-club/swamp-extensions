@@ -41,6 +41,8 @@ function makeResource(overrides: Partial<VercelResource> = {}): VercelResource {
     handlers: { create: true, read: true, update: true, delete: true },
     updateMethod: "PUT",
     identifyingField: "id",
+    listIdentifyingField: "id",
+    listItemProperties: null,
     idParam: "id",
     namingField: "name",
     syntheticName: false,
@@ -310,4 +312,122 @@ Deno.test("globalArgsFieldNames - matches the field names the upgrade parser rea
     );
   }
   assert(globalArgsFieldNames(slugResource()).includes("resourceSlug"));
+});
+
+// ---------------------------------------------------------------------------
+// Read vs list identifiers, lookup filters and sensitive fields
+// ---------------------------------------------------------------------------
+
+function block(code: string, start: string, end?: string): string {
+  const from = code.indexOf(start);
+  return end ? code.slice(from, code.indexOf(end, from)) : code.slice(from);
+}
+
+// Like a deployment: get returns `id`, list items carry `uid`.
+function uidListResource(overrides: Partial<VercelResource> = {}) {
+  return makeResource({
+    createProperties: {
+      name: stringProp,
+      project: stringProp,
+      buildMachine: stringProp,
+      gitAccessToken: { type: "string", sensitive: true },
+    },
+    updateProperties: { name: stringProp },
+    updateMethod: "PATCH",
+    listIdentifyingField: "uid",
+    listItemProperties: ["uid", "name", "projectId"],
+    ...overrides,
+  });
+}
+
+Deno.test("generateVercelExtensionModel - sync and update accept the read or the list identifier when they differ", () => {
+  const code = generate(uidListResource());
+  const sync = block(code, "    sync: {");
+  assertStringIncludes(
+    sync,
+    "const existingId = existing.id ?? existing.uid;",
+  );
+  assertStringIncludes(
+    sync,
+    `if (!existingId) throw new Error("Stored state has no id or uid - cannot sync");`,
+  );
+  assertStringIncludes(sync, "await tryRead(endpoint, existingId,");
+  assertStringIncludes(sync, "id: existingId,");
+  assertEquals(sync.includes("existing.uid,"), false);
+
+  const update = block(code, "    update: {", "    delete: {");
+  assertStringIncludes(
+    update,
+    "const existingId = existing.id ?? existing.uid;",
+  );
+  assertStringIncludes(update, "await update(endpoint, existingId, body,");
+
+  const lookup = block(code, "    lookup: {", "    adopt: {");
+  assertStringIncludes(lookup, "result.uid?.toString()");
+});
+
+Deno.test("generateVercelExtensionModel - one identifier keeps the direct existing.<id> code", () => {
+  const code = generate(makeResource());
+  assertEquals(code.includes("existingId"), false);
+  assertStringIncludes(
+    code,
+    `if (!existing.id) throw new Error("Stored state has no id - cannot sync");`,
+  );
+  assertStringIncludes(code, "await tryRead(endpoint, existing.id,");
+});
+
+Deno.test("generateVercelExtensionModel - lookup filters only on list item fields", () => {
+  const lookup = block(
+    generate(uidListResource()),
+    "    lookup: {",
+    "    adopt: {",
+  );
+  assertStringIncludes(
+    lookup,
+    `if (g.name !== undefined) filters.push(["name", String(g.name), "name"]);`,
+  );
+  // project is matched against the list item's projectId, id against uid.
+  assertStringIncludes(
+    lookup,
+    `if (g.project !== undefined) filters.push(["projectId", String(g.project), "project"]);`,
+  );
+  assertStringIncludes(
+    lookup,
+    `if (g.id !== undefined) filters.push(["uid", String(g.id), "id"]);`,
+  );
+  // A remapped filter's no-match error names the global arg the user set.
+  assertStringIncludes(lookup, "(matched against ${k})");
+  // A create-only field list items never carry, and a secret, are not filters.
+  assertEquals(lookup.includes("g.buildMachine"), false);
+  assertEquals(lookup.includes("g.gitAccessToken"), false);
+});
+
+Deno.test("generateVercelExtensionModel - unknown list items keep every non-secret filter", () => {
+  const lookup = block(
+    generate(uidListResource({ listItemProperties: null })),
+    "    lookup: {",
+    "    adopt: {",
+  );
+  assertStringIncludes(
+    lookup,
+    `if (g.project !== undefined) filters.push(["project", String(g.project)]);`,
+  );
+  assertStringIncludes(lookup, `filters.push(["buildMachine"`);
+  assertEquals(lookup.includes("g.gitAccessToken"), false);
+});
+
+Deno.test("generateVercelExtensionModel - sensitive fields carry sensitive meta in both schemas", () => {
+  const code = generate(uidListResource());
+  assertStringIncludes(
+    globalArgsBlock(code),
+    "gitAccessToken: z.string().meta({ sensitive: true }).optional(),",
+  );
+  assertStringIncludes(
+    block(code, "const InputsSchema", "});"),
+    "gitAccessToken: z.string().meta({ sensitive: true }).optional(),",
+  );
+  assertEquals(
+    globalArgsBlock(code).includes("project: z.string().meta"),
+    false,
+  );
 });

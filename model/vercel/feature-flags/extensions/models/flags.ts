@@ -146,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -211,6 +211,11 @@ export const model = {
     {
       toVersion: "2026.10.01.1",
       description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -302,9 +307,6 @@ export const model = {
         const filters: [string, string][] = [];
         if (g.createdBy !== undefined) {
           filters.push(["createdBy", String(g.createdBy)]);
-        }
-        if (g.message !== undefined) {
-          filters.push(["message", String(g.message)]);
         }
         if (g.seed !== undefined) filters.push(["seed", String(g.seed)]);
         if (g.description !== undefined) {

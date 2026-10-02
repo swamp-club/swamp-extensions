@@ -210,6 +210,14 @@ export function generateVercelExtensionModel(
 
   const namingField = resource.namingField;
   const idField = resource.identifyingField;
+  const listIdField = resource.listIdentifyingField;
+  // State written by lookup carries the list identifier, state written by
+  // create/get/adopt the read identifier; methods that key on stored state
+  // accept either when they differ.
+  const hasListIdFallback = listIdField !== idField;
+  const existingId = hasListIdFallback ? "existingId" : `existing.${idField}`;
+  const existingIdLine =
+    `        const existingId = existing.${idField} ?? existing.${listIdField};`;
   const hasUnwrap = !!resource.responseUnwrapKey;
 
   // Generate a const result = ... with optional unwrapping, avoiding lint issues with let
@@ -374,15 +382,26 @@ export function generateVercelExtensionModel(
     );
     lines.push(`        const g = context.globalArgs;`);
     lines.push(...listEp);
+    // A filter matched against a differently named item field (project ->
+    // projectId) also records the global arg it came from, so a no-match
+    // error names the arg the user set.
+    const filterPairs = lookupFilters(resource, allFilterFields);
+    const hasRemap = filterPairs.some(([name, itemKey]) => name !== itemKey);
     lines.push(
-      `        const filters: [string, string][] = [];`,
+      `        const filters: ${
+        hasRemap ? "[string, string, string]" : "[string, string]"
+      }[] = [];`,
     );
-    for (const name of allFilterFields) {
+    const filterDescExpr = hasRemap
+      ? `filters.map(([k, v, arg]) => \`\${arg}=\${JSON.stringify(v)}\${arg === k ? "" : \` (matched against \${k})\`}\`).join(", ")`
+      : `filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ")`;
+    for (const [name, itemKey] of filterPairs) {
       const access = propAccess(argOf(name));
+      const arg = hasRemap ? `, ${JSON.stringify(argOf(name))}` : "";
       lines.push(
         `        if (g${access} !== undefined) filters.push([${
-          JSON.stringify(name)
-        }, String(g${access})]);`,
+          JSON.stringify(itemKey)
+        }, String(g${access})${arg}]);`,
       );
     }
     lines.push(
@@ -404,17 +423,13 @@ export function generateVercelExtensionModel(
     lines.push(`          return true;`);
     lines.push(`        });`);
     lines.push(`        if (matches.length === 0) {`);
-    lines.push(
-      `          const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");`,
-    );
+    lines.push(`          const filterDesc = ${filterDescExpr};`);
     lines.push(
       `          throw new Error(\`No ${singular.toLowerCase()} found matching filters: \${filterDesc}\`);`,
     );
     lines.push(`        }`);
     lines.push(`        if (matches.length > 1) {`);
-    lines.push(
-      `          const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");`,
-    );
+    lines.push(`          const filterDesc = ${filterDescExpr};`);
     lines.push(
       `          throw new Error(\`Expected exactly 1 match, found \${matches.length} for filters: \${filterDesc}\`);`,
     );
@@ -423,7 +438,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(
-          `g.${namingArg}?.toString() ?? result.${idField}?.toString() ?? "current"`,
+          `g.${namingArg}?.toString() ?? result.${listIdField}?.toString() ?? "current"`,
         )
       };`,
     );
@@ -501,6 +516,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const existing = JSON.parse(new TextDecoder().decode(content));`,
     );
+    if (hasListIdFallback) lines.push(existingIdLine);
     lines.push(`        const body: Record<string, unknown> = {};`);
     const updateKeys = Object.keys(resource.updateProperties).length > 0
       ? Object.keys(resource.updateProperties)
@@ -546,11 +562,11 @@ export function generateVercelExtensionModel(
       lines.push(`        if (unset.length > 0) {`);
       if (hasUnwrap) {
         lines.push(
-          `          const live = unwrapResponse(await read(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as Record<string, unknown>) as Record<string, unknown>;`,
+          `          const live = unwrapResponse(await read(endpoint, ${existingId}${authSuffix}${teamSuffix}) as Record<string, unknown>) as Record<string, unknown>;`,
         );
       } else {
         lines.push(
-          `          const live = await read(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as Record<string, unknown>;`,
+          `          const live = await read(endpoint, ${existingId}${authSuffix}${teamSuffix}) as Record<string, unknown>;`,
         );
       }
       lines.push(
@@ -580,7 +596,7 @@ export function generateVercelExtensionModel(
     }
     lines.push(
       ...resultAssign(
-        `await update(endpoint, existing.${idField}, body, "${resource.updateMethod}"${authSuffix}${teamSuffix})`,
+        `await update(endpoint, ${existingId}, body, "${resource.updateMethod}"${authSuffix}${teamSuffix})`,
       ),
     );
     lines.push(
@@ -660,19 +676,26 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const existing = JSON.parse(new TextDecoder().decode(content));`,
     );
-    lines.push(
-      `        if (!existing.${idField}) throw new Error("Stored state has no ${idField} - cannot sync");`,
-    );
+    if (hasListIdFallback) {
+      lines.push(existingIdLine);
+      lines.push(
+        `        if (!existingId) throw new Error("Stored state has no ${idField} or ${listIdField} - cannot sync");`,
+      );
+    } else {
+      lines.push(
+        `        if (!existing.${idField}) throw new Error("Stored state has no ${idField} - cannot sync");`,
+      );
+    }
     if (resource.responseUnwrapKey) {
       lines.push(
-        `        const rawSyncResult = await tryRead(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as ResourceData | null;`,
+        `        const rawSyncResult = await tryRead(endpoint, ${existingId}${authSuffix}${teamSuffix}) as ResourceData | null;`,
       );
       lines.push(
         `        const result = rawSyncResult ? unwrapResponse(rawSyncResult as Record<string, unknown>) as ResourceData : null;`,
       );
     } else {
       lines.push(
-        `        const result = await tryRead(endpoint, existing.${idField}${authSuffix}${teamSuffix}) as ResourceData | null;`,
+        `        const result = await tryRead(endpoint, ${existingId}${authSuffix}${teamSuffix}) as ResourceData | null;`,
       );
     }
     lines.push(`        if (result) {`);
@@ -684,7 +707,7 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, {`,
     );
-    lines.push(`          id: existing.${idField},`);
+    lines.push(`          id: ${existingId},`);
     lines.push(`          status: "not_found",`);
     lines.push(`          syncedAt: new Date().toISOString(),`);
     lines.push(`        });`);
@@ -754,6 +777,40 @@ export function globalArgName(resource: VercelResource, name: string): string {
   return renamed;
 }
 
+/** A request-body field that holds a secret, in either the create or update body. */
+function isSensitiveProperty(resource: VercelResource, name: string): boolean {
+  return !!(resource.createProperties[name]?.sensitive ||
+    resource.updateProperties[name]?.sensitive);
+}
+
+/**
+ * The lookup filters as [global arg property, list item key] pairs. When the
+ * list item schema is known, a filter is kept only if list items can match
+ * it: by the same name, by the list identifier for the read identifier
+ * (deployments: id -> uid), or by `<name>Id` (deployments: project ->
+ * projectId). Secrets are never filters, since a no-match error prints them.
+ */
+function lookupFilters(
+  resource: VercelResource,
+  names: string[],
+): [string, string][] {
+  const items = resource.listItemProperties;
+  const result: [string, string][] = [];
+  for (const name of names) {
+    if (isSensitiveProperty(resource, name)) continue;
+    if (!items || items.includes(name)) {
+      result.push([name, name]);
+    } else if (name === resource.identifyingField) {
+      if (items.includes(resource.listIdentifyingField)) {
+        result.push([name, resource.listIdentifyingField]);
+      }
+    } else if (items.includes(`${name}Id`)) {
+      result.push([name, `${name}Id`]);
+    }
+  }
+  return result;
+}
+
 function propAccess(name: string): string {
   return VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
 }
@@ -777,7 +834,10 @@ function buildGlobalArgsProperties(
 
   for (const [name, prop] of Object.entries(allProps)) {
     if (injectedFields.has(name)) continue;
-    const baseExpr = generateFullFidelityZod(prop);
+    const sensitive = isSensitiveProperty(resource, name)
+      ? `.meta({ sensitive: true })`
+      : "";
+    const baseExpr = `${generateFullFidelityZod(prop)}${sensitive}`;
     const qName = quoteProp(globalArgName(resource, name));
     let line = `${qName}: ${baseExpr}`;
 

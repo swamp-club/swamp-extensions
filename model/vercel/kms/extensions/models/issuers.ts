@@ -72,7 +72,7 @@ const GlobalArgsSchema = z.object({
     ),
     tokenClaims: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
-  importKey: z.string().describe(
+  importKey: z.string().meta({ sensitive: true }).describe(
     "The PEM-encoded private key to use for the issuer.",
   ).optional(),
   importKeyId: z.string().max(128).regex(new RegExp("^[A-Za-z0-9._-]+$"))
@@ -158,7 +158,7 @@ const InputsSchema = z.object({
     ),
     tokenClaims: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
-  importKey: z.string().optional(),
+  importKey: z.string().meta({ sensitive: true }).optional(),
   importKeyId: z.string().max(128).regex(new RegExp("^[A-Za-z0-9._-]+$"))
     .optional(),
   token: z.string().meta({ sensitive: true }).optional(),
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -186,6 +186,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -270,12 +275,6 @@ export const model = {
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.algorithm !== undefined) {
           filters.push(["algorithm", String(g.algorithm)]);
-        }
-        if (g.importKey !== undefined) {
-          filters.push(["importKey", String(g.importKey)]);
-        }
-        if (g.importKeyId !== undefined) {
-          filters.push(["importKeyId", String(g.importKeyId)]);
         }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);

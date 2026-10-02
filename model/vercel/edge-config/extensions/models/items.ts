@@ -74,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Items. Registered at `@swamp/vercel/edge-config/items`. */
 export const model = {
   type: "@swamp/vercel/edge-config/items",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -131,6 +131,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -226,7 +231,6 @@ export const model = {
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

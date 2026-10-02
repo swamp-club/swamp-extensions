@@ -98,7 +98,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Endpoints. Registered at `@swamp/vercel/networking/endpoints`. */
 export const model = {
   type: "@swamp/vercel/networking/endpoints",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.09.16.1",
@@ -107,6 +107,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -195,9 +200,6 @@ export const model = {
         const endpoint = "/v1/networking/privatelink/endpoints";
         const filters: [string, string][] = [];
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
-        if (g.enablePrivateDns !== undefined) {
-          filters.push(["enablePrivateDns", String(g.enablePrivateDns)]);
-        }
         if (g.projectId !== undefined) {
           filters.push(["projectId", String(g.projectId)]);
         }

@@ -38,6 +38,8 @@ export interface VercelProperty {
   properties?: Record<string, VercelProperty>;
   requiredProperties?: string[];
   format?: string;
+  /** A secret request-body field; emitted with `.meta({ sensitive: true })` */
+  sensitive?: boolean;
 }
 
 export interface VercelResource {
@@ -97,6 +99,14 @@ export interface VercelResource {
   updateMethod: "PATCH" | "PUT";
   /** Field name in API response that holds the unique ID */
   identifyingField: string;
+  /**
+   * Field holding the unique ID on list items. Usually identifyingField, but
+   * a deployment read returns `id` while its list items carry only `uid`, so
+   * state written by lookup is keyed differently from state written by get.
+   */
+  listIdentifyingField: string;
+  /** Property names of a list response item; null when the list item schema cannot be extracted */
+  listItemProperties: string[] | null;
   /** Path parameter name for the resource ID, e.g., "idOrName", "domain" */
   idParam: string;
   /** Field used to derive instance names (e.g., "name") */
@@ -154,7 +164,7 @@ export interface VercelGenerationResult {
 const IDENTIFIER_MAP: Record<string, string> = {
   id: "id",
   idOrName: "id",
-  idOrUrl: "uid",
+  idOrUrl: "id",
   domain: "name",
   recordId: "id",
   projectId: "id",
@@ -172,6 +182,16 @@ const IDENTIFIER_MAP: Record<string, string> = {
   edgeConfigItemKey: "key",
   uid: "uid",
 };
+
+/** Request-body field names that hold secrets (see isSensitive). */
+const SECRET_NAME_PATTERN =
+  /(secret|password|token|credentials?|privatekey|apikey)$/i;
+
+/**
+ * Secret fields the spec does not mark writeOnly and whose names do not say
+ * so: a KMS issuer's importKey is a PEM-encoded private key.
+ */
+const SENSITIVE_FIELDS = new Set(["importKey"]);
 
 /** Tags to skip — not manageable infrastructure resources. */
 const SKIP_TAGS = new Set([
@@ -584,6 +604,7 @@ interface OApiSchema {
   items?: OApiSchema;
   format?: string;
   readOnly?: boolean;
+  writeOnly?: boolean;
   minimum?: number;
   maximum?: number;
   minLength?: number;
@@ -1059,6 +1080,11 @@ function buildResource(
 
   const { style: paginationStyle, cursorParam: paginationCursorParam } =
     detectPagination(listOp);
+  const listItemProperties = extractListItemProperties(
+    listOp,
+    paths?.listPath ?? basePath,
+    spec,
+  );
 
   const strippedPath = stripVersionPrefix(basePath);
   const pathSegments = strippedPath.split("/").filter((s) =>
@@ -1108,6 +1134,11 @@ function buildResource(
     },
     updateMethod,
     identifyingField,
+    listIdentifyingField: resolveListIdentifyingField(
+      identifyingField,
+      listItemProperties,
+    ),
+    listItemProperties,
     idParam,
     namingField,
     syntheticName,
@@ -1198,6 +1229,11 @@ function buildManualResource(
 
   const { style: paginationStyle, cursorParam: paginationCursorParam } =
     detectPagination(listOp);
+  const listItemProperties = extractListItemProperties(
+    listOp,
+    manual.listPath ?? manual.createPath,
+    spec,
+  );
 
   // Derive slug from the create path
   const strippedPath = stripVersionPrefix(manual.createPath);
@@ -1251,6 +1287,11 @@ function buildManualResource(
     },
     updateMethod,
     identifyingField,
+    listIdentifyingField: resolveListIdentifyingField(
+      identifyingField,
+      listItemProperties,
+    ),
+    listItemProperties,
     idParam: manual.idParam,
     namingField,
     syntheticName,
@@ -1372,12 +1413,76 @@ function extractRequestBody(
   const properties: Record<string, VercelProperty> = {};
   for (const [name, propSchema] of Object.entries(flattened.properties)) {
     properties[name] = normalizeProperty(propSchema, spec);
+    if (isSensitive(name, resolveSchema(propSchema, spec))) {
+      properties[name].sensitive = true;
+    }
   }
 
   return {
     properties,
     required: flattened.required ?? [],
   };
+}
+
+/**
+ * Whether a top-level request-body field holds a secret, mirroring the
+ * tailscale pipeline's rule. Nested fields are not inspected (e.g. a drain's
+ * delivery.secret); see codegen/designs/vercel.md.
+ */
+function isSensitive(name: string, schema: OApiSchema): boolean {
+  return !!schema.writeOnly || schema.format === "password" ||
+    (schema.type === "string" && SECRET_NAME_PATTERN.test(name)) ||
+    SENSITIVE_FIELDS.has(name);
+}
+
+/**
+ * Property names of a list response item. The response is either itself an
+ * array, or an object holding the items in an array property named after the
+ * list path's last segment (`deployments` in `{ deployments: [...],
+ * pagination }`) or, failing that, in its only array of objects. A team
+ * members list also returns `emailInviteCodes`, so the first array is not
+ * enough. Returns null when the items cannot be identified.
+ */
+function extractListItemProperties(
+  operation: OApiOperation | undefined,
+  listPath: string,
+  spec: OApiSpec,
+): string[] | null {
+  const content = operation?.responses?.["200"]?.content?.["application/json"];
+  if (!content?.schema) return null;
+  const schema = resolveSchema(content.schema, spec);
+  const itemProps = (array: OApiSchema): string[] | null => {
+    if (array.type !== "array" || !array.items) return null;
+    const item = resolveSchema(array.items, spec);
+    const names = Object.keys(item.properties ?? {});
+    return names.length > 0 ? names : null;
+  };
+  if (schema.type === "array") return itemProps(schema);
+
+  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, "");
+  const segments = listPath.split("/").filter((s) => s && !s.startsWith("{"));
+  const collection = normalize(segments[segments.length - 1] ?? "");
+  const candidates = Object.entries(schema.properties ?? {})
+    .map(([name, prop]) => ({
+      name,
+      items: itemProps(resolveSchema(prop, spec)),
+    }))
+    .filter((c) => c.items !== null);
+  const named = candidates.find((c) => normalize(c.name) === collection);
+  if (named) return named.items;
+  return candidates.length === 1 ? candidates[0].items : null;
+}
+
+/** The list-item ID field: the read ID if items carry it, else uid or id. */
+function resolveListIdentifyingField(
+  identifyingField: string,
+  listItemProperties: string[] | null,
+): string {
+  if (!listItemProperties || listItemProperties.includes(identifyingField)) {
+    return identifyingField;
+  }
+  return ["uid", "id"].find((f) => listItemProperties.includes(f)) ??
+    identifyingField;
 }
 
 /**
@@ -1408,6 +1513,9 @@ function extractArrayBodyItems(
   const properties: Record<string, VercelProperty> = {};
   for (const [name, propSchema] of Object.entries(flattened.properties)) {
     properties[name] = normalizeProperty(propSchema, spec);
+    if (isSensitive(name, resolveSchema(propSchema, spec))) {
+      properties[name].sensitive = true;
+    }
   }
 
   return {

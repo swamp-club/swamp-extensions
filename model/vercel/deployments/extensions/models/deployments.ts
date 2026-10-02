@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "The files to include in the deployment. Each entry is either an inlined file (with `data` and `encoding`) or a reference to a previously uploaded file (with `sha` and `size`). Required for non-git deployments. Cannot be used together with `gitSource`.",
   ).optional(),
-  gitAccessToken: z.string().max(1024).describe(
+  gitAccessToken: z.string().max(1024).meta({ sensitive: true }).describe(
     "Available only to Vercel platform accounts. A read-only GitHub access token scoped to the requested repository. Use a token with a lifetime of 24 hours or less that remains valid until source retrieval completes.",
   ).optional(),
   gitMetadata: z.object({
@@ -218,7 +218,7 @@ const InputsSchema = z.object({
     encoding: z.enum(["base64", "utf-8"]).optional(),
     file: z.string(),
   })).optional(),
-  gitAccessToken: z.string().max(1024).optional(),
+  gitAccessToken: z.string().max(1024).meta({ sensitive: true }).optional(),
   gitMetadata: z.object({
     remoteUrl: z.string().optional(),
     commitAuthorName: z.string().optional(),
@@ -348,7 +348,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -412,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -512,34 +517,17 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/v7/deployments";
-        const filters: [string, string][] = [];
-        if (g.buildMachine !== undefined) {
-          filters.push(["buildMachine", String(g.buildMachine)]);
+        const filters: [string, string, string][] = [];
+        if (g.name !== undefined) {
+          filters.push(["name", String(g.name), "name"]);
         }
-        if (g.customEnvironmentSlugOrId !== undefined) {
-          filters.push([
-            "customEnvironmentSlugOrId",
-            String(g.customEnvironmentSlugOrId),
-          ]);
-        }
-        if (g.deploymentId !== undefined) {
-          filters.push(["deploymentId", String(g.deploymentId)]);
-        }
-        if (g.gitAccessToken !== undefined) {
-          filters.push(["gitAccessToken", String(g.gitAccessToken)]);
-        }
-        if (g.monorepoManager !== undefined) {
-          filters.push(["monorepoManager", String(g.monorepoManager)]);
-        }
-        if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.project !== undefined) {
-          filters.push(["project", String(g.project)]);
+          filters.push(["projectId", String(g.project), "project"]);
         }
-        if (g.target !== undefined) filters.push(["target", String(g.target)]);
-        if (g.withLatestCommit !== undefined) {
-          filters.push(["withLatestCommit", String(g.withLatestCommit)]);
+        if (g.target !== undefined) {
+          filters.push(["target", String(g.target), "target"]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.id !== undefined) filters.push(["uid", String(g.id), "id"]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -562,16 +550,20 @@ export const model = {
           return true;
         });
         if (matches.length === 0) {
-          const filterDesc = filters.map(([k, v]) =>
-            `${k}=${JSON.stringify(v)}`
+          const filterDesc = filters.map(([k, v, arg]) =>
+            `${arg}=${JSON.stringify(v)}${
+              arg === k ? "" : ` (matched against ${k})`
+            }`
           ).join(", ");
           throw new Error(
             `No deployments found matching filters: ${filterDesc}`,
           );
         }
         if (matches.length > 1) {
-          const filterDesc = filters.map(([k, v]) =>
-            `${k}=${JSON.stringify(v)}`
+          const filterDesc = filters.map(([k, v, arg]) =>
+            `${arg}=${JSON.stringify(v)}${
+              arg === k ? "" : ` (matched against ${k})`
+            }`
           ).join(", ");
           throw new Error(
             `Expected exactly 1 match, found ${matches.length} for filters: ${filterDesc}`,
@@ -646,7 +638,7 @@ export const model = {
       description: "Sync Deployments state from Vercel",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific Deployments by uid (e.g. one discovered by list)",
+          "Target a specific Deployments by id (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
@@ -666,15 +658,14 @@ export const model = {
           throw new Error("No data found - run create, get, or list first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        if (!existing.uid) {
-          throw new Error("Stored state has no uid - cannot sync");
+        const existingId = existing.id ?? existing.uid;
+        if (!existingId) {
+          throw new Error("Stored state has no id or uid - cannot sync");
         }
-        const result = await tryRead(
-          endpoint,
-          existing.uid,
-          { token: g.token },
-          { teamId: g.teamId, slug: g.slug },
-        ) as ResourceData | null;
+        const result = await tryRead(endpoint, existingId, { token: g.token }, {
+          teamId: g.teamId,
+          slug: g.slug,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -684,7 +675,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.uid,
+          id: existingId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

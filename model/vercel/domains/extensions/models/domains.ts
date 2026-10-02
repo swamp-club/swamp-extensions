@@ -130,7 +130,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Domains. Registered at `@swamp/vercel/domains/domains`. */
 export const model = {
   type: "@swamp/vercel/domains/domains",
-  version: "2026.09.16.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -174,6 +174,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -248,16 +253,10 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v5/domains";
         const filters: [string, string][] = [];
-        if (g.op !== undefined) filters.push(["op", String(g.op)]);
         if (g.renew !== undefined) filters.push(["renew", String(g.renew)]);
-        if (g.zone !== undefined) filters.push(["zone", String(g.zone)]);
         if (g.echMode !== undefined) {
           filters.push(["echMode", String(g.echMode)]);
         }
-        if (g.destination !== undefined) {
-          filters.push(["destination", String(g.destination)]);
-        }
-        if (g.method !== undefined) filters.push(["method", String(g.method)]);
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (filters.length === 0) {
           throw new Error(

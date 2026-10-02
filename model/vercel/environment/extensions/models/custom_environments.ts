@@ -119,7 +119,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Custom Environments. Registered at `@swamp/vercel/environment/custom-environments`. */
 export const model = {
   type: "@swamp/vercel/environment/custom-environments",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -164,6 +164,11 @@ export const model = {
     {
       toVersion: "2026.10.01.1",
       description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -248,9 +253,6 @@ export const model = {
         }
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
-        }
-        if (g.copyEnvVarsFrom !== undefined) {
-          filters.push(["copyEnvVarsFrom", String(g.copyEnvVarsFrom)]);
         }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);

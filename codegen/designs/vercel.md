@@ -349,7 +349,7 @@ The pipeline maps path parameters to response fields:
 | `{idOrName}`   | `id`           | Projects       |
 | `{id}`         | `id`           | Most resources |
 | `{domain}`     | `name`         | Domains        |
-| `{idOrUrl}`    | `uid`          | Deployments    |
+| `{idOrUrl}`    | `id`           | Deployments    |
 | `{recordId}`   | `id`           | DNS records    |
 
 ### IDENTIFIER_MAP
@@ -357,6 +357,54 @@ The pipeline maps path parameters to response fields:
 A mapping table resolves path parameter names to response field names. The
 `{idOrName}` pattern means the `get` and `delete` methods can accept either
 form, but the pipeline uses the canonical ID field from responses.
+
+### Read and list identifiers
+
+A resource's list items can name its ID differently from its read response. A
+deployment's get and create responses return `id`, but the `/v7/deployments`
+list items used by `lookup` carry only `uid`. The pipeline records both:
+`identifyingField` (from the read response) and `listIdentifyingField` (the read
+identifier if list items carry it, otherwise `uid` or `id`). When they differ,
+the generated `sync` and `update` key on
+`existing.<identifyingField> ?? existing.<listIdentifyingField>`, so state
+written by `create`, `get`, `adopt` or `lookup` can all be synced, and `lookup`
+names an instance by the list identifier (swamp-club #2843).
+
+### Lookup filters
+
+`lookup` lists the resource and keeps the items whose fields equal every set
+global argument. When the pipeline can identify the list item schema (the
+response array named after the list path's last segment, or its only array of
+objects — the same array the runtime `listAll` reads), a filter is emitted only
+if list items can match it:
+
+- the same field name;
+- the read identifier, compared against the list identifier (deployments: `id`
+  -> `uid`);
+- `<arg>Id` (deployments: `project` -> `projectId`).
+
+Other arguments, such as create-only fields (`gitAccessToken`, `buildMachine`),
+are not filters, since items never carry them and a set value would make every
+lookup fail. When the item schema cannot be identified, every argument stays a
+filter. `lookup` still requires exactly one match. A remapped filter's no-match
+error names the argument that was set and the field it was compared against
+(`project="my-app" (matched against projectId)`): `project` also accepts a
+project name, which never equals an item's `projectId`.
+
+### Sensitive fields
+
+A top-level request-body field is emitted with `.meta({ sensitive: true })` in
+`GlobalArgsSchema` and `InputsSchema` when the spec marks it `writeOnly` or
+`format: password`, when it is a string whose name ends in `secret`, `password`,
+`token`, `credential(s)`, `privatekey` or `apikey` (the tailscale pipeline's
+rule), or when it is listed in `SENSITIVE_FIELDS` (`importKey`, a KMS issuer's
+PEM-encoded private key). Sensitive fields are never `lookup` filters, so a
+no-match error cannot print them.
+
+**Known gap:** only top-level fields are inspected. Nested secrets — notably the
+drains model's `delivery.secret` — are not marked sensitive, because no
+generator in this repository emits sensitive meta on nested fields yet and swamp
+core's handling of it is unconfirmed.
 
 ---
 

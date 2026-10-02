@@ -117,6 +117,8 @@ const edgeConfig: VercelResource = {
   handlers: { create: true, read: true, update: true, delete: true },
   updateMethod: "PUT",
   identifyingField: "id",
+  listIdentifyingField: "id",
+  listItemProperties: null,
   idParam: "edgeConfigId",
   namingField: "name",
   syntheticName: true,

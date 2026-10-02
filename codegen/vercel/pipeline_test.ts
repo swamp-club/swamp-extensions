@@ -189,3 +189,97 @@ Deno.test("parseResources records create-required fields, dropping parent params
   // slug is kept under its API name, like every other create property.
   assertEquals(resources[0].createRequiredProperties, ["key", "slug"]);
 });
+
+// A deployments-shaped resource: get and create return `id` (in a oneOf, so
+// no top-level properties), while list items carry only `uid`. The list also
+// returns an unrelated array first, like a team members list.
+function deploymentsSpec(listProperties: Record<string, unknown>) {
+  const oneOf = {
+    oneOf: [{ type: "object", properties: { id: { type: "string" } } }],
+  };
+  const ok = (schema: unknown) => ({
+    responses: { "200": { content: { "application/json": { schema } } } },
+  });
+  return {
+    paths: {
+      "/v13/gadgets": {
+        post: {
+          tags: ["gadgets"],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    project: { type: "string" },
+                    gitAccessToken: { type: "string", writeOnly: true },
+                    importKey: { type: "string" },
+                    hookSecret: { type: "string" },
+                    hasSecret: { type: "boolean" },
+                    buildMachine: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          ...ok(oneOf),
+        },
+      },
+      "/v7/gadgets": {
+        get: {
+          tags: ["gadgets"],
+          ...ok({ type: "object", properties: listProperties }),
+        },
+      },
+      "/v13/gadgets/{idOrUrl}": {
+        get: { tags: ["gadgets"], ...ok(oneOf) },
+        delete: { tags: ["gadgets"] },
+      },
+    },
+  } as unknown as Parameters<typeof parseResources>[0];
+}
+
+const itemsOf = (properties: Record<string, unknown>) => ({
+  type: "array",
+  items: { type: "object", properties },
+});
+
+Deno.test("parseResources keys an idOrUrl resource by id and records uid-only list items", () => {
+  const { resources } = parseResources(deploymentsSpec({
+    invites: itemsOf({ id: { type: "string" }, email: { type: "string" } }),
+    gadgets: itemsOf({
+      uid: { type: "string" },
+      name: { type: "string" },
+      projectId: { type: "string" },
+    }),
+    pagination: { type: "object" },
+  }));
+
+  assertEquals(resources.length, 1);
+  const r = resources[0];
+  assertEquals(r.identifyingField, "id");
+  assertEquals(r.listIdentifyingField, "uid");
+  assertEquals(r.listItemProperties, ["uid", "name", "projectId"]);
+});
+
+Deno.test("parseResources leaves list items unknown when the item array cannot be identified", () => {
+  const { resources } = parseResources(deploymentsSpec({
+    invites: itemsOf({ id: { type: "string" } }),
+    others: itemsOf({ uid: { type: "string" } }),
+  }));
+
+  assertEquals(resources[0].listItemProperties, null);
+  assertEquals(resources[0].listIdentifyingField, "id");
+});
+
+Deno.test("parseResources marks secret request-body fields sensitive", () => {
+  const { resources } = parseResources(deploymentsSpec({}));
+  const sensitive = Object.entries(resources[0].createProperties)
+    .filter(([, prop]) => prop.sensitive)
+    .map(([name]) => name);
+
+  // writeOnly, a secret-like string name, and the explicit PEM private key;
+  // not the boolean hasSecret, whose name matches but holds no secret.
+  assertEquals(sensitive.sort(), ["gitAccessToken", "hookSecret", "importKey"]);
+});

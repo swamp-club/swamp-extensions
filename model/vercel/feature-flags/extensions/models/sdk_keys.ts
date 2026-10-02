@@ -79,7 +79,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Sdk Keys. Registered at `@swamp/vercel/feature-flags/sdk-keys`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/sdk-keys",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -173,14 +178,10 @@ export const model = {
         const endpoint = "/v1/projects/" +
           encodeURIComponent(g.projectIdOrName) + "/feature-flags/sdk-keys";
         const filters: [string, string][] = [];
-        if (g.sdkKeyType !== undefined) {
-          filters.push(["sdkKeyType", String(g.sdkKeyType)]);
-        }
         if (g.environment !== undefined) {
           filters.push(["environment", String(g.environment)]);
         }
         if (g.label !== undefined) filters.push(["label", String(g.label)]);
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
