@@ -234,8 +234,8 @@ function startedAt(run: RunRecord): string {
 /**
  * The work item's ticket for the Ticket tab: "none" when the run names no
  * ticket, "missing" when the tracker instance has no record of it (nobody
- * ran fetch_issue), otherwise the ticket. Throws when the record is there
- * but does not parse.
+ * ran fetch_issue, or its record is of another kind of tracker), otherwise
+ * the ticket. Throws when the record is there but does not parse.
  */
 export async function readTicket(
   query: QueryData,
@@ -252,9 +252,14 @@ export async function readTicket(
   } catch {
     return { state: "none" };
   }
+  // A query is not limited to this repository's namespace: only a record of
+  // this ticket on this kind of tracker counts, as readRun checks the key.
   const records = (await query(
     `modelName == "${instance}" && name == "${name}"`,
-  )).filter((r) => recordObject(r)?.id === id);
+  )).filter((r) => {
+    const data = recordObject(r);
+    return data?.id === id && data.tracker === kind;
+  });
   if (records.length === 0) {
     return { state: "missing", tracker: instance, kind, id };
   }

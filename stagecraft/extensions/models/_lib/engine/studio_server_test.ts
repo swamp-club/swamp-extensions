@@ -416,7 +416,7 @@ Deno.test("studio: /api/work-items/<key>/ticket gives the ticket as the tracker 
     "issue-T-1",
     {
       origin: "snapshot",
-      tracker: instance,
+      tracker: kind,
       id: "T-1",
       display: "ENG-1",
       title: "Add the thing",
@@ -460,7 +460,11 @@ Deno.test("studio: the ticket route is 404 for an unknown or unsafe key, and 422
     'modelName == "nope" && name == "run"',
   ]);
   store.put(ITEM, "run", { ...item.run, externalRefs: { [kind]: "T-1" } });
-  store.put(instance, "issue-T-1", { origin: "snapshot", id: "T-1" });
+  store.put(instance, "issue-T-1", {
+    origin: "snapshot",
+    tracker: kind,
+    id: "T-1",
+  });
   const res = await handleStudioRequest(
     get(`/api/work-items/${ITEM}/ticket`),
     deps,

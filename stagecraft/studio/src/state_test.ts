@@ -34,6 +34,7 @@ import {
   goFrame,
   good,
   graph,
+  itemCopy,
   itemTab,
   itemTicket,
   itemTicketError,
@@ -46,6 +47,7 @@ import {
   pickScenario,
   pinnedIsOlder,
   playing,
+  prepareItemCopy,
   reloadFactories,
   runs,
   scenario,
@@ -70,6 +72,7 @@ import {
 } from "../../extensions/models/_lib/engine/studio_work_items_testing.ts";
 import { testEnv } from "../../extensions/models/_lib/engine/test_support.ts";
 import { exampleText, modelPath, raisePlanLimit } from "./test_support.ts";
+import { copyIsCurrent, loadItem } from "./work_item.ts";
 
 const NAME = "build-swamp-extension";
 
@@ -689,5 +692,53 @@ Deno.test("state: a work item with a ticket opens on the Ticket tab, which reads
     itemTicket.value = null;
     itemTicketError.value = null;
     itemTab.value = "now";
+  }
+});
+
+Deno.test("state: of two scenario copies asked for, a late answer to the earlier one does not replace the later", async () => {
+  const stored = await scenarioItem(
+    "build-swamp-extension.yaml",
+    LOOPED_REVIEW,
+    "team-loop-abcd",
+  );
+  const full = await readWorkItem(stored.query, "team-loop-abcd", testEnv(), {
+    payloads: true,
+  });
+  assert(full !== null);
+  const shorter = {
+    ...full,
+    run: { ...full.run, journal: full.run.journal.slice(0, -1) },
+  };
+  // Each payload read waits until the test answers it.
+  const held: ((body: unknown) => void)[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = () =>
+    new Promise((resolve) =>
+      held.push((body) =>
+        resolve(
+          new Response(JSON.stringify(body), {
+            headers: { "content-type": "application/json" },
+          }),
+        )
+      )
+    );
+  try {
+    workItem.value = loadItem(shorter);
+    const earlier = prepareItemCopy();
+    workItem.value = loadItem(full);
+    const later = prepareItemCopy();
+    assertEquals(held.length, 2);
+    held[1](full);
+    await later;
+    held[0](shorter);
+    await earlier;
+    const copy = itemCopy.value;
+    assert(copy !== null);
+    assertEquals(copy.asked.entries, full.run.journal.length);
+    assert(copyIsCurrent(copy, workItem.value.data.run));
+  } finally {
+    globalThis.fetch = real;
+    workItem.value = null;
+    itemCopy.value = null;
   }
 });

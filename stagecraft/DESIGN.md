@@ -1338,10 +1338,12 @@ passes `safePart` first.
 is read through the same query: its latest run record (only one whose own key
 is the key), its pinned definition at the exact version the run names, checked
 by digest (not the factory's every pin, as the Board reads them), and its
-ticket from the tracker instance's `issue-<id>` record. With `?payloads=1`, the
-page's Scenario tab also gets every product version the journal records, each
-checked against the recorded digest (null when no stored copy matches); a live
-re-read leaves them out. Its status comes from `status_view.ts`, the code the
+ticket from the tracker instance's `issue-<id>` record (only one whose
+`tracker` is the run's tracker kind, as the run's own key is checked). With
+`?payloads=1`, the page's Scenario tab also gets every product version the
+journal records, each checked against the recorded digest (null when no stored
+copy matches); a live re-read leaves them out, and the tab asks again only when
+the journal has grown. Its status comes from `status_view.ts`, the code the
 `status` method prints from, over a read-only store on the query, with the
 transition readiness it was built from, so the page shows the engine's own
 messages and never evaluates a gate itself. A key that fails `safePart` is a
@@ -1353,7 +1355,9 @@ bundles.
 
 **The ticket** (`GET /api/work-items/<key>/ticket`,
 `_lib/engine/studio_ticket.ts`, #2969) is the Ticket tab's: the work item's
-ticket as its tracker instance last recorded it, read through the same query.
+ticket as its tracker instance last recorded it, read through the same query
+(a record counts only when its `tracker` is the run's tracker kind, since a
+query is not limited to this repository's namespace).
 For an external tracker that is the `issue-<id>` snapshot `fetch_issue`,
 `claim` or `create` stored, now with the ticket's description, labels,
 assignees, times, and its comments and lifecycle entries (`activity`); for the

@@ -54,6 +54,7 @@ import { type BoardFilter, NO_FILTER } from "./board.ts";
 import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { DesignView } from "../../extensions/models/_lib/engine/design_view.ts";
 import {
+  copyIsCurrent,
   hasTicket,
   type Item,
   itemOverlay,
@@ -61,6 +62,8 @@ import {
   pinnedDiffers,
   replay,
   runAsScenario,
+  type RunMark,
+  runMark,
   type TicketResponse,
   titleOf,
   type WorkItemResponse,
@@ -126,10 +129,13 @@ export const itemTicketError = signal<string | null>(null);
 /** The timeline entry picked, by journal index; its stage is lit. */
 export const itemEntry = signal<number | null>(null);
 /** The run as a scenario entry, with what it left out and whether it
- * replays to where the run is; null until worked out for this read. */
+ * replays to where the run is; null until worked out. */
 export const itemCopy = signal<
   {
-    item: Item;
+    /** The page's run when the copy was asked for, and the payload read's
+     * own run it was made from (see copyIsCurrent). */
+    asked: RunMark;
+    made: RunMark;
     text: string;
     notes: string[];
     passed: boolean;
@@ -428,27 +434,41 @@ function itemFacts(item: Item) {
   };
 }
 
+/** Asks for a scenario copy so far; the latest is the one that writes. */
+let copyAsks = 0;
+
 /**
  * Work out the run as a scenario entry and replay it on the pinned
- * definition, once per read of the work item.
+ * definition, once per run as far as its journal goes: a live re-read that
+ * leaves the journal as it was keeps the copy, and one that adds to it makes
+ * the copy again.
  */
 export async function prepareItemCopy() {
   const item = workItem.value;
-  if (item === null || itemCopy.value?.item === item) return;
+  if (item === null) return;
+  const c = itemCopy.value;
+  if (c !== null && copyIsCurrent(c, item.data.run)) return;
+  const asked = runMark(item.data.run);
+  // Only the latest ask writes: an earlier one finishing late would leave a
+  // copy of a run the page has moved past, and nothing would ask again.
+  const ask = ++copyAsks;
+  const superseded = () =>
+    ask !== copyAsks || workItem.value?.data.run.key !== asked.key;
   // The payloads are read only here: a live re-read of the page skips them.
   // The copy is made from that read's own run, so run and payloads agree.
   let payloads: PayloadVersion[];
   let source: Item;
   try {
     const read = await getJson<WorkItemResponse>(
-      `/api/work-items/${encodeURIComponent(item.data.run.key)}?payloads=1`,
+      `/api/work-items/${encodeURIComponent(asked.key)}?payloads=1`,
     );
     payloads = read.payloads ?? [];
     source = loadItem(read);
   } catch (e) {
-    if (workItem.value === item) {
+    if (!superseded()) {
       itemCopy.value = {
-        item,
+        asked,
+        made: asked,
         text: "",
         notes: [],
         passed: false,
@@ -457,11 +477,18 @@ export async function prepareItemCopy() {
     }
     return;
   }
-  if (workItem.value !== item) return;
+  if (superseded()) return;
   const { entry, notes } = runAsScenario(source, payloads);
   const { passed, problem } = await replay(source, entry);
-  if (workItem.value !== item) return;
-  itemCopy.value = { item, text: entryYaml(entry), notes, passed, problem };
+  if (superseded()) return;
+  itemCopy.value = {
+    asked,
+    made: runMark(source.data.run),
+    text: entryYaml(entry),
+    notes,
+    passed,
+    problem,
+  };
 }
 
 /** Copy the run as a scenario entry, for the agent to save. */

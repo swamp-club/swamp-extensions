@@ -74,7 +74,7 @@ Deno.test("ticket: a snapshot gives its content, and marks what stagecraft poste
   const it = await item();
   putTracker(it, it.instance, "issue", "issue-T-1", {
     origin: "snapshot",
-    tracker: it.instance,
+    tracker: it.kind,
     id: "T-1",
     display: "ENG-1",
     title: "Add the thing",
@@ -142,7 +142,7 @@ Deno.test("ticket: a snapshot from before trackers read content says so, not tha
   const it = await item();
   putTracker(it, it.instance, "issue", "issue-T-1", {
     origin: "snapshot",
-    tracker: it.instance,
+    tracker: it.kind,
     id: "T-1",
     display: "ENG-1",
     title: "Old",
@@ -254,7 +254,7 @@ Deno.test("ticket: a relation links the newest work item on that ticket, in any 
   });
   putTracker(it, it.instance, "issue", "issue-T-1", {
     origin: "snapshot",
-    tracker: it.instance,
+    tracker: it.kind,
     id: "T-1",
     display: "ENG-1",
     title: "Add the thing",
@@ -299,6 +299,7 @@ Deno.test("ticket: a record that is there but does not parse is an error", async
   const it = await item();
   putTracker(it, it.instance, "issue", "issue-T-1", {
     origin: "snapshot",
+    tracker: it.kind,
     id: "T-1",
   });
   await assertRejects(
@@ -306,4 +307,22 @@ Deno.test("ticket: a record that is there but does not parse is an error", async
     Error,
     "does not parse",
   );
+});
+
+Deno.test("ticket: a record of the same name on another kind of tracker is not the ticket", async () => {
+  const it = await item();
+  putTracker(it, it.instance, "issue", "issue-T-1", {
+    origin: "snapshot",
+    tracker: it.kind === "linear" ? "swamp-club" : "linear",
+    id: "T-1",
+    display: "ENG-1",
+    title: "Someone else's",
+    status: { id: "s1", name: "Todo" },
+  });
+  assertEquals(await readTicket(it.query, bound(it.run, "T-1")), {
+    state: "missing",
+    tracker: it.instance,
+    kind: it.kind,
+    id: "T-1",
+  });
 });

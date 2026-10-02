@@ -28,12 +28,15 @@ import { entryYaml } from "./simulate.ts";
 import { exampleText, loadOk } from "./test_support.ts";
 import {
   activityLabel,
+  copyIsCurrent,
+  followActive,
   type Item,
   itemOverlay,
   loadItem,
   pinnedDiffers,
   replay,
   runAsScenario,
+  runMark,
   ticketRefs,
   timelineOf,
   titleOf,
@@ -292,6 +295,69 @@ Deno.test("work item page: waiting since is the earliest hold that has begun, ne
   });
   const w = waiting({ ...it, data: { ...it.data, run } });
   assertEquals(w.since, iso(-30_000));
+});
+
+Deno.test("work item page: waiting since is when a hold ended, not the hold itself; a cooldown not lifted yet changes nothing", async () => {
+  const it = await item(LOOPED_REVIEW);
+  const at = Date.parse(it.data.at);
+  const iso = (ms: number) => new Date(at + ms).toISOString();
+  const last = it.data.run.journal[it.data.run.journal.length - 1];
+  const awaiting = (when: number, readyAt?: number) => ({
+    at: iso(when),
+    era: it.data.run.era,
+    stage: it.data.run.stage,
+    cycle: last.cycle,
+    actor: last.actor,
+    type: "awaiting" as const,
+    exits: readyAt === undefined ? [] : [{
+      transition: "approve",
+      to: "implement",
+      manual: false,
+      gateIds: [],
+      readyAt: iso(readyAt),
+    }],
+  });
+  const sinceWith = (...events: ReturnType<typeof awaiting>[]) => {
+    const run = structuredClone(it.data.run);
+    run.journal.push(...events);
+    return waiting({ ...it, data: { ...it.data, run } }).since;
+  };
+  // Held from -60s, then the hold ended at -20s.
+  assertEquals(
+    sinceWith(awaiting(-60_000, -60_000), awaiting(-20_000)),
+    iso(-20_000),
+  );
+  // Held from -60s, then an exit whose cooldown lifts later: still -60s.
+  assertEquals(
+    sinceWith(awaiting(-60_000, -60_000), awaiting(-20_000, 600_000)),
+    iso(-60_000),
+  );
+});
+
+Deno.test("work item page: the timeline follows new entries only from the last one", () => {
+  assertEquals(followActive(4, 5, 7), 6);
+  assertEquals(followActive(2, 5, 7), 2);
+  assertEquals(followActive(4, 5, 5), 4);
+});
+
+Deno.test("work item page: a scenario copy is the page's until the journal moves past it", async () => {
+  const it = await item(LOOPED_REVIEW);
+  const run = it.data.run;
+  const longer = (n: number) => ({
+    ...run,
+    journal: [...run.journal, ...run.journal.slice(0, n)],
+  });
+  const asked = runMark(run);
+  // Its payload read returned a run two entries newer than the page's.
+  const copy = { asked, made: runMark(longer(2)) };
+  // A live re-read with the same journal, or one catching up, keeps it.
+  assert(copyIsCurrent(copy, structuredClone(run)));
+  assert(copyIsCurrent(copy, longer(2)));
+  // In between, or past it, the copy is made again.
+  assert(!copyIsCurrent(copy, longer(1)));
+  assert(!copyIsCurrent(copy, longer(3)));
+  // Another work item's copy is never this one's.
+  assert(!copyIsCurrent(copy, { ...run, key: `${run.key}-2` }));
 });
 
 Deno.test("work item page: only an http(s) ticket URL is a link", () => {

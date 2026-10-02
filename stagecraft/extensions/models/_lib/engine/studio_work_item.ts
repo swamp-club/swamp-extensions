@@ -105,7 +105,7 @@ const IssueViewSchema = z.object({
  * The ticket the run names on the tracker it was started against, as that
  * tracker last recorded it, read as data with no network call; null when the
  * run names none, the names are not path-safe, or the tracker has no record
- * of it.
+ * of it (a record of another kind of tracker is not it).
  */
 export async function issueRecord(
   query: QueryData,
@@ -123,7 +123,9 @@ export async function issueRecord(
   }
   for (const record of await query(predicate)) {
     const data = recordObject(record);
-    if (data?.id !== id) continue;
+    // A query is not limited to this repository's namespace: only a record
+    // of this ticket on this kind of tracker counts, as readRun checks the key.
+    if (data?.id !== id || data.tracker !== kind) continue;
     const parsed = IssueViewSchema.safeParse(data);
     // The page's own type (studio_item_types.ts) must take what this
     // schema parses.

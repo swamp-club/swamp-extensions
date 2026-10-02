@@ -394,9 +394,10 @@ shows them as the agent saves.
   entry for `globalArguments.scenarios`, with the payloads it recorded, replays
   it on the pinned definition to say whether it ends where the run is, and
   notes what a scenario cannot carry (dispatches, dispatch overrides,
-  retargets, an earlier era). **Copy reference** gives the work item, its stage
-  and the `status` command to paste to the agent. The page reads the work item
-  again when it changes.
+  retargets, an earlier era). It is made again when the journal grows, and
+  says when it was made from a newer read of the run than the page shows.
+  **Copy reference** gives the work item, its stage and the `status` command
+  to paste to the agent. The page reads the work item again when it changes.
 - **Addresses:** each view has its own path: `/f/<factory>/design`,
   `/f/<factory>/simulate`, `/f/<factory>/board`, and `/w/<key>` for one work
   item. `/` opens the last factory you looked at. Back and forward move between

@@ -91,7 +91,7 @@ Deno.test("work item: issueRecord reads the ticket from the tracker's records", 
   const run = { ...item.run, externalRefs: { [kind]: "T-1" } };
   item.put(instance, "issue-T-1", {
     origin: "snapshot",
-    tracker: instance,
+    tracker: kind,
     id: "T-1",
     display: "ENG-1",
     title: "Add the thing",
@@ -108,6 +108,17 @@ Deno.test("work item: issueRecord reads the ticket from the tracker's records", 
   const issue = await issueRecord(item.query, run);
   assertEquals(issue?.display, "ENG-1");
   assertEquals(issue?.relations?.[0].display, "ENG-0");
+  // A record of the same name on another kind of tracker is not the ticket.
+  const other = { ...run, externalRefs: { [kind]: "T-9" } };
+  item.put(instance, "issue-T-9", {
+    origin: "snapshot",
+    tracker: kind === "linear" ? "swamp-club" : "linear",
+    id: "T-9",
+    display: "ENG-9",
+    title: "Someone else's",
+    status: { id: "s1", name: "Todo" },
+  }, "@swamp/stagecraft/tracker");
+  assertEquals(await issueRecord(item.query, other), null);
   // An id that is not path-safe is never put in a query.
   item.asked.length = 0;
   assertEquals(

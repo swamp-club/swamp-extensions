@@ -52,6 +52,8 @@ import { routeHref } from "./route.ts";
 import { Tabs } from "./ui.tsx";
 import {
   activityLabel,
+  copyIsCurrent,
+  followActive,
   ticketRefs,
   type TicketView,
   timelineOf,
@@ -241,6 +243,12 @@ function TimelineTab() {
   const entries = timelineOf(item.data.run);
   const picked = itemEntry.value;
   const [active, setActive] = useState(entries.length - 1);
+  // On the last entry, the active one follows new entries as they arrive.
+  const seen = useRef(entries.length);
+  useEffect(() => {
+    setActive((a) => followActive(a, seen.current, entries.length));
+    seen.current = entries.length;
+  }, [entries.length]);
   const list = useRef<HTMLOListElement>(null);
   const at = Math.min(Math.max(active, 0), entries.length - 1);
   useEffect(() => {
@@ -512,15 +520,25 @@ function TicketBody({ ticket }: { ticket: TicketView }) {
 }
 
 function ScenarioTab() {
-  const item = workItem.value!;
-  const c = itemCopy.value?.item === item ? itemCopy.value : null;
+  const run = workItem.value!.data.run;
+  const c = itemCopy.value !== null && copyIsCurrent(itemCopy.value, run)
+    ? itemCopy.value
+    : null;
+  // Made again only when the journal grows, not on every live re-read.
   useEffect(() => {
     void prepareItemCopy();
-  }, [item]);
+  }, [run.key, run.journal.length]);
   if (c === null) return <p class="empty" role="status">Replaying the run…</p>;
   return (
     <div class="insp">
       <p class="eyebrow">this run as a scenario entry</p>
+      {c.made.entries !== run.journal.length && (
+        <p class="hint">
+          Copied from the run as it was read with its payloads, which has{" "}
+          {c.made.entries} journal entries where this page shows{" "}
+          {run.journal.length}; the page catches up on its next read.
+        </p>
+      )}
       <p role="status">
         {c.passed
           ? "Replayed on the pinned definition: it ends where the run is."

@@ -217,8 +217,8 @@ export interface Waiting {
   blocked: { exit: string; to: string; failures: string[] }[];
   /** Exits ready to take. */
   ready: { exit: string; to: string; manual: boolean }[];
-  /** Since when: the latest awaiting event of this stage entry, else the
-   * stage entry itself. */
+  /** Since when: the latest awaiting event of this stage entry (when it
+   * holds nothing, the hold ended then), else the stage entry itself. */
   since: string;
 }
 
@@ -261,7 +261,11 @@ export function waiting(item: Item): Waiting {
       const held = e.exits.map((x) => x.readyAt ?? e.at)
         .filter((t) => t <= item.data.at).sort();
       if (held.length > 0) since = held[0];
-      else if (e.dispatchOverride !== undefined) since = e.at;
+      // A hold that ended (no exits left) or a dispatch override dates
+      // itself; a cooldown not lifted yet leaves since as it was.
+      else if (e.exits.length === 0 || e.dispatchOverride !== undefined) {
+        since = e.at;
+      }
     }
   }
   return {
@@ -312,6 +316,19 @@ export function timelineOf(run: RunRecord): TimelineEntry[] {
   }));
 }
 
+/**
+ * The timeline's active entry once the journal has grown from `seen` entries
+ * to `entries`: on the last entry, it follows to the new last; anywhere else
+ * it stays where it was put.
+ */
+export function followActive(
+  active: number,
+  seen: number,
+  entries: number,
+): number {
+  return entries > seen && active === seen - 1 ? entries - 1 : active;
+}
+
 /** Whether a tracker's URL is a web page to link to: http(s) only, so a
  * record never becomes a link of another kind, whatever the CSP allows. */
 export function webLink(url: string | undefined): url is string {
@@ -330,6 +347,32 @@ export function webLink(url: string | undefined): url is string {
 export interface RunScenario {
   entry: Scenario;
   notes: string[];
+}
+
+/** A run as far as its journal goes: what a scenario copy of it is made
+ * from. A live re-read that leaves the journal as it was has the same mark. */
+export interface RunMark {
+  key: string;
+  entries: number;
+}
+
+export function runMark(run: RunRecord): RunMark {
+  return { key: run.key, entries: run.journal.length };
+}
+
+/**
+ * Whether a scenario copy is still the page's: the page's run is the one the
+ * copy was asked for, or the one its payload read returned (which can be
+ * newer, until the page's next re-read catches up). Anything else is a run
+ * that has moved on, and the copy is made again.
+ */
+export function copyIsCurrent(
+  copy: { asked: RunMark; made: RunMark },
+  run: RunRecord,
+): boolean {
+  const now = runMark(run);
+  const same = (m: RunMark) => m.key === now.key && m.entries === now.entries;
+  return same(copy.asked) || same(copy.made);
 }
 
 /** Gaps on the real clock shorter than this are not worth a wait step: the
