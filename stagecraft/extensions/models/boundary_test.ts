@@ -39,6 +39,9 @@ import * as posix from "@std/path/posix";
 // 4. Production code imports no test code.
 // 5. _lib/engine/tracker.ts exports only names tracker production code
 //    imports.
+// 6. Production code names packages by npm: or jsr: specifier, never by an
+//    import-map name: the registry's quality scorer cannot resolve one, and
+//    refuses to score the extension.
 //
 // A dynamic import() must name a package: a relative or computed one is
 // refused, since this scan could not follow it.
@@ -83,6 +86,8 @@ interface Import {
   target: string;
   /** The names imported or re-exported; "*" for a namespace or star. */
   names: string[];
+  /** Whether the specifier names a package rather than a relative path. */
+  bare: boolean;
 }
 
 interface Parsed {
@@ -125,11 +130,13 @@ function parse(path: string, source: string): Parsed {
   const out: Parsed = { imports: [], reexports: [], dynamic: [] };
   for (const m of source.matchAll(STATIC)) {
     const target = resolve(path, m[4]);
-    out.imports.push({ target, names: namesIn(m[3], false) });
+    const bare = !m[4].startsWith(".");
+    out.imports.push({ target, names: namesIn(m[3], false), bare });
     if (m[1] === "export") out.reexports.push(...namesIn(m[3], true));
   }
   for (const m of source.matchAll(SIDE_EFFECT)) {
-    out.imports.push({ target: resolve(path, m[1]), names: [] });
+    const bare = !m[1].startsWith(".");
+    out.imports.push({ target: resolve(path, m[1]), names: [], bare });
   }
   for (const m of source.matchAll(DYNAMIC)) {
     const literal = m[1].trim().match(/^["']([^"']+)["']$/);
@@ -150,7 +157,13 @@ function violations(files: Map<string, string>): string[] {
     for (const d of parsed.dynamic) {
       found.push(`${path}: dynamic import(${d}) must name a package`);
     }
-    for (const { target, names } of parsed.imports) {
+    for (const { target, names, bare } of parsed.imports) {
+      if (bare && !isTest(path) && !/^(npm|jsr):/.test(target)) {
+        found.push(
+          `${path}: production code imports ${target} by its import-map ` +
+            "name; use an npm: or jsr: specifier",
+        );
+      }
       if (!files.has(target)) continue; // a package, or outside the scan
       const to = layerOf(target);
       if (layer === "engine" && to !== "engine") {
@@ -315,6 +328,27 @@ Deno.test("boundary: tracker code importing the engine directly fails", () => {
   ]);
 });
 
+Deno.test("boundary: production code importing a package by its import-map name fails", () => {
+  const files = withFile(
+    `${LIB}/tracker/backends/linear.ts`,
+    `import { join } from "@std/path";\n` +
+      `import { z } from "npm:zod@4.3.6";\n` +
+      `import { parse } from "jsr:@std/yaml@1.0.10";\n`,
+  );
+  assertEquals(violations(files), [
+    `${LIB}/tracker/backends/linear.ts: production code imports @std/path ` +
+    "by its import-map name; use an npm: or jsr: specifier",
+  ]);
+});
+
+Deno.test("boundary: test code may import a package by its import-map name", () => {
+  const files = withFile(
+    `${LIB}/tracker/core/claim_test.ts`,
+    `import { assert } from "@std/assert";\n`,
+  );
+  assertEquals(violations(files), []);
+});
+
 Deno.test("boundary: tracker production code using the test surface fails", () => {
   const files = withFile(
     `${LIB}/tracker/backends/linear.ts`,
@@ -407,10 +441,15 @@ Deno.test("boundary: multi-line lists, type modifiers and aliases are read by th
     {
       target: ENGINE_SURFACE,
       names: ["RunRecord", "RUN_SPEC", "parseRun"],
+      bare: false,
     },
-    { target: ENGINE_SURFACE, names: ["FactoryDefinition"] },
-    { target: `${LIB}/tracker/core/canonical.ts`, names: ["Json", "digestOf"] },
-    { target: `${LIB}/tracker/core/adapter.ts`, names: ["*"] },
+    { target: ENGINE_SURFACE, names: ["FactoryDefinition"], bare: false },
+    {
+      target: `${LIB}/tracker/core/canonical.ts`,
+      names: ["Json", "digestOf"],
+      bare: false,
+    },
+    { target: `${LIB}/tracker/core/adapter.ts`, names: ["*"], bare: false },
   ]);
   assertEquals(parsed.reexports, ["J", "digestOf"]);
 });

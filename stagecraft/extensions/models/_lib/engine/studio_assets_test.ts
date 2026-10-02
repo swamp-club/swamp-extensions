@@ -50,7 +50,12 @@ Deno.test("studio assets: the page, its script, its styles and its fonts are all
 Deno.test("studio assets: every generated module stays well under the registry's file limit", async () => {
   for (const url of ASSET_MODULES) {
     const { size } = await Deno.stat(url);
-    assert(size < 800_000, `${url.pathname} is ${size} bytes`);
+    assert(
+      size < 800_000,
+      `${url.pathname} is ${size} bytes, over the 800,000-byte budget below ` +
+        "the registry's 976.6 KB file limit: split it across more asset " +
+        "modules in studio/build.ts",
+    );
   }
 });
 

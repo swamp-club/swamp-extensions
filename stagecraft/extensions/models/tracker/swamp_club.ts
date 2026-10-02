@@ -57,6 +57,7 @@ import {
 // swamp-club; see DESIGN.md, "Trackers".
 // ---------------------------------------------------------------------------
 
+/** The swamp-club tracker's global arguments: its API key, URL and statuses. */
 export const SwampClubArgumentsSchema = z.object({
   apiKey: z.string().min(1).meta({ sensitive: true }).describe(
     "A swamp-club API key. Optional: without it, SWAMP_API_KEY and then " +
@@ -105,8 +106,10 @@ export function labStatuses(
   return map;
 }
 
+/** The resource spec post_attestation records each attestation under. */
 export const ATTESTATION_SPEC = "attestation";
 
+/** The record of an attestation posted to swamp-club. */
 export const AttestationRecordSchema = z.object({
   commit: z.string(),
   /** A digest of the attestation as posted. */
@@ -162,6 +165,7 @@ const thankAuthorArguments = z.object({
   ...DeliveryInputs,
 });
 
+/** The model type whose issues this tracker refuses to claim. */
 export const ISSUE_LIFECYCLE_TYPE = "@swamp/issue-lifecycle";
 
 /**
@@ -212,6 +216,7 @@ export function thankYou(
     `We appreciate your contribution to swamp.`;
 }
 
+/** Overrides for the swamp-club tracker's methods, for tests. */
 export interface SwampClubMethodOptions {
   /** Where credentials and the default username come from. */
   sources?: CredentialSources;
@@ -528,6 +533,10 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
   };
 }
 
+/**
+ * The `@swamp/stagecraft/swamp-club` model: publishes work items as
+ * swamp-club lab issues, and posts attestations and thank-yous.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.

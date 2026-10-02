@@ -38,6 +38,10 @@ import { type MethodOutput, stringMapFrom } from "../_lib/engine/tracker.ts";
 // "Trackers".
 // ---------------------------------------------------------------------------
 
+/**
+ * The Linear tracker's global arguments: its API key and URL, team, and the
+ * mapping of the factory's statuses and types to Linear's.
+ */
 export const LinearArgumentsSchema = z.object({
   apiToken: z.string().min(1).meta({ sensitive: true }).describe(
     "A Linear personal API key. Wire it from a vault: " +
@@ -100,6 +104,10 @@ const assignArguments = z.object({
   ),
 });
 
+/**
+ * The `@swamp/stagecraft/linear` model: publishes work items as Linear issues
+ * and moves them through the team's workflow states.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.

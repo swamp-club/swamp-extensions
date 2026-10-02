@@ -7,9 +7,9 @@
     "jsr:@std/yaml@1.0.10": "1.0.10",
     "npm:@cfworker/json-schema@4.1.1": "4.1.1",
     "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
-    "npm:@preact/signals@2.3.1": "2.3.1_preact@10.27.2",
-    "npm:preact@10.27.2": "10.27.2",
-    "npm:yaml@2.8.1": "2.8.1",
+    "npm:@preact/signals@2.3.1": "2.3.1_preact@10.27.3",
+    "npm:preact@10.27.3": "10.27.3",
+    "npm:yaml@2.8.3": "2.8.3",
     "npm:zod@4.3.6": "4.3.6"
   },
   "jsr": {
@@ -43,18 +43,18 @@
     "@preact/signals-core@1.14.4": {
       "integrity": "sha512-HNB6HYeYKhQbJ1aKl+YRjrS4+QWHLKX6qKoUsfS/m0vqzsVaEBiZiaKbG/e+NKk2ch5ALQr/ihWaMHxiCuuWHA=="
     },
-    "@preact/signals@2.3.1_preact@10.27.2": {
+    "@preact/signals@2.3.1_preact@10.27.3": {
       "integrity": "sha512-nyuRIGmcwM/HjvFHhN2xUWfyla9D4llHt+prWoxjQfD6b5prO7CFPlG/xjJkP31Oic4KQXfH9SIhJFP9cy4lmg==",
       "dependencies": [
         "@preact/signals-core",
         "preact"
       ]
     },
-    "preact@10.27.2": {
-      "integrity": "sha512-5SYSgFKSyhCbk6SrXyMpqjb5+MQBgfvEKE/OC+PujcY34sOpqtr+0AZQtPYx5IA6VxynQ7rUPCtKzyovpj9Bpg=="
+    "preact@10.27.3": {
+      "integrity": "sha512-ZieIP3zQHiQsNF3BA+SNVS8dcuRIg/nsxlkFbCMBLS2L1Ww4Bkxd9n6Md2A1crfTZsEbQPADV0neYmh/EElgeQ=="
     },
-    "yaml@2.8.1": {
-      "integrity": "sha512-lcYcMxX2PO9XMGvAJkJ3OsNMw+/7FKes7/hgerGUYWIoWu5j/+YQqcZr5JnPZWzOsEBgMbSbiSTn/dv/69Mkpw==",
+    "yaml@2.8.3": {
+      "integrity": "sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==",
       "bin": true
     },
     "zod@4.3.6": {
@@ -69,8 +69,8 @@
       "npm:@cfworker/json-schema@4.1.1",
       "npm:@marcbachmann/cel-js@7.6.1",
       "npm:@preact/signals@2.3.1",
-      "npm:preact@10.27.2",
-      "npm:yaml@2.8.1",
+      "npm:preact@10.27.3",
+      "npm:yaml@2.8.3",
       "npm:zod@4.3.6"
     ]
   }

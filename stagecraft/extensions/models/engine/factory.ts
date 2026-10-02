@@ -53,6 +53,7 @@ import {
 // scenarios), and its schema check runs again whenever a work item starts.
 // ---------------------------------------------------------------------------
 
+/** A factory's global arguments: its definition and its saved scenarios. */
 export const FactoryArgumentsSchema = z.object({
   definition: DefinitionSchema.optional().meta({
     foreignTemplate: true,
@@ -71,6 +72,10 @@ export const FactoryArgumentsSchema = z.object({
   }),
 });
 
+/**
+ * The `@swamp/stagecraft/factory` model: holds a factory definition, and
+ * validates and describes it.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.

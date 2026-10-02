@@ -51,6 +51,7 @@ import {
 
 const PREFIX_MAX = 55;
 
+/** The built-in tracker's global arguments: its ticket prefix, statuses and types. */
 export const BuiltinArgumentsSchema = z.object({
   prefix: z.string().max(PREFIX_MAX).regex(/^[a-z0-9][a-z0-9-]*$/).describe(
     "Leads every ticket id and work-item key: lowercase letters, digits and " +
@@ -121,6 +122,7 @@ const setTypeArguments = z.object({
   ...DeliveryInputs,
 });
 
+/** Overrides for the built-in tracker's methods, for tests. */
 export interface BuiltinMethodOptions {
   /** Where swamp's stored login, whom publish assigns, is read from. */
   sources?: Pick<CredentialSources, "readAuthFile">;
@@ -201,6 +203,10 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
   };
 }
 
+/**
+ * The `@swamp/stagecraft/tracker` model: a tracker kept in the repository's
+ * own swamp data, with no external service.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.

@@ -69,6 +69,10 @@ async function readJson(
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+/**
+ * The `@swamp/stagecraft/work-item-summary` report: a work item's timeline
+ * and metrics, rendered from its run record.
+ */
 export const report = {
   name: "@swamp/stagecraft/work-item-summary",
   description:

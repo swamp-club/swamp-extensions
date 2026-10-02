@@ -20,7 +20,8 @@ requirements. Then read the diff file provided at the path given below.
 IMPORTANT: Files under `model/` are auto-generated — do NOT review their content.
 Skip model/ changes in the diff. Focus your review on `vault/`, `datastore/`,
 `issue-lifecycle/`, `kubernetes/`, `workflows/`, `cve/`, `codegen/`, `agent-runner/`,
-`software-factory/`, `container-image/`, `git/`, `ssh/`, and `scripts/`.
+`software-factory/`, `stagecraft/`, `container-image/`, `git/`, `ssh/`, and
+`scripts/`.
 
 Model files may change without codegen changes in two legitimate cases:
 1. Codegen regeneration (codegen/ also changes)

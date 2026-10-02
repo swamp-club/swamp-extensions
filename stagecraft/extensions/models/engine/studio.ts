@@ -32,6 +32,10 @@ import {
 // covers every factory and never takes a factory's lock.
 // ---------------------------------------------------------------------------
 
+/**
+ * The `@swamp/stagecraft/studio` model: serves the studio page, which shows
+ * every factory in the repository and its work items.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. studio_test checks it equals STUDIO_TYPE.

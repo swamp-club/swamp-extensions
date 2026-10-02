@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { join } from "@std/path";
+import { join } from "jsr:@std/path@1.1.4";
 import {
   type Assigner,
   type Assignment,

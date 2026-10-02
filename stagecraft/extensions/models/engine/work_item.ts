@@ -70,6 +70,10 @@ const dispatchArguments = z.object({
   ...ActorInputs,
 });
 
+/**
+ * The `@swamp/stagecraft/work-item` model: starts work items in a factory and
+ * drives each through its stages, gates and human stops.
+ */
 export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.

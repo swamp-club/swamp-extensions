@@ -12,8 +12,18 @@ This section is for people changing stagecraft itself. Using it is in the
 
 CI publishes any directory whose `manifest.yaml` changes on main. This directory
 therefore has **no `manifest.yaml` at any depth** until go-live, and
-`extensions/models/no_manifest_test.ts` fails if one appears. The go-live change
-adds the manifest and deletes that test.
+`extensions/models/no_manifest_test.ts` fails if one appears. The manifest is
+written and checked on the branch `cue/2947-stagecraft-manifest` (swamp-club
+#2947): swamp's `extension fmt`, `quality` and `push --dry-run`, and an install
+of the packaged archive into a fresh repository. It merges with the publish
+(#2820), which deletes that test.
+
+Before then, everything a published extension needs already holds on main.
+Shipped code names its packages by `npm:` or `jsr:` specifier (rule 6 of
+`boundary_test.ts`), since the registry's quality scorer refuses an import-map
+name. `scripts/audit_deps.ts` scans this directory's lockfile. Every generated
+studio module stays under a budget below the registry's file limit
+(`studio_assets_test.ts`).
 
 ### Layout
 
@@ -1375,7 +1385,10 @@ in `studio_asset_fonts.ts`, and the HTML and CSS, with the map of them all, in
 `studio_assets.ts`. A model added as an extension source runs from
 swamp's bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the
 source module can be found from `import.meta.url`, and `ctx.extensionFile()`
-needs a manifest. Embedding works the same before and after go-live.
+needs a manifest. Embedding works the same before and after go-live, and it
+stays after go-live too: an embedded page is served the same way from source,
+from an installed package and on a remote worker, with no dependence on how
+swamp lays out or ships an extension's files.
 
 **Fresh by digest.** `studio_assets.ts` records a sha256 of the build's inputs,
 and `studio_assets_test` recomputes it, so a stale page fails the unit tests.
