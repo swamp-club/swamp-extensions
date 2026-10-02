@@ -331,12 +331,31 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     await writeFactory(name, definition, options.scenarios);
   };
 
+  // `data query` succeeds with no results, so a record that is not there,
+  // or not alone, fails here instead.
   const data: SwampRepo["data"] = async (instance, name, version) => {
-    const args = ["data", "get", instance, name, "--json"];
-    if (version !== undefined) args.push("--version", String(version));
-    const { stdout } = await swamp(args);
-    return (JSON.parse(stdout) as { content: Record<string, unknown> })
-      .content;
+    const predicate = [
+      `modelName == ${JSON.stringify(instance)}`,
+      `name == ${JSON.stringify(name)}`,
+      ...(version !== undefined ? [`version == ${version}`] : []),
+    ].join(" && ");
+    const { stdout } = await swamp([
+      "data",
+      "query",
+      predicate,
+      "--select",
+      "content",
+      "--json",
+    ]);
+    const { results } = JSON.parse(stdout) as {
+      results: Record<string, unknown>[];
+    };
+    if (results.length !== 1) {
+      throw new Error(
+        `${results.length} records match ${predicate}, not one`,
+      );
+    }
+    return results[0];
   };
 
   const run: SwampRepo["run"] = async (key) => {

@@ -624,8 +624,9 @@ index to the new ticket. `factory` is needed only when a new key is reserved.
 `--input dryRun=true` reports the ticket's work item, or that it has none, and
 writes nothing. `claim` never writes to the tracker, and a refused claim writes
 nothing. A repeat claim refreshes only the ticket's snapshot, not the index
-record, so read the key with `swamp data get board ticket-ext-12 --json`. See
-[DESIGN.md](DESIGN.md), "Start from a ticket".
+record, so read the key with
+`swamp data query 'modelName == "board" && name == "ticket-ext-12"' --select content --json`.
+See [DESIGN.md](DESIGN.md), "Start from a ticket".
 
 ## swamp-club Lab (swamp-club team only)
 

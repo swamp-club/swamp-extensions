@@ -439,17 +439,12 @@ export function checkCommand(
   if (is("extension", "source", "add")) {
     return args.length === 4 ? null : "extension source add takes one path";
   }
-  if (is("data", "get")) {
-    // An earlier version of a record is read by its number.
-    const rest = args.slice(4);
-    const version = rest.indexOf("--version");
-    if (version !== -1 && rest[version + 1] !== undefined) {
-      rest.splice(version, 2);
-    }
-    return args.length >= 4 && rest.every((w) => w === "--json")
+  if (is("data", "query")) {
+    // One predicate naming the record, and its payload alone.
+    return args.length === 6 && args[3] === "--select" &&
+        args[4] === "content" && args[5] === "--json"
       ? null
-      : "data get takes an instance, a record name, --json and " +
-        "optionally --version";
+      : "data query takes a predicate, --select content and --json";
   }
   return `not a command form the skill test knows: ${args.join(" ")}`;
 }
@@ -724,14 +719,12 @@ async function runCommands(
       result.code === 0 && ran[0] === "model" && ran[1] === WORK_ITEM_TYPE &&
       ran[4] === "dispatch"
     ) {
-      const read = await repo.swamp(["data", "get", ran[5], "run", "--json"]);
-      const dispatches = (JSON.parse(read.stdout) as {
-        content?: {
-          dispatches?: {
-            subagentPrompts?: { resultPaths: Record<string, string> }[];
-          }[];
-        };
-      }).content?.dispatches ?? [];
+      const run = await repo.data(ran[5], "run") as {
+        dispatches?: {
+          subagentPrompts?: { resultPaths: Record<string, string> }[];
+        }[];
+      };
+      const dispatches = run.dispatches ?? [];
       const paths = dispatches.at(-1)?.subagentPrompts?.[0]?.resultPaths;
       const path = paths === undefined ? undefined : Object.values(paths)[0];
       if (path !== undefined) values["<result-path>"] = path;

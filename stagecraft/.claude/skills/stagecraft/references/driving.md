@@ -248,11 +248,11 @@ team-1 (Add a list method): active at stage 'plan-review' cycle 1
 | `rejected <kind> '<name>' (...): ...` | The latest rejection of that product, kept as retry feedback until the product is recorded.                                                       |
 
 To read a recorded product itself (to show a person, or to check a value), get
-its record. Artifacts are `artifact-<name>`, evidence is `evidence-<name>`; the
-payload is under `content`:
+its record. Artifacts are `artifact-<name>`, evidence is `evidence-<name>`.
+`--select content` prints the payload as the one entry of `results`:
 
 ```sh
-swamp data get <key> artifact-<name> --json
+swamp data query 'modelName == "<key>" && name == "artifact-<name>"' --select content --json
 ```
 
 That is the latest version. An earlier one, such as the plan version a ticket
@@ -260,7 +260,7 @@ entry says was approved, is read by its number (stagecraft's answer to
 issue-lifecycle's `review --input version`):
 
 ```sh
-swamp data get <key> artifact-<name> --version <version> --json
+swamp data query 'modelName == "<key>" && name == "artifact-<name>" && version == <version>' --select content --json
 ```
 
 ## The loop
@@ -314,7 +314,7 @@ each between these two lines:
 
 The `(<skill>)` part appears only when the stage lists skills. Each prompt
 starts with the rendered prompt and goes on to name the skill to follow, a
-`swamp data get` read for each injected product, and a result file for each
+`swamp data query` read for each injected product, and a result file for each
 product with its schema. The dispatch records these prompts as they were
 printed. The status block comes after the last end line, so it is never part of
 a prompt.
@@ -514,7 +514,7 @@ tell the person, since the run data or the factory definition needs fixing.
 
 When a person must decide:
 
-1. Read the products being decided on fresh, with `swamp data get`. Never
+1. Read the products being decided on fresh, with `swamp data query`. Never
    summarise from memory.
 2. Say what the gate is for and what the reviews found.
 3. Lay out every exit that is open or can be opened, one line each, with where

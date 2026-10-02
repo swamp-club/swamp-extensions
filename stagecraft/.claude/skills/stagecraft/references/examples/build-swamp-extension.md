@@ -215,8 +215,9 @@ the severity of a real defect.
 
 ---
 
-Read these products fresh from the store:
-- plan: swamp data get <key> artifact-plan --json
+Read these products fresh from the store. Each command prints
+{"results": [...]} with one result, the product's payload:
+- plan: swamp data query 'modelName == "<key>" && name == "artifact-plan"' --select content --json
 
 Write your result as JSON, one file per product, holding the
 payload and nothing else. These files are the only thing you may
@@ -277,8 +278,8 @@ a person records: their feedback on the plan, never the agent's own. Stop and
 ask, showing the plan and the review read fresh from the store:
 
 ```sh
-swamp data get <key> artifact-plan --json
-swamp data get <key> artifact-plan-review --json
+swamp data query 'modelName == "<key>" && name == "artifact-plan"' --select content --json
+swamp data query 'modelName == "<key>" && name == "artifact-plan-review"' --select content --json
 ```
 
 > Plan-review found one medium finding (README not updated). Your options:

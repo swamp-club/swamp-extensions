@@ -482,7 +482,10 @@ Deno.test("dispatch: each subagent's prompt starts with the rendered prompt and 
     assert(prompt.startsWith(packet.prompt ?? "-"), prompt);
     assert(prompt.includes(`Follow the ${skill} skill.`), prompt);
     assert(
-      prompt.includes("- plan: swamp data get wi-3 artifact-plan --json"),
+      prompt.includes(
+        `- plan: swamp data query 'modelName == "wi-3" && ` +
+          `name == "artifact-plan"' --select content --json`,
+      ),
       prompt,
     );
     assert(

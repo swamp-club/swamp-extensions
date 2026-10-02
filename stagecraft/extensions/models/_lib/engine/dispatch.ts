@@ -215,9 +215,8 @@ export function buildSubagentPrompts(
   if (packet.mode !== "dispatch") return [];
   const dir = where.resultDir.replace(/\/+$/, "");
   const reads = packet.inject.map((name) =>
-    `- ${name}: swamp data get ${where.key} ${
-      kindOf(definition, name)
-    }-${name} --json`
+    `- ${name}: swamp data query 'modelName == "${where.key}" && ` +
+    `name == "${kindOf(definition, name)}-${name}"' --select content --json`
   );
   return Array.from({ length: packet.subagents }, (_, i) => {
     const skill = packet.skills[i];
@@ -243,7 +242,11 @@ export function buildSubagentPrompts(
     const sections = [
       ...(skill !== undefined ? [`Follow the ${skill} skill.`] : []),
       ...(reads.length > 0
-        ? [`Read these products fresh from the store:\n${reads.join("\n")}`]
+        ? [
+          "Read these products fresh from the store. Each command prints\n" +
+          '{"results": [...]} with one result, the product\'s payload:\n' +
+          reads.join("\n"),
+        ]
         : []),
       ...(writes.length > 0
         ? [

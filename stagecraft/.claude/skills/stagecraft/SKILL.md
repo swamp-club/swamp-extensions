@@ -100,7 +100,7 @@ swamp model @swamp/stagecraft/work-item method run status <key>
 4. Read the status the last write printed and apply rule 5: `advance`, or stop
    and ask the person.
 
-When a person must decide, read the products fresh with `swamp data get` and
+When a person must decide, read the products fresh with `swamp data query` and
 show them. Then lay out every exit that is open or can be opened, one line each
 with its cost: the exits waiting on them, the manual ways back, any exit a cycle
 limit closes (with the `grant_override` it needs), and `abandon`. A reached

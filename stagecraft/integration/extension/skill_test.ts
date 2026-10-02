@@ -638,18 +638,7 @@ Deno.test("skill: the worked example runs as written, from start to done", async
     });
     assertEquals([...written.keys()].sort(), ["code-review", "plan-review"]);
     for (const [name, payload] of written) {
-      const read = await repo.swamp([
-        "data",
-        "get",
-        key,
-        `artifact-${name}`,
-        "--json",
-      ]);
-      assertEquals(
-        (JSON.parse(read.stdout) as { content?: unknown }).content,
-        payload,
-        name,
-      );
+      assertEquals(await repo.data(key, `artifact-${name}`), payload, name);
     }
   });
 });

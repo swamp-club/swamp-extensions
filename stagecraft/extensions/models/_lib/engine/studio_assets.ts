@@ -8,7 +8,7 @@ import { STUDIO_FONTS } from "./studio_asset_fonts.ts";
 
 /** A digest of the build's inputs; studio_assets_test checks it is current. */
 export const STUDIO_SOURCE_DIGEST =
-  "sha256:b829d4f2b0ebc06e11e6ba613e55377e0006885673d13e4c256eeb96946490d7";
+  "sha256:b5f85c3be8984f28fdd5d6608de7431c7227fc3fd41ffc1610f8a6be7ddef5ae";
 
 /** The studio page's files by served name. */
 export const STUDIO_ASSETS: Readonly<Record<string, StudioAsset>> = {

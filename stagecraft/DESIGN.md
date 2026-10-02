@@ -902,7 +902,7 @@ The dispatch record held a prompt no subagent saw.
   current pass (swamp-club #2770).
 - **The engine writes the subagent prompt.** For a dispatch stage,
   `buildSubagentPrompts` gives each subagent the rendered prompt byte for
-  byte. A fixed section follows it: the skill to follow, a `swamp data get`
+  byte. A fixed section follows it: the skill to follow, a `swamp data query`
   read per injected product, and a result file per product with its schema,
   inline. The dispatch records these prompts, so replay shows exactly what was
   sent. The driver adds nothing. That makes the driver honest by construction,
@@ -2444,7 +2444,7 @@ printed `start` at once race as any first start does (see "The model types").
 stagecraft through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution, without `--log` as the skill does, and
-reads results back from swamp's storage with `swamp data get --json`. Code:
+reads results back from swamp's storage with `swamp data query --json`. Code:
 `integration/harness.ts`, `integration/engine/cli_test.ts`;
 `integration/extension/skill_test.ts`, which checks every command the driving
 skill shows and runs its worked example as written; and
