@@ -391,6 +391,84 @@ Deno.test("studio: a work item whose pinned definition fails its digest is 422; 
   assertMatch(String((await body(res)).error), /digest|pinned/);
 });
 
+Deno.test("studio: /api/work-items/<key>/ticket gives the ticket as the tracker recorded it, with no poll", async () => {
+  const { deps } = setup();
+  const store = recordStore();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM, store);
+  const { instance, kind } = item.run.tracker;
+  deps.query = item.query;
+  deps.workItems = watchWorkItems(item.query, () => {});
+  const ticketOf = async () => {
+    const res = await handleStudioRequest(
+      get(`/api/work-items/${ITEM}/ticket`),
+      deps,
+    );
+    assertEquals(res.status, 200);
+    assertSecurityHeaders(res);
+    return await body(res);
+  };
+  // The scenario's run names no ticket.
+  assertEquals(await ticketOf(), { state: "none" });
+  store.put(ITEM, "run", { ...item.run, externalRefs: { [kind]: "T-1" } });
+  assertEquals((await ticketOf()).state, "missing");
+  store.put(
+    instance,
+    "issue-T-1",
+    {
+      origin: "snapshot",
+      tracker: instance,
+      id: "T-1",
+      display: "ENG-1",
+      title: "Add the thing",
+      status: { id: "s1", name: "Todo" },
+      description: "Body",
+      activity: [],
+      fetchedAt: "2026-10-01T00:00:00.000Z",
+    },
+    "@swamp/stagecraft/tracker",
+    "issue",
+  );
+  const found = await ticketOf();
+  assertEquals(found.state, "ok");
+  assertEquals((found.ticket as { description: string }).description, "Body");
+  // The Ticket tab reads when it opens; it starts no poll.
+  assertEquals(deps.workItems.size(), 0);
+});
+
+Deno.test("studio: the ticket route is 404 for an unknown or unsafe key, and 422 for a record that does not parse", async () => {
+  const { deps } = setup();
+  const none = await handleStudioRequest(
+    get(`/api/work-items/${ITEM}/ticket`),
+    deps,
+  );
+  assertEquals(none.status, 422);
+  await none.body?.cancel();
+  const store = recordStore();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM, store);
+  const { instance, kind } = item.run.tracker;
+  deps.query = item.query;
+  item.asked.length = 0;
+  for (const bad of ["nope", "a..b", encodeURIComponent('x" || "')]) {
+    const res = await handleStudioRequest(
+      get(`/api/work-items/${bad}/ticket`),
+      deps,
+    );
+    assertEquals(res.status, 404, bad);
+    await res.body?.cancel();
+  }
+  assertEquals(item.asked, [
+    'modelName == "nope" && name == "run"',
+  ]);
+  store.put(ITEM, "run", { ...item.run, externalRefs: { [kind]: "T-1" } });
+  store.put(instance, "issue-T-1", { origin: "snapshot", id: "T-1" });
+  const res = await handleStudioRequest(
+    get(`/api/work-items/${ITEM}/ticket`),
+    deps,
+  );
+  assertEquals(res.status, 422);
+  assertMatch(String((await body(res)).error), /does not parse/);
+});
+
 Deno.test("studio: /api/factories lists factories only, with their model definition files", async () => {
   const { deps, followed, repo } = setup();
   const res = await handleStudioRequest(get("/api/factories"), deps);

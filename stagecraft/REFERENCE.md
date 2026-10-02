@@ -380,10 +380,17 @@ shows them as the agent saves.
   journal (products, approvals and declines with the person, moves,
   overrides, dispatches, resets); ↑ and ↓ move through it, and Enter selects
   the entry's stage on the graph. **Metrics** is Simulate's, on the real run.
-  **Tracker** shows the ticket as its tracker last recorded it, with a link
-  (named by its title where the ticket's id is the key) and its relations
-  (parent, blocked by, duplicate), read from the tracker's records with no
-  network call. **Scenario** shows this era of the run as one
+  **Ticket**, which a work item with a ticket opens on, shows the ticket as
+  its tracker last recorded it: title, status, labels or type, assignees,
+  created and updated times, its description (markdown, drawn safely: no
+  markup or script in it runs), and its comments and lifecycle entries oldest
+  first, each labelled a person's comment, one stagecraft posted, or an entry.
+  Its relations (parent, blocked by, duplicate, related) link to the work item
+  on the other ticket, in any factory, and an external ticket links out to
+  its tracker, such as Linear. It is read from the tracker's records with no
+  network call, and says when its copy was recorded: run the tracker's `fetch_issue`
+  for a newer one, then **Refresh**. A work item with no ticket, or one the
+  tracker has no record of yet, says so. **Scenario** shows this era of the run as one
   entry for `globalArguments.scenarios`, with the payloads it recorded, replays
   it on the pinned definition to say whether it ends where the run is, and
   notes what a scenario cannot carry (dispatches, dispatch overrides,
@@ -393,7 +400,9 @@ shows them as the agent saves.
 - **Addresses:** each view has its own path: `/f/<factory>/design`,
   `/f/<factory>/simulate`, `/f/<factory>/board`, and `/w/<key>` for one work
   item. `/` opens the last factory you looked at. Back and forward move between
-  views.
+  views. The bar's Design, Simulate and Board are links: the one shown is
+  marked (a work item's page marks Board, under a "Board › key" breadcrumb),
+  and the browser tab's title says where you are.
 
 ```bash
 # Once per repo.
@@ -407,8 +416,8 @@ The server listens on 127.0.0.1 only, answers only requests addressed to it from
 its own page, and serves nothing but the page, each factory's model
 definition file, at the path swamp's definition repository gives, and what
 the Board needs of its work items, which it reads with swamp's data query
-(`GET /api/work-items?factory=<name>`, and `GET /api/work-items/<key>` for
-one), so it works whatever datastore holds them. `serve` holds the
+(`GET /api/work-items?factory=<name>`, `GET /api/work-items/<key>` for
+one, and `GET /api/work-items/<key>/ticket` for its ticket), so it works whatever datastore holds them. `serve` holds the
 studio's lock while it runs, so a second `serve` of the same studio waits; it
 never takes a factory's lock. See [DESIGN.md](DESIGN.md), "The studio server".
 

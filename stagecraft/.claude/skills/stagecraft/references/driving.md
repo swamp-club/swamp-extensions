@@ -106,6 +106,11 @@ themselves, since it runs until Ctrl-C:
 `swamp model create @swamp/stagecraft/studio studio` once, then
 `swamp model method run studio serve`, which logs the URL.
 
+A work item's page in the studio has a Ticket tab: the ticket's description,
+comments and relations as the tracker last recorded them. The studio never calls
+the tracker, so when the person wants it current, run the tracker's
+`fetch_issue` for the ticket; they press Refresh.
+
 A walk the person copies from Simulate (Copy as scenario) comes to you as a
 scenario entry; see [scenarios.md](scenarios.md), "A walk the person copied from
 the studio".

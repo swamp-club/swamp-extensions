@@ -108,3 +108,52 @@ export interface WorkItemResponse {
   /** When the readiness was evaluated. */
   at: string;
 }
+
+/** A comment or lifecycle entry on the ticket, as the Ticket tab shows it. */
+export interface TicketActivityView {
+  kind: "comment" | "entry";
+  id?: string;
+  author?: string;
+  /** A comment's markdown, or an entry's summary. */
+  body: string;
+  step?: string;
+  at: string;
+  /** True when the tracker's delivery ledger records stagecraft posting it. */
+  byStagecraft: boolean;
+}
+
+/** A relation, with the work item that works the other ticket, if any. */
+export interface TicketRelationView extends IssueRelation {
+  /** The newest work item on that ticket, in any factory, or null. */
+  workItem: string | null;
+}
+
+/** The ticket as the Ticket tab shows it, from the tracker's stored record. */
+export interface TicketView {
+  origin: "snapshot" | "builtin";
+  /** The tracker instance and its kind. */
+  tracker: string;
+  kind: string;
+  id: string;
+  display: string;
+  title: string;
+  url?: string;
+  status: { id: string; name: string };
+  /** null on a snapshot recorded before trackers read descriptions. */
+  description: string | null;
+  labels: string[];
+  assignees: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  /** Oldest first; null on a snapshot recorded before trackers read it. */
+  activity: TicketActivityView[] | null;
+  relations: TicketRelationView[];
+  /** When an external tracker's snapshot was taken; absent for built-in. */
+  fetchedAt?: string;
+}
+
+/** What GET /api/work-items/<key>/ticket answers. */
+export type TicketResponse =
+  | { state: "none" }
+  | { state: "missing"; tracker: string; kind: string; id: string }
+  | { state: "ok"; ticket: TicketView };

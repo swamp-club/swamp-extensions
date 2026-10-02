@@ -119,7 +119,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.
   type: "@swamp/stagecraft/linear",
-  version: "2026.10.02.2",
+  version: "2026.10.02.3",
   globalArguments: LinearArgumentsSchema,
   resources: trackerResources,
   methods: {

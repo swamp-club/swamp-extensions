@@ -39,6 +39,8 @@ export interface Stored {
   modelName: string;
   modelType: string;
   name: string;
+  /** The record's spec, where a test gives one (a tracker's comment). */
+  specName?: string;
   version: number;
   isLatest: boolean;
   attributes: Record<string, unknown>;
@@ -53,6 +55,7 @@ export function recordStore() {
     name: string,
     attributes: Record<string, unknown>,
     modelType = WORK_ITEM_TYPE,
+    specName?: string,
   ) => {
     const prior = records.filter((r) =>
       r.modelName === modelName && r.name === name
@@ -62,6 +65,7 @@ export function recordStore() {
       modelName,
       modelType,
       name,
+      ...(specName === undefined ? {} : { specName }),
       version: prior.length + 1,
       isLatest: true,
       attributes: structuredClone(attributes),

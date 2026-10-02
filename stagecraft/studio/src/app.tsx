@@ -32,17 +32,24 @@ import { Inspector } from "./inspector.tsx";
 import { targetKey } from "./selection.ts";
 import { Dock, SimPanel } from "./simulate_view.tsx";
 import { Source } from "./source.tsx";
+import {
+  FACTORY_VIEWS,
+  navCurrent,
+  navHref,
+  titleFor,
+  VIEW_NAMES,
+} from "./route.ts";
 import { reveal, Tabs } from "./ui.tsx";
 import { GoToItem, ItemHead, ItemPanel } from "./work_item_view.tsx";
 import {
   changed,
+  currentRoute,
   factories,
   factory,
   flashText,
   followAddress,
   go,
   graph,
-  isFactoryView,
   keepBoardCurrent,
   listen,
   live,
@@ -50,7 +57,6 @@ import {
   loadFactories,
   loadWorkItem,
   markStagesSeen,
-  type Mode,
   mode,
   type PanelTab,
   panelTab,
@@ -100,23 +106,57 @@ function Bar() {
       </div>
       <div class="spacer" />
       <GoToItem />
-      <Tabs<Mode>
-        label="Mode"
-        class="modes"
-        tabs={[["design", "Design"], ["simulate", "Simulate"], [
-          "board",
-          "Board",
-        ]]}
-        value={mode.value}
-        onChange={(m) => {
-          if (isFactoryView(m)) void go({ view: m, factory: factory.value });
-        }}
-        controls="mode-panel"
-      />
+      <ViewNav />
       <span class="flash" role="status" aria-live="polite">
         {flashText.value ?? ""}
       </span>
     </header>
+  );
+}
+
+/**
+ * The views, as links: each is an address, and the one shown is marked with
+ * aria-current ("page"; a work item marks Board, which it is under, "true").
+ * The browser tab's title says the same. Simulate and Board wait for a
+ * factory to be picked.
+ */
+function ViewNav() {
+  const route = currentRoute();
+  const title = titleFor(route, factory.value);
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
+  return (
+    <nav class="modes" aria-label="Views">
+      {FACTORY_VIEWS.map((view) => {
+        const href = navHref(view, factory.value);
+        if (href === null) {
+          return (
+            <a key={view} role="link" aria-disabled="true">
+              {VIEW_NAMES[view]}
+            </a>
+          );
+        }
+        return (
+          <a
+            key={view}
+            href={href}
+            aria-current={navCurrent(route, view)}
+            onClick={(e) => {
+              // A new tab or window opens the address itself.
+              if (
+                e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey ||
+                e.altKey
+              ) return;
+              e.preventDefault();
+              void go({ view, factory: factory.value });
+            }}
+          >
+            {VIEW_NAMES[view]}
+          </a>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -237,12 +277,7 @@ function DesignMode() {
     );
   }, [sel, panelTab.value]);
   return (
-    <div
-      class="main"
-      id="mode-panel"
-      role="tabpanel"
-      aria-labelledby="tab-design"
-    >
+    <div class="main" id="mode-panel" aria-label="Design">
       <section class="canvas-wrap" aria-label="Graph" ref={wrap}>
         <Toolbar box={wrap} />
         {sourceError.value !== null && (
@@ -287,12 +322,7 @@ function DesignMode() {
 function SimulateMode() {
   const wrap = useRef<HTMLElement>(null);
   return (
-    <div
-      class="main"
-      id="mode-panel"
-      role="tabpanel"
-      aria-labelledby="tab-simulate"
-    >
+    <div class="main" id="mode-panel" aria-label="Simulate">
       <section class="canvas-wrap" aria-label="Graph" ref={wrap}>
         <Toolbar box={wrap} />
         {sourceError.value !== null && (

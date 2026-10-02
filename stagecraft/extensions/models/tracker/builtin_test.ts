@@ -15,7 +15,12 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import { BuiltinArgumentsSchema, builtinMethods, model } from "./builtin.ts";
+import {
+  BuiltinArgumentsSchema,
+  builtinMethods,
+  model,
+  ticketRecords,
+} from "./builtin.ts";
 import { BUILTIN_TYPE } from "../_lib/tracker/backends/builtin.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/tracker_testing.ts";
@@ -117,6 +122,31 @@ Deno.test("builtin model: fetch_issue and claim never overwrite the ticket with 
   await call(swamp, "fetch_issue", { issue: id.toUpperCase() });
   assertEquals(record(swamp, `issue-${id}`)?.length, 1);
   assert(String(swamp.logs.at(-1)?.props?.summary).includes("[open]"));
+});
+
+Deno.test("builtin model: a ticket's comments are read through the data query, its own and no other's", async () => {
+  const swamp = withArgs({ prefix: "cue" });
+  await call(swamp, "create", { title: "x", body: "y", type: "bug" });
+  const id = createdId(swamp);
+  await call(swamp, "create", { title: "other", body: "z", type: "bug" });
+  const other = createdId(swamp);
+  await call(swamp, "comment", { issue: id, body: "first" });
+  await call(swamp, "comment", { issue: other, body: "elsewhere" });
+  const ctx = swamp.context(INSTANCE);
+  const found = await ticketRecords(ctx, INSTANCE, "comment", id);
+  assertEquals(found.map((r) => r.body), ["first"]);
+  // A name that only begins like the id is not the ticket's.
+  assertEquals(await ticketRecords(ctx, INSTANCE, "comment", "cue"), []);
+});
+
+Deno.test("builtin model: without a data query, fetch_issue still reads the ticket", async () => {
+  const swamp = withArgs({ prefix: "cue" });
+  await call(swamp, "create", { title: "x", body: "y", type: "bug" });
+  const id = createdId(swamp);
+  const { queryData: _, ...ctx } = swamp.context(INSTANCE);
+  const method = model.methods.fetch_issue;
+  await method.execute(method.arguments.parse({ issue: id }), ctx);
+  assert(String(swamp.logs.at(-1)?.props?.summary).includes(id));
 });
 
 Deno.test("builtin model: statuses and types are the instance's lists, given as JSON text too", async () => {

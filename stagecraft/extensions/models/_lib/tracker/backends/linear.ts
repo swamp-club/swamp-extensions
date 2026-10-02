@@ -21,6 +21,7 @@ import {
   type RelationChange,
   type RelationType,
   type StatusChange,
+  type TicketActivity,
   type TrackerAdapter,
   type TrackerComment,
   TrackerError,
@@ -104,6 +105,11 @@ const RELATION_FIELDS = "parent { id identifier } " +
   "relations(first: 250) { nodes { id type relatedIssue { id identifier } } } " +
   "inverseRelations(first: 250) { nodes { id type issue { id identifier } } }";
 
+// What fetchIssue reads for the studio's Ticket tab (swamp-club #2969).
+const CONTENT_FIELDS = "description createdAt updatedAt " +
+  "labels(first: 50) { nodes { name } } " +
+  `comments(first: 250) { nodes { id body createdAt user { ${USER_FIELDS} } } }`;
+
 interface IssueRef {
   id: string;
   identifier: string;
@@ -115,6 +121,18 @@ interface RelatedNode extends IssueNode {
   relations: { nodes: { id: string; type: string; relatedIssue: IssueRef }[] };
   inverseRelations: {
     nodes: { id: string; type: string; issue: IssueRef }[];
+  };
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  labels?: { nodes: { name: string }[] };
+  comments?: {
+    nodes: {
+      id: string;
+      body: string;
+      createdAt: string;
+      user?: LinearUser | null;
+    }[];
   };
 }
 
@@ -325,20 +343,49 @@ export function linearAdapter(options: LinearOptions): LinearAdapter {
     };
   }
 
+  /** The ticket's content as fetchIssue reports it; Linear has no
+   * lifecycle entries, so its activity is its comments. */
+  function contentOf(node: RelatedNode): Partial<TrackerIssue> {
+    const assignee = node.assignee;
+    return {
+      description: node.description ?? "",
+      labels: (node.labels?.nodes ?? []).map((l) => l.name),
+      assignees: assignee === null || assignee === undefined
+        ? []
+        : [assignee.displayName || assignee.name],
+      ...(node.createdAt === undefined ? {} : { createdAt: node.createdAt }),
+      ...(node.updatedAt === undefined ? {} : { updatedAt: node.updatedAt }),
+      activity: (node.comments?.nodes ?? [])
+        .map((c): TicketActivity => ({
+          kind: "comment",
+          id: c.id,
+          ...(c.user ? { author: c.user.displayName || c.user.name } : {}),
+          body: c.body,
+          at: c.createdAt,
+        }))
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)),
+    };
+  }
+
   /** An issue with its relations, and the Linear ids behind them. */
   async function readRelated(
     ref: string,
   ): Promise<{ issue: TrackerIssue; relations: LinearRelation[] }> {
     const data = await graphql<{ issue: RelatedNode | null }>(
       `query StagecraftIssue($id: String!) {
-        issue(id: $id) { ${ISSUE_FIELDS} ${RELATION_FIELDS} }
+        issue(id: $id) { ${ISSUE_FIELDS} ${RELATION_FIELDS} ${CONTENT_FIELDS} }
       }`,
       { id: ref },
     );
     const issue = toIssue(data.issue, ref);
-    const relations = relationsOf(data.issue!);
+    const node = data.issue!;
+    const relations = relationsOf(node);
     return {
-      issue: { ...issue, relations: relations.map((r) => r.relation) },
+      issue: {
+        ...issue,
+        relations: relations.map((r) => r.relation),
+        ...contentOf(node),
+      },
       relations,
     };
   }

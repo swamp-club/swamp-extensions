@@ -17,7 +17,15 @@
 import { assert, assertEquals } from "@std/assert";
 import { FACTORY_VIEWS as SERVED } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { isPagePath } from "../../extensions/models/_lib/engine/studio_server.ts";
-import { parseRoute, type Route, routeHref } from "./route.ts";
+import {
+  FACTORY_VIEWS,
+  navCurrent,
+  navHref,
+  parseRoute,
+  type Route,
+  routeHref,
+  titleFor,
+} from "./route.ts";
 
 Deno.test("route: each view's path parses to its route and back", () => {
   const routes: [string, Route][] = [
@@ -73,4 +81,57 @@ Deno.test("route: a path the page does not know is null", () => {
   ) {
     assertEquals(parseRoute(path), null, path);
   }
+});
+
+Deno.test("route: every route marks its place in the nav, and a work item is under Board", () => {
+  const marks = (route: Route) =>
+    FACTORY_VIEWS.map((v) => [v, navCurrent(route, v) ?? null]);
+  for (const view of FACTORY_VIEWS) {
+    assertEquals(
+      marks({ view, factory: "team" }),
+      FACTORY_VIEWS.map((v) => [v, v === view ? "page" : null]),
+    );
+  }
+  assertEquals(marks({ view: "design", factory: null }), [
+    ["design", "page"],
+    ["simulate", null],
+    ["board", null],
+  ]);
+  assertEquals(marks({ view: "work-item", key: "blog-12" }), [
+    ["design", null],
+    ["simulate", null],
+    ["board", "true"],
+  ]);
+});
+
+Deno.test("route: before a factory is picked only Design has an address", () => {
+  assertEquals(FACTORY_VIEWS.map((v) => navHref(v, null)), ["/", null, null]);
+  assertEquals(FACTORY_VIEWS.map((v) => navHref(v, "team")), [
+    "/f/team/design",
+    "/f/team/simulate",
+    "/f/team/board",
+  ]);
+});
+
+Deno.test("route: the browser tab's title says where you are", () => {
+  assertEquals(
+    titleFor({ view: "design", factory: null }, null),
+    "Design · Stagecraft Studio",
+  );
+  assertEquals(
+    titleFor({ view: "board", factory: "blog" }, "blog"),
+    "Board · blog · Stagecraft Studio",
+  );
+  assertEquals(
+    titleFor({ view: "simulate", factory: "blog" }, null),
+    "Simulate · blog · Stagecraft Studio",
+  );
+  assertEquals(
+    titleFor({ view: "work-item", key: "blog-12" }, "blog"),
+    "blog-12 · Board · blog · Stagecraft Studio",
+  );
+  assertEquals(
+    titleFor({ view: "work-item", key: "blog-12" }, null),
+    "blog-12 · Board · Stagecraft Studio",
+  );
 });

@@ -77,3 +77,47 @@ export function routeHref(route: Route): string {
 export function sameRoute(a: Route, b: Route): boolean {
   return routeHref(a) === routeHref(b);
 }
+
+/** What the nav and the browser tab call each factory view. */
+export const VIEW_NAMES: Record<FactoryView, string> = {
+  design: "Design",
+  simulate: "Simulate",
+  board: "Board",
+};
+
+/**
+ * How the nav marks a view's link on a route: "page" when the link is the
+ * page shown, "true" when the page is under it (a work item is under the
+ * Board), and nothing otherwise.
+ */
+export function navCurrent(
+  route: Route,
+  view: FactoryView,
+): "page" | "true" | undefined {
+  if (route.view === "work-item") return view === "board" ? "true" : undefined;
+  return route.view === view ? "page" : undefined;
+}
+
+/**
+ * A view link's address, for the factory shown: null until a factory is
+ * picked, except Design, which / shows.
+ */
+export function navHref(
+  view: FactoryView,
+  factory: string | null,
+): string | null {
+  if (factory === null) return view === "design" ? "/" : null;
+  return routeHref({ view, factory });
+}
+
+/** The browser tab's title for a route: where you are, most specific first. */
+export function titleFor(route: Route, factory: string | null): string {
+  const app = "Stagecraft Studio";
+  if (route.view === "work-item") {
+    return [route.key, "Board", factory, app].filter((p) => p !== null)
+      .join(" · ");
+  }
+  const name = route.factory ?? factory;
+  return [VIEW_NAMES[route.view], name, app].filter((p) => p !== null)
+    .join(" · ");
+}

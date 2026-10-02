@@ -42,6 +42,8 @@ export interface FakeIssue {
   labelIds?: string[];
   parentId?: string | null;
   assigneeId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** A workspace user. */
@@ -90,7 +92,15 @@ export interface LinearFake {
   labels: FakeLabel[];
   /** The workspace's users; the first is the token's own, the viewer. */
   users: FakeUser[];
-  comments: { id: string; issueId: string; body: string }[];
+  /** Comments, oldest first; userId is the viewer's for one the API key
+   * posted. */
+  comments: {
+    id: string;
+    issueId: string;
+    body: string;
+    userId: string;
+    createdAt: string;
+  }[];
   relations: FakeRelation[];
   requests: FakeRequest[];
   /** Raw responses to send, in order, before answering normally again. */
@@ -264,7 +274,14 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
         const issue = find(variables.issueId);
         if (issue === undefined) return notFound();
         const id = `comment-${comments.length + 1}`;
-        comments.push({ id, issueId: issue.id, body: String(variables.body) });
+        comments.push({
+          id,
+          issueId: issue.id,
+          body: String(variables.body),
+          userId: VIEWER_ID,
+          createdAt: new Date(Date.UTC(2026, 8, 29, 0, comments.length))
+            .toISOString(),
+        });
         return json({
           data: {
             commentCreate: {
@@ -371,6 +388,23 @@ export function linearFake(token = FAKE_TOKEN): LinearFake {
               url: urlOf(issue),
               state: stateOf(issue),
               assignee: assigneeOf(issue),
+              description: issue.description ?? null,
+              createdAt: issue.createdAt ?? "2026-09-28T00:00:00.000Z",
+              updatedAt: issue.updatedAt ?? "2026-09-28T00:00:00.000Z",
+              labels: {
+                nodes: labels.filter((l) => issue.labelIds?.includes(l.id))
+                  .map((l) => ({ name: l.name })),
+              },
+              comments: {
+                nodes: comments.filter((c) => c.issueId === issue.id).map((
+                  c,
+                ) => ({
+                  id: c.id,
+                  body: c.body,
+                  createdAt: c.createdAt,
+                  user: users.find((u) => u.id === c.userId) ?? null,
+                })),
+              },
               team: { states: { nodes: states } },
               parent: issue.parentId ? ref(byId(issue.parentId)) : null,
               children: {

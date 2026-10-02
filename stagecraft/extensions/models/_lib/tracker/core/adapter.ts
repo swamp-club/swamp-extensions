@@ -41,6 +41,33 @@ export interface TrackerIssue {
   details?: Record<string, unknown>;
   /** The ticket's relations to other tickets, as the tracker holds them. */
   relations: TrackerRelation[];
+  /** The ticket's description, as markdown; "" when it has none. */
+  description?: string;
+  /** Label names, or the ticket's type where the tracker has no labels. */
+  labels?: string[];
+  /** The people assigned, by the name the tracker shows. */
+  assignees?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  /**
+   * The ticket's comments and lifecycle entries, oldest first. Absent when
+   * the read did not include them, which is not the same as none.
+   */
+  activity?: TicketActivity[];
+}
+
+/** One comment or lifecycle entry on a ticket, as the tracker reads it. */
+export interface TicketActivity {
+  kind: "comment" | "entry";
+  /** The tracker's id for it, where the tracker gives one. */
+  id?: string;
+  /** Who wrote it, where the tracker records that. */
+  author?: string;
+  /** A comment's markdown, or an entry's summary. */
+  body: string;
+  /** An entry's step; absent for a comment. */
+  step?: string;
+  at: string;
 }
 
 /**

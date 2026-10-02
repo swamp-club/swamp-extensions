@@ -28,13 +28,7 @@ import {
 import { ANY_ID, layout } from "./layout.ts";
 import { loadDefinition, type Loaded, type Located } from "./model.ts";
 import { navModel } from "./nav.ts";
-import {
-  type FactoryView,
-  parseRoute,
-  type Route,
-  routeHref,
-  sameRoute,
-} from "./route.ts";
+import { parseRoute, type Route, routeHref, sameRoute } from "./route.ts";
 import { itemReferenceLine, referenceLine } from "./reference.ts";
 import { follow, type Target, targetKey } from "./selection.ts";
 import {
@@ -59,12 +53,14 @@ import { type BoardFilter, NO_FILTER } from "./board.ts";
 import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { DesignView } from "../../extensions/models/_lib/engine/design_view.ts";
 import {
+  hasTicket,
   type Item,
   itemOverlay,
   loadItem,
   pinnedDiffers,
   replay,
   runAsScenario,
+  type TicketResponse,
   titleOf,
   type WorkItemResponse,
 } from "./work_item.ts";
@@ -95,7 +91,7 @@ type OkLoaded = Extract<Loaded, { ok: true }>;
 export type Mode = Route["view"];
 export type PanelTab = "inspect" | "findings" | "source";
 export type SimTab = "run" | "journal" | "metrics" | "scenarios";
-export type ItemTab = "now" | "timeline" | "metrics" | "tracker" | "scenario";
+export type ItemTab = "now" | "timeline" | "metrics" | "ticket" | "scenario";
 
 const PICK_KEY = "stagecraft-studio.factory";
 const SEEN_KEY = "stagecraft-studio.seen.";
@@ -118,7 +114,14 @@ export const workItemKey = signal<string | null>(null);
 export const workItem = signal<Item | null>(null);
 /** Why the work item could not be read: no such key, or its records. */
 export const workItemError = signal<string | null>(null);
+/** The panel's tab; Ticket when a newly opened work item names a ticket. */
 export const itemTab = signal<ItemTab>("now");
+/** The work item's ticket, as its tracker last recorded it; read when the
+ * Ticket tab opens and on Refresh, never on a timer. */
+export const itemTicket = signal<
+  { key: string; data: TicketResponse; at: number } | null
+>(null);
+export const itemTicketError = signal<string | null>(null);
 /** The timeline entry picked, by journal index; its stage is lit. */
 export const itemEntry = signal<number | null>(null);
 /** The run as a scenario entry, with what it left out and whether it
@@ -658,11 +661,6 @@ function defaultRoute(): Route {
   return { view: "design", factory: null };
 }
 
-/** A factory view, for the mode tabs. */
-export function isFactoryView(view: Mode): view is FactoryView {
-  return view !== "work-item";
-}
-
 export async function selectFactory(
   name: string,
   how: "push" | "replace" = "replace",
@@ -741,9 +739,12 @@ export function loadWorkItem(): Promise<void> {
         continue;
       }
       if (workItemKey.value !== key) continue;
+      const opened = workItem.value?.data.run.key !== key;
       batch(() => {
         workItem.value = item;
         workItemError.value = null;
+        // A work item opened afresh starts on its ticket, when it has one.
+        if (opened) itemTab.value = hasTicket(item.data.run) ? "ticket" : "now";
       });
       const started = item.data.run.factory;
       if (
@@ -759,6 +760,48 @@ export function loadWorkItem(): Promise<void> {
     } while (itemAgain);
   })().finally(() => (itemLoading = null));
   return itemLoading;
+}
+
+let ticketLoading: Promise<void> | null = null;
+let ticketAgain = false;
+
+/**
+ * Read the work item's ticket for the Ticket tab. The route reads what the
+ * tracker instance stored, so this is cheap; a read while one is in flight
+ * asks for one more after it, never more. A failure is the tab's to show:
+ * the rest of the page is untouched.
+ */
+export function loadTicket(): Promise<void> {
+  if (ticketLoading !== null) {
+    ticketAgain = true;
+    return ticketLoading;
+  }
+  ticketLoading = (async () => {
+    do {
+      ticketAgain = false;
+      const key = workItemKey.value;
+      if (key === null) return;
+      if (itemTicket.value?.key !== key) {
+        batch(() => {
+          itemTicket.value = null;
+          itemTicketError.value = null;
+        });
+      }
+      try {
+        const data = await getJson<TicketResponse>(
+          `/api/work-items/${encodeURIComponent(key)}/ticket`,
+        );
+        if (workItemKey.value !== key) continue;
+        batch(() => {
+          itemTicket.value = { key, data, at: Date.now() };
+          itemTicketError.value = null;
+        });
+      } catch (e) {
+        if (workItemKey.value === key) itemTicketError.value = message(e);
+      }
+    } while (ticketAgain);
+  })().finally(() => (ticketLoading = null));
+  return ticketLoading;
 }
 
 // --- the Board ----------------------------------------------------------------------

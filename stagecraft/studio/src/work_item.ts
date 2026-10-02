@@ -45,6 +45,9 @@ import type {
 } from "../../extensions/models/_lib/engine/scenario.ts";
 import type {
   PayloadVersion,
+  TicketActivityView,
+  TicketResponse,
+  TicketView,
   WorkItemResponse,
 } from "../../extensions/models/_lib/engine/studio_item_types.ts";
 import {
@@ -55,7 +58,7 @@ import {
   play,
 } from "./simulate.ts";
 
-export type { WorkItemResponse };
+export type { TicketResponse, TicketView, WorkItemResponse };
 
 /** A work item as the page holds it: the route's answer, made ready to draw. */
 export interface Item {
@@ -111,6 +114,39 @@ export function loadItem(data: WorkItemResponse): Item {
  */
 export function ticketRefs(run: RunRecord): [string, string][] {
   return Object.entries(run.externalRefs).filter(([, v]) => v !== run.key);
+}
+
+/** Whether the run names a ticket on the tracker it was started against. */
+export function hasTicket(run: RunRecord): boolean {
+  return run.externalRefs[run.tracker.kind] !== undefined;
+}
+
+/**
+ * What a ticket's comment or lifecycle entry is, in words, and the class
+ * that styles it: a person's comment, one stagecraft posted, or an entry.
+ * The words say it; the style only repeats them.
+ */
+export function activityLabel(
+  a: TicketActivityView,
+): { text: string; kind: "person" | "stagecraft" | "entry" } {
+  if (a.kind === "entry") {
+    const by = a.byStagecraft
+      ? " · posted by stagecraft"
+      : a.author !== undefined
+      ? ` · by ${a.author}`
+      : "";
+    return {
+      text: `lifecycle entry${a.step !== undefined ? ` ${a.step}` : ""}${by}`,
+      kind: "entry",
+    };
+  }
+  if (a.byStagecraft) {
+    return { text: "comment posted by stagecraft", kind: "stagecraft" };
+  }
+  return {
+    text: a.author !== undefined ? `comment by ${a.author}` : "comment",
+    kind: "person",
+  };
 }
 
 /** The title to show: the run's own, else its key. */

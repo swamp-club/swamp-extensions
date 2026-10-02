@@ -33,8 +33,12 @@ import {
   go,
   goFrame,
   graph,
+  itemTab,
+  itemTicket,
+  itemTicketError,
   listen,
   loadDefinitionFile,
+  loadTicket,
   loadWorkItem,
   mode,
   pickEntry,
@@ -457,5 +461,81 @@ Deno.test("state: a work item's page draws the definition it pinned, its overlay
     workItem.value = null;
     workItemError.value = null;
     selection.value = null;
+  }
+});
+
+Deno.test("state: a work item with a ticket opens on the Ticket tab, which reads its ticket, and a failed read stays in the tab", async () => {
+  const stored = await scenarioItem(
+    "build-swamp-extension.yaml",
+    LOOPED_REVIEW,
+    "team-loop-abcd",
+  );
+  const data = await readWorkItem(stored.query, "team-loop-abcd", testEnv());
+  assert(data !== null);
+  const { kind } = data.run.tracker;
+  const ticketed = {
+    ...data,
+    run: { ...data.run, factory: NAME, externalRefs: { [kind]: "T-1" } },
+  };
+  const address = withAddress("/");
+  const asked: string[] = [];
+  let ticket: Response | null = null;
+  const real = globalThis.fetch;
+  globalThis.fetch = (input: string | URL | Request) => {
+    const url = String(input);
+    asked.push(url);
+    if (url.endsWith("/ticket") && ticket !== null) {
+      return Promise.resolve(ticket);
+    }
+    const body = url.startsWith("/api/work-items/")
+      ? url.includes("plain")
+        ? { ...data, run: { ...data.run, key: "plain" } }
+        : ticketed
+      : { error: "not here" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  try {
+    itemTab.value = "metrics";
+    await go({ view: "work-item", key: "team-loop-abcd" });
+    await loadWorkItem();
+    assertEquals(itemTab.value, "ticket");
+    // A re-read of the same item leaves the tab a person chose.
+    itemTab.value = "timeline";
+    await loadWorkItem();
+    assertEquals(itemTab.value, "timeline");
+    // The tab's read: the ticket route, held by key.
+    ticket = new Response(JSON.stringify({ state: "none" }), {
+      headers: { "content-type": "application/json" },
+    });
+    await loadTicket();
+    assert(asked.includes("/api/work-items/team-loop-abcd/ticket"));
+    assertEquals(itemTicket.value?.key, "team-loop-abcd");
+    assertEquals(itemTicket.value?.data, { state: "none" });
+    // A failed read says why, and keeps what it had; the item is untouched.
+    const item = workItem.value;
+    ticket = new Response(JSON.stringify({ error: "does not parse" }), {
+      status: 422,
+      headers: { "content-type": "application/json" },
+    });
+    await loadTicket();
+    assertEquals(itemTicketError.value, "does not parse");
+    assertEquals(itemTicket.value?.data, { state: "none" });
+    assertEquals(workItem.value, item);
+    // An item that names no ticket opens on Now.
+    await go({ view: "work-item", key: "plain" });
+    await loadWorkItem();
+    assertEquals(itemTab.value, "now");
+  } finally {
+    globalThis.fetch = real;
+    address.restore();
+    workItem.value = null;
+    workItemError.value = null;
+    itemTicket.value = null;
+    itemTicketError.value = null;
+    itemTab.value = "now";
   }
 });

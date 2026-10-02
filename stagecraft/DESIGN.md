@@ -68,6 +68,7 @@ extensions/models/
       studio_work_items.ts  the studio's reads of work items, the Board's
                             cards, and the poll that tells the page
       studio_work_item.ts   the work-item page's route: one work item
+      studio_ticket.ts      the Ticket tab's route: the item's ticket
       studio_cards.ts       the shapes the page gets about work items
       studio_item_types.ts  the shape the work-item page gets
       status_view.ts        status as data, shared by status and the studio
@@ -1312,6 +1313,7 @@ swamp, a shell or a method.
 | `GET /api/events`                                 | server-sent events when a watched file changes, or a watched set of work items |
 | `GET /api/work-items?factory=<factory>`           | the Board's card for each work item of the factory, and what could not be read |
 | `GET /api/work-items/<key>`                       | one work item: its run, pinned definition, status and readiness, and its ticket; `?payloads=1` adds its product payloads |
+| `GET /api/work-items/<key>/ticket`                | the work item's ticket as its tracker instance last recorded it: content, comments and lifecycle entries, relations |
 | `GET /f/<factory>/{design,simulate,board}`, `/w/<key>` | the page, at each view's own address        |
 
 The page reads the definition at `globalArguments.definition` in that text and
@@ -1349,6 +1351,25 @@ reason. The answer's shape is
 `studio_item_types.ts`, which imports types only from modules the page already
 bundles.
 
+**The ticket** (`GET /api/work-items/<key>/ticket`,
+`_lib/engine/studio_ticket.ts`, #2969) is the Ticket tab's: the work item's
+ticket as its tracker instance last recorded it, read through the same query.
+For an external tracker that is the `issue-<id>` snapshot `fetch_issue`,
+`claim` or `create` stored, now with the ticket's description, labels,
+assignees, times, and its comments and lifecycle entries (`activity`); for the
+built-in tracker it is the ticket record with its `comment-` and `entry-`
+records. A comment or entry whose id the instance's delivery ledger records is
+marked as stagecraft's; a relation names the newest work item, in any factory,
+whose run has that ticket in its `externalRefs` on the same instance. The
+answer is `none` (the run names no ticket), `missing` (the instance has no
+record of it), or the ticket; a record that does not parse is a 422. It calls
+no tracker and resolves no credential: the engine does not import tracker code
+("The seam"), so it parses the records with its own schemas, and the page
+never contacts Linear or the Lab either. A newer copy comes from running the
+tracker's `fetch_issue`; the tab says when its copy was recorded. Because the
+read is local, there is no cache: the tab reads when it opens and on Refresh,
+and no poll watches it.
+
 **Live updates by poll.** Run records may be in S3 or GCS, not files a watch
 can follow, so while a page has a board open, `serve` reads each watched set's
 `[modelName, version]` pairs every 3 seconds, a projection rather than whole
@@ -1363,6 +1384,15 @@ every two minutes, and on returning to a hidden tab, which keeps it alive.
 which the server answers with the page and the page routes by
 (`studio/src/route.ts`), so a view can be reloaded, bookmarked or shared, and
 back and forward move between views.
+
+**Where you are** (#2969). The bar's views are links, one tab stop each, to
+those addresses; the one shown carries `aria-current="page"`, and a work
+item's page marks Board, which it is under, `aria-current="true"`. Until a
+factory is picked only Design has an address; Simulate and Board are
+`aria-disabled`. The work-item page opens with a breadcrumb, "Board › <key>",
+its key `aria-current="page"`, and every route sets the browser tab's title,
+most specific first ("blog-12 · Board · blog · Stagecraft Studio";
+`titleFor`).
 
 **Security posture.** Any page in any browser tab can send requests to
 localhost, so the server trusts nothing a request says about where it came from,
@@ -1438,7 +1468,8 @@ not an exact npm or JSR version. `studio_assets_test` also compares
 run `deno info`), so an engine import added without a rebuild fails the tests
 too. The same test keeps every generated module under 800 KB, well under the
 registry's 976.6 KB file limit. The script is the one to watch: 670 KB with
-Design mode and 737 KB with Simulate mode, most of it zod, cel-js and the yaml
+Design mode, 737 KB with Simulate mode and 774 KB with the work-item page's
+Ticket tab, most of it zod, cel-js and the yaml
 packages the engine and page need. If it nears the limit, the next step is to
 store it gzipped and serve it with `content-encoding: gzip`, about a fifth of
 the size.
@@ -1728,6 +1759,21 @@ adapter that declares it (an entry returns its id, a type move is a no-op the
 second time, bad credentials are `auth`) and skips it otherwise. A snapshot may
 also carry the tracker's own `details` (the Lab's body, type, author and
 ripples).
+
+**The ticket's content** (#2969). `fetchIssue` also reads what the studio's
+Ticket tab shows: `description`, `labels` (the ticket's type where the
+tracker has no labels), `assignees`, `createdAt`, `updatedAt`, and `activity`,
+the comments and lifecycle entries oldest first, each with the tracker's id
+for it. The snapshot keeps them, so the studio reads them as data. Linear
+reads its description, labels and up to 250 comments; the Lab its body, type,
+ripples and `lifecycleEntries` (one it cannot read is skipped, as a
+relationship is); the built-in tracker its body and its own comment and entry
+records, through the data query, when the method has one: without it the read
+leaves `activity` absent, meaning not read, so a `claim` never fails for want
+of it. The conformance suite checks that a created ticket's body comes back
+as its description with its times, and that a comment and an entry come back
+in `activity` under the id the write returned: the id the delivery ledger
+records, which is how the studio marks what stagecraft posted.
 
 **The assign capability.** A tracker whose tickets have assignees offers
 `capabilities.assign` (`assign`): it adds the tracker's user to the ticket's
@@ -2539,6 +2585,42 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-02: the studio's Ticket tab, and the nav shows where you are (swamp-club #2969)
+
+**Decision.** The work-item page's Tracker tab became **Ticket**: the bound
+ticket's title, status, labels or type, assignees, times, description and its
+comments and lifecycle entries, with stagecraft's marked, relations linking
+to their work items, and a link out to Linear or the Lab. It reads what the
+tracker instance stored (`GET /api/work-items/<key>/ticket`), never the
+tracker, and every adapter's `fetchIssue` reads the content it shows. The
+bar's view tabs became links with `aria-current`, the work-item page has a
+"Board › key" breadcrumb, and every route titles the browser tab.
+
+**Why.** Seth, 2026-10-02: there was "no way to see the ticket's description"
+from the studio, and on `/w/<key>` no view was marked.
+
+- **Stored, not live.** The issue proposed the studio call the tracker's
+  `fetch_issue` with Linear's key from the vault. That would break "The
+  seam", the studio's rule that no route runs a method, and its no-network
+  stance, and the studio has no credential path. Seth chose (a): the tab
+  shows the stored copy, says when it was recorded, and a newer one comes
+  from `fetch_issue`. So there is no cache to tune, and a tracker that is
+  away cannot break the page.
+- **One tab, not two.** The Ticket tab grew from the Tracker tab, rather than
+  sitting beside it (Seth's call).
+- **Markdown as elements.** A tracker's markdown is parsed into Preact
+  elements (`studio/src/markdown.tsx`), never into an HTML string: raw HTML
+  stays text, links are http(s) only, and images are links. No sanitiser
+  library joins the bundle, and a test walks the element tree of a hostile
+  description to prove it inert.
+- **Links, not tabs.** The views are addresses, so the bar is a nav of links;
+  arrow keys no longer move between them, Tab does (Seth agreed). Each
+  panel's own tabs stay ARIA tabs.
+- **Stagecraft's comments by the ledger.** The delivery ledger records the id
+  each write returned, and the conformance suite now checks a read returns
+  the same id, so the mark works on every tracker; built-in comments have no
+  author to go by.
 
 ### 2026-10-02: short work-item ids (swamp-club #2966)
 

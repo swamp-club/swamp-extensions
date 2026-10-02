@@ -37,6 +37,9 @@ import {
   itemEntry,
   type ItemTab,
   itemTab,
+  itemTicket,
+  itemTicketError,
+  loadTicket,
   pickEntry,
   pinnedIsOlder,
   prepareItemCopy,
@@ -44,9 +47,13 @@ import {
   workItemError,
   workItemKey,
 } from "./state.ts";
+import { Markdown } from "./markdown.tsx";
+import { routeHref } from "./route.ts";
 import { Tabs } from "./ui.tsx";
 import {
+  activityLabel,
   ticketRefs,
+  type TicketView,
   timelineOf,
   titleOf,
   waiting,
@@ -54,6 +61,35 @@ import {
 } from "./work_item.ts";
 
 const when = (at: string) => new Date(at).toLocaleString();
+
+/** Where the page is: under its factory's Board. Board waits for the
+ * factory to be known. */
+function Crumbs({ board, itemKey }: { board: string | null; itemKey: string }) {
+  return (
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li>
+          {board === null ? "Board" : (
+            <a
+              href={routeHref({ view: "board", factory: board })}
+              onClick={(e) => {
+                if (
+                  e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey ||
+                  e.altKey
+                ) return;
+                e.preventDefault();
+                void go({ view: "board", factory: board });
+              }}
+            >
+              Board
+            </a>
+          )}
+        </li>
+        <li aria-current="page">{itemKey}</li>
+      </ol>
+    </nav>
+  );
+}
 
 /** The page's head: the work item, where it is, and a notice when it is
  * drawn on an older definition than the factory's file. */
@@ -63,6 +99,7 @@ export function ItemHead() {
   if (item === null) {
     return (
       <div class="item-head">
+        <Crumbs board={factory.value} itemKey={workItemKey.value ?? ""} />
         <h1>
           Work item <span class="key">{workItemKey.value ?? ""}</span>
         </h1>
@@ -78,6 +115,7 @@ export function ItemHead() {
   return (
     <>
       <div class="item-head">
+        <Crumbs board={run.factory} itemKey={run.key} />
         <h1>{title}</h1>
         {title !== run.key && <span class="key">{run.key}</span>}
         <div class="chips">
@@ -282,73 +320,194 @@ const RELATION_TEXT: Record<string, [string, string]> = {
   related_to: ["related to", "related to"],
 };
 
-function TrackerTab() {
+/** What a person calls the tracker a ticket lives on, for its link out. */
+function trackerName(kind: string): string {
+  return kind === "linear"
+    ? "Linear"
+    : kind === "swamp-club"
+    ? "the Lab"
+    : kind;
+}
+
+function TicketTab() {
   const item = workItem.value!;
   const run = item.data.run;
-  const issue = item.data.issue;
+  const held = itemTicket.value;
+  const t = held?.key === run.key ? held.data : null;
+  const error = itemTicketError.value;
+  // Read when the tab opens for this work item; Refresh reads again.
+  useEffect(() => {
+    void loadTicket();
+  }, [run.key]);
   const refs = ticketRefs(run);
-  // On the built-in tracker the ticket's id is the key: name the ticket by
-  // its title rather than repeat the key the head already shows.
-  const named = issue !== null && issue.display !== run.key;
+  const refresh = (
+    <button
+      type="button"
+      class="wide"
+      onClick={() => void loadTicket()}
+    >
+      Refresh
+    </button>
+  );
   return (
-    <div class="insp">
+    <div class="insp ticket">
       <p class="eyebrow">
         tracker {run.tracker.instance} ({run.tracker.kind})
       </p>
-      {Object.keys(run.externalRefs).length === 0
-        ? <p class="empty">No ticket: this work item names none.</p>
-        : refs.length === 0
-        ? <p class="empty">The ticket's id is this work item's key.</p>
-        : (
-          <dl class="stats">
-            {refs.map(([k, v]) => (
-              <div key={k}>
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      {issue !== null && (
-        <>
-          <h3>
-            {webLink(issue.url)
-              ? (
-                <a href={issue.url} target="_blank" rel="noopener noreferrer">
-                  {named ? issue.display : issue.title || issue.display} ↗
-                </a>
-              )
-              : named
-              ? issue.display
-              : issue.title || issue.display}
-            {named && ` ${issue.title}`}
-          </h3>
-          <p>
-            status {issue.status.name}
-            {issue.origin === "snapshot" && issue.fetchedAt !== undefined &&
-              ` · as the tracker last recorded it, ${when(issue.fetchedAt)}`}
-          </p>
-          {(issue.relations ?? []).length > 0 && (
-            <ul class="relations">
-              {(issue.relations ?? []).map((r, i) => {
-                const [out, inc] = RELATION_TEXT[r.type] ?? [r.type, r.type];
-                return (
-                  <li key={i}>
-                    {r.direction === "outgoing" ? out : inc} {r.display}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </>
+      {refs.length > 0 && (
+        <dl class="stats">
+          {refs.map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
       )}
-      {refs.length > 0 && issue === null && (
-        <p class="empty">
-          The tracker has no record of this ticket yet: run its fetch_issue or
-          claim to record one.
+      {error !== null && (
+        <p class="problem" role="alert">
+          Could not read the ticket: {error}
         </p>
       )}
+      {t === null
+        ? error === null &&
+          <p class="empty" role="status">Reading the ticket…</p>
+        : t.state === "none"
+        ? <p class="empty">No ticket: this work item names none.</p>
+        : t.state === "missing"
+        ? (
+          <p class="empty">
+            Tracker {t.tracker} has no record of ticket {t.id}{" "}
+            yet: run its fetch_issue or claim to record one.
+          </p>
+        )
+        : <TicketBody ticket={t.ticket} />}
+      {(t === null || t.state !== "none") && refresh}
     </div>
+  );
+}
+
+function TicketBody({ ticket }: { ticket: TicketView }) {
+  const external = ticket.origin === "snapshot" && webLink(ticket.url);
+  return (
+    <>
+      <h3>
+        <span class="key">{ticket.display}</span> {ticket.title}
+      </h3>
+      {external && (
+        <p>
+          <a href={ticket.url} target="_blank" rel="noopener noreferrer">
+            Open {ticket.display} in {trackerName(ticket.kind)} ↗
+          </a>
+        </p>
+      )}
+      <p class="hint">
+        {ticket.fetchedAt !== undefined
+          ? `As ${ticket.tracker} last recorded it, ${
+            when(ticket.fetchedAt)
+          }. Run its fetch_issue to record a newer copy.`
+          : "The built-in ticket itself."}
+      </p>
+      <dl class="stats">
+        <div>
+          <dt>status</dt>
+          <dd>{ticket.status.name}</dd>
+        </div>
+        {ticket.labels.length > 0 && (
+          <div>
+            <dt>{ticket.origin === "builtin" ? "type" : "labels"}</dt>
+            <dd>{ticket.labels.join(", ")}</dd>
+          </div>
+        )}
+        <div>
+          <dt>assigned</dt>
+          <dd>
+            {ticket.assignees.length > 0
+              ? ticket.assignees.join(", ")
+              : "no one"}
+          </dd>
+        </div>
+        {ticket.createdAt !== undefined && (
+          <div>
+            <dt>created</dt>
+            <dd>{when(ticket.createdAt)}</dd>
+          </div>
+        )}
+        {ticket.updatedAt !== undefined && (
+          <div>
+            <dt>updated</dt>
+            <dd>{when(ticket.updatedAt)}</dd>
+          </div>
+        )}
+      </dl>
+      <h4>Description</h4>
+      {ticket.description === null
+        ? (
+          <p class="empty">
+            This copy was recorded before the tracker read descriptions: run its
+            fetch_issue to record a new one.
+          </p>
+        )
+        : ticket.description.trim() === ""
+        ? <p class="empty">No description.</p>
+        : <Markdown text={ticket.description} />}
+      {ticket.relations.length > 0 && (
+        <>
+          <h4>Relations</h4>
+          <ul class="relations">
+            {ticket.relations.map((r, i) => {
+              const [out, inc] = RELATION_TEXT[r.type] ?? [r.type, r.type];
+              const key = r.workItem;
+              return (
+                <li key={i}>
+                  {r.direction === "outgoing" ? out : inc}{" "}
+                  {key === null ? r.display : (
+                    <a
+                      href={routeHref({ view: "work-item", key })}
+                      onClick={(e) => {
+                        if (e.button !== 0 || e.metaKey || e.ctrlKey) return;
+                        e.preventDefault();
+                        void go({ view: "work-item", key });
+                      }}
+                    >
+                      {r.display} (work item {key})
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      <h4>Comments and lifecycle entries</h4>
+      {ticket.activity === null
+        ? (
+          <p class="empty">
+            This copy was recorded before the tracker read comments: run its
+            fetch_issue to record a new one.
+          </p>
+        )
+        : ticket.activity.length === 0
+        ? <p class="empty">None yet.</p>
+        : (
+          <ol class="activity" aria-label="Comments and entries, oldest first">
+            {ticket.activity.map((a, i) => {
+              const label = activityLabel(a);
+              return (
+                <li key={a.id ?? i} class={`act act-${label.kind}`}>
+                  <p class="act-head">
+                    <span class="act-label">{label.text}</span>{" "}
+                    <time dateTime={a.at}>{when(a.at)}</time>
+                  </p>
+                  {a.kind === "comment"
+                    ? <Markdown text={a.body} />
+                    : <p>{a.body}</p>}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+    </>
   );
 }
 
@@ -405,8 +564,8 @@ function PanelBody() {
       return <TimelineTab />;
     case "metrics":
       return <MetricsTab />;
-    case "tracker":
-      return <TrackerTab />;
+    case "ticket":
+      return <TicketTab />;
     case "scenario":
       return <ScenarioTab />;
   }
@@ -423,7 +582,7 @@ export function ItemPanel() {
           ["now", "Now"],
           ["timeline", "Timeline"],
           ["metrics", "Metrics"],
-          ["tracker", "Tracker"],
+          ["ticket", "Ticket"],
           ["scenario", "Scenario"],
         ]}
         value={itemTab.value}

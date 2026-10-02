@@ -121,6 +121,16 @@ export type Delivery = z.infer<typeof DeliverySchema>;
 
 const TrackerStatusSchema = z.object({ id: z.string(), name: z.string() });
 
+/** A comment or lifecycle entry, as a snapshot keeps it (TicketActivity). */
+export const TicketActivitySchema = z.object({
+  kind: z.enum(["comment", "entry"]),
+  id: z.string().optional(),
+  author: z.string().optional(),
+  body: z.string(),
+  step: z.string().optional(),
+  at: z.string(),
+});
+
 /**
  * An external tracker's ticket as swamp last read it (fetch_issue, claim and
  * create record it). The tracker owns these facts; the record may be stale.
@@ -137,6 +147,14 @@ export const SnapshotIssueSchema = z.object({
   details: z.record(z.string(), z.unknown()).optional(),
   /** Absent on a snapshot recorded before trackers read relations. */
   relations: z.array(TrackerRelationSchema).optional(),
+  // The ticket's content; absent on a snapshot recorded before trackers
+  // read it (swamp-club #2969).
+  description: z.string().optional(),
+  labels: z.array(z.string()).optional(),
+  assignees: z.array(z.string()).optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  activity: z.array(TicketActivitySchema).optional(),
   fetchedAt: z.string(),
 });
 

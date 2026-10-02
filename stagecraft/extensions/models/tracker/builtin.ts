@@ -19,6 +19,7 @@ import {
   keyIsFree,
   type MethodOutput,
   recordObject,
+  safePart,
 } from "../_lib/engine/tracker.ts";
 import {
   BUILTIN,
@@ -115,6 +116,39 @@ export function listFrom(
 }
 
 /**
+ * One ticket's comment or entry records on this tracker instance, the latest
+ * version of each, through swamp's data query.
+ */
+export async function ticketRecords(
+  ctx: TrackerContext,
+  instance: string,
+  spec: string,
+  issueId: string,
+): Promise<Record<string, unknown>[]> {
+  const latest = new Map<string, { version: number; data: unknown }>();
+  const found = await ctx.queryData!(
+    `modelName == "${safePart("tracker", instance)}" && ` +
+      `specName == "${spec}"`,
+  );
+  for (const record of found) {
+    const r = record as { name?: unknown; version?: unknown };
+    const name = typeof r.name === "string" ? r.name : "";
+    const version = typeof r.version === "number" ? r.version : 0;
+    if (!name.startsWith(`${spec}-${issueId}-`)) continue;
+    const seen = latest.get(name);
+    if (seen === undefined || seen.version < version) {
+      latest.set(name, { version, data: record });
+    }
+  }
+  // The name only narrows: an id may lead another's name (cue-1, cue-1-2),
+  // so the record's own issue decides.
+  return [...latest.values()].flatMap(({ data }) => {
+    const object = recordObject(data);
+    return object?.issue === issueId ? [object] : [];
+  });
+}
+
+/**
  * The highest n of any `<prefix>-<n>` built-in ticket id or model definition
  * name (`<prefix>-<n>-...` too) in the repository, 0 for none.
  */
@@ -185,6 +219,12 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
           write: (spec, name, data) => ctx.writeResource!(spec, name, data),
           nameTaken: async (name) => !await keyIsFree(ctx, name),
           highestNumber: (prefix) => highestNumber(ctx, prefix),
+          ...(ctx.queryData === undefined || ctx.definition === undefined
+            ? {}
+            : {
+              records: (spec, issueId) =>
+                ticketRecords(ctx, ctx.definition!.name, spec, issueId),
+            }),
         },
         now,
       });
@@ -242,7 +282,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/stagecraft/tracker",
-  version: "2026.10.02.1",
+  version: "2026.10.02.2",
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,

@@ -57,6 +57,8 @@ export interface FakeLabEntry {
   emoji: string;
   payload: Record<string, unknown>;
   isVerbose: boolean;
+  actorUsername: string;
+  createdAt: string;
 }
 
 export interface FakeLabRelationship {
@@ -90,7 +92,13 @@ export interface SwampClubFake {
   issues: FakeLabIssue[];
   /** The eligible assignees (swamp-club's team). */
   team: { userId: string; username: string }[];
-  comments: { id: string; issue: number; body: string; author: string }[];
+  comments: {
+    id: string;
+    issue: number;
+    body: string;
+    author: string;
+    createdAt: string;
+  }[];
   /** Lifecycle entries, in the order they were posted. */
   entries: FakeLabEntry[];
   attestations: Record<string, unknown>[];
@@ -146,6 +154,9 @@ export function swampClubFake(): SwampClubFake {
   ];
   const comments: SwampClubFake["comments"] = [];
   const entries: FakeLabEntry[] = [];
+  // Comments and entries take times a minute apart, in the order written.
+  let writes = 0;
+  const tick = () => new Date(Date.UTC(2026, 8, 29, 0, writes++)).toISOString();
   const attestations: Record<string, unknown>[] = [];
   const relationships: FakeLabRelationship[] = [];
   const requests: FakeLabRequest[] = [];
@@ -541,6 +552,8 @@ export function swampClubFake(): SwampClubFake {
           emoji: (entry.emoji as string).trim(),
           payload: payload as Record<string, unknown>,
           isVerbose: entry.isVerbose === true,
+          actorUsername: admin ? "seth" : "member",
+          createdAt: tick(),
         };
         const flag = (payload as { isRegression?: unknown }).isRegression;
         if (stored.step === "classified" && typeof flag === "boolean") {
@@ -565,25 +578,36 @@ export function swampClubFake(): SwampClubFake {
         if (issue === undefined) return error("Issue not found", 404);
         const id = crypto.randomUUID();
         const author = admin ? "seth" : "member";
-        comments.push({ id, issue: number, body: comment.trim(), author });
+        const createdAt = tick();
+        comments.push({
+          id,
+          issue: number,
+          body: comment.trim(),
+          author,
+          createdAt,
+        });
         return json({
           id,
           issueId: `issue-${number}`,
           authorId: admin ? "user-seth" : "user-member",
           body: comment.trim(),
-          createdAt: new Date().toISOString(),
+          createdAt,
         }, 201);
       }
       if (issue === undefined) return error("Issue not found", 404);
       if (request.method === "GET") {
         // Reads need no key, as on swamp-club.
         return json({
-          issue,
+          issue: {
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+            ...issue,
+          },
           comments: comments.filter((c) => c.issue === number).map((c) => ({
             id: c.id,
             authorUsername: c.author,
             body: c.body,
-            createdAt: "2026-09-29T00:00:00.000Z",
+            createdAt: c.createdAt,
           })),
           lifecycleEntries: entries.filter((e) => e.issue === number),
           relationships: relationshipsOf(number),

@@ -26,6 +26,7 @@ import {
   runsPredicate,
   type WorkItemWatch,
 } from "./studio_work_items.ts";
+import { readTicket } from "./studio_ticket.ts";
 import { readWorkItem } from "./studio_work_item.ts";
 import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
 
@@ -457,6 +458,32 @@ async function workItem(
   }
 }
 
+/**
+ * GET /api/work-items/<key>/ticket: the work item's ticket for the Ticket
+ * tab, as its tracker instance last recorded it (studio_ticket.ts). Read
+ * when the tab opens and on Refresh; it makes no call to the tracker.
+ */
+async function workItemTicket(
+  deps: StudioDeps,
+  key: string,
+): Promise<Response> {
+  try {
+    safePart("work item", key);
+  } catch {
+    return error(404, `no work item '${key}'`);
+  }
+  if (deps.query === undefined) {
+    return error(422, "this studio cannot read work items");
+  }
+  try {
+    const run = await readRun(deps.query, key);
+    if (run === null) return error(404, `no work item '${key}'`);
+    return json(await readTicket(deps.query, run));
+  } catch (e) {
+    return error(422, message(e));
+  }
+}
+
 function segments(pathname: string): string[] | null {
   try {
     return pathname.split("/").filter((s) => s !== "").map(decodeURIComponent);
@@ -493,6 +520,11 @@ export async function handleStudioRequest(
       parts[2],
       url.searchParams.get("payloads") === "1",
     );
+  }
+  if (
+    parts.length === 4 && parts[1] === "work-items" && parts[3] === "ticket"
+  ) {
+    return await workItemTicket(deps, parts[2]);
   }
   if (parts[1] !== "factories") return error(404, "not found");
 

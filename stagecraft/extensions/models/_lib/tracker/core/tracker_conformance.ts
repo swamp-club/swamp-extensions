@@ -112,6 +112,18 @@ async function rejectsWith(
   return error;
 }
 
+/** A read's activity: present, each item timed, oldest first. */
+function assertActivity(issue: TrackerIssue): void {
+  const { activity } = issue;
+  assert(activity !== undefined, `${issue.display}: the read has activity`);
+  const times = activity.map((a) => Date.parse(a.at));
+  assert(times.every((t) => !isNaN(t)), "every activity item has a time");
+  assert(
+    times.every((t, i) => i === 0 || times[i - 1] <= t),
+    "activity is oldest first",
+  );
+}
+
 export async function assertTrackerConformance(
   f: ConformanceFixture,
 ): Promise<void> {
@@ -130,6 +142,14 @@ export async function assertTrackerConformance(
   const posted = await adapter.comment(f.issue.id, "conformance");
   assert(posted.id !== "", "a comment returns its id");
   assertEquals(f.commentsPosted(), before + 1);
+
+  // Read back: the comment is in the ticket's activity, under the id the
+  // tracker returned for it, so a delivery record names what a read shows.
+  const commented = await adapter.fetchIssue(f.issue.id);
+  assertActivity(commented);
+  const seen = commented.activity!.find((a) => a.id === posted.id);
+  assert(seen !== undefined, "the comment is read back by its id");
+  assertEquals([seen.kind, seen.body], ["comment", "conformance"]);
 
   // Status: a move reports changed; the same move again writes nothing.
   const [first, second] = f.statusNames;
@@ -163,8 +183,15 @@ export async function assertTrackerConformance(
   const created = await adapter.create(draft);
   assert(created.id !== "", "create returns the stable id");
   assertEquals(created.title, draft.title);
-  assertEquals((await adapter.fetchIssue(created.id)).id, created.id);
+  const createdRead = await adapter.fetchIssue(created.id);
+  assertEquals(createdRead.id, created.id);
   assertEquals((await adapter.fetchIssue(created.display)).id, created.id);
+  // Its content: the body is the description, and it has its times.
+  assertEquals(createdRead.description, draft.body);
+  for (const at of [createdRead.createdAt, createdRead.updatedAt]) {
+    assert(at !== undefined && !isNaN(Date.parse(at)), `a time: ${at}`);
+  }
+  assertActivity(createdRead);
   await rejectsWith(
     "invalid",
     () => adapter.create({ ...draft, type: "No Such Type" }),
@@ -212,6 +239,11 @@ export async function assertTrackerConformance(
     const written = await history.postEntry(f.issue.id, entry);
     assert(written.id !== "", "an entry returns its id");
     assertEquals(f.history.entriesPosted(), entries + 1);
+    const withEntry = await adapter.fetchIssue(f.issue.id);
+    assertActivity(withEntry);
+    const read = withEntry.activity!.find((a) => a.id === written.id);
+    assert(read !== undefined, "the entry is read back by its id");
+    assertEquals([read.kind, read.step], ["entry", entry.step]);
     const [type, other] = f.history.types;
     assertEquals(await history.setType(f.issue.id, type), {
       changed: true,

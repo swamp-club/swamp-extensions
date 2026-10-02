@@ -25,6 +25,7 @@ import {
   type RelationChange,
   type RelationType,
   type StatusChange,
+  type TicketActivity,
   type TrackerAdapter,
   type TrackerComment,
   TrackerError,
@@ -120,6 +121,12 @@ export interface BuiltinStore {
    * new counter starts, so a recreated tracker never reuses an id.
    */
   highestNumber(prefix: string): Promise<number>;
+  /**
+   * A ticket's comment or entry records (the spec), latest version of each.
+   * Absent when the store cannot list them: fetchIssue then reads no
+   * activity, rather than failing a claim that only needs the ticket.
+   */
+  records?(spec: string, issueId: string): Promise<Record<string, unknown>[]>;
 }
 
 export interface BuiltinOptions {
@@ -185,7 +192,43 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
         assignees: issue.assignees ?? [],
       },
       relations: issue.relations,
+      description: issue.body,
+      labels: [issue.type],
+      assignees: issue.assignees ?? [],
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
     };
+  }
+
+  /** The ticket's comments and entries, oldest first; a record that is not
+   * one is skipped. Undefined when the store cannot list them. */
+  async function activityOf(
+    issueId: string,
+  ): Promise<TicketActivity[] | undefined> {
+    if (store.records === undefined) return undefined;
+    const activity: TicketActivity[] = [];
+    for (const raw of await store.records(COMMENT_SPEC, issueId)) {
+      const c = BuiltinCommentSchema.safeParse(raw);
+      if (!c.success || c.data.issue !== issueId) continue;
+      activity.push({
+        kind: "comment",
+        id: c.data.id,
+        body: c.data.body,
+        at: c.data.at,
+      });
+    }
+    for (const raw of await store.records(ENTRY_SPEC, issueId)) {
+      const e = BuiltinEntrySchema.safeParse(raw);
+      if (!e.success || e.data.issue !== issueId) continue;
+      activity.push({
+        kind: "entry",
+        id: e.data.id,
+        body: e.data.summary,
+        step: e.data.step,
+        at: e.data.at,
+      });
+    }
+    return activity.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   }
 
   /** Add or drop one side of a relation; true when the record changed. */
@@ -357,7 +400,9 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
     },
 
     async fetchIssue(ref: string): Promise<TrackerIssue> {
-      return toIssue(await read(ref));
+      const issue = toIssue(await read(ref));
+      const activity = await activityOf(issue.id);
+      return activity === undefined ? issue : { ...issue, activity };
     },
 
     async comment(issueId: string, body: string): Promise<TrackerComment> {

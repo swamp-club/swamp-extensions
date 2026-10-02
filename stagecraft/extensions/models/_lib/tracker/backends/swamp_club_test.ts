@@ -135,7 +135,85 @@ Deno.test("swamp-club: sends the key as a Bearer token, to the configured URL", 
         comments: [],
       },
       relations: [],
+      description: "Adapt the Lab.",
+      labels: ["feature"],
+      assignees: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+      activity: [],
     });
+  });
+});
+
+Deno.test("swamp-club: the activity is the ripples and lifecycle entries, oldest first", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    const ripple = await adapter.comment(ISSUE, "First ripple");
+    const entry = await adapter.capabilities.history.postEntry(ISSUE, {
+      step: "plan_generated",
+      targetStatus: "triaged",
+      summary: "Plan generated (v1)",
+      emoji: "\u{1F4CB}",
+      payload: {},
+      isVerbose: false,
+    });
+    const issue = await adapter.fetchIssue(ISSUE);
+    assertEquals(issue.activity, [
+      {
+        kind: "comment",
+        id: ripple.id,
+        author: "seth",
+        body: "First ripple",
+        at: "2026-09-29T00:00:00.000Z",
+      },
+      {
+        kind: "entry",
+        id: entry.id,
+        author: "seth",
+        body: "Plan generated (v1)",
+        step: "plan_generated",
+        at: "2026-09-29T00:01:00.000Z",
+      },
+    ]);
+  });
+});
+
+Deno.test("swamp-club: an unreadable ripple or entry is left out of the activity, and the rest reads", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    await adapter.comment(ISSUE, "Kept");
+    fake.respond = (request) => {
+      if (request.method !== "GET") return undefined;
+      return {
+        status: 200,
+        body: JSON.stringify({
+          issue: { number: ISSUE, title: "Lab adapter", status: "open" },
+          comments: [
+            null,
+            { id: "c-1", body: "No time" },
+            { id: "c-2", body: "Kept", createdAt: "2026-09-29T00:00:00Z" },
+          ],
+          lifecycleEntries: [
+            "not an entry",
+            { id: "e-1", step: "triaged", createdAt: "2026-09-29T00:01:00Z" },
+            {
+              id: "e-2",
+              summary: "No step",
+              createdAt: "2026-09-29T00:02:00Z",
+            },
+            {
+              id: "e-3",
+              step: "triaged",
+              summary: "Kept",
+              createdAt: "not a time",
+            },
+          ],
+        }),
+      };
+    };
+    const issue = await adapter.fetchIssue(ISSUE);
+    assertEquals(issue.activity?.map((a) => a.id), ["c-2"]);
+    assertEquals(issue.title, "Lab adapter");
   });
 });
 

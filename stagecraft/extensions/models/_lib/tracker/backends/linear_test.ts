@@ -143,6 +143,34 @@ Deno.test("linear: fetchIssue reports the assignee in details", async () => {
   });
 });
 
+Deno.test("linear: fetchIssue reads the description, labels, assignee, times and comments", async () => {
+  await withFake(async (fake) => {
+    const adapter = adapterFor(fake);
+    // No description reads as empty, not absent.
+    const bare = await adapter.fetchIssue("GW-16");
+    assertEquals(
+      [bare.description, bare.labels, bare.assignees, bare.activity],
+      ["", [], [], []],
+    );
+    fake.issues[0].description = "Some **markdown**.";
+    fake.issues[0].labelIds = ["label-bug"];
+    fake.issues[0].assigneeId = OTHER_USER_ID;
+    const posted = await adapter.comment(ISSUE_UUID, "A note");
+    const issue = await adapter.fetchIssue("GW-16");
+    assertEquals(issue.description, "Some **markdown**.");
+    assertEquals(issue.labels, ["Bug"]);
+    assertEquals(issue.assignees, ["sam"]);
+    assertEquals(issue.createdAt, "2026-09-28T00:00:00.000Z");
+    assertEquals(issue.activity, [{
+      kind: "comment",
+      id: posted.id,
+      author: "pat",
+      body: "A note",
+      at: "2026-09-29T00:00:00.000Z",
+    }]);
+  });
+});
+
 Deno.test("linear: sends the API key as the Authorization header, to the configured URL", async () => {
   await withFake(async (fake) => {
     await adapterFor(fake).fetchIssue("GW-16");

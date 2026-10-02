@@ -28,6 +28,7 @@ import {
   type RelationChange,
   type RelationType,
   type StatusChange,
+  type TicketActivity,
   type TrackerAdapter,
   type TrackerComment,
   TrackerError,
@@ -372,8 +373,11 @@ interface LabIssueBody {
     authorId?: unknown;
     authorUsername?: unknown;
     githubPrUrl?: unknown;
+    createdAt?: unknown;
+    updatedAt?: unknown;
   };
   comments?: unknown;
+  lifecycleEntries?: unknown;
   relationships?: unknown;
 }
 
@@ -576,23 +580,62 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
     // The Lab-only fields, as issue-lifecycle reads them: absent ones are
     // empty, never an error, except where a caller depends on them.
     const comments: LabIssueDetails["comments"] = [];
+    // The comments and lifecycle entries as one timeline, for the studio's
+    // Ticket tab: an item without a body, or a time, is skipped.
+    const activity: TicketActivity[] = [];
     for (const c of Array.isArray(body?.comments) ? body.comments : []) {
       const comment = c as {
+        id?: unknown;
         authorUsername?: unknown;
         body?: unknown;
         createdAt?: unknown;
       } | null;
       if (typeof comment?.body !== "string") continue;
-      comments.push({
-        author: typeof comment.authorUsername === "string"
-          ? comment.authorUsername
-          : "",
+      const author = typeof comment.authorUsername === "string"
+        ? comment.authorUsername
+        : "";
+      const createdAt = typeof comment.createdAt === "string"
+        ? comment.createdAt
+        : "";
+      comments.push({ author, body: comment.body, createdAt });
+      if (isNaN(Date.parse(createdAt))) continue;
+      activity.push({
+        kind: "comment",
+        ...(typeof comment.id === "string" ? { id: comment.id } : {}),
+        ...(author === "" ? {} : { author }),
         body: comment.body,
-        createdAt: typeof comment.createdAt === "string"
-          ? comment.createdAt
-          : "",
+        at: createdAt,
       });
     }
+    const rawEntries = Array.isArray(body?.lifecycleEntries)
+      ? body.lifecycleEntries
+      : [];
+    for (const e of rawEntries) {
+      const entry = e as {
+        id?: unknown;
+        actorUsername?: unknown;
+        step?: unknown;
+        summary?: unknown;
+        createdAt?: unknown;
+      } | null;
+      if (
+        typeof entry?.step !== "string" ||
+        typeof entry.summary !== "string" ||
+        typeof entry.createdAt !== "string" ||
+        isNaN(Date.parse(entry.createdAt))
+      ) continue;
+      activity.push({
+        kind: "entry",
+        ...(typeof entry.id === "string" ? { id: entry.id } : {}),
+        ...(typeof entry.actorUsername === "string"
+          ? { author: entry.actorUsername }
+          : {}),
+        body: entry.summary,
+        step: entry.step,
+        at: entry.createdAt,
+      });
+    }
+    activity.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
     const details: LabIssueDetails = {
       body: typeof found.body === "string" ? found.body : "",
       type: typeof found.type === "string" ? found.type : "",
@@ -637,11 +680,16 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         },
       });
     }
+    const timeOf = (at: unknown) =>
+      typeof at === "string" && !isNaN(Date.parse(at)) ? at : undefined;
     return {
       title: found.title,
       status: found.status,
       assignees,
       details,
+      activity,
+      createdAt: timeOf(found.createdAt),
+      updatedAt: timeOf(found.updatedAt),
       relationships,
       prUrl: typeof found.githubPrUrl === "string" ? found.githubPrUrl : "",
     };
@@ -782,6 +830,12 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
       status: { id: found.status, name: found.status },
       details: { ...found.details },
       relations: found.relationships.map((r) => r.relation),
+      description: found.details.body,
+      labels: found.details.type === "" ? [] : [found.details.type],
+      assignees: found.assignees.map((a) => a.username ?? a.userId),
+      ...(found.createdAt === undefined ? {} : { createdAt: found.createdAt }),
+      ...(found.updatedAt === undefined ? {} : { updatedAt: found.updatedAt }),
+      activity: found.activity,
     };
   }
 

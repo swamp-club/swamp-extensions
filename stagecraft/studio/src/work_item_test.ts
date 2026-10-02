@@ -27,6 +27,7 @@ import { itemReferenceLine } from "./reference.ts";
 import { entryYaml } from "./simulate.ts";
 import { exampleText, loadOk } from "./test_support.ts";
 import {
+  activityLabel,
   type Item,
   itemOverlay,
   loadItem,
@@ -307,4 +308,53 @@ Deno.test("work item page: only an http(s) ticket URL is a link", () => {
   ) {
     assert(!webLink(bad), String(bad));
   }
+});
+
+Deno.test("work item: each ticket comment or entry says what it is in words", () => {
+  const at = "2026-09-29T00:00:00.000Z";
+  assertEquals(
+    activityLabel({
+      kind: "comment",
+      author: "sam",
+      body: "",
+      at,
+      byStagecraft: false,
+    }),
+    { text: "comment by sam", kind: "person" },
+  );
+  assertEquals(
+    activityLabel({ kind: "comment", body: "", at, byStagecraft: false }),
+    { text: "comment", kind: "person" },
+  );
+  assertEquals(
+    activityLabel({
+      kind: "comment",
+      author: "seth",
+      body: "",
+      at,
+      byStagecraft: true,
+    }),
+    { text: "comment posted by stagecraft", kind: "stagecraft" },
+  );
+  assertEquals(
+    activityLabel({
+      kind: "entry",
+      step: "plan_generated",
+      author: "seth",
+      body: "",
+      at,
+      byStagecraft: false,
+    }),
+    { text: "lifecycle entry plan_generated · by seth", kind: "entry" },
+  );
+  assertEquals(
+    activityLabel({
+      kind: "entry",
+      step: "shipped",
+      body: "",
+      at,
+      byStagecraft: true,
+    }),
+    { text: "lifecycle entry shipped · posted by stagecraft", kind: "entry" },
+  );
 });

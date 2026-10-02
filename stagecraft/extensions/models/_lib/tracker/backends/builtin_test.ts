@@ -55,6 +55,14 @@ function memoryStore(definitions = new Set<string>(), highest = 0) {
       records.set(name, record);
       return Promise.resolve({ version: record.versions.length });
     },
+    records: (spec, issueId) =>
+      Promise.resolve(
+        [...records.entries()]
+          .filter(([name, r]) =>
+            r.spec === spec && name.startsWith(`${spec}-${issueId}-`)
+          )
+          .map(([, r]) => structuredClone(r.versions.at(-1)!)),
+      ),
   };
   const count = (spec: string) =>
     [...records.values()].filter((r) => r.spec === spec).length;
