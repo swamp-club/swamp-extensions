@@ -28,9 +28,10 @@ import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
 import { z } from "npm:zod@4.3.6";
 import {
   FACTORY_TYPE,
-  freshKey,
-  generateKey,
-  keySlug,
+  nthKey,
+  prefixProblem,
+  ticketKeyBase,
+  trackerPrefix,
 } from "../_lib/engine/work_item_ops.ts";
 
 const BUILD = new URL(
@@ -379,148 +380,78 @@ Deno.test("factory: validate reads the raw definition, so a platform expression 
   assert(text.includes("targets unknown stage 'missing'"), text);
 });
 
-Deno.test("factory: new_key logs and records an unused key for this factory", async () => {
-  const swamp = fakeSwamp();
-  swamp.factory("team", await buildDefinition());
-  const output = await factory.methods.new_key.execute(
-    factory.methods.new_key.arguments.parse({
-      title: "Add JSON output to status",
-    }),
-    swamp.context("team"),
-  );
-  const key = String(swamp.logs.at(-1)?.props?.key);
-  assertMatch(
-    key,
-    /^team-add-json-output-status-[a-z2-7]{4}$/,
-  );
-  // The key is also recorded, for programs that read --json output.
-  assertEquals(swamp.resources.get("team")?.get("key"), [{ key }]);
-  assertEquals(output.dataHandles, [{ version: 1 }]);
-  assert(!swamp.definitions.has(key));
-  assert(
-    String(swamp.logs.at(-1)?.props?.next).includes(
-      `run start ${key} --input 'factory=team' ` +
-        `--input 'title=Add JSON output to status'`,
-    ),
-  );
-});
-
-Deno.test("factory: new_key leads with the factory's name, which may start with a digit", async () => {
-  const swamp = fakeSwamp();
-  swamp.factory("2026-ops", await buildDefinition());
-  await factory.methods.new_key.execute(
-    factory.methods.new_key.arguments.parse({ title: "Rotate the keys" }),
-    swamp.context("2026-ops"),
-  );
-  assertMatch(
-    String(swamp.logs.at(-1)?.props?.key),
-    /^2026-ops-rotate-keys-[a-z2-7]{4}$/,
-  );
-});
-
-Deno.test("factory: new_key needs a title", () => {
-  assert(!factory.methods.new_key.arguments.safeParse({}).success);
-  assert(!factory.methods.new_key.arguments.safeParse({ title: "" }).success);
-});
-
-Deno.test("keySlug: punctuation and separators become single hyphens", () => {
-  assertEquals(
-    keySlug("  Fix: status's --json output (again)!  ", 58),
-    "fix-status-s-json-output-again",
-  );
-  assertEquals(keySlug("v2.0 / API_v3", 58), "v2-0-api-v3");
-});
-
-Deno.test("keySlug: accents are removed and other scripts dropped", () => {
-  assertEquals(keySlug("Café crème brûlée", 58), "cafe-creme-brulee");
-  assertEquals(keySlug("Straße 日本語 report", 58), "stra-e-report");
-});
-
-Deno.test("keySlug: a title with nothing sluggable is refused", () => {
-  for (const title of ["日本語", "!!! ---", "   "]) {
-    assertThrows(
-      () => keySlug(title, 58),
-      Error,
-      "has no letters or digits to make a key from",
-    );
-  }
-});
-
-Deno.test("keySlug: stop words are dropped, unless nothing else is left", () => {
-  assertEquals(
-    keySlug("Add the JSON output to the status of a run", 58),
-    "add-json-output-status-run",
-  );
-  assertEquals(keySlug("To be or not to be", 58), "not");
-  assertEquals(keySlug("To be or to be", 58), "to-be-or-to-be");
-});
-
-Deno.test("keySlug: a display id leads and keeps every word", () => {
-  assertEquals(
-    keySlug("Drive a Lab issue", 58, "#2734"),
-    "2734-drive-lab-issue",
-  );
-  assertEquals(keySlug("Fix the build", 58, "OR-12"), "or-12-fix-build");
-  // The id alone is enough when the title slugs to nothing.
-  assertEquals(keySlug("日本語", 58, "#7"), "7");
-});
-
-Deno.test("keySlug: a long title is cut at a word boundary", () => {
-  const title = "Implement retries with exponential backoff for every " +
-    "outbound HTTP call the tracker adapters make";
-  const slug = keySlug(title, 30);
-  assertEquals(slug, "implement-retries-exponential");
-  assert(slug.length <= 30);
-  // A first word longer than the budget is cut mid-word.
-  assertEquals(keySlug("Supercalifragilistic", 5), "super");
-});
-
-Deno.test("generateKey: fits swamp's instance-name rules with a long definition name", () => {
-  const title = "Implement retries with exponential backoff for every call";
-  for (const definition of ["team", "x".repeat(50), "x".repeat(80)]) {
-    const key = generateKey(definition, title);
-    assert(key.length <= 64, key);
-    assertMatch(key, /^[a-z0-9][a-z0-9_-]*$/);
-    assertMatch(key, /-[a-z2-7]{4}$/);
-  }
-  // The factory definition name stays whole when it fits.
-  assertMatch(
-    generateKey("team", title),
-    /^team-implement-retries-exponential-backoff-every-call-[a-z2-7]{4}$/,
-  );
-  // An 80-character name is cut to 55, leaving 3 characters of slug.
-  assertMatch(generateKey("x".repeat(80), title), /^x{55}-imp-[a-z2-7]{4}$/);
-  // A cut name never ends in a separator, so none doubles.
-  assertMatch(
-    generateKey(`${"x".repeat(54)}-${"y".repeat(10)}`, title),
-    /^x{54}-impl-[a-z2-7]{4}$/,
-  );
-});
-
-Deno.test("freshKey: retries a key another definition has, and gives up after five", async () => {
-  const seen: string[] = [];
-  const takenFirst = (taken: number) => ({
-    definitionRepository: {
-      findByNameGlobal: (name: string) => {
-        seen.push(name);
-        return Promise.resolve(
-          seen.length <= taken ? { definition: {}, type: "x" } : null,
-        );
-      },
-    },
-  });
-  const key = await freshKey(takenFirst(2), "team", "Fix the build");
-  assertEquals(seen.length, 3);
-  assertEquals(key, seen[2]);
-  assertMatch(key, /^team-fix-build-[a-z2-7]{4}$/);
-
-  seen.length = 0;
-  await assertRejects(
-    () => freshKey(takenFirst(5), "team", "Fix the build"),
+Deno.test("trackerPrefix: the given prefix, a trailing '-' dropped, else the instance's name cut to 12", () => {
+  assertEquals(trackerPrefix("blog", "board"), "blog");
+  assertEquals(trackerPrefix("blog-", "board"), "blog");
+  assertEquals(trackerPrefix(undefined, "board"), "board");
+  assertEquals(trackerPrefix("", "board"), "board");
+  // A name is made into a prefix: lowercase, other characters as '-', cut
+  // to 12 with no trailing separator.
+  assertEquals(trackerPrefix(undefined, "Team_Board"), "team-board");
+  assertEquals(trackerPrefix(undefined, "engineering-tickets"), "engineering");
+  assertThrows(
+    () => trackerPrefix(undefined, "___"),
     Error,
-    "could not find a free work-item key",
+    "has no letters or digits to make a prefix from",
   );
-  assertEquals(seen.length, 5);
+  assertThrows(() => trackerPrefix("Blog", "board"), Error, "lowercase");
+  assertThrows(
+    () => trackerPrefix("a".repeat(13), "board"),
+    Error,
+    "longer than 12",
+  );
+});
+
+Deno.test("prefixProblem: lowercase letters, digits and '-', at most 12", () => {
+  assertEquals(prefixProblem("blog"), null);
+  assertEquals(prefixProblem("2026-ops"), null);
+  assertEquals(prefixProblem("a".repeat(12)), null);
+  for (const bad of ["", "-blog", "Blog", "blog_x", "a".repeat(13)]) {
+    assert(prefixProblem(bad) !== null, bad);
+  }
+});
+
+Deno.test("ticketKeyBase: a ticket's id as-is, lowercased; a bare number takes the prefix", () => {
+  assertEquals(ticketKeyBase("ABC-12", "abc"), "abc-12");
+  assertEquals(ticketKeyBase("ABC-12", "other"), "abc-12");
+  assertEquals(ticketKeyBase("#2711", "lab"), "lab-2711");
+  assertEquals(ticketKeyBase("2711", "lab"), "lab-2711");
+  assertEquals(ticketKeyBase("blog-12", "blog"), "blog-12");
+  // Other characters become single hyphens, none at either end.
+  assertEquals(ticketKeyBase("  Ops/Infra.7 ", "x"), "ops-infra-7");
+  assertEquals(ticketKeyBase("Café-3", "x"), "cafe-3");
+  assertThrows(
+    () => ticketKeyBase("###", "x"),
+    Error,
+    "has no letters or digits to make a key from",
+  );
+  // A longer id is cut to 64 characters, with no trailing separator.
+  assertEquals(ticketKeyBase("a".repeat(70), "x"), "a".repeat(64));
+  assertEquals(ticketKeyBase(`${"a".repeat(63)}-b`, "x"), "a".repeat(63));
+});
+
+Deno.test("nthKey: the base, then -n; a qualifier goes between, cut to fit 64", () => {
+  assertEquals(nthKey("abc-12", 1), "abc-12");
+  assertEquals(nthKey("abc-12", 2), "abc-12-2");
+  assertEquals(nthKey("abc-12", 1, "linear"), "abc-12-linear");
+  assertEquals(nthKey("abc-12", 3, "linear"), "abc-12-linear-3");
+  // The qualifier is made key-safe.
+  assertEquals(nthKey("abc-12", 1, "Team_Linear"), "abc-12-team-linear");
+  // A long qualifier is cut so the key fits, with no trailing separator.
+  const key = nthKey("x".repeat(50), 2, "linear-tracker-for-the-team");
+  assertEquals(key, `${"x".repeat(50)}-linear-trac-2`);
+  assert(key.length <= 64);
+  // An old id that fills 64 characters is cut before the number or the
+  // qualifier, never refused.
+  const old = `cue-${"board-shortcuts-".repeat(3)}${"x".repeat(7)}-r2ne`;
+  assertEquals(old.length, 64);
+  assertEquals(nthKey(old, 1), old);
+  assertEquals(nthKey(old, 2), `${old.slice(0, 62)}-2`);
+  assertEquals(nthKey(old, 1, "linear"), old);
+  assertEquals(nthKey("x".repeat(60), 1, "linear"), `${"x".repeat(60)}-lin`);
+  for (const k of [nthKey(old, 12), nthKey(old, 3, "linear")]) {
+    assert(k.length <= 64, k);
+  }
 });
 
 Deno.test("factory: validate refuses a definition of another type", async () => {
@@ -553,26 +484,6 @@ Deno.test("factory: validate refuses a factory with no definition yet, saying wh
   );
 });
 
-Deno.test("factory: has no init method; the skill writes the definition in", () => {
-  assertEquals(Object.keys(factory.methods).sort(), [
-    "new_key",
-    "validate",
-  ]);
-});
-
-Deno.test("generateKey: a title with no ASCII letters is refused, unless a bare key is allowed", () => {
-  assertThrows(
-    () => generateKey("build", "🔥🔥"),
-    Error,
-    "no letters or digits",
-  );
-  assertMatch(
-    generateKey("2800", "🔥🔥", "", { allowBare: true }),
-    /^2800-[a-z2-7]{4}$/,
-  );
-  // A title with words keeps its slug either way.
-  assertMatch(
-    generateKey("2800", "Fix login", "", { allowBare: true }),
-    /^2800-fix-login-[a-z2-7]{4}$/,
-  );
+Deno.test("factory: has no init or new_key method; the skill writes the definition in, and claim names work items", () => {
+  assertEquals(Object.keys(factory.methods).sort(), ["validate"]);
 });

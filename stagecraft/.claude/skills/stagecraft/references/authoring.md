@@ -61,15 +61,20 @@ list of questions; this list is yours.
    changes", "bug fixes to the API"). This names the factory (a short lowercase
    name, such as `docs`) and picks the example to start from.
 2. **Which tracker?** Where the work's tickets live. The default is the built-in
-   tracker, which keeps tickets in this repo and needs only a short prefix for
-   ticket ids (such as `docs`). The other choice is Linear. With no tracker at
-   all, work items start by key alone, which is fine for a trial.
-3. **Where must a person decide?** Each human stop: approving a plan, approving
+   tracker, which keeps tickets in this repo. The other choice is Linear. With
+   no tickets at all, work items start under a key chosen by hand, which is fine
+   for a trial.
+3. **Which prefix?** For the built-in tracker: a short word that leads every
+   ticket id and work-item key, such as `docs` for `docs-12`. Lowercase letters,
+   digits and `-`, at most 12 characters. The default is the tracker's name. A
+   Linear tracker's keys are its issue ids as-is (`ABC-12` gives `abc-12`), so
+   this question is only for the built-in one.
+4. **Where must a person decide?** Each human stop: approving a plan, approving
    a release, confirming that work is abandoned. The default is the starting
    example's stops. Ask which to add or remove.
-4. **What counts as done?** The last thing that happens: merged, released,
+5. **What counts as done?** The last thing that happens: merged, released,
    deployed, published, or just reviewed.
-5. **How does work land?** Pull request, direct commit, release command, publish
+6. **How does work land?** Pull request, direct commit, release command, publish
    step. Name the command or place, since a stage records it.
 
 Last, and only if they want to: ask for any path they want kept ("a plan always
@@ -77,7 +82,7 @@ waits for me", "a failed check always goes back to implement"). Each becomes a
 saved scenario in State 3.
 
 **Verify:** you have an answer, or a default you said and they did not change,
-for all five. Say back what you understood in a few lines before you write
+for all six. Say back what you understood in a few lines before you write
 anything.
 
 **On failure:** if they cannot say yet, take the defaults and say which ones.
@@ -217,19 +222,26 @@ loops in a short list instead.
 
 **Gate:** State 4 passed.
 
-**Action:** start the first work item, with a title the person gives. With no
-tracker:
+**Action:** start the first work item, with a title the person gives: file a
+ticket for it on the factory's tracker, claim the ticket, and run the `start`
+command `claim` prints ([driving.md](driving.md#start-from-a-ticket)). On the
+built-in tracker:
 
 ```sh
-swamp model method run <factory> new_key --input 'title=<title>'
+swamp model method run <tracker> create --input 'title=<title>' \
+  --input 'body=<body>' --input 'type=<type>'
+swamp model method run <tracker> claim --input issue=<ticket> \
+  --input factory=<factory>
 swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=<factory> --input 'title=<title>'
+  --input factory=<factory> --input 'title=<title>' \
+  --input 'externalRefs=<external-refs>'
 swamp model @swamp/stagecraft/work-item method run status <key>
 ```
 
-With a tracker, file the ticket with `create` and start it through `claim`
-([driving.md](driving.md#start-from-a-ticket)): never start a ticket's work item
-under a key you chose.
+`create` prints the ticket's id, the prefix and a number (`docs-1`). `claim`
+names the work item after it (the first work item on `docs-1` is `docs-1`) and
+prints the `start` command, with the ticket's ids in `externalRefs`; run it as
+printed. Never start a ticket's work item under a key you chose.
 
 **Verify:** `status` prints the initial stage.
 
@@ -253,12 +265,16 @@ until an instance of that name exists with the type the definition's
 which `claim` sets.
 
 **Built-in** (the default, when the definition names no `tracker.kind`): tickets
-kept in swamp data, with ids like `docs-fix-typo-r2ne`:
+kept in swamp data, with ids like `docs-12`: the prefix the person chose, then a
+number counted per prefix:
 
 ```sh
 swamp model create @swamp/stagecraft/tracker <tracker> \
   --global-arg prefix=<prefix> --json
 ```
+
+Without `prefix`, the tracker's name, cut to 12 characters, is the prefix.
+Changing it later affects only new tickets: existing ids and keys never change.
 
 Its statuses default to `open`, `in_progress`, `shipped` and `closed`, the keys
 the examples use. Every `tracker: { status: <key> }` in the definition must be
@@ -271,7 +287,9 @@ the instance, then set its global arguments in the model file that
 `model create` prints. Put the API key in a vault first and refer to it from
 `apiToken`; never write the key into the file. `statuses` maps each status key
 the definition uses to a Linear state, `teamId` is the team new issues go to,
-and `types` maps ticket types to label names:
+and `types` maps ticket types to label names. A work item's key is its issue's
+id as-is (`ABC-12` gives `abc-12`); `prefix`, the team's short name, does not
+rename it:
 
 ```sh
 swamp model create @swamp/stagecraft/linear <tracker> --json

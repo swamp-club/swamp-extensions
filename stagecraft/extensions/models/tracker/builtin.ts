@@ -15,13 +15,19 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { z } from "npm:zod@4.3.6";
-import type { MethodOutput } from "../_lib/engine/tracker.ts";
+import {
+  keyIsFree,
+  type MethodOutput,
+  recordObject,
+} from "../_lib/engine/tracker.ts";
 import {
   BUILTIN,
   builtinAdapter,
   BuiltinCommentSchema,
+  BuiltinCounterSchema,
   BuiltinEntrySchema,
   COMMENT_SPEC,
+  COUNTER_SPEC,
   DEFAULT_STATUSES,
   DEFAULT_TYPES,
   ENTRY_SPEC,
@@ -35,6 +41,9 @@ import {
   deliveries,
   DeliveryInputs,
   deliveryKeyOf,
+  ISSUE_SPEC,
+  prefixArgument,
+  prefixOf,
   type TrackerContext,
   trackerMethods,
   type TrackerModelOptions,
@@ -49,13 +58,12 @@ import {
 // the tracker's kind, and a factory names this instance.
 // ---------------------------------------------------------------------------
 
-const PREFIX_MAX = 55;
-
 /** The built-in tracker's global arguments: its ticket prefix, statuses and types. */
 export const BuiltinArgumentsSchema = z.object({
-  prefix: z.string().max(PREFIX_MAX).regex(/^[a-z0-9][a-z0-9-]*$/).describe(
+  prefix: prefixArgument(
     "Leads every ticket id and work-item key: lowercase letters, digits and " +
-      "'-', e.g. cue (a trailing '-' is dropped)",
+      "'-', at most 12 characters, e.g. blog for blog-12 (a trailing '-' is " +
+      "dropped). Defaults to the tracker instance's name, cut to 12",
   ),
   statuses: z.union([z.array(z.string().min(1)), z.string()]).optional()
     .describe(
@@ -106,14 +114,39 @@ export function listFrom(
   return list as string[];
 }
 
-/** The prefix, required, without a trailing separator. */
-export function prefixOf(globalArgs: Record<string, unknown>): string {
-  const { prefix } = argumentsOf(globalArgs);
-  const trimmed = prefix?.replace(/-+$/, "") ?? "";
-  if (trimmed === "") {
-    invalid("no prefix: set the prefix global argument, e.g. cue");
+/**
+ * The highest n of any `<prefix>-<n>` built-in ticket id or model definition
+ * name (`<prefix>-<n>-...` too) in the repository, 0 for none.
+ */
+export async function highestNumber(
+  ctx: TrackerContext,
+  prefix: string,
+): Promise<number> {
+  // The prefix has passed the prefix rules, so it is safe in a pattern.
+  // At most 9 digits: a longer run is no counted id, and stays a safe integer.
+  const ticket = new RegExp(`^${prefix}-([0-9]{1,9})$`);
+  const definition = new RegExp(`^${prefix}-([0-9]{1,9})(?:-|$)`);
+  let highest = 0;
+  const note = (pattern: RegExp, name: unknown) => {
+    const match = typeof name === "string" ? pattern.exec(name) : null;
+    if (match !== null) highest = Math.max(highest, Number(match[1]));
+  };
+  // Every tracker's tickets: another instance may share the prefix.
+  if (ctx.queryData !== undefined) {
+    for (const record of await ctx.queryData(`specName == "${ISSUE_SPEC}"`)) {
+      note(ticket, recordObject(record)?.id);
+    }
   }
-  return trimmed;
+  // Work items and anything else named like one.
+  const lister = ctx.definitionRepository as
+    | Partial<{ findAllGlobal(): Promise<{ definition: unknown }[]> }>
+    | undefined;
+  if (typeof lister?.findAllGlobal === "function") {
+    for (const found of await lister.findAllGlobal()) {
+      note(definition, (found.definition as { name?: unknown }).name);
+    }
+  }
+  return highest;
 }
 
 const setTypeArguments = z.object({
@@ -144,12 +177,14 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
       }
       const args = argumentsOf(argsOf(ctx));
       return builtinAdapter({
-        prefix: prefixOf(argsOf(ctx)),
+        prefix: prefixOf(ctx),
         statuses: listFrom("statuses", args.statuses, DEFAULT_STATUSES),
         types: listFrom("types", args.types, DEFAULT_TYPES),
         store: {
           read: (name) => ctx.readResource!(name),
           write: (spec, name, data) => ctx.writeResource!(spec, name, data),
+          nameTaken: async (name) => !await keyIsFree(ctx, name),
+          highestNumber: (prefix) => highestNumber(ctx, prefix),
         },
         now,
       });
@@ -160,12 +195,8 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
         listFrom("statuses", argumentsOf(globalArgs).statuses, DEFAULT_STATUSES)
           .map((s) => [s, s]),
       ),
-    // A ticket's first work item takes the ticket's id; later ones are
-    // <prefix>-<slug>-<rnd> of their own.
-    claimKey: (globalArgs, issue) => ({
-      lead: prefixOf(globalArgs),
-      first: issue.id,
-    }),
+    // A ticket's work items take the ticket's id: blog-12, then blog-12-2.
+    claimBase: (issue) => issue.id,
     // A built-in ticket's assignees are swamp users: the stored login's,
     // whichever server it is for.
     assignee: async () => {
@@ -211,7 +242,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/stagecraft/tracker",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,
@@ -227,6 +258,12 @@ export const model = {
       schema: BuiltinEntrySchema,
       lifetime: "infinite" as const,
       garbageCollection: 1,
+    },
+    [COUNTER_SPEC]: {
+      description: "The next ticket number create tries, one record per prefix",
+      schema: BuiltinCounterSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 5,
     },
   },
   methods: builtinMethods(),

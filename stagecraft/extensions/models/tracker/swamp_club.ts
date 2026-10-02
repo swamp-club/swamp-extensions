@@ -40,6 +40,7 @@ import {
   deliveries,
   DeliveryInputs,
   deliveryKeyOf,
+  prefixArgument,
   type TrackerContext,
   trackerMethods,
   type TrackerModelOptions,
@@ -69,6 +70,11 @@ export const SwampClubArgumentsSchema = z.object({
   url: z.string().url().optional().describe(
     "The swamp-club server; defaults to SWAMP_CLUB_URL, then the stored " +
       "login's server, then https://swamp-club.com",
+  ),
+  prefix: prefixArgument(
+    "Leads the key of a work item claimed from a Lab issue, whose id is only " +
+      "a number: lab gives lab-2711 for #2711. At most 12 lowercase letters, " +
+      "digits and '-'. Defaults to the tracker instance's name, cut to 12",
   ),
   statuses: z.union([z.record(z.string(), z.string()), z.string()]).optional()
     .describe(
@@ -541,7 +547,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.
   type: "@swamp/stagecraft/swamp-club",
-  version: "2026.10.01.3",
+  version: "2026.10.02.1",
   globalArguments: SwampClubArgumentsSchema,
   resources: {
     ...trackerResources,

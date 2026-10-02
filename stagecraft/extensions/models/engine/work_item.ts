@@ -45,11 +45,11 @@ import {
 } from "../_lib/engine/work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
-// A work item: one instance per piece of work, named by a key (the factory's
-// new_key makes one). start pins the factory's definition; every other method
-// works on that pinned copy, so editing the factory never changes a running
-// work item. Every writing method takes the expectation status reports and
-// is refused if the work item has moved since.
+// A work item: one instance per piece of work, named by a key (a tracker's
+// claim makes one from the ticket's id). start pins the factory's
+// definition; every other method works on that pinned copy, so editing the
+// factory never changes a running work item. Every writing method takes the
+// expectation status reports and is refused if the work item has moved since.
 // ---------------------------------------------------------------------------
 
 const payloadSchema = z.record(z.string(), z.unknown());
@@ -78,7 +78,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/stagecraft/work-item",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   // A string literal, for the same reason as the type; the report's test
   // checks it names the report.
   reports: ["@swamp/stagecraft/work-item-summary"],
@@ -139,7 +139,7 @@ export const model = {
       arguments: z.object({
         factory: z.string().min(1).describe("The factory's name"),
         title: z.string().min(1).optional().describe(
-          "The work's title, the one given to new_key; the studio shows it",
+          "The work's title, its ticket's; status and the studio show it",
         ),
         externalRefs: ExternalRefsInput.optional(),
         ...ActorInputs,

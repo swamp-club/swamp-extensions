@@ -18,12 +18,12 @@ Along the way:
 
 Every command here is run, in this order and as written, by
 `integration/extension/skill_test.ts` against a real swamp repo. Output is from
-such a run, trimmed to the lines that matter. `<key>` and `<era>` stand for the
-generated work-item key and era, `<result-dir>` for a scratch directory and
-`<result-path>` for the result file the latest dispatch named; everything else
-is literal. The test cannot run a subagent, so at the two review stages a
-reviewer's result file is shown as a `json result` block, and the test writes it
-where the reviewer would.
+such a run, trimmed to the lines that matter. `<key>` stands for the key `claim`
+gives the work item (`team-1`, the ticket's id) and `<era>` for its era,
+`<result-dir>` for a scratch directory and `<result-path>` for the result file
+the latest dispatch named; everything else is literal. The test cannot run a
+subagent, so at the two review stages a reviewer's result file is shown as a
+`json result` block, and the test writes it where the reviewer would.
 
 A block can list several commands, in order. Run each write as its own command
 and read its whole output before the next: a write ends with the status that
@@ -48,21 +48,25 @@ The agent writes the `definition:` and `scenarios:` blocks of
 [build-swamp-extension.yaml](build-swamp-extension.yaml), beside this file,
 under `globalArguments:` in the factory's model definition,
 `models/@swamp/stagecraft/factory/team.yaml`. That is the one copy of the
-definition: edit it there. Then check it, get a key, and start the work item
-under that key:
+definition: edit it there. Then check it, file a ticket for the work on the
+tracker, claim the ticket, and run the `start` command `claim` prints:
 
 ```sh
 swamp model method run team validate
-swamp model method run team new_key --input 'title=Add a list method'
+swamp model method run board create --input 'title=Add a list method' \
+  --input 'body=Add a list method to the extension.' --input type=feature
+swamp model method run board claim --input issue=team-1 --input factory=team
 swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=team
+  --input factory=team --input 'title=Add a list method' \
+  --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
 ```
 
 ```text
 definition 'build-swamp-extension' in factory 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
-build-swamp-extension-add-list-method-r2ne
-started 'build-swamp-extension-add-list-method-r2ne' at stage 'plan' (definition 'build-swamp-extension' from 'team'; tracker 'board')
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+created team-1 (team-1): Add a list method [open]
+team-1 (team-1) is claimed as 'team-1'. Start it: swamp model @swamp/stagecraft/work-item method run start 'team-1' --input 'factory=team' --input 'title=Add a list method' --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
+started 'team-1' at stage 'plan' (definition 'build-swamp-extension' from 'team'; tracker 'board')
+team-1 (Add a list method): active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   ...
 ```
@@ -76,7 +80,7 @@ swamp model @swamp/stagecraft/work-item method run status <key>
 ```
 
 ```text
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+team-1 (Add a list method): active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> plan-review: not ready: artifact-exists: artifact 'plan' has not been recorded
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: human-approval: awaiting approval 'abandon-confirmation' (0/1) for stage 'plan' cycle 1
@@ -126,7 +130,7 @@ Error: artifact 'plan' was rejected and kept as retry feedback:
 (root): Instance does not have required property "testingStrategy".
 (root): Instance does not have required property "versionBump".
 
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+team-1 (Add a list method): active at stage 'plan' cycle 1
   ...
   work: interactive; dispatches this cycle 1 of 2
   rejected artifact 'plan' (stage 'plan' cycle 1): (root): Instance does not have required property "testingStrategy".; (root): Instance does not have required property "versionBump".
@@ -147,14 +151,14 @@ swamp model @swamp/stagecraft/work-item method run advance <key> \
 
 ```text
 recorded artifact 'plan' version 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 1
+team-1 (Add a list method): active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> plan-review: ready
   exit abandon -> abandoned [human: abandon-confirmation]: not ready: ...
   work: interactive; dispatches this cycle 1 of 2
 
 took 'submit' to stage 'plan-review' cycle 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+team-1 (Add a list method): active at stage 'plan-review' cycle 1
   ...
 ```
 
@@ -257,7 +261,7 @@ swamp model @swamp/stagecraft/work-item method run record_usage <key> \
 
 ```text
 recorded usage for dispatch 2
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+team-1 (Add a list method): active at stage 'plan-review' cycle 1
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
   exit rework -> plan: not ready: cel: rework needs an open critical or high finding
@@ -310,15 +314,15 @@ swamp model @swamp/stagecraft/work-item method run advance <key> \
 
 ```text
 declined 'plan-approval' (decision 1)
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+team-1 (Add a list method): active at stage 'plan-review' cycle 1
   ...
 recorded evidence 'plan-feedback' version 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 1
+team-1 (Add a list method): active at stage 'plan-review' cycle 1
   ...
   exit revise -> plan (manual): ready
   ...
 took 'revise' to stage 'plan' cycle 2
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan' cycle 2
+team-1 (Add a list method): active at stage 'plan' cycle 2
   expect: --input expectedStage=plan --input expectedCycle=2 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   ...
 ```
@@ -382,10 +386,10 @@ swamp model @swamp/stagecraft/work-item method run advance <key> \
 
 ```text
 approved 'plan-approval' (decision 2)
-build-swamp-extension-add-list-method-r2ne: active at stage 'plan-review' cycle 2
+team-1 (Add a list method): active at stage 'plan-review' cycle 2
   ...
 took 'approve' to stage 'implement' cycle 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'implement' cycle 1
+team-1 (Add a list method): active at stage 'implement' cycle 1
   ...
 ```
 
@@ -404,7 +408,7 @@ swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
 
 ```text
 recorded artifact 'change-summary' version 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'implement' cycle 1
+team-1 (Add a list method): active at stage 'implement' cycle 1
   expect: --input expectedStage=implement --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit submit -> check: ready
   exit recheck -> check (manual): ready
@@ -438,7 +442,7 @@ swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
 
 ```text
 recorded evidence 'checks' version 1
-build-swamp-extension-add-list-method-r2ne: active at stage 'check' cycle 1
+team-1 (Add a list method): active at stage 'check' cycle 1
   expect: --input expectedStage=check --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit passed -> code-review: not ready: evidence-recorded: evidence 'quality' has not been recorded; cel: checks and quality must be for the change-summary commit
   exit passed-with-quality-waiver -> code-review [human: quality-waiver]: not ready: human-approval: awaiting approval 'quality-waiver' (0/1) for stage 'check' cycle 1
@@ -536,5 +540,5 @@ swamp model @swamp/stagecraft/work-item method run advance <key> \
 
 ```text
 took 'released' to stage 'done' cycle 1 (finished)
-build-swamp-extension-add-list-method-r2ne: terminal at stage 'done' cycle 1
+team-1 (Add a list method): terminal at stage 'done' cycle 1
 ```

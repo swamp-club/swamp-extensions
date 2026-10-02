@@ -125,7 +125,9 @@ example you will start from. They agree. A default you said and they did not
 change counts as their answer. These answers stand for the interview in
 [authoring.md](authoring.md#state-1-interviewed); ask its tracker and landing
 questions only if their answers left them open, one at a time, and default the
-tracker to the built-in one.
+tracker to the built-in one. Always ask the built-in tracker's prefix, as its
+own question: the short word every ticket id and work-item key starts with
+(`docs` gives `docs-1`, `docs-2`), offering the tracker's name as the default.
 
 **On failure:** if they cannot say yet, start from `minimal` or the closest
 example's own stops, and say so. The factory can change at any time.

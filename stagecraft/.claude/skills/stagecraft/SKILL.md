@@ -135,19 +135,18 @@ Work-item methods run by type, with the key as the instance:
 
 Factory methods run by instance name:
 `swamp model method run <factory> validate` checks a factory definition in full
-and runs its saved scenarios;
-`swamp model method run <factory> new_key --input 'title=<title>'` makes a key
-from the work's title to start a work item under; `start` also takes any unused
-name chosen by hand.
+and runs its saved scenarios.
 
-Work from a tracker ticket starts through the tracker's adapter instance:
+Work starts from a tracker ticket, through the tracker's adapter instance:
 `swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory>`
-reserves a key for the ticket and prints the `start` command to run, or names
-the work item the ticket already has. Re-run it after any failure. A project
-with no external tracker has the built-in one (`@swamp/stagecraft/tracker`).
-When the person asks for a new ticket, file it with
+reserves a key for the ticket, its id (`docs-12`, `abc-12`), and prints the
+`start` command to run, or names the work item the ticket already has. Re-run it
+after any failure. A project with no external tracker has the built-in one
+(`@swamp/stagecraft/tracker`). For new work, or when the person asks for a new
+ticket, file it with
 `swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'`,
-then claim it. See
+then claim it. `start` also takes any unused name chosen by hand, for work with
+no ticket. See
 [references/driving.md](references/driving.md#start-from-a-ticket). To link two
 tickets (a parent and its child, a blocker), use
 `swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`

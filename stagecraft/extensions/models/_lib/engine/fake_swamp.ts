@@ -333,6 +333,17 @@ export function fakeSwamp(): FakeSwamp {
             type: { raw: found.type, normalized: found.type.toLowerCase() },
           });
         },
+        // Like swamp's: every definition, each with its name.
+        findAllGlobal: () =>
+          Promise.resolve(
+            [...definitions].map(([defName, found]) => ({
+              definition: {
+                name: defName,
+                globalArguments: structuredClone(found.globalArguments),
+              },
+              type: { raw: found.type, normalized: found.type.toLowerCase() },
+            })),
+          ),
       },
     }),
   };

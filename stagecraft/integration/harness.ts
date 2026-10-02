@@ -151,8 +151,11 @@ export interface SwampRepo {
     inputs?: Record<string, string>,
     options?: { allowFailure?: boolean },
   ): Promise<SwampResult>;
-  /** Generate a key for a title with the factory's new_key. */
-  newKey(factory: string, title: string): Promise<string>;
+  /**
+   * An unused work-item key, `<factory>-<n>`, chosen as a person may choose
+   * one by hand: start takes any unused name.
+   */
+  newKey(factory: string): Promise<string>;
   /** A stored record's content, the latest version unless one is given. */
   data(
     instance: string,
@@ -285,6 +288,9 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     await Deno.writeTextFile(path, stringifyYaml(model));
   };
 
+  // The keys newKey has chosen in this repo.
+  let chosen = 0;
+
   // The trackers the harness created, so each is created once.
   const trackers = new Set<string>();
   const defaultTracker = async (kind: TrackerKind): Promise<string> => {
@@ -384,27 +390,9 @@ async function openRepo(dir: string): Promise<SwampRepo> {
         ],
         options,
       ),
-    async newKey(factory, title) {
-      // The key record new_key writes, as this call's --json output lists
-      // it, rather than the log text, whose format is swamp's to change.
-      const { stdout } = await swamp([
-        "model",
-        "method",
-        "run",
-        factory,
-        "new_key",
-        "--input",
-        `title=${title}`,
-        "--json",
-      ]);
-      const { dataArtifacts = [] } = JSON.parse(stdout) as {
-        dataArtifacts?: { name: string; attributes?: { key?: unknown } }[];
-      };
-      const key = dataArtifacts.find((d) => d.name === "key")?.attributes?.key;
-      if (typeof key !== "string") {
-        throw new Error(`new_key recorded no key:\n${stdout}`);
-      }
-      return key;
+    newKey(factory) {
+      chosen += 1;
+      return Promise.resolve(`${factory}-${chosen}`);
     },
     data,
     async versions(instance) {

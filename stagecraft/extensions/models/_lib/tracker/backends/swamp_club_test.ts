@@ -88,7 +88,9 @@ Deno.test("swamp-club: meets the tracker adapter contract", async () => {
     await assertTrackerConformance({
       adapter: adapterFor(fake),
       badAuth: adapterFor(fake, "swamp_wrong_key"),
-      issue: { id: ISSUE, display: `#${ISSUE}`, slug: "2631-lab-adapter" },
+      issue: { id: ISSUE, display: `#${ISSUE}` },
+      prefix: "lab",
+      firstKey: `lab-${ISSUE}`,
       missing: String(MISSING_ISSUE),
       statusNames: ["triaged", "in_progress"],
       closedStatus: "closed",

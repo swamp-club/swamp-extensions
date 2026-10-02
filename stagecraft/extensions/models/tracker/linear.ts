@@ -21,6 +21,7 @@ import {
   linearAdapter,
 } from "../_lib/tracker/backends/linear.ts";
 import {
+  prefixArgument,
   type TrackerContext,
   trackerMethods,
   trackerResources,
@@ -62,6 +63,12 @@ export const LinearArgumentsSchema = z.object({
       "Status keys to Linear status names (per team, matched exactly), e.g. " +
         '{"started": "In Progress"}: an object, or a JSON object as a string',
     ),
+  prefix: prefixArgument(
+    "The team's short name, lowercase, e.g. abc for ABC-12: at most 12 " +
+      "lowercase letters, digits and '-'. A work item's key is its issue's " +
+      "id as-is (ABC-12 gives abc-12), so the prefix does not rename keys. " +
+      "Defaults to the tracker instance's name, cut to 12",
+  ),
   teamId: z.string().min(1).optional().describe(
     "The id of the Linear team create files new issues in; create is " +
       "refused without it",
@@ -112,7 +119,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.
   type: "@swamp/stagecraft/linear",
-  version: "2026.10.02.1",
+  version: "2026.10.02.2",
   globalArguments: LinearArgumentsSchema,
   resources: trackerResources,
   methods: {

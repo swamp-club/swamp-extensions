@@ -79,6 +79,23 @@ async function reviewed() {
   return { swamp, env, ctx, expected };
 }
 
+Deno.test("summary: the heading gives the work's title beside its key", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", stopsDefinition());
+  const env = settableEnv("2026-09-29T10:00:00.000Z");
+  await startWorkItem(
+    swamp.context(ITEM),
+    { factory: "team", title: "Add a board view" },
+    env,
+  );
+  await summary(swamp.context(ITEM), env);
+  const markdown = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    markdown.startsWith(`# Work item ${ITEM}: Add a board view\n`),
+    markdown,
+  );
+});
+
 Deno.test("summary: the method logs the timeline and metrics, with no payload contents", async () => {
   const { swamp, env, ctx } = await reviewed();
   await summary(ctx(), env);

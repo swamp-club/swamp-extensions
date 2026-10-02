@@ -128,6 +128,28 @@ Deno.test("start: records the work's title when given, and none when not", async
   assertEquals((await runOf(swamp)).title, "Add a board view");
 });
 
+Deno.test("status: the title goes beside the key, since a key no longer says what the work is", async () => {
+  const swamp = fakeSwamp();
+  swamp.factory("team", await buildDefinition());
+  await call(swamp, "start", { factory: "team", title: "Add a board view" });
+  await call(swamp, "status");
+  const text = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    text.startsWith(`${ITEM} (Add a board view): active at stage 'plan'`),
+    text,
+  );
+  const view = await describeStatus(swamp.context(ITEM), systemEnv);
+  assertEquals(view.title, "Add a board view");
+  // Untitled, the key stands alone.
+  const untitled = await started();
+  await call(untitled, "status");
+  assert(
+    String(untitled.logs.at(-1)?.props?.summary).startsWith(
+      `${ITEM}: active at stage 'plan'`,
+    ),
+  );
+});
+
 Deno.test("start: refuses an empty title, and writes nothing", async () => {
   const swamp = fakeSwamp();
   swamp.factory("team", await buildDefinition());

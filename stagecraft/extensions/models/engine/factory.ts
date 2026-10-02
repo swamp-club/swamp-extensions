@@ -18,9 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import { DefinitionSchema } from "../_lib/engine/definition_schema.ts";
 import { SavedScenariosSchema } from "../_lib/engine/scenario.ts";
 import {
-  KEY_SPEC,
   type MethodContextLike,
-  newKey,
   validateFactory,
 } from "../_lib/engine/work_item_ops.ts";
 
@@ -80,18 +78,9 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.
   type: "@swamp/stagecraft/factory",
-  version: "2026.09.30.1",
+  version: "2026.10.02.1",
   globalArguments: FactoryArgumentsSchema,
-  resources: {
-    [KEY_SPEC]: {
-      description:
-        "The latest key new_key generated. A key is only needed until a " +
-        "work item starts under it, so few versions are kept.",
-      schema: z.object({ key: z.string() }),
-      lifetime: "infinite" as const,
-      garbageCollection: 10,
-    },
-  },
+  resources: {},
   methods: {
     validate: {
       description:
@@ -100,18 +89,6 @@ export const model = {
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         validateFactory(context),
-    },
-    new_key: {
-      description:
-        "Generate an unused work-item key for this factory, to start a work item under",
-      // Not a read method: it records the key, under the factory's lock.
-      arguments: z.object({
-        title: z.string().min(1).describe(
-          "The work's title, slugged into the key",
-        ),
-      }),
-      execute: (args: { title: string }, context: MethodContextLike) =>
-        newKey(context, args.title),
     },
   },
 };

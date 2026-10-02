@@ -213,12 +213,19 @@ export async function readmeCommands(): Promise<SkillCommand[]> {
   }));
 }
 
-/** Every swamp command in the skill. */
+/**
+ * Every swamp command in the skill, the instance names the worked example
+ * uses (its built-in tracker `board`, its factory `team`) as placeholders.
+ */
 export async function skillCommands(): Promise<SkillCommand[]> {
   const out: SkillCommand[] = [];
   for (const file of await skillFiles()) {
     out.push(
-      ...commandsIn(file, await Deno.readTextFile(`${SKILL_DIR}/${file}`)),
+      ...commandsIn(file, await Deno.readTextFile(`${SKILL_DIR}/${file}`))
+        .map((c) => ({
+          ...c,
+          words: c.words.map((w) => README_NAMES[w] ?? w),
+        })),
     );
   }
   return out;
@@ -227,7 +234,8 @@ export async function skillCommands(): Promise<SkillCommand[]> {
 // Values that stand in for placeholders when a command's inputs are checked
 // against its method's schema.
 const SAMPLE: Record<string, string> = {
-  "<key>": "team-add-list-method-abcd",
+  "<key>": "team-1",
+  "<external-refs>": '{"builtin":"team-1","builtin.display":"team-1"}',
   "<era>": "00000000-0000-0000-0000-000000000000",
   "<factory>": "team",
   "<starter>": "starter",
@@ -464,6 +472,10 @@ interface RepoLike {
   ): Promise<{ code: number; output: string; stdout: string }>;
   /** Start swamp without waiting for it, for a background command. */
   spawn(args: string[]): Deno.ChildProcess;
+  /** The latest version of each record an instance holds. */
+  versions(instance: string): Promise<Record<string, number>>;
+  /** A stored record's content, the latest version. */
+  data(instance: string, name: string): Promise<Record<string, unknown>>;
   /** Write a definition and scenarios into a factory's model definition. */
   editFactory(
     name: string,
@@ -473,8 +485,10 @@ interface RepoLike {
 }
 
 /**
- * Run the example's commands in order, as written, filling <key> from the
- * key record new_key writes, <era> from the first expectation status prints, and
+ * Run the example's commands in order, as written, filling <ticket> from the
+ * ticket record a tracker's create writes, <key> and <external-refs> from the
+ * ticket index record its claim writes, <era> from the first expectation
+ * status prints, and
  * <stagecraft> with the extension's directory. An `# agent: write`
  * line writes a skill example into a factory, as the agent would. A command
  * runs with allowFailure only
@@ -643,6 +657,12 @@ async function runCommands(
     // example's own `extension source add` may only find it there already.
     const addsSource = ran[0] === "extension" && ran[1] === "source" &&
       ran[2] === "add";
+    // A tracker's tickets before its create, to find the one it files.
+    const files = ran[0] === "model" && ran[1] === "method" &&
+      ran[4] === "create";
+    const before = files
+      ? new Set(Object.keys(await repo.versions(ran[3])))
+      : new Set<string>();
     const result = await repo.swamp(ran, {
       allowFailure: command.fails !== undefined || addsSource,
     });
@@ -661,21 +681,42 @@ async function runCommands(
     steps.push(step);
     await onStep(step);
 
-    // The key new_key recorded on the factory (`model method run <factory>
-    // new_key`), rather than its log line, whose format is swamp's to change.
-    if (
-      result.code === 0 && ran[0] === "model" && ran[1] === "method" &&
-      ran[4] === "new_key"
-    ) {
-      const read = await repo.swamp(["data", "get", ran[3], "key", "--json"]);
-      const key = (JSON.parse(read.stdout) as { content?: { key?: unknown } })
-        .content?.key;
-      if (typeof key !== "string") {
+    // The ticket a tracker's create filed (`model method run <tracker>
+    // create`): the issue record that was not there before, rather than its
+    // log line, whose format is swamp's to change.
+    if (files && result.code === 0) {
+      const records = Object.keys(await repo.versions(ran[3]))
+        .filter((n) => n.startsWith("issue-") && !before.has(n));
+      if (records.length !== 1) {
         throw new Error(
-          `${command.file}:${command.line}: new_key recorded no key:\n${read.stdout}`,
+          `${command.file}:${command.line}: create filed ` +
+            `${records.length} tickets, not one: ${records.join(", ")}`,
         );
       }
-      values["<key>"] = key;
+      values["<ticket>"] = records[0].slice("issue-".length);
+    }
+    // The key a tracker's claim reserved, and the ticket's ids, from its
+    // ticket index record.
+    if (
+      result.code === 0 && ran[0] === "model" && ran[1] === "method" &&
+      ran[4] === "claim"
+    ) {
+      const issue = ran[ran.indexOf("--input", 5) + 1]?.match(/^issue=(.+)$/)
+        ?.[1];
+      const index = issue === undefined
+        ? null
+        : await repo.data(ran[3], `ticket-${issue}`);
+      if (typeof index?.key !== "string") {
+        throw new Error(
+          `${command.file}:${command.line}: claim recorded no key for ` +
+            `'${issue}'`,
+        );
+      }
+      values["<key>"] = index.key;
+      values["<external-refs>"] = JSON.stringify({
+        [String(index.tracker)]: index.issue,
+        [`${index.tracker}.display`]: index.display,
+      });
     }
     // The result file the latest dispatch named for its first subagent's
     // first product, read from the dispatch record rather than the log.

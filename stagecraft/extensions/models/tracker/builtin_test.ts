@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { BuiltinArgumentsSchema, builtinMethods, model } from "./builtin.ts";
 import { BUILTIN_TYPE } from "../_lib/tracker/backends/builtin.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
@@ -61,7 +61,7 @@ Deno.test("builtin model: the type literal matches BUILTIN_TYPE", () => {
   assertEquals(model.type, BUILTIN_TYPE);
 });
 
-Deno.test("builtin model: create files a ticket under the prefix and logs its externalRefs", async () => {
+Deno.test("builtin model: create files <prefix>-1, then <prefix>-2, and logs its externalRefs", async () => {
   // A trailing '-' is dropped.
   const swamp = withArgs({ prefix: "cue-" });
   await call(swamp, "create", {
@@ -70,10 +70,44 @@ Deno.test("builtin model: create files a ticket under the prefix and logs its ex
     type: "feature",
   });
   const id = createdId(swamp);
-  assertMatch(id, /^cue-board-shortcuts-[a-z2-7]{4}$/);
+  assertEquals(id, "cue-1");
   const refs = JSON.parse(String(swamp.logs.at(-1)?.props?.externalRefs));
   assertEquals(refs, { builtin: id, "builtin.display": id });
   assertEquals(record(swamp, `issue-${id}`)?.[0].origin, "builtin");
+  await call(swamp, "create", { title: "x", body: "y", type: "bug" });
+  assertEquals(createdId(swamp), "cue-2");
+  assertEquals(record(swamp, "counter-cue")?.at(-1), {
+    prefix: "cue",
+    next: 3,
+  });
+});
+
+Deno.test("builtin model: a recreated tracker continues above the highest number in the repository", async () => {
+  const swamp = withArgs({ prefix: "blog" });
+  // Work items from before, by definition name, and a ticket another
+  // tracker with this prefix filed.
+  for (
+    const name of ["blog-7", "blog-41-2", "blogx-90", "blog-old-slug-ab3d"]
+  ) {
+    swamp.definitions.set(name, {
+      globalArguments: {},
+      type: "@swamp/stagecraft/work-item",
+    });
+  }
+  await swamp.context("other").writeResource?.("issue", "issue-blog-12", {
+    origin: "builtin",
+    id: "blog-12",
+  });
+  await call(swamp, "create", { title: "x", body: "y", type: "bug" });
+  assertEquals(createdId(swamp), "blog-42");
+  // A higher ticket elsewhere raises the start too.
+  const again = withArgs({ prefix: "blog" });
+  await again.context("other").writeResource?.("issue", "issue-blog-99", {
+    origin: "builtin",
+    id: "blog-99",
+  });
+  await call(again, "create", { title: "x", body: "y", type: "bug" });
+  assertEquals(createdId(again), "blog-100");
 });
 
 Deno.test("builtin model: fetch_issue and claim never overwrite the ticket with a snapshot", async () => {
@@ -122,20 +156,22 @@ Deno.test("builtin model: set_type writes once per delivery key", async () => {
   assertEquals(record(swamp, `issue-${id}`)?.at(-1)?.type, "feature");
 });
 
-Deno.test("builtin model: the prefix is required and lowercase, and the lists are checked", async () => {
-  await assertRejects(
-    () => call(withArgs({}), "create", { title: "x", body: "y", type: "bug" }),
-    TrackerError,
-    "no prefix",
-  );
-  assertEquals(
-    BuiltinArgumentsSchema.safeParse({ prefix: "CUE" }).success,
-    false,
-  );
-  assertEquals(
-    BuiltinArgumentsSchema.safeParse({ prefix: "cue" }).success,
-    true,
-  );
+Deno.test("builtin model: the prefix defaults to the instance's name and is lowercase and short, and the lists are checked", async () => {
+  const unset = withArgs({});
+  await call(unset, "create", { title: "x", body: "y", type: "bug" });
+  assertEquals(createdId(unset), `${INSTANCE}-1`);
+  for (
+    const [prefix, ok] of [["CUE", false], ["cue", true], [
+      "a".repeat(12),
+      true,
+    ], ["a".repeat(13), false]] as const
+  ) {
+    assertEquals(
+      BuiltinArgumentsSchema.safeParse({ prefix }).success,
+      ok,
+      prefix,
+    );
+  }
   await assertRejects(
     () =>
       call(withArgs({ prefix: "cue", statuses: "[]" }), "create", {

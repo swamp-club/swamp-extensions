@@ -15,7 +15,6 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { z } from "npm:zod@4.3.6";
-import { generateKey } from "../../engine/tracker.ts";
 import {
   type Assigner,
   type Assignment,
@@ -45,11 +44,11 @@ import {
 // The built-in tracker: tickets kept in swamp data on the tracker instance,
 // for a project with no external tracker (DESIGN.md, "The built-in
 // tracker"). Its issue-<id> records are the tickets themselves (origin
-// builtin), so nothing reads them back from anywhere. Ids are
-// <prefix>-<slug>-<4 random characters>, by the work-item key rules: no
-// counter, so several people can file tickets without one place minting
-// numbers. Statuses and types are the instance's own lists, and a status
-// may move in any direction. It keeps lifecycle entries and the ticket type,
+// builtin), so nothing reads them back from anywhere. Ids are <prefix>-<n>,
+// from a counter per prefix in the tracker's own data; create runs under the
+// tracker instance's lock, so two creates never take one number. Statuses
+// and types are the instance's own lists, and a status may move in any
+// direction. It keeps lifecycle entries and the ticket type,
 // so it has the history capability, and assignees (swamp usernames), so it
 // has the assign capability. A relation is kept on both tickets'
 // records, the subject's side written first and removed last; a re-run after
@@ -70,6 +69,19 @@ export const DEFAULT_TYPES = ["bug", "feature", "security"] as const;
 
 export const COMMENT_SPEC = "comment";
 export const ENTRY_SPEC = "entry";
+export const COUNTER_SPEC = "counter";
+
+/** The next number create tries for a prefix: a floor, since a name some
+ * ticket or definition already has is passed over. */
+export const BuiltinCounterSchema = z.object({
+  prefix: z.string(),
+  next: z.number().int().positive(),
+});
+
+/** The counter record's name for a prefix. */
+export function counterName(prefix: string): string {
+  return `counter-${prefix}`;
+}
 
 /** A comment on a built-in ticket, written once. */
 export const BuiltinCommentSchema = z.object({
@@ -100,10 +112,18 @@ export interface BuiltinStore {
     name: string,
     data: Record<string, unknown>,
   ): Promise<unknown>;
+  /** Whether a model definition already has this name: a work item's key. */
+  nameTaken(name: string): Promise<boolean>;
+  /**
+   * The highest n of any `<prefix>-<n>` ticket id or model definition name
+   * (`<prefix>-<n>-...` too) already in the repository, 0 for none: where a
+   * new counter starts, so a recreated tracker never reuses an id.
+   */
+  highestNumber(prefix: string): Promise<number>;
 }
 
 export interface BuiltinOptions {
-  /** Leads every id: lowercase letters, digits and '-'. */
+  /** Leads every id: lowercase letters, digits and '-', at most 12. */
   prefix: string;
   /** The status names; a new ticket starts in the first. */
   statuses: readonly string[];
@@ -291,32 +311,49 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
       if (draft.title.trim() === "") {
         return fail("invalid", "a ticket needs a title");
       }
-      // generateKey draws a new suffix each time; an id some ticket already
-      // has is drawn again.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        // A title with no ASCII letters or digits gives <prefix>-<suffix>.
-        const id = generateKey(options.prefix, draft.title, "", {
-          allowBare: true,
-        });
-        if (await store.read(issueName(id)) !== null) continue;
-        const at = now();
-        const issue: BuiltinIssue = {
-          origin: "builtin",
-          tracker: BUILTIN,
-          id,
-          display: id,
-          title: draft.title,
-          body: draft.body,
-          type: draft.type,
-          status: status(statuses[0]),
-          relations: [],
-          createdAt: at,
-          updatedAt: at,
-        };
-        await write(issue);
-        return toIssue(issue);
+      const { prefix } = options;
+      const counter = BuiltinCounterSchema.safeParse(
+        await store.read(counterName(prefix)),
+      );
+      // No counter yet (a new tracker, a recreated one, or a new prefix):
+      // start above every number this prefix already has.
+      let n = counter.success
+        ? counter.data.next
+        : await store.highestNumber(prefix) + 1;
+      // Pass over a name this tracker's tickets or any definition already
+      // has: a key started by hand, another tracker's started work item. An
+      // unstarted ticket on another tracker with this prefix is not seen;
+      // claim qualifies the key if the two meet.
+      while (
+        await store.read(issueName(`${prefix}-${n}`)) !== null ||
+        await store.nameTaken(`${prefix}-${n}`)
+      ) {
+        n++;
       }
-      return fail("upstream", "could not find a free ticket id; try again");
+      const id = `${prefix}-${n}`;
+      const at = now();
+      const issue: BuiltinIssue = {
+        origin: "builtin",
+        tracker: BUILTIN,
+        id,
+        display: id,
+        title: draft.title,
+        body: draft.body,
+        type: draft.type,
+        status: status(statuses[0]),
+        relations: [],
+        createdAt: at,
+        updatedAt: at,
+      };
+      // The ticket first: a crash before the counter moves leaves a name the
+      // next create passes over.
+      await write(issue);
+      await store.write(
+        COUNTER_SPEC,
+        counterName(prefix),
+        { prefix, next: n + 1 } satisfies z.infer<typeof BuiltinCounterSchema>,
+      );
+      return toIssue(issue);
     },
 
     async fetchIssue(ref: string): Promise<TrackerIssue> {

@@ -120,8 +120,9 @@ Every factory publishes its work items to a tracker, so each one has a ticket
 whose status follows it through the stages.
 
 **Built-in** is the default and needs no account: tickets live in your swamp
-repo. The getting-started walkthrough sets it up; `prefix` starts each
-ticket's id:
+repo. The getting-started walkthrough sets it up; `prefix` (up to 12
+characters) starts each ticket's id, and a ticket's work item is named after
+it: `eng-1`, `eng-2`, and so on.
 
 ```sh
 swamp model create @swamp/stagecraft/tracker board \
@@ -151,6 +152,7 @@ The key needs write access; you can limit it to the team. `teamId` is the
 team's UUID, not its short key such as ENG. `statuses` maps the factory's status
 keys to your team's workflow states, and `types` maps each issue type to one of
 your Linear labels. When work starts, the issue is assigned to the key's owner.
+A work item is named after its issue: `ABC-12` gives `abc-12`.
 Check the connection by fetching an issue:
 
 ```sh

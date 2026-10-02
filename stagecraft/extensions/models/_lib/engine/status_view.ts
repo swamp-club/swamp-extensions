@@ -88,6 +88,8 @@ export async function runStatus(
     : [];
   const view = {
     key: run.key,
+    // A key no longer says what the work is, so the title goes beside it.
+    title: run.title ?? null,
     definition: {
       factory: pinned.factory,
       digest: pinned.digest,

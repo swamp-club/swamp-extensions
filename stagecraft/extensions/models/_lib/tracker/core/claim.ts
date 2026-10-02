@@ -30,10 +30,9 @@ import type { TrackerIssue } from "./adapter.ts";
 import { duplicateRefusal, primaryOf } from "./duplicates.ts";
 import {
   type DataReadingContext,
-  freshKey,
   keyIsFree,
-  keySlug,
   loadFactoryDefinition,
+  nthKey,
   RUN_SPEC,
   type RunRecord,
   RunRecordSchema,
@@ -68,18 +67,6 @@ export function externalRefsOf(
   issue: TrackerIssue,
 ): Record<string, string> {
   return { [tracker]: issue.id, [`${tracker}.display`]: issue.display };
-}
-
-// The room a key's leading words may take: the work-item key rules cut the
-// lead at 55 characters anyway (DESIGN.md, "The model types").
-const LEAD_MAX = 55;
-
-/**
- * A ticket's display id as a key's leading words: `#2734` gives `2734`,
- * `ABC-12` gives `abc-12`. For reading only; externalRefs is the link.
- */
-export function displayLead(display: string): string {
-  return keySlug("", LEAD_MAX, display);
 }
 
 /**
@@ -132,10 +119,11 @@ export interface ClaimRequest {
   recordName: string;
   /** The factory, needed only when a new key is reserved. */
   factory?: string;
-  /** A new key's leading words: the display id's, or a built-in prefix. */
-  lead: string;
-  /** The name the ticket's first work item takes while it is free. */
-  first?: string;
+  /** The ticket's keys are this base: the ticket's id as a key. */
+  base: string;
+  /** What qualifies the base when another work item has it: the tracker
+   * instance's name. */
+  qualifier: string;
   /** Report the ticket's work item, or that it has none, and write nothing. */
   dryRun?: boolean;
   now: Date;
@@ -244,14 +232,8 @@ export async function claimTicket(
   // Checked in full before anything is reserved, though its name is no part
   // of the key.
   await loadFactoryDefinition(ctx, req.factory);
-  // The lead is for reading only; externalRefs is the link. A built-in
-  // ticket's first work item takes the ticket's own id.
-  const key = prior === null && req.first !== undefined &&
-      await keyIsFree(ctx, req.first)
-    ? req.first
-    // A title with no ASCII letters or digits leaves the lead alone
-    // (2800-k3xq): the ticket's id already says what the work is.
-    : await freshKey(ctx, req.lead, issue.title, "", { allowBare: true });
+  // The key is for reading only; externalRefs is the link.
+  const key = await nextKey(ctx, req.base, req.qualifier, previous);
   // The index first: a crash before the work item starts leaves a
   // reservation that the next claim hands back.
   const handle = await ctx.writeResource(
@@ -342,6 +324,38 @@ export async function moveClaim(
     summary: `${label} is now '${move.key}''s ticket in the index`,
   });
   return [handle];
+}
+
+/**
+ * The key for a ticket's next work item: the base for its first, `<base>-<n>`
+ * for its nth (DESIGN.md, "Keys are stagecraft's"). When another work item
+ * already has that name, the tracker instance's name qualifies it
+ * (`abc-12-linear`), and a ticket whose earlier key was qualified keeps the
+ * qualifier, so one ticket's keys stay one family. Refused when the
+ * qualified key is taken too.
+ */
+export async function nextKey(
+  ctx: ClaimContext,
+  base: string,
+  qualifier: string,
+  previous: readonly string[],
+): Promise<string> {
+  const n = previous.length + 1;
+  const qualified = nthKey(base, 1, qualifier);
+  // A base that already fills the key's length leaves no room to qualify.
+  const keepsQualifier = qualified !== base &&
+    previous.some((k) =>
+      k === qualified || new RegExp(`^${qualified}-[0-9]+$`).test(k)
+    );
+  const plain = nthKey(base, n);
+  if (!keepsQualifier && await keyIsFree(ctx, plain)) return plain;
+  const key = nthKey(base, n, qualifier);
+  if (await keyIsFree(ctx, key)) return key;
+  throw new Error(
+    `the keys '${plain}' and '${key}' are both taken by other work items, ` +
+      "so nothing was claimed; two trackers with the same prefix reached the " +
+      "same id. Give one of them another prefix (its prefix global argument)",
+  );
 }
 
 /** Why a factory does not load, or null when it does. */

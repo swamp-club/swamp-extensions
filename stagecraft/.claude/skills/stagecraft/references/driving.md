@@ -32,11 +32,12 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
   `globalArguments` hold its factory definition (stages, work, products,
   transitions, gates), the tracker instance it publishes to, and its saved
   scenarios: `{ definition: {...}, tracker: <instance>, scenarios: [...] }`.
-  Methods: `validate`, `new_key`.
+  Method: `validate`.
 - **`@swamp/stagecraft/work-item`**: one instance per piece of work, named by a
-  key from `new_key`. `start` reads the factory's definition and pins a copy, so
-  editing the factory never changes a running item; `reset` with `repin=true`
-  adopts the edited definition. Every other method works on that copy.
+  key, its ticket's id (`docs-12`), that the tracker's `claim` gives. `start`
+  reads the factory's definition and pins a copy, so editing the factory never
+  changes a running item; `reset` with `repin=true` adopts the edited
+  definition. Every other method works on that copy.
 
 Work-item methods are run by type, with the key as the instance name:
 
@@ -127,27 +128,23 @@ page re-checks the file when you save it.
 
 ## Start a work item
 
+Work starts from a ticket: file one on the factory's tracker if there is none
+(see [Start from a ticket](#start-from-a-ticket)), claim it, and run the `start`
+command `claim` prints. The work item's key is the ticket's id (`docs-12`,
+`abc-12`), and it does not change if the work does. Since the key does not say
+what the work is, `start` takes the work's `title`: the run record keeps it, and
+`status`, the summary and the studio show it beside the key.
+
+`start` also takes any unused name, so a person may choose a key by hand for
+work with no ticket:
+
 ```sh
-swamp model method run <factory> new_key --input 'title=<title>'
 swamp model @swamp/stagecraft/work-item method run start <key> \
   --input factory=<factory> --input 'title=<title>'
 ```
 
-`new_key` prints an unused key made from the work's title, such as
-`team-add-list-method-r2ne`: the factory's name, a slug of the title, and a
-short random suffix. Use it as the work item's name from then on; it does not
-change if the work does. A title with no ASCII letters or digits is refused.
-Pass the same title to `start`: the run record keeps it, and the studio's Board
-shows it on the work item's card (`new_key` prints the start command with it).
-`start` takes any unused name, so a person may choose a key by hand instead. To
-link a tracker ticket, pass `externalRefs` as a JSON object mapping tracker to
-id; the code links a work item to a ticket only through `externalRefs`.
-
-```sh
-swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=<factory> \
-  --input 'externalRefs={"linear":"<issue UUID>"}'
-```
+The code links a work item to a ticket only through `externalRefs`, a JSON
+object mapping tracker to id, which the command `claim` prints sets.
 
 ## Start from a ticket
 
@@ -160,16 +157,17 @@ swamp model method run <tracker> claim --input issue=<ticket> \
   --input factory=<factory>
 ```
 
-`issue` is the ticket's id or its display identifier (`ABC-1`,
-`cue-board-shortcuts-r2ne`). `claim` answers in one of these ways:
+`issue` is the ticket's id or its display identifier (`ABC-12`, `docs-12`).
+`claim` answers in one of these ways:
 
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
-  The key starts with the ticket's display id, then its title (Linear:
-  `abc-12-add-list-k3xq`), for reading only. A built-in ticket's first work item
-  takes the ticket's id as its key (`cue-board-shortcuts-r2ne`); a later one
-  gets `cue-<slug>-<suffix>`. Run the printed `start` command exactly as
-  printed; it carries the ticket's `externalRefs`.
+  The key is the ticket's id, lowercased: `abc-12` for Linear's `ABC-12`,
+  `docs-12` for a built-in ticket, and the tracker's prefix before a number-only
+  id. A later work item on the same ticket adds a number: `abc-12-2`. If another
+  work item already has the name (two trackers with one prefix), the tracker
+  instance's name is added: `abc-12-linear`. Run the printed `start` command
+  exactly as printed; it carries the ticket's `externalRefs` and title.
 - **`not started yet. Start it: ...`**: an earlier claim reserved this key but
   its `start` never ran (or failed). Run the printed command. If it fails
   because the reserved factory no longer loads, claim again with another
@@ -191,8 +189,9 @@ ticket, claiming it again reserves a new one. To only look, add
 has none, and writes nothing. `claim` never comments on or moves the ticket.
 Never choose a key by hand for a ticket's work item; `claim` names it.
 
-To file a new ticket when the person asks for one, run `create` on the tracker's
-instance, then claim the id it prints:
+To file a new ticket, for new work or when the person asks for one, run `create`
+on the tracker's instance, then claim the id it prints (the built-in tracker
+numbers them: `docs-1`, `docs-2`):
 
 ```sh
 swamp model method run <tracker> create --input 'title=<title>' \
@@ -216,7 +215,7 @@ swamp model @swamp/stagecraft/work-item method run status <key>
 ```
 
 ```text
-build-swamp-extension-r2ner2de: active at stage 'plan-review' cycle 1
+team-1 (Add a list method): active at stage 'plan-review' cycle 1
   expect: --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit approve -> implement [human: plan-approval]: not ready: human-approval: awaiting approval 'plan-approval' (0/1) for stage 'plan-review' cycle 1
   exit rework -> plan: not ready: cel: rework needs an open critical or high finding

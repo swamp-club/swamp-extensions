@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { model as builtin } from "./builtin.ts";
 import { model as linear } from "./linear.ts";
 import { model as swampClub } from "./swamp_club.ts";
@@ -28,6 +28,7 @@ import {
   workItemModel as workItem,
 } from "../_lib/engine/tracker_testing.ts";
 import {
+  nextKey,
   startCommand,
   TICKET_SPEC,
   type TicketClaim,
@@ -185,12 +186,12 @@ Deno.test("claim: reserves a key in the index before any work item exists, and p
     factory: "team",
   });
   const [record] = index(swamp);
-  assertMatch(record.key, /^t-1-ticket-[a-z2-7]{4}$/);
+  // The ticket's id as-is, lowercased.
   assertEquals(record, {
     tracker: "test",
     issue: "T1",
     display: "T-1",
-    key: record.key,
+    key: "t-1",
     factory: "team",
     claimedAt: NOW.toISOString(),
     previous: [],
@@ -518,24 +519,126 @@ async function builtinTicket(swamp: FakeSwamp) {
   return { id, refs, claimed, run };
 }
 
-Deno.test("claim: a ticket title with no ASCII letters leaves the display id alone in the key", async () => {
-  const swamp = await withFactories();
-  const { methods } = trackerWith(() =>
+/** A tracker whose every ticket has this display id. */
+function ticketShown(display: string) {
+  return trackerWith(() =>
     Promise.resolve({
       id: "T1",
-      display: "T-1",
-      title: "\u{1F525}\u{1F525}",
+      display,
+      title: "A ticket",
       status: { id: "s1", name: "Todo" },
       relations: [],
     })
   );
-  await claim(swamp, methods, { issue: "T1", factory: "team" });
-  assertMatch(index(swamp)[0].key, /^t-1-[a-z2-7]{4}$/);
+}
+
+Deno.test("claim: an external ticket's key is its id as-is; a number-only id takes the prefix", async () => {
+  // Linear's ABC-12, whatever the title.
+  const linearSwamp = await withFactories();
+  await claim(linearSwamp, ticketShown("ABC-12").methods, {
+    issue: "T1",
+    factory: "team",
+  });
+  assertEquals(index(linearSwamp)[0].key, "abc-12");
+  // The Lab's #2711: the instance's prefix leads.
+  const labSwamp = await withFactories();
+  labSwamp.globalArgs.set(TRACKER, { prefix: "lab" });
+  await claim(labSwamp, ticketShown("#2711").methods, {
+    issue: "T1",
+    factory: "team",
+  });
+  assertEquals(index(labSwamp)[0].key, "lab-2711");
+  // No prefix set: the instance's name is the prefix.
+  const unset = await withFactories();
+  await claim(unset, ticketShown("#2711").methods, {
+    issue: "T1",
+    factory: "team",
+  });
+  assertEquals(index(unset)[0].key, `${TRACKER}-2711`);
 });
 
-Deno.test("claim, built-in: the ticket's first work item takes the ticket's id; a later one gets a <prefix>-<slug>-<rnd> key", async () => {
+Deno.test("claim: a ticket's later work items add -n: abc-12, then abc-12-2", async () => {
+  const swamp = await withFactories();
+  const { methods } = ticketShown("ABC-12");
+  const refs = { test: "T1", "test.display": "ABC-12" };
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  await start(swamp, "abc-12", "team", refs);
+  await finish(swamp, "abc-12");
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  assertEquals(index(swamp).at(-1)?.key, "abc-12-2");
+  assertEquals(index(swamp).at(-1)?.previous, ["abc-12"]);
+});
+
+Deno.test("claim: a key another work item has is qualified by the tracker instance's name, and the ticket keeps the qualifier", async () => {
+  const swamp = await withFactories();
+  const { methods } = ticketShown("ABC-12");
+  const refs = { test: "T1", "test.display": "ABC-12" };
+  // Another tracker with the same prefix reached abc-12 first.
+  swamp.definitions.set("abc-12", { globalArguments: {}, type: "other" });
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const first = `abc-12-${TRACKER}`;
+  assertEquals(index(swamp)[0].key, first);
+  await start(swamp, first, "team", refs);
+  await finish(swamp, first);
+  // abc-12-2 is free, but the ticket's keys stay one family.
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  assertEquals(index(swamp).at(-1)?.key, `abc-12-${TRACKER}-2`);
+});
+
+Deno.test("claim: refused, with the reason, when the qualified key is taken too", async () => {
+  const swamp = await withFactories();
+  for (const name of ["abc-12", `abc-12-${TRACKER}`]) {
+    swamp.definitions.set(name, { globalArguments: {}, type: "other" });
+  }
+  const before = trackerWrites(swamp);
+  await assertRejects(
+    () =>
+      claim(swamp, ticketShown("ABC-12").methods, {
+        issue: "T1",
+        factory: "team",
+      }),
+    Error,
+    "two trackers with the same prefix reached the same id",
+  );
+  assertEquals(trackerWrites(swamp), before, "nothing was claimed");
+});
+
+Deno.test("nextKey: n counts every earlier key, a moved-in one too, and never picks a taken name", async () => {
+  const taken = new Set<string>();
+  const ctx = {
+    logger: { info: () => {} },
+    definitionRepository: {
+      findByNameGlobal: (name: string) =>
+        Promise.resolve(
+          taken.has(name) ? { definition: {}, type: "other" } : null,
+        ),
+    },
+  };
+  // A retarget moved zzz-9 onto this ticket: the next is the third.
+  assertEquals(
+    await nextKey(ctx, "abc-12", "linear", ["abc-12", "zzz-9"]),
+    "abc-12-3",
+  );
+  taken.add("abc-12-3");
+  assertEquals(
+    await nextKey(ctx, "abc-12", "linear", ["abc-12", "zzz-9"]),
+    "abc-12-linear-3",
+  );
+  // Only this ticket's own qualified keys carry the qualifier on.
+  assertEquals(
+    await nextKey(ctx, "abc-12", "linear", ["abc-123-linear"]),
+    "abc-12-2",
+  );
+  assertEquals(
+    await nextKey(ctx, "abc-12", "linear", ["abc-12-linear-2"]),
+    "abc-12-linear-2",
+  );
+});
+
+Deno.test("claim, built-in: the ticket's work items take its id: cue-1, then cue-1-2", async () => {
   const swamp = await withFactories();
   const { id, refs, claimed, run } = await builtinTicket(swamp);
+  assertEquals(id, "cue-1");
   await run("claim", { issue: id, factory: "team" });
   assertEquals(claimed()[0].key, id);
   assert(lastSummary(swamp).includes(`is claimed as '${id}'`));
@@ -544,19 +647,30 @@ Deno.test("claim, built-in: the ticket's first work item takes the ticket's id; 
   await finish(swamp, id);
   await run("claim", { issue: id, factory: "team" });
   const latest = claimed().at(-1);
-  assertMatch(String(latest?.key), /^cue-board-shortcuts-[a-z2-7]{4}$/);
-  assert(latest?.key !== id);
+  assertEquals(latest?.key, "cue-1-2");
   assertEquals(latest?.previous, [id]);
 });
 
-Deno.test("claim, built-in: a first key some definition already has falls back to a fresh one", async () => {
+Deno.test("claim: an old 64-character ticket id still claims, and its next work item is cut to fit", async () => {
+  const old = `cue-${"board-shortcuts-".repeat(3)}${"x".repeat(7)}-r2ne`;
+  assertEquals(old.length, 64);
+  const swamp = await withFactories();
+  const { methods } = ticketShown(old);
+  const refs = { test: "T1", "test.display": old };
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  assertEquals(index(swamp)[0].key, old);
+  await start(swamp, old, "team", refs);
+  await finish(swamp, old);
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  assertEquals(index(swamp).at(-1)?.key, `${old.slice(0, 62)}-2`);
+});
+
+Deno.test("claim, built-in: a ticket id some definition already has is qualified", async () => {
   const swamp = await withFactories();
   const { id, claimed, run } = await builtinTicket(swamp);
   swamp.definitions.set(id, { globalArguments: {}, type: "other" });
   await run("claim", { issue: id, factory: "team" });
-  const key = String(claimed()[0].key);
-  assertMatch(key, /^cue-board-shortcuts-[a-z2-7]{4}$/);
-  assert(key !== id);
+  assertEquals(claimed()[0].key, `${id}-${TRACKER}`);
 });
 
 Deno.test("claim: every tracker model has the method and declares the ticket index", () => {

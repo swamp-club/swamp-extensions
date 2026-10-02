@@ -952,50 +952,52 @@ definition through the definition repository, never swamp's evaluated
 worker that model definition arrives as a plain object with
 `_globalArguments`; both shapes are read.
 
-**Keys are stagecraft's.** swamp cannot generate instance names, so the
-factory's `new_key` generates an unused key from the work's title (a required
-`title` input), and the work item is created under it. A key is how a person
-refers to a work item everywhere (`status`, the summary report, commands,
-conversation), so it says what the work is: `<factory>-<slug>-<suffix>`, for
-example `team-add-list-method-r2ne` from the factory `team`.
+**Keys are stagecraft's.** swamp cannot generate instance names, so a key is
+the work's ticket's id, which the tracker's `claim` reserves, and the work item
+is created under it. A key is how a person refers to a work item everywhere
+(`status`, the summary report, commands, conversation), so it is short enough
+to say: `blog-12`, `abc-12`. It does not say what the work is; the title does,
+and `status`, the summary and the studio show it beside the key.
 
-- **The slug** is the title with accents removed, lowercased, and split into
-  ASCII letters and digits; every other character is a break, so separators
-  collapse and trim. Stop words (a, an, and, as, at, be, by, for, from, in,
-  into, is, it, of, on, or, the, to, with) are left out unless nothing else is
-  left. Whole words are kept while the key fits; only a first word too long for
-  the room left is cut. A title with nothing left is refused.
+- **On the built-in tracker** the ticket is the work, so the ticket's id is the
+  key: `<prefix>-<n>`, with `n` from the tracker's counter (see "The built-in
+  tracker"). The ticket's first work item is `blog-12`.
+- **From an external ticket,** the key is the ticket's own id, lowercased, with
+  every character outside `[a-z0-9]` a `-`: Linear's `ABC-12` gives `abc-12`.
+  An id that is only a number, like the Lab's `#2711`, takes the tracker
+  instance's prefix: `lab-2711`. The id there is for reading only (see "Tracker
+  ids are data").
+- **A later work item on the same ticket** adds a number: `abc-12-2`,
+  `abc-12-3`. `n` is one more than the keys the ticket index lists for the
+  ticket (a key a retarget moved onto it counts too, so a number can be
+  skipped).
+- **A collision** happens only when two tracker instances share a prefix (a
+  built-in tracker `abc` beside Linear team `ABC`, or two Linear workspaces
+  with one team key), or a key was started by hand. The tracker instance's name
+  then qualifies the key, `abc-12-linear`, cut to fit; a ticket whose key was
+  qualified keeps the qualifier for its later work items (`abc-12-linear-2`).
+  If the qualified key is taken too, `claim` refuses and says to give one
+  tracker another prefix. The first tracker to reach a number gets the plain
+  key.
+- **The prefix** is a tracker instance's `prefix` global argument, on the
+  built-in, Linear and swamp-club models: lowercase letters, digits and `-`, at
+  most 12 characters, a trailing `-` dropped. Unset, it is the instance's name
+  made into one and cut to 12. It belongs to the tracker instance, not the
+  factory, since a factory names its tracker. For Linear it is the team's short
+  name and never renames a key. Several instances may share a prefix, since
+  several repositories may share one Linear team or one tracker. Changing it
+  later affects only new ids: existing keys never change.
 - **The length** is swamp's: an instance name is at most 64 characters matching
   `^[a-z0-9][a-z0-9_-]*$` (`DEFINITION_NAME_MAX_LENGTH` and
   `DEFINITION_NAME_PATTERN` in swamp's `src/domain/definitions/definition.ts`).
-  The factory's name is cut at 55 characters (and any trailing
-  separator dropped), so the slug always keeps at least 3.
-- **The suffix** is 4 random base32 characters, about a million per slug. Only
-  work with the same factory and slug can collide, in practice a
-  ticket claimed again, and a key some definition already has is drawn again.
-- **From a ticket,** `claim` puts the ticket's display id where the factory
-  name would go, all its words kept: `abc-12-add-list-r2ne` for
-  Linear's `ABC-12`. The id there is for
-  reading only (see "Tracker ids are data"). A built-in ticket's first work
-  item takes the ticket's own id (`cue-board-shortcuts-r2ne`), and a later one
-  on the same ticket is `<prefix>-<slug>-<suffix>` (see "The built-in
-  tracker"). Only the factory's `new_key`, which has no ticket, leads with the
-  factory's name. A ticket whose title has no ASCII letters or digits
-  still claims: its key is the lead and the suffix alone (`2800-k3xq`), since
-  the ticket's id already says what the work is; `new_key` refuses such a
-  title, having nothing else to go on.
+  A longer ticket id, or an old id that already fills the length, is cut
+  before the `-<n>` or the qualifier, never refused; `claim` checks the cut key
+  is free.
 - **A key never changes.** If the work changes meaning the key stays; a person
   may abandon the item and start a new one. `start` takes any unused name, so a
-  person may also choose a key by hand.
-- **Not a sequence** (`cue-7`): that needs one counter minted in one place,
-  reuses numbers when a factory is recreated, and reads like a tracker id. **Not
-  calver:** it is long, hard to say, and repeats what the journal records. Order
-  does not matter, since work is often picked up out of order.
-
-`new_key` logs the key and also records it as the factory's `key` data, so a
-program reads it from `--json` output (`dataArtifacts`) instead of parsing log
-text; it is therefore not a `read` method, and the write takes the factory's
-lock.
+  person may also choose a key by hand for work with no ticket.
+- **Old keys** (`team-add-list-method-r2ne`, from before #2966) are only model
+  names, so their work items keep working; nothing rewrites them.
 
 **Output and failure.** Methods report through the log, as
 `@swamp/issue-lifecycle` does. The CLI shows only a log message's text, never
@@ -1053,7 +1055,7 @@ kept beside it.
 
 **Who reads it.** `start` pins the parsed definition and its digest, and every
 later method reads the pinned copy, so only the methods that pin or check read
-the factory's definition: `validate`, `new_key`, `start`,
+the factory's definition: `validate`, `start`,
 `reset` with `repin=true`, and the tracker's `claim`, which starts a work item.
 All of them go through `loadFactory` in `_lib/engine/work_item_ops.ts`. The
 studio reads the model definition file too, and does not hand-edit it: edits
@@ -1294,7 +1296,7 @@ claims it, and the page shows why the file does not parse (#2889). A file swamp
 keeps outside the repo (a managed-config datastore) is shown by its absolute
 path. It takes only its
 own instance's lock, which `serve` holds while it runs, and never a factory's,
-so `validate`, `new_key` and `start` run while it is open.
+so `validate` and `start` run while it is open.
 
 **Read-only.** The studio views; it never writes (Seth, 2026-09-30: edits come
 from the agent, and people do not create or edit factory definitions by hand).
@@ -1619,9 +1621,9 @@ The contract:
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
-  `{"builtin": "cue-board-shortcuts-r2ne", ...}` for a built-in ticket, or
+  `{"builtin": "cue-12", ...}` for a built-in ticket, or
   `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`.
-  `claim` leads the key with the display id for a person to read, but no code
+  `claim` makes the key from the display id for a person to read, but no code
   reads it back: `externalRefs` is the only link. It changes only through
   `start`, which sets it, and `retarget`, which replaces it whole and journals a
   `retargeted` event (the old and new maps, the reason and the actor).
@@ -1632,7 +1634,7 @@ The contract:
   duplicates, and the publisher works out from the journal which ticket each
   event belongs to (see "Retargeting" under "The publisher"). A
   Linear identifier that changes when
-  an issue moves team leaves that slug stale, which is accepted. Linear
+  an issue moves team leaves that key's id stale, which is accepted. Linear
   identifiers change when an issue moves team, so Linear keys on the UUID:
   `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
   accepts either, reports the UUID and the `externalRefs` to start a work item
@@ -2252,15 +2254,24 @@ the tracker instance, for a project with no external tracker. It implements the
 whole contract, `create` and the history capability included, and makes no
 network call. Its tracker name, the `externalRefs` key, is `builtin`.
 
-- **Ids.** A ticket's id is `<prefix>-<slug>-<suffix>` by the work-item key
-  rules ("The model types"): the `prefix` argument, required, lowercase, with a
-  trailing `-` dropped; the title's slug; four random base32 characters.
-  Lowercase, because it is also a record name and, for the ticket's first work
-  item, an instance name. The display id is the id, and any case finds it.
-  There is **no counter**: several people can file tickets without one place
-  minting numbers, and an id some ticket already has is drawn again (up to
-  five times). A central swamp serve would let a team share one built-in
-  tracker; nothing here depends on it.
+- **Ids.** A ticket's id is `<prefix>-<n>` (`blog-12`): the instance's
+  `prefix` (see "Keys are stagecraft's"), then a number from a counter kept in
+  the tracker's own data, one `counter-<prefix>` record per prefix. Lowercase,
+  because it is also a record name and an instance name: the ticket's first
+  work item takes it as its key. The display id is the id, and any case finds
+  it. `create` runs under the tracker instance's lock, so two creates never
+  take one number. A counter that does not exist yet (a new tracker, a
+  recreated one, a new prefix) starts above the highest `n` among the
+  repository's built-in tickets with that prefix (a data query over `issue`
+  records) and its model definitions named `<prefix>-<n>` or `<prefix>-<n>-...`
+  (the definition repository's `findAllGlobal`), so recreating a tracker never
+  reuses an id its work items carry. `create` also passes over a number one of
+  its own ticket records or any definition already has (a key started by hand,
+  another tracker's started work item, a crash between writing the ticket and
+  moving the counter), so the counter is a floor, and it is written after the
+  ticket. Once its counter exists, a tracker does not see another instance's
+  tickets, so two built-in trackers with one prefix can both file `blog-5`;
+  `claim` then qualifies the second work item's key (`blog-5-<instance>`).
 - **Records.** `issue-<id>` is the ticket (origin `builtin`), latest version
   read, five kept. A comment is a `comment-<id>-<uuid>` record and a lifecycle
   entry an `entry-<id>-<uuid>` record, each written once and kept by version
@@ -2275,9 +2286,8 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
   has the assign capability; `publish` adds the stored login's username when a
   work item starts. A record written before assignees has no field and reads
   as no one assigned.
-- **Claim.** A ticket's first work item takes the ticket's id as its key, when
-  no definition has that name yet; otherwise, and for every later work item on
-  the ticket, the key is `<prefix>-<slug>-<suffix>`.
+- **Claim.** A ticket's work items take the ticket's id as their key: `blog-12`,
+  then `blog-12-2` (see "Keys are stagecraft's").
 - **One method at a time.** `set_status`, `set_type` and `create` read a
   ticket's record and write a whole new version, so, like the ledger, they
   rely on swamp running one method at a time per tracker instance.
@@ -2285,10 +2295,13 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
   instance's global arguments, as are Linear's `teamId` and `types`. A factory
   definition names only the tracker's kind ("The factory's tracker").
 
-**Why no counter.** A counter needs one place to mint numbers, which a repo
-shared by several people (or several worktrees) does not have, and it reuses
-numbers when an instance is recreated. The work-item key rules already give
-readable, collision-resistant names without one.
+**Why a counter.** #2966 replaced #2744's slug-and-suffix ids, which were too
+long to say, type or show
+(`blog-using-stagecraft-organizing-shipping-blog-posts-6r6t`); see the decision
+log. The counter is unique within one swamp repository's data:
+two clones with separate local data can each file `blog-5`, and since work-item
+definitions are committed files, the clash shows when they merge. Share one
+datastore, or file a tracker's tickets from one place.
 
 ### Start from a ticket
 
@@ -2372,12 +2385,11 @@ one instance per tracker workspace. A work item started directly with
 `externalRefs`, not through `claim`, is not in the index. The index follows a
 retarget only once `publish` runs, so a `claim` of the new ticket in between
 reserves a second key, and that `publish` is then refused. A reserved key has no
-definition until it starts, so a fresh key only avoids existing definitions; a
-collision with a reservation is about 1 in 32^8 per key drawn. The same holds
-for a built-in ticket's first key, its id: another ticket's reserved, unstarted
-key with the same slug and suffix would have the same name, at the same odds. Two drivers
-running the printed `start` at once race as any first start does (see "The model
-types").
+definition until it starts, so `claim` only avoids existing definitions: two
+tracker instances that share a prefix can reserve the same key for different
+tickets (claims on different instances take different locks), and the second
+`start` is then refused, since the key has started. Two drivers running the
+printed `start` at once race as any first start does (see "The model types").
 
 ## Tests on the real engine
 
@@ -2527,6 +2539,60 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-02: short work-item ids (swamp-club #2966)
+
+**Decision.** A work item's key is its ticket's id. The built-in tracker
+numbers its tickets, `<prefix>-<n>` (`blog-12`); a key claimed from an external
+ticket is that ticket's id as-is (`abc-12` for Linear's `ABC-12`), with the
+tracker instance's prefix before an id that is only a number (`lab-2711`). A
+later work item on the same ticket adds `-2`, `-3`. The factory's `new_key` is
+removed: work starts from a ticket (`create`, then `claim`), or under a name
+chosen by hand. Every tracker model has an optional `prefix` (at most 12
+characters, default the instance's name). `status` and the summary show the
+title beside the key. This replaces the key rules of #2744 and the built-in id
+rules of #2794; see "Keys are stagecraft's" and "The built-in tracker".
+
+**Why.** The old keys, `<factory or display id>-<title slug>-<4 random
+characters>` up to 64 characters, were too long to say, type or show, broke the
+studio's Board (#2963), and mostly repeated the title every view shows. Seth,
+2026-10-02: "I'm worried they are too long and bad ux." #2744 turned down
+sequences for three reasons, and none still holds:
+
+- **"Needs one counter minted in one place."** The built-in tracker is that
+  place, and its `create` runs under swamp's per-instance lock (why #2832 was
+  closed), so two creates cannot take one number.
+- **"Reuses numbers when a factory is recreated."** A new counter starts above
+  the highest number the repository's tickets and work items already carry.
+- **"Reads like a tracker id."** On the built-in tracker the work item is the
+  ticket, so that is the point.
+
+**Decided with Seth.**
+
+- **`new_key` goes.** Every factory names a tracker, and minting in the factory
+  would take the factory's lock, not the tracker's, so two factories on one
+  tracker could take one number. Filing a ticket first gives every work item a
+  ticket and a counted id.
+- **Linear keys are the issue's id as-is**: the team key is already in it, so
+  the prefix, the team's short name, does not rename it.
+- **Duplicate prefixes are allowed**: several repositories may share one Linear
+  team, or one built-in tracker.
+- **A collision is qualified, not refused**: the tracker instance's name goes
+  after the id (`abc-12-linear`, and `abc-12-linear-2` for that ticket's next
+  work item). A real namespace would put the tracker in every key and bring
+  back long ids. Only when the qualified key is taken too does `claim` refuse.
+- **The getting-started flow asks for the prefix**, offering the tracker's
+  name.
+
+**Limits, accepted.** The counter is unique within one swamp repository's
+data: two clones with separate local data can each file `blog-5`, and the
+committed work-item definitions clash at merge; share a datastore, or file from
+one place. Two tracker instances with one prefix can reserve the same key at
+the same moment, since each claim takes only its own instance's lock; the second
+`start` is refused, as the key has started. No migration: records under the old
+key style are read as before. A built-in tracker created with a prefix longer
+than 12 characters is refused until its `prefix` is shortened; there were no
+users before go-live (Seth, 2026-10-02).
 
 ### 2026-10-02: the studio's work-item page (swamp-club #2944)
 

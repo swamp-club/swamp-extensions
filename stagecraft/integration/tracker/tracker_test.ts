@@ -267,7 +267,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
         { ...trackedDefinition(), tracker: { kind: "linear" } },
         { tracker: "linear" },
       );
-      const key = await repo.newKey("tracked", "Tracked work");
+      const key = await repo.newKey("tracked");
       await repo.workItem(key, "start", {
         factory: "tracked",
         externalRefs: JSON.stringify({ linear: ISSUE_UUID }),
@@ -391,7 +391,7 @@ Deno.test("tracker: status shows the Lab issue behind until publish runs, then n
         { ...minimal, tracker: { kind: "swamp-club" } },
         { tracker: "lab" },
       );
-      const key = await repo.newKey("small", "Small work");
+      const key = await repo.newKey("small");
       await repo.workItem(key, "start", {
         factory: "small",
         externalRefs: JSON.stringify({ "swamp-club": String(LAB_ISSUE) }),
@@ -458,7 +458,9 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       const command = printed(first.output);
       const index = await repo.data("lab", `ticket-${issue}`);
       const key = String(index.key);
-      assert(key.startsWith(`${issue}-lab-adapter-`), key);
+      // A Lab id is only a number, so the instance's prefix leads: its
+      // name, as none is set.
+      assertEquals(key, `lab-${issue}`);
       assertEquals(index.factory, "team");
       assert(first.output.includes(`is claimed as '${key}'`), first.output);
 
@@ -597,7 +599,7 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
 // filed, claimed (its first work item takes the ticket's id), started with
 // the printed command and published in entry mode, so the entries, the type
 // and the status land on the ticket's own records. Once the work item
-// finishes, the ticket claims a new one under a <prefix>-<slug>-<rnd> key.
+// finishes, the ticket claims a new one under <id>-2.
 // ---------------------------------------------------------------------------
 
 Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a work item's history, with no network", async () => {
@@ -639,9 +641,8 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
       body: "Keys for the board.",
       type: "bug",
     });
-    const id = created.output.match(/created (cue-board-shortcuts-[a-z2-7]{4})/)
-      ?.[1];
-    assert(id !== undefined, created.output);
+    assert(created.output.includes("created cue-1 "), created.output);
+    const id = "cue-1";
     assertEquals((await repo.data("board", `issue-${id}`)).origin, "builtin");
 
     const claimed = await board("claim", { issue: id, factory: "entries" });
@@ -695,11 +696,36 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
     });
     const next = await board("claim", { issue: id, factory: "entries" });
     const index = await repo.data("board", `ticket-${id}`);
-    const nextKey = String(index.key);
-    assert(/^cue-board-shortcuts-[a-z2-7]{4}$/.test(nextKey), nextKey);
-    assert(nextKey !== id, nextKey);
+    assertEquals(index.key, "cue-1-2");
     assertEquals(index.previous, [id]);
     assert(next.output.includes(`'${id}', has finished`), next.output);
+
+    // The next ticket takes the next number. Once its work item has started,
+    // a recreated tracker, which has lost its data, continues above it.
+    const second = await board("create", {
+      title: "Board colours",
+      body: "Colours for the board.",
+      type: "bug",
+    });
+    assert(second.output.includes("created cue-2"), second.output);
+    await repo.workItem("cue-2", "start", { factory: "entries" });
+    await repo.swamp(["model", "delete", "board", "--force"]);
+    const recreated = await repo.swamp([
+      "model",
+      "create",
+      BUILTIN_TYPE,
+      "board",
+      "--global-arg",
+      "prefix=cue",
+      "--json",
+    ]);
+    assert(recreated.code === 0, recreated.output);
+    const third = await board("create", {
+      title: "Board fonts",
+      body: "Fonts for the board.",
+      type: "bug",
+    });
+    assert(third.output.includes("created cue-3"), third.output);
   });
 });
 

@@ -65,8 +65,8 @@ Deno.test("linear: meets the tracker adapter contract", async () => {
       issue: {
         id: ISSUE_UUID,
         display: "GW-16",
-        slug: "gw-16-linear-adapter",
       },
+      firstKey: "gw-16",
       missing: OTHER_UUID,
       statusNames: ["In Progress", "In Review"],
       closedStatus: "Duplicate",

@@ -98,13 +98,6 @@ export const WORK_ITEM_TYPE = "@swamp/stagecraft/work-item";
 export const DEFINITION_SPEC = "definition";
 export const DEFINITION_NAME = "definition";
 
-/**
- * The resource spec and fixed name of the factory's latest generated key, so a
- * program reads the key from --json output rather than the log text.
- */
-export const KEY_SPEC = "key";
-export const KEY_NAME = "key";
-
 /** The resource spec and fixed name of a work item's derived metrics. */
 export const METRICS_SPEC = "metrics";
 export const METRICS_NAME = "metrics";
@@ -558,105 +551,96 @@ async function runSavedScenarios(
   return passed;
 }
 
-const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
-
 // swamp's definition names: at most 64 characters matching
 // ^[a-z0-9][a-z0-9_-]*$ (DEFINITION_NAME_MAX_LENGTH and
 // DEFINITION_NAME_PATTERN in swamp's src/domain/definitions/definition.ts).
 const KEY_MAX_LENGTH = 64;
-// The random tail: 32^4 keys per slug. Only work with the same prefix and slug
-// can collide, and freshKey retries when it does.
-const KEY_SUFFIX_LENGTH = 4;
-// Today's cap on the prefix (a factory's name or a ticket's id), so the slug
-// always keeps at least 64 - 55 - 2 - 4 = 3 characters.
-const KEY_PREFIX_MAX_LENGTH = 55;
 
-// Words a title's slug leaves out. A ticket's display id keeps all its words.
-const STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "as",
-  "at",
-  "be",
-  "by",
-  "for",
-  "from",
-  "in",
-  "into",
-  "is",
-  "it",
-  "of",
-  "on",
-  "or",
-  "the",
-  "to",
-  "with",
-]);
+/** The longest tracker prefix: short, since it leads every id. */
+export const PREFIX_MAX_LENGTH = 12;
 
-/** Lowercase ASCII words: accents removed, every other character a break. */
-function slugWords(text: string): string[] {
+/** A tracker prefix: lowercase letters, digits and '-'. */
+export const PREFIX_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/** Lowercase ASCII letters and digits: accents removed, every other run of
+ * characters a single '-', none at either end. */
+function keyPart(text: string): string {
   return text.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()
-    .split(/[^a-z0-9]+/).filter((w) => w !== "");
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/** The words that make a prefix too long or malformed, or null when it is a
+ * good one. */
+export function prefixProblem(prefix: string): string | null {
+  if (!PREFIX_PATTERN.test(prefix)) {
+    return `the prefix '${prefix}' can only use lowercase letters, digits ` +
+      "and '-', and starts with a letter or digit";
+  }
+  if (prefix.length > PREFIX_MAX_LENGTH) {
+    return `the prefix '${prefix}' is longer than ${PREFIX_MAX_LENGTH} ` +
+      "characters";
+  }
+  return null;
 }
 
 /**
- * A title's slug for a work-item key, at most `budget` characters: an
- * optional ticket display id's words, then the title's words without stop
- * words (all of them if nothing else is left), joined by '-'. Whole words are
- * kept while they fit; a first word longer than the budget is cut.
+ * A tracker instance's prefix: the one given, a trailing '-' dropped, or,
+ * when none is, the instance's own name made into one and cut to 12
+ * characters. Refused when the given one breaks the prefix rules.
  */
-export function keySlug(title: string, budget: number, id = ""): string {
-  const titleWords = slugWords(title);
-  const kept = titleWords.filter((w) => !STOP_WORDS.has(w));
-  const words = [
-    ...slugWords(id),
-    ...(kept.length > 0 ? kept : titleWords),
-  ];
-  if (words.length === 0) {
+export function trackerPrefix(
+  given: string | undefined,
+  instance: string,
+): string {
+  if (given !== undefined && given.replace(/-+$/, "") !== "") {
+    const prefix = given.replace(/-+$/, "");
+    const problem = prefixProblem(prefix);
+    if (problem !== null) throw new Error(problem);
+    return prefix;
+  }
+  const prefix = keyPart(instance).slice(0, PREFIX_MAX_LENGTH)
+    .replace(/-+$/, "");
+  if (prefix === "") {
     throw new Error(
-      `the title '${title}' has no letters or digits to make a key from; ` +
-        "a key keeps only ASCII letters and digits, with accents removed",
+      `tracker '${instance}' has no letters or digits to make a prefix ` +
+        "from; set its prefix global argument",
     );
   }
-  let slug = words[0].slice(0, budget);
-  for (const word of words.slice(1)) {
-    if (slug.length + 1 + word.length > budget) break;
-    slug += `-${word}`;
-  }
-  return slug;
+  return prefix;
 }
 
-export interface KeyOptions {
-  /**
-   * When the title (and id) have no ASCII letters or digits, make a
-   * <prefix>-<suffix> key rather than refuse. Only for a prefix that already
-   * says what the work is: a ticket's display id or a tracker's prefix.
-   */
-  allowBare?: boolean;
+/**
+ * A ticket's display id as the base of its work items' keys: `ABC-12` gives
+ * `abc-12`. An id that is only a number, like the Lab's `#2711`, takes the
+ * tracker's prefix: `lab-2711`. A longer id is cut to 64 characters.
+ */
+export function ticketKeyBase(display: string, prefix: string): string {
+  const part = keyPart(display);
+  if (part === "") {
+    throw new Error(
+      `the ticket id '${display}' has no letters or digits to make a key from`,
+    );
+  }
+  const base = /^[0-9]+$/.test(part) ? `${prefix}-${part}` : part;
+  // Cut to swamp's 64 characters; claim checks the key is free.
+  return base.slice(0, KEY_MAX_LENGTH).replace(/-+$/, "");
 }
 
-/** A fresh work-item key: <prefix>-<slug>-<4 base32 characters>. The prefix is
- * the factory's name, a ticket's display id or a tracker's prefix. */
-export function generateKey(
-  lead: string,
-  title: string,
-  id = "",
-  options: KeyOptions = {},
-): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(KEY_SUFFIX_LENGTH));
-  const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
-  const prefix = lead.length > KEY_PREFIX_MAX_LENGTH
-    ? lead.slice(0, KEY_PREFIX_MAX_LENGTH).replace(/[-_]+$/, "")
-    : lead;
-  if (
-    options.allowBare === true && slugWords(title).length === 0 &&
-    slugWords(id).length === 0
-  ) {
-    return `${prefix}-${suffix}`;
-  }
-  const budget = KEY_MAX_LENGTH - prefix.length - KEY_SUFFIX_LENGTH - 2;
-  return `${prefix}-${keySlug(title, budget, id)}-${suffix}`;
+/**
+ * The key of a ticket's nth work item: the base for the first, `<base>-<n>`
+ * for a later one. A qualifier, the tracker instance's name, goes after the
+ * base when the plain key is taken (`abc-12-linear`, `abc-12-linear-2`). What
+ * comes before the number is cut so the key fits swamp's 64 characters: an
+ * old id may already fill them (`<prefix>-<slug>-<rnd>`). claim checks that
+ * the key is free, so a cut never hides a clash.
+ */
+export function nthKey(base: string, n: number, qualifier?: string): string {
+  const sequence = n > 1 ? `-${n}` : "";
+  const head = qualifier === undefined || keyPart(qualifier) === ""
+    ? base
+    : `${base}-${keyPart(qualifier)}`;
+  return head.slice(0, KEY_MAX_LENGTH - sequence.length).replace(/-+$/, "") +
+    sequence;
 }
 
 /** Whether no definition uses this name yet, so a work item may take it. */
@@ -665,43 +649,6 @@ export async function keyIsFree(
   name: string,
 ): Promise<boolean> {
   return await ctx.definitionRepository?.findByNameGlobal(name) == null;
-}
-
-/** A fresh work-item key that no definition uses yet. */
-export async function freshKey(
-  ctx: { definitionRepository?: DefinitionLookup },
-  lead: string,
-  title: string,
-  id = "",
-  options: KeyOptions = {},
-): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(lead, title, id, options);
-    if (await keyIsFree(ctx, key)) return key;
-  }
-  throw new Error("could not find a free work-item key; try again");
-}
-
-/** The factory's new_key method: a key for the work's title no definition uses
- * yet. */
-export async function newKey(
-  ctx: MethodContextLike,
-  title: string,
-): Promise<MethodOutput> {
-  // Loaded only to refuse a factory whose definition is invalid.
-  await loadFactoryDefinition(ctx, selfName(ctx));
-  const key = await freshKey(ctx, selfName(ctx), title);
-  if (ctx.writeResource === undefined) {
-    throw new Error("this method context cannot write resources");
-  }
-  const handle = await ctx.writeResource(KEY_SPEC, KEY_NAME, { key });
-  ctx.logger.info("{key}", {
-    key,
-    next: `swamp model ${WORK_ITEM_TYPE} method run start ${key} ` +
-      `--input ${shellQuote(`factory=${selfName(ctx)}`)} ` +
-      `--input ${shellQuote(`title=${title}`)}`,
-  });
-  return { dataHandles: [handle] };
 }
 
 // Record names and query predicates are built from ids, keys and factory
@@ -1030,7 +977,8 @@ type StatusView = Awaited<ReturnType<typeof statusView>>;
 /** The text status prints: everything a driver acts on next. */
 function statusLines(view: StatusView): string[] {
   const lines = [
-    `${view.key}: ${view.status} at stage '${view.stage}' cycle ${view.cycle}`,
+    `${view.key}${view.title === null ? "" : ` (${view.title})`}: ` +
+    `${view.status} at stage '${view.stage}' cycle ${view.cycle}`,
     `  expect: --input expectedStage=${view.expected.expectedStage} ` +
     `--input expectedCycle=${view.expected.expectedCycle} ` +
     `--input expectedEra=${view.expected.expectedEra}`,

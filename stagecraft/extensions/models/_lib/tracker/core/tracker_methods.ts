@@ -28,16 +28,19 @@ import {
   type ModelDataRecord,
   parseRun,
   payloadName,
+  PREFIX_MAX_LENGTH,
+  PREFIX_PATTERN,
   recordObject,
   RUN_NAME,
   RUN_SPEC,
   type RunRecord,
   safePart,
+  ticketKeyBase,
+  trackerPrefix,
 } from "../../engine/tracker.ts";
 import {
   type ClaimContext,
   claimTicket,
-  displayLead,
   moveClaim,
   readClaimedRun,
   TICKET_SPEC,
@@ -318,12 +321,34 @@ async function recordDelivery(
   return await resources(ctx).write(DELIVERY_SPEC, name, delivery);
 }
 
-/** How claim names a ticket's new work item (claim.ts). */
-export interface ClaimNaming {
-  /** The key's leading words. */
-  lead: string;
-  /** A name to take for the ticket's first work item, while it is free. */
-  first?: string;
+/**
+ * A tracker instance's prefix argument, for its model's global arguments:
+ * lowercase letters, digits and '-', at most 12 characters.
+ */
+export function prefixArgument(description: string) {
+  return z.string().max(PREFIX_MAX_LENGTH).regex(PREFIX_PATTERN).optional()
+    .describe(description);
+}
+
+/**
+ * The tracker instance's prefix: its prefix global argument, or, unset, its
+ * own name cut to 12 characters (DESIGN.md, "Keys are stagecraft's").
+ */
+export function prefixOf(ctx: TrackerContext): string {
+  const given = ctx.globalArgs?.prefix;
+  return trackerPrefix(
+    typeof given === "string" ? given : undefined,
+    instanceName(ctx),
+  );
+}
+
+/** The tracker instance's own name. */
+function instanceName(ctx: TrackerContext): string {
+  const instance = ctx.definition?.name;
+  if (instance === undefined || instance === "") {
+    throw new Error("this method context has no definition name");
+  }
+  return instance;
 }
 
 /** How a tracker model builds its adapter and status names from its args. */
@@ -340,13 +365,10 @@ export interface TrackerModelOptions {
    */
   beforeClaim?(ctx: TrackerContext, issue: TrackerIssue): Promise<void>;
   /**
-   * How claim names a new work item; by default the ticket's display id
-   * leads the key and there is no first name.
+   * The base of a ticket's work-item keys; by default its display id as a
+   * key, with the prefix leading an id that is only a number.
    */
-  claimKey?(
-    globalArgs: Record<string, unknown>,
-    issue: TrackerIssue,
-  ): ClaimNaming;
+  claimBase?(issue: TrackerIssue, prefix: string): string;
   /**
    * The tracker's user for whoever is running swamp: whom publish assigns
    * when a work item starts. The stored login's user where the tracker's
@@ -1197,15 +1219,16 @@ export function trackerMethods(options: TrackerModelOptions) {
         const adapter = options.adapter(ctx);
         const issue = await adapter.fetchIssue(args.issue);
         await options.beforeClaim?.(ctx, issue);
-        const naming = options.claimKey?.(argsOf(ctx), issue) ??
-          { lead: displayLead(issue.display) };
+        const prefix = prefixOf(ctx);
+        const base = options.claimBase?.(issue, prefix) ??
+          ticketKeyBase(issue.display, prefix);
         const written = await claimTicket(ctx, {
           tracker: options.tracker,
           issue,
           recordName: ticketName(issue.id),
           factory: args.factory,
-          lead: naming.lead,
-          first: naming.first,
+          base,
+          qualifier: instanceName(ctx),
           dryRun: args.dryRun,
           now: now(),
         });

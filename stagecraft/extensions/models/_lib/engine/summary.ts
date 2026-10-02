@@ -212,7 +212,7 @@ function renderMarkdown(run: RunRecord, metrics: Metrics): string {
     e.type === "retargeted" ? [e.from] : []
   );
   const lines = [
-    `# Work item ${run.key}`,
+    `# Work item ${run.key}${run.title === undefined ? "" : `: ${run.title}`}`,
     "",
     `- **Factory:** ${run.factory} (${run.definition.digest.slice(0, 19)})`,
     `- **Status:** ${run.status} at stage '${run.stage}'`,

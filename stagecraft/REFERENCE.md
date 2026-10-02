@@ -24,8 +24,8 @@ it works this way is in [DESIGN.md](DESIGN.md).
 ## The model types
 
 - **factory**: a model of type `@swamp/stagecraft/factory`, created
-  once and named, for example `team`. You run `validate` and `new_key` on
-  it, and start work items on it.
+  once and named, for example `team`. You run `validate` on it, and start
+  work items on it.
 - **factory definition**: the YAML document of a factory's stages, work,
   transitions and gates. It lives in the factory's own model definition,
   `models/@swamp/stagecraft/factory/<factory>.yaml`, under
@@ -34,7 +34,8 @@ it works this way is in [DESIGN.md](DESIGN.md).
   checks it in full, and a work item pins a copy of it when it starts. In code
   and data it is `definition`.
 - **work item**: one piece of work moving through a factory, a model of type
-  `@swamp/stagecraft/work-item` named by a key from `new_key`.
+  `@swamp/stagecraft/work-item` named by a key: its ticket's id (`team-1`,
+  `abc-12`), which the tracker's `claim` gives, or a name chosen by hand.
 
 ## The factory definition format
 
@@ -218,7 +219,7 @@ creates them. One entry:
 ```yaml
 scenario: plan-waits-for-approval
 description: A reviewed plan waits for a person's approval, then goes on to implement.
-externalRefs: { builtin: "ext-add-list-r2ne" }
+externalRefs: { builtin: "ext-12" }
 steps:
   - record: { artifact: plan }
     payload:
@@ -281,17 +282,22 @@ swamp model create @swamp/stagecraft/factory team \
   --global-arg tracker=board --json
 swamp model validate team                        # swamp's own schema check
 swamp model method run team validate       # that, the graph, scenarios
-# Prints a work-item key made from the title, such as
-# build-swamp-extension-add-list-method-r2ne. start also takes any unused name.
-swamp model method run team new_key --input 'title=Add a list method'
+# A ticket for the work, on the factory's tracker; the built-in tracker
+# numbers it with its prefix: team-1.
+swamp model method run board create --input 'title=Add a list method' \
+  --input 'body=Add a list method to the extension.' --input type=feature
+# Reserves the key, the ticket's id, and prints the start command to run.
+swamp model method run board claim --input issue=team-1 --input factory=team
 
-# A work item, named by that key. The title is kept in its run record, for
-# the studio's Board; new_key prints this command with it filled in.
-swamp model @swamp/stagecraft/work-item method run start <key> \
-  --input factory=team --input 'title=Add a list method'
-swamp model @swamp/stagecraft/work-item method run status <key>
+# A work item, named by that key. The title is kept in its run record:
+# status, the summary and the studio show it beside the key.
+swamp model @swamp/stagecraft/work-item method run start team-1 \
+  --input factory=team --input 'title=Add a list method' \
+  --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
+swamp model @swamp/stagecraft/work-item method run status team-1
 ```
 
+`start` also takes any unused name chosen by hand, for work with no ticket.
 `title` is optional: a work item started without one shows its key where a
 title would be.
 
@@ -447,18 +453,26 @@ project. See [DESIGN.md](DESIGN.md), "The built-in tracker".
 ```bash
 swamp model create @swamp/stagecraft/tracker board --json
 # In the printed definition file, set globalArguments:
-#   prefix: cue                 # required: ticket ids are cue-<slug>-<rnd>
+#   prefix: cue                 # ticket ids are cue-1, cue-2, ...; default: the instance's name, cut to 12
 #   statuses: [open, in_progress, shipped, closed]   # the default
 #   types: [bug, feature, security]                  # the default
 swamp model method run board create --input title="Board shortcuts" \
   --input body="Keys for the board." --input type=feature
-swamp model method run board claim --input issue=cue-board-shortcuts-r2ne \
+swamp model method run board claim --input issue=cue-1 \
   --input factory=team
 swamp model method run board publish --input workItem=<key>
 ```
 
-Ticket ids are lowercase, `<prefix>-<slug>-<4 random characters>` by the
-work-item key rules, with no counter. A ticket's `issue-<id>` record is the
+Ticket ids are `<prefix>-<n>`: `prefix` is lowercase letters, digits and `-`,
+at most 12 characters, and `n` is counted per prefix in the tracker's own data
+(a `counter-<prefix>` record). A new counter starts above the highest number any
+ticket or work item with that prefix already has, so a recreated tracker never
+reuses an id; a name one of its own tickets or any model already has is
+passed over. Two built-in trackers with one prefix can still both file the
+same id, and `claim` then qualifies the second work item's key. The
+counter is unique within one swamp repository's data: clones with separate
+data can each file `cue-5`. Changing the prefix affects only new tickets. A
+ticket's `issue-<id>` record is the
 ticket itself. A new ticket starts in the first status, and a ticket may move
 between any two statuses; `statuses` keys are also the status names, so a
 factory definition's status keys name them directly. It keeps lifecycle
@@ -519,6 +533,7 @@ swamp model create @swamp/stagecraft/linear linear --json
 #   apiToken: ${{ vault.get(secrets, linear-token) }}
 #   statuses: { open: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
 #   teamId: <the team create files issues in>
+#   prefix: abc                 # the team's short name; keys are ABC-12 as-is: abc-12
 #   types: { bug: Bug, feature: Feature }
 swamp model method run linear fetch_issue --input issue=ABC-1
 swamp model method run linear create --input title="A new issue" \
@@ -575,15 +590,20 @@ Every tracker adapter has `claim`, which starts a work item from a ticket and
 makes sure the same ticket never starts two at once:
 
 ```bash
-swamp model method run board claim --input issue=ext-add-list-r2ne \
+swamp model method run board claim --input issue=ext-12 \
   --input factory=team
 ```
 
-With no work item for the ticket, `claim` reserves a fresh key (the ticket's
-display id, then its title, then a random suffix: `abc-12-add-list-k3xq` for a
-Linear issue; a built-in ticket's first work item takes the ticket's own id),
-records it in the adapter's ticket index (`ticket-<stable id>`), and prints the
-work-item `start` command to run, with the ticket's `externalRefs` and title. The record
+With no work item for the ticket, `claim` reserves a key, the ticket's id as a
+key: `ext-12` for a built-in ticket, `abc-12` for Linear's `ABC-12`, and the
+instance's `prefix` before a number-only id (`ops-2711` for `#2711`).
+A later work item on the same ticket adds a number (`abc-12-2`). When another
+work item already has the name, which happens only when two trackers share a
+prefix, the tracker instance's name qualifies it (`abc-12-linear`, then
+`abc-12-linear-2`); if that is taken too, `claim` refuses and says to give one
+tracker another prefix. `claim` records the key in the adapter's ticket index
+(`ticket-<stable id>`), and prints the work-item `start` command to run, with
+the ticket's `externalRefs` and title. The record
 is written before the work item starts, so if anything fails in between, `claim`
 again hands back the same key and command. If the reserved factory no longer
 loads, claiming with another factory moves the reservation to it under the
@@ -595,8 +615,8 @@ index to the new ticket. `factory` is needed only when a new key is reserved.
 `--input dryRun=true` reports the ticket's work item, or that it has none, and
 writes nothing. `claim` never writes to the tracker, and a refused claim writes
 nothing. A repeat claim refreshes only the ticket's snapshot, not the index
-record, so read the key with `swamp data get board ticket-ext-add-list-r2ne
---json`. See [DESIGN.md](DESIGN.md), "Start from a ticket".
+record, so read the key with `swamp data get board ticket-ext-12 --json`. See
+[DESIGN.md](DESIGN.md), "Start from a ticket".
 
 ## swamp-club Lab (swamp-club team only)
 
@@ -610,7 +630,9 @@ swamp-club team. It uses the same key as swamp and issue-lifecycle: the
 `swamp auth login` (whose key is only ever sent to the server you logged in
 to). Status moves past open or closed,
 assignment, attestations, lifecycle entries, the type and the team check need an
-admin key. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
+admin key. A Lab issue's id is only a number, so a work item claimed from it
+is keyed with the instance's `prefix` global argument (default: the instance's
+name): `lab-2631`. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
 
 ```bash
 # swamp-club team only

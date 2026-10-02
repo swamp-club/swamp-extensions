@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { fakeSwamp, smallDefinition } from "../../engine/tracker_testing.ts";
 import {
   duplicateDefinition,
@@ -54,20 +54,15 @@ export interface ConformanceFixture {
    * tracker that has no credential (the built-in one).
    */
   badAuth?: TrackerAdapter;
-  /**
-   * An existing ticket, which starts in neither of `statusNames`, and the
-   * words its claimed key carries before the random suffix, written out by
-   * hand: its display id's words, then its title's.
-   */
-  issue: { id: string; display: string; slug: string };
-  /**
-   * How the tracker's model names a claimed work item, and the key the
-   * ticket's first claim must take; absent for the default naming.
-   */
-  claim?: {
-    naming: NonNullable<TrackerModelOptions["claimKey"]>;
-    firstKey: string;
-  };
+  /** An existing ticket, which starts in neither of `statusNames`. */
+  issue: { id: string; display: string };
+  /** The key the ticket's first claim takes, written out by hand. */
+  firstKey: string;
+  /** The tracker instance's prefix argument; absent, its name is used. */
+  prefix?: string;
+  /** How the tracker's model bases a claimed key; absent for the default,
+   * the display id as a key. */
+  claimBase?: TrackerModelOptions["claimBase"];
   /** A type create accepts. */
   createType: string;
   /** A well-formed stable id of no ticket. */
@@ -341,15 +336,17 @@ export async function assertTrackerConformance(
 
   // Claim: the display identifier and the stable id find one index record,
   // named by the stable id, and the start command carries both ids. The key
-  // is the display id's words and the title's, then a random suffix, or the
-  // name the tracker's model gives a ticket's first work item.
+  // is the ticket's id as a key, or the base the tracker's model gives.
   const swamp = fakeSwamp();
   swamp.factory("team", smallDefinition());
+  if (f.prefix !== undefined) {
+    swamp.globalArgs.set("tracker", { prefix: f.prefix });
+  }
   const claimer = trackerMethods({
     tracker: adapter.tracker,
     adapter: () => adapter,
     statuses: () => ({ next: second }),
-    claimKey: f.claim?.naming,
+    claimBase: f.claimBase,
   });
   const claim = (issue: string) =>
     claimer.claim.execute(
@@ -361,14 +358,7 @@ export async function assertTrackerConformance(
   const records = swamp.resources.get("tracker")?.get(ticketName(f.issue.id));
   assertEquals(records?.length, 1, "one reservation per ticket");
   assertEquals(records?.[0].issue, f.issue.id);
-  if (f.claim === undefined) {
-    assertMatch(
-      String(records?.[0].key),
-      new RegExp(`^${f.issue.slug}-[a-z2-7]{4}$`),
-    );
-  } else {
-    assertEquals(records?.[0].key, f.claim.firstKey);
-  }
+  assertEquals(records?.[0].key, f.firstKey);
   const summary = String(swamp.logs.at(-1)?.props?.summary);
   const refs = JSON.stringify({
     [adapter.tracker]: f.issue.id,

@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
   BUILTIN,
   builtinAdapter,
   type BuiltinOptions,
   type BuiltinStore,
   COMMENT_SPEC,
+  COUNTER_SPEC,
   DEFAULT_STATUSES,
   DEFAULT_TYPES,
   ENTRY_SPEC,
@@ -31,13 +32,19 @@ import { ISSUE_SPEC } from "../core/tracker_methods.ts";
 
 const NOW = new Date("2026-09-30T00:00:00Z");
 
-/** The tracker instance's data in memory: every version, with its spec. */
-function memoryStore() {
+/**
+ * The tracker instance's data in memory: every version, with its spec.
+ * `definitions` are the model definition names in the repository, and
+ * `highest` what the repository scan reports for any prefix.
+ */
+function memoryStore(definitions = new Set<string>(), highest = 0) {
   const records = new Map<
     string,
     { spec: string; versions: Record<string, unknown>[] }
   >();
   const store: BuiltinStore = {
+    nameTaken: (name) => Promise.resolve(definitions.has(name)),
+    highestNumber: () => Promise.resolve(highest),
     read: (name) =>
       Promise.resolve(
         structuredClone(records.get(name)?.versions.at(-1) ?? null),
@@ -91,11 +98,9 @@ Deno.test("builtin: meets the tracker adapter contract", async () => {
   });
   await assertTrackerConformance({
     adapter,
-    issue: { id: issue.id, display: issue.display, slug: "unused" },
-    claim: {
-      naming: () => ({ lead: "cue", first: issue.id }),
-      firstKey: issue.id,
-    },
+    issue: { id: issue.id, display: issue.display },
+    firstKey: issue.id,
+    claimBase: (claimed) => claimed.id,
     createType: "bug",
     missing: "cue-missing-aaaa",
     statusNames: ["in_progress", "shipped"],
@@ -147,14 +152,14 @@ Deno.test("builtin: assign adds a swamp user once, reports it, and reads a ticke
   await failsWith("invalid", () => assigner.assign(issue.id, " "), "no user");
 });
 
-Deno.test("builtin: create files a lowercase <prefix>-<slug>-<rnd> ticket in the first status", async () => {
+Deno.test("builtin: create files <prefix>-1, then <prefix>-2, in the first status", async () => {
   const { store, records } = memoryStore();
   const issue = await adapterWith(store).create({
     title: "Board Shortcuts, for the Keyboard",
     body: "Keys for the board.",
     type: "feature",
   });
-  assertMatch(issue.id, /^cue-board-shortcuts-keyboard-[a-z2-7]{4}$/);
+  assertEquals(issue.id, "cue-1");
   assertEquals(issue.display, issue.id);
   assertEquals(issue.url, undefined);
   assertEquals(issue.status, { id: "open", name: "open" });
@@ -173,38 +178,72 @@ Deno.test("builtin: create files a lowercase <prefix>-<slug>-<rnd> ticket in the
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
   });
+  const second = await adapterWith(store).create({
+    title: "\u{1F525}\u{1F525}",
+    body: "A title with no ASCII letters is no matter.",
+    type: "bug",
+  });
+  assertEquals(second.id, "cue-2");
+  // The counter is the tracker's own record, one per prefix.
+  assertEquals(records.get("counter-cue"), {
+    spec: COUNTER_SPEC,
+    versions: [{ prefix: "cue", next: 2 }, { prefix: "cue", next: 3 }],
+  });
 });
 
-Deno.test("builtin: an id some ticket already has is drawn again, and never reused", async () => {
-  const { store } = memoryStore();
-  // Every id looks taken: no ticket is filed, and nothing is overwritten.
-  const taken: BuiltinStore = {
-    read: () => Promise.resolve({ origin: "builtin" }),
-    write: () => Promise.reject(new Error("no write expected")),
-  };
-  await failsWith(
-    "upstream",
-    () => adapterWith(taken).create({ title: "x", body: "y", type: "bug" }),
-    "free ticket id",
-  );
-  const reads: string[] = [];
-  const counting: BuiltinStore = {
-    read: (name) => {
-      reads.push(name);
-      // The first id drawn is taken; the second is free.
-      return reads.length === 1
-        ? Promise.resolve({ origin: "builtin" })
-        : store.read(name);
-    },
-    write: store.write,
-  };
-  const issue = await adapterWith(counting).create({
+Deno.test("builtin: a new counter starts above the highest number the repository has", async () => {
+  // A recreated tracker: its old work items' definitions, or another
+  // tracker's tickets with this prefix, reach up to 41.
+  const { store } = memoryStore(new Set(), 41);
+  const issue = await adapterWith(store).create({
     title: "x",
     body: "y",
     type: "bug",
   });
-  assertEquals(reads.length, 2);
-  assertEquals(`issue-${issue.id}`, reads[1]);
+  assertEquals(issue.id, "cue-42");
+  // Once the counter exists, the scan is not asked again.
+  const { store: kept } = memoryStore(new Set(), 41);
+  await kept.write(COUNTER_SPEC, "counter-cue", { prefix: "cue", next: 7 });
+  assertEquals(
+    (await adapterWith(kept).create({ title: "x", body: "y", type: "bug" }))
+      .id,
+    "cue-7",
+  );
+});
+
+Deno.test("builtin: create passes over a name a ticket or a definition already has, and never overwrites", async () => {
+  // cue-1 is a work item started by hand; cue-2 a ticket whose counter
+  // write was cut short.
+  const { store, records } = memoryStore(new Set(["cue-1"]));
+  await store.write(ISSUE_SPEC, "issue-cue-2", {
+    origin: "builtin",
+    id: "cue-2",
+  });
+  const issue = await adapterWith(store).create({
+    title: "x",
+    body: "y",
+    type: "bug",
+  });
+  assertEquals(issue.id, "cue-3");
+  assertEquals(records.get("issue-cue-2")?.versions.length, 1);
+  assertEquals(records.get("counter-cue")?.versions.at(-1), {
+    prefix: "cue",
+    next: 4,
+  });
+});
+
+Deno.test("builtin: a new prefix starts its own counter", async () => {
+  const { store } = memoryStore();
+  const draft = { title: "x", body: "y", type: "bug" };
+  assertEquals((await adapterWith(store).create(draft)).id, "cue-1");
+  assertEquals((await adapterWith(store).create(draft)).id, "cue-2");
+  const renamed = adapterWith(store, { prefix: "ops" });
+  assertEquals((await renamed.create(draft)).id, "ops-1");
+  // The old ids are untouched and still found.
+  assertEquals(
+    (await adapterWith(store).fetchIssue("cue-2")).id,
+    "cue-2",
+  );
 });
 
 Deno.test("builtin: statuses move in any direction, and a declared list replaces the default", async () => {
@@ -269,16 +308,6 @@ Deno.test("builtin: create refuses an unknown type and an empty title, and write
     () => adapter.create({ title: " ", body: "y", type: "bug" }),
   );
   assertEquals(records.size, 0);
-});
-
-Deno.test("builtin: a title with no ASCII letters files a <prefix>-<rnd> ticket", async () => {
-  const { store } = memoryStore();
-  const issue = await adapterWith(store).create({
-    title: "\u{1F525}\u{1F525}",
-    body: "y",
-    type: "bug",
-  });
-  assertMatch(issue.id, /^cue-[a-z2-7]{4}$/);
 });
 
 Deno.test("builtin: finishing a half-written relation checks the rules again", async () => {

@@ -51,7 +51,7 @@ async function buildDefinition(): Promise<Record<string, unknown>> {
  * it. */
 async function started(repo: SwampRepo): Promise<string> {
   await repo.factory("team", await buildDefinition());
-  const key = await repo.newKey("team", "Integration work");
+  const key = await repo.newKey("team");
   await repo.workItem(key, "start", { factory: "team" });
   return key;
 }
@@ -85,7 +85,7 @@ const PLAN = {
   versionBump: { needed: true, reason: "New method" },
 };
 
-Deno.test("cli: factory validate reports a valid definition, every schema error and graph errors, and new_key makes a key", async () => {
+Deno.test("cli: factory validate reports a valid definition, every schema error and graph errors, and start takes a key chosen by hand", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", await buildDefinition());
     const ok = await repo.factoryMethod("team", "validate");
@@ -94,10 +94,6 @@ Deno.test("cli: factory validate reports a valid definition, every schema error 
         "factory 'team' is valid",
       ),
       ok.output,
-    );
-    assertMatch(
-      await repo.newKey("team", "Add JSON output to status"),
-      /^team-add-json-output-status-[a-z2-7]{4}$/,
     );
     // start takes any unused name, so a person can choose a key by hand.
     const chosen = await repo.workItem("my-chosen-key", "start", {
@@ -266,11 +262,8 @@ Deno.test("cli: status, dispatch and writes print their text once, and a write e
 Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640)", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", await buildDefinition());
-    const key = await repo.newKey("team", "Integration work");
-    const refs = {
-      builtin: "board-integration-work-r2ne",
-      "builtin.display": "board-integration-work-r2ne",
-    };
+    const key = await repo.newKey("team");
+    const refs = { builtin: "board-12", "builtin.display": "board-12" };
     await repo.workItem(key, "start", {
       factory: "team",
       externalRefs: JSON.stringify(refs),
@@ -282,7 +275,7 @@ Deno.test("cli: start takes externalRefs as a JSON string through --input (#2640
 Deno.test("cli: retarget replaces externalRefs from a JSON string and journals the move", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", await buildDefinition());
-    const key = await repo.newKey("team", "Integration work");
+    const key = await repo.newKey("team");
     await repo.workItem(key, "start", {
       factory: "team",
       externalRefs: JSON.stringify({ builtin: "board-work-2630" }),
@@ -446,7 +439,7 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
     };
     release.gates[0].config.seconds = 1;
     await repo.factory("team", definition);
-    const key = await repo.newKey("team", "Integration work");
+    const key = await repo.newKey("team");
     await repo.workItem(key, "start", { factory: "team" });
     const wi = driver(repo, key);
 
@@ -536,7 +529,7 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
     assert(rebuilt.output.includes("metrics are up to date"), rebuilt.output);
 
     // The dashboard case: every work item's metrics in one query.
-    const other = await repo.newKey("team", "Integration work");
+    const other = await repo.newKey("team");
     await repo.workItem(other, "start", { factory: "team" });
     const query = await repo.swamp([
       "data",
@@ -554,7 +547,7 @@ Deno.test("cli: dispatch, usage, a decline and approvals, then summary: the repo
 Deno.test("cli: a dispatch refused at the cap journals the park, and a dispatch override ends it", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", stopsDefinition());
-    const key = await repo.newKey("team", "Integration work");
+    const key = await repo.newKey("team");
     await repo.workItem(key, "start", { factory: "team" });
     await repo.workItem(key, "dispatch", await repo.expected(key));
     await repo.workItem(key, "dispatch", await repo.expected(key));
@@ -671,7 +664,7 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
       valid.output,
     );
 
-    const key = await repo.newKey("team", "From the model");
+    const key = await repo.newKey("team");
     await repo.workItem(key, "start", { factory: "team" });
     assertEquals(
       (await repo.run(key)).definition.digest,
@@ -702,8 +695,7 @@ Deno.test("cli: swamp model validate reports a schema error in the definition, w
       checked.output,
       /targets unknown stage 'missing' at "definition\.stages\.1\.transitions\.\d+\.to"/,
     );
-    const run = await repo.factoryMethod("team", "new_key", {
-      inputs: { title: "Anything" },
+    const run = await repo.factoryMethod("team", "validate", {
       allowFailure: true,
     });
     assertNotEquals(run.code, 0);
@@ -738,7 +730,7 @@ Deno.test("cli: {{name}} placeholders, one named like a swamp namespace, and CEL
     const checked = await repo.swamp(["model", "validate", "team"]);
     assert(checked.output.includes("Result: PASSED"), checked.output);
     assert(!checked.output.includes("Expression paths ✗"), checked.output);
-    const key = await repo.newKey("team", "Round trip");
+    const key = await repo.newKey("team");
     await repo.workItem(key, "start", { factory: "team" });
     const pinned = await repo.data(key, "definition");
     const parsed = parseDefinition(definition);

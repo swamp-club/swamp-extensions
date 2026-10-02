@@ -31,7 +31,7 @@ One entry in the list, shown here on its own:
 ```yaml
 scenario: plan-waits-for-approval
 description: A reviewed plan waits for a person's approval, then goes on to implement.
-externalRefs: { builtin: "ext-add-list-r2ne" }
+externalRefs: { builtin: "ext-12" }
 steps:
   - record: { artifact: plan }
     payload:
