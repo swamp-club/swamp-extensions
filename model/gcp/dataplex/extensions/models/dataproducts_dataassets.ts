@@ -182,6 +182,14 @@ const GlobalArgsSchema = z.object({
       iamRoles: z.array(z.string()).describe(
         'Optional. IAM roles granted on the resource to this access group. Role name follows https://cloud.google.com/iam/docs/reference/rest/v1/roles.Example: [ "roles/bigquery.dataViewer" ]',
       ).optional(),
+      state: z.enum([
+        "STATE_UNSPECIFIED",
+        "APPLYING",
+        "APPLIED",
+        "FAILED",
+        "UNSUPPORTED",
+      ]).describe("Output only. The state of the iam role application.")
+        .optional(),
     }),
   ).describe(
     'Optional. Access groups configurations for this data asset.The key is DataProduct.AccessGroup.id and the value is AccessGroupConfig.Example: { "analyst": { "iamRoles": ["roles/bigquery.dataViewer"] } } Currently, at most one IAM role is allowed per access group. For providing multiple predefined IAM roles, wrap them in a custom IAM role as per https://cloud.google.com/iam/docs/creating-custom-roles.',
@@ -232,6 +240,14 @@ const InputsSchema = z.object({
       iamRoles: z.array(z.string()).describe(
         'Optional. IAM roles granted on the resource to this access group. Role name follows https://cloud.google.com/iam/docs/reference/rest/v1/roles.Example: [ "roles/bigquery.dataViewer" ]',
       ).optional(),
+      state: z.enum([
+        "STATE_UNSPECIFIED",
+        "APPLYING",
+        "APPLIED",
+        "FAILED",
+        "UNSUPPORTED",
+      ]).describe("Output only. The state of the iam role application.")
+        .optional(),
     }),
   ).describe(
     'Optional. Access groups configurations for this data asset.The key is DataProduct.AccessGroup.id and the value is AccessGroupConfig.Example: { "analyst": { "iamRoles": ["roles/bigquery.dataViewer"] } } Currently, at most one IAM role is allowed per access group. For providing multiple predefined IAM roles, wrap them in a custom IAM role as per https://cloud.google.com/iam/docs/creating-custom-roles.',
@@ -282,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataProducts.DataAssets. Registered at `@swamp/gcp/dataplex/dataproducts-dataassets`. */
 export const model = {
   type: "@swamp/gcp/dataplex/dataproducts-dataassets",
-  version: "2026.08.12.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -406,6 +422,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

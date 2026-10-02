@@ -347,7 +347,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.09.29.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -419,6 +419,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -463,6 +468,7 @@ export const model = {
         }
         const body: Record<string, unknown> = {};
         if (g.droplet_ids !== undefined) body.droplet_ids = g.droplet_ids;
+        if (g.ip !== undefined) body.ip = g.ip;
         if (g.region !== undefined) body.region = g.region;
         if (g.name !== undefined) body.name = g.name;
         if (g.project_id !== undefined) body.project_id = g.project_id;
@@ -507,7 +513,6 @@ export const model = {
           body.tls_cipher_policy = g.tls_cipher_policy;
         }
         if (g.tag !== undefined) body.tag = g.tag;
-        if (g.ip !== undefined) body.ip = g.ip;
         let result = await create(
           "/v2/load_balancers",
           body,

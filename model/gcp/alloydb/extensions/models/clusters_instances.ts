@@ -506,6 +506,16 @@ const StateSchema = z.object({
     trackWaitEventTypes: z.boolean(),
     trackWaitEvents: z.boolean(),
   }).optional(),
+  observabilityInstanceInfo: z.object({
+    enabled: z.boolean(),
+    maxQueryStringLength: z.number(),
+    preserveComments: z.boolean(),
+    queryPlansPerMinute: z.number(),
+    recordApplicationTags: z.boolean(),
+    trackActiveQueries: z.boolean(),
+    trackWaitEventTypes: z.boolean(),
+    trackWaitEvents: z.boolean(),
+  }).optional(),
   outboundPublicIpAddresses: z.array(z.string()).optional(),
   pscInstanceConfig: z.object({
     allowedConsumerProjects: z.array(z.string()),
@@ -538,6 +548,13 @@ const StateSchema = z.object({
   }).optional(),
   publicIpAddress: z.string().optional(),
   queryInsightsConfig: z.object({
+    queryPlansPerMinute: z.number(),
+    queryStringLength: z.number(),
+    recordApplicationTags: z.boolean(),
+    recordClientAddress: z.boolean(),
+  }).optional(),
+  queryInsightsInfo: z.object({
+    enabled: z.boolean(),
     queryPlansPerMinute: z.number(),
     queryStringLength: z.number(),
     recordApplicationTags: z.boolean(),
@@ -847,7 +864,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.09.07.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1030,6 +1047,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: allowMissing",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1497,11 +1519,13 @@ export const model = {
         networkConfig: z.any().optional(),
         nodes: z.any().optional(),
         observabilityConfig: z.any().optional(),
+        observabilityInstanceInfo: z.any().optional(),
         outboundPublicIpAddresses: z.any().optional(),
         pscInstanceConfig: z.any().optional(),
         pscInstanceInfo: z.any().optional(),
         publicIpAddress: z.any().optional(),
         queryInsightsConfig: z.any().optional(),
+        queryInsightsInfo: z.any().optional(),
         readPoolConfig: z.any().optional(),
         reconciling: z.any().optional(),
         satisfiesPzs: z.any().optional(),
@@ -1584,6 +1608,9 @@ export const model = {
         if (args["observabilityConfig"] !== undefined) {
           body["observabilityConfig"] = args["observabilityConfig"];
         }
+        if (args["observabilityInstanceInfo"] !== undefined) {
+          body["observabilityInstanceInfo"] = args["observabilityInstanceInfo"];
+        }
         if (args["outboundPublicIpAddresses"] !== undefined) {
           body["outboundPublicIpAddresses"] = args["outboundPublicIpAddresses"];
         }
@@ -1598,6 +1625,9 @@ export const model = {
         }
         if (args["queryInsightsConfig"] !== undefined) {
           body["queryInsightsConfig"] = args["queryInsightsConfig"];
+        }
+        if (args["queryInsightsInfo"] !== undefined) {
+          body["queryInsightsInfo"] = args["queryInsightsInfo"];
         }
         if (args["readPoolConfig"] !== undefined) {
           body["readPoolConfig"] = args["readPoolConfig"];

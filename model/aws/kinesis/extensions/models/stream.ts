@@ -117,6 +117,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Warm throughput configuration details for the stream. Only present for ON_DEMAND streams.",
   ).optional(),
+  RecordDistributionStrategy: z.enum(["AUTO", "USER_PARTITION_KEY"]).describe(
+    "The record distribution strategy for the stream. This property can ONLY be set when StreamMode is ON_DEMAND",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -139,6 +142,7 @@ const StateSchema = z.object({
     TargetMiBps: z.number(),
     CurrentMiBps: z.number(),
   }).optional(),
+  RecordDistributionStrategy: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -201,6 +205,9 @@ const InputsSchema = z.object({
   }).describe(
     "Warm throughput configuration details for the stream. Only present for ON_DEMAND streams.",
   ).optional(),
+  RecordDistributionStrategy: z.enum(["AUTO", "USER_PARTITION_KEY"]).describe(
+    "The record distribution strategy for the stream. This property can ONLY be set when StreamMode is ON_DEMAND",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -222,7 +229,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis Stream. Registered at `@swamp/aws/kinesis/stream`. */
 export const model = {
   type: "@swamp/aws/kinesis/stream",
-  version: "2026.08.17.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +279,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "Added: RecordDistributionStrategy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

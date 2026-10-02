@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/integrations"
-version: "2026.10.01.1"
+version: "2026.10.02.1"
 description: "Google Cloud integrations infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: authconfigs, certificates, connections, connections_runtimeactionschemas, connections_runtimeentityschemas, integrations, integrations_executions, integrations_executions_suspensions, integrations_versions, integrations_versions_testcases, products_authconfigs, products_certificates, products_integrations, products_integrations_executions, products_integrations_executions_suspensions, products_integrations_versions, products_sfdcinstances, products_sfdcinstances_sfdcchannels, sfdcinstances, sfdcinstances_sfdcchannels, templates
+  - Added: integrations_executions_taskexecutions
+  - Updated: integrations_executions
 models:
   - authconfigs.ts
   - certificates.ts
@@ -21,6 +22,7 @@ models:
   - integrations.ts
   - integrations_executions.ts
   - integrations_executions_suspensions.ts
+  - integrations_executions_taskexecutions.ts
   - integrations_versions.ts
   - integrations_versions_testcases.ts
   - products_authconfigs.ts

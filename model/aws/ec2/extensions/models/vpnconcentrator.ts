@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TransitGatewayId: z.string().describe(
     "The ID of the transit gateway associated with the VPN concentrator.",
-  ),
+  ).optional(),
   Type: z.string().describe("The type of VPN concentrator."),
   Tags: z.array(TagSchema).describe(
     "Any tags assigned to the VPN concentrator.",
@@ -120,7 +120,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPNConcentrator. Registered at `@swamp/aws/ec2/vpnconcentrator`. */
 export const model = {
   type: "@swamp/aws/ec2/vpnconcentrator",
-  version: "2026.08.17.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

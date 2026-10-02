@@ -48,14 +48,56 @@ const GlobalArgsSchema = z.object({
   zone_id: z.string().optional().describe(
     "Cloudflare zone ID (provide account_id or zone_id)",
   ),
+  allowed_idps: z.array(z.string()).describe(
+    "The identity providers your users can select when connecting to this application. Defaults to all IdPs configured in your account.",
+  ).optional(),
+  destinations: z.array(z.object({
+    overrides: z.array(z.object({
+      behavior: z.enum(["public"]),
+      path_pattern: z.string().max(512).regex(new RegExp("^/")),
+    })).optional(),
+    type: z.enum([
+      "public",
+      "worker",
+      "preview_worker",
+      "all_workers",
+      "all_preview_workers",
+    ]).optional(),
+    uri: z.string().optional(),
+    worker_id: z.string().optional(),
+  })).describe("Public hostname and Workers destinations secured by Access.")
+    .optional(),
+  domain: z.string().describe(
+    "The primary hostname and path secured by Access. This domain will be displayed if the app is visible in the App Launcher.",
+  ).optional(),
+  name: z.string().describe("The name of the application.").optional(),
+  oauth_configuration: z.object({
+    dynamic_client_registration: z.object({
+      allow_any_on_localhost: z.boolean().optional(),
+      allow_any_on_loopback: z.boolean().optional(),
+      allowed_uris: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+    }).optional(),
+    enabled: z.boolean().optional(),
+    grant: z.object({
+      access_token_lifetime: z.string().optional(),
+      session_duration: z.string().optional(),
+    }).optional(),
+  }).describe(
+    "**Beta:** Optional configuration for managing an OAuth authorization flow controlled by Access. When set, Access will act as the OAuth authorization server for this application. Only compatible with OAuth clients that support [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) (Resource Indicators for OAuth 2.0). This feature is currently in beta.\n",
+  ).optional(),
+  self_hosted_domains: z.array(z.string()).describe(
+    "List of public domains that Access will secure. This field is deprecated in favor of `destinations` and will be supported until **November 21, 2025.** If `destinations` are provided, then `self_hosted_domains` will be ignored.\n",
+  ).optional(),
+  type: z.string().describe("The application type.").optional(),
+  user_populations: z.array(z.string().max(36)).describe(
+    "The single user population associated with this application.",
+  ).optional(),
   allow_authenticate_via_warp: z.boolean().describe(
     "When set to true, users can authenticate to this application using their WARP session.  When set to false this application will always require direct IdP authentication. This setting always overrides the organization setting for WARP authentication.",
   ).optional(),
   allow_iframe: z.boolean().describe(
     "Enables loading application content in an iFrame.",
-  ).optional(),
-  allowed_idps: z.array(z.string()).describe(
-    "The identity providers your users can select when connecting to this application. Defaults to all IdPs configured in your account.",
   ).optional(),
   app_launcher_visible: z.boolean().describe(
     "Displays the application in the App Launcher.",
@@ -97,34 +139,6 @@ const GlobalArgsSchema = z.object({
   custom_pages: z.array(z.string()).describe(
     "The custom pages that will be displayed when applicable for this application",
   ).optional(),
-  destinations: z.array(z.object({
-    overrides: z.array(z.object({
-      behavior: z.enum(["public"]),
-      path_pattern: z.string().max(512).regex(new RegExp("^/")),
-    })).optional(),
-    type: z.enum([
-      "public",
-      "private",
-      "via_mcp_server_portal",
-      "worker",
-      "preview_worker",
-      "all_workers",
-      "all_preview_workers",
-    ]),
-    uri: z.string().optional(),
-    cidr: z.string().optional(),
-    hostname: z.string().optional(),
-    l4_protocol: z.enum(["tcp", "udp"]).optional(),
-    port_range: z.string().optional(),
-    vnet_id: z.string().optional(),
-    mcp_server_id: z.string().optional(),
-    worker_id: z.string().optional(),
-  })).describe(
-    "List of destinations secured by Access. This supersedes `self_hosted_domains` to allow for more flexibility in defining different types of domains. If `destinations` are provided, then `self_hosted_domains` will be ignored.\n",
-  ).optional(),
-  domain: z.string().describe(
-    "The primary hostname and path secured by Access. This domain will be displayed if the app is visible in the App Launcher.",
-  ).optional(),
   eager_redirect_cookie_setting: z.boolean().describe(
     "Preemptively sets the Access session cookie on every hostname in a multi-hostname self-hosted application during the initial redirect chain, rather than setting it lazily on first visit. Defaults to true. Set to false to disable the eager redirect cookie behavior.",
   ).optional(),
@@ -145,22 +159,6 @@ const GlobalArgsSchema = z.object({
     session_duration: z.string().optional(),
   }).describe("Configures multi-factor authentication (MFA) settings.")
     .optional(),
-  name: z.string().describe("The name of the application.").optional(),
-  oauth_configuration: z.object({
-    dynamic_client_registration: z.object({
-      allow_any_on_localhost: z.boolean().optional(),
-      allow_any_on_loopback: z.boolean().optional(),
-      allowed_uris: z.array(z.string()).optional(),
-      enabled: z.boolean().optional(),
-    }).optional(),
-    enabled: z.boolean().optional(),
-    grant: z.object({
-      access_token_lifetime: z.string().optional(),
-      session_duration: z.string().optional(),
-    }).optional(),
-  }).describe(
-    "**Beta:** Optional configuration for managing an OAuth authorization flow controlled by Access. When set, Access will act as the OAuth authorization server for this application. Only compatible with OAuth clients that support [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) (Resource Indicators for OAuth 2.0). This feature is currently in beta.\n",
-  ).optional(),
   options_preflight_bypass: z.boolean().describe(
     "Allows options preflight requests to bypass Access authentication and go directly to the origin. Cannot turn on if cors_headers is set.",
   ).optional(),
@@ -209,9 +207,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configuration for provisioning to this application via SCIM. This is currently in closed beta.",
   ).optional(),
-  self_hosted_domains: z.array(z.string()).describe(
-    "List of public domains that Access will secure. This field is deprecated in favor of `destinations` and will be supported until **November 21, 2025.** If `destinations` are provided, then `self_hosted_domains` will be ignored.\n",
-  ).optional(),
   service_auth_401_redirect: z.boolean().describe(
     "Returns a 401 status code when the request is blocked by a Service Auth policy.",
   ).optional(),
@@ -224,7 +219,6 @@ const GlobalArgsSchema = z.object({
   tags: z.array(z.string()).describe(
     "The tags you want assigned to an application. Tags are used to filter applications in the App Launcher dashboard.",
   ).optional(),
-  type: z.string().describe("The application type.").optional(),
   use_clientless_isolation_app_launcher_url: z.boolean().describe(
     "Determines if users can access this application via a clientless browser isolation URL.\nThis allows users to access private domains without connecting to Gateway. The option requires\nClientless Browser Isolation to be set up with policies that allow users of this application.\n",
   ).optional(),
@@ -645,9 +639,36 @@ const ResourceSchema = z.object({
     created_at: z.string().optional(),
     id: z.string().optional(),
     updated_at: z.string().optional(),
+    allowed_idps: z.array(z.string()).optional(),
+    destinations: z.array(z.object({
+      overrides: z.array(z.object({
+        behavior: z.string().optional(),
+        path_pattern: z.string().optional(),
+      })).optional(),
+      type: z.string().optional(),
+      uri: z.string().optional(),
+      worker_id: z.string().optional(),
+    })).optional(),
+    domain: z.string().optional(),
+    name: z.string().optional(),
+    oauth_configuration: z.object({
+      dynamic_client_registration: z.object({
+        allow_any_on_localhost: z.boolean().optional(),
+        allow_any_on_loopback: z.boolean().optional(),
+        allowed_uris: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+      }).optional(),
+      enabled: z.boolean().optional(),
+      grant: z.object({
+        access_token_lifetime: z.string().optional(),
+        session_duration: z.string().optional(),
+      }).optional(),
+    }).optional(),
+    self_hosted_domains: z.array(z.string()).optional(),
+    type: z.string().optional(),
+    user_populations: z.array(z.string()).optional(),
     allow_authenticate_via_warp: z.boolean().optional(),
     allow_iframe: z.boolean().optional(),
-    allowed_idps: z.array(z.string()).optional(),
     app_launcher_visible: z.boolean().optional(),
     auto_redirect_to_identity: z.boolean().optional(),
     cors_headers: z.object({
@@ -664,22 +685,6 @@ const ResourceSchema = z.object({
     custom_deny_url: z.string().optional(),
     custom_non_identity_deny_url: z.string().optional(),
     custom_pages: z.array(z.string()).optional(),
-    destinations: z.array(z.object({
-      overrides: z.array(z.object({
-        behavior: z.string().optional(),
-        path_pattern: z.string().optional(),
-      })).optional(),
-      type: z.string().optional(),
-      uri: z.string().optional(),
-      cidr: z.string().optional(),
-      hostname: z.string().optional(),
-      l4_protocol: z.string().optional(),
-      port_range: z.string().optional(),
-      vnet_id: z.string().optional(),
-      mcp_server_id: z.string().optional(),
-      worker_id: z.string().optional(),
-    })).optional(),
-    domain: z.string().optional(),
     eager_redirect_cookie_setting: z.boolean().optional(),
     enable_binding_cookie: z.boolean().optional(),
     http_only_cookie_attribute: z.boolean().optional(),
@@ -688,20 +693,6 @@ const ResourceSchema = z.object({
       allowed_authenticators: z.array(z.string()).optional(),
       mfa_disabled: z.boolean().optional(),
       session_duration: z.string().optional(),
-    }).optional(),
-    name: z.string().optional(),
-    oauth_configuration: z.object({
-      dynamic_client_registration: z.object({
-        allow_any_on_localhost: z.boolean().optional(),
-        allow_any_on_loopback: z.boolean().optional(),
-        allowed_uris: z.array(z.string()).optional(),
-        enabled: z.boolean().optional(),
-      }).optional(),
-      enabled: z.boolean().optional(),
-      grant: z.object({
-        access_token_lifetime: z.string().optional(),
-        session_duration: z.string().optional(),
-      }).optional(),
     }).optional(),
     options_preflight_bypass: z.boolean().optional(),
     path_cookie_attribute: z.boolean().optional(),
@@ -736,12 +727,10 @@ const ResourceSchema = z.object({
       })).optional(),
       remote_uri: z.string().optional(),
     }).optional(),
-    self_hosted_domains: z.array(z.string()).optional(),
     service_auth_401_redirect: z.boolean().optional(),
     session_duration: z.string().optional(),
     skip_interstitial: z.boolean().optional(),
     tags: z.array(z.string()).optional(),
-    type: z.string().optional(),
     use_clientless_isolation_app_launcher_url: z.boolean().optional(),
     policies: z.array(z.object({
       created_at: z.string().optional(),
@@ -1112,9 +1101,42 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   zone_id: z.string().optional(),
+  allowed_idps: z.array(z.string()).optional(),
+  destinations: z.array(z.object({
+    overrides: z.array(z.object({
+      behavior: z.enum(["public"]),
+      path_pattern: z.string().max(512).regex(new RegExp("^/")),
+    })).optional(),
+    type: z.enum([
+      "public",
+      "worker",
+      "preview_worker",
+      "all_workers",
+      "all_preview_workers",
+    ]).optional(),
+    uri: z.string().optional(),
+    worker_id: z.string().optional(),
+  })).optional(),
+  domain: z.string().optional(),
+  name: z.string().optional(),
+  oauth_configuration: z.object({
+    dynamic_client_registration: z.object({
+      allow_any_on_localhost: z.boolean().optional(),
+      allow_any_on_loopback: z.boolean().optional(),
+      allowed_uris: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+    }).optional(),
+    enabled: z.boolean().optional(),
+    grant: z.object({
+      access_token_lifetime: z.string().optional(),
+      session_duration: z.string().optional(),
+    }).optional(),
+  }).optional(),
+  self_hosted_domains: z.array(z.string()).optional(),
+  type: z.string().optional(),
+  user_populations: z.array(z.string().max(36)).optional(),
   allow_authenticate_via_warp: z.boolean().optional(),
   allow_iframe: z.boolean().optional(),
-  allowed_idps: z.array(z.string()).optional(),
   app_launcher_visible: z.boolean().optional(),
   auto_redirect_to_identity: z.boolean().optional(),
   cors_headers: z.object({
@@ -1143,30 +1165,6 @@ const InputsSchema = z.object({
   custom_deny_url: z.string().optional(),
   custom_non_identity_deny_url: z.string().optional(),
   custom_pages: z.array(z.string()).optional(),
-  destinations: z.array(z.object({
-    overrides: z.array(z.object({
-      behavior: z.enum(["public"]),
-      path_pattern: z.string().max(512).regex(new RegExp("^/")),
-    })).optional(),
-    type: z.enum([
-      "public",
-      "private",
-      "via_mcp_server_portal",
-      "worker",
-      "preview_worker",
-      "all_workers",
-      "all_preview_workers",
-    ]),
-    uri: z.string().optional(),
-    cidr: z.string().optional(),
-    hostname: z.string().optional(),
-    l4_protocol: z.enum(["tcp", "udp"]).optional(),
-    port_range: z.string().optional(),
-    vnet_id: z.string().optional(),
-    mcp_server_id: z.string().optional(),
-    worker_id: z.string().optional(),
-  })).optional(),
-  domain: z.string().optional(),
   eager_redirect_cookie_setting: z.boolean().optional(),
   enable_binding_cookie: z.boolean().optional(),
   http_only_cookie_attribute: z.boolean().optional(),
@@ -1177,20 +1175,6 @@ const InputsSchema = z.object({
     ).optional(),
     mfa_disabled: z.boolean().optional(),
     session_duration: z.string().optional(),
-  }).optional(),
-  name: z.string().optional(),
-  oauth_configuration: z.object({
-    dynamic_client_registration: z.object({
-      allow_any_on_localhost: z.boolean().optional(),
-      allow_any_on_loopback: z.boolean().optional(),
-      allowed_uris: z.array(z.string()).optional(),
-      enabled: z.boolean().optional(),
-    }).optional(),
-    enabled: z.boolean().optional(),
-    grant: z.object({
-      access_token_lifetime: z.string().optional(),
-      session_duration: z.string().optional(),
-    }).optional(),
   }).optional(),
   options_preflight_bypass: z.boolean().optional(),
   path_cookie_attribute: z.boolean().optional(),
@@ -1230,12 +1214,10 @@ const InputsSchema = z.object({
     })).optional(),
     remote_uri: z.string(),
   }).optional(),
-  self_hosted_domains: z.array(z.string()).optional(),
   service_auth_401_redirect: z.boolean().optional(),
   session_duration: z.string().optional(),
   skip_interstitial: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
-  type: z.string().optional(),
   use_clientless_isolation_app_launcher_url: z.boolean().optional(),
   policies: z.array(z.object({
     account_id: z.string().max(32).optional(),
@@ -1616,7 +1598,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.09.29.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1688,6 +1670,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "Added: user_populations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1721,11 +1708,24 @@ export const model = {
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/access/apps";
         const body: Record<string, unknown> = {};
+        if (g.allowed_idps !== undefined) body.allowed_idps = g.allowed_idps;
+        if (g.destinations !== undefined) body.destinations = g.destinations;
+        if (g.domain !== undefined) body.domain = g.domain;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.oauth_configuration !== undefined) {
+          body.oauth_configuration = g.oauth_configuration;
+        }
+        if (g.self_hosted_domains !== undefined) {
+          body.self_hosted_domains = g.self_hosted_domains;
+        }
+        if (g.type !== undefined) body.type = g.type;
+        if (g.user_populations !== undefined) {
+          body.user_populations = g.user_populations;
+        }
         if (g.allow_authenticate_via_warp !== undefined) {
           body.allow_authenticate_via_warp = g.allow_authenticate_via_warp;
         }
         if (g.allow_iframe !== undefined) body.allow_iframe = g.allow_iframe;
-        if (g.allowed_idps !== undefined) body.allowed_idps = g.allowed_idps;
         if (g.app_launcher_visible !== undefined) {
           body.app_launcher_visible = g.app_launcher_visible;
         }
@@ -1743,8 +1743,6 @@ export const model = {
           body.custom_non_identity_deny_url = g.custom_non_identity_deny_url;
         }
         if (g.custom_pages !== undefined) body.custom_pages = g.custom_pages;
-        if (g.destinations !== undefined) body.destinations = g.destinations;
-        if (g.domain !== undefined) body.domain = g.domain;
         if (g.eager_redirect_cookie_setting !== undefined) {
           body.eager_redirect_cookie_setting = g.eager_redirect_cookie_setting;
         }
@@ -1756,10 +1754,6 @@ export const model = {
         }
         if (g.logo_url !== undefined) body.logo_url = g.logo_url;
         if (g.mfa_config !== undefined) body.mfa_config = g.mfa_config;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.oauth_configuration !== undefined) {
-          body.oauth_configuration = g.oauth_configuration;
-        }
         if (g.options_preflight_bypass !== undefined) {
           body.options_preflight_bypass = g.options_preflight_bypass;
         }
@@ -1774,9 +1768,6 @@ export const model = {
           body.same_site_cookie_attribute = g.same_site_cookie_attribute;
         }
         if (g.scim_config !== undefined) body.scim_config = g.scim_config;
-        if (g.self_hosted_domains !== undefined) {
-          body.self_hosted_domains = g.self_hosted_domains;
-        }
         if (g.service_auth_401_redirect !== undefined) {
           body.service_auth_401_redirect = g.service_auth_401_redirect;
         }
@@ -1787,7 +1778,6 @@ export const model = {
           body.skip_interstitial = g.skip_interstitial;
         }
         if (g.tags !== undefined) body.tags = g.tags;
-        if (g.type !== undefined) body.type = g.type;
         if (g.use_clientless_isolation_app_launcher_url !== undefined) {
           body.use_clientless_isolation_app_launcher_url =
             g.use_clientless_isolation_app_launcher_url;
@@ -1875,6 +1865,9 @@ export const model = {
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/access/apps";
         const filters: [string, string][] = [];
+        if (g.domain !== undefined) filters.push(["domain", String(g.domain)]);
+        if (g.name !== undefined) filters.push(["name", String(g.name)]);
+        if (g.type !== undefined) filters.push(["type", String(g.type)]);
         if (g.allow_authenticate_via_warp !== undefined) {
           filters.push([
             "allow_authenticate_via_warp",
@@ -1908,7 +1901,6 @@ export const model = {
             String(g.custom_non_identity_deny_url),
           ]);
         }
-        if (g.domain !== undefined) filters.push(["domain", String(g.domain)]);
         if (g.eager_redirect_cookie_setting !== undefined) {
           filters.push([
             "eager_redirect_cookie_setting",
@@ -1930,7 +1922,6 @@ export const model = {
         if (g.logo_url !== undefined) {
           filters.push(["logo_url", String(g.logo_url)]);
         }
-        if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.options_preflight_bypass !== undefined) {
           filters.push([
             "options_preflight_bypass",
@@ -1967,7 +1958,6 @@ export const model = {
         if (g.skip_interstitial !== undefined) {
           filters.push(["skip_interstitial", String(g.skip_interstitial)]);
         }
-        if (g.type !== undefined) filters.push(["type", String(g.type)]);
         if (g.use_clientless_isolation_app_launcher_url !== undefined) {
           filters.push([
             "use_clientless_isolation_app_launcher_url",
@@ -2105,11 +2095,24 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
+        if (g.allowed_idps !== undefined) body.allowed_idps = g.allowed_idps;
+        if (g.destinations !== undefined) body.destinations = g.destinations;
+        if (g.domain !== undefined) body.domain = g.domain;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.oauth_configuration !== undefined) {
+          body.oauth_configuration = g.oauth_configuration;
+        }
+        if (g.self_hosted_domains !== undefined) {
+          body.self_hosted_domains = g.self_hosted_domains;
+        }
+        if (g.type !== undefined) body.type = g.type;
+        if (g.user_populations !== undefined) {
+          body.user_populations = g.user_populations;
+        }
         if (g.allow_authenticate_via_warp !== undefined) {
           body.allow_authenticate_via_warp = g.allow_authenticate_via_warp;
         }
         if (g.allow_iframe !== undefined) body.allow_iframe = g.allow_iframe;
-        if (g.allowed_idps !== undefined) body.allowed_idps = g.allowed_idps;
         if (g.app_launcher_visible !== undefined) {
           body.app_launcher_visible = g.app_launcher_visible;
         }
@@ -2127,8 +2130,6 @@ export const model = {
           body.custom_non_identity_deny_url = g.custom_non_identity_deny_url;
         }
         if (g.custom_pages !== undefined) body.custom_pages = g.custom_pages;
-        if (g.destinations !== undefined) body.destinations = g.destinations;
-        if (g.domain !== undefined) body.domain = g.domain;
         if (g.eager_redirect_cookie_setting !== undefined) {
           body.eager_redirect_cookie_setting = g.eager_redirect_cookie_setting;
         }
@@ -2140,10 +2141,6 @@ export const model = {
         }
         if (g.logo_url !== undefined) body.logo_url = g.logo_url;
         if (g.mfa_config !== undefined) body.mfa_config = g.mfa_config;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.oauth_configuration !== undefined) {
-          body.oauth_configuration = g.oauth_configuration;
-        }
         if (g.options_preflight_bypass !== undefined) {
           body.options_preflight_bypass = g.options_preflight_bypass;
         }
@@ -2158,9 +2155,6 @@ export const model = {
           body.same_site_cookie_attribute = g.same_site_cookie_attribute;
         }
         if (g.scim_config !== undefined) body.scim_config = g.scim_config;
-        if (g.self_hosted_domains !== undefined) {
-          body.self_hosted_domains = g.self_hosted_domains;
-        }
         if (g.service_auth_401_redirect !== undefined) {
           body.service_auth_401_redirect = g.service_auth_401_redirect;
         }
@@ -2171,7 +2165,6 @@ export const model = {
           body.skip_interstitial = g.skip_interstitial;
         }
         if (g.tags !== undefined) body.tags = g.tags;
-        if (g.type !== undefined) body.type = g.type;
         if (g.use_clientless_isolation_app_launcher_url !== undefined) {
           body.use_clientless_isolation_app_launcher_url =
             g.use_clientless_isolation_app_launcher_url;

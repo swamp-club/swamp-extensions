@@ -151,7 +151,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The issue classification applicable to this case.").optional(),
   contactEmail: z.string().describe(
-    "A user-supplied email address to send case update notifications for. This should only be used in BYOID flows, where we cannot infer the user's email address directly from their EUCs.",
+    "A user-supplied email address to send case update notifications for. This field must be set when the request is authenticated using a Workforce Identity Federation (BYOID) flow and must not be set otherwise. When unset, the contact email is inferred from the authenticated user's credentials. If you use a service account to create the case and its inferred email address cannot receive emails, you should add appropriate contact emails in the `subscriber_email_addresses` field.",
   ).optional(),
   creator: z.object({
     displayName: z.string().describe(
@@ -167,7 +167,7 @@ const GlobalArgsSchema = z.object({
       "Output only. The username of the actor. It may look like an email or other format provided by the identity provider. If not provided, it is inferred from the credentials supplied. When a name is provided, a username must also be provided. If the user is a Google Support agent, this will not be set.",
     ).optional(),
   }).describe(
-    "The user who created the case. Note: The name and email will be obfuscated if the case was created by Google Support.",
+    "The user who created the case. This field is ignored on input. Note: The name and email will be obfuscated if the case was created by Google Support.",
   ).optional(),
   description: z.string().describe("A broad description of the issue.")
     .optional(),
@@ -241,7 +241,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The issue classification applicable to this case.").optional(),
   contactEmail: z.string().describe(
-    "A user-supplied email address to send case update notifications for. This should only be used in BYOID flows, where we cannot infer the user's email address directly from their EUCs.",
+    "A user-supplied email address to send case update notifications for. This field must be set when the request is authenticated using a Workforce Identity Federation (BYOID) flow and must not be set otherwise. When unset, the contact email is inferred from the authenticated user's credentials. If you use a service account to create the case and its inferred email address cannot receive emails, you should add appropriate contact emails in the `subscriber_email_addresses` field.",
   ).optional(),
   creator: z.object({
     displayName: z.string().describe(
@@ -257,7 +257,7 @@ const InputsSchema = z.object({
       "Output only. The username of the actor. It may look like an email or other format provided by the identity provider. If not provided, it is inferred from the credentials supplied. When a name is provided, a username must also be provided. If the user is a Google Support agent, this will not be set.",
     ).optional(),
   }).describe(
-    "The user who created the case. Note: The name and email will be obfuscated if the case was created by Google Support.",
+    "The user who created the case. This field is ignored on input. Note: The name and email will be obfuscated if the case was created by Google Support.",
   ).optional(),
   description: z.string().describe("A broad description of the issue.")
     .optional(),
@@ -313,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Support Cases. Registered at `@swamp/gcp/cloudsupport/cases`. */
 export const model = {
   type: "@swamp/gcp/cloudsupport/cases",
-  version: "2026.09.29.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -452,6 +452,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

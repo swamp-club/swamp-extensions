@@ -794,7 +794,7 @@ const GlobalArgsSchema = z.object({
         "A map of resource manager tag keys and values to be attached to the nodes.",
       ).optional(),
       sandboxConfig: z.object({
-        type: z.enum(["UNSPECIFIED", "GVISOR"]).describe(
+        type: z.enum(["UNSPECIFIED", "GVISOR", "MICROVM"]).describe(
           "Type of the sandbox to use for the node.",
         ).optional(),
       }).describe("Sandbox configuration for this node.").optional(),
@@ -2823,7 +2823,7 @@ const InputsSchema = z.object({
         "A map of resource manager tag keys and values to be attached to the nodes.",
       ).optional(),
       sandboxConfig: z.object({
-        type: z.enum(["UNSPECIFIED", "GVISOR"]).describe(
+        type: z.enum(["UNSPECIFIED", "GVISOR", "MICROVM"]).describe(
           "Type of the sandbox to use for the node.",
         ).optional(),
       }).describe("Sandbox configuration for this node.").optional(),
@@ -3884,7 +3884,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -4108,6 +4108,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

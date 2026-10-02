@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.10.01.1"
+version: "2026.10.02.1"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: action_gateway_mcp_server, action_gateway_output_view
-  - Updated: action_gateway_connection, action_gateway_session, action_gateway_toolbelt
+  - Added: insight_alert_rule, insight_notification_channel
+  - Updated: load_balancer
 models:
   - action_gateway_connection.ts
   - action_gateway_mcp_server.ts
@@ -40,6 +40,8 @@ models:
   - floating_ip.ts
   - function_namespace.ts
   - function_namespace_trigger.ts
+  - insight_alert_rule.ts
+  - insight_notification_channel.ts
   - kubernetes_cluster.ts
   - kubernetes_cluster_node_pool.ts
   - load_balancer.ts

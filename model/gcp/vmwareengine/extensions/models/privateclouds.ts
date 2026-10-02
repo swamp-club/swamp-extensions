@@ -220,10 +220,10 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     stretchedClusterConfig: z.object({
       preferredLocation: z.string().describe(
-        "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` where `{project}` can either be a project number or a project ID.",
+        "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` or `europe-west3-a`, where `{project}` can either be a project number or a project ID.",
       ).optional(),
       secondaryLocation: z.string().describe(
-        "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` where `{project}` can either be a project number or a project ID.",
+        "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` or `europe-west3-b`, where `{project}` can either be a project number or a project ID.",
       ).optional(),
     }).describe(
       "Optional. Configuration of a stretched cluster. Required for STRETCHED private clouds.",
@@ -354,10 +354,10 @@ const InputsSchema = z.object({
     ).optional(),
     stretchedClusterConfig: z.object({
       preferredLocation: z.string().describe(
-        "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` where `{project}` can either be a project number or a project ID.",
+        "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` or `europe-west3-a`, where `{project}` can either be a project number or a project ID.",
       ).optional(),
       secondaryLocation: z.string().describe(
-        "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` where `{project}` can either be a project number or a project ID.",
+        "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` or `europe-west3-b`, where `{project}` can either be a project number or a project ID.",
       ).optional(),
     }).describe(
       "Optional. Configuration of a stretched cluster. Required for STRETCHED private clouds.",
@@ -423,7 +423,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds. Registered at `@swamp/gcp/vmwareengine/privateclouds`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds",
-  version: "2026.09.07.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -606,6 +606,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

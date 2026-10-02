@@ -361,7 +361,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub RolloutSequences. Registered at `@swamp/gcp/gkehub/rolloutsequences`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rolloutsequences",
-  version: "2026.08.22.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -375,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -732,6 +737,7 @@ export const model = {
         ignoreClusterDisruptionBudgets: z.any().optional(),
         ignoreMaintenancePolicies: z.any().optional(),
         patchOnly: z.any().optional(),
+        prioritized: z.any().optional(),
         soakDurationOverrideAllStages: z.any().optional(),
         soakDurationOverridePerStage: z.any().optional(),
         upgradeType: z.any().optional(),
@@ -761,6 +767,9 @@ export const model = {
         }
         if (args["patchOnly"] !== undefined) {
           body["patchOnly"] = args["patchOnly"];
+        }
+        if (args["prioritized"] !== undefined) {
+          body["prioritized"] = args["prioritized"];
         }
         if (args["soakDurationOverrideAllStages"] !== undefined) {
           body["soakDurationOverrideAllStages"] =

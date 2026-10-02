@@ -273,6 +273,7 @@ const ResourceSchema = z.object({
         cost: z.number().optional(),
         duration: z.number().optional(),
         endTime: z.number().optional(),
+        endTimeNs: z.string().optional(),
         error: z.string().optional(),
         errorTemplate: z.string().optional(),
         fingerprint: z.string().optional(),
@@ -292,7 +293,9 @@ const ResourceSchema = z.object({
         spanName: z.string().optional(),
         stackId: z.string().optional(),
         startTime: z.number().optional(),
+        startTimeNs: z.string().optional(),
         statusCode: z.number().optional(),
+        timestampNs: z.string().optional(),
         traceDuration: z.number().optional(),
         traceId: z.string().optional(),
         transactionName: z.string().optional(),
@@ -557,7 +560,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Query. Registered at `@swamp/cloudflare/workers/query`. */
 export const model = {
   type: "@swamp/cloudflare/workers/query",
-  version: "2026.09.29.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -606,6 +609,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

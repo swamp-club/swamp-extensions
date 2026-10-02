@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/browser-rendering/browser
+// Auto-generated extension model for @swamp/cloudflare/access/user-populations
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Browser.
+ * Swamp extension model for a Cloudflare User Populations.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, lookup,
  * adopt, update, delete, and sync can be driven through `swamp model`.
@@ -32,17 +32,20 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, listAll, read, remove, tryRead } from "./_lib/cloudflare.ts";
+import {
+  create,
+  listAll,
+  read,
+  remove,
+  tryRead,
+  update,
+} from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
-  guardrails: z.object({
-    allowedDomainSets: z.array(z.string()).optional(),
-    allowedDomains: z.array(z.string()).optional(),
-  }).optional(),
+  name: z.string().min(1).max(128).regex(new RegExp("[^\\s]")).describe(
+    "The name of the user population. Leading and trailing whitespace is trimmed before validation. After trimming, the name must contain at least one non-whitespace character and must not exceed 128 UTF-8 bytes.\n",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -55,32 +58,31 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  created_at: z.string().optional(),
   id: z.string(),
+  name: z.string().optional(),
+  updated_at: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  name: z.string().optional(),
-  guardrails: z.object({
-    allowedDomainSets: z.array(z.string()).optional(),
-    allowedDomains: z.array(z.string()).optional(),
-  }).optional(),
+  name: z.string().min(1).max(128).regex(new RegExp("[^\\s]")).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Browser. Registered at `@swamp/cloudflare/browser-rendering/browser`. */
+/** Swamp extension model for Cloudflare User Populations. Registered at `@swamp/cloudflare/access/user-populations`. */
 export const model = {
-  type: "@swamp/cloudflare/browser-rendering/browser",
-  version: "2026.08.04.1",
+  type: "@swamp/cloudflare/access/user-populations",
+  version: "2026.10.02.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Browser resource state",
+      description: "User Populations resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -88,14 +90,20 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Browser",
+      description: "Create a User Populations",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const body: Record<string, unknown> = {};
-        if (g.guardrails !== undefined) body.guardrails = g.guardrails;
+        if (g.name !== undefined) body.name = g.name;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -114,12 +122,14 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Browser",
-      arguments: z.object({ id: z.string().describe("The ID of the Browser") }),
+      description: "Get a User Populations",
+      arguments: z.object({
+        id: z.string().describe("The ID of the User Populations"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -139,19 +149,20 @@ export const model = {
     },
     lookup: {
       description:
-        "Look up an existing Browser by matching global argument values and import it into state",
+        "Look up an existing User Populations by matching global argument values and import it into state",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const filters: [string, string][] = [];
+        if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
           );
         }
-        const items = await listAll(endpoint, "none", undefined, {
+        const items = await listAll(endpoint, "page", undefined, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
@@ -168,7 +179,9 @@ export const model = {
           const filterDesc = filters.map(([k, v]) =>
             `${k}=${JSON.stringify(v)}`
           ).join(", ");
-          throw new Error(`No browser found matching filters: ${filterDesc}`);
+          throw new Error(
+            `No user populations found matching filters: ${filterDesc}`,
+          );
         }
         if (matches.length > 1) {
           const filterDesc = filters.map(([k, v]) =>
@@ -193,14 +206,15 @@ export const model = {
       },
     },
     adopt: {
-      description: "Import an existing Browser by ID into state for management",
+      description:
+        "Import an existing User Populations by ID into state for management",
       arguments: z.object({
-        id: z.string().describe("The ID of the Browser to import"),
+        id: z.string().describe("The ID of the User Populations to import"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -219,13 +233,72 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    update: {
+      description: "Update User Populations attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific User Populations by id (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id +
+          "/access/user_populations";
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, get, or list first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
+        const result = await update(endpoint, existing.id, body, "PUT", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     delete: {
-      description: "Delete the Browser",
-      arguments: z.object({ id: z.string().describe("The ID of the Browser") }),
+      description: "Delete the User Populations",
+      arguments: z.object({
+        id: z.string().describe("The ID of the User Populations"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -243,16 +316,16 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Browser state from Cloudflare",
+      description: "Sync User Populations state from Cloudflare",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific Browser by id (e.g. one discovered by list)",
+          "Target a specific User Populations by id (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/browser-rendering/devtools/browser";
+          "/access/user_populations";
         const instanceName =
           (g.name?.toString() ?? args.identifier ?? "current").replace(
             /[\/\\]/g,

@@ -232,6 +232,10 @@ const GlobalArgsSchema = z.object({
   prefixLength: z.number().int().describe(
     "Optional. An alternate to ip_cidr_range. Can be set when trying to create an IPv4 reservation that automatically finds a free range of the given size. If both ip_cidr_range and prefix_length are set, there is an error if the range sizes do not match. Can also be used during updates to change the range size. NOTE: For IPv6 this field only works if ip_cidr_range is set as well, and both fields must match. In other words, with IPv6 this field only works as a redundant parameter.",
   ).optional(),
+  purpose: z.enum(["PURPOSE_UNSPECIFIED", "VPC_SUBNET", "INTERNAL_ADDRESS"])
+    .describe(
+      "Optional. The purpose of this internal range. Defines the intended use of the range and any restrictions associated with it. If not specified, it defaults to VPC_SUBNET.",
+    ).optional(),
   targetCidrRange: z.array(z.string()).describe(
     'Optional. Can be set to narrow down or pick a different address space while searching for a free range. If not set, defaults to the ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"] address space (for auto-mode networks, the "10.0.0.0/9" range is used instead of "10.0.0.0/8"). This can be used to target the search in other rfc-1918 address spaces like "172.16.0.0/12" and "192.168.0.0/16" or non-rfc-1918 address spaces used in the VPC.',
   ).optional(),
@@ -273,6 +277,8 @@ const StateSchema = z.object({
   overlaps: z.array(z.string()).optional(),
   peering: z.string().optional(),
   prefixLength: z.number().optional(),
+  purpose: z.string().optional(),
+  rangeStatus: z.string().optional(),
   targetCidrRange: z.array(z.string()).optional(),
   updateTime: z.string().optional(),
   usage: z.string().optional(),
@@ -347,6 +353,10 @@ const InputsSchema = z.object({
   prefixLength: z.number().int().describe(
     "Optional. An alternate to ip_cidr_range. Can be set when trying to create an IPv4 reservation that automatically finds a free range of the given size. If both ip_cidr_range and prefix_length are set, there is an error if the range sizes do not match. Can also be used during updates to change the range size. NOTE: For IPv6 this field only works if ip_cidr_range is set as well, and both fields must match. In other words, with IPv6 this field only works as a redundant parameter.",
   ).optional(),
+  purpose: z.enum(["PURPOSE_UNSPECIFIED", "VPC_SUBNET", "INTERNAL_ADDRESS"])
+    .describe(
+      "Optional. The purpose of this internal range. Defines the intended use of the range and any restrictions associated with it. If not specified, it defaults to VPC_SUBNET.",
+    ).optional(),
   targetCidrRange: z.array(z.string()).describe(
     'Optional. Can be set to narrow down or pick a different address space while searching for a free range. If not set, defaults to the ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"] address space (for auto-mode networks, the "10.0.0.0/9" range is used instead of "10.0.0.0/8"). This can be used to target the search in other rfc-1918 address spaces like "172.16.0.0/12" and "192.168.0.0/16" or non-rfc-1918 address spaces used in the VPC.',
   ).optional(),
@@ -394,7 +404,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity InternalRanges. Registered at `@swamp/gcp/networkconnectivity/internalranges`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/internalranges",
-  version: "2026.09.07.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -546,6 +556,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "Added: purpose",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -595,6 +610,7 @@ export const model = {
         if (g["prefixLength"] !== undefined) {
           body["prefixLength"] = g["prefixLength"];
         }
+        if (g["purpose"] !== undefined) body["purpose"] = g["purpose"];
         if (g["targetCidrRange"] !== undefined) {
           body["targetCidrRange"] = g["targetCidrRange"];
         }
@@ -734,6 +750,7 @@ export const model = {
         if (g["prefixLength"] !== undefined) {
           body["prefixLength"] = g["prefixLength"];
         }
+        if (g["purpose"] !== undefined) body["purpose"] = g["purpose"];
         if (g["targetCidrRange"] !== undefined) {
           body["targetCidrRange"] = g["targetCidrRange"];
         }

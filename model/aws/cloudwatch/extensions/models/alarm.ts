@@ -174,12 +174,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number().int().min(1).max(2880).describe(
-      "The length of the warm-up period, in minutes. For this duration after you create or update the alarm, the alarm stays in INSUFFICIENT_DATA and doesn't perform alarm actions. Valid values range from 1 to 2880 minutes (2 days). You can change this value while the alarm is still in its warm-up period. Changes have no effect after the warm-up period ends.",
+      "The length of the warm-up period, in minutes. After you create or update the alarm, the alarm stays in INSUFFICIENT_DATA for this duration. During this time, the alarm does not perform alarm actions. You can change this value at any time, including after the warm-up period ends. If you change it after the warm-up period ends, the new value does not restart the warm-up period.",
     ).optional(),
     OnlyStartEvaluatingAfterWarmUpPeriodEnds: z.boolean().describe(
-      "Specifies whether the alarm waits for the full warm-up period before it starts evaluating. If true, the alarm waits the entire WarmUpPeriodDurationInMinutes before it starts evaluating, even if metric data arrives earlier. If false, the alarm ends the warm-up period early and starts evaluating as soon as it has enough metric data to fill its evaluation window. This is the default behavior.",
+      "Specifies whether the alarm waits for the full warm-up period before it starts to evaluate. The default is false. If true, the alarm waits the entire WarmUpPeriodDurationInMinutes before it starts to evaluate, even if metric data arrives earlier. If false, the alarm ends the warm-up period early. Evaluation begins as soon as the alarm has enough metric data to fill its evaluation window.",
     ).optional(),
-  }).optional(),
+  }).describe(
+    "The warm-up configuration for the alarm. A warm-up period delays alarm evaluation after you create or update the alarm. During the warm-up period, the alarm stays in INSUFFICIENT_DATA and does not perform alarm actions. For more information, see [Alarm warm-up periods](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-warm-up.html) in the *Amazon CloudWatch User Guide*.",
+  ).optional(),
   EvaluationWindow: z.object({
     WallClockWindow: WallClockWindowSchema.describe(
       "A wall clock window, which aligns the evaluated range to fixed clock boundaries that match the alarm's period, such as the top of the hour, midnight, or the start of the calendar week.",
@@ -312,12 +314,14 @@ const InputsSchema = z.object({
   ).optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number().int().min(1).max(2880).describe(
-      "The length of the warm-up period, in minutes. For this duration after you create or update the alarm, the alarm stays in INSUFFICIENT_DATA and doesn't perform alarm actions. Valid values range from 1 to 2880 minutes (2 days). You can change this value while the alarm is still in its warm-up period. Changes have no effect after the warm-up period ends.",
+      "The length of the warm-up period, in minutes. After you create or update the alarm, the alarm stays in INSUFFICIENT_DATA for this duration. During this time, the alarm does not perform alarm actions. You can change this value at any time, including after the warm-up period ends. If you change it after the warm-up period ends, the new value does not restart the warm-up period.",
     ).optional(),
     OnlyStartEvaluatingAfterWarmUpPeriodEnds: z.boolean().describe(
-      "Specifies whether the alarm waits for the full warm-up period before it starts evaluating. If true, the alarm waits the entire WarmUpPeriodDurationInMinutes before it starts evaluating, even if metric data arrives earlier. If false, the alarm ends the warm-up period early and starts evaluating as soon as it has enough metric data to fill its evaluation window. This is the default behavior.",
+      "Specifies whether the alarm waits for the full warm-up period before it starts to evaluate. The default is false. If true, the alarm waits the entire WarmUpPeriodDurationInMinutes before it starts to evaluate, even if metric data arrives earlier. If false, the alarm ends the warm-up period early. Evaluation begins as soon as the alarm has enough metric data to fill its evaluation window.",
     ).optional(),
-  }).optional(),
+  }).describe(
+    "The warm-up configuration for the alarm. A warm-up period delays alarm evaluation after you create or update the alarm. During the warm-up period, the alarm stays in INSUFFICIENT_DATA and does not perform alarm actions. For more information, see [Alarm warm-up periods](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarm-warm-up.html) in the *Amazon CloudWatch User Guide*.",
+  ).optional(),
   EvaluationWindow: z.object({
     WallClockWindow: WallClockWindowSchema.describe(
       "A wall clock window, which aligns the evaluated range to fixed clock boundaries that match the alarm's period, such as the top of the hour, midnight, or the start of the calendar week.",
@@ -392,7 +396,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Alarm. Registered at `@swamp/aws/cloudwatch/alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/alarm",
-  version: "2026.08.21.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -462,6 +466,11 @@ export const model = {
     {
       toVersion: "2026.08.21.1",
       description: "Added: WarmUpConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

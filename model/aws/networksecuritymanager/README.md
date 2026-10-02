@@ -14,8 +14,9 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/networksecuritymanager/rule` to see
-the full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/networksecuritymanager/deployment` to
+see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -47,17 +48,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new rule model
-swamp model create @swamp/aws/networksecuritymanager/rule my-rule
+# Create a new deployment model
+swamp model create @swamp/aws/networksecuritymanager/deployment my-deployment
 
 # Edit the model to configure its properties
-swamp model edit my-rule
+swamp model edit my-deployment
 
 # Create the resource in AWS
-swamp model method run my-rule create
+swamp model method run my-deployment create
 
 # Sync current state from AWS
-swamp model method run my-rule sync
+swamp model method run my-deployment sync
 ```
 
 ## License

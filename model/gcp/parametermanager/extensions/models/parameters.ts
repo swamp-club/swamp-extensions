@@ -155,9 +155,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -187,6 +184,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. The resource name of the Parameter in the format `projects/*/locations/*/parameters/*`.",
   ).optional(),
   tags: z.record(z.string(), z.string()).describe(
     'Optional. Input only. Immutable. Tag keys and tag values that are bound to this Parameter. You must represent each item in the map as: `"": ""`. For example, a single resource can have the following tags: ` "123/environment": "production", "123/costCenter": "marketing", ` Tags are used to organize and group resources. Tags can be used to control policy evaluation for the resource.',
@@ -218,7 +218,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -236,6 +235,9 @@ const InputsSchema = z.object({
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. The resource name of the Parameter in the format `projects/*/locations/*/parameters/*`.",
   ).optional(),
   tags: z.record(z.string(), z.string()).describe(
     'Optional. Input only. Immutable. Tag keys and tag values that are bound to this Parameter. You must represent each item in the map as: `"": ""`. For example, a single resource can have the following tags: ` "123/environment": "production", "123/costCenter": "marketing", ` Tags are used to organize and group resources. Tags can be used to control policy evaluation for the resource.',
@@ -276,7 +278,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Parameter Manager Parameters. Registered at `@swamp/gcp/parametermanager/parameters`. */
 export const model = {
   type: "@swamp/gcp/parametermanager/parameters",
-  version: "2026.09.07.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -416,6 +418,11 @@ export const model = {
       description: "Added: tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -445,6 +452,7 @@ export const model = {
         if (g["format"] !== undefined) body["format"] = g["format"];
         if (g["kmsKey"] !== undefined) body["kmsKey"] = g["kmsKey"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
         if (g["parameterId"] !== undefined) {
           params["parameterId"] = String(g["parameterId"]);
@@ -465,13 +473,20 @@ export const model = {
           body,
           GET_CONFIG,
           undefined,
-          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -502,10 +517,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

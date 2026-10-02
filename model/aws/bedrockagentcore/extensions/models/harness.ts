@@ -387,6 +387,89 @@ const HarnessSkillSchema = z.object({
   ).optional(),
 });
 
+const HarnessHookLambdaTargetSchema = z.object({
+  Arn: z.string().min(20).max(2048).regex(
+    new RegExp("^arn:aws(-[^:]+)?:lambda:[a-z0-9-]+:[0-9]{12}:function:.+$"),
+  ).describe("The ARN of the Lambda function."),
+  TimeoutSeconds: z.number().int().min(1).max(900).describe(
+    "The maximum number of seconds to wait for the Lambda response. Defaults to 60.",
+  ).optional(),
+  FailureMode: z.enum(["allow", "deny"]).describe(
+    "Whether the agent loop continues or stops when the Lambda invocation fails. Defaults to deny.",
+  ).optional(),
+});
+
+const HarnessHookSnsTargetSchema = z.object({
+  Arn: z.string().min(20).max(2048).regex(
+    new RegExp("^arn:aws(-[^:]+)?:sns:[a-z0-9-]+:[0-9]{12}:.+$"),
+  ).describe("The ARN of the SNS topic."),
+});
+
+const HarnessHookEventBridgeTargetSchema = z.object({
+  Arn: z.string().min(20).max(2048).regex(
+    new RegExp("^arn:aws(-[^:]+)?:events:[a-z0-9-]+:[0-9]{12}:event-bus/.+$"),
+  ).describe("The ARN of the EventBridge event bus."),
+});
+
+const HarnessHookTargetSchema = z.object({
+  Lambda: HarnessHookLambdaTargetSchema.describe(
+    "A Lambda function invoked synchronously for a lifecycle hook.",
+  ).optional(),
+  Sns: HarnessHookSnsTargetSchema.describe(
+    "An SNS topic that receives lifecycle hook events asynchronously.",
+  ).optional(),
+  EventBridge: HarnessHookEventBridgeTargetSchema.describe(
+    "An EventBridge event bus that receives lifecycle hook events asynchronously.",
+  ).optional(),
+});
+
+const HarnessBeforeInvocationHookSchema = z.object({
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The unique name of the hook."),
+  Target: HarnessHookTargetSchema.describe(
+    "The destination that receives lifecycle hook events.",
+  ),
+});
+
+const HarnessAfterInvocationHookSchema = z.object({
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The unique name of the hook."),
+  Target: HarnessHookTargetSchema.describe(
+    "The destination that receives lifecycle hook events.",
+  ),
+});
+
+const HarnessBeforeToolCallHookSchema = z.object({
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The unique name of the hook."),
+  Target: HarnessHookTargetSchema.describe(
+    "The destination that receives lifecycle hook events.",
+  ),
+});
+
+const HarnessAfterToolCallHookSchema = z.object({
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The unique name of the hook."),
+  Target: HarnessHookTargetSchema.describe(
+    "The destination that receives lifecycle hook events.",
+  ),
+});
+
+const HarnessHookSchema = z.object({
+  BeforeInvocation: HarnessBeforeInvocationHookSchema.describe(
+    "A hook that runs before an agent invocation.",
+  ).optional(),
+  AfterInvocation: HarnessAfterInvocationHookSchema.describe(
+    "A hook that runs after an agent invocation.",
+  ).optional(),
+  BeforeToolCall: HarnessBeforeToolCallHookSchema.describe(
+    "A hook that runs before each tool call.",
+  ).optional(),
+  AfterToolCall: HarnessAfterToolCallHookSchema.describe(
+    "A hook that runs after each tool call.",
+  ).optional(),
+});
+
 const HarnessAgentCoreMemoryRetrievalConfigSchema = z.object({
   TopK: z.number().int().describe(
     "Maximum number of memory records to retrieve. Typed as both integer and string because CloudFormation marshals scalars nested in dynamic-key (patternProperties) maps as strings, while direct API/CDK callers send a JSON integer; both forms must validate.",
@@ -502,6 +585,9 @@ const GlobalArgsSchema = z.object({
   AllowedTools: z.array(
     z.string().min(1).max(64).regex(new RegExp("^(\\*|@?[^/]+(/[^/]+)?)$")),
   ).describe("The tools that the agent is allowed to use.").optional(),
+  Hooks: z.array(HarnessHookSchema).describe(
+    "Lifecycle hooks that fire at well-defined points in the agent loop for policy enforcement, audit, and governance.",
+  ).optional(),
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema
       .optional(),
@@ -560,6 +646,7 @@ const StateSchema = z.object({
   Tools: z.array(HarnessToolSchema).optional(),
   Skills: z.array(HarnessSkillSchema).optional(),
   AllowedTools: z.array(z.string()).optional(),
+  Hooks: z.array(HarnessHookSchema).optional(),
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema,
     ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationSchema,
@@ -629,6 +716,9 @@ const InputsSchema = z.object({
   AllowedTools: z.array(
     z.string().min(1).max(64).regex(new RegExp("^(\\*|@?[^/]+(/[^/]+)?)$")),
   ).describe("The tools that the agent is allowed to use.").optional(),
+  Hooks: z.array(HarnessHookSchema).describe(
+    "Lifecycle hooks that fire at well-defined points in the agent loop for policy enforcement, audit, and governance.",
+  ).optional(),
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema
       .optional(),
@@ -679,7 +769,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.08.17.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -719,6 +809,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "Added: Hooks",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

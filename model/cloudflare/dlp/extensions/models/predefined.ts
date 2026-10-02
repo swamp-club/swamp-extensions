@@ -127,7 +127,7 @@ const ResourceSchema = z.object({
       variant: z.string().optional(),
       case_sensitive: z.boolean().optional(),
       secret: z.boolean().optional(),
-      word_list: z.string().optional(),
+      word_list: z.array(z.string()).optional(),
     })).optional(),
     id: z.string().optional(),
     name: z.string().optional(),
@@ -157,7 +157,7 @@ const ResourceSchema = z.object({
       variant: z.string().optional(),
       case_sensitive: z.boolean().optional(),
       secret: z.boolean().optional(),
-      word_list: z.string().optional(),
+      word_list: z.array(z.string()).optional(),
     })).optional(),
     updated_at: z.string().optional(),
     type: z.string().optional(),
@@ -195,7 +195,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Predefined. Registered at `@swamp/cloudflare/dlp/predefined`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/predefined",
-  version: "2026.09.29.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -239,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

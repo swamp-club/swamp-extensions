@@ -104,6 +104,44 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "Structured search as a JSON array of {field, op, value} objects. Use the 'in' operator with an array value to bulk-check up to 100 values. Multiple conditions are AND'd together. Max 10 conditions per request.",
   ).optional(),
+  searchBranches: z.array(z.array(z.object({
+    field: z.enum([
+      "attacker",
+      "attackerCountry",
+      "category",
+      "createdAt",
+      "date",
+      "event",
+      "indicator",
+      "indicatorType",
+      "mitreAttack",
+      "mitreCapec",
+      "tags",
+      "targetCountry",
+      "targetIndustry",
+      "tlp",
+      "uuid",
+      "killChain",
+      "hasChildren",
+    ]),
+    op: z.enum([
+      "equals",
+      "not",
+      "gt",
+      "gte",
+      "lt",
+      "lte",
+      "like",
+      "contains",
+      "startsWith",
+      "endsWith",
+      "find",
+      "in",
+    ]),
+    value: z.string().min(1).max(512),
+  }))).describe(
+    "OR branches of structured search filters. Filters within a branch are AND'd, branches are OR'd, and the result is AND'd with `search`: `AND(search) AND OR(AND(branch 1), ...)`. Max 8 branches of 1-10 conditions each. Not supported for analytics datasets, and `indicator` filters are not yet supported inside branches. Cursor pages carry the original branches, so do not resend them with `cursor`.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -212,6 +250,42 @@ const InputsSchema = z.object({
     ]),
     value: z.string().min(1).max(512),
   })).optional(),
+  searchBranches: z.array(z.array(z.object({
+    field: z.enum([
+      "attacker",
+      "attackerCountry",
+      "category",
+      "createdAt",
+      "date",
+      "event",
+      "indicator",
+      "indicatorType",
+      "mitreAttack",
+      "mitreCapec",
+      "tags",
+      "targetCountry",
+      "targetIndustry",
+      "tlp",
+      "uuid",
+      "killChain",
+      "hasChildren",
+    ]),
+    op: z.enum([
+      "equals",
+      "not",
+      "gt",
+      "gte",
+      "lt",
+      "lte",
+      "like",
+      "contains",
+      "startsWith",
+      "endsWith",
+      "find",
+      "in",
+    ]),
+    value: z.string().min(1).max(512),
+  }))).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -220,7 +294,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Events. Registered at `@swamp/cloudflare/cloudforce-one/events`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/events",
-  version: "2026.09.15.1",
+  version: "2026.10.02.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.02.1",
+      description: "Added: searchBranches",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -246,6 +327,9 @@ export const model = {
         if (g.page !== undefined) body.page = g.page;
         if (g.pageSize !== undefined) body.pageSize = g.pageSize;
         if (g.search !== undefined) body.search = g.search;
+        if (g.searchBranches !== undefined) {
+          body.searchBranches = g.searchBranches;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

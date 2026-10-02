@@ -53,7 +53,7 @@ const GlobalArgsSchema = z.object({
     md5_key: z.string().optional(),
   }).optional(),
   bgp_mode: z.enum(["dynamic_route_exchange", "advertise_only"]).describe(
-    "The BGP mode for a CNI.\n\nControls the customer-facing data path:\n* `DynamicRouteExchange` — Full BGP: routes flow through to conduit via CRE / bgp-bridge /\nbgp-bridge-receiver.\n* `AdvertiseOnly` — static advertisement via taserver, no routes exchanged with Conduit",
+    "The BGP mode for a CNI.\nOne of the following:\n* `dynamic_route_exchange`\n* `advertise_only`",
   ).optional(),
   cust_ip: z.string().describe(
     "Customer end of the point-to-point link\n\nThis should always be inside the same prefix as `p2p_ip`.",
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Cnis. Registered at `@swamp/cloudflare/cni/cnis`. */
 export const model = {
   type: "@swamp/cloudflare/cni/cnis",
-  version: "2026.09.29.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -165,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

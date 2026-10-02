@@ -109,6 +109,7 @@ const GlobalArgsSchema = z.object({
     "pingone",
     "yandex",
     "cloudflare",
+    "passkeys",
   ]).describe(
     "The type of identity provider. To determine the value for a specific provider, refer to our [developer documentation](https://developers.cloudflare.com/cloudflare-one/identity/idp-integration/).",
   ).optional(),
@@ -237,6 +238,7 @@ const InputsSchema = z.object({
     "pingone",
     "yandex",
     "cloudflare",
+    "passkeys",
   ]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -246,7 +248,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Identity Providers. Registered at `@swamp/cloudflare/access/identity-providers`. */
 export const model = {
   type: "@swamp/cloudflare/access/identity-providers",
-  version: "2026.09.29.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -290,6 +292,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1533,7 +1533,7 @@ const GlobalArgsSchema = z.object({
         "NETWORK_ACTIVITY_LOGS",
       ]),
     ).describe(
-      "Specifies which log types are enabled. Note that users will receive on-device messaging when usage logging is enabled.",
+      "Optional. Specifies which log types are enabled. Note that users will receive on-device messaging when usage logging is enabled.",
     ).optional(),
     uploadOnCellularAllowed: z.array(
       z.enum([
@@ -1542,9 +1542,9 @@ const GlobalArgsSchema = z.object({
         "NETWORK_ACTIVITY_LOGS",
       ]),
     ).describe(
-      "Specifies which of the enabled log types can be uploaded over mobile data. By default logs are queued for upload when the device connects to WiFi.",
+      "Optional. Specifies which of the enabled log types can be uploaded over mobile data. By default logs are queued for upload when the device connects to WiFi.",
     ).optional(),
-  }).describe("Configuration of device activity logging.").optional(),
+  }).describe("Optional. Configuration of device activity logging.").optional(),
   version: z.string().describe(
     "The version of the policy. This is a read-only field. The version is incremented each time the policy is updated.",
   ).optional(),
@@ -3378,7 +3378,7 @@ const InputsSchema = z.object({
         "NETWORK_ACTIVITY_LOGS",
       ]),
     ).describe(
-      "Specifies which log types are enabled. Note that users will receive on-device messaging when usage logging is enabled.",
+      "Optional. Specifies which log types are enabled. Note that users will receive on-device messaging when usage logging is enabled.",
     ).optional(),
     uploadOnCellularAllowed: z.array(
       z.enum([
@@ -3387,9 +3387,9 @@ const InputsSchema = z.object({
         "NETWORK_ACTIVITY_LOGS",
       ]),
     ).describe(
-      "Specifies which of the enabled log types can be uploaded over mobile data. By default logs are queued for upload when the device connects to WiFi.",
+      "Optional. Specifies which of the enabled log types can be uploaded over mobile data. By default logs are queued for upload when the device connects to WiFi.",
     ).optional(),
-  }).describe("Configuration of device activity logging.").optional(),
+  }).describe("Optional. Configuration of device activity logging.").optional(),
   version: z.string().describe(
     "The version of the policy. This is a read-only field. The version is incremented each time the policy is updated.",
   ).optional(),
@@ -3444,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.01.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3623,6 +3623,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

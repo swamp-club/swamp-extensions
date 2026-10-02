@@ -170,6 +170,9 @@ const GlobalArgsSchema = z.object({
         channelId: z.string().describe(
           "The id of the corresponding YouTube channel. In case of a channel comment this is the channel the comment refers to. In case of a video or post comment it's the video/post's channel.",
         ).optional(),
+        imageUrl: z.string().describe(
+          "Output only. The URL of the image or animated GIF attached to the comment, if any. This property is only present when a comment contains an image or GIF. The URL is served as a signed link with a six-hour time to live (TTL) and expires six hours after retrieval.",
+        ).optional(),
         likeCount: z.number().int().describe(
           "The total number of likes this comment has received.",
         ).optional(),
@@ -249,6 +252,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         channelId: z.string().describe(
           "The id of the corresponding YouTube channel. In case of a channel comment this is the channel the comment refers to. In case of a video or post comment it's the video/post's channel.",
+        ).optional(),
+        imageUrl: z.string().describe(
+          "Output only. The URL of the image or animated GIF attached to the comment, if any. This property is only present when a comment contains an image or GIF. The URL is served as a signed link with a six-hour time to live (TTL) and expires six hours after retrieval.",
         ).optional(),
         likeCount: z.number().int().describe(
           "The total number of likes this comment has received.",
@@ -318,6 +324,7 @@ const StateSchema = z.object({
         authorProfileImageUrl: z.string(),
         canRate: z.boolean(),
         channelId: z.string(),
+        imageUrl: z.string(),
         likeCount: z.number(),
         moderationStatus: z.string(),
         parentId: z.string(),
@@ -347,6 +354,7 @@ const StateSchema = z.object({
         authorProfileImageUrl: z.string(),
         canRate: z.boolean(),
         channelId: z.string(),
+        imageUrl: z.string(),
         likeCount: z.number(),
         moderationStatus: z.string(),
         parentId: z.string(),
@@ -405,6 +413,9 @@ const InputsSchema = z.object({
         ).optional(),
         channelId: z.string().describe(
           "The id of the corresponding YouTube channel. In case of a channel comment this is the channel the comment refers to. In case of a video or post comment it's the video/post's channel.",
+        ).optional(),
+        imageUrl: z.string().describe(
+          "Output only. The URL of the image or animated GIF attached to the comment, if any. This property is only present when a comment contains an image or GIF. The URL is served as a signed link with a six-hour time to live (TTL) and expires six hours after retrieval.",
         ).optional(),
         likeCount: z.number().int().describe(
           "The total number of likes this comment has received.",
@@ -485,6 +496,9 @@ const InputsSchema = z.object({
         ).optional(),
         channelId: z.string().describe(
           "The id of the corresponding YouTube channel. In case of a channel comment this is the channel the comment refers to. In case of a video or post comment it's the video/post's channel.",
+        ).optional(),
+        imageUrl: z.string().describe(
+          "Output only. The URL of the image or animated GIF attached to the comment, if any. This property is only present when a comment contains an image or GIF. The URL is served as a signed link with a six-hour time to live (TTL) and expires six hours after retrieval.",
         ).optional(),
         likeCount: z.number().int().describe(
           "The total number of likes this comment has received.",
@@ -562,7 +576,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data CommentThreads. Registered at `@swamp/gcp/youtube/commentthreads`. */
 export const model = {
   type: "@swamp/gcp/youtube/commentthreads",
-  version: "2026.09.25.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -681,6 +695,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

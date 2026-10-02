@@ -62,6 +62,9 @@ const GET_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "view": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -94,6 +97,9 @@ const LIST_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
+    },
+    "view": {
+      "location": "query",
     },
   },
 } as const;
@@ -128,10 +134,12 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   acknowledged: z.boolean().optional(),
   acknowledgementTime: z.string().optional(),
+  affectedFrameworks: z.array(z.string()).optional(),
   associatedOrgPolicyViolationId: z.string().optional(),
   auditLogLink: z.string().optional(),
   beginTime: z.string().optional(),
   category: z.string().optional(),
+  childResourceViolationCount: z.number().optional(),
   description: z.string().optional(),
   exceptionAuditLogLink: z.string().optional(),
   exceptionContexts: z.array(z.object({
@@ -159,6 +167,7 @@ const StateSchema = z.object({
     }),
     remediationType: z.string(),
   }).optional(),
+  remediationMarkdown: z.string().optional(),
   resolveTime: z.string().optional(),
   resourceName: z.string().optional(),
   resourceType: z.string().optional(),
@@ -208,7 +217,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Violations. Registered at `@swamp/gcp/assuredworkloads/workloads-violations`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-violations",
-  version: "2026.08.15.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -345,6 +354,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -470,6 +484,9 @@ export const model = {
         orderBy: z.string().describe("Optional. Actionable sorting delegation.")
           .optional(),
         pageSize: z.number().describe("Optional. Page size.").optional(),
+        view: z.string().describe(
+          "Optional. Specifies the violation view(AssuredWorkloads or DataBoundary) for fetching violations.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -497,6 +514,7 @@ export const model = {
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
         const { items, nextPageToken } = await listResources(
           baseUrl,
           LIST_CONFIG,
@@ -528,6 +546,7 @@ export const model = {
         acknowledgeType: z.any().optional(),
         comment: z.any().optional(),
         nonCompliantOrgPolicy: z.any().optional(),
+        view: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -550,6 +569,7 @@ export const model = {
         if (args["nonCompliantOrgPolicy"] !== undefined) {
           body["nonCompliantOrgPolicy"] = args["nonCompliantOrgPolicy"];
         }
+        if (args["view"] !== undefined) body["view"] = args["view"];
         const result = await createResource(
           baseUrl,
           {

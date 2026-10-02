@@ -186,6 +186,13 @@ const GlobalArgsSchema = z.object({
   accessGroups: z.record(
     z.string(),
     z.object({
+      defaultIamRoleConfig: z.object({
+        role: z.string().describe(
+          'Optional. The IAM role resource name to be applied as default. Example: "roles/bigquery.dataViewer".',
+        ).optional(),
+      }).describe(
+        "Optional. Default IAM role configuration to be applied on the data assets associated with this data product, for this access group.",
+      ).optional(),
       description: z.string().describe(
         "Optional. Description of the access group.",
       ).optional(),
@@ -271,6 +278,13 @@ const InputsSchema = z.object({
   accessGroups: z.record(
     z.string(),
     z.object({
+      defaultIamRoleConfig: z.object({
+        role: z.string().describe(
+          'Optional. The IAM role resource name to be applied as default. Example: "roles/bigquery.dataViewer".',
+        ).optional(),
+      }).describe(
+        "Optional. Default IAM role configuration to be applied on the data assets associated with this data product, for this access group.",
+      ).optional(),
       description: z.string().describe(
         "Optional. Description of the access group.",
       ).optional(),
@@ -345,7 +359,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataProducts. Registered at `@swamp/gcp/dataplex/dataproducts`. */
 export const model = {
   type: "@swamp/gcp/dataplex/dataproducts",
-  version: "2026.09.07.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -502,6 +516,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

@@ -147,6 +147,7 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   membershipStates: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
+  prioritized: z.boolean().optional(),
   rolloutSequence: z.string().optional(),
   stageSoakDurationOverrides: z.record(z.string(), z.unknown()).optional(),
   stages: z.array(z.object({
@@ -213,7 +214,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Rollouts. Registered at `@swamp/gcp/gkehub/rollouts`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rollouts",
-  version: "2026.09.12.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -232,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

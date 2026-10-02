@@ -444,6 +444,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   abuse: z.object({
     block: z.object({
+      abuseAgentRunId: z.string().optional(),
       action: z.string().optional(),
       actor: z.string().optional(),
       caseId: z.string().optional(),
@@ -461,6 +462,7 @@ const ResourceSchema = z.object({
       threadId: z.string().optional(),
     }).optional(),
     blockHistory: z.array(z.object({
+      abuseAgentRunId: z.string().optional(),
       action: z.string().optional(),
       actor: z.string().optional(),
       caseId: z.string().optional(),
@@ -1759,7 +1761,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.01.2",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1923,6 +1925,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

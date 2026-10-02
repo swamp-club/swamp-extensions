@@ -158,9 +158,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -182,11 +179,14 @@ const GlobalArgsSchema = z.object({
   disabled: z.boolean().describe(
     "Optional. Disabled boolean to determine if a ParameterVersion acts as a metadata only resource (payload is never returned if disabled is true). If true any calls will always default to BASIC view even if the user explicitly passes FULL view as part of the request. A render call on a disabled resource fails with an error. Default value is False.",
   ).optional(),
+  name: z.string().describe(
+    "Identifier. The resource name of the ParameterVersion in the format `projects/*/locations/*/parameters/*/versions/*`.",
+  ).optional(),
   payload: z.object({
     data: z.string().describe("Required. bytes data for storing payload.")
       .optional(),
     dataCrc32c: z.string().describe(
-      "Optional. [Optional] The integrity checksum of the payload. If provided, the server will verify that the checksum matches the payload. If not provided, the server will generate the checksum.",
+      "Optional. The integrity checksum of the payload. If provided, the server will verify that the checksum matches the payload. If not provided, the server will generate the checksum.",
     ).optional(),
   }).describe(
     "Required. Immutable. Payload content of a ParameterVersion resource. This is only returned when the request provides the View value of FULL (default for GET request).",
@@ -221,7 +221,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -231,11 +230,14 @@ const InputsSchema = z.object({
   disabled: z.boolean().describe(
     "Optional. Disabled boolean to determine if a ParameterVersion acts as a metadata only resource (payload is never returned if disabled is true). If true any calls will always default to BASIC view even if the user explicitly passes FULL view as part of the request. A render call on a disabled resource fails with an error. Default value is False.",
   ).optional(),
+  name: z.string().describe(
+    "Identifier. The resource name of the ParameterVersion in the format `projects/*/locations/*/parameters/*/versions/*`.",
+  ).optional(),
   payload: z.object({
     data: z.string().describe("Required. bytes data for storing payload.")
       .optional(),
     dataCrc32c: z.string().describe(
-      "Optional. [Optional] The integrity checksum of the payload. If provided, the server will verify that the checksum matches the payload. If not provided, the server will generate the checksum.",
+      "Optional. The integrity checksum of the payload. If provided, the server will verify that the checksum matches the payload. If not provided, the server will generate the checksum.",
     ).optional(),
   }).describe(
     "Required. Immutable. Payload content of a ParameterVersion resource. This is only returned when the request provides the View value of FULL (default for GET request).",
@@ -280,7 +282,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Parameter Manager Parameters.Versions. Registered at `@swamp/gcp/parametermanager/parameters-versions`. */
 export const model = {
   type: "@swamp/gcp/parametermanager/parameters-versions",
-  version: "2026.09.07.1",
+  version: "2026.10.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -417,6 +419,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -442,6 +449,7 @@ export const model = {
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
         if (g["disabled"] !== undefined) body["disabled"] = g["disabled"];
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["payload"] !== undefined) body["payload"] = g["payload"];
         if (g["parameterVersionId"] !== undefined) {
           params["parameterVersionId"] = String(g["parameterVersionId"]);
@@ -462,13 +470,18 @@ export const model = {
           body,
           GET_CONFIG,
           undefined,
-          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -499,10 +512,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
