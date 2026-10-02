@@ -12,6 +12,7 @@ import {
 import { generateTailscaleExtensionModel } from "./extensionModelGenerator.ts";
 import { generateTailscaleLibFile } from "./libGenerator.ts";
 import { resolveModels } from "./pipeline.ts";
+import { instanceName } from "./runtime/tailscale.ts";
 import { entries, fixtureSpec } from "./testFixtures.ts";
 
 // ---------------------------------------------------------------------------
@@ -204,6 +205,11 @@ Deno.test({
         () => Response.json({ ...webhookBody, secret: "s3cret" }),
       ),
       route("DELETE", "/api/v2/webhooks/other", () => new Response(null)),
+      route(
+        "DELETE",
+        "/api/v2/tailnet/-/keys/k1",
+        () => new Response(null),
+      ),
       route(
         "GET",
         "/api/v2/webhooks/wh2",
@@ -487,9 +493,31 @@ Deno.test({
             );
             assertEquals(written.get("state/hook"), webhookBody);
             assertEquals(
-              (written.get("state/other") as { status: string }).status,
+              (written.get("state/item-other") as { status: string }).status,
               "deleted",
             );
+            assert(!written.has("state/other"));
+          },
+        );
+
+        await t.step(
+          "delete of a listed ID marks its item instance deleted",
+          async () => {
+            const { context, written } = mockContext({ ...base, name: "key" });
+            const tracked = { id: "k9", keyType: "auth" };
+            written.set("state/key", tracked);
+            await models.tailnet_key.methods.list.execute({}, context);
+            assert(written.has("state/item-k1"));
+            await models.tailnet_key.methods.delete.execute(
+              { id: "k1" },
+              context,
+            );
+            assertEquals(
+              (written.get("state/item-k1") as { status: string }).status,
+              "deleted",
+            );
+            assertEquals(written.get("state/key"), tracked);
+            assert(!written.has("state/k1"));
           },
         );
 
@@ -807,4 +835,11 @@ Deno.test({
       await mock.close();
     }
   },
+});
+
+Deno.test("instanceName - a bare dot or double dot becomes an underscore", () => {
+  assertEquals(instanceName("."), "_");
+  assertEquals(instanceName(".."), "_");
+  assertEquals(instanceName("a.b"), "a.b");
+  assertEquals(instanceName("a/b"), "a_b");
 });

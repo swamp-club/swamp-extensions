@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/tailscale"
-version: "2026.10.02.1"
+version: "2026.10.02.2"
 description: "Tailscale tailnet management models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,7 +9,7 @@ labels:
   - networking
   - vpn
 releaseNotes: |
-  - Added: tailnet_key, oauth_client, federated_identity, webhook, posture_integration, oauth_app, user_invite, device_invite, service, log_stream, tailnet_settings, contacts, policy_file, dns_configuration, dns_nameservers, dns_preferences, dns_search_paths, dns_split_nameservers, device_tags, device_subnet_routes, device_key, device_authorization, device_posture_attribute, device, user
+  - Updated: tailnet_key, oauth_client, federated_identity, webhook, posture_integration, oauth_app, user_invite, device_invite, service, log_stream
 models:
   - contacts.ts
   - device.ts

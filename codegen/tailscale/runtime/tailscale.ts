@@ -456,6 +456,8 @@ export function instanceName(value: unknown, fallback = "current"): string {
   const name = value === undefined || value === null || value === ""
     ? fallback
     : String(value);
+  // A bare "." would name the directory itself.
+  if (name === ".") return "_";
   return name.replace(/[/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
 }
 

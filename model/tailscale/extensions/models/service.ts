@@ -104,7 +104,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale service. Registered at `@swamp/tailscale/service`. */
 export const model = {
   type: "@swamp/tailscale/service",
-  version: "2026.10.02.1",
+  version: "2026.10.02.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.02.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -129,6 +136,8 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         requireArgs(g, ["name"], "create");
+        // Advisory only: the PUT is an unconditional upsert, so two
+        // concurrent creates can both pass this check and the later write wins.
         const existing = await readOptional(
           g,
           expandPath("/tailnet/{tailnet}/services/{serviceName}", g, {

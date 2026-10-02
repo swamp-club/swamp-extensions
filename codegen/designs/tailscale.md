@@ -126,10 +126,10 @@ such as `images` and `datacenters`):
   and the stored state.
 - `get`, `delete` and `adopt` take the resource's ID as an argument. A
   `collection` model's `delete` defaults to the stored ID; given another
-  resource's ID, it records that deletion under the ID, leaving the stored
-  resource tracked. `keyed` and `settings` models take no arguments at all:
-  their key (a service name, a log type, a device ID) is a required global
-  argument.
+  resource's ID, it records that deletion under `item-<id>` (the instance `get`
+  and `list` write that resource to), leaving the stored resource tracked.
+  `keyed` and `settings` models take no arguments at all: their key (a service
+  name, a log type, a device ID) is a required global argument.
 - `observed` models have no `sync`, as Hetzner's create-less models have none:
   with no global argument naming the resource, `get` with an ID does the same
   job.
@@ -237,6 +237,12 @@ Both upsert with `PUT`, which silently replaces whatever is already at that key.
 So `create` first reads the key and **fails if something already exists there**,
 telling the user to `adopt` it instead. `update` sends the `PUT` without that
 check.
+
+The check is advisory, not a lock. The `PUT` is an unconditional upsert and the
+API offers no conditional guard for it, so two concurrent `create` calls for the
+same key can both find nothing there and both write; the later write wins. This
+is accepted: keyed resources are configured, not raced, and the check exists to
+stop a `create` from silently replacing something already in place.
 
 `service` also gets `list_devices`, `get_device_approval` and
 `set_device_approval` methods for its `devices` and `device/{deviceId}/approved`

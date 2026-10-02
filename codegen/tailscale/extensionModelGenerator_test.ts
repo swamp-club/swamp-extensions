@@ -1,6 +1,9 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assertStringIncludes } from "@std/assert";
-import { generateTailscaleExtensionModel } from "./extensionModelGenerator.ts";
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  generateTailscaleExtensionModel,
+  zodFull,
+} from "./extensionModelGenerator.ts";
 import { generateTailscaleLibFile } from "./libGenerator.ts";
 import { resolveModels } from "./pipeline.ts";
 import { entries, fixtureSpec } from "./testFixtures.ts";
@@ -43,4 +46,16 @@ Deno.test("generateTailscaleLibFile - copies the runtime module", () => {
   assertStringIncludes(lib, "export async function apiRequest(");
   // The runtime module's own header is replaced, not duplicated.
   assertStringIncludes(lib.split("export")[0], "Auto-generated");
+});
+
+Deno.test("zodFull - numeric enum values are emitted as JSON literals", () => {
+  assertEquals(
+    zodFull({ type: "integer", enum: [1, 2] }),
+    "z.union([z.literal(1), z.literal(2)])",
+  );
+  // A string in a numeric enum must stay a quoted literal to compile.
+  assertEquals(
+    zodFull({ type: "number", enum: [1, "auto"] }),
+    'z.union([z.literal(1), z.literal("auto")])',
+  );
 });

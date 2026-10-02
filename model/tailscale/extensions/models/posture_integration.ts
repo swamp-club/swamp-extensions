@@ -127,7 +127,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale posture integration. Registered at `@swamp/tailscale/posture-integration`. */
 export const model = {
   type: "@swamp/tailscale/posture-integration",
-  version: "2026.10.02.1",
+  version: "2026.10.02.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.02.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -254,10 +261,11 @@ export const model = {
           throw new Error("pass id, or run create, get or adopt first");
         }
         // Record the deletion on the stored instance only when it is that resource;
-        // another ID gets its own record, so the stored resource stays tracked.
+        // another ID is recorded under item-<id>, as get and list write it, so the
+        // stored resource stays tracked.
         const name = stored && stored.id === id
           ? instanceName(g.name)
-          : instanceName(id);
+          : instanceName(`item-${id}`);
         const resp = await apiRequest(
           g,
           "DELETE",

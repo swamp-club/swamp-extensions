@@ -188,6 +188,9 @@ export interface OApiSpec {
 
 // --- Schema fetching ---
 
+/** How long the spec download may take before it is abandoned. */
+const SPEC_FETCH_TIMEOUT_MS = 60_000;
+
 export async function fetchTailscaleSchema(options?: {
   outputPath?: string;
 }): Promise<void> {
@@ -197,7 +200,9 @@ export async function fetchTailscaleSchema(options?: {
   console.log("Fetching Tailscale OpenAPI spec...");
   console.log(`  Source: ${TAILSCALE_SPEC_URL}`);
 
-  const response = await fetch(TAILSCALE_SPEC_URL);
+  const response = await fetch(TAILSCALE_SPEC_URL, {
+    signal: AbortSignal.timeout(SPEC_FETCH_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(
       `Failed to download spec: ${response.status} ${response.statusText}`,

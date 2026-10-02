@@ -482,8 +482,9 @@ function collectionMethods(
       `const id = args.id ?? stored?.${id};`,
       `if (id === undefined || id === null || id === "") throw new Error("pass id, or run create, get or adopt first");`,
       `// Record the deletion on the stored instance only when it is that resource;`,
-      `// another ID gets its own record, so the stored resource stays tracked.`,
-      `const name = stored && stored.${id} === id ? ${storedName} : instanceName(id);`,
+      `// another ID is recorded under item-<id>, as get and list write it, so the`,
+      `// stored resource stays tracked.`,
+      `const name = stored && stored.${id} === id ? ${storedName} : instanceName(\`item-\${id}\`);`,
       `const resp = await apiRequest(g, ${lit(entry.delete.method)}, ${
         idPath(entry.delete.path, "id")
       }, { allowStatus: [404] });`,
@@ -668,6 +669,8 @@ function keyedMethods(model: ResolvedModel, entry: KeyedEntry): Method[] {
     NO_ARGS,
     [
       `requireArgs(g, ${lit(required)}, "create");`,
+      `// Advisory only: the ${entry.upsert.method} is an unconditional upsert, so two`,
+      `// concurrent creates can both pass this check and the later write wins.`,
       `const existing = await readOptional(g, ${keyPath(entry.read.path)});`,
       `if (${exists}) {`,
       `  throw new Error(\`A ${noun} already exists for ${keyArg}=\${g.${keyArg}}. Run get to adopt it, then update.\`);`,
@@ -729,7 +732,9 @@ function keyedMethods(model: ResolvedModel, entry: KeyedEntry): Method[] {
       `const handle = ${
         writeState(
           name,
-          `{ ${keyArg}: g.${keyArg}, existed, status: existed ? "deleted" : "not_found", deletedAt: new Date().toISOString() }`,
+          `{ ${
+            propKey(keyArg)
+          }: g.${keyArg}, existed, status: existed ? "deleted" : "not_found", deletedAt: new Date().toISOString() }`,
         )
       };`,
       `return { dataHandles: [handle] };`,
@@ -747,7 +752,9 @@ function keyedMethods(model: ResolvedModel, entry: KeyedEntry): Method[] {
       `const handle = ${
         writeState(
           name,
-          `result ?? { ${keyArg}: g.${keyArg}, status: "not_found", syncedAt: new Date().toISOString() }`,
+          `result ?? { ${
+            propKey(keyArg)
+          }: g.${keyArg}, status: "not_found", syncedAt: new Date().toISOString() }`,
         )
       };`,
       `return { dataHandles: [handle] };`,
@@ -1289,7 +1296,9 @@ export function zodFull(prop: TsProperty): string {
     case "integer": {
       const base = prop.type === "integer" ? "z.number().int()" : "z.number()";
       expr = prop.enum && prop.enum.length > 0
-        ? `z.union([${prop.enum.map((v) => `z.literal(${v})`).join(", ")}])`
+        ? `z.union([${
+          prop.enum.map((v) => `z.literal(${JSON.stringify(v)})`).join(", ")
+        }])`
         : base;
       break;
     }
