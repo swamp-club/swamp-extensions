@@ -27,12 +27,13 @@ import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { Findings } from "./findings.tsx";
 import { fitZoom, Graph } from "./graph.tsx";
-import { BoardMode, WorkItemMode } from "./board_view.tsx";
+import { BoardMode } from "./board_view.tsx";
 import { Inspector } from "./inspector.tsx";
 import { targetKey } from "./selection.ts";
 import { Dock, SimPanel } from "./simulate_view.tsx";
 import { Source } from "./source.tsx";
 import { reveal, Tabs } from "./ui.tsx";
+import { GoToItem, ItemHead, ItemPanel } from "./work_item_view.tsx";
 import {
   changed,
   factories,
@@ -47,6 +48,7 @@ import {
   live,
   loaded,
   loadFactories,
+  loadWorkItem,
   markStagesSeen,
   type Mode,
   mode,
@@ -57,7 +59,6 @@ import {
   sourceError,
   stale,
   startRoute,
-  workItemKey,
   zoom,
 } from "./state.ts";
 
@@ -98,6 +99,7 @@ function Bar() {
         </span>
       </div>
       <div class="spacer" />
+      <GoToItem />
       <Tabs<Mode>
         label="Mode"
         class="modes"
@@ -145,22 +147,30 @@ function Toolbar({ box }: { box: { current: HTMLElement | null } }) {
           fit
         </button>
       </div>
-      <span class="sep" />
-      <span class={`changed-count${n > 0 ? " some" : ""}`}>
-        {n === 0
-          ? "no changes since you last looked"
-          : `${n} changed since you last looked`}
-      </span>
-      {n > 0 && (
-        <button
-          type="button"
-          class="wide"
-          onClick={() => markStagesSeen("all")}
-        >
-          Mark all seen
-        </button>
-      )}
-      {stale.value && (
+      {
+        // The work item's graph is the definition it pinned, not the file:
+        // what changed in the file, and whether it is stale, are Design's.
+        mode.value !== "work-item" && (
+          <>
+            <span class="sep" />
+            <span class={`changed-count${n > 0 ? " some" : ""}`}>
+              {n === 0
+                ? "no changes since you last looked"
+                : `${n} changed since you last looked`}
+            </span>
+            {n > 0 && (
+              <button
+                type="button"
+                class="wide"
+                onClick={() => markStagesSeen("all")}
+              >
+                Mark all seen
+              </button>
+            )}
+          </>
+        )
+      }
+      {mode.value !== "work-item" && stale.value && (
         <span class="stale-note" role="status">
           STALE: showing the last version that passed; the file as it is has a
           problem
@@ -296,6 +306,28 @@ function SimulateMode() {
   );
 }
 
+function WorkItemMode() {
+  const wrap = useRef<HTMLElement>(null);
+  return (
+    <div class="main" id="mode-panel" aria-label="Work item">
+      <section class="canvas-wrap" aria-label="Graph" ref={wrap}>
+        <ItemHead />
+        <Toolbar box={wrap} />
+        <Graph />
+        <Legend />
+        <p class="keys">
+          <b>Graph keys:</b>{" "}
+          as in Design mode · the glowing stage is where the work item is; ×n on
+          an exit is how often it was taken, and stages it never entered are
+          dimmed · <kbd>c</kbd>{" "}
+          copies a reference to the work item and what is selected
+        </p>
+      </section>
+      <ItemPanel />
+    </div>
+  );
+}
+
 function View() {
   switch (mode.value) {
     case "design":
@@ -305,7 +337,7 @@ function View() {
     case "board":
       return <BoardMode />;
     case "work-item":
-      return <WorkItemMode itemKey={workItemKey.value} />;
+      return <WorkItemMode />;
   }
 }
 
@@ -331,7 +363,11 @@ async function main() {
     const pick = await loadFactories(
       start.view === "work-item" ? null : start.factory,
     );
-    if (pick !== null) await selectFactory(pick);
+    // A work item's page picks the factory the item started in, once the
+    // list is in; any other view, or an item that cannot be read, the one
+    // the list picked.
+    if (start.view === "work-item") await loadWorkItem();
+    if (pick !== null && factory.value === null) await selectFactory(pick);
   } catch (e) {
     sourceError.value = e instanceof Error ? e.message : String(e);
   }

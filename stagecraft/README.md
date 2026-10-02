@@ -71,6 +71,11 @@ your agent makes the edits, and you watch them land.
   (highlighted, with how long), whether a limit has parked it, and whether
   it runs an older version of the factory than the current one. Filter by
   any of those, or search by key or title.
+- **Work item** (open a Board card, or type a key in the bar) shows one work
+  item on its factory's graph: the stages it has been through, how often, the
+  path it took, where it is now and what it waits on, in the same words as
+  `status`. Its timeline lists everything that happened, and **copy as
+  scenario** turns the run into a scenario your agent can save.
 
 Each view has its own address, such as `/f/team/board`, so you can bookmark
 it or share it with someone on the same machine.

@@ -21,10 +21,13 @@ import { FACTORY_VIEWS } from "./studio_cards.ts";
 import {
   type QueryData,
   readBoard,
+  readRun,
+  runPredicate,
   runsPredicate,
   type WorkItemWatch,
 } from "./studio_work_items.ts";
-import { FACTORY_TYPE, typeNameOf } from "./work_item_ops.ts";
+import { readWorkItem } from "./studio_work_item.ts";
+import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // The studio's HTTP handler (DESIGN.md, "The studio server"). The studio
@@ -90,7 +93,9 @@ export type StudioEvent =
   | { kind: "factories" }
   | { kind: "definition"; factory: string }
   /** A run record of a factory's work items was written, added or removed. */
-  | { kind: "work-items"; factory: string };
+  | { kind: "work-items"; factory: string }
+  /** One work item's run record was written. */
+  | { kind: "work-item"; key: string };
 
 export interface StudioEvents {
   /** Returns the unsubscribe function. */
@@ -413,6 +418,45 @@ async function workItems(
   }
 }
 
+/**
+ * GET /api/work-items/<key>: one work item, as the work-item view draws it;
+ * ?payloads=1 adds its product payloads, for Copy as scenario. Asking also
+ * keeps its poll alive, so the page hears when it moves.
+ */
+async function workItem(
+  deps: StudioDeps,
+  key: string,
+  payloads: boolean,
+): Promise<Response> {
+  // A key goes into a data query: refuse one that is not a path-safe name
+  // before it gets there.
+  try {
+    safePart("work item", key);
+  } catch {
+    return error(404, `no work item '${key}'`);
+  }
+  if (deps.query === undefined) {
+    return error(422, "this studio cannot read work items");
+  }
+  try {
+    // Only a work item that exists is watched, so a mistyped address left
+    // open costs no poll. The item is read again after the watch starts, so
+    // a write between the check and the watch is still shown, and any after
+    // it is heard. A poll that cannot start costs live updates, not the page.
+    if (await readRun(deps.query, key) === null) {
+      return error(404, `no work item '${key}'`);
+    }
+    await deps.workItems?.ask({ kind: "work-item", key }, runPredicate(key))
+      .catch(() => {});
+    const item = await readWorkItem(deps.query, key, deps.env ?? systemEnv, {
+      payloads,
+    });
+    return item === null ? error(404, `no work item '${key}'`) : json(item);
+  } catch (e) {
+    return error(422, message(e));
+  }
+}
+
 function segments(pathname: string): string[] | null {
   try {
     return pathname.split("/").filter((s) => s !== "").map(decodeURIComponent);
@@ -442,6 +486,13 @@ export async function handleStudioRequest(
   }
   if (parts.length === 2 && parts[1] === "work-items") {
     return await workItems(deps, url.searchParams.get("factory"));
+  }
+  if (parts.length === 3 && parts[1] === "work-items") {
+    return await workItem(
+      deps,
+      parts[2],
+      url.searchParams.get("payloads") === "1",
+    );
   }
   if (parts[1] !== "factories") return error(404, "not found");
 

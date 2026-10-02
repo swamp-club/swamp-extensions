@@ -133,6 +133,43 @@ export async function readRuns(
 }
 
 /**
+ * One work item's run record, latest version, or null when no work item has
+ * that key. Only a record whose own key is the key counts (a query is not
+ * limited to this repository's namespace); of two, the one that changed last
+ * wins, as readRuns keeps it, and of two equally recent, the newer version.
+ * A record that does not parse throws.
+ */
+export async function readRun(
+  query: QueryData,
+  key: string,
+): Promise<RunRecord | null> {
+  let found: { run: RunRecord; version: number } | null = null;
+  for (const record of await query(runPredicate(key))) {
+    const data = recordObject(record);
+    if (data?.key !== key) continue;
+    const parsed = parseRun(data);
+    if (!parsed.ok) {
+      throw new Error(
+        `work item '${key}': its run record does not parse: ${
+          parsed.errors.join("; ")
+        }`,
+      );
+    }
+    // Changed last wins; versions of one record break a tie (versions of
+    // records in different namespaces do not compare, journals do).
+    const version = versionOf(record);
+    const at = lastAt(parsed.value);
+    if (
+      found === null || at > lastAt(found.run) ||
+      (at === lastAt(found.run) && version > found.version)
+    ) {
+      found = { run: parsed.value, version };
+    }
+  }
+  return found?.run ?? null;
+}
+
+/**
  * Each run record's work item and version, as one string: it changes
  * whenever any of them is written, added or removed, so a poll compares it
  * without reading whole records.
@@ -203,7 +240,12 @@ export async function pinnedDefinitions(
   return { definitions, problems };
 }
 
-async function pinnedByVersion(
+/**
+ * One run's pinned factory definition: the copy at the exact version the run
+ * names, checked against its digest. The work-item page reads only this, not
+ * the factory's every pin as the Board does.
+ */
+export async function pinnedByVersion(
   query: QueryData,
   run: RunRecord,
 ): Promise<FactoryDefinition> {

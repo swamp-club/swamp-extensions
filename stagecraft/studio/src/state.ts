@@ -26,7 +26,7 @@ import {
   type Seen,
 } from "./changes.ts";
 import { ANY_ID, layout } from "./layout.ts";
-import { loadDefinition, type Loaded } from "./model.ts";
+import { loadDefinition, type Loaded, type Located } from "./model.ts";
 import { navModel } from "./nav.ts";
 import {
   type FactoryView,
@@ -35,7 +35,7 @@ import {
   routeHref,
   sameRoute,
 } from "./route.ts";
-import { referenceLine } from "./reference.ts";
+import { itemReferenceLine, referenceLine } from "./reference.ts";
 import { follow, type Target, targetKey } from "./selection.ts";
 import {
   branch,
@@ -56,6 +56,20 @@ import type {
   WorkItemProblem,
 } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { type BoardFilter, NO_FILTER } from "./board.ts";
+import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
+import type { DesignView } from "../../extensions/models/_lib/engine/design_view.ts";
+import {
+  type Item,
+  itemOverlay,
+  loadItem,
+  pinnedDiffers,
+  replay,
+  runAsScenario,
+  titleOf,
+  type WorkItemResponse,
+} from "./work_item.ts";
+import type { PayloadVersion } from "../../extensions/models/_lib/engine/studio_item_types.ts";
+import { currentCycle } from "../../extensions/models/_lib/engine/run_record.ts";
 
 export interface FactoryEntry {
   name: string;
@@ -72,7 +86,8 @@ export interface FileText {
 export type StudioEvent =
   | { kind: "factories" }
   | { kind: "definition"; factory: string }
-  | { kind: "work-items"; factory: string };
+  | { kind: "work-items"; factory: string }
+  | { kind: "work-item"; key: string };
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
@@ -80,6 +95,7 @@ type OkLoaded = Extract<Loaded, { ok: true }>;
 export type Mode = Route["view"];
 export type PanelTab = "inspect" | "findings" | "source";
 export type SimTab = "run" | "journal" | "metrics" | "scenarios";
+export type ItemTab = "now" | "timeline" | "metrics" | "tracker" | "scenario";
 
 const PICK_KEY = "stagecraft-studio.factory";
 const SEEN_KEY = "stagecraft-studio.seen.";
@@ -95,6 +111,27 @@ export const flashText = signal<string | null>(null);
 export const mode = signal<Mode>("design");
 /** The work item a /w/<key> address names. */
 export const workItemKey = signal<string | null>(null);
+
+// The work-item page.
+/** The work item as last read; null before the first read, or for another
+ * key. */
+export const workItem = signal<Item | null>(null);
+/** Why the work item could not be read: no such key, or its records. */
+export const workItemError = signal<string | null>(null);
+export const itemTab = signal<ItemTab>("now");
+/** The timeline entry picked, by journal index; its stage is lit. */
+export const itemEntry = signal<number | null>(null);
+/** The run as a scenario entry, with what it left out and whether it
+ * replays to where the run is; null until worked out for this read. */
+export const itemCopy = signal<
+  {
+    item: Item;
+    text: string;
+    notes: string[];
+    passed: boolean;
+    problem: string | null;
+  } | null
+>(null);
 
 // The Board.
 /** The factory's work items as last read; null before the first read. */
@@ -164,23 +201,68 @@ export const frames = computed(() => {
   return r?.ok ? r.played.frames : [];
 });
 
-export const frame = computed(() => frames.value[frameIndex.value] ?? null);
+/** The frame the Run, Journal and Metrics tabs show: the scenario's, or on a
+ * work item's page, the work item as it is now. */
+export const frame = computed(() =>
+  mode.value === "work-item"
+    ? workItem.value?.frame ?? null
+    : frames.value[frameIndex.value] ?? null
+);
 
 export const catalogue = computed(() => payloadCatalogue(runs.value ?? []));
 
-/** What the graph draws over the factory in Simulate mode. */
-export const simOverlay = computed(() =>
-  mode.value === "simulate" ? overlay(frames.value, frameIndex.value) : null
-);
+/** What the graph draws over the definition: a scenario's frame in
+ * Simulate mode, the work item as it is on its page. */
+export const simOverlay = computed(() => {
+  if (mode.value === "simulate") {
+    return overlay(frames.value, frameIndex.value);
+  }
+  const item = workItem.value;
+  return mode.value === "work-item" && item !== null ? itemOverlay(item) : null;
+});
+
+/** A definition as the graph draws it. */
+export interface Drawn {
+  /** Changes when another definition is drawn, so the graph fits anew. */
+  file: string;
+  definition: FactoryDefinition;
+  view: DesignView;
+  findings: Located[];
+}
+
+/**
+ * The definition the graph and panels draw: the factory's last good one, or
+ * on a work item's page the one it pinned, which may be older.
+ */
+export const drawn = computed<Drawn | null>(() => {
+  if (mode.value !== "work-item") return good.value;
+  const item = workItem.value;
+  return item === null ? null : {
+    file: `/w/${item.data.run.key}@${item.data.pinned.digest}`,
+    definition: item.definition,
+    view: item.view,
+    // The pinned copy is drawn as it ran; its findings are the file's
+    // business, shown in Design mode.
+    findings: [],
+  };
+});
 
 export const graph = computed(() => {
-  const g = good.value;
+  const g = drawn.value;
   return g === null ? null : layout(g.definition, g.view);
 });
 
 export const nav = computed(() => {
-  const g = good.value, l = graph.value;
+  const g = drawn.value, l = graph.value;
   return g === null || l === null ? null : navModel(g.definition, l);
+});
+
+/** Whether the work item is drawn on an older definition than the file's. */
+export const pinnedIsOlder = computed(() => {
+  const item = workItem.value, g = good.value;
+  return item !== null && g !== null &&
+    factory.value === item.data.run.factory &&
+    pinnedDiffers(item, g.view.digest);
 });
 
 /**
@@ -284,16 +366,107 @@ export function select(target: Target | null) {
   });
 }
 
-export async function copyReference(target: Target) {
-  const g = good.value;
-  if (g === null) return;
-  const line = referenceLine(g.file, g.definition, target, g.view.findings);
+/** Put a line on the clipboard, and say so. */
+async function copyLine(line: string) {
   try {
     await navigator.clipboard.writeText(line);
     flash(`Copied: ${line}`);
   } catch {
     flash(`Could not copy. The reference is: ${line}`);
   }
+}
+
+export async function copyReference(target: Target) {
+  if (mode.value === "work-item") {
+    const item = workItem.value;
+    if (item !== null) {
+      await copyLine(
+        itemReferenceLine(itemFacts(item), item.definition, target),
+      );
+    }
+    return;
+  }
+  const g = good.value;
+  if (g === null) return;
+  await copyLine(referenceLine(g.file, g.definition, target, g.view.findings));
+}
+
+/** The work item and where it is, for its reference line. */
+function itemFacts(item: Item) {
+  const run = item.data.run;
+  return {
+    key: run.key,
+    title: titleOf(run),
+    factory: run.factory,
+    stage: run.stage,
+    cycle: currentCycle(run),
+  };
+}
+
+/**
+ * Work out the run as a scenario entry and replay it on the pinned
+ * definition, once per read of the work item.
+ */
+export async function prepareItemCopy() {
+  const item = workItem.value;
+  if (item === null || itemCopy.value?.item === item) return;
+  // The payloads are read only here: a live re-read of the page skips them.
+  // The copy is made from that read's own run, so run and payloads agree.
+  let payloads: PayloadVersion[];
+  let source: Item;
+  try {
+    const read = await getJson<WorkItemResponse>(
+      `/api/work-items/${encodeURIComponent(item.data.run.key)}?payloads=1`,
+    );
+    payloads = read.payloads ?? [];
+    source = loadItem(read);
+  } catch (e) {
+    if (workItem.value === item) {
+      itemCopy.value = {
+        item,
+        text: "",
+        notes: [],
+        passed: false,
+        problem: `could not read the product payloads: ${message(e)}`,
+      };
+    }
+    return;
+  }
+  if (workItem.value !== item) return;
+  const { entry, notes } = runAsScenario(source, payloads);
+  const { passed, problem } = await replay(source, entry);
+  if (workItem.value !== item) return;
+  itemCopy.value = { item, text: entryYaml(entry), notes, passed, problem };
+}
+
+/** Copy the run as a scenario entry, for the agent to save. */
+export async function copyItemScenario() {
+  const c = itemCopy.value;
+  if (c === null) return;
+  try {
+    await navigator.clipboard.writeText(c.text);
+    flash("Copied the run as a scenario entry");
+  } catch {
+    flash("Could not copy; select the text and copy it instead");
+  }
+}
+
+/** Pick a timeline entry: its stage is selected on the graph. */
+export function pickEntry(index: number) {
+  const item = workItem.value;
+  const e = item?.data.run.journal[index];
+  if (e === undefined) return;
+  itemEntry.value = index;
+  const stage = e.type === "advanced" ? e.to : e.stage;
+  if (item!.definition.stages.some((s) => s.id === stage)) {
+    select({ kind: "stage", stage });
+  }
+}
+
+/** Copy reference for the work item itself, at its current stage. */
+export async function copyItemReference() {
+  const item = workItem.value;
+  if (item !== null) await copyLine(itemReferenceLine(itemFacts(item)));
 }
 
 export async function loadFactories(asked: string | null = null) {
@@ -425,7 +598,11 @@ async function showRoute(next: Route) {
     mode.value = next.view;
     workItemKey.value = next.view === "work-item" ? next.key : null;
   });
-  if (next.view === "work-item" || next.factory === null) return;
+  if (next.view === "work-item") {
+    void loadWorkItem();
+    return;
+  }
+  if (next.factory === null) return;
   if (next.factory === factory.value) {
     if (next.view === "board") void loadBoard();
     return;
@@ -445,13 +622,15 @@ async function showRoute(next: Route) {
  */
 export function keepBoardCurrent() {
   setInterval(() => (clock.value = Date.now()), 30 * 1000);
-  setInterval(() => {
-    if (mode.value === "board" && !document.hidden) void loadBoard();
-  }, 2 * 60 * 1000);
+  // The work item's page is kept current the same way.
+  const reread = () => {
+    if (document.hidden) return;
+    if (mode.value === "board") void loadBoard();
+    if (mode.value === "work-item") void loadWorkItem();
+  };
+  setInterval(reread, 2 * 60 * 1000);
   // A tab hidden for a while may have outlived the poll: read on return.
-  document.addEventListener("visibilitychange", () => {
-    if (mode.value === "board" && !document.hidden) void loadBoard();
-  });
+  document.addEventListener("visibilitychange", reread);
 }
 
 /** The browser's back and forward: show the route the address names. */
@@ -513,6 +692,73 @@ export async function selectFactory(
   if (mode.value !== "work-item") writeAddress(how);
   if (mode.value === "board") void loadBoard();
   await loadDefinitionFile();
+}
+
+// --- the work item ---------------------------------------------------------------
+
+let itemLoading: Promise<void> | null = null;
+let itemAgain = false;
+
+/**
+ * Read the work item the address names. Asking also keeps the server's poll
+ * of it alive, which tells the page when it moves. The factory it started in
+ * is picked too, so the page can say whether it pinned an older definition.
+ * A read while one is in flight asks for one more after it, never more.
+ */
+export function loadWorkItem(): Promise<void> {
+  if (itemLoading !== null) {
+    itemAgain = true;
+    return itemLoading;
+  }
+  itemLoading = (async () => {
+    do {
+      itemAgain = false;
+      const key = workItemKey.value;
+      if (key === null) return;
+      if (workItem.value?.data.run.key !== key) {
+        batch(() => {
+          workItem.value = null;
+          workItemError.value = null;
+          itemEntry.value = null;
+        });
+      }
+      let item: Item;
+      try {
+        item = loadItem(
+          await getJson<WorkItemResponse>(
+            `/api/work-items/${encodeURIComponent(key)}`,
+          ),
+        );
+      } catch (e) {
+        // A re-read that fails keeps the item it has, with the reason; only
+        // an item never read is shown as the error alone.
+        if (workItemKey.value === key) {
+          batch(() => {
+            if (workItem.value?.data.run.key !== key) workItem.value = null;
+            workItemError.value = message(e);
+          });
+        }
+        continue;
+      }
+      if (workItemKey.value !== key) continue;
+      batch(() => {
+        workItem.value = item;
+        workItemError.value = null;
+      });
+      const started = item.data.run.factory;
+      if (
+        factory.value !== started &&
+        factories.value.some((f) => f.name === started)
+      ) {
+        // Its file not loading is the factory views' to show; the item is
+        // drawn on its pin either way.
+        await selectFactory(started).catch((e) => {
+          sourceError.value = message(e);
+        });
+      }
+    } while (itemAgain);
+  })().finally(() => (itemLoading = null));
+  return itemLoading;
 }
 
 // --- the Board ----------------------------------------------------------------------
@@ -804,6 +1050,7 @@ export function listen() {
       sourceError.value = message(e);
     });
     if (mode.value === "board") void loadBoard();
+    if (mode.value === "work-item") void loadWorkItem();
   });
   events.addEventListener("error", () => {
     live.value = false;
@@ -819,6 +1066,12 @@ export function listen() {
     if (event.kind === "factories") {
       flash("factories reloaded");
       void reloadFactories();
+      return;
+    }
+    if (event.kind === "work-item") {
+      if (mode.value === "work-item" && event.key === workItemKey.value) {
+        void loadWorkItem();
+      }
       return;
     }
     if (event.factory !== factory.value) return;

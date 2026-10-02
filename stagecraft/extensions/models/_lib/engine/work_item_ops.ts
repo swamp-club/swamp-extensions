@@ -22,11 +22,7 @@ import {
   buildSubagentPrompts,
   type SubagentPrompt,
 } from "./dispatch.ts";
-import {
-  evaluateTransitions,
-  type GateCheck,
-  makeGateEvaluator,
-} from "./gates.ts";
+import { makeGateEvaluator } from "./gates.ts";
 import { runScenario, SavedScenariosSchema } from "./scenario.ts";
 import {
   CURSOR_SPEC,
@@ -45,7 +41,6 @@ import {
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import {
   type FactoryDefinition,
-  findStage,
   formatIssues,
   parseDefinition,
   trackerKindOf,
@@ -66,10 +61,10 @@ import {
   reset,
   retarget,
 } from "./run_ops.ts";
-import { heldDispatchOverride } from "./awaiting.ts";
 import { computeMetrics } from "./metrics.ts";
 import { buildSummary } from "./summary.ts";
 import { currentCycle, type RunRecord, type Usage } from "./run_record.ts";
+import { expectationProps, type Pinned, runStatus } from "./status_view.ts";
 import {
   committingStore,
   contextStore,
@@ -80,6 +75,8 @@ import {
   startRun,
   update,
 } from "./run_store.ts";
+
+export type { Pinned } from "./status_view.ts";
 
 // ---------------------------------------------------------------------------
 // The methods of the model types, written against a narrow view of
@@ -740,12 +737,6 @@ function selfName(ctx: MethodContextLike): string {
 
 // --- the pinned factory definition ----------------------------------------------
 
-export interface Pinned {
-  factory: string;
-  digest: string;
-  definition: FactoryDefinition;
-}
-
 /** Pin a factory definition to the work item; returns the version written. */
 async function pin(
   ctx: MethodContextLike,
@@ -956,34 +947,6 @@ export async function startWorkItem(
   return { dataHandles: handles };
 }
 
-function expectationProps(run: RunRecord) {
-  return {
-    expectedStage: run.stage,
-    expectedCycle: currentCycle(run),
-    expectedEra: run.era,
-  };
-}
-
-/**
- * An exit's human-approval gate ids, split by whether a person must decide
- * them now. A driver needs them to tell an exit a person must decide from one
- * it may take on its own, including once the gate is satisfied and the exit
- * shows ready. A conditional approval whose `when` is false is not required;
- * one whose `when` cannot be evaluated is, so the driver stops and asks.
- */
-function humanGatesOf(gates: GateCheck[]): {
-  humanGates: string[];
-  humanGatesNotRequired: string[];
-} {
-  const ids = (required: boolean) =>
-    gates.flatMap((g) =>
-      g.gateId !== undefined && (g.required !== false) === required
-        ? [g.gateId]
-        : []
-    );
-  return { humanGates: ids(true), humanGatesNotRequired: ids(false) };
-}
-
 /**
  * How far the bound tracker's ticket is behind the journal: the journal
  * version its publish cursor has delivered against the journal's length.
@@ -1058,46 +1021,8 @@ async function statusView(
   pinned: Pinned,
   env: Env,
 ) {
-  const definition = pinned.definition;
-  const context = await buildCelContext(run, store);
-  const active = run.status === "active";
-  return {
-    key: run.key,
-    definition: {
-      factory: pinned.factory,
-      digest: pinned.digest,
-    },
-    status: run.status,
-    stage: run.stage,
-    cycle: currentCycle(run),
-    era: run.era,
-    expected: expectationProps(run),
-    dispatch: active ? buildDispatch(definition, run, context) : null,
-    dispatchCap: active ? dispatchCap(run, definition) : null,
-    /** Parked at the dispatch cap: a dispatch was refused, and the next one
-     * waits on a person granting a dispatch override. */
-    awaitingDispatchOverride:
-      heldDispatchOverride(run, definition) !== undefined,
-    exits: active
-      ? (await evaluateTransitions(run, definition, store, env)).map((t) => ({
-        name: t.name,
-        to: t.to,
-        manual: t.manual,
-        ...humanGatesOf(t.gates),
-        ready: t.ready,
-        failures: t.failures,
-      }))
-      : [],
-    /** Evidence of this stage a person records, not its work. */
-    personRecords: active
-      ? (findStage(definition, run.stage)?.evidence ?? []).flatMap((spec) =>
-        spec.recordedBy === "person" ? [spec.name] : []
-      )
-      : [],
-    validations: run.validations,
-    products: run.products,
-    tracker: await trackerLag(ctx, run),
-  };
+  const { view } = await runStatus(run, pinned, store, env);
+  return { ...view, tracker: await trackerLag(ctx, run) };
 }
 
 type StatusView = Awaited<ReturnType<typeof statusView>>;

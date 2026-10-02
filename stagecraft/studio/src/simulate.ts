@@ -31,6 +31,7 @@ import {
   findStage,
 } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { TransitionReadiness } from "../../extensions/models/_lib/engine/gates.ts";
+import type { JournalEvent } from "../../extensions/models/_lib/engine/journal.ts";
 import {
   type Frame,
   type FrameKind,
@@ -341,6 +342,47 @@ export function unrecordable(
     ...(stage?.artifacts ?? []).map((a) => productKey("artifact", a.name)),
     ...(stage?.evidence ?? []).map((e) => productKey("evidence", e.name)),
   ].filter((key) => !catalogue.has(key)).map((key) => key.replace(":", " "));
+}
+
+// --- the journal ----------------------------------------------------------------
+
+/** One journal event as a line of the Journal tab and the work-item timeline. */
+export function journalText(e: JournalEvent): string {
+  switch (e.type) {
+    case "started":
+      return `started in ${e.factory}`;
+    case "recorded":
+      return `${e.kind} ${e.name} v${e.version}`;
+    case "rejected":
+      return `${e.kind} ${e.name} rejected: ${e.errors[0]}`;
+    case "approval":
+      return `${e.gateId} ${e.decision}d by ${e.actor.principal}`;
+    case "advanced":
+      return `${e.transition} → ${e.to} (cycle ${e.toCycle})`;
+    case "override":
+      return `${e.kind} override for ${e.for}`;
+    case "awaiting": {
+      const held = [
+        ...(e.dispatchOverride !== undefined ? ["dispatch override"] : []),
+        ...e.exits.map((x) =>
+          x.gateIds.length > 0
+            ? `${x.transition} (${x.gateIds.join(", ")})`
+            : x.transition
+        ),
+      ];
+      return held.length > 0
+        ? `waiting on a person: ${held.join(", ")}`
+        : "no longer waiting on a person";
+    }
+    case "reset":
+      return "reset";
+    case "dispatched":
+      return `dispatch ${e.dispatchId}`;
+    case "usage":
+      return `usage for dispatch ${e.dispatchId}`;
+    case "retargeted":
+      return `retargeted: ${e.reason}`;
+  }
 }
 
 // --- Copy as scenario ------------------------------------------------------------

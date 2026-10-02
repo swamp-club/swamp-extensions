@@ -30,6 +30,11 @@ import {
   smallDefinition,
   TEST_TRACKER,
 } from "./test_support.ts";
+import {
+  LOOPED_REVIEW,
+  recordStore,
+  scenarioItem,
+} from "./studio_work_items_testing.ts";
 import { FACTORY_TYPE } from "./work_item_ops.ts";
 
 // The studio's handler on an in-memory repo: each route, each refusal, and
@@ -294,14 +299,96 @@ Deno.test("studio: /api/work-items needs a factory the repo lists, and a query t
     const [path, status] of [
       ["/api/work-items?factory=nobody", 404],
       ["/api/work-items?factory=issue-1", 404],
-      // One work item's route is the work-item page's (#2944).
-      ["/api/work-items/team-a", 404],
     ] as [string, number][]
   ) {
     const res = await handleStudioRequest(get(path), deps);
     assertEquals(res.status, status, path);
     await res.body?.cancel();
   }
+});
+
+const ITEM = "team-looped-review-abcd";
+const BUILD = "build-swamp-extension.yaml";
+
+Deno.test("studio: /api/work-items/<key> gives one work item as the view draws it, and keeps its poll alive", async () => {
+  const { deps } = setup();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM);
+  const told: StudioEvent[] = [];
+  deps.query = item.query;
+  deps.workItems = watchWorkItems(item.query, (e) => told.push(e));
+  deps.env = settableEnv("2026-10-02T12:00:00.000Z");
+  const res = await handleStudioRequest(get(`/api/work-items/${ITEM}`), deps);
+  assertEquals(res.status, 200);
+  assertSecurityHeaders(res);
+  const found = await body(res);
+  assertEquals(found.run, item.run);
+  assertEquals(found.at, "2026-10-02T12:00:00.000Z");
+  assertEquals((found.pinned as { version: number }).version, 1);
+  assertEquals((found.status as { stage: string }).stage, "plan-review");
+  assert(Array.isArray(found.readiness));
+  // Product payloads only on request, for Copy as scenario.
+  assertEquals(found.payloads, null);
+  const full = await handleStudioRequest(
+    get(`/api/work-items/${ITEM}?payloads=1`),
+    deps,
+  );
+  assertEquals(((await body(full)).payloads as unknown[]).length, 4);
+  assertEquals(deps.workItems.size(), 1);
+});
+
+Deno.test("studio: a work-item poll that cannot start still answers with the work item", async () => {
+  const { deps } = setup();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM);
+  deps.query = item.query;
+  deps.workItems = {
+    ...watchWorkItems(item.query, () => {}),
+    ask: () => Promise.reject(new Error("the poll cannot start")),
+  };
+  const res = await handleStudioRequest(get(`/api/work-items/${ITEM}`), deps);
+  assertEquals(res.status, 200);
+  assertEquals((await body(res)).run, item.run);
+});
+
+Deno.test("studio: an unknown or unsafe work-item key is 404, and an unsafe one is never queried", async () => {
+  const { deps } = setup();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM);
+  deps.query = item.query;
+  deps.workItems = watchWorkItems(item.query, () => {});
+  const missing = await handleStudioRequest(get("/api/work-items/nope"), deps);
+  assertEquals(missing.status, 404);
+  assertEquals((await body(missing)).error, "no work item 'nope'");
+  // A key no work item has is never watched.
+  assertEquals(deps.workItems.size(), 0);
+  item.asked.length = 0;
+  for (const bad of ["a..b", encodeURIComponent('x" || true || "')]) {
+    const res = await handleStudioRequest(get(`/api/work-items/${bad}`), deps);
+    assertEquals(res.status, 404, bad);
+    await res.body?.cancel();
+  }
+  assertEquals(item.asked, []);
+  const deeper = await handleStudioRequest(
+    get(`/api/work-items/${ITEM}/more`),
+    deps,
+  );
+  assertEquals(deeper.status, 404);
+  await deeper.body?.cancel();
+});
+
+Deno.test("studio: a work item whose pinned definition fails its digest is 422; without a query the route says so", async () => {
+  const { deps } = setup();
+  const none = await handleStudioRequest(get(`/api/work-items/${ITEM}`), deps);
+  assertEquals(none.status, 422);
+  assertEquals((await body(none)).error, "this studio cannot read work items");
+  const store = recordStore();
+  const item = await scenarioItem(BUILD, LOOPED_REVIEW, ITEM, store);
+  store.put(ITEM, "run", {
+    ...item.run,
+    definition: { digest: "sha256:0", version: 1 },
+  });
+  deps.query = item.query;
+  const res = await handleStudioRequest(get(`/api/work-items/${ITEM}`), deps);
+  assertEquals(res.status, 422);
+  assertMatch(String((await body(res)).error), /digest|pinned/);
 });
 
 Deno.test("studio: /api/factories lists factories only, with their model definition files", async () => {

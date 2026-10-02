@@ -23,29 +23,45 @@ import {
   board,
   copyEntry,
   discardWalk,
+  drawn,
   factories,
   factory,
   flashText,
+  frame,
   frameIndex,
   frames,
   go,
   goFrame,
+  graph,
   listen,
   loadDefinitionFile,
+  loadWorkItem,
   mode,
+  pickEntry,
   pickScenario,
+  pinnedIsOlder,
   playing,
   reloadFactories,
   runs,
   scenario,
   selectFactory,
+  selection,
   setPlaying,
+  simOverlay,
   stale,
   takeStep,
   walk,
   walkPlayed,
+  workItem,
+  workItemError,
   workItemKey,
 } from "./state.ts";
+import { readWorkItem } from "../../extensions/models/_lib/engine/studio_work_item.ts";
+import {
+  LOOPED_REVIEW,
+  scenarioItem,
+} from "../../extensions/models/_lib/engine/studio_work_items_testing.ts";
+import { testEnv } from "../../extensions/models/_lib/engine/test_support.ts";
 import { exampleText, modelPath, raisePlanLimit } from "./test_support.ts";
 
 const NAME = "build-swamp-extension";
@@ -351,5 +367,95 @@ Deno.test("state: an address naming a factory the repo does not have says so", a
     assertEquals(flashText.value, "no factory named 'nobody'");
   } finally {
     address.restore();
+  }
+});
+
+// --- the work-item page ------------------------------------------------------------
+
+Deno.test("state: a work item's page draws the definition it pinned, its overlay and frame, and says when the file has moved on", async () => {
+  const stored = await scenarioItem(
+    "build-swamp-extension.yaml",
+    LOOPED_REVIEW,
+    "team-loop-abcd",
+  );
+  const data = await readWorkItem(stored.query, "team-loop-abcd", testEnv());
+  assert(data !== null);
+  const original = await exampleText(NAME);
+  let text = original;
+  const address = withAddress("/");
+  const asked: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (input: string | URL | Request) => {
+    const url = String(input);
+    asked.push(url);
+    const body = url.startsWith("/api/work-items/")
+      ? { ...data, run: { ...data.run, factory: NAME } }
+      : { path: modelPath(NAME), text, digest: "sha256:x" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  try {
+    factories.value = [{ name: NAME, path: modelPath(NAME) }];
+    await go({ view: "work-item", key: "team-loop-abcd" });
+    await loadWorkItem();
+    assert(asked.includes("/api/work-items/team-loop-abcd"), asked.join());
+    assertEquals(address.location.pathname, "/w/team-loop-abcd");
+    const item = workItem.value;
+    assert(item !== null);
+    // The graph and the panels show the pinned definition and the run.
+    assertEquals(drawn.value?.definition, item.definition);
+    assert(graph.value !== null);
+    assertEquals(frame.value, item.frame);
+    assertEquals(simOverlay.value?.current, "plan-review");
+    assertEquals(simOverlay.value?.entries, { plan: 2, "plan-review": 2 });
+    // The factory it started in is picked, and its file is the pinned one.
+    assertEquals(factory.value, NAME);
+    assertEquals(pinnedIsOlder.value, false);
+    // A timeline entry selects its stage on the graph.
+    const rework = item.data.run.journal.findIndex((e) =>
+      e.type === "advanced" && e.transition === "rework"
+    );
+    pickEntry(rework);
+    assertEquals(selection.value, { kind: "stage", stage: "plan" });
+    // The file moves on: the item is still drawn on its pin, and says so.
+    text = original.replace(
+      "Plan the change to the extension.",
+      "Plan the change to the extension, carefully.",
+    );
+    await loadDefinitionFile();
+    assertEquals(pinnedIsOlder.value, true);
+    assertEquals(drawn.value?.definition, item.definition);
+    // A re-read that fails keeps the item, with the reason.
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "the datastore is away" }), {
+          status: 422,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    await loadWorkItem();
+    assertEquals(workItem.value, item);
+    assertEquals(workItemError.value, "the datastore is away");
+    // An unknown key is an error the page shows, not a stale item.
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "no work item 'nope'" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    await go({ view: "work-item", key: "nope" });
+    await loadWorkItem();
+    assertEquals(workItem.value, null);
+    assertEquals(workItemError.value, "no work item 'nope'");
+  } finally {
+    globalThis.fetch = real;
+    address.restore();
+    workItem.value = null;
+    workItemError.value = null;
+    selection.value = null;
   }
 });

@@ -25,7 +25,6 @@
 import { useEffect } from "preact/hooks";
 import type { JSX } from "preact";
 import { currentCycle } from "../../extensions/models/_lib/engine/run_record.ts";
-import type { JournalEvent } from "../../extensions/models/_lib/engine/journal.ts";
 import {
   type Action,
   type ActionGroup,
@@ -33,6 +32,7 @@ import {
   EXIT_LABELS,
   exitState,
   formatSeconds,
+  journalText,
   timeline,
   unrecordable,
 } from "./simulate.ts";
@@ -42,11 +42,13 @@ import {
   copyWalk,
   currentRun,
   discardWalk,
+  drawn,
   frame,
   frameIndex,
   frames,
   goFrame,
   good,
+  mode,
   pickScenario,
   playing,
   runs,
@@ -98,7 +100,7 @@ function StepCard() {
 
 function StatusCard() {
   const f = frame.value!;
-  const g = good.value;
+  const g = drawn.value;
   const stage = g?.definition.stages.find((s) => s.id === f.run.stage);
   const meta = modeMeta(stage?.work?.mode);
   const elapsed = Date.parse(f.at) - Date.parse(f.metrics.startedAt);
@@ -274,45 +276,7 @@ function NoRun() {
   return <p class="empty">Pick a scenario.</p>;
 }
 
-function journalText(e: JournalEvent): string {
-  switch (e.type) {
-    case "started":
-      return `started in ${e.factory}`;
-    case "recorded":
-      return `${e.kind} ${e.name} v${e.version}`;
-    case "rejected":
-      return `${e.kind} ${e.name} rejected: ${e.errors[0]}`;
-    case "approval":
-      return `${e.gateId} ${e.decision}d by ${e.actor.principal}`;
-    case "advanced":
-      return `${e.transition} → ${e.to} (cycle ${e.toCycle})`;
-    case "override":
-      return `${e.kind} override for ${e.for}`;
-    case "awaiting": {
-      const held = [
-        ...(e.dispatchOverride !== undefined ? ["dispatch override"] : []),
-        ...e.exits.map((x) =>
-          x.gateIds.length > 0
-            ? `${x.transition} (${x.gateIds.join(", ")})`
-            : x.transition
-        ),
-      ];
-      return held.length > 0
-        ? `waiting on a person: ${held.join(", ")}`
-        : "no longer waiting on a person";
-    }
-    case "reset":
-      return "reset";
-    case "dispatched":
-      return `dispatch ${e.dispatchId}`;
-    case "usage":
-      return `usage for dispatch ${e.dispatchId}`;
-    case "retargeted":
-      return `retargeted: ${e.reason}`;
-  }
-}
-
-function JournalTab() {
+export function JournalTab() {
   const f = frame.value;
   if (f === null) return <NoRun />;
   const start = Date.parse(f.metrics.startedAt);
@@ -331,7 +295,7 @@ function JournalTab() {
   );
 }
 
-function MetricsTab() {
+export function MetricsTab() {
   const f = frame.value;
   if (f === null) return <NoRun />;
   const m = f.metrics;
@@ -341,7 +305,11 @@ function MetricsTab() {
   const waits = m.eras[m.eras.length - 1]?.waits ?? [];
   return (
     <div class="insp">
-      <p class="eyebrow">computeMetrics on this frame · simulated clock</p>
+      <p class="eyebrow">
+        {mode.value === "work-item"
+          ? "computeMetrics on the run · real clock"
+          : "computeMetrics on this frame · simulated clock"}
+      </p>
       <dl class="stats">
         <div>
           <dt>Elapsed</dt>

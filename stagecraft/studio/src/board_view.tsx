@@ -347,14 +347,3 @@ export function BoardMode() {
     </section>
   );
 }
-
-/** /w/<key>: the work-item page (#2944) takes this place. */
-export function WorkItemMode(props: { itemKey: string | null }) {
-  return (
-    <section class="board-mode" id="mode-panel" aria-label="Work item">
-      <p class="board-count">
-        Work item <code>{props.itemKey ?? ""}</code>: its page is not built yet.
-      </p>
-    </section>
-  );
-}

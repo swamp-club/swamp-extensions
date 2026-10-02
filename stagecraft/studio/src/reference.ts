@@ -91,3 +91,34 @@ export function referenceLine(
     readable(definition, target)
   })`;
 }
+
+/**
+ * The line Copy reference puts on the clipboard on a work item's page: the
+ * work item, where it is, the status command that says what it waits on,
+ * and, for a target on its graph, what the target is on the definition it
+ * pinned. No file path: the pinned copy may not be the file as it is now.
+ *
+ *   work item team-add-list-x1y2 ('Add list') of factory team, at stage
+ *     plan-review cycle 2: swamp model @swamp/stagecraft/work-item method
+ *     run status team-add-list-x1y2
+ *   ... · on its pinned definition: exit approve: plan-review → implement
+ */
+export function itemReferenceLine(
+  item: {
+    key: string;
+    title: string;
+    factory: string;
+    stage: string;
+    cycle: number;
+  },
+  definition?: FactoryDefinition,
+  target?: Target,
+): string {
+  const title = item.title === item.key ? "" : ` ('${item.title}')`;
+  const line = `work item ${item.key}${title} of factory ${item.factory}, ` +
+    `at stage ${item.stage} cycle ${item.cycle}: swamp model ` +
+    `@swamp/stagecraft/work-item method run status ${item.key}`;
+  return definition === undefined || target === undefined
+    ? line
+    : `${line} · on its pinned definition: ${readable(definition, target)}`;
+}

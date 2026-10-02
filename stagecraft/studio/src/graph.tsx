@@ -31,9 +31,10 @@ import { gateIdentity, type Target, targetKey } from "./selection.ts";
 import { EXIT_LABELS, exitKey, type Overlay } from "./simulate.ts";
 import {
   changed,
+  drawn,
   frameIndex,
-  good,
   graph,
+  mode,
   nav,
   select,
   selection,
@@ -65,7 +66,7 @@ function stageOfFinding(path: string, stage: string | undefined) {
   const [head, i] = pathSegments(path);
   if (head === "globalTransitions") return ANY_ID;
   if (head === "stages" && typeof i === "number") {
-    return good.value?.view.stages[i]?.id;
+    return drawn.value?.view.stages[i]?.id;
   }
   return undefined;
 }
@@ -148,7 +149,7 @@ export function fitZoom(box: HTMLElement | null, l: Layout | null) {
 
 export function Graph() {
   const l = graph.value;
-  const g = good.value;
+  const g = drawn.value;
   const box = useRef<HTMLDivElement>(null);
   const fitted = useRef<string | null>(null);
   const fx = useRef<SVGGElement>(null);
@@ -239,7 +240,9 @@ export function Graph() {
 
   return (
     <div
-      class={`canvas${stale.value ? " stale" : ""}`}
+      class={`canvas${stale.value ? " stale" : ""}${
+        mode.value === "work-item" ? " on-item" : ""
+      }`}
       ref={box}
       tabIndex={0}
       role="tree"
@@ -353,7 +356,8 @@ export function Graph() {
               selExit={selExit}
               findings={findingsBy.get(tile.id)}
               traced={traced.get(tile.id)}
-              isChanged={changed.value.has(tile.id)}
+              isChanged={mode.value !== "work-item" &&
+                changed.value.has(tile.id)}
               sim={sim}
               pick={pick}
             />
@@ -377,7 +381,7 @@ function TileView(props: {
   pick: (target: Target) => (e: Event) => void;
 }) {
   const { tile, ids, selKey, pick, sim } = props;
-  const g = good.value!;
+  const g = drawn.value!;
   const isAny = tile.kind === "any";
   const s = tile.stage;
   const meta = isAny ? modeMeta(undefined) : modeMeta(s!.work?.mode);

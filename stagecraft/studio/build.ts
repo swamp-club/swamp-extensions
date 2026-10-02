@@ -72,6 +72,7 @@ export const ENGINE_INPUTS = [
   "run_store.ts",
   "scenario.ts",
   "studio_cards.ts",
+  "studio_item_types.ts",
   "template.ts",
   "tracker_binding.ts",
 ];

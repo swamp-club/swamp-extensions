@@ -2174,3 +2174,156 @@ button.finding:hover,
   margin: 4px 0 0;
   padding-left: 18px;
 }
+
+/* The work-item page: the graph of the definition the item pinned, with
+   the exits it took drawn solid and the rest faint; the current stage glows
+   as in Simulate, stages it never entered are dimmed. */
+.canvas.on-item .edge:not(.taken):not(.sel) {
+  stroke-opacity: .3;
+}
+.canvas.on-item .edge.taken {
+  stroke-dasharray: none;
+}
+.item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.item-head h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+.item-head .key {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.item-head .chips {
+  margin: 0;
+}
+.item-notice {
+  margin: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--rule);
+  border-left: 3px solid var(--gold);
+  color: var(--gold);
+  font-size: 13px;
+}
+.item-go {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.item-go input {
+  width: 15em;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--rule-2);
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.item-go input:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+.waits {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.waits li {
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule-2);
+  border-left: 3px solid var(--muted);
+}
+.waits li.w-person {
+  border-left-color: var(--gold);
+}
+.waits li.w-parked {
+  border-left-color: var(--red);
+}
+.waits li.w-dispatch {
+  border-left-color: var(--cyan);
+}
+.waits li.w-done {
+  border-left-color: var(--green);
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.timeline:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--rule-2);
+  cursor: pointer;
+}
+.timeline li.earlier {
+  opacity: .7;
+}
+.timeline li.picked {
+  border-left-color: var(--cyan);
+  background: var(--panel-2);
+}
+.timeline li.active {
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
+}
+.timeline time {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.timeline .tt {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.timeline .tx {
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+.timeline .tx small {
+  color: var(--muted);
+}
+.relations {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+}
+.relations li {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.notes {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.copy-yaml {
+  max-height: 22em;
+  overflow: auto;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: var(--canvas);
+  border: 1px solid var(--rule-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre;
+}

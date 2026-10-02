@@ -360,6 +360,27 @@ shows them as the agent saves.
   the page when one is written, added or removed. **Keyboard:** each column is
   one tab stop; ↑ and ↓ move between its cards, ← and → to the next column's,
   Home and End to the first and last, and Enter opens the work item.
+- **Work item** (`/w/<key>`, from a Board card or the bar's **go to work
+  item** box, which takes a key) draws one work item on the definition it
+  pinned, which may be older than the file's; a notice says so. Stages it
+  entered show how many times (this era), the current stage glows, exits it
+  took are solid with how often, and stages it never entered are dimmed.
+  **Now** shows where it waits, from the code `status` prints from: a person's
+  decision and which gates, evidence a person records, the stage's dispatch,
+  parked at the dispatch cap, each exit's readiness with the engine's own
+  reasons, and how long it has been in the stage entry. **Timeline** is the
+  journal (products, approvals and declines with the person, moves,
+  overrides, dispatches, resets); ↑ and ↓ move through it, and Enter selects
+  the entry's stage on the graph. **Metrics** is Simulate's, on the real run.
+  **Tracker** shows the ticket as its tracker last recorded it, with a link
+  and its relations (parent, blocked by, duplicate), read from the tracker's
+  records with no network call. **Scenario** shows this era of the run as one
+  entry for `globalArguments.scenarios`, with the payloads it recorded, replays
+  it on the pinned definition to say whether it ends where the run is, and
+  notes what a scenario cannot carry (dispatches, dispatch overrides,
+  retargets, an earlier era). **Copy reference** gives the work item, its stage
+  and the `status` command to paste to the agent. The page reads the work item
+  again when it changes.
 - **Addresses:** each view has its own path: `/f/<factory>/design`,
   `/f/<factory>/simulate`, `/f/<factory>/board`, and `/w/<key>` for one work
   item. `/` opens the last factory you looked at. Back and forward move between
@@ -377,8 +398,8 @@ The server listens on 127.0.0.1 only, answers only requests addressed to it from
 its own page, and serves nothing but the page, each factory's model
 definition file, at the path swamp's definition repository gives, and what
 the Board needs of its work items, which it reads with swamp's data query
-(`GET /api/work-items?factory=<name>`), so it works whatever datastore holds
-them. `serve` holds the
+(`GET /api/work-items?factory=<name>`, and `GET /api/work-items/<key>` for
+one), so it works whatever datastore holds them. `serve` holds the
 studio's lock while it runs, so a second `serve` of the same studio waits; it
 never takes a factory's lock. See [DESIGN.md](DESIGN.md), "The studio server".
 
