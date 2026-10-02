@@ -36,6 +36,7 @@ import {
   entryYaml,
   overlay,
   payloadCatalogue,
+  placeholderOverrides,
   play,
   type Played,
   runAll,
@@ -174,9 +175,19 @@ export const simTab = signal<SimTab>("run");
 export const walk = signal<Walk | null>(null);
 /** The walk as last played, on the definition as it is now. */
 export const walkPlayed = signal<Played | null>(null);
+/** Why the walk could not run on the engine, when it could not. */
+export const walkError = signal<string | null>(null);
+/** The walk `walkPlayed` and `walkError` are for. */
+const walkSettled = signal<Walk | null>(null);
 /** The walk as a scenario entry, re-run on its own to say if it passes. */
 export const copyEntry = signal<
-  { text: string; passed: boolean; failures: string[] } | null
+  {
+    text: string;
+    passed: boolean;
+    failures: string[];
+    /** Stages overridden with the placeholder note still on. */
+    placeholders: string[];
+  } | null
 >(null);
 
 // --- derived -------------------------------------------------------------------
@@ -197,11 +208,22 @@ export const currentRun = computed(() =>
   runs.value?.find((r) => r.name === scenario.value) ?? null
 );
 
-/** The frames played: the walk's when there is one, else the scenario's. */
+/** A step taken, not yet played on the engine: the page waits for it. */
+export const walkPending = computed(() =>
+  walk.value !== null && good.value !== null &&
+  walkSettled.value !== walk.value
+);
+
+/**
+ * The frames played: the walk's when there is one, else the scenario's. While
+ * a step plays, the frames it replaces stay, shown pending: the walk's before
+ * the step, or on a first step the scenario's it branched from.
+ */
 export const frames = computed(() => {
-  if (walk.value !== null) return walkPlayed.value?.frames ?? [];
   const r = currentRun.value;
-  return r?.ok ? r.played.frames : [];
+  const base = r?.ok ? r.played.frames : [];
+  if (walk.value === null) return base;
+  return walkPlayed.value?.frames ?? (walkPending.value ? base : []);
 });
 
 /** The frame the Run, Journal and Metrics tabs show: the scenario's, or on a
@@ -678,6 +700,8 @@ export async function selectFactory(
     frameIndex.value = 0;
     walk.value = null;
     walkPlayed.value = null;
+    walkError.value = null;
+    walkSettled.value = null;
     copyEntry.value = null;
     board.value = null;
     boardError.value = null;
@@ -873,20 +897,29 @@ let reloads = 0;
 /** The last walk error said, so a reload does not say it again. */
 let toldWalkError: { walk: Walk; text: string } | null = null;
 
-/** Play a walk on a definition; null when it cannot run. */
+/**
+ * The saved scenarios' names, which the walk's entry must not take: the last
+ * good definition's, which a broken reload keeps.
+ */
+const savedNames = () => good.value?.scenarios.map((s) => s.name) ?? [];
+
+/** Play a walk on a definition: its frames, or why it cannot run. */
 async function playWalk(
   definition: OkLoaded["definition"],
   w: Walk,
-): Promise<Played | null> {
+): Promise<{ played: Played | null; error: string | null }> {
   try {
-    return await play(definition, walkScenario(w));
+    return {
+      played: await play(definition, walkScenario(w, savedNames())),
+      error: null,
+    };
   } catch (e) {
     const text = `The walk could not run: ${message(e)}`;
     if (toldWalkError?.walk !== w || toldWalkError.text !== text) {
       toldWalkError = { walk: w, text };
       flash(text);
     }
-    return null;
+    return { played: null, error: message(e) };
   }
 }
 
@@ -897,7 +930,8 @@ async function checkCopy(
   p: Played | null,
 ): Promise<typeof copyEntry.value> {
   if (p === null || w.steps.length === 0) return null;
-  const entry = toScenarioEntry(w, p.frames);
+  const entry = toScenarioEntry(w, p.frames, savedNames());
+  const placeholders = placeholderOverrides(entry);
   try {
     const result = await play(definition, entry);
     return {
@@ -906,9 +940,15 @@ async function checkCopy(
       failures: result.failures.map((f) =>
         `step ${f.step}: ${f.label}: ${f.message}`
       ),
+      placeholders,
     };
   } catch (e) {
-    return { text: entryYaml(entry), passed: false, failures: [message(e)] };
+    return {
+      text: entryYaml(entry),
+      passed: false,
+      failures: [message(e)],
+      placeholders,
+    };
   }
 }
 
@@ -917,32 +957,61 @@ function clampFrame() {
   frameIndex.value = Math.max(0, Math.min(frameIndex.value, n - 1));
 }
 
+/** The settle under way, which a later call joins rather than racing. */
+let settling: Promise<void> | null = null;
+/** Something changed since the settle under way last looked. */
+let settleAgain = false;
+
 /**
- * Play the walk, and check its Copy entry, on the definition as it is now. A
- * result is kept only if neither the walk nor the definition changed while it
- * ran; otherwise it plays again, so a step taken during a reload, or a reload
- * during a step, ends with the newest walk on the newest definition. A walk
- * discarded meanwhile leaves nothing behind.
+ * Play the walk, and check its Copy entry, on the definition as it is now.
+ * One settle runs at a time: a call while it runs joins it and has it play
+ * once more. A result is kept only if neither the walk nor the definition
+ * changed while it ran; otherwise it plays again, so a step taken during a
+ * reload, or a reload during a step, ends with the newest walk on the newest
+ * definition. A walk discarded meanwhile leaves nothing behind.
  */
-async function settleWalk() {
-  for (;;) {
-    const g = good.value, w = walk.value;
-    if (g === null || w === null) {
-      batch(() => {
-        walkPlayed.value = null;
-        copyEntry.value = null;
-      });
-      return;
-    }
-    const played = await playWalk(g.definition, w);
-    if (good.value !== g || walk.value !== w) continue;
-    walkPlayed.value = played;
-    clampFrame();
-    const copy = await checkCopy(g.definition, w, played);
-    if (good.value !== g || walk.value !== w) continue;
-    copyEntry.value = copy;
-    return;
+function settleWalk(): Promise<void> {
+  if (settling !== null) {
+    settleAgain = true;
+    return settling;
   }
+  settling = (async () => {
+    try {
+      do {
+        settleAgain = false;
+        if (!await settleOnce()) settleAgain = true;
+      } while (settleAgain);
+    } finally {
+      settling = null;
+    }
+  })();
+  return settling;
+}
+
+/** One round of settleWalk; false when the walk or definition moved on. */
+async function settleOnce(): Promise<boolean> {
+  const g = good.value, w = walk.value;
+  if (g === null || w === null) {
+    batch(() => {
+      walkPlayed.value = null;
+      walkError.value = null;
+      walkSettled.value = null;
+      copyEntry.value = null;
+    });
+    return true;
+  }
+  const { played, error } = await playWalk(g.definition, w);
+  if (good.value !== g || walk.value !== w) return false;
+  batch(() => {
+    walkPlayed.value = played;
+    walkError.value = error;
+    walkSettled.value = w;
+    clampFrame();
+  });
+  const copy = await checkCopy(g.definition, w, played);
+  if (good.value !== g || walk.value !== w) return false;
+  copyEntry.value = copy;
+  return true;
 }
 
 /**
@@ -975,6 +1044,8 @@ async function runSimulation() {
 let playTimer: ReturnType<typeof setInterval> | undefined;
 
 export function setPlaying(on: boolean) {
+  // Stopping always works; playing waits until a step taken has played.
+  if (on && walkPending.value) return;
   clearInterval(playTimer);
   playing.value = on;
   if (!on) return;
@@ -992,6 +1063,7 @@ export function setSpeed(value: number) {
 
 /** Show a frame; a person stepping or jumping pauses playback. */
 export function goFrame(i: number) {
+  if (walkPending.value) return;
   if (playing.value) setPlaying(false);
   frameIndex.value = Math.max(0, Math.min(i, frames.value.length - 1));
 }
@@ -1004,6 +1076,8 @@ export function pickScenario(name: string, ask = confirmDiscard) {
   batch(() => {
     walk.value = null;
     walkPlayed.value = null;
+    walkError.value = null;
+    walkSettled.value = null;
     copyEntry.value = null;
     scenario.value = name;
     frameIndex.value = 0;
@@ -1021,12 +1095,21 @@ const confirmDiscard = () =>
  * go on from there.
  */
 export async function takeStep(step: ScenarioStep) {
+  // The frames shown are the ones the step replaces; it waits its turn.
+  if (walkPending.value) return;
   const at = frameIndex.value;
   const w = walk.value;
   let next: Walk;
   if (w === null) {
     const r = currentRun.value;
-    if (r === null || !r.ok) return;
+    if (r === null || !r.ok) {
+      flash(
+        r === null
+          ? "Pick a scenario to take a step from"
+          : `${r.name} could not run, so there is no frame to step from`,
+      );
+      return;
+    }
     next = branch(r.scenario, at);
   } else if (at >= w.baseSteps.length) {
     next = { ...w, steps: w.steps.slice(0, at - w.baseSteps.length) };
@@ -1060,6 +1143,8 @@ export function discardWalk() {
   batch(() => {
     walk.value = null;
     walkPlayed.value = null;
+    walkError.value = null;
+    walkSettled.value = null;
     copyEntry.value = null;
     if (!runs.value?.some((r) => r.name === scenario.value)) {
       scenario.value = runs.value?.[0]?.name ?? null;

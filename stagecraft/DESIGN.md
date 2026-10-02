@@ -1593,9 +1593,14 @@ offered.
 (no `factory` key), indented to paste: the base's steps as they were, the
 person's with `expect: { refused }` on each one the engine refused (its reason,
 word for word, which the deterministic clock keeps stable), and a closing
-`expect: { stage }`. The page re-runs the entry on its own and says whether it
-passes. The person hands it to the agent, which names it, may shorten the
-refusal texts, and saves it; `validate` then runs it with the rest.
+`expect: { stage }`. It is named `<base>-walk`, or `<base>-walk-2` and on when a
+saved scenario has that name. The page re-runs the entry on its own and says
+whether it passes, and flags an override still carrying the placeholder note
+`one more pass`, for the person to give the agent the reason. The person hands
+it to the agent, which names it, may shorten the refusal texts, and saves it;
+`validate` then runs it with the rest. While a step plays, the frames it
+replaces stay, dimmed, and take no clicks; a walk the engine cannot run keeps
+its banner, with Discard, and Copy says why it could not run.
 
 **Overlay and dock.** On the graph: the current stage glows, visited stages
 carry their entry count, exits taken carry theirs, the current stage's exits

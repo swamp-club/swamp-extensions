@@ -32,6 +32,7 @@ import {
   frames,
   go,
   goFrame,
+  good,
   graph,
   itemTab,
   itemTicket,
@@ -55,6 +56,8 @@ import {
   stale,
   takeStep,
   walk,
+  walkError,
+  walkPending,
   walkPlayed,
   workItem,
   workItemError,
@@ -191,6 +194,155 @@ Deno.test("state: stepping or jumping pauses playback, and a new step's Copy ent
     assertEquals(copyEntry.value, null);
     await step;
     assert(copyEntry.value?.text.includes("wait: 60"));
+  });
+});
+
+Deno.test("state: a walk the engine cannot run keeps its banner's walk, and Copy says why instead of checking", async () => {
+  const text = await exampleText(NAME);
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    pickScenario("plan-churn");
+    goFrame(15);
+    // A wait too long for the clock throws in the engine.
+    await takeStep({ wait: 1e300 });
+    assert(walk.value !== null, "the walk stays, so Discard does too");
+    assertEquals(walkPending.value, false);
+    assertEquals(walkPlayed.value, null);
+    assert(walkError.value?.includes("Invalid time value"), walkError.value!);
+    assertEquals(frame.value, null);
+    assertEquals(copyEntry.value, null);
+    assert(flashText.value?.startsWith("The walk could not run"));
+
+    discardWalk();
+    assertEquals(walkError.value, null);
+    assertEquals(frames.value.length, 22);
+    flashText.value = null;
+  });
+});
+
+Deno.test("state: while a step plays, the frames it replaces stay and take no clicks or steps", async () => {
+  const text = await exampleText(NAME);
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    pickScenario("plan-churn");
+    goFrame(15);
+    // A first step: the scenario's frames stay while it plays.
+    const first = takeStep({ move: "approve" });
+    assert(walkPending.value);
+    assertEquals(frames.value.length, 22);
+    assert(frame.value !== null, "no false could-not-run while it plays");
+    goFrame(3);
+    assertEquals(frameIndex.value, 15);
+    setPlaying(true);
+    assertEquals(playing.value, false);
+    await takeStep({ wait: 60 });
+    await first;
+    assertEquals(walkPending.value, false);
+    assertEquals(walk.value?.steps, [{ move: "approve" }]);
+    assertEquals(frameIndex.value, 16);
+
+    // A later step: the walk's own frames stay while it plays.
+    const second = takeStep({ wait: 60 });
+    assert(walkPending.value);
+    assertEquals(frames.value.length, 17);
+    await second;
+    assertEquals(frames.value.length, 18);
+    assertEquals(frameIndex.value, 17);
+  });
+});
+
+Deno.test("state: steps and reloads at once share one settle, which ends on the newest walk and definition", async () => {
+  const text = await exampleText(NAME);
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    pickScenario("plan-churn");
+    goFrame(15);
+    const step = takeStep({ move: "approve" });
+    save(raisePlanLimit(text));
+    const reload = loadDefinitionFile();
+    // A discard and a new branch while both run.
+    discardWalk();
+    goFrame(15);
+    const again = takeStep({ wait: 60 });
+    await Promise.all([step, reload, again]);
+    assertEquals(walk.value?.steps, [{ wait: 60 }]);
+    assertEquals(walkPending.value, false);
+    assertEquals(walkPlayed.value?.frames.length, 17);
+    const run = churn();
+    assert(run?.ok);
+    assert(!run.played.passed, "the reload's results were kept");
+    assert(copyEntry.value?.text.includes("wait: 60"));
+  });
+});
+
+Deno.test("state: a step from a scenario that did not run says why", async () => {
+  const text = (await exampleText(NAME)).replace(
+    /\n( *)- scenario: plan-churn\n/,
+    (m, pad) => `${m}${pad}  bogus: 1\n`,
+  );
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    pickScenario("plan-churn");
+    assert(churn()?.ok === false);
+    await takeStep({ move: "approve" });
+    assertEquals(walk.value, null);
+    assertEquals(
+      flashText.value,
+      "plan-churn could not run, so there is no frame to step from",
+    );
+    flashText.value = null;
+  });
+});
+
+Deno.test("state: the walk's entry takes a free name, and flags the placeholder override note", async () => {
+  const text = (await exampleText(NAME)).replace(
+    "- scenario: plan-to-release\n",
+    "- scenario: plan-churn-walk\n",
+  );
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    assert(runs.value?.some((r) => r.name === "plan-churn-walk"));
+    pickScenario("plan-churn");
+    goFrame(15);
+    await takeStep({ override: { stage: "plan", note: "one more pass" } });
+    assert(
+      copyEntry.value?.text.includes("- scenario: plan-churn-walk-2\n"),
+      copyEntry.value?.text,
+    );
+    assertEquals(copyEntry.value?.placeholders, ["plan"]);
+
+    // A file that cannot be read keeps the last good definition, whose
+    // scenarios the next step's name still avoids. (served restores fetch.)
+    globalThis.fetch = () => Promise.reject(new Error("offline"));
+    await loadDefinitionFile();
+    assertEquals(runs.value?.some((r) => r.name === "plan-churn-walk"), true);
+    await takeStep({ wait: 60 });
+    assert(
+      copyEntry.value?.text.includes("- scenario: plan-churn-walk-2\n"),
+      copyEntry.value?.text,
+    );
+  });
+});
+
+Deno.test("state: a walk open when the definition goes away is not left playing", async () => {
+  const text = await exampleText(NAME);
+  await served(async (save) => {
+    save(text);
+    await selectFactory(NAME);
+    pickScenario("plan-churn");
+    goFrame(15);
+    const step = takeStep({ move: "approve" });
+    assert(walkPending.value);
+    // As when the last factory is removed: no good definition is left.
+    good.value = null;
+    await step;
+    assert(walk.value !== null);
+    assertEquals(walkPending.value, false);
   });
 });
 

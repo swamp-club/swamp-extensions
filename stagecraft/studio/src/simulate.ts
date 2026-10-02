@@ -131,15 +131,28 @@ export function branch(scenario: Scenario, at: number): Walk {
   };
 }
 
-/** A scenario name for the walk, for the runner and for Copy. */
-export function walkName(walk: Walk): string {
-  return `${walk.base}-walk`;
+/**
+ * A scenario name for the walk, for the runner and for Copy: `<base>-walk`,
+ * or `<base>-walk-2` and on when a saved scenario already has the name.
+ */
+export function walkName(
+  walk: Walk,
+  taken: readonly string[] = [],
+): string {
+  const name = `${walk.base}-walk`;
+  if (!taken.includes(name)) return name;
+  let n = 2;
+  while (taken.includes(`${name}-${n}`)) n++;
+  return `${name}-${n}`;
 }
 
 /** The walk as the scenario the runner plays. */
-export function walkScenario(walk: Walk): Scenario {
+export function walkScenario(
+  walk: Walk,
+  taken: readonly string[] = [],
+): Scenario {
   return {
-    scenario: walkName(walk),
+    scenario: walkName(walk, taken),
     ...(walk.externalRefs !== undefined
       ? { externalRefs: walk.externalRefs }
       : {}),
@@ -242,6 +255,16 @@ function preview(payload: Record<string, unknown>): string {
   return text.length > 48 ? `${text.slice(0, 47)}…` : text;
 }
 
+/** The note on an override a person takes, until the agent gives the reason. */
+export const OVERRIDE_NOTE = "one more pass";
+
+/** The stages an entry overrides with the placeholder note still on. */
+export function placeholderOverrides(entry: Scenario): string[] {
+  return entry.steps.flatMap((s) =>
+    s.override?.note === OVERRIDE_NOTE ? [s.override.stage] : []
+  );
+}
+
 /**
  * The steps a person can take from `frame`: every exit (BLOCKED ones too, to
  * see the refusal), approve or decline on each human approval still pending,
@@ -298,7 +321,7 @@ export function actionsAt(
       key: `override:${r.to}`,
       group: "override",
       label: `override the cycle limit of ${r.to}`,
-      step: { override: { stage: r.to, note: "one more pass" } },
+      step: { override: { stage: r.to, note: OVERRIDE_NOTE } },
     });
   }
   const stage = findStage(definition, frame.run.stage);
@@ -392,7 +415,11 @@ export function journalText(e: JournalEvent): string {
  * they were, then the person's, each refused one expecting its refusal, and
  * the stage it ended at. `frames` is the walk's own run.
  */
-export function toScenarioEntry(walk: Walk, frames: Frame[]): Scenario {
+export function toScenarioEntry(
+  walk: Walk,
+  frames: Frame[],
+  taken: readonly string[] = [],
+): Scenario {
   const offset = walk.baseSteps.length;
   const steps: ScenarioStep[] = [
     ...structuredClone(walk.baseSteps),
@@ -406,7 +433,7 @@ export function toScenarioEntry(walk: Walk, frames: Frame[]): Scenario {
   const last = frames[frames.length - 1];
   if (last !== undefined) steps.push({ expect: { stage: last.run.stage } });
   return {
-    scenario: walkName(walk),
+    scenario: walkName(walk, taken),
     description: `Branched from ${walk.base} at step ${walk.branchAt}.`,
     ...(walk.externalRefs !== undefined
       ? { externalRefs: walk.externalRefs }

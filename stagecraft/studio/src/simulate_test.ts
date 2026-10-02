@@ -25,13 +25,16 @@ import {
   exitState,
   formatSeconds,
   overlay,
+  OVERRIDE_NOTE,
   payloadCatalogue,
+  placeholderOverrides,
   play,
   runAll,
   type ScenarioRun,
   timeline,
   toScenarioEntry,
   unrecordable,
+  walkName,
   walkScenario,
 } from "./simulate.ts";
 import { loadOk } from "./test_support.ts";
@@ -228,6 +231,32 @@ Deno.test("simulate: a walk replays the base's steps, then the person's, and cop
   assert(parsed.ok, JSON.stringify(!parsed.ok && parsed.errors));
   const again = await play(loaded.definition, parsed.value);
   assert(again.passed, JSON.stringify(again.failures));
+});
+
+Deno.test("simulate: a walk's name is <base>-walk, or the first free <base>-walk-<n>", async () => {
+  const { run } = await churn();
+  const walk = branch(ok(run).scenario, 2);
+  assertEquals(walkName(walk), "plan-churn-walk");
+  assertEquals(walkName(walk, ["plan-churn"]), "plan-churn-walk");
+  assertEquals(walkName(walk, ["plan-churn-walk"]), "plan-churn-walk-2");
+  assertEquals(
+    walkName(walk, ["plan-churn-walk", "plan-churn-walk-2"]),
+    "plan-churn-walk-3",
+  );
+  assertEquals(
+    toScenarioEntry(walk, [], ["plan-churn-walk"]).scenario,
+    "plan-churn-walk-2",
+  );
+});
+
+Deno.test("simulate: an entry's overrides still on the placeholder note are listed", async () => {
+  const { run } = await churn();
+  const walk = branch(ok(run).scenario, 2);
+  walk.steps.push(
+    { override: { stage: "plan", note: OVERRIDE_NOTE } },
+    { override: { stage: "build", note: "the review asked for it" } },
+  );
+  assertEquals(placeholderOverrides(toScenarioEntry(walk, [])), ["plan"]);
 });
 
 Deno.test("simulate: a walk keeps its own copy of the base's steps", async () => {

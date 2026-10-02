@@ -1450,6 +1450,16 @@ button.finding:hover,
   flex-direction: column;
   gap: 12px;
 }
+.run-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* The frames a step replaces, while it plays: shown, not clickable. */
+.walk-pending {
+  opacity: .5;
+  cursor: progress;
+}
 .walk-banner {
   display: flex;
   flex-wrap: wrap;

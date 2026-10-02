@@ -33,6 +33,7 @@ import {
   exitState,
   formatSeconds,
   journalText,
+  OVERRIDE_NOTE,
   timeline,
   unrecordable,
 } from "./simulate.ts";
@@ -61,6 +62,8 @@ import {
   speed,
   takeStep,
   walk,
+  walkError,
+  walkPending,
 } from "./state.ts";
 import { modeMeta, Tabs } from "./ui.tsx";
 
@@ -220,6 +223,7 @@ function WalkBanner() {
         <b>Your walk</b>, from {w.base} at step {w.branchAt}
         {gone ? " (base scenario removed)" : ""}: {w.steps.length} step
         {w.steps.length === 1 ? "" : "s"} of your own
+        {walkPending.value ? " · playing on the engine…" : ""}
       </span>
       <span class="wb-actions">
         <button
@@ -238,13 +242,31 @@ function WalkBanner() {
 }
 
 function RunTab() {
-  if (frame.value === null) return <NoRun />;
+  // A walk keeps its banner, and so its Discard, even when it cannot run.
+  if (frame.value === null) {
+    if (walk.value === null) return <NoRun />;
+    return (
+      <div class="run">
+        <WalkBanner />
+        <NoRun />
+      </div>
+    );
+  }
+  // While a step plays, the frame it replaces shows pending and takes no
+  // clicks.
+  const pending = walkPending.value;
   return (
     <div class="run">
       <WalkBanner />
-      <StepCard />
-      <StatusCard />
-      <WalkFromHere />
+      <div
+        class={pending ? "run-frame walk-pending" : "run-frame"}
+        inert={pending}
+        aria-busy={pending}
+      >
+        <StepCard />
+        <StatusCard />
+        <WalkFromHere />
+      </div>
     </div>
   );
 }
@@ -271,7 +293,16 @@ function NoRun() {
     );
   }
   if (walk.value !== null) {
-    return <div class="problem" role="alert">The walk could not run.</div>;
+    if (walkPending.value) {
+      return <p class="empty">Playing the walk on the engine…</p>;
+    }
+    return (
+      <div class="problem" role="alert">
+        The walk could not run{walkError.value === null
+          ? "."
+          : `: ${walkError.value}`}
+      </div>
+    );
   }
   return <p class="empty">Pick a scenario.</p>;
 }
@@ -375,6 +406,15 @@ export function MetricsTab() {
 
 function CopyAsScenario() {
   const c = copyEntry.value;
+  if (walk.value !== null && !walkPending.value && walkError.value !== null) {
+    return (
+      <p class="warn-line">
+        ✗ The walk could not run on the engine, so there is nothing to copy:
+        {" "}
+        {walkError.value}
+      </p>
+    );
+  }
   if (walk.value !== null && walk.value.steps.length > 0 && c === null) {
     return <p class="desc muted small">Checking the walk on the engine…</p>;
   }
@@ -402,6 +442,17 @@ function CopyAsScenario() {
         One entry for globalArguments.scenarios. Paste it to the agent, which
         names it, adjusts it and saves it.
       </p>
+      {c.placeholders.length > 0 && (
+        <p class="desc muted small">
+          {c.placeholders.length === 1
+            ? `The override of ${c.placeholders[0]} carries`
+            : `The overrides of ${c.placeholders.join(", ")} carry`}{" "}
+          the placeholder note "{OVERRIDE_NOTE}": tell the agent why a person
+          granted{" "}
+          {c.placeholders.length === 1 ? "it" : "them"}, so the saved note gives
+          the reason.
+        </p>
+      )}
       <div class="insp-actions">
         <button type="button" class="copy" onClick={() => void copyWalk()}>
           ⧉ Copy as scenario
@@ -560,6 +611,7 @@ export function Dock() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
   const w = walk.value;
+  const pending = walkPending.value;
   const { ticks, ribbon } = timeline(list, w === null ? Infinity : w.branchAt);
   const g = good.value;
   const names = runs.value ?? [];
@@ -586,7 +638,12 @@ export function Dock() {
           ))}
         </select>
         {w !== null && <span class="lchip pink">walk</span>}
-        <div class="grp" role="group" aria-label="Transport">
+        <div
+          class={pending ? "grp walk-pending" : "grp"}
+          role="group"
+          aria-label="Transport"
+          inert={pending}
+        >
           <button
             type="button"
             aria-label="First step"
@@ -642,7 +699,11 @@ export function Dock() {
         <span class="keys-hint">Space plays · ← → step</span>
       </div>
       {n > 0 && (
-        <div class="timeline" style={{ "--n": String(n) }}>
+        <div
+          class={pending ? "timeline walk-pending" : "timeline"}
+          style={{ "--n": String(n) }}
+          inert={pending}
+        >
           <div class="ribbon" aria-hidden="true">
             {ribbon.map((s) => {
               const stage = g?.definition.stages.find((x) => x.id === s.stage);
