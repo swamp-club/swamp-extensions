@@ -191,6 +191,28 @@ export async function skillFiles(): Promise<string[]> {
   return found.sort();
 }
 
+/** The extension's README, the page users and the registry read. */
+export const README = fromFileUrl(new URL("../../README.md", import.meta.url));
+
+/**
+ * The instance names the README's commands use, so they read as a person
+ * types them, and the placeholder the checker knows each by.
+ */
+export const README_NAMES: Readonly<Record<string, string>> = {
+  board: "<board>",
+  linear: "<linear>",
+  studio: "<studio>",
+  team: "<factory>",
+};
+
+/** Every swamp command in the README, its instance names as placeholders. */
+export async function readmeCommands(): Promise<SkillCommand[]> {
+  return commandsIn("README.md", await Deno.readTextFile(README)).map((c) => ({
+    ...c,
+    words: c.words.map((w) => README_NAMES[w] ?? w),
+  }));
+}
+
 /** Every swamp command in the skill. */
 export async function skillCommands(): Promise<SkillCommand[]> {
   const out: SkillCommand[] = [];
@@ -384,6 +406,27 @@ export function checkCommand(
     return args.length === 4 && args[3] === "--json"
       ? null
       : "model search takes a query and --json";
+  }
+  // Setting up a repo, as the README shows it. None of these is run by the
+  // test, so each must have exactly the shape shown.
+  if (is("init")) {
+    return args.length === 1 ? null : "init takes nothing";
+  }
+  if (is("extension", "pull")) {
+    return args.length === 3 && args[2] === "@swamp/stagecraft"
+      ? null
+      : "extension pull must be: extension pull @swamp/stagecraft";
+  }
+  if (is("vault", "create")) {
+    return args.length === 4 && args[2] === "local_encryption"
+      ? null
+      : "vault create must be: vault create local_encryption <name>";
+  }
+  if (is("vault", "put")) {
+    // The secret is never on the command line: put prompts for it.
+    return args.length === 4
+      ? null
+      : "vault put must be: vault put <vault> <key>, which prompts for it";
   }
   if (is("extension", "source", "add")) {
     return args.length === 4 ? null : "extension source add takes one path";

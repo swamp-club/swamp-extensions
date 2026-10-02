@@ -22,6 +22,8 @@ import { EXTENSION_ROOT, splitWords, withRepo } from "../harness.ts";
 import {
   checkCommand,
   commandsIn,
+  README,
+  readmeCommands,
   runExample,
   SKILL_DIR,
   skillCommands,
@@ -122,6 +124,73 @@ Deno.test("skill: every command names a real method with inputs it accepts", asy
     return problem === null ? [] : [`${c.file}:${c.line}: ${problem}`];
   });
   assertEquals(problems, []);
+});
+
+// The README is the page a new user reads first, and the registry's page for
+// the extension, so its commands are held to the skill's rule.
+Deno.test("README: every command names a real method with inputs it accepts", async () => {
+  const commands = await readmeCommands();
+  assert(commands.length >= 8, `only ${commands.length} commands found`);
+  const problems = commands.flatMap((c) => {
+    const problem = checkCommand(c.words);
+    return problem === null ? [] : [`${c.file}:${c.line}: ${problem}`];
+  });
+  assertEquals(problems, []);
+});
+
+Deno.test("README: the setup commands are checked for their exact shape", () => {
+  assertEquals(checkCommand(["swamp", "init"]), null);
+  assert(checkCommand(["swamp", "init", "x"])?.includes("init takes nothing"));
+  assertEquals(
+    checkCommand(["swamp", "extension", "pull", "@swamp/stagecraft"]),
+    null,
+  );
+  assert(
+    checkCommand(["swamp", "extension", "pull", "@swamp/stagecraf"])
+      ?.includes("extension pull must be"),
+  );
+  assertEquals(
+    checkCommand(["swamp", "vault", "create", "local_encryption", "secrets"]),
+    null,
+  );
+  assert(
+    checkCommand(["swamp", "vault", "create", "secrets"])?.includes(
+      "vault create must be",
+    ),
+  );
+  assertEquals(
+    checkCommand(["swamp", "vault", "put", "secrets", "linear-token"]),
+    null,
+  );
+  assert(
+    checkCommand(["swamp", "vault", "put", "secrets", "linear-token", "lin_x"])
+      ?.includes("prompts for it"),
+    "a secret is never shown on the command line",
+  );
+});
+
+Deno.test("README: every relative link names a file, and a heading in it", async () => {
+  const text = await Deno.readTextFile(README);
+  const links = [...text.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1])
+    .filter((l) => !/^[a-z]+:/.test(l));
+  assert(links.length >= 8, `only ${links.length} links found`);
+  const broken: string[] = [];
+  for (const link of links) {
+    const [path, anchor] = link.split("#");
+    const target = path === "" ? README : `${EXTENSION_ROOT}${path}`;
+    try {
+      const info = await Deno.stat(target);
+      if (anchor === undefined) continue;
+      const headings = info.isFile
+        ? [...(await Deno.readTextFile(target)).matchAll(/^#+ (.+)$/gm)]
+          .map((m) => slug(m[1]))
+        : [];
+      if (!headings.includes(anchor)) broken.push(`${link}: no such heading`);
+    } catch {
+      broken.push(`${link}: no such file`);
+    }
+  }
+  assertEquals(broken, []);
 });
 
 Deno.test("skill: a result block is a subagent's file, and a subagent's product is recorded from its file", async () => {
@@ -629,13 +698,20 @@ function paragraphs(text: string): { line: number; text: string }[] {
 }
 
 // The swamp-club Lab tracker is not a secret, but only the swamp-club team can
-// use it (swamp-club #2842). So wherever the shipped skill or the README names
-// it, the same paragraph says it is the swamp-club team's; and no example is
-// named for it, so none reads as an option.
-Deno.test("skill and README: the swamp-club Lab is named only as the swamp-club team's own", async () => {
+// use it (swamp-club #2842). So wherever the shipped skill or REFERENCE.md
+// names it, the same paragraph says it is the swamp-club team's; and no example
+// is named for it, so none reads as an option. The README, the page a new user
+// reads first, does not name it at all (swamp-club #2819).
+Deno.test("skill and REFERENCE.md: the swamp-club Lab is named only as the swamp-club team's own", async () => {
   const mentions = /swamp-club|swamp_club|\bLab\b/;
+  assertEquals(
+    paragraphs(await Deno.readTextFile(README)).flatMap((p) =>
+      mentions.test(p.text) ? [`README.md:${p.line}`] : []
+    ),
+    [],
+  );
   const texts: [string, string][] = [
-    ["README.md", await Deno.readTextFile(`${EXTENSION_ROOT}README.md`)],
+    ["REFERENCE.md", await Deno.readTextFile(`${EXTENSION_ROOT}REFERENCE.md`)],
   ];
   const skillFiles = await filesUnder(SKILL_DIR);
   assert(skillFiles.includes("SKILL.md"), skillFiles.join(", "));
