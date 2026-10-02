@@ -29,6 +29,7 @@ import type {
 } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import {
   boardColumns,
+  cardHead,
   COLUMN_PAGE,
   durationText,
   isStale,
@@ -73,6 +74,7 @@ function Card(props: {
   const now = clock.value;
   const inStage = since(card.enteredAt, now);
   const waited = card.waiting === null ? null : since(card.waiting.since, now);
+  const head = cardHead(card);
   const href = routeHref({ view: "work-item", key: card.key });
   const open = (e: JSX.TargetedMouseEvent<HTMLAnchorElement>) => {
     // A new tab or window opens the usual way.
@@ -99,16 +101,23 @@ function Card(props: {
         onClick={open}
         onFocus={() => active.set(stage, row)}
       >
-        <span class="card-head">
-          {/* A card with no title shows its key as the title instead. */}
-          <span class="card-key">{card.title === null ? "" : card.key}</span>
-          {card.trackerRef !== null && (
-            <span class="card-ref">{card.trackerRef}</span>
-          )}
-        </span>
         <span class={`card-title${card.title === null ? " untitled" : ""}`}>
           {card.title ?? card.key}
         </span>
+        {
+          /* The key is one line, cut off; its full text stays in the card,
+            so it is read out, and shows on hover and focus. */
+        }
+        {(head.key !== "" || head.ref !== null) && (
+          <span class="card-head">
+            <span class="card-key" title={head.key || undefined}>
+              {head.key}
+            </span>
+            {head.ref !== null && (
+              <span class="card-ref" title={head.ref}>{head.ref}</span>
+            )}
+          </span>
+        )}
         <span class="card-meta">
           {inStage === null
             ? "in stage: time unknown"

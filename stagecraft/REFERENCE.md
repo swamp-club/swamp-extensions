@@ -347,8 +347,10 @@ shows them as the agent saves.
   stage, in the order Design draws the stages; a work item in a stage the
   current definition no longer has gets a column of its own at the end.
   Finished stages show a count, and **Show finished** lists their work items.
-  Each card shows the title (else the key), the ticket's display id, time in
-  the stage, the cycle when above 1, and, in words and colour: **waiting on a
+  Each card shows the title (else the key), then the key on one line (in
+  full on hover and focus) and the ticket's display id when it is not the key
+  itself (the built-in tracker's ticket id is the key), time in the stage,
+  the cycle when above 1, and, in words and colour: **waiting on a
   person** (the exits a person holds, as the run's `awaiting` events record
   them, and for how long), **parked** at the dispatch cap or by a cycle limit
   (an exit whose gates all pass but whose target stage is at its limit, so only
@@ -373,8 +375,9 @@ shows them as the agent saves.
   overrides, dispatches, resets); ↑ and ↓ move through it, and Enter selects
   the entry's stage on the graph. **Metrics** is Simulate's, on the real run.
   **Tracker** shows the ticket as its tracker last recorded it, with a link
-  and its relations (parent, blocked by, duplicate), read from the tracker's
-  records with no network call. **Scenario** shows this era of the run as one
+  (named by its title where the ticket's id is the key) and its relations
+  (parent, blocked by, duplicate), read from the tracker's records with no
+  network call. **Scenario** shows this era of the run as one
   entry for `globalArguments.scenarios`, with the payloads it recorded, replays
   it on the pinned definition to say whether it ends where the run is, and
   notes what a scenario cannot carry (dispatches, dispatch overrides,

@@ -93,7 +93,7 @@ export function loadItem(data: WorkItemResponse): Item {
   const frame: Frame = {
     index: 0,
     kind: "start",
-    label: `${run.key} now`,
+    label: `${titleOf(run)} now`,
     asExpected: true,
     refused: false,
     message: "",
@@ -103,6 +103,14 @@ export function loadItem(data: WorkItemResponse): Item {
     at: data.at,
   };
   return { data, definition, view, frame };
+}
+
+/**
+ * The ticket refs worth showing: every one the run records except those
+ * that are its key (the built-in tracker's ticket id and display id are).
+ */
+export function ticketRefs(run: RunRecord): [string, string][] {
+  return Object.entries(run.externalRefs).filter(([, v]) => v !== run.key);
 }
 
 /** The title to show: the run's own, else its key. */
@@ -426,7 +434,9 @@ export function runAsScenario(
   return {
     entry: {
       scenario: `${run.key}-run`,
-      description: `Copied from work item ${run.key} at stage ${run.stage}.`,
+      description: `Copied from work item ${
+        run.title === undefined ? run.key : `'${run.title}' (${run.key})`
+      } at stage ${run.stage}.`,
       ...refs,
       steps,
     },

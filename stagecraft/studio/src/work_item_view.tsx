@@ -45,7 +45,13 @@ import {
   workItemKey,
 } from "./state.ts";
 import { Tabs } from "./ui.tsx";
-import { timelineOf, titleOf, waiting, webLink } from "./work_item.ts";
+import {
+  ticketRefs,
+  timelineOf,
+  titleOf,
+  waiting,
+  webLink,
+} from "./work_item.ts";
 
 const when = (at: string) => new Date(at).toLocaleString();
 
@@ -280,14 +286,19 @@ function TrackerTab() {
   const item = workItem.value!;
   const run = item.data.run;
   const issue = item.data.issue;
-  const refs = Object.entries(run.externalRefs);
+  const refs = ticketRefs(run);
+  // On the built-in tracker the ticket's id is the key: name the ticket by
+  // its title rather than repeat the key the head already shows.
+  const named = issue !== null && issue.display !== run.key;
   return (
     <div class="insp">
       <p class="eyebrow">
         tracker {run.tracker.instance} ({run.tracker.kind})
       </p>
-      {refs.length === 0
+      {Object.keys(run.externalRefs).length === 0
         ? <p class="empty">No ticket: this work item names none.</p>
+        : refs.length === 0
+        ? <p class="empty">The ticket's id is this work item's key.</p>
         : (
           <dl class="stats">
             {refs.map(([k, v]) => (
@@ -304,10 +315,13 @@ function TrackerTab() {
             {webLink(issue.url)
               ? (
                 <a href={issue.url} target="_blank" rel="noopener noreferrer">
-                  {issue.display} ↗
+                  {named ? issue.display : issue.title || issue.display} ↗
                 </a>
               )
-              : issue.display} {issue.title}
+              : named
+              ? issue.display
+              : issue.title || issue.display}
+            {named && ` ${issue.title}`}
           </h3>
           <p>
             status {issue.status.name}

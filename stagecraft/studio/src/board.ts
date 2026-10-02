@@ -76,6 +76,29 @@ export function isStale(card: BoardCard, currentDigest: string | null) {
   return currentDigest !== null && card.pinnedDigest !== currentDigest;
 }
 
+/**
+ * What a card's head line shows: the key, and the ticket's ref only when it
+ * differs from the key. The built-in tracker's ticket id is the key itself,
+ * so it is never shown twice; a Linear ref (ABC-12) is. A card with no title
+ * shows the key as its title instead, and none here.
+ */
+export function cardHead(
+  card: Pick<BoardCard, "key" | "title" | "trackerRef">,
+): { key: string; ref: string | null } {
+  return {
+    key: card.title === null ? "" : card.key,
+    ref: refOtherThanKey(card.key, card.trackerRef),
+  };
+}
+
+/** A tracker ref, unless it is the key itself. */
+export function refOtherThanKey(
+  key: string,
+  ref: string | null,
+): string | null {
+  return ref === null || ref === key ? null : ref;
+}
+
 export function matches(
   card: BoardCard,
   filter: BoardFilter,

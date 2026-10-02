@@ -33,6 +33,7 @@ import {
   pinnedDiffers,
   replay,
   runAsScenario,
+  ticketRefs,
   timelineOf,
   titleOf,
   waiting,
@@ -107,6 +108,46 @@ Deno.test("work item page: the title is the run's own, else its key", async () =
   const it = await item(LOOPED_REVIEW);
   assertEquals(titleOf(it.data.run), "team-item-abcd");
   assertEquals(titleOf({ ...it.data.run, title: "Add list" }), "Add list");
+});
+
+Deno.test("work item page: the tracker refs leave out the key, which the built-in tracker uses as the ticket's id", async () => {
+  const it = await item(LOOPED_REVIEW);
+  const run = it.data.run;
+  assertEquals(
+    ticketRefs({
+      ...run,
+      externalRefs: { builtin: run.key, "builtin.display": run.key },
+    }),
+    [],
+  );
+  assertEquals(
+    ticketRefs({
+      ...run,
+      externalRefs: { linear: "a1b2c3", "linear.display": "ABC-12" },
+    }),
+    [["linear", "a1b2c3"], ["linear.display", "ABC-12"]],
+  );
+});
+
+Deno.test("work item page: the frame and the copied scenario name the work by its title, else its key", async () => {
+  const it = await item(LOOPED_REVIEW);
+  assertEquals(it.frame.label, "team-item-abcd now");
+  assertEquals(
+    runAsScenario(it, it.data.payloads!).entry.description,
+    "Copied from work item team-item-abcd at stage plan-review.",
+  );
+  const titled = loadItem(JSON.parse(JSON.stringify({
+    ...it.data,
+    run: { ...it.data.run, title: "Add list" },
+  })));
+  assertEquals(titled.frame.label, "Add list now");
+  const { entry } = runAsScenario(titled, it.data.payloads!);
+  assertEquals(
+    entry.description,
+    "Copied from work item 'Add list' (team-item-abcd) at stage plan-review.",
+  );
+  // The scenario's name stays the key: it is an identifier.
+  assertEquals(entry.scenario, "team-item-abcd-run");
 });
 
 Deno.test("work item page: the pinned digest is the one the page computes from the unchanged file, and differs once the file changes", async () => {

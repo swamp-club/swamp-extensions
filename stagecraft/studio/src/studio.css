@@ -881,6 +881,8 @@ kbd {
   color: var(--faint);
 }
 .stats dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 2px 0 0;
   font-family: var(--display);
   font-weight: 700;
@@ -2038,6 +2040,8 @@ button.finding:hover,
 }
 .col {
   flex: 0 0 260px;
+  /* Its width is the basis, whatever a card's text would like. */
+  min-width: 0;
   max-height: 100%;
   display: flex;
   flex-direction: column;
@@ -2117,11 +2121,31 @@ button.finding:hover,
   font: 11px var(--mono);
   color: var(--muted);
 }
-.card-key {
+/* No string in a card can widen its column: every text element may shrink
+   and break anywhere. Keys are slugs with no spaces, often 50 to 64
+   characters. */
+.card > *,
+.card-head > * {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+/* The key is one line, cut off; its full text stays in the card, so a
+   screen reader reads it, and it shows in full on hover and focus. */
+.card-key {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card:hover .card-key,
+.card:focus-visible .card-key {
+  white-space: normal;
 }
 .card-ref {
   flex: none;
+  max-width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--cyan);
 }
 .card-title {
@@ -2193,6 +2217,8 @@ button.finding:hover,
   border-bottom: 1px solid var(--rule);
 }
 .item-head h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   font-family: var(--display);
   font-size: 17px;
@@ -2200,6 +2226,9 @@ button.finding:hover,
   color: var(--text);
 }
 .item-head .key {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--muted);
@@ -2307,6 +2336,7 @@ button.finding:hover,
   margin: 0 0 10px;
 }
 .relations li {
+  overflow-wrap: anywhere;
   margin: 0 0 4px;
   font-size: 13px;
 }

@@ -26,10 +26,12 @@ import { model as workItem } from "../../extensions/models/engine/work_item.ts";
 import {
   boardColumns,
   type BoardStage,
+  cardHead,
   COLUMN_PAGE,
   durationText,
   isStale,
   NO_FILTER,
+  refOtherThanKey,
   stageOrder,
 } from "./board.ts";
 import { layout } from "./layout.ts";
@@ -224,4 +226,38 @@ Deno.test("board: a work item started on the definition the page shows is not st
   assert(edited.view.digest !== page.view.digest, "the edit changes it");
   assert(isStale(pinned, edited.view.digest));
   assert(!isStale(pinned, null), "no definition shown: nothing is stale");
+});
+
+// Keys are slugs of the whole title on records written before short keys:
+// 50 to 64 characters with no spaces.
+const LONG_KEY =
+  "board-using-stagecraft-organizing-shipping-blog-posts-every-vwd4";
+
+Deno.test("board: a tracker ref that is the key is not shown again; another is", () => {
+  assertEquals(LONG_KEY.length, 64);
+  assertEquals(refOtherThanKey(LONG_KEY, LONG_KEY), null);
+  assertEquals(refOtherThanKey("blog-12", "blog-12"), null);
+  assertEquals(refOtherThanKey("abc-12", "ABC-12"), "ABC-12");
+  assertEquals(refOtherThanKey("abc-12", null), null);
+  assertEquals(
+    cardHead(card(LONG_KEY, "plan", {
+      title: "Using stagecraft for organizing and shipping blog posts",
+      trackerRef: LONG_KEY,
+    })),
+    { key: LONG_KEY, ref: null },
+  );
+});
+
+Deno.test("board: two work items on one Linear issue are told apart by their keys", () => {
+  const on = (key: string) =>
+    cardHead(card(key, "plan", { title: "Add a list", trackerRef: "ABC-12" }));
+  assertEquals(on("abc-12"), { key: "abc-12", ref: "ABC-12" });
+  assertEquals(on("abc-12-2"), { key: "abc-12-2", ref: "ABC-12" });
+});
+
+Deno.test("board: an untitled card shows its key as the title, not in its head", () => {
+  assertEquals(
+    cardHead(card("blog-12", "plan", { trackerRef: "blog-12" })),
+    { key: "", ref: null },
+  );
 });
