@@ -51,9 +51,11 @@ swamp model search stagecraft --json
 
 ## State 1: interviewed
 
-**Action:** ask everything in one message, not a drip. Say what you will assume
-for each question, so a short answer ("defaults are fine, stop me before
-release") is enough:
+**Action:** ask one question per turn, in this order, and say what you will
+assume for each, so a short answer ("the default is fine") is enough. Say each
+answer back in a line before the next. Someone who knows the terms can go
+faster: skip what they have already answered. Never show the person a numbered
+list of questions; this list is yours.
 
 1. **What is the factory for?** The work it carries, in their words ("docs
    changes", "bug fixes to the API"). This names the factory (a short lowercase
@@ -70,11 +72,13 @@ release") is enough:
 5. **How does work land?** Pull request, direct commit, release command, publish
    step. Name the command or place, since a stage records it.
 
-Ask also for any path they want kept: "a plan always waits for me", "a failed
-check always goes back to implement". Each becomes a saved scenario in State 3.
+Last, and only if they want to: ask for any path they want kept ("a plan always
+waits for me", "a failed check always goes back to implement"). Each becomes a
+saved scenario in State 3.
 
-**Verify:** you have an answer, or an accepted default, for all five. Say back
-what you understood in a few lines before you write anything.
+**Verify:** you have an answer, or a default you said and they did not change,
+for all five. Say back what you understood in a few lines before you write
+anything.
 
 **On failure:** if they cannot say yet, take the defaults and say which ones.
 The factory can change later.

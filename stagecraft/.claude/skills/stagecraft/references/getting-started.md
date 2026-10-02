@@ -4,15 +4,17 @@ A walkthrough for someone making their first factory. You guide them from what
 they want to a factory they have seen work, one step at a time, and check each
 step before the next.
 
-A factory is a process written down as data: **stages** that each do a piece of
-work and record what it produced (**artifacts**, such as a draft or a plan) and
-what was checked (**evidence**, such as test results or a sign-off), with
-**gates** that decide when work may move from one stage to the next, and stops
-where a person decides. Each piece of work that goes through it is a **work
-item**. Agents can do the work inside a stage, or a stage can run a swamp model
-or workflow, or a person can do it. So a factory fits software changes, and it
-fits just as well a web post, an incident review, a swamp extension built from
-an API spec, or any process that can be said as stages, products and gates.
+Background for you, not a speech for them: a factory is a process written down
+as data: **stages** that each do a piece of work and record what it produced
+(**artifacts**, such as a draft or a plan) and what was checked (**evidence**,
+such as test results or a sign-off), with **gates** that decide when work may
+move from one stage to the next, and stops where a person decides. Each piece of
+work that goes through it is a **work item**. Agents can do the work inside a
+stage, or a stage can run a swamp model or workflow, or a person can do it. So a
+factory fits software changes, and it fits just as well a web post, an incident
+review, a swamp extension built from an API spec, or any process that can be
+said as stages, products and gates. Explain a term in a sentence when it first
+matters to them, not up front.
 
 It is a state machine. Each state gates the next: do not move on until the
 state's **Verify** passes. If it fails, do what **On failure** says and verify
@@ -27,6 +29,7 @@ start → goal_understood → factory_created → validated → seen_in_studio
 
 ## Contents
 
+- [How to talk](#how-to-talk)
 - [Before starting](#before-starting)
 - [State 1: goal_understood](#state-1-goal_understood)
 - [State 2: factory_created](#state-2-factory_created)
@@ -35,6 +38,18 @@ start → goal_understood → factory_created → validated → seen_in_studio
 - [State 5: simulated](#state-5-simulated)
 - [State 6: first_work_item](#state-6-first_work_item)
 - [State 7: graduated](#state-7-graduated)
+
+## How to talk
+
+This holds in every state:
+
+- **One question or one step per turn.** Never show the person a numbered list
+  of questions to answer.
+- **Each question carries its default**, so a short answer works: "Who takes
+  part? I'll assume an agent drafts and a person approves before it goes out."
+- **Say each answer back in a line** before the next question.
+- **Keep messages short.** Each turn ends in one question, or one step with
+  something the person can see.
 
 ## Before starting
 
@@ -51,34 +66,35 @@ swamp model search stagecraft --json
   ([driving.md](driving.md)).
 - The command fails, or no `@swamp/stagecraft` type can be created: the
   extension is not installed in this repo. Tell the person and stop.
-- Nothing yet: show the person this checklist, then begin State 1.
-
-  1. Your process, in your words
-  2. The factory, made from the closest example
-  3. Checked for problems
-  4. Seen in the studio, a page that draws it
-  5. Work walked through it, to see it move
-  6. Optionally, your first real piece of work
-  7. What to do next
+- Nothing yet: begin State 1. Open with two or three sentences: you will set up
+  a factory for their process together, and one line naming the steps ("we'll go
+  step by step: your process, then the factory, a look at it, and a test run").
+  Then ask State 1's first question, and nothing else.
 
 ## State 1: goal_understood
 
 **Gate:** none.
 
-**Action:** ask about their process in their words, not in factory terms. Ask
-everything in one message, and say what you will assume for each, so a short
-answer is enough:
+**Action:** learn their process in their words, not in factory terms. Ask one
+question per turn, in this order, each with what you will assume if they do not
+say. Say each answer back in a line, then ask the next. Stop asking once you
+have enough to pick an example; take the defaults for the rest and say which.
 
 1. **What process do you want to run?** What goes in at the start, and what
    comes out at the end ("an incident becomes a published review", "a spec
    becomes swamp models").
 2. **Who takes part?** Which steps an agent can do, which a person does, and
-   which run a tool or a swamp model or workflow.
+   which run a tool or a swamp model or workflow. Default: an agent drafts and a
+   person approves before it goes out.
 3. **Where must a person decide?** Approving something before it goes out,
-   signing off, confirming that work is abandoned.
-4. **What counts as done?** Published, released, merged, signed off.
+   signing off, confirming that work is abandoned. Default: once, before it goes
+   out.
+4. **What counts as done?** Published, released, merged, signed off. Default:
+   the end their first answer named.
 5. **What sends work back?** A reviewer's finding, a failed check, a person
-   asking for changes.
+   asking for changes. Default: a reviewer's finding sends it back one step.
+
+This list is yours. The person sees one question at a time.
 
 **Early exit:** if they already speak in factory terms ("a factory with a plan
 stage and a human-approval gate", "start from starter"), they do not need the
@@ -105,10 +121,11 @@ stages and products.
 
 **Verify:** you can say back, in a few lines and in their words, the stages,
 where a person decides, what done means and what sends work back, and name the
-example you will start from. They agree. These answers stand for the interview
-in [authoring.md](authoring.md#state-1-interviewed); ask its tracker and landing
-questions only if their answers left them open, and default the tracker to the
-built-in one.
+example you will start from. They agree. A default you said and they did not
+change counts as their answer. These answers stand for the interview in
+[authoring.md](authoring.md#state-1-interviewed); ask its tracker and landing
+questions only if their answers left them open, one at a time, and default the
+tracker to the built-in one.
 
 **On failure:** if they cannot say yet, start from `minimal` or the closest
 example's own stops, and say so. The factory can change at any time.
@@ -154,10 +171,10 @@ to keep.
 **Gate:** State 3 passed.
 
 **Action:** do [authoring.md State 4](authoring.md#state-4-shown): start the
-studio, give the person its URL, and walk them through the drawing: the path a
-piece of work takes, where it stops for them, and where it can go back. Take
-their change requests, in plain words or as **Copy reference** lines, and go
-back to State 3 for each.
+studio, give the person its URL, and walk them through the drawing, one part per
+turn: the path a piece of work takes, where it stops for them, and where it can
+go back. Take their change requests, in plain words or as **Copy reference**
+lines, and go back to State 3 for each.
 
 **Verify:** the person says the design is right.
 
@@ -221,7 +238,8 @@ start real work, skip to State 7.
 
 **Action:** sum up what they have: the factory's name, its stages, where it
 stops for them, and the scenario that keeps the path they cared about. Offer two
-or three next steps tied to their goal, and do the one they pick:
+or three next steps tied to their goal, as one question, and do the one they
+pick:
 
 - Change the factory: a new stage, another reviewer, a different stop
   ([authoring.md](authoring.md#change-an-existing-factory)).
