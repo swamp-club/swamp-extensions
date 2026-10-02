@@ -71,7 +71,9 @@ export function externalRefsOf(
 
 /**
  * The command that starts a claimed key, as claim prints it. It carries the
- * ticket's title, so the run records it; a blank title is left out.
+ * ticket's title, so the run records it; a blank title is left out. The title
+ * goes as JSON (title:json=), so swamp takes it as a string whatever it holds:
+ * as title=, one beginning with @ would be read as a file's path.
  */
 export function startCommand(
   key: string,
@@ -82,7 +84,9 @@ export function startCommand(
   const named = title.trim();
   return `swamp model ${WORK_ITEM_TYPE} method run start ${shellQuote(key)} ` +
     `--input ${shellQuote(`factory=${factory}`)} ` +
-    (named === "" ? "" : `--input ${shellQuote(`title=${named}`)} `) +
+    (named === ""
+      ? ""
+      : `--input ${shellQuote(`title:json=${JSON.stringify(named)}`)} `) +
     `--input ${shellQuote(`externalRefs=${JSON.stringify(externalRefs)}`)}`;
 }
 

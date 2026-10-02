@@ -66,10 +66,16 @@ export async function serveStudio(
   ) {
     throw new Error("this method context cannot list model definitions");
   }
-  if (typeof ctx.queryData !== "function") {
-    throw new Error("this method context cannot query data");
+  // Without swamp's data query the studio still designs and simulates; the
+  // work-item routes answer that they cannot read work items.
+  const query: QueryData | undefined = typeof ctx.queryData === "function"
+    ? ctx.queryData.bind(ctx)
+    : undefined;
+  if (query === undefined) {
+    ctx.logger.info(
+      "studio: this swamp gives no data query; work items are not shown",
+    );
   }
-  const query: QueryData = ctx.queryData.bind(ctx);
   // getPath is a method of swamp's repository class: bound, so it keeps its
   // this when called through the lister.
   const repository = lister as FactoryLister;
@@ -85,7 +91,7 @@ export async function serveStudio(
   // The page hears of file changes from the watch, and of work items from
   // the poll: one stream carries both.
   const polled = new Set<(event: StudioEvent) => void>();
-  const workItems = watchWorkItems(
+  const workItems = query === undefined ? undefined : watchWorkItems(
     query,
     (event) => polled.forEach((listener) => listener(event)),
   );
@@ -101,7 +107,7 @@ export async function serveStudio(
   };
   // One poll at a time: a slow datastore skips a beat rather than piling up.
   let polling = false;
-  const poll = setInterval(() => {
+  const poll = workItems === undefined ? undefined : setInterval(() => {
     if (polling) return;
     polling = true;
     workItems.tick().finally(() => (polling = false));

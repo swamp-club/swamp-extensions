@@ -824,3 +824,50 @@ Deno.test("tracker: an approved duplicate on the built-in tracker is marked and 
     );
   });
 });
+
+// A ticket's title reaches the work item as written, through the start
+// command claim prints, even one swamp would read as a file's path given as
+// title= (swamp-club #2951).
+Deno.test("tracker: claim's printed start command carries a title beginning with @ to the work item", async () => {
+  await withRepo(async (repo) => {
+    const { stdout } = await repo.swamp([
+      "model",
+      "create",
+      BUILTIN_TYPE,
+      "board",
+      "--json",
+    ]);
+    const path = (JSON.parse(stdout) as { path: string }).path;
+    const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+      string,
+      unknown
+    >;
+    definition.globalArguments = { prefix: "cue", types: ["bug"] };
+    await Deno.writeTextFile(path, stringifyYaml(definition));
+    await repo.factory("entries", entriesDefinition(), { tracker: "board" });
+
+    const title = "@alice cannot log in";
+    const board = (method: string, inputs: string[]) =>
+      repo.swamp([
+        "model",
+        "method",
+        "run",
+        "board",
+        method,
+        ...inputs.flatMap((input) => ["--input", input]),
+      ]);
+    // As title=, create too would read the title as a file's path.
+    const created = await board("create", [
+      `title:json=${JSON.stringify(title)}`,
+      "body=b",
+      "type=bug",
+    ]);
+    assert(created.output.includes("created cue-1 "), created.output);
+
+    const claimed = await board("claim", ["issue=cue-1", "factory=entries"]);
+    const command = claimed.output.match(/Start it: (swamp .*)$/m);
+    assert(command !== null, claimed.output);
+    await repo.swamp(splitWords(command[1]).slice(1));
+    assertEquals((await repo.run("cue-1")).title, title);
+  });
+});

@@ -148,6 +148,9 @@ swamp model @swamp/stagecraft/work-item method run start <key> \
   --input factory=<factory> --input 'title=<title>'
 ```
 
+swamp reads a value beginning with `@` as a file's path, so pass such a title as
+JSON: `--input 'title:json="<title>"'`, the form `claim` prints.
+
 The code links a work item to a ticket only through `externalRefs`, a JSON
 object mapping tracker to id, which the command `claim` prints sets.
 

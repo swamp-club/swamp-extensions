@@ -64,7 +64,7 @@ swamp model @swamp/stagecraft/work-item method run start <key> \
 ```text
 definition 'build-swamp-extension' in factory 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 created team-1 (team-1): Add a list method [open]
-team-1 (team-1) is claimed as 'team-1'. Start it: swamp model @swamp/stagecraft/work-item method run start 'team-1' --input 'factory=team' --input 'title=Add a list method' --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
+team-1 (team-1) is claimed as 'team-1'. Start it: swamp model @swamp/stagecraft/work-item method run start 'team-1' --input 'factory=team' --input 'title:json="Add a list method"' --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
 started 'team-1' at stage 'plan' (definition 'build-swamp-extension' from 'team'; tracker 'board')
 team-1 (Add a list method): active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8

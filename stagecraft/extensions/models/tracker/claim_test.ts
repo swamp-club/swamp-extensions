@@ -350,10 +350,19 @@ Deno.test("claim: the printed start command quotes the key", () => {
 Deno.test("claim: the printed start command carries the ticket's title, quoted, and leaves a blank one out", () => {
   assert(
     startCommand("k", "team", REFS, " Don't break it ").includes(
-      `--input 'title=Don'\\''t break it' --input`,
+      `--input 'title:json="Don'\\''t break it"' --input`,
     ),
   );
-  assert(!startCommand("k", "team", REFS, "  ").includes("title="));
+  assert(!startCommand("k", "team", REFS, "  ").includes("title"));
+});
+
+Deno.test("claim: the printed title is JSON, so a title swamp would read as a file or a number stays the title", () => {
+  for (const title of ["@alice cannot log in", "42", 'a "quoted" \\ title']) {
+    const printed = startCommand("k", "team", REFS, title);
+    const match = printed.match(/--input '(title:json=[^']*)'/);
+    assert(match !== null, printed);
+    assertEquals(JSON.parse(match[1].slice("title:json=".length)), title);
+  }
 });
 
 Deno.test("claim: a started work item is reported, not started twice", async () => {
