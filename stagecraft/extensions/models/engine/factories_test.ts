@@ -233,6 +233,140 @@ Deno.test("plan feedback: after a declined plan, the person's feedback leaves ap
   }
 });
 
+// --- incident-review, content-review and openapi-models ---------------------
+
+/** The human-approval gate ids anywhere in a definition, sorted. */
+function approvalsOf(definition: FactoryDefinition): string[] {
+  const approvals = new Set<string>();
+  for (
+    const t of definition.stages.flatMap((s) => s.transitions ?? [])
+      .concat(definition.globalTransitions ?? [])
+  ) {
+    for (const gate of t.gates ?? []) {
+      if (gate.type === "human-approval") approvals.add(gate.config.id);
+    }
+  }
+  return [...approvals].sort();
+}
+
+const SHAPES: {
+  file: string;
+  stages: string[];
+  approvals: string[];
+  /** The stage a person sends back from, its feedback, and where it goes. */
+  revise: { from: string; feedback: string; to: string };
+}[] = [
+  {
+    file: "incident-review.yaml",
+    stages: [
+      "timeline",
+      "analysis",
+      "review",
+      "sign-off",
+      "publish",
+      "done",
+      "duplicate",
+      "abandoned",
+    ],
+    approvals: ["abandon-confirmation", "duplicate-confirmation", "sign-off"],
+    revise: { from: "sign-off", feedback: "review-feedback", to: "analysis" },
+  },
+  {
+    file: "content-review.yaml",
+    stages: [
+      "draft",
+      "editorial-review",
+      "approval",
+      "publish",
+      "done",
+      "duplicate",
+      "abandoned",
+    ],
+    approvals: [
+      "abandon-confirmation",
+      "duplicate-confirmation",
+      "publish-approval",
+    ],
+    revise: { from: "approval", feedback: "editorial-feedback", to: "draft" },
+  },
+  {
+    file: "openapi-models.yaml",
+    stages: [
+      "scope",
+      "mapping",
+      "mapping-review",
+      "implement",
+      "check",
+      "code-review",
+      "try-it",
+      "release",
+      "done",
+      "duplicate",
+      "abandoned",
+    ],
+    approvals: [
+      "abandon-confirmation",
+      "duplicate-confirmation",
+      "mapping-approval",
+      "quality-waiver",
+      "release-approval",
+    ],
+    revise: {
+      from: "mapping-review",
+      feedback: "mapping-feedback",
+      to: "mapping",
+    },
+  },
+];
+
+for (const { file, stages, approvals, revise } of SHAPES) {
+  const example = file.replace(/\.yaml$/, "");
+
+  Deno.test(`${example}: the stages, in order, and where people decide`, async () => {
+    const definition = await load(file);
+    assertEquals(definition.stages.map((s) => s.id), stages);
+    assertEquals(approvalsOf(definition), approvals);
+  });
+
+  Deno.test(`${example}: revise needs the person's feedback, which the reworked stage is handed`, async () => {
+    const definition = await load(file);
+    assertEquals(byPerson(definition, revise.from), [revise.feedback]);
+    const back = (stage(definition, revise.from).transitions ?? []).find(
+      (t) => t.name === "revise",
+    );
+    assertEquals([back?.to, back?.manual], [revise.to, true]);
+    assert(
+      (back?.gates ?? []).some((g) =>
+        g.type === "evidence-recorded" && g.config.name === revise.feedback
+      ),
+      `${example}: revise does not wait for ${revise.feedback}`,
+    );
+    assert(
+      stage(definition, revise.to).work?.context?.inject?.includes(
+        revise.feedback,
+      ),
+      `${example}: ${revise.to} is not handed ${revise.feedback}`,
+    );
+  });
+}
+
+Deno.test("openapi-models: only a person records the live try, and either way to release needs their approval", async () => {
+  const definition = await load("openapi-models.yaml");
+  assertEquals(byPerson(definition, "try-it"), ["live-try"]);
+  const toRelease = (stage(definition, "try-it").transitions ?? []).filter(
+    (t) => t.to === "release",
+  );
+  assertEquals(toRelease.map((t) => t.name), ["tried", "skipped"]);
+  for (const t of toRelease) {
+    assert(
+      (t.gates ?? []).some((g) =>
+        g.type === "human-approval" && g.config.id === "release-approval"
+      ),
+      t.name,
+    );
+  }
+});
+
 // --- build-swamp-extension -------------------------------------------------
 
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";

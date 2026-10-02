@@ -28,7 +28,10 @@ const EXAMPLE_DIR = new URL(
 
 const FILES: Record<string, URL> = {
   "build-swamp-extension": new URL("build-swamp-extension.yaml", EXAMPLE_DIR),
+  "content-review": new URL("content-review.yaml", EXAMPLE_DIR),
+  "incident-review": new URL("incident-review.yaml", EXAMPLE_DIR),
   "minimal": new URL("minimal.yaml", EXAMPLE_DIR),
+  "openapi-models": new URL("openapi-models.yaml", EXAMPLE_DIR),
   "starter": new URL("starter.yaml", EXAMPLE_DIR),
   "feature-factory": new URL(
     "../../testdata/factories/feature-factory.yaml",

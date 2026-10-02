@@ -463,6 +463,42 @@ Deno.test("skill: authoring explains every graph finding", async () => {
   assertEquals(rows, codes);
 });
 
+/** A heading's anchor, as GitHub makes it. */
+function slug(heading: string): string {
+  return heading.trim().toLowerCase().replace(/[^\p{L}\p{N} _-]/gu, "")
+    .replace(/ /g, "-");
+}
+
+// The walkthrough runs the authoring states by linking to them, so a renamed
+// state or section must break the build, not the walkthrough.
+Deno.test("skill: every link in getting-started.md names a file and heading that exist", async () => {
+  const file = "references/getting-started.md";
+  const text = await Deno.readTextFile(`${SKILL_DIR}/${file}`);
+  const links = [...text.matchAll(/\]\(([^)\s]*)\)/g)].map((m) => m[1])
+    .filter((target) => !/^[a-z]+:/.test(target));
+  assert(links.length > 10, `only ${links.length} links found`);
+  const problems: string[] = [];
+  for (const link of links) {
+    const [path, anchor] = link.split("#");
+    const target = path === ""
+      ? `${SKILL_DIR}/${file}`
+      : new URL(path, `file://${SKILL_DIR}/${file}`).pathname;
+    let body: string;
+    try {
+      body = await Deno.readTextFile(target);
+    } catch {
+      problems.push(`${link}: no such file`);
+      continue;
+    }
+    if (anchor === undefined || anchor === "") continue;
+    const anchors = [...body.matchAll(/^#{1,6} (.+)$/gm)].map((m) =>
+      slug(m[1])
+    );
+    if (!anchors.includes(anchor)) problems.push(`${link}: no such heading`);
+  }
+  assertEquals(problems, []);
+});
+
 Deno.test("skill: the worked example runs as written, from start to done", async () => {
   const commands = commandsIn(
     EXAMPLE,

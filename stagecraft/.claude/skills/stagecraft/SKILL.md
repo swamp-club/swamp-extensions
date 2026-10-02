@@ -5,24 +5,34 @@ description: >
   interview the person and author a factory definition from an example,
   validate it and show it; then start a work item, read its status, dispatch
   and do each stage's work, record artifacts and evidence, advance, and stop
-  for a person at every human gate. Use only when the user names stagecraft:
-  "stagecraft", "set up a stagecraft factory", "create a stagecraft
-  factory", "change a stagecraft factory", "stagecraft factory
-  definition", "stagecraft work item", "stagecraft status", "drive a stagecraft
-  work item", "start a stagecraft work item". Not for
-  @swamp/software-factory runs or definitions, or @swamp/issue-lifecycle.
+  for a person at every human gate. Also walks a newcomer through a first
+  factory. Use when the user names stagecraft: "stagecraft", "set up a
+  stagecraft factory", "create a stagecraft factory", "change a stagecraft
+  factory", "stagecraft factory definition", "stagecraft work item",
+  "stagecraft status", "drive a stagecraft work item", "start a stagecraft
+  work item", "get started with stagecraft"; or asks for a factory: "set up a
+  factory", "my first factory", "build a factory for our review process",
+  "a process where agents do the work and a person approves each stage". Not
+  for getting started with swamp itself, swamp workflows, @swamp/software-factory
+  runs or definitions, or @swamp/issue-lifecycle.
 ---
 
 # stagecraft
 
-stagecraft holds a software process as data: a **factory definition** of stages,
-the work each stage does, the products it records, and gated transitions between
-them. Each piece of work is a **work item**, one model instance that enforces
-the gates, limits and human stops and writes a journal. You drive it; it never
-does the work itself.
+stagecraft holds a process as data (a software change, a web post, an incident
+review, anything said as stages, products and gates): a **factory definition**
+of stages, the work each stage does, the products it records, and gated
+transitions between them. Each piece of work is a **work item**, one model
+instance that enforces the gates, limits and human stops and writes a journal.
+You drive it; it never does the work itself.
 
 This skill covers **authoring** a factory and **driving** its work items.
 
+- **A new factory in a repo that has none yet starts with
+  [references/getting-started.md](references/getting-started.md)**, a guided
+  walkthrough from the person's goal to a factory they have seen work. It checks
+  for factories first, and hands off to authoring when one exists or the person
+  already speaks in factory terms.
 - Authoring a factory: make or change one with the person, never by hand. An
   interview, an example to start from, `validate` until clean, the studio, the
   first work item: [references/authoring.md](references/authoring.md)
@@ -33,9 +43,11 @@ This skill covers **authoring** a factory and **driving** its work items.
   [references/examples/](references/examples/) into a factory's model definition
   (its `definition:` and `scenarios:` blocks, under `globalArguments:`), then
   run `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general
-  change from plan to release; `build-swamp-extension.yaml` builds a swamp
-  extension. Each factory definition's description says what it is for and what
-  to change first.
+  change from plan to release; `content-review.yaml` reviews, approves and
+  publishes a piece of writing; `incident-review.yaml` writes up an incident to
+  a signed-off review; `openapi-models.yaml` turns an API's OpenAPI spec into
+  swamp models; `build-swamp-extension.yaml` builds a swamp extension. Each
+  factory definition's description says what it is for and what to change first.
 - Saved scenarios, the paths `validate` checks a factory still allows: add one
   to the factory's `scenarios:` list, beside its definition, when you change a
   factory definition or the person names a path to keep, then run `validate`.

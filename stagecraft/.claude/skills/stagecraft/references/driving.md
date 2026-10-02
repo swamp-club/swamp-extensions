@@ -50,10 +50,12 @@ twice with it. Read the output whole, never through `grep`, `sed`, `head` or
 
 ## Set up a factory
 
-Once per factory, in the swamp repo. A factory's model definition,
-`models/@swamp/stagecraft/factory/<factory>.yaml`, holds its factory definition
-under `globalArguments.definition`. That is the one copy of the definition: edit
-it there.
+Once per factory, in the swamp repo. A new factory is authored with the person
+([authoring.md](authoring.md)); for their first,
+[getting-started.md](getting-started.md) walks them through it. A factory's
+model definition, `models/@swamp/stagecraft/factory/<factory>.yaml`, holds its
+factory definition under `globalArguments.definition`. That is the one copy of
+the definition: edit it there.
 
 A factory also names the tracker instance its work items publish to, and the
 instance must exist first. Its type is the one the definition's `tracker.kind`

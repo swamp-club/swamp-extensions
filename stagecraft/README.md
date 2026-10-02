@@ -102,7 +102,8 @@ integration/              the real-engine suite, through the swamp CLI
     skill_commands.ts     the skill's commands, pulled out to check and run
 .claude/skills/stagecraft/
   SKILL.md                the skill: how an agent authors a factory and drives a work item
-  references/             authoring (authoring.md), driving in full, and saved
+  references/             a first factory (getting-started.md), authoring
+                          (authoring.md), driving in full, and saved
                           scenarios (scenarios.md)
     examples/             the examples to start from (each a definition block
                           and its saved scenarios), and a worked example (a .md)
@@ -246,6 +247,13 @@ what to change first, and each example passes the factory type's schema and
 - `minimal.yaml`: one stage of work, then done.
 - `starter.yaml`: a general change, from plan through plan review, implement,
   verify and code review to release.
+- `content-review.yaml`: a piece of writing, from draft through an editorial
+  review and a person's approval to published.
+- `incident-review.yaml`: an incident, from timeline through analysis, review
+  and a person's sign-off on the action items to published.
+- `openapi-models.yaml`: an API's OpenAPI spec, or a slice of it, mapped to
+  swamp models, implemented as an extension, checked, reviewed, optionally
+  tried against the live API, and released.
 - `build-swamp-extension.yaml`, below.
 
 `build-swamp-extension.yaml` takes a change to a swamp extension from plan to

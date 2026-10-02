@@ -42,7 +42,10 @@ const EXPECTED: Record<string, string[]> = {
     "default-cycle-bound stages.0 (from stage 'plan')",
     "default-cycle-bound stages.2 (from stage 'implement')",
   ],
+  "content-review.yaml": [],
+  "incident-review.yaml": [],
   "minimal.yaml": [],
+  "openapi-models.yaml": [],
   "starter.yaml": [
     "default-cycle-bound stages.0 (from stage 'plan')",
     "default-cycle-bound stages.2 (from stage 'implement')",
@@ -168,7 +171,13 @@ Deno.test("examples and fixtures: no definition file carries a comment", async (
 // high finding sends the work round again with no person involved
 // (swamp-club #2781). So each review prompt carries a severity bar and asks
 // for fixes in proportion to the change.
-const RUBRIC_EXAMPLES = ["build-swamp-extension.yaml", "starter.yaml"];
+const RUBRIC_EXAMPLES = [
+  "build-swamp-extension.yaml",
+  "content-review.yaml",
+  "incident-review.yaml",
+  "openapi-models.yaml",
+  "starter.yaml",
+];
 
 interface ExampleStage {
   id: string;
@@ -192,7 +201,8 @@ Deno.test("examples: every review prompt carries the severity bar and asks for p
         const phrase of [
           "critical or high only if",
           "are medium at most",
-          "against the size of the change",
+          // "the change", "the incident", "the piece": what is reviewed.
+          "against the size of the",
           "the smallest adequate fix",
           "do not soften the severity of a real defect",
         ]
@@ -207,12 +217,19 @@ Deno.test("examples: every review prompt carries the severity bar and asks for p
   }
 });
 
-Deno.test("examples: implement receives plan-review, so approving carries its open findings", async () => {
-  for (const file of RUBRIC_EXAMPLES) {
+// Each example with an implement stage, and the review its approval carries.
+const IMPLEMENT_REVIEW: [string, string][] = [
+  ["build-swamp-extension.yaml", "plan-review"],
+  ["openapi-models.yaml", "mapping-review"],
+  ["starter.yaml", "plan-review"],
+];
+
+Deno.test("examples: implement receives the plan's review, so approving carries its open findings", async () => {
+  for (const [file, review] of IMPLEMENT_REVIEW) {
     const implement = (await stagesOf(file)).find((s) => s.id === "implement");
     assert(
-      implement?.work?.context?.inject?.includes("plan-review"),
-      `${file}: implement does not inject plan-review`,
+      implement?.work?.context?.inject?.includes(review),
+      `${file}: implement does not inject ${review}`,
     );
   }
 });

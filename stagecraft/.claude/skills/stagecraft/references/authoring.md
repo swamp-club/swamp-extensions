@@ -3,7 +3,9 @@
 A factory is made and changed by you, the agent, never by hand: the person says
 what their process is, and you write the factory definition, check it, show it,
 and start the first work item. This is the only way anyone gets a factory, so
-work through it in order.
+work through it in order. For someone making their first factory, walk them
+through [getting-started.md](getting-started.md) instead; it runs these states
+with them.
 
 It is a state machine. Each state gates the next: do not move on until the
 state's **Verify** passes. If it fails, do what **On failure** says and verify
@@ -34,6 +36,10 @@ Look for factories and trackers the repo already has:
 swamp model search stagecraft --json
 ```
 
+- No factory of type `@swamp/stagecraft/factory` exists yet: this is the
+  person's first. Go to [getting-started.md](getting-started.md) instead, unless
+  they already describe the factory in its own terms (stages, gates, an example
+  by name).
 - A factory of type `@swamp/stagecraft/factory` exists and the person wants to
   change it: go to [Change an existing factory](#change-an-existing-factory).
 - A tracker exists (`@swamp/stagecraft/tracker` or `.../linear`): the new
@@ -84,11 +90,15 @@ closest to the interview, then change it:
 | ------------------------------------------------- | ----------------------- |
 | One step, or trying stagecraft out                | `minimal`               |
 | A change: plan, implement, check, review, release | `starter`               |
+| Writing reviewed, approved and published          | `content-review`        |
+| An incident written up and signed off             | `incident-review`       |
+| An OpenAPI spec turned into swamp models          | `openapi-models`        |
 | A swamp extension                                 | `build-swamp-extension` |
 
-`starter` fits most processes. Create the factory with its tracker instance
-(`<tracker>`, set up in step 5) as its only argument, then write the example
-into it:
+`starter` fits most software changes; for another process, start from the
+example with the closest shape and rename its stages and products. Create the
+factory with its tracker instance (`<tracker>`, set up in step 5) as its only
+argument, then write the example into it:
 
 ```sh
 swamp model create @swamp/stagecraft/factory <factory> \

@@ -60,10 +60,17 @@ function stage(definition: FactoryDefinition, id: string): StageSpec {
 
 const STARTER = "starter.yaml";
 const BUILD = "build-swamp-extension.yaml";
+const PROJECTING = [
+  STARTER,
+  BUILD,
+  "content-review.yaml",
+  "incident-review.yaml",
+  "openapi-models.yaml",
+];
 
 Deno.test("every projecting example's status keys are the built-in tracker's default statuses, so it needs no statuses list", async () => {
   // minimal projects nothing, by design.
-  for (const file of [STARTER, BUILD]) {
+  for (const file of PROJECTING) {
     const definition = await load(file);
     const keyed = definition.stages.filter((s) =>
       s.tracker?.status !== undefined
