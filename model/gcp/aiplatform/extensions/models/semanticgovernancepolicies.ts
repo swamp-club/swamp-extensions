@@ -177,6 +177,9 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Optional. The user-defined name of the SemanticGovernancePolicy.",
   ).optional(),
+  dryRun: z.boolean().describe(
+    "Optional. If true, this policy is evaluated and its result is reported, but the policy is not enforced: a violation does not block the agent's action. Use this to validate a policy against real traffic before turning enforcement on. Defaults to `false`, meaning the policy is enforced. This setting applies only to this policy. If the SemanticGovernancePolicyEngine for the project is itself in dry run, every policy behaves as dry run regardless of this field.",
+  ).optional(),
   mcpTools: z.array(z.object({
     mcpServer: z.string().describe(
       "Required. The resource name of the McpServer in Agent Registry that is affected by this policy. Format: `projects/{project}/locations/{location}/mcpServers/{mcp_server}`",
@@ -209,6 +212,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
+  dryRun: z.boolean().optional(),
   etag: z.string().optional(),
   mcpTools: z.array(z.object({
     mcpServer: z.string(),
@@ -243,6 +247,9 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe(
     "Optional. The user-defined name of the SemanticGovernancePolicy.",
+  ).optional(),
+  dryRun: z.boolean().describe(
+    "Optional. If true, this policy is evaluated and its result is reported, but the policy is not enforced: a violation does not block the agent's action. Use this to validate a policy against real traffic before turning enforcement on. Defaults to `false`, meaning the policy is enforced. This setting applies only to this policy. If the SemanticGovernancePolicyEngine for the project is itself in dry run, every policy behaves as dry run regardless of this field.",
   ).optional(),
   mcpTools: z.array(z.object({
     mcpServer: z.string().describe(
@@ -293,7 +300,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform SemanticGovernancePolicies. Registered at `@swamp/gcp/aiplatform/semanticgovernancepolicies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/semanticgovernancepolicies",
-  version: "2026.09.04.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -313,6 +320,11 @@ export const model = {
     {
       toVersion: "2026.09.04.1",
       description: "Added: agentResponseCustomization",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
+      description: "Added: dryRun",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -352,6 +364,7 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
+        if (g["dryRun"] !== undefined) body["dryRun"] = g["dryRun"];
         if (g["mcpTools"] !== undefined) body["mcpTools"] = g["mcpTools"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["naturalLanguageConstraint"] !== undefined) {
@@ -484,6 +497,7 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
+        if (g["dryRun"] !== undefined) body["dryRun"] = g["dryRun"];
         if (g["mcpTools"] !== undefined) body["mcpTools"] = g["mcpTools"];
         if (g["naturalLanguageConstraint"] !== undefined) {
           body["naturalLanguageConstraint"] = g["naturalLanguageConstraint"];

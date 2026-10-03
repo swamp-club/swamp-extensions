@@ -204,7 +204,7 @@ const GlobalArgsSchema = z.object({
       "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
     ).optional(),
     url: z.string().describe(
-      "Optional. Temporary: the tool's runtime reference, consumed by CreateAgent to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`. It is duplicated here (the resource name is already in `name`) only because the Agent service is not yet connected to Agent Registry to derive it from `name`; the Task Service instead resolves it from Agent Registry (GetMcpServer / GetEndpoint) at task creation.",
+      "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
   location: z.string().describe(
@@ -284,7 +284,7 @@ const InputsSchema = z.object({
       "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
     ).optional(),
     url: z.string().describe(
-      "Optional. Temporary: the tool's runtime reference, consumed by CreateAgent to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`. It is duplicated here (the resource name is already in `name`) only because the Agent service is not yet connected to Agent Registry to derive it from `name`; the Task Service instead resolves it from Agent Registry (GetMcpServer / GetEndpoint) at task creation.",
+      "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
   location: z.string().describe(
@@ -318,7 +318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.09.28.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -375,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

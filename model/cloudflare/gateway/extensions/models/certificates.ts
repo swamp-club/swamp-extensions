@@ -63,6 +63,7 @@ const ResourceSchema = z.object({
   in_use: z.boolean().optional(),
   issuer_org: z.string().optional(),
   issuer_raw: z.string().optional(),
+  region: z.string().optional(),
   type: z.string().optional(),
   updated_at: z.string().optional(),
   uploaded_on: z.string().optional(),
@@ -82,7 +83,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Certificates. Registered at `@swamp/cloudflare/gateway/certificates`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/certificates",
-  version: "2026.07.21.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -101,6 +102,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

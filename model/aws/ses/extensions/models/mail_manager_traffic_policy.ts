@@ -125,12 +125,8 @@ const PolicyStatementSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^[a-zA-Z0-9/_\\+=\\.:@\\-]+$"),
-  ),
-  Value: z.string().min(0).max(256).regex(
-    new RegExp("^[a-zA-Z0-9/_\\+=\\.:@\\-]*$"),
-  ),
+  Key: z.string().min(1).max(128),
+  Value: z.string().min(0).max(256),
 });
 
 const GlobalArgsSchema = z.object({
@@ -204,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerTrafficPolicy. Registered at `@swamp/aws/ses/mail-manager-traffic-policy`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-traffic-policy",
-  version: "2026.08.17.2",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

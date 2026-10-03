@@ -273,6 +273,7 @@ const ResourceSchema = z.object({
   }).nullable().optional(),
   createdAt: z.number().nullable().optional(),
   creatorId: z.string().nullable().optional(),
+  defaultContinuousUsageKind: z.string().nullable().optional(),
   defaultDeploymentProtection: z.object({
     passwordProtection: z.object({
       deploymentType: z.string().optional(),
@@ -636,7 +637,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.01.2",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -716,6 +717,11 @@ export const model = {
     {
       toVersion: "2026.10.01.2",
       description: "Added: resourceSlug",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -884,6 +890,12 @@ export const model = {
         }
         if (g.creatorId !== undefined) {
           filters.push(["creatorId", String(g.creatorId)]);
+        }
+        if (g.defaultContinuousUsageKind !== undefined) {
+          filters.push([
+            "defaultContinuousUsageKind",
+            String(g.defaultContinuousUsageKind),
+          ]);
         }
         if (g.disableHardAutoBlocks !== undefined) {
           filters.push([

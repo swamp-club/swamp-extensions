@@ -59,13 +59,13 @@ const AuthorizingClaimMatchValueTypeSchema = z.object({
 });
 
 const CustomClaimValidationTypeSchema = z.object({
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema.describe(
+    "The value and match operator used to authorize a claim during JWT validation.",
+  ),
   InboundTokenClaimName: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z0-9_.-:]+$"),
   ),
   InboundTokenClaimValueType: z.enum(["STRING", "STRING_ARRAY"]),
-  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema.describe(
-    "The value and match operator used to authorize a claim during JWT validation.",
-  ),
 });
 
 const CustomJWTAuthorizerConfigurationSchema = z.object({
@@ -77,6 +77,9 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
   AllowedAudience: z.array(z.string().min(1).max(255)).describe(
     "The audience values accepted during JWT validation.",
   ).optional(),
+  CustomClaims: z.array(CustomClaimValidationTypeSchema).describe(
+    "Additional custom claim validations applied to the inbound JWT.",
+  ).optional(),
   AllowedClients: z.array(z.string().min(1).max(255)).describe(
     "The client identifiers accepted during JWT validation.",
   ).optional(),
@@ -85,9 +88,6 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
       new RegExp("^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"),
     ),
   ).describe("The scopes accepted during JWT validation.").optional(),
-  CustomClaims: z.array(CustomClaimValidationTypeSchema).describe(
-    "Additional custom claim validations applied to the inbound JWT.",
-  ).optional(),
 });
 
 const AuthorizerConfigurationSchema = z.object({
@@ -97,11 +97,11 @@ const AuthorizerConfigurationSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"))
-    .describe("The key of the tag."),
   Value: z.string().min(0).max(256).regex(
     new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"),
   ).describe("The value of the tag."),
+  Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"))
+    .describe("The key of the tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -120,14 +120,28 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().min(1).max(64).regex(
-    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
-  ).describe("The name of the registry."),
   Description: z.string().min(1).max(4096).describe(
     "The description of the registry.",
   ).optional(),
+  ApprovalConfiguration: z.object({
+    AutoApprovalRules: z.array(z.enum(["APPROVE_ALL"])).describe(
+      "The rules that determine which registry records are automatically approved on submission. When omitted or empty, submitted records require manual review.",
+    ).optional(),
+  }).describe("Configuration for the registry's record approval workflow.")
+    .optional(),
   AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).describe(
     "The type of authorizer that controls how consumers access the registry's search and MCP invoke operations.",
+  ).optional(),
+  EncryptionConfiguration: z.object({
+    KmsKeyArn: z.string().min(1).max(2048).regex(
+      new RegExp(
+        "^arn:aws(-[^:]+)?:kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+      ),
+    ).describe(
+      "The Amazon Resource Name (ARN) of the customer-managed AWS KMS key used to encrypt the registry's content. The key must be a symmetric encryption key in the same AWS account and Region as the registry. Multi-Region keys are not supported.",
+    ),
+  }).describe(
+    "The server-side encryption configuration for a registry. Specifies a customer managed key used to encrypt the registry's content. When omitted, the registry's content is encrypted with an AWS owned key. You cannot change the encryption configuration after registry creation. Specifying a different KMS key, adding this property to an existing registry, or removing it replaces the registry: CloudFormation creates a new registry with a new Amazon Resource Name (ARN) and then deletes the original, including all registry records it contains. Registry records that are not managed by the stack are not re-created in the new registry, and if any remain in the original registry its deletion fails and it is left behind.",
   ).optional(),
   DiscoveryConfiguration: z.object({
     AuthorizerConfiguration: AuthorizerConfigurationSchema.describe(
@@ -136,31 +150,40 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Discovery configuration for the registry. Controls how consumers are authorized to search the registry and invoke its MCP endpoint.",
   ).optional(),
-  ApprovalConfiguration: z.object({
-    AutoApprovalRules: z.array(z.enum(["APPROVE_ALL"])).describe(
-      "The rules that determine which registry records are automatically approved on submission. When omitted or empty, submitted records require manual review.",
-    ).optional(),
-  }).describe("Configuration for the registry's record approval workflow.")
-    .optional(),
+  AutoDetectionEnabled: z.boolean().describe(
+    "Specifies whether auto-detection is requested for the registry. Must be specified together with AutoDetectionScope. Setting this to true is necessary but not sufficient for auto-detection to become active; the preconditions of the configured scope must also be met. To turn auto-detection off, explicitly set this to false - removing AutoDetectionEnabled and AutoDetectionScope from the template is a no-op and leaves the existing auto-detection settings unchanged. A registry cannot be deleted while auto-detection is enabled: set this to false and update the stack before deleting the registry.",
+  ).optional(),
+  Name: z.string().min(1).max(64).regex(
+    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
+  ).describe("The name of the registry."),
+  AutoDetectionScope: z.enum(["ORGANIZATION"]).describe(
+    "The source from which resources are detected. ORGANIZATION sources resources from all member accounts of an AWS Organization.",
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the registry.")
     .optional(),
 });
 
 const StateSchema = z.object({
-  RegistryId: z.string().optional(),
-  RegistryArn: z.string(),
-  Name: z.string().optional(),
+  Status: z.string().optional(),
   Description: z.string().optional(),
-  AuthorizerType: z.string().optional(),
-  DiscoveryConfiguration: z.object({
-    AuthorizerConfiguration: AuthorizerConfigurationSchema,
-  }).optional(),
   ApprovalConfiguration: z.object({
     AutoApprovalRules: z.array(z.string()),
   }).optional(),
-  Status: z.string().optional(),
+  AuthorizerType: z.string().optional(),
+  EncryptionConfiguration: z.object({
+    KmsKeyArn: z.string(),
+  }).optional(),
   CreatedAt: z.string().optional(),
+  DiscoveryConfiguration: z.object({
+    AuthorizerConfiguration: AuthorizerConfigurationSchema,
+  }).optional(),
+  AutoDetectionEnabled: z.boolean().optional(),
   UpdatedAt: z.string().optional(),
+  Name: z.string().optional(),
+  AutoDetectionScope: z.string().optional(),
+  AutoDetectionStatus: z.string().optional(),
+  RegistryId: z.string().optional(),
+  RegistryArn: z.string(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -172,14 +195,28 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Name: z.string().min(1).max(64).regex(
-    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
-  ).describe("The name of the registry.").optional(),
   Description: z.string().min(1).max(4096).describe(
     "The description of the registry.",
   ).optional(),
+  ApprovalConfiguration: z.object({
+    AutoApprovalRules: z.array(z.enum(["APPROVE_ALL"])).describe(
+      "The rules that determine which registry records are automatically approved on submission. When omitted or empty, submitted records require manual review.",
+    ).optional(),
+  }).describe("Configuration for the registry's record approval workflow.")
+    .optional(),
   AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).describe(
     "The type of authorizer that controls how consumers access the registry's search and MCP invoke operations.",
+  ).optional(),
+  EncryptionConfiguration: z.object({
+    KmsKeyArn: z.string().min(1).max(2048).regex(
+      new RegExp(
+        "^arn:aws(-[^:]+)?:kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+      ),
+    ).describe(
+      "The Amazon Resource Name (ARN) of the customer-managed AWS KMS key used to encrypt the registry's content. The key must be a symmetric encryption key in the same AWS account and Region as the registry. Multi-Region keys are not supported.",
+    ).optional(),
+  }).describe(
+    "The server-side encryption configuration for a registry. Specifies a customer managed key used to encrypt the registry's content. When omitted, the registry's content is encrypted with an AWS owned key. You cannot change the encryption configuration after registry creation. Specifying a different KMS key, adding this property to an existing registry, or removing it replaces the registry: CloudFormation creates a new registry with a new Amazon Resource Name (ARN) and then deletes the original, including all registry records it contains. Registry records that are not managed by the stack are not re-created in the new registry, and if any remain in the original registry its deletion fails and it is left behind.",
   ).optional(),
   DiscoveryConfiguration: z.object({
     AuthorizerConfiguration: AuthorizerConfigurationSchema.describe(
@@ -188,12 +225,15 @@ const InputsSchema = z.object({
   }).describe(
     "Discovery configuration for the registry. Controls how consumers are authorized to search the registry and invoke its MCP endpoint.",
   ).optional(),
-  ApprovalConfiguration: z.object({
-    AutoApprovalRules: z.array(z.enum(["APPROVE_ALL"])).describe(
-      "The rules that determine which registry records are automatically approved on submission. When omitted or empty, submitted records require manual review.",
-    ).optional(),
-  }).describe("Configuration for the registry's record approval workflow.")
-    .optional(),
+  AutoDetectionEnabled: z.boolean().describe(
+    "Specifies whether auto-detection is requested for the registry. Must be specified together with AutoDetectionScope. Setting this to true is necessary but not sufficient for auto-detection to become active; the preconditions of the configured scope must also be met. To turn auto-detection off, explicitly set this to false - removing AutoDetectionEnabled and AutoDetectionScope from the template is a no-op and leaves the existing auto-detection settings unchanged. A registry cannot be deleted while auto-detection is enabled: set this to false and update the stack before deleting the registry.",
+  ).optional(),
+  Name: z.string().min(1).max(64).regex(
+    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
+  ).describe("The name of the registry.").optional(),
+  AutoDetectionScope: z.enum(["ORGANIZATION"]).describe(
+    "The source from which resources are detected. ORGANIZATION sources resources from all member accounts of an AWS Organization.",
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the registry.")
     .optional(),
 });
@@ -217,7 +257,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry Registry. Registered at `@swamp/aws/agentregistry/registry`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry",
-  version: "2026.08.18.1",
+  version: "2026.10.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.03.1",
+      description:
+        "Added: EncryptionConfiguration, AutoDetectionEnabled, AutoDetectionScope",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -324,7 +372,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["AuthorizerType"],
+          ["AuthorizerType", "EncryptionConfiguration"],
           credentials,
         );
         const handle = await context.writeResource(

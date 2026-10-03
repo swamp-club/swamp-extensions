@@ -86,6 +86,7 @@ const StateSchema = z.object({
   Configuration: z.string().optional(),
   Status: z.string().optional(),
   Version: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -129,7 +130,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkSecurityManager Rule. Registered at `@swamp/aws/networksecuritymanager/rule`. */
 export const model = {
   type: "@swamp/aws/networksecuritymanager/rule",
-  version: "2026.09.30.1",
+  version: "2026.10.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

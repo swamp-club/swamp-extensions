@@ -176,6 +176,9 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "Optional. An optional description of the spoke.",
   ).optional(),
+  fieldPathsPendingUpdate: z.array(z.string()).describe(
+    "Optional. The list of fields waiting for hub administrator's approval.",
+  ).optional(),
   gateway: z.object({
     capacity: z.enum([
       "GATEWAY_CAPACITY_UNSPECIFIED",
@@ -433,6 +436,9 @@ const InputsSchema = z.object({
   description: z.string().describe(
     "Optional. An optional description of the spoke.",
   ).optional(),
+  fieldPathsPendingUpdate: z.array(z.string()).describe(
+    "Optional. The list of fields waiting for hub administrator's approval.",
+  ).optional(),
   gateway: z.object({
     capacity: z.enum([
       "GATEWAY_CAPACITY_UNSPECIFIED",
@@ -628,7 +634,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Spokes. Registered at `@swamp/gcp/networkconnectivity/spokes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/spokes",
-  version: "2026.10.02.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -813,6 +819,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.03.1",
+      description: "Added: fieldPathsPendingUpdate",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -846,6 +857,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
+        }
+        if (g["fieldPathsPendingUpdate"] !== undefined) {
+          body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
         if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];
@@ -999,6 +1013,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
+        }
+        if (g["fieldPathsPendingUpdate"] !== undefined) {
+          body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
         if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];

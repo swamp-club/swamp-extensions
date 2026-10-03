@@ -426,6 +426,9 @@ const GlobalArgsSchema = z.object({
             replicatedVoiceConfig: z.unknown().describe(
               "Optional. The configuration for a replicated voice. This enables users to replicate a voice from an audio sample.",
             ).optional(),
+            voice: z.unknown().describe(
+              "Optional. The speaker identifier for synthesis. Supported formats: * Speaker name for prebuilt voices (for example, `Orus` or `Kore`). * Voice ID for stored voices (for example, `voice_xxx`). * Voice replication key (for example, `voicekey_xxx`).",
+            ).optional(),
           }).describe("The configuration for the voice to use.").optional(),
         }).describe("Optional. The speech generation config.").optional(),
         stopSequences: z.array(z.string()).describe(
@@ -1210,6 +1213,9 @@ const GlobalArgsSchema = z.object({
             replicatedVoiceConfig: z.unknown().describe(
               "Optional. The configuration for a replicated voice. This enables users to replicate a voice from an audio sample.",
             ).optional(),
+            voice: z.unknown().describe(
+              "Optional. The speaker identifier for synthesis. Supported formats: * Speaker name for prebuilt voices (for example, `Orus` or `Kore`). * Voice ID for stored voices (for example, `voice_xxx`). * Voice replication key (for example, `voicekey_xxx`).",
+            ).optional(),
           }).describe("The configuration for the voice to use.").optional(),
         }).describe("Optional. The speech generation config.").optional(),
         stopSequences: z.array(z.string()).describe(
@@ -1400,6 +1406,7 @@ const StateSchema = z.object({
           voiceConfig: z.object({
             prebuiltVoiceConfig: z.unknown(),
             replicatedVoiceConfig: z.unknown(),
+            voice: z.unknown(),
           }),
         }),
         stopSequences: z.array(z.string()),
@@ -1879,6 +1886,9 @@ const InputsSchema = z.object({
             replicatedVoiceConfig: z.unknown().describe(
               "Optional. The configuration for a replicated voice. This enables users to replicate a voice from an audio sample.",
             ).optional(),
+            voice: z.unknown().describe(
+              "Optional. The speaker identifier for synthesis. Supported formats: * Speaker name for prebuilt voices (for example, `Orus` or `Kore`). * Voice ID for stored voices (for example, `voice_xxx`). * Voice replication key (for example, `voicekey_xxx`).",
+            ).optional(),
           }).describe("The configuration for the voice to use.").optional(),
         }).describe("Optional. The speech generation config.").optional(),
         stopSequences: z.array(z.string()).describe(
@@ -2663,6 +2673,9 @@ const InputsSchema = z.object({
             replicatedVoiceConfig: z.unknown().describe(
               "Optional. The configuration for a replicated voice. This enables users to replicate a voice from an audio sample.",
             ).optional(),
+            voice: z.unknown().describe(
+              "Optional. The speaker identifier for synthesis. Supported formats: * Speaker name for prebuilt voices (for example, `Orus` or `Kore`). * Voice ID for stored voices (for example, `voice_xxx`). * Voice replication key (for example, `voicekey_xxx`).",
+            ).optional(),
           }).describe("The configuration for the voice to use.").optional(),
         }).describe("Optional. The speech generation config.").optional(),
         stopSequences: z.array(z.string()).describe(
@@ -2765,7 +2778,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.09.28.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2996,6 +3009,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

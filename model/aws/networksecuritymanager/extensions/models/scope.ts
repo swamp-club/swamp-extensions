@@ -81,6 +81,7 @@ const StateSchema = z.object({
   ScopeConfiguration: z.string().optional(),
   Status: z.string().optional(),
   Version: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -121,7 +122,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkSecurityManager Scope. Registered at `@swamp/aws/networksecuritymanager/scope`. */
 export const model = {
   type: "@swamp/aws/networksecuritymanager/scope",
-  version: "2026.09.30.1",
+  version: "2026.10.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

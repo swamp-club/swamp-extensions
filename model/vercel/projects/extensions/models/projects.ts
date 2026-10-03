@@ -442,63 +442,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  abuse: z.object({
-    block: z.object({
-      abuseAgentRunId: z.string().optional(),
-      action: z.string().optional(),
-      actor: z.string().optional(),
-      caseId: z.string().optional(),
-      comment: z.string().optional(),
-      createdAt: z.number().optional(),
-      ineligibleForAppeal: z.boolean().optional(),
-      isCascading: z.boolean().optional(),
-      reason: z.string().optional(),
-      registeredShaBlock: z.object({
-        createdAt: z.string().optional(),
-        createdBy: z.string().optional(),
-        sha: z.string().optional(),
-      }).optional(),
-      statusCode: z.number().optional(),
-      threadId: z.string().optional(),
-    }).optional(),
-    blockHistory: z.array(z.object({
-      abuseAgentRunId: z.string().optional(),
-      action: z.string().optional(),
-      actor: z.string().optional(),
-      caseId: z.string().optional(),
-      comment: z.string().optional(),
-      createdAt: z.number().optional(),
-      ineligibleForAppeal: z.boolean().optional(),
-      isCascading: z.boolean().optional(),
-      reason: z.string().optional(),
-      registeredShaBlock: z.object({
-        createdAt: z.string().optional(),
-        createdBy: z.string().optional(),
-        sha: z.string().optional(),
-      }).optional(),
-      statusCode: z.number().optional(),
-      threadId: z.string().optional(),
-    })).optional(),
-    history: z.array(z.object({
-      at: z.number().optional(),
-      by: z.string().optional(),
-      byId: z.string().optional(),
-      reason: z.string().optional(),
-      scanner: z.string().optional(),
-    })).optional(),
-    interstitial: z.boolean().optional(),
-    interstitialHistory: z.array(z.object({
-      action: z.string().optional(),
-      actor: z.string().optional(),
-      caseId: z.string().optional(),
-      comment: z.string().optional(),
-      createdAt: z.number().optional(),
-      reason: z.string().optional(),
-      threadId: z.string().optional(),
-    })).optional(),
-    scanner: z.string().optional(),
-    updatedAt: z.number().optional(),
-  }).nullable().optional(),
   accountId: z.string().nullable().optional(),
   alias: z.array(z.object({
     configuredBy: z.string().optional(),
@@ -1761,7 +1704,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.02.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1930,6 +1873,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

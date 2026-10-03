@@ -264,6 +264,16 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "per part media resolution. Media resolution for the input media.",
       ).optional(),
+      speechMetadata: z.object({
+        speaker: z.unknown().describe(
+          "Optional. Identifies which speaker is speaking this turn.",
+        ).optional(),
+        style: z.unknown().describe(
+          'Optional. Natural language description of the vocal style (e.g., "cheerful").',
+        ).optional(),
+      }).describe(
+        "Optional. Turn-level metadata for speech generation (e.g. Daikon speaker/style). May be set alongside `text` to attach speaker and style information to a text part.",
+      ).optional(),
       text: z.string().describe(
         "Optional. The text content of the part. When sent from the VSCode Gemini Code Assist extension, references to @mentioned items will be converted to markdown boldface text. For example `@my-repo` will be converted to and sent as `**my-repo**` by the IDE agent.",
       ).optional(),
@@ -435,6 +445,16 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "per part media resolution. Media resolution for the input media.",
       ).optional(),
+      speechMetadata: z.object({
+        speaker: z.string().describe(
+          "Optional. Identifies which speaker is speaking this turn.",
+        ).optional(),
+        style: z.string().describe(
+          'Optional. Natural language description of the vocal style (e.g., "cheerful").',
+        ).optional(),
+      }).describe(
+        "Optional. Turn-level metadata for speech generation (e.g. Daikon speaker/style). May be set alongside `text` to attach speaker and style information to a text part.",
+      ).optional(),
       text: z.string().describe(
         "Optional. The text content of the part. When sent from the VSCode Gemini Code Assist extension, references to @mentioned items will be converted to markdown boldface text. For example `@my-repo` will be converted to and sent as `**my-repo**` by the IDE agent.",
       ).optional(),
@@ -496,6 +516,19 @@ const GlobalArgsSchema = z.object({
       "Optional. CodeExecution tool type. Enables the model to execute code as part of generation.",
     ).optional(),
     computerUse: z.object({
+      disabledSafetyPolicies: z.array(
+        z.enum([
+          "SAFETY_POLICY_UNSPECIFIED",
+          "FINANCIAL_TRANSACTIONS",
+          "SENSITIVE_DATA_MODIFICATION",
+          "COMMUNICATION_TOOL",
+          "ACCOUNT_CREATION",
+          "DATA_MODIFICATION",
+          "USER_CONSENT_MANAGEMENT",
+          "LEGAL_TERMS_AND_AGREEMENTS",
+        ]),
+      ).describe("Optional. Disabled safety policies for computer use.")
+        .optional(),
       enablePromptInjectionDetection: z.boolean().describe(
         "Optional. Enables the prompt injection detection check on computer-use request.",
       ).optional(),
@@ -939,6 +972,10 @@ const StateSchema = z.object({
       mediaResolution: z.object({
         level: z.unknown(),
       }),
+      speechMetadata: z.object({
+        speaker: z.unknown(),
+        style: z.unknown(),
+      }),
       text: z.string(),
       thought: z.boolean(),
       thoughtSignature: z.string(),
@@ -1002,6 +1039,10 @@ const StateSchema = z.object({
       mediaResolution: z.object({
         level: z.string(),
       }),
+      speechMetadata: z.object({
+        speaker: z.string(),
+        style: z.string(),
+      }),
       text: z.string(),
       thought: z.boolean(),
       thoughtSignature: z.string(),
@@ -1030,6 +1071,7 @@ const StateSchema = z.object({
   tools: z.array(z.object({
     codeExecution: z.object({}),
     computerUse: z.object({
+      disabledSafetyPolicies: z.array(z.string()),
       enablePromptInjectionDetection: z.boolean(),
       environment: z.string(),
       excludedPredefinedFunctions: z.array(z.string()),
@@ -1302,6 +1344,16 @@ const InputsSchema = z.object({
       }).describe(
         "per part media resolution. Media resolution for the input media.",
       ).optional(),
+      speechMetadata: z.object({
+        speaker: z.unknown().describe(
+          "Optional. Identifies which speaker is speaking this turn.",
+        ).optional(),
+        style: z.unknown().describe(
+          'Optional. Natural language description of the vocal style (e.g., "cheerful").',
+        ).optional(),
+      }).describe(
+        "Optional. Turn-level metadata for speech generation (e.g. Daikon speaker/style). May be set alongside `text` to attach speaker and style information to a text part.",
+      ).optional(),
       text: z.string().describe(
         "Optional. The text content of the part. When sent from the VSCode Gemini Code Assist extension, references to @mentioned items will be converted to markdown boldface text. For example `@my-repo` will be converted to and sent as `**my-repo**` by the IDE agent.",
       ).optional(),
@@ -1473,6 +1525,16 @@ const InputsSchema = z.object({
       }).describe(
         "per part media resolution. Media resolution for the input media.",
       ).optional(),
+      speechMetadata: z.object({
+        speaker: z.string().describe(
+          "Optional. Identifies which speaker is speaking this turn.",
+        ).optional(),
+        style: z.string().describe(
+          'Optional. Natural language description of the vocal style (e.g., "cheerful").',
+        ).optional(),
+      }).describe(
+        "Optional. Turn-level metadata for speech generation (e.g. Daikon speaker/style). May be set alongside `text` to attach speaker and style information to a text part.",
+      ).optional(),
       text: z.string().describe(
         "Optional. The text content of the part. When sent from the VSCode Gemini Code Assist extension, references to @mentioned items will be converted to markdown boldface text. For example `@my-repo` will be converted to and sent as `**my-repo**` by the IDE agent.",
       ).optional(),
@@ -1534,6 +1596,19 @@ const InputsSchema = z.object({
       "Optional. CodeExecution tool type. Enables the model to execute code as part of generation.",
     ).optional(),
     computerUse: z.object({
+      disabledSafetyPolicies: z.array(
+        z.enum([
+          "SAFETY_POLICY_UNSPECIFIED",
+          "FINANCIAL_TRANSACTIONS",
+          "SENSITIVE_DATA_MODIFICATION",
+          "COMMUNICATION_TOOL",
+          "ACCOUNT_CREATION",
+          "DATA_MODIFICATION",
+          "USER_CONSENT_MANAGEMENT",
+          "LEGAL_TERMS_AND_AGREEMENTS",
+        ]),
+      ).describe("Optional. Disabled safety policies for computer use.")
+        .optional(),
       enablePromptInjectionDetection: z.boolean().describe(
         "Optional. Enables the prompt injection detection check on computer-use request.",
       ).optional(),
@@ -1958,7 +2033,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform CachedContents. Registered at `@swamp/gcp/aiplatform/cachedcontents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/cachedcontents",
-  version: "2026.08.14.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2160,6 +2235,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

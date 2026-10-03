@@ -184,6 +184,9 @@ const GlobalArgsSchema = z.object({
           "Optional. CodeExecution tool type. Enables the model to execute code as part of generation.",
         ).optional(),
         computerUse: z.object({
+          disabledSafetyPolicies: z.unknown().describe(
+            "Optional. Disabled safety policies for computer use.",
+          ).optional(),
           enablePromptInjectionDetection: z.unknown().describe(
             "Optional. Enables the prompt injection detection check on computer-use request.",
           ).optional(),
@@ -357,6 +360,9 @@ const InputsSchema = z.object({
           "Optional. CodeExecution tool type. Enables the model to execute code as part of generation.",
         ).optional(),
         computerUse: z.object({
+          disabledSafetyPolicies: z.unknown().describe(
+            "Optional. Disabled safety policies for computer use.",
+          ).optional(),
           enablePromptInjectionDetection: z.unknown().describe(
             "Optional. Enables the prompt injection detection check on computer-use request.",
           ).optional(),
@@ -511,7 +517,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationSets. Registered at `@swamp/gcp/aiplatform/evaluationsets`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationsets",
-  version: "2026.08.12.2",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -680,6 +686,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -73,7 +73,12 @@ const GlobalArgsSchema = z.object({
   AssociatedRuleList: z.array(AssociatedRuleSchema).describe(
     "List of rules associated with this template.",
   ).optional(),
-  FirewallType: z.enum(["WAF"]).describe("The type of firewall.").optional(),
+  FirewallType: z.enum([
+    "WAF",
+    "NETWORK_FIREWALL",
+    "NETWORK_FIREWALL_V2",
+    "IGW_FIREWALL",
+  ]).describe("The type of firewall.").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the template.")
     .optional(),
 });
@@ -85,6 +90,7 @@ const StateSchema = z.object({
   TemplateDescription: z.string().optional(),
   Status: z.string().optional(),
   Version: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   AssociatedRuleList: z.array(AssociatedRuleSchema).optional(),
   FirewallType: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -104,7 +110,12 @@ const InputsSchema = z.object({
   AssociatedRuleList: z.array(AssociatedRuleSchema).describe(
     "List of rules associated with this template.",
   ).optional(),
-  FirewallType: z.enum(["WAF"]).describe("The type of firewall.").optional(),
+  FirewallType: z.enum([
+    "WAF",
+    "NETWORK_FIREWALL",
+    "NETWORK_FIREWALL_V2",
+    "IGW_FIREWALL",
+  ]).describe("The type of firewall.").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the template.")
     .optional(),
 });
@@ -128,7 +139,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkSecurityManager Template. Registered at `@swamp/aws/networksecuritymanager/template`. */
 export const model = {
   type: "@swamp/aws/networksecuritymanager/template",
-  version: "2026.10.01.1",
+  version: "2026.10.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

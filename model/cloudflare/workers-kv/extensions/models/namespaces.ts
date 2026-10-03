@@ -52,6 +52,9 @@ const GlobalArgsSchema = z.object({
   jurisdiction: z.enum(["eu", "fedramp", "us"]).describe(
     "Specify the jurisdiction to restrict the KV namespace to durably store data within. Can only be set at namespace creation time.",
   ).optional(),
+  mode: z.enum(["instant"]).describe(
+    "The mode of the Workers KV namespace. Specify `instant` when creating a namespace to create a KV Instant namespace. Omit this field when creating a namespace to create a classic namespace. Currently, `instant` is the only supported explicit value.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -66,6 +69,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   id: z.string(),
   jurisdiction: z.string().optional(),
+  mode: z.string().optional(),
   supports_url_encoding: z.boolean().optional(),
   title: z.string().optional(),
 }).passthrough();
@@ -77,6 +81,7 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   title: z.string().max(512).optional(),
   jurisdiction: z.enum(["eu", "fedramp", "us"]).optional(),
+  mode: z.enum(["instant"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -85,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Namespaces. Registered at `@swamp/cloudflare/workers-kv/namespaces`. */
 export const model = {
   type: "@swamp/cloudflare/workers-kv/namespaces",
-  version: "2026.09.29.2",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -127,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.03.1",
+      description: "Added: mode",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -153,6 +163,7 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id + "/storage/kv/namespaces";
         const body: Record<string, unknown> = {};
         if (g.jurisdiction !== undefined) body.jurisdiction = g.jurisdiction;
+        if (g.mode !== undefined) body.mode = g.mode;
         if (g.title !== undefined) body.title = g.title;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -208,6 +219,7 @@ export const model = {
         if (g.jurisdiction !== undefined) {
           filters.push(["jurisdiction", String(g.jurisdiction)]);
         }
+        if (g.mode !== undefined) filters.push(["mode", String(g.mode)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

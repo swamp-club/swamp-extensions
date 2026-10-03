@@ -74,17 +74,17 @@ const GlobalArgsSchema = z.object({
   DeploymentName: z.string().describe("The name of the deployment."),
   DeploymentDescription: z.string().describe("A description of the deployment.")
     .optional(),
+  DeploymentConfiguration: z.object({
+    EnableCrossAccountVisibility: z.boolean().describe(
+      "Whether cross-account visibility is enabled for the deployment.",
+    ),
+  }).describe("Configuration settings for the deployment.").optional(),
   AssociatedPolicyList: z.array(AssociatedPolicySchema).describe(
     "List of policies associated with this deployment.",
   ).optional(),
   AssociatedScopeList: z.array(AssociatedScopeSchema).describe(
     "List of scopes associated with this deployment.",
   ).optional(),
-  DeploymentConfiguration: z.object({
-    EnableCrossAccountVisibility: z.boolean().describe(
-      "Whether cross-account visibility is enabled for the deployment.",
-    ),
-  }).describe("Configuration settings for the deployment.").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the deployment.")
     .optional(),
 });
@@ -95,12 +95,13 @@ const StateSchema = z.object({
   DeploymentName: z.string().optional(),
   DeploymentDescription: z.string().optional(),
   Status: z.string().optional(),
-  AssociatedPolicyList: z.array(AssociatedPolicySchema).optional(),
-  AssociatedScopeList: z.array(AssociatedScopeSchema).optional(),
   DeploymentConfiguration: z.object({
     EnableCrossAccountVisibility: z.boolean(),
   }).optional(),
+  AssociatedPolicyList: z.array(AssociatedPolicySchema).optional(),
+  AssociatedScopeList: z.array(AssociatedScopeSchema).optional(),
   Version: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -115,17 +116,17 @@ const InputsSchema = z.object({
   DeploymentName: z.string().describe("The name of the deployment.").optional(),
   DeploymentDescription: z.string().describe("A description of the deployment.")
     .optional(),
+  DeploymentConfiguration: z.object({
+    EnableCrossAccountVisibility: z.boolean().describe(
+      "Whether cross-account visibility is enabled for the deployment.",
+    ).optional(),
+  }).describe("Configuration settings for the deployment.").optional(),
   AssociatedPolicyList: z.array(AssociatedPolicySchema).describe(
     "List of policies associated with this deployment.",
   ).optional(),
   AssociatedScopeList: z.array(AssociatedScopeSchema).describe(
     "List of scopes associated with this deployment.",
   ).optional(),
-  DeploymentConfiguration: z.object({
-    EnableCrossAccountVisibility: z.boolean().describe(
-      "Whether cross-account visibility is enabled for the deployment.",
-    ).optional(),
-  }).describe("Configuration settings for the deployment.").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the deployment.")
     .optional(),
 });
@@ -149,7 +150,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkSecurityManager Deployment. Registered at `@swamp/aws/networksecuritymanager/deployment`. */
 export const model = {
   type: "@swamp/aws/networksecuritymanager/deployment",
-  version: "2026.10.02.1",
+  version: "2026.10.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

@@ -365,7 +365,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-memories",
-  version: "2026.08.30.1",
+  version: "2026.10.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -545,6 +545,11 @@ export const model = {
     {
       toVersion: "2026.08.30.1",
       description: "Added: context",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -933,6 +938,7 @@ export const model = {
         revisionLabels: z.any().optional(),
         revisionTtl: z.any().optional(),
         scope: z.any().optional(),
+        timeZone: z.any().optional(),
         vertexSessionSource: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -973,6 +979,7 @@ export const model = {
           body["revisionTtl"] = args["revisionTtl"];
         }
         if (args["scope"] !== undefined) body["scope"] = args["scope"];
+        if (args["timeZone"] !== undefined) body["timeZone"] = args["timeZone"];
         if (args["vertexSessionSource"] !== undefined) {
           body["vertexSessionSource"] = args["vertexSessionSource"];
         }
