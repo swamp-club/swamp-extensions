@@ -115,6 +115,30 @@ const GlobalArgsSchema = z.object({
       title: z.string().optional(),
       uri: z.string().optional(),
     }).optional(),
+    companionSuggestion: z.object({
+      guidances: z.array(z.object({
+        explanation: z.string().optional(),
+        groundingMetadata: z.object({
+          groundingChunks: z.unknown().optional(),
+          groundingSupports: z.unknown().optional(),
+          searchEntryPoint: z.unknown().optional(),
+          webSearchQueries: z.unknown().optional(),
+        }).optional(),
+        instructionSource: z.object({
+          actions: z.unknown().optional(),
+          condition: z.unknown().optional(),
+          disableSuggestedReply: z.unknown().optional(),
+          displayDetails: z.unknown().optional(),
+          displayName: z.unknown().optional(),
+          triggerEvent: z.unknown().optional(),
+        }).optional(),
+        knowledgeSources: z.array(z.unknown()).optional(),
+        suggestedAction: z.string().optional(),
+        suggestedReply: z.string().optional(),
+        toolCalls: z.array(z.unknown()).optional(),
+        triggeringToolCallAnswerRecords: z.array(z.unknown()).optional(),
+      })).optional(),
+    }).optional(),
     dialogflowAssistAnswer: z.object({
       answerRecord: z.string().optional(),
       intentSuggestion: z.object({
@@ -258,6 +282,30 @@ const GlobalArgsSchema = z.object({
         }).optional(),
       })).optional(),
     }).optional(),
+    reactiveCompanionSuggestion: z.object({
+      groundingMetadata: z.object({
+        groundingChunks: z.array(z.object({
+          retrievedContext: z.unknown().optional(),
+          web: z.unknown().optional(),
+        })).optional(),
+        groundingSupports: z.array(z.object({
+          groundingChunkIndices: z.unknown().optional(),
+          segment: z.unknown().optional(),
+        })).optional(),
+        searchEntryPoint: z.object({
+          renderedContent: z.string().optional(),
+        }).optional(),
+        webSearchQueries: z.array(z.string()).optional(),
+      }).optional(),
+      response: z.string().optional(),
+      toolCalls: z.array(z.object({
+        textUpdate: z.string().optional(),
+        toolCallInfo: z.object({
+          toolCall: z.unknown().optional(),
+          toolCallResult: z.unknown().optional(),
+        }).optional(),
+      })).optional(),
+    }).optional(),
   }).optional(),
   answerFeedback: z.object({
     agentAssistantDetailFeedback: z.object({
@@ -266,6 +314,7 @@ const GlobalArgsSchema = z.object({
         "IRRELEVANT",
         "RELEVANT",
       ]).optional(),
+      companionFeedback: z.object({}).optional(),
       documentCorrectness: z.enum([
         "DOCUMENT_CORRECTNESS_UNSPECIFIED",
         "INCORRECT",
@@ -317,6 +366,30 @@ const StateSchema = z.object({
       snippets: z.array(z.string()),
       title: z.string(),
       uri: z.string(),
+    }),
+    companionSuggestion: z.object({
+      guidances: z.array(z.object({
+        explanation: z.string(),
+        groundingMetadata: z.object({
+          groundingChunks: z.unknown(),
+          groundingSupports: z.unknown(),
+          searchEntryPoint: z.unknown(),
+          webSearchQueries: z.unknown(),
+        }),
+        instructionSource: z.object({
+          actions: z.unknown(),
+          condition: z.unknown(),
+          disableSuggestedReply: z.unknown(),
+          displayDetails: z.unknown(),
+          displayName: z.unknown(),
+          triggerEvent: z.unknown(),
+        }),
+        knowledgeSources: z.array(z.unknown()),
+        suggestedAction: z.string(),
+        suggestedReply: z.string(),
+        toolCalls: z.array(z.unknown()),
+        triggeringToolCallAnswerRecords: z.array(z.unknown()),
+      })),
     }),
     dialogflowAssistAnswer: z.object({
       answerRecord: z.string(),
@@ -457,10 +530,35 @@ const StateSchema = z.object({
         }),
       })),
     }),
+    reactiveCompanionSuggestion: z.object({
+      groundingMetadata: z.object({
+        groundingChunks: z.array(z.object({
+          retrievedContext: z.unknown(),
+          web: z.unknown(),
+        })),
+        groundingSupports: z.array(z.object({
+          groundingChunkIndices: z.unknown(),
+          segment: z.unknown(),
+        })),
+        searchEntryPoint: z.object({
+          renderedContent: z.string(),
+        }),
+        webSearchQueries: z.array(z.string()),
+      }),
+      response: z.string(),
+      toolCalls: z.array(z.object({
+        textUpdate: z.string(),
+        toolCallInfo: z.object({
+          toolCall: z.unknown(),
+          toolCallResult: z.unknown(),
+        }),
+      })),
+    }),
   }).optional(),
   answerFeedback: z.object({
     agentAssistantDetailFeedback: z.object({
       answerRelevance: z.string(),
+      companionFeedback: z.object({}),
       documentCorrectness: z.string(),
       documentEfficiency: z.string(),
       knowledgeAssistFeedback: z.object({
@@ -504,6 +602,30 @@ const InputsSchema = z.object({
       snippets: z.array(z.string()).optional(),
       title: z.string().optional(),
       uri: z.string().optional(),
+    }).optional(),
+    companionSuggestion: z.object({
+      guidances: z.array(z.object({
+        explanation: z.string().optional(),
+        groundingMetadata: z.object({
+          groundingChunks: z.unknown().optional(),
+          groundingSupports: z.unknown().optional(),
+          searchEntryPoint: z.unknown().optional(),
+          webSearchQueries: z.unknown().optional(),
+        }).optional(),
+        instructionSource: z.object({
+          actions: z.unknown().optional(),
+          condition: z.unknown().optional(),
+          disableSuggestedReply: z.unknown().optional(),
+          displayDetails: z.unknown().optional(),
+          displayName: z.unknown().optional(),
+          triggerEvent: z.unknown().optional(),
+        }).optional(),
+        knowledgeSources: z.array(z.unknown()).optional(),
+        suggestedAction: z.string().optional(),
+        suggestedReply: z.string().optional(),
+        toolCalls: z.array(z.unknown()).optional(),
+        triggeringToolCallAnswerRecords: z.array(z.unknown()).optional(),
+      })).optional(),
     }).optional(),
     dialogflowAssistAnswer: z.object({
       answerRecord: z.string().optional(),
@@ -648,6 +770,30 @@ const InputsSchema = z.object({
         }).optional(),
       })).optional(),
     }).optional(),
+    reactiveCompanionSuggestion: z.object({
+      groundingMetadata: z.object({
+        groundingChunks: z.array(z.object({
+          retrievedContext: z.unknown().optional(),
+          web: z.unknown().optional(),
+        })).optional(),
+        groundingSupports: z.array(z.object({
+          groundingChunkIndices: z.unknown().optional(),
+          segment: z.unknown().optional(),
+        })).optional(),
+        searchEntryPoint: z.object({
+          renderedContent: z.string().optional(),
+        }).optional(),
+        webSearchQueries: z.array(z.string()).optional(),
+      }).optional(),
+      response: z.string().optional(),
+      toolCalls: z.array(z.object({
+        textUpdate: z.string().optional(),
+        toolCallInfo: z.object({
+          toolCall: z.unknown().optional(),
+          toolCallResult: z.unknown().optional(),
+        }).optional(),
+      })).optional(),
+    }).optional(),
   }).optional(),
   answerFeedback: z.object({
     agentAssistantDetailFeedback: z.object({
@@ -656,6 +802,7 @@ const InputsSchema = z.object({
         "IRRELEVANT",
         "RELEVANT",
       ]).optional(),
+      companionFeedback: z.object({}).optional(),
       documentCorrectness: z.enum([
         "DOCUMENT_CORRECTNESS_UNSPECIFIED",
         "INCORRECT",
@@ -724,7 +871,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow AnswerRecords. Registered at `@swamp/gcp/dialogflow/answerrecords`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/answerrecords",
-  version: "2026.08.18.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -738,6 +885,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

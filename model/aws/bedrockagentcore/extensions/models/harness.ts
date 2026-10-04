@@ -209,7 +209,7 @@ const HarnessOpenAiModelConfigSchema = z.object({
   ModelId: z.string(),
   ApiKeyArn: z.string().regex(
     new RegExp(
-      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
     ),
   ),
   MaxTokens: z.number().int().min(1).optional(),
@@ -225,7 +225,7 @@ const HarnessGeminiModelConfigSchema = z.object({
   ModelId: z.string(),
   ApiKeyArn: z.string().regex(
     new RegExp(
-      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
     ),
   ),
   MaxTokens: z.number().int().min(1).optional(),
@@ -238,7 +238,7 @@ const HarnessLiteLlmModelConfigSchema = z.object({
   ModelId: z.string(),
   ApiKeyArn: z.string().regex(
     new RegExp(
-      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
     ),
   ).optional(),
   ApiBase: z.string().min(1).max(16383).optional(),
@@ -343,7 +343,7 @@ const HarnessSkillS3SourceSchema = z.object({
 const HarnessSkillGitAuthSchema = z.object({
   CredentialArn: z.string().regex(
     new RegExp(
-      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
     ),
   ).describe(
     "The ARN of the credential in AgentCore Identity containing the password or personal access token.",
@@ -769,7 +769,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.10.02.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -814,6 +814,11 @@ export const model = {
     {
       toVersion: "2026.10.02.1",
       description: "Added: Hooks",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

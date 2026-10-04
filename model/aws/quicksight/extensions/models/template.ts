@@ -1148,7 +1148,7 @@ const SheetTextBoxSchema = z.object({
 });
 
 const SheetLayoutGroupMemberSchema = z.object({
-  Type: z.unknown(),
+  Type: z.enum(["ELEMENT", "GROUP"]),
   Id: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
 });
 
@@ -4347,7 +4347,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Template. Registered at `@swamp/aws/quicksight/template`. */
 export const model = {
   type: "@swamp/aws/quicksight/template",
-  version: "2026.09.24.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4406,6 +4406,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

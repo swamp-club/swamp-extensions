@@ -163,6 +163,7 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().optional(),
   humanAgentAssistantConfig: z.object({
     endUserSuggestionConfig: z.object({
+      companionAgent: z.string().optional(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean().optional(),
       enableAsyncToolCall: z.boolean().optional(),
       featureConfigs: z.array(z.object({
@@ -214,6 +215,7 @@ const GlobalArgsSchema = z.object({
       useUnredactedConversationData: z.boolean().optional(),
     }).optional(),
     humanAgentSuggestionConfig: z.object({
+      companionAgent: z.string().optional(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean().optional(),
       enableAsyncToolCall: z.boolean().optional(),
       featureConfigs: z.array(z.object({
@@ -397,6 +399,7 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   humanAgentAssistantConfig: z.object({
     endUserSuggestionConfig: z.object({
+      companionAgent: z.string(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean(),
       enableAsyncToolCall: z.boolean(),
       featureConfigs: z.array(z.object({
@@ -442,6 +445,7 @@ const StateSchema = z.object({
       useUnredactedConversationData: z.boolean(),
     }),
     humanAgentSuggestionConfig: z.object({
+      companionAgent: z.string(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean(),
       enableAsyncToolCall: z.boolean(),
       featureConfigs: z.array(z.object({
@@ -588,6 +592,7 @@ const InputsSchema = z.object({
   displayName: z.string().optional(),
   humanAgentAssistantConfig: z.object({
     endUserSuggestionConfig: z.object({
+      companionAgent: z.string().optional(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean().optional(),
       enableAsyncToolCall: z.boolean().optional(),
       featureConfigs: z.array(z.object({
@@ -639,6 +644,7 @@ const InputsSchema = z.object({
       useUnredactedConversationData: z.boolean().optional(),
     }).optional(),
     humanAgentSuggestionConfig: z.object({
+      companionAgent: z.string().optional(),
       disableHighLatencyFeaturesSyncDelivery: z.boolean().optional(),
       enableAsyncToolCall: z.boolean().optional(),
       featureConfigs: z.array(z.object({
@@ -839,7 +845,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow ConversationProfiles. Registered at `@swamp/gcp/dialogflow/conversationprofiles`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversationprofiles",
-  version: "2026.08.28.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -858,6 +864,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

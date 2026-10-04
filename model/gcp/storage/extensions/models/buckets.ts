@@ -550,6 +550,15 @@ const GlobalArgsSchema = z.object({
     effectiveTime: z.string().describe(
       "Server-determined value that indicates the time from which the policy, or one with a greater retention, was effective. This value is in RFC 3339 format.",
     ).optional(),
+    hardDeletePause: z.object({
+      effectiveTime: z.string().describe(
+        "Server-determined value that indicates the time from which the hard delete pause became effective. This value is in RFC 3339 format.",
+      ).optional(),
+      enabled: z.boolean().describe("Whether hard deletions are paused.")
+        .optional(),
+    }).describe(
+      "The bucket's hard delete pause configuration. If set, soft-deleted objects in the bucket will not be permanently deleted until the hard delete pause is disabled.",
+    ).optional(),
     retentionDurationSeconds: z.string().describe(
       "The duration in seconds that soft-deleted objects in the bucket will be retained and cannot be permanently deleted.",
     ).optional(),
@@ -981,6 +990,10 @@ const StateSchema = z.object({
   selfLink: z.string().optional(),
   softDeletePolicy: z.object({
     effectiveTime: z.string(),
+    hardDeletePause: z.object({
+      effectiveTime: z.string(),
+      enabled: z.boolean(),
+    }),
     retentionDurationSeconds: z.string(),
   }).optional(),
   softDeleteTime: z.string().optional(),
@@ -1334,6 +1347,15 @@ const InputsSchema = z.object({
     effectiveTime: z.string().describe(
       "Server-determined value that indicates the time from which the policy, or one with a greater retention, was effective. This value is in RFC 3339 format.",
     ).optional(),
+    hardDeletePause: z.object({
+      effectiveTime: z.string().describe(
+        "Server-determined value that indicates the time from which the hard delete pause became effective. This value is in RFC 3339 format.",
+      ).optional(),
+      enabled: z.boolean().describe("Whether hard deletions are paused.")
+        .optional(),
+    }).describe(
+      "The bucket's hard delete pause configuration. If set, soft-deleted objects in the bucket will not be permanently deleted until the hard delete pause is disabled.",
+    ).optional(),
     retentionDurationSeconds: z.string().describe(
       "The duration in seconds that soft-deleted objects in the bucket will be retained and cannot be permanently deleted.",
     ).optional(),
@@ -1415,7 +1437,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.09.29.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1604,6 +1626,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
