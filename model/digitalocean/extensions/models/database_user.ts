@@ -68,9 +68,9 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   name: z.string(),
   role: z.string().optional(),
-  password: z.string().optional(),
+  password: z.string().meta({ sensitive: true }).optional(),
   access_cert: z.string().optional(),
-  access_key: z.string().optional(),
+  access_key: z.string().meta({ sensitive: true }).optional(),
   mysql_settings: z.object({
     auth_plugin: z.string().optional(),
   }).optional(),
@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database user. Registered at `@swamp/digitalocean/database-user`. */
 export const model = {
   type: "@swamp/digitalocean/database-user",
-  version: "2026.09.29.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -138,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

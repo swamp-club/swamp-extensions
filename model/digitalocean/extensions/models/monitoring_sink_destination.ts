@@ -48,7 +48,7 @@ const GlobalArgsSchema = z.object({
   config: z.object({
     credentials: z.object({
       username: z.string().optional(),
-      password: z.string().optional(),
+      password: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     endpoint: z.string(),
     cluster_uuid: z.string().optional(),
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
   config: z.object({
     credentials: z.object({
       username: z.string().optional(),
-      password: z.string().optional(),
+      password: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     endpoint: z.string(),
     cluster_uuid: z.string().optional(),
@@ -97,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean monitoring sink destination. Registered at `@swamp/digitalocean/monitoring-sink-destination`. */
 export const model = {
   type: "@swamp/digitalocean/monitoring-sink-destination",
-  version: "2026.06.08.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -146,6 +146,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

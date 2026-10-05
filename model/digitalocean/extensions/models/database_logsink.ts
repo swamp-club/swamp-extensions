@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
     index_days_max: z.number().int().min(1).max(10000).optional(),
     timeout: z.number().min(10).max(120).optional(),
     site: z.string().optional(),
-    datadog_api_key: z.string().optional(),
+    datadog_api_key: z.string().meta({ sensitive: true }).optional(),
   }).describe(
     "Configuration for Datadog integration **applicable only to MongoDB clusters**.\n",
   ),
@@ -87,7 +87,7 @@ const ResourceSchema = z.object({
     index_days_max: z.number().optional(),
     timeout: z.number().optional(),
     site: z.string().optional(),
-    datadog_api_key: z.string().optional(),
+    datadog_api_key: z.string().meta({ sensitive: true }).optional(),
   }).optional(),
 }).passthrough();
 
@@ -111,7 +111,7 @@ const InputsSchema = z.object({
     index_days_max: z.number().int().min(1).max(10000).optional(),
     timeout: z.number().min(10).max(120).optional(),
     site: z.string().optional(),
-    datadog_api_key: z.string().optional(),
+    datadog_api_key: z.string().meta({ sensitive: true }).optional(),
   }).optional(),
   sink_name: z.string().optional(),
   sink_type: z.enum(["rsyslog", "elasticsearch", "opensearch", "datadog"])
@@ -122,7 +122,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database logsink. Registered at `@swamp/digitalocean/database-logsink`. */
 export const model = {
   type: "@swamp/digitalocean/database-logsink",
-  version: "2026.09.29.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -136,6 +136,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

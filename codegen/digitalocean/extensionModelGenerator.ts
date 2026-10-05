@@ -156,7 +156,15 @@ export function generateDigitalOceanExtensionModel(
   // ResourceSchema — all GET response properties, simplified
   lines.push(`const ResourceSchema = z.object({`);
   for (const [name, prop] of Object.entries(resource.resourceProperties)) {
-    const expr = generateSimplifiedZod(prop);
+    // The identifying field is read back from stored state to build API paths,
+    // so it must stay a plain value even when its name looks like a secret.
+    // The pipeline's fallback strips underscores from it (`accesskey` for the
+    // `access_key` property), so compare without them.
+    const isIdentifier = name === resource.identifyingField ||
+      name.replace(/_/g, "") === resource.identifyingField;
+    const expr = isIdentifier
+      ? generateSimplifiedZod(prop)
+      : withSensitiveMeta(name, prop, generateSimplifiedZod(prop));
     let line = `  ${name}: ${expr}`;
     if (prop.nullable) line += `.nullable()`;
     if (name !== resource.identifyingField && name !== "id") {
@@ -734,7 +742,7 @@ function generateActionMethod(
 
   for (const [name, prop] of extraProps) {
     if (name === idArg.argName) continue;
-    const zodExpr = propertyToZodExpr(prop);
+    const zodExpr = withSensitiveMeta(name, prop, propertyToZodExpr(prop));
     const isRequired = requiredSet.has(name);
     let field = `${name}: ${zodExpr}`;
     if (prop.description) {
@@ -883,7 +891,7 @@ function generateSubResourceMethod(
 
   for (const [name, prop] of extraProps) {
     if (name === idArg.argName) continue;
-    const zodExpr = propertyToZodExpr(prop);
+    const zodExpr = withSensitiveMeta(name, prop, propertyToZodExpr(prop));
     const isRequired = requiredSet.has(name);
     let field = `${name}: ${zodExpr}`;
     if (prop.description) {
@@ -981,7 +989,7 @@ function buildGlobalArgsProperties(
 
     const baseExpr = prop.isRegion
       ? generateRegionZod()
-      : generateFullFidelityZod(prop);
+      : withSensitiveMeta(name, prop, generateFullFidelityZod(prop));
     let line = `${name}: ${baseExpr}`;
 
     if (prop.description) {
@@ -1080,6 +1088,42 @@ function resolveIdArg(resource: DigitalOceanResource): {
   }
 }
 
+/**
+ * Whole secret names. A field is sensitive when its name is one of these or
+ * ends in `_` plus one of these (`oauth_client_secret`, `datadog_api_key`).
+ * Names that only contain a secret word (`credential_id`, `oauth_token_url`,
+ * `access_tokens`, `public_key`) do not match.
+ */
+const SECRET_NAME_PATTERN =
+  /(?:^|_)(?:password|secret|token|api_key|access_key|private_key|registry_credentials)$/;
+
+/**
+ * True for a secret-named field whose value can hold a secret: a plain string,
+ * or an object with no declared properties (emitted as `z.record`). The
+ * DigitalOcean spec carries no `writeOnly` or `format: password` markers, so
+ * the rule is name based.
+ */
+function isSensitiveProperty(
+  name: string,
+  prop: DigitalOceanProperty,
+): boolean {
+  if (!SECRET_NAME_PATTERN.test(name)) return false;
+  if (prop.type === "string") return !prop.enum || prop.enum.length === 0;
+  return prop.type === "object" &&
+    (!prop.properties || Object.keys(prop.properties).length === 0);
+}
+
+/** Append `.meta({ sensitive: true })` to `expr` when the field is a secret. */
+function withSensitiveMeta(
+  name: string,
+  prop: DigitalOceanProperty,
+  expr: string,
+): string {
+  return isSensitiveProperty(name, prop)
+    ? `${expr}.meta({ sensitive: true })`
+    : expr;
+}
+
 /** Generate a z.enum for DigitalOcean regions */
 function generateRegionZod(): string {
   const vals = DO_REGIONS.map((r) => JSON.stringify(r));
@@ -1135,7 +1179,7 @@ function generateFullFidelityZod(prop: DigitalOceanProperty): string {
           ([k, v]) => {
             const expr = v.isRegion
               ? generateRegionZod()
-              : generateFullFidelityZod(v);
+              : withSensitiveMeta(k, v, generateFullFidelityZod(v));
             const suffix = requiredSet.has(k) ? "" : ".optional()";
             return `    ${k}: ${expr}${suffix}`;
           },
@@ -1175,7 +1219,7 @@ function generateSimplifiedZod(prop: DigitalOceanProperty): string {
           ([k, v]) => {
             const expr = v.isRegion
               ? generateRegionZod()
-              : generateSimplifiedZod(v);
+              : withSensitiveMeta(k, v, generateSimplifiedZod(v));
             return `    ${k}: ${expr}.optional()`;
           },
         );

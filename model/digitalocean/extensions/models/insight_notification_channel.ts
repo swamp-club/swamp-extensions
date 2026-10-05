@@ -60,14 +60,14 @@ const GlobalArgsSchema = z.object({
     url: z.string(),
     basic_auth: z.object({
       username: z.string(),
-      password: z.string().optional(),
+      password: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     bearer_token: z.object({
-      token: z.string().optional(),
+      token: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     signature: z.object({
-      secret: z.string().optional(),
+      secret: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
   }).describe(
     "Generic HTTPS webhook notification channel configuration. The URL must use\nHTTPS and must not include userinfo. Optionally configure either\n`basic_auth` or `bearer_token` (not both), custom headers, and a signing\nsecret.\n\n`url` is not a secret and is returned in full on read. Credential fields\n(`basic_auth.password`, `bearer_token.token`, `signature.secret`) are\nwrite-only: full value on create/update; masked as `********` on read. Omit\na secret field on update to keep the existing value.\n",
@@ -92,14 +92,14 @@ const ResourceSchema = z.object({
     url: z.string().optional(),
     basic_auth: z.object({
       username: z.string().optional(),
-      password: z.string().optional(),
+      password: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     bearer_token: z.object({
-      token: z.string().optional(),
+      token: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     signature: z.object({
-      secret: z.string().optional(),
+      secret: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
   }).optional(),
   usage: z.object({
@@ -124,14 +124,14 @@ const InputsSchema = z.object({
     url: z.string(),
     basic_auth: z.object({
       username: z.string(),
-      password: z.string().optional(),
+      password: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     bearer_token: z.object({
-      token: z.string().optional(),
+      token: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     signature: z.object({
-      secret: z.string().optional(),
+      secret: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
   }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
@@ -140,7 +140,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean insight notification channel. Registered at `@swamp/digitalocean/insight-notification-channel`. */
 export const model = {
   type: "@swamp/digitalocean/insight-notification-channel",
-  version: "2026.10.02.1",
+  version: "2026.10.05.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

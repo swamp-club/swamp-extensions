@@ -103,7 +103,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).describe("The connection details for OpenSearch dashboard. ").optional(),
   schema_registry_connection: z.object({
@@ -111,7 +111,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).describe("The connection details for Schema Registry.").optional(),
   connection: z.object({
@@ -120,7 +120,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -129,7 +129,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_connection: z.object({
@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_private_connection: z.object({
@@ -147,7 +147,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   maintenance_window: z.object({
@@ -225,7 +225,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   schema_registry_connection: z.object({
@@ -233,7 +233,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   connection: z.object({
@@ -242,7 +242,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -251,7 +251,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_connection: z.object({
@@ -260,7 +260,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_private_connection: z.object({
@@ -269,15 +269,15 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   users: z.array(z.object({
     name: z.string().optional(),
     role: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     access_cert: z.string().optional(),
-    access_key: z.string().optional(),
+    access_key: z.string().meta({ sensitive: true }).optional(),
     mysql_settings: z.object({
       auth_plugin: z.string().optional(),
     }).optional(),
@@ -371,7 +371,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   schema_registry_connection: z.object({
@@ -379,7 +379,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   connection: z.object({
@@ -388,7 +388,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -397,7 +397,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_connection: z.object({
@@ -406,7 +406,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   standby_private_connection: z.object({
@@ -415,7 +415,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   maintenance_window: z.object({
@@ -468,7 +468,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database cluster. Registered at `@swamp/digitalocean/database-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/database-cluster",
-  version: "2026.07.28.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -532,6 +532,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

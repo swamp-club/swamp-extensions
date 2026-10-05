@@ -63,13 +63,13 @@ const GlobalArgsSchema = z.object({
   credentialRef: z.string().describe(
     "For `credentialRefSource` secret: a reference to a secret your team stores with DigitalOcean. Must match `^`[A-Za-z0-9]``[A-Za-z0-9:/_.-]`{0,254}$`. Set exactly one of `credentialRef` and `api_key`.",
   ).optional(),
-  api_key: z.string().describe(
+  api_key: z.string().meta({ sensitive: true }).describe(
     "For `credentialRefSource` secret: the key or token itself. DigitalOcean stores it; it is write-only and no response returns it. Set exactly one of `credentialRef` and `api_key`.",
   ).optional(),
   oauth_client_id: z.string().describe(
     "Required for `credentialRefSource` connection: the client ID of your team's OAuth client for the server. Each user of the server then authorizes individually.",
   ).optional(),
-  oauth_client_secret: z.string().describe(
+  oauth_client_secret: z.string().meta({ sensitive: true }).describe(
     "Required for `credentialRefSource` connection. Write-only; no response returns it.",
   ).optional(),
   oauth_authorize_url: z.string().describe(
@@ -118,9 +118,9 @@ const InputsSchema = z.object({
   transport: z.enum(["streamable_http"]).optional(),
   credentialRefSource: z.enum(["none", "secret", "connection"]).optional(),
   credentialRef: z.string().optional(),
-  api_key: z.string().optional(),
+  api_key: z.string().meta({ sensitive: true }).optional(),
   oauth_client_id: z.string().optional(),
-  oauth_client_secret: z.string().optional(),
+  oauth_client_secret: z.string().meta({ sensitive: true }).optional(),
   oauth_authorize_url: z.string().optional(),
   oauth_token_url: z.string().optional(),
   oauth_scopes: z.array(z.string()).optional(),
@@ -131,7 +131,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway mcp server. Registered at `@swamp/digitalocean/action-gateway-mcp-server`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-mcp-server",
-  version: "2026.10.01.1",
+  version: "2026.10.05.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

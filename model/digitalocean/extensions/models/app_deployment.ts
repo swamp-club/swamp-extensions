@@ -135,7 +135,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -161,16 +161,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -256,7 +256,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -282,16 +282,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -342,7 +342,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -368,16 +368,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -414,7 +414,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -440,16 +440,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -537,16 +537,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -638,7 +638,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app deployment. Registered at `@swamp/digitalocean/app-deployment`. */
 export const model = {
   type: "@swamp/digitalocean/app-deployment",
-  version: "2026.06.08.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -647,6 +647,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -103,7 +103,8 @@ const ResourceSchema = z.object({
     scopes: z.array(z.string()).optional(),
     granted_at: z.string().optional(),
   }).optional(),
-  api_key: z.record(z.string(), z.unknown()).optional(),
+  api_key: z.record(z.string(), z.unknown()).meta({ sensitive: true })
+    .optional(),
   scopes: z.array(z.string()).optional(),
   granted_at: z.string().nullable().optional(),
   owning_user_id: z.string().optional(),
@@ -139,7 +140,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway connection. Registered at `@swamp/digitalocean/action-gateway-connection`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-connection",
-  version: "2026.10.01.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -148,6 +149,11 @@ export const model = {
         const { id: _id, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

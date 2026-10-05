@@ -342,6 +342,23 @@ argument is set:
 export DO_API_TOKEN=your-token-here
 \`\`\`
 
+## Secret fields
+
+Resource fields that hold secrets — \`password\`, \`token\`, \`api_key\`,
+\`secret\`, \`access_key\`, \`private_key\`, \`registry_credentials\` and
+names ending in one of them — are marked sensitive. Set them with a
+\`vault.get(...)\` expression; swamp rejects a literal value in a model
+definition. Models that read secrets back from the API, such as the database
+models with their connection passwords, store those values in a vault, so a
+vault must be configured before they can save state:
+
+\`\`\`bash
+swamp vault create <type> <name>
+\`\`\`
+
+Secrets nested inside a list, such as the App Platform log destination
+credentials under \`spec.services\`, are marked but not yet vaulted by swamp.
+
 ## Usage
 
 \`\`\`bash

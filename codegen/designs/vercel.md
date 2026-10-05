@@ -402,9 +402,9 @@ PEM-encoded private key). Sensitive fields are never `lookup` filters, so a
 no-match error cannot print them.
 
 **Known gap:** only top-level fields are inspected. Nested secrets — notably the
-drains model's `delivery.secret` — are not marked sensitive, because no
-generator in this repository emits sensitive meta on nested fields yet and swamp
-core's handling of it is unconfirmed.
+drains model's `delivery.secret` — are not marked sensitive. The DigitalOcean
+generator does mark nested fields; swamp core acts on those reached through
+plain objects, but not through arrays, records or unions (swamp-club#3038).
 
 ---
 

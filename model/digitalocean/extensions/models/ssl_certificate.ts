@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   dns_names: z.array(z.string()).describe(
     "An array of fully qualified domain names (FQDNs) for which the certificate was issued. A certificate covering all subdomains can be issued using a wildcard (e.g. `*.example.com`).",
   ).optional(),
-  private_key: z.string().describe(
+  private_key: z.string().meta({ sensitive: true }).describe(
     "The contents of a PEM-formatted private-key corresponding to the SSL certificate.",
   ).optional(),
   leaf_certificate: z.string().describe(
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   type: z.enum(["custom", "lets_encrypt"]).optional(),
   dns_names: z.array(z.string()).optional(),
-  private_key: z.string().optional(),
+  private_key: z.string().meta({ sensitive: true }).optional(),
   leaf_certificate: z.string().optional(),
   certificate_chain: z.string().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
@@ -90,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean ssl certificate. Registered at `@swamp/digitalocean/ssl-certificate`. */
 export const model = {
   type: "@swamp/digitalocean/ssl-certificate",
-  version: "2026.06.08.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -139,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

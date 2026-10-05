@@ -797,6 +797,44 @@ Mirrors GlobalArgsSchema but with all fields `.optional()`. Used for the swamp
 inputs mechanism where partial overrides are provided separately from
 globalArgs.
 
+### Sensitive fields
+
+A spec field whose name is a whole secret name is emitted with
+`.meta({ sensitive: true })`. The name matches when it is exactly one of
+`password`, `secret`, `token`, `api_key`, `access_key`, `private_key` or
+`registry_credentials`, or ends in `_` plus one of them (`oauth_client_secret`,
+`datadog_api_key`). Names that only contain a secret word — `credential_id`,
+`oauth_token_url`, `access_tokens`, `public_key` — do not match. The field must
+be a plain string or an object with no declared properties (emitted as
+`z.record`); enums and structured objects are never marked. The rule is name
+based because the DigitalOcean spec carries no `writeOnly` or `format: password`
+markers.
+
+The meta is applied wherever a named field is emitted: GlobalArgsSchema,
+InputsSchema, ResourceSchema (at every nesting depth), and action and
+sub-resource method arguments. It sits directly after the base Zod expression,
+before `.describe()`, `.nullable()` and `.optional()`.
+
+The resource's identifying field is never marked in ResourceSchema, whatever its
+name: `update` and `sync` read it back from stored state to build API paths, and
+a vaulted value there would be a `vault.get(...)` reference. The comparison
+ignores underscores, because the identifier fallback strips them: the Spaces
+key's public `access_key` ID is identified as `accesskey` and stays unmarked.
+
+What swamp core does with it:
+
+- A sensitive ResourceSchema field is stored in a vault and replaced by a
+  `vault.get(...)` reference when resource data is written. A model with such a
+  field needs a configured vault to persist state.
+- A literal value in a sensitive global argument is rejected when the definition
+  is saved; the value must be a `vault.get(...)` expression.
+
+**Known gap:** swamp core finds sensitive fields by walking object shapes only.
+A field reached through an array, record or union — most of `app_platform` and
+`app_deployment`, such as `spec.services[].log_destinations[].datadog.api_key` —
+carries the meta but is not vaulted, redacted or guarded until swamp-club#3038
+lands.
+
 ### Region enum
 
 Region values are hardcoded rather than extracted from the spec:

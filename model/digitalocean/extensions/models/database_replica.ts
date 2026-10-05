@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   storage_size_mib: z.number().int().describe(
@@ -116,7 +116,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -125,7 +125,7 @@ const ResourceSchema = z.object({
     host: z.string().optional(),
     port: z.number().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   storage_size_mib: z.number().optional(),
@@ -165,7 +165,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   private_connection: z.object({
@@ -174,7 +174,7 @@ const InputsSchema = z.object({
     host: z.string().optional(),
     port: z.number().int().optional(),
     user: z.string().optional(),
-    password: z.string().optional(),
+    password: z.string().meta({ sensitive: true }).optional(),
     ssl: z.boolean().optional(),
   }).optional(),
   storage_size_mib: z.number().int().optional(),
@@ -193,7 +193,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database replica. Registered at `@swamp/digitalocean/database-replica`. */
 export const model = {
   type: "@swamp/digitalocean/database-replica",
-  version: "2026.06.08.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -202,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

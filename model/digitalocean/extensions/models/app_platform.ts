@@ -94,7 +94,7 @@ const GlobalArgsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -125,16 +125,16 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -222,7 +222,7 @@ const GlobalArgsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -253,16 +253,16 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -315,7 +315,7 @@ const GlobalArgsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -346,16 +346,16 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -399,7 +399,7 @@ const GlobalArgsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -430,16 +430,16 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -560,16 +560,16 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -751,7 +751,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -777,16 +777,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -872,7 +872,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -898,16 +898,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -958,7 +958,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -984,16 +984,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1030,7 +1030,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1056,16 +1056,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1153,16 +1153,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1351,7 +1351,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1377,16 +1377,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1472,7 +1472,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1498,16 +1498,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1558,7 +1558,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1584,16 +1584,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1630,7 +1630,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1656,16 +1656,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1753,16 +1753,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -1936,7 +1936,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -1962,16 +1962,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -2057,7 +2057,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -2083,16 +2083,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -2143,7 +2143,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -2169,16 +2169,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -2215,7 +2215,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -2241,16 +2241,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -2338,16 +2338,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -2474,7 +2474,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -2500,16 +2500,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -2595,7 +2595,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -2621,16 +2621,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -2681,7 +2681,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -2707,16 +2707,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -2753,7 +2753,7 @@ const ResourceSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.string().optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -2779,16 +2779,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -2876,16 +2876,16 @@ const ResourceSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string().optional(),
+          api_key: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -3045,7 +3045,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -3071,16 +3071,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -3166,7 +3166,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -3192,16 +3192,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -3252,7 +3252,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -3278,16 +3278,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -3324,7 +3324,7 @@ const ResourceSchema = z.object({
         image: z.object({
           registry: z.string().optional(),
           registry_type: z.string().optional(),
-          registry_credentials: z.string().optional(),
+          registry_credentials: z.string().meta({ sensitive: true }).optional(),
           repository: z.string().optional(),
           tag: z.string().optional(),
           digest: z.string().optional(),
@@ -3350,16 +3350,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -3447,16 +3447,16 @@ const ResourceSchema = z.object({
           }).optional(),
           datadog: z.object({
             endpoint: z.string().optional(),
-            api_key: z.string().optional(),
+            api_key: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           logtail: z.object({
-            token: z.string().optional(),
+            token: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           open_search: z.object({
             endpoint: z.string().optional(),
             basic_auth: z.object({
               user: z.string().optional(),
-              password: z.string().optional(),
+              password: z.string().meta({ sensitive: true }).optional(),
             }).optional(),
             index_name: z.string().optional(),
             cluster_name: z.string().optional(),
@@ -3608,7 +3608,7 @@ const InputsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -3639,16 +3639,16 @@ const InputsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -3736,7 +3736,7 @@ const InputsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -3767,16 +3767,16 @@ const InputsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -3829,7 +3829,7 @@ const InputsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -3860,16 +3860,16 @@ const InputsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -3913,7 +3913,7 @@ const InputsSchema = z.object({
       image: z.object({
         registry: z.string().optional(),
         registry_type: z.enum(["DOCKER_HUB", "DOCR", "GHCR"]).optional(),
-        registry_credentials: z.string().optional(),
+        registry_credentials: z.string().meta({ sensitive: true }).optional(),
         repository: z.string().optional(),
         tag: z.string().optional(),
         digest: z.string().optional(),
@@ -3944,16 +3944,16 @@ const InputsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -4074,16 +4074,16 @@ const InputsSchema = z.object({
         }).optional(),
         datadog: z.object({
           endpoint: z.string().optional(),
-          api_key: z.string(),
+          api_key: z.string().meta({ sensitive: true }),
         }).optional(),
         logtail: z.object({
-          token: z.string().optional(),
+          token: z.string().meta({ sensitive: true }).optional(),
         }).optional(),
         open_search: z.object({
           endpoint: z.string().optional(),
           basic_auth: z.object({
             user: z.string().optional(),
-            password: z.string().optional(),
+            password: z.string().meta({ sensitive: true }).optional(),
           }).optional(),
           index_name: z.string().optional(),
           cluster_name: z.string().optional(),
@@ -4171,7 +4171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.09.29.1",
+  version: "2026.10.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4235,6 +4235,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

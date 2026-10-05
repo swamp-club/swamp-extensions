@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.10.02.1"
+version: "2026.10.05.1"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: insight_alert_rule, insight_notification_channel
-  - Updated: load_balancer
+  - Updated: action_gateway_connection, action_gateway_mcp_server, app_deployment, app_platform, database_cluster, database_logsink, database_pool, database_replica, database_user, insight_notification_channel, monitoring_sink, monitoring_sink_destination, ssl_certificate
 models:
   - action_gateway_connection.ts
   - action_gateway_mcp_server.ts

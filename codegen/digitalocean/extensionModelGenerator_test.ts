@@ -782,9 +782,10 @@ Deno.test("token arg - collision guard omits the injected arg when a real 'token
     extensionName: "@swamp/digitalocean",
     version: "2026.01.01.1",
   });
-  // The injected sensitive token arg must NOT appear — the real schema property
-  // owns the `token` name. Exactly one `token:` field in GlobalArgsSchema.
-  assertEquals(code.includes("z.string().meta({ sensitive: true })"), false);
+  // The injected token arg must NOT appear — the real schema property owns the
+  // `token` name. Exactly one `token:` field in GlobalArgsSchema, and it is
+  // marked sensitive by the secret-name rule.
+  assertEquals(code.includes("DigitalOcean API token"), false);
   const globalArgs = code.slice(
     code.indexOf("const GlobalArgsSchema = z.object({"),
     code.indexOf("const ResourceSchema"),
@@ -793,6 +794,218 @@ Deno.test("token arg - collision guard omits the injected arg when a real 'token
     /^\s{2}token:/.test(l)
   );
   assertEquals(tokenLines.length, 1);
+  assertStringIncludes(tokenLines[0], ".meta({ sensitive: true })");
+});
+
+// ---------------------------------------------------------------------------
+// Secret-named spec fields are marked sensitive
+// ---------------------------------------------------------------------------
+
+const SENSITIVE = ".meta({ sensitive: true })";
+
+function secretResource(): DigitalOceanResource {
+  const webhook: DigitalOceanProperty = {
+    type: "object",
+    properties: {
+      url: stringProp,
+      basic_auth: {
+        type: "object",
+        properties: { user: stringProp, password: stringProp },
+      },
+      bearer_token: { type: "object", properties: { token: stringProp } },
+    },
+  };
+  const destinations: DigitalOceanProperty = {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { name: stringProp, datadog_api_key: stringProp },
+    },
+  };
+  return makeResource({
+    displayName: "Secret Thing",
+    modelSlug: "secret-thing",
+    endpoint: "/v2/secret_things",
+    createProperties: {
+      name: { type: "string", description: "The name" },
+      private_key: { type: "string", description: "PEM private key" },
+      webhook,
+      destinations,
+      api_key: { type: "object" },
+      credential_id: stringProp,
+      oauth_token_url: stringProp,
+      access_tokens: { type: "object" },
+      public_key: stringProp,
+      token: { type: "string", enum: ["a", "b"] },
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      password: stringProp,
+      webhook,
+      destinations,
+      credential_id: stringProp,
+    },
+    requiredProperties: ["name", "private_key"],
+    actions: [{
+      actionType: "rotate",
+      properties: { secret: stringProp, reason: stringProp },
+      requiredProperties: ["secret"],
+      nestedParams: false,
+    }],
+    subResourceMethods: [{
+      methodName: "update_auth",
+      subPath: "auth",
+      httpMethod: "PUT",
+      properties: { password: stringProp, mode: stringProp },
+      requiredProperties: [],
+    }],
+  });
+}
+
+function generateSecretThing(): string {
+  return generateDigitalOceanExtensionModel({
+    resource: secretResource(),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+}
+
+function schemaBlock(code: string, start: string, end: string): string {
+  return code.slice(code.indexOf(start), code.indexOf(end));
+}
+
+Deno.test("sensitive fields - marked in GlobalArgsSchema at every depth", () => {
+  const globalArgs = schemaBlock(
+    generateSecretThing(),
+    "const GlobalArgsSchema = z.object({",
+    "const ResourceSchema",
+  );
+  assertStringIncludes(
+    globalArgs,
+    `private_key: z.string()${SENSITIVE}.describe("PEM private key"),`,
+  );
+  // Nested in an object, and in an object inside an array.
+  assertStringIncludes(globalArgs, `password: z.string()${SENSITIVE}`);
+  assertStringIncludes(globalArgs, `token: z.string()${SENSITIVE}`);
+  assertStringIncludes(globalArgs, `datadog_api_key: z.string()${SENSITIVE}`);
+  // A property-less object is emitted as a record and still holds a secret.
+  assertStringIncludes(
+    globalArgs,
+    `api_key: z.record(z.string(), z.unknown())${SENSITIVE}`,
+  );
+});
+
+Deno.test("sensitive fields - names that only contain a secret word are not marked", () => {
+  const code = generateSecretThing();
+  for (
+    const name of [
+      "credential_id",
+      "oauth_token_url",
+      "access_tokens",
+      "public_key",
+      "bearer_token",
+      "user",
+    ]
+  ) {
+    const fieldLines = code.split("\n").filter((l) =>
+      new RegExp(`^\\s+${name}: `).test(l)
+    );
+    assertEquals(fieldLines.length > 0, true, `${name} is emitted`);
+    for (const line of fieldLines) {
+      assertEquals(line.includes("sensitive"), false, line);
+    }
+  }
+  // An enum cannot hold a secret, whatever it is called.
+  assertStringIncludes(code, `token: z.enum(["a", "b"]).optional()`);
+});
+
+Deno.test("sensitive fields - marked in ResourceSchema and InputsSchema", () => {
+  const code = generateSecretThing();
+  const resource = schemaBlock(
+    code,
+    "const ResourceSchema = z.object({",
+    "type ResourceData",
+  );
+  assertStringIncludes(
+    resource,
+    `  password: z.string()${SENSITIVE}.optional()`,
+  );
+  assertStringIncludes(
+    resource,
+    `    password: z.string()${SENSITIVE}.optional()`,
+  );
+  assertStringIncludes(resource, `datadog_api_key: z.string()${SENSITIVE}`);
+
+  const inputs = schemaBlock(
+    code,
+    "const InputsSchema = z.object({",
+    "export const model",
+  );
+  assertStringIncludes(
+    inputs,
+    `private_key: z.string()${SENSITIVE}.optional()`,
+  );
+  assertStringIncludes(inputs, `datadog_api_key: z.string()${SENSITIVE}`);
+});
+
+Deno.test("sensitive fields - marked in action and sub-resource arguments", () => {
+  const code = generateSecretThing();
+  const action = schemaBlock(code, "    rotate: {", "    update_auth: {");
+  assertStringIncludes(action, `secret: z.string()${SENSITIVE}`);
+  assertEquals(action.includes(`reason: z.string()${SENSITIVE}`), false);
+
+  const subResource = code.slice(code.indexOf("    update_auth: {"));
+  assertStringIncludes(
+    subResource,
+    `password: z.string()${SENSITIVE}.optional()`,
+  );
+  assertEquals(subResource.includes(`mode: z.string()${SENSITIVE}`), false);
+});
+
+Deno.test("sensitive fields - the identifying field is never marked in ResourceSchema", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "Keyed Secret",
+      modelSlug: "keyed-secret",
+      endpoint: "/v2/keyed_secrets",
+      identifyingField: "secret",
+      createProperties: { name: stringProp },
+      resourceProperties: { secret: stringProp, password: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  const resource = schemaBlock(
+    code,
+    "const ResourceSchema = z.object({",
+    "type ResourceData",
+  );
+  assertStringIncludes(resource, "  secret: z.string(),");
+  assertStringIncludes(resource, `  password: z.string()${SENSITIVE}`);
+});
+
+Deno.test("sensitive fields - an underscore-stripped identifying field is not marked", () => {
+  // The pipeline's fallback names the Spaces key identifier `accesskey`; the
+  // property it identifies is the public access key ID `access_key`.
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "Space Key",
+      modelSlug: "space-key",
+      endpoint: "/v2/spaces/keys",
+      identifyingField: "accesskey",
+      createProperties: { name: stringProp },
+      resourceProperties: { name: stringProp, access_key: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  const resource = schemaBlock(
+    code,
+    "const ResourceSchema = z.object({",
+    "type ResourceData",
+  );
+  assertStringIncludes(resource, "  access_key: z.string().optional(),");
 });
 
 // ---------------------------------------------------------------------------
