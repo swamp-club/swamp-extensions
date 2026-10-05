@@ -562,14 +562,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.10.03.1",
-      description: "Removed: purpose",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { purpose: _purpose, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.10.04.1",
       description: "Added: purpose",
       upgradeAttributes: (old: Record<string, unknown>) => old,
