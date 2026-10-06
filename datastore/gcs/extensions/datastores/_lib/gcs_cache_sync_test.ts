@@ -9819,3 +9819,619 @@ Deno.test("swamp-club#2888: a change whose push failed is sent after a peer's wr
     await Deno.remove(cacheB, { recursive: true });
   }
 });
+
+// -- swamp-club #2999: a peer's deletions stay deleted ----------------------
+//
+// No conformance helper covers how two peers' caches reconcile, so these
+// assert it directly.
+
+const DIR_2999 = "data/@t/m/id1";
+const GONE_2999 = `${DIR_2999}/old/1/raw`;
+const KEPT_2999 = `${DIR_2999}/cur/1/raw`;
+const FRESH_2999 = `${DIR_2999}/new/1/raw`;
+
+/**
+ * Seeds shard-first index entries that carry a sha256, as a real push
+ * records them, and stores each file's object.
+ */
+async function seedSynced2999(
+  mock: ReturnType<typeof createMockGcsClient>,
+  files: Record<string, string>,
+  options?: { namespace?: string; commitSeq?: number },
+): Promise<void> {
+  const entries: Record<
+    string,
+    { key: string; size: number; lastModified: string; sha256: string }
+  > = {};
+  for (const [rel, body] of Object.entries(files)) {
+    entries[rel] = {
+      ...indexEntry(rel, body.length),
+      sha256: await sha256Hex(body),
+    };
+    const key = options?.namespace ? `${options.namespace}/${rel}` : rel;
+    mock.storage.set(key, new TextEncoder().encode(body));
+  }
+  const commitSeq = options?.commitSeq ?? 1;
+  if (options?.namespace) {
+    seedV2RepoNamespaced(mock, options.namespace, entries, commitSeq);
+  } else {
+    seedV2Repo(mock, entries, commitSeq);
+  }
+}
+
+/** Peer A deletes `rel` from its cache and pushes the deletion. */
+async function peerDeletes2999(
+  a: GcsCacheSyncService,
+  cacheA: string,
+  rel: string,
+): Promise<void> {
+  await Deno.remove(join(cacheA, rel));
+  await a.markDirty({ relPath: rel });
+  await a.pushChanged();
+}
+
+/** Writes a new version under DIR_2999 in `cache` and marks the dir dirty. */
+async function writeFresh2999(
+  svc: GcsCacheSyncService,
+  cache: string,
+): Promise<void> {
+  await Deno.mkdir(join(cache, DIR_2999, "new/1"), { recursive: true });
+  await Deno.writeTextFile(join(cache, FRESH_2999), "new!");
+  await svc.markDirty({ relPath: DIR_2999 });
+}
+
+Deno.test("swamp-club#2999: a pull drops a file a peer deleted, and the next push does not restore it", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-pull-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-pull-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+    assertEquals(mock.storage.has(GONE_2999), false);
+
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    // The emptied version directory goes too; the data name's other
+    // versions stay.
+    assertEquals(await exists(join(cacheB, DIR_2999, "old")), false);
+    assertEquals(await Deno.readTextFile(join(cacheB, KEPT_2999)), "kept");
+
+    await writeFresh2999(b, cacheB);
+    await b.pushChanged();
+
+    assertEquals(mock.storage.has(GONE_2999), false);
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(FRESH_2999)),
+      "new!",
+    );
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a push with no pull since a peer's delete does not restore the file", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-push-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-push-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    await writeFresh2999(b, cacheB);
+    await b.pushChanged();
+
+    assertEquals(mock.storage.has(GONE_2999), false);
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await Deno.readTextFile(join(cacheB, KEPT_2999)), "kept");
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a bulk-walk push does not restore a file a peer deleted", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-bulk-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-bulk-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    await Deno.mkdir(join(cacheB, DIR_2999, "new/1"), { recursive: true });
+    await Deno.writeTextFile(join(cacheB, FRESH_2999), "new!");
+    await b.markDirty();
+    await b.pushChanged();
+
+    assertEquals(mock.storage.has(GONE_2999), false);
+    assertEquals(mock.storage.has(FRESH_2999), true);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a file a peer deleted but this cache changed is kept and pushed", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-mod-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-mod-b-" });
+  try {
+    const resized = `${DIR_2999}/older/1/raw`;
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, {
+      [GONE_2999]: "gone",
+      [resized]: "older",
+      [KEPT_2999]: "kept",
+    });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await Deno.remove(join(cacheA, GONE_2999));
+    await Deno.remove(join(cacheA, resized));
+    await a.markDirty({ relPath: DIR_2999 });
+    await a.pushChanged();
+
+    // Same size with new content, and a new size.
+    await Deno.writeTextFile(join(cacheB, GONE_2999), "GONE");
+    await Deno.writeTextFile(join(cacheB, resized), "older, edited");
+    await b.pullChanged();
+
+    assertEquals(await Deno.readTextFile(join(cacheB, GONE_2999)), "GONE");
+    assertEquals(
+      await Deno.readTextFile(join(cacheB, resized)),
+      "older, edited",
+    );
+
+    await b.markDirty({ relPath: DIR_2999 });
+    await b.pushChanged();
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(GONE_2999)),
+      "GONE",
+    );
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a subdir-scoped pull drops peer deletions outside its subdirs too", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-sub-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-sub-b-" });
+  try {
+    const config = "config/settings.json";
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, {
+      [GONE_2999]: "gone",
+      [KEPT_2999]: "kept",
+      [config]: "{}",
+      "config/other.json": "{}",
+    });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await Deno.remove(join(cacheA, GONE_2999));
+    await Deno.remove(join(cacheA, config));
+    await a.markDirty({ relPath: GONE_2999 });
+    await a.markDirty({ relPath: config });
+    await a.pushChanged();
+
+    // The scoped pull reads and saves the whole index, so leaving the
+    // data deletion for a later pull would strand the file with no entry.
+    await b.pullChanged({ subdirs: ["config"] });
+    assertEquals(await exists(join(cacheB, config)), false);
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await exists(join(cacheB, "config/other.json")), true);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a dirty-path push only drops peer deletions in the shards it read", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-shard-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-shard-b-" });
+  try {
+    const other = "data/@t/other/id2/old/1/raw";
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, {
+      [KEPT_2999]: "kept",
+      [other]: "othr",
+      "data/@t/other/id2/cur/1/raw": "cur!",
+    });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, other);
+
+    // B's push reads only the model shard holding DIR_2999.
+    await writeFresh2999(b, cacheB);
+    await b.pushChanged();
+
+    assertEquals(await exists(join(cacheB, other)), true);
+    assertEquals(mock.storage.has(other), false);
+
+    // The scoped push merged its delta into the saved index, so the
+    // entry it did not read is still there for the next pull to drop.
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, other)), false);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a pull keeps the local copy when the index lists an object that is gone", async () => {
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-prune-" });
+  try {
+    const files = { [GONE_2999]: "gone", [KEPT_2999]: "kept" };
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, files);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await b.pullChanged();
+
+    // The object vanished while the index still lists it: an expiry rule
+    // or a manual delete, not a peer's GC (a GC removes the entry too). The
+    // unchanged local copy may be the last one, so the pull keeps it for
+    // the next push to restore. Another commit moves _meta.json on, so B's
+    // pull takes the slow path.
+    await seedSynced2999(mock, files, { commitSeq: 2 });
+    mock.storage.delete(GONE_2999);
+    await b.pullChanged();
+
+    assertEquals(await Deno.readTextFile(join(cacheB, GONE_2999)), "gone");
+    assertEquals(await Deno.readTextFile(join(cacheB, KEPT_2999)), "kept");
+  } finally {
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a metadata-only pull drops a file a peer deleted", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-lazy-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-lazy-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    await b.pullChanged({ metadataOnly: true });
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await exists(join(cacheB, KEPT_2999)), true);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a namespaced pull and push keep a peer's deletion", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-ns-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-ns-b-" });
+  try {
+    const ns = "team";
+    const mock = createMockGcsClient();
+    await seedSynced2999(
+      mock,
+      { [GONE_2999]: "gone", [KEPT_2999]: "kept" },
+      { namespace: ns },
+    );
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged({ namespace: ns });
+    await b.pullChanged({ namespace: ns });
+
+    await Deno.remove(join(cacheA, ns, GONE_2999));
+    await a.markDirty({ relPath: `${ns}/${GONE_2999}` });
+    await a.pushChanged({ namespace: ns });
+    assertEquals(mock.storage.has(`${ns}/${GONE_2999}`), false);
+
+    await b.pullChanged({ namespace: ns });
+    assertEquals(await exists(join(cacheB, ns, GONE_2999)), false);
+
+    await Deno.mkdir(join(cacheB, ns, DIR_2999, "new/1"), { recursive: true });
+    await Deno.writeTextFile(join(cacheB, ns, FRESH_2999), "new!");
+    await b.markDirty({ relPath: `${ns}/${DIR_2999}` });
+    await b.pushChanged({ namespace: ns });
+
+    assertEquals(mock.storage.has(`${ns}/${GONE_2999}`), false);
+    assertEquals(mock.storage.has(`${ns}/${FRESH_2999}`), true);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a missing remote index removes nothing from the cache", async () => {
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-empty-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await b.pullChanged();
+
+    // No _meta.json and no monolith: pullIndex falls back to discovery
+    // over an empty bucket, which says nothing about what peers deleted.
+    mock.storage.clear();
+    await b.pullChanged();
+
+    assertEquals(await exists(join(cacheB, GONE_2999)), true);
+    assertEquals(await exists(join(cacheB, KEPT_2999)), true);
+  } finally {
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: an empty remote index removes nothing from the cache", async () => {
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-zero-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await b.pullChanged();
+
+    // A readable _meta.json that lists no shards reads the same as a
+    // wiped index.
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(
+        JSON.stringify({ version: 2, partitions: [], commitSeq: 5 }),
+      ),
+    );
+    await b.pullChanged();
+
+    assertEquals(await exists(join(cacheB, GONE_2999)), true);
+    assertEquals(await exists(join(cacheB, KEPT_2999)), true);
+  } finally {
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a monolith-index pull drops a file a peer deleted", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-v1-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-v1-b-" });
+  try {
+    const files = { [GONE_2999]: "gone", [KEPT_2999]: "kept" };
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string; sha256: string }
+    > = {};
+    const mock = createMockGcsClient();
+    for (const [rel, body] of Object.entries(files)) {
+      entries[rel] = {
+        ...indexEntry(rel, body.length),
+        sha256: await sha256Hex(body),
+      };
+      mock.storage.set(rel, new TextEncoder().encode(body));
+    }
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+    assertEquals(mock.storage.has(GONE_2999), false);
+
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await Deno.readTextFile(join(cacheB, KEPT_2999)), "kept");
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: pullIndex reports only an index it fetched as remote", async () => {
+  const cache = await Deno.makeTempDir({ prefix: "gcssync-2999-flag-" });
+  const emptyCache = await Deno.makeTempDir({ prefix: "gcssync-2999-flag-e-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { [KEPT_2999]: "kept" });
+
+    const fetched = new GcsCacheSyncService(mock, cache);
+    const fetchedReport = { fromRemote: false };
+    assertEquals(
+      await fetched.pullIndex({ forceRemote: true, report: fetchedReport }) !==
+        null,
+      true,
+    );
+    assertEquals(fetchedReport.fromRemote, true);
+
+    // TTL hit on the local copy: null, like a NotFound, but no remote read.
+    const cached = new GcsCacheSyncService(mock, cache);
+    const cachedReport = { fromRemote: true };
+    assertEquals(await cached.pullIndex({ report: cachedReport }), null);
+    assertEquals(cachedReport.fromRemote, false);
+
+    // NotFound, then discovery over an empty bucket.
+    const discovered = new GcsCacheSyncService(
+      createMockGcsClient(),
+      emptyCache,
+    );
+    const discoveredReport = { fromRemote: true };
+    assertEquals(
+      await discovered.pullIndex({
+        forceRemote: true,
+        report: discoveredReport,
+      }),
+      null,
+    );
+    assertEquals(discoveredReport.fromRemote, false);
+  } finally {
+    await Deno.remove(cache, { recursive: true });
+    await Deno.remove(emptyCache, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a models-scoped pull that falls back to the whole index drops a file a peer deleted", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-models-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-models-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    // A model with no shard sends the scoped pull to the whole index.
+    await b.pullChanged(
+      {
+        context: { models: [{ modelType: "@t/none", modelId: "id9" }] },
+      } as Parameters<typeof b.pullChanged>[0],
+    );
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await Deno.readTextFile(join(cacheB, KEPT_2999)), "kept");
+
+    await writeFresh2999(b, cacheB);
+    await b.pushChanged();
+    assertEquals(mock.storage.has(GONE_2999), false);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: a pull drops every file of a model whose shard a peer emptied", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-emptied-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-emptied-b-" });
+  try {
+    const config = "config/settings.json";
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, {
+      [GONE_2999]: "gone",
+      [KEPT_2999]: "kept",
+      [config]: "{}",
+    });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    // Deleting all of a model's data empties its shard, which unlists it
+    // from _meta.json. That is a deletion, not a shard the pull missed.
+    await Deno.remove(join(cacheA, DIR_2999), { recursive: true });
+    await a.markDirty({ relPath: DIR_2999 });
+    await a.pushChanged();
+    assertEquals(mock.storage.has(KEPT_2999), false);
+
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+    assertEquals(await exists(join(cacheB, KEPT_2999)), false);
+    assertEquals(await exists(join(cacheB, config)), true);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: the next pull finishes removals an interrupted pull left", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-abort-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-abort-b-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [GONE_2999]: "gone", [KEPT_2999]: "kept" });
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    // B's pull is cancelled once it has read the shards, before it removes
+    // anything.
+    const controller = new AbortController();
+    const get = mock.getObject.bind(mock);
+    mock.getObject = async (key, signal) => {
+      const result = await get(key, signal);
+      if (key.startsWith("_index/data--")) controller.abort();
+      return result;
+    };
+    try {
+      await assertRejects(() => b.pullChanged({ signal: controller.signal }));
+    } finally {
+      mock.getObject = get;
+    }
+    assertEquals(await exists(join(cacheB, GONE_2999)), true);
+
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2999: the next pull finishes removals an interrupted monolith-index pull left", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2999-v1abort-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2999-v1abort-b-" });
+  try {
+    const files = { [GONE_2999]: "gone", [KEPT_2999]: "kept" };
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string; sha256: string }
+    > = {};
+    const mock = createMockGcsClient();
+    for (const [rel, body] of Object.entries(files)) {
+      entries[rel] = {
+        ...indexEntry(rel, body.length),
+        sha256: await sha256Hex(body),
+      };
+      mock.storage.set(rel, new TextEncoder().encode(body));
+    }
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    const a = new GcsCacheSyncService(mock, cacheA);
+    const b = new GcsCacheSyncService(mock, cacheB);
+    await a.pullChanged();
+    await b.pullChanged();
+
+    await peerDeletes2999(a, cacheA, GONE_2999);
+
+    // B's pull is cancelled once it has fetched the index, before it
+    // removes anything.
+    const controller = new AbortController();
+    const get = mock.getObject.bind(mock);
+    mock.getObject = async (key, signal) => {
+      const result = await get(key, signal);
+      if (key === ".datastore-index.json") controller.abort();
+      return result;
+    };
+    try {
+      await assertRejects(() => b.pullChanged({ signal: controller.signal }));
+    } finally {
+      mock.getObject = get;
+    }
+    assertEquals(await exists(join(cacheB, GONE_2999)), true);
+
+    await b.pullChanged();
+    assertEquals(await exists(join(cacheB, GONE_2999)), false);
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});

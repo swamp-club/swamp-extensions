@@ -295,7 +295,24 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   bucket's copy when they differ, but the cache stays marked dirty until a push
   succeeds, so a retry that writes the change again and calls `markDirty` pushes
   it instead of taking the fast path. The cost is one slow-path push after such
-  a pull, even when nothing is left to send.
+  a pull, even when nothing is left to send. A file a peer deletes stays
+  deleted. When a pull or push reads the bucket's index, a local file whose
+  entry was in the last-synced index but is gone from the bucket's is removed
+  from the cache, with any directories that leaves empty. Without this the file
+  would stay cached with no index entry, and the next push would upload it
+  again, undoing the peer's `swamp data gc`. Only a copy that is unchanged since
+  it was synced is removed: same size and a matching sha256, or for an entry
+  without one, the recorded mtime. A copy changed locally is kept, and a later
+  push that walks it uploads it. The saved index is updated only after the
+  removal, so an interrupted pull is finished by the next one. Nothing is
+  removed when the bucket's index is missing or lists no entries in scope, since
+  that reads the same as a wiped index. Files already orphaned by earlier
+  versions are not in the last-synced index, so they are not removed; run
+  `swamp data gc` once on that peer to clear them. An index entry whose object
+  is missing from the bucket is different: the pull drops the entry but keeps
+  the local copy, so a later push can upload it again, since the object may have
+  gone because of an expiry rule or a mistaken delete and the local copy may be
+  the last one.
 - **Tracing** — set `SWAMP_GCS_SYNC_TRACE=1` to emit coarse per-phase timing
   lines (`[gcs-sync] pullChanged.fastpath <ms> hit`,
   `[gcs-sync] pushChanged.walk <ms> toPush=<n>`, etc.). Off by default; useful

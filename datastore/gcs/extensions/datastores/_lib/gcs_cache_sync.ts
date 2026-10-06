@@ -1397,7 +1397,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private async assembleIndexFromShards(
     signal?: AbortSignal,
   ): Promise<
-    { entries: Record<string, IndexEntry>; commitSeq: number } | null
+    {
+      entries: Record<string, IndexEntry>;
+      commitSeq: number;
+      // Every shard was read; see assembleDirtyShardsOnly.
+      readKeys: null;
+    } | null
   > {
     const meta = await this.readPartitionMeta(signal);
     if (!meta) return null;
@@ -1438,7 +1443,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
     }
 
-    return { entries, commitSeq: v2Meta.commitSeq };
+    return { entries, commitSeq: v2Meta.commitSeq, readKeys: null };
   }
 
   /**
@@ -1458,7 +1463,11 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     dirtyPaths: ReadonlySet<string>,
     signal?: AbortSignal,
   ): Promise<
-    { entries: Record<string, IndexEntry>; commitSeq: number } | null
+    {
+      entries: Record<string, IndexEntry>;
+      commitSeq: number;
+      readKeys: ReadonlySet<string>;
+    } | null
   > {
     const meta = await this.readPartitionMeta(signal);
     if (!meta) return null;
@@ -1511,7 +1520,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
 
     if (neededKeys.size === 0) {
-      return { entries: {}, commitSeq: v2Meta.commitSeq };
+      return { entries: {}, commitSeq: v2Meta.commitSeq, readKeys: new Set() };
     }
 
     // Only read shards that exist in the partition list AND are needed.
@@ -1552,7 +1561,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
     }
 
-    return { entries, commitSeq: v2Meta.commitSeq };
+    return { entries, commitSeq: v2Meta.commitSeq, readKeys: new Set(toRead) };
   }
 
   private async recoverMetaFromListing(
@@ -1897,9 +1906,23 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * its on-disk view self-heals on the next GCS fetch.
    */
   async pullIndex(
-    options?: { forceRemote?: boolean; signal?: AbortSignal },
+    options?: {
+      forceRemote?: boolean;
+      signal?: AbortSignal;
+      // False leaves `.datastore-index.json` as it was, for a caller that
+      // first removes peer-deleted files against it (swamp-club #2999) and
+      // saves the fetched index itself.
+      persist?: boolean;
+      // Set to true only when the index was fetched from the remote index
+      // object. The TTL cache hit and the NotFound/discovery fallback
+      // return null too, so callers read this, not the return value, before
+      // trusting the index's absences. Per call, so a concurrent pullIndex
+      // on this instance cannot reset it.
+      report?: { fromRemote: boolean };
+    },
   ): Promise<string | null> {
     const signal = options?.signal;
+    if (options?.report) options.report.fromRemote = false;
     // Cache-hit returns null: no remote fetch happened, so we have no
     // fingerprint the caller can safely record. The alternative —
     // `getMetadata`'ing remote to synthesize a fingerprint —
@@ -1955,6 +1978,11 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     const text = new TextDecoder().decode(data);
     this.index = JSON.parse(text) as DatastoreIndex;
+    if (options?.report) options.report.fromRemote = true;
+    if (options?.persist === false) {
+      this.indexMutated ||= this.scrubIndex();
+      return generation ?? null;
+    }
     await ensureDir(this.cachePath);
     if (this.scrubIndex()) {
       this.indexMutated = true;
@@ -2324,8 +2352,40 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
           const indexStart = Date.now();
           const models = options?.context?.models;
-          let indexGeneration: string | null;
+          let indexGeneration: string | null = null;
           let v2CommitSeq: number | null = null;
+          // What this cache last synced, read before the remote index
+          // replaces it. A models-scoped pull that finds its partitions only
+          // merges them into the index, so it never sees a removal and skips
+          // this.
+          let lastSynced: Record<string, IndexEntry> | null = null;
+          let indexFromRemote = false;
+          // Reads the whole remote index — shards, else the monolith — and
+          // leaves saving it until peer-deleted files are removed below.
+          const readWholeIndex = async () => {
+            lastSynced = await this.readLastSyncedEntries();
+            const assembled = await this.assembleIndexFromShards(signal);
+            if (assembled) {
+              this.index = {
+                version: 1,
+                lastPulled: new Date().toISOString(),
+                entries: assembled.entries,
+              };
+              this.scrubIndex();
+              indexGeneration = null;
+              v2CommitSeq = assembled.commitSeq;
+              indexFromRemote = true;
+            } else {
+              const report = { fromRemote: false };
+              indexGeneration = await this.pullIndex({
+                forceRemote: true,
+                signal,
+                persist: false,
+                report,
+              });
+              indexFromRemote = report.fromRemote;
+            }
+          };
 
           if (models && models.length > 0) {
             const partitionEntries = await this.pullPartitionedIndex(
@@ -2345,35 +2405,27 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               }
               indexGeneration = null;
             } else {
-              indexGeneration = await this.pullIndex({
-                forceRemote: true,
-                signal,
-              });
+              // A model with no shard: read the whole index the way an
+              // unscoped pull does, so it is reconciled before it is saved.
+              await readWholeIndex();
             }
           } else {
-            const assembled = await this.assembleIndexFromShards(signal);
-            if (assembled) {
-              this.index = {
-                version: 1,
-                lastPulled: new Date().toISOString(),
-                entries: assembled.entries,
-              };
-              this.scrubIndex();
-              await ensureDir(this.cachePath);
-              await atomicWriteTextFile(
-                this.indexPath,
-                JSON.stringify(this.index, null, 2),
-              );
-              indexGeneration = null;
-              v2CommitSeq = assembled.commitSeq;
-            } else {
-              indexGeneration = await this.pullIndex({
-                forceRemote: true,
-                signal,
-              });
-            }
+            await readWholeIndex();
           }
           tracePhase("pullChanged.pullIndex", indexStart);
+
+          // Drop local copies of files a peer deleted, so the next push
+          // does not upload them again (swamp-club #2999). A subdir-scoped
+          // pull still read, and saves, the whole index: a deletion it left
+          // out of scope would be gone from the saved index by the next
+          // pull, so it reconciles every entry, not only its subdirs.
+          if (indexFromRemote) {
+            await this.removePeerDeletedFiles(lastSynced, () => true, signal);
+          }
+          // The fetched index is saved only now. Saved before the removal,
+          // an interrupted pull would leave the unremoved files out of the
+          // last-synced index, where no later sync would find them.
+          if (indexFromRemote) await this.saveIndex();
 
           const metadataOnly = !!options?.metadataOnly;
 
@@ -2814,11 +2866,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const indexStart = Date.now();
           let indexGeneration: string | null = null;
           let v2CommitSeq: number | null = null;
+          const lastSynced = await this.readLastSyncedEntries();
           const willScopeWalk = !this.bulkInvalidated &&
             this.dirtyPaths.size > 0;
           const assembled = willScopeWalk
             ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
             : await this.assembleIndexFromShards(signal);
+          let indexFromRemote = assembled !== null;
           if (assembled) {
             this.index = {
               version: 1,
@@ -2834,11 +2888,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               willScopeWalk ? `scoped=${this.dirtyPaths.size}` : `full`,
             );
           } else {
+            const report = { fromRemote: false };
             indexGeneration = await this.pullIndex({
               forceRemote: true,
               signal,
+              persist: false,
+              report,
             });
             this.indexIsPartial = false;
+            indexFromRemote = report.fromRemote;
             if (this.freshV2Initialized) {
               v2CommitSeq = 0;
               indexGeneration = null;
@@ -2889,6 +2947,19 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               await this.writeSyncState(sidecar);
             } catch { /* non-fatal */ }
           }
+
+          // A peer's deletions must not come back with this push
+          // (swamp-club #2999).
+          if (indexFromRemote) {
+            await this.removePeerDeletedFiles(
+              lastSynced,
+              this.assembledScope(assembled?.readKeys),
+              signal,
+            );
+          }
+          // pullIndex left the fetched monolith unsaved so the removal above
+          // could run against the last-synced index first (swamp-club #2999).
+          if (assembled === null && indexFromRemote) await this.saveIndex();
 
           const walkStart = Date.now();
           const nsPrefix = this.namespace ? `${this.namespace}/` : "";
@@ -3312,11 +3383,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           }
 
           const indexStart = Date.now();
+          const lastSynced = await this.readLastSyncedEntries();
           const prepWillScope = !this.bulkInvalidated &&
             this.dirtyPaths.size > 0;
           const prepAssembled = prepWillScope
             ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
             : await this.assembleIndexFromShards(signal);
+          let indexFromRemote = prepAssembled !== null;
           if (prepAssembled) {
             this.index = {
               version: 1,
@@ -3331,8 +3404,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               prepWillScope ? `scoped=${this.dirtyPaths.size}` : `full`,
             );
           } else {
-            await this.pullIndex({ forceRemote: true, signal });
+            const report = { fromRemote: false };
+            await this.pullIndex({
+              forceRemote: true,
+              signal,
+              persist: false,
+              report,
+            });
             this.indexIsPartial = false;
+            indexFromRemote = report.fromRemote;
             tracePhase("preparePush.pullIndex", indexStart);
           }
 
@@ -3370,6 +3450,19 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               await this.writeSyncState(sidecar);
             } catch { /* non-fatal */ }
           }
+
+          // A peer's deletions must not come back with this push
+          // (swamp-club #2999).
+          if (indexFromRemote) {
+            await this.removePeerDeletedFiles(
+              lastSynced,
+              this.assembledScope(prepAssembled?.readKeys),
+              signal,
+            );
+          }
+          // pullIndex left the fetched monolith unsaved so the removal above
+          // could run against the last-synced index first (swamp-club #2999).
+          if (prepAssembled === null && indexFromRemote) await this.saveIndex();
 
           const nsPrefix = this.namespace ? `${this.namespace}/` : "";
           const toPush: Array<{ rel: string; path: string }> = [];
@@ -3858,6 +3951,194 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
 
     return data.pushed + data.deleted;
+  }
+
+  /** Saves the in-memory index as `.datastore-index.json`. */
+  private async saveIndex(): Promise<void> {
+    if (!this.index) return;
+    await ensureDir(this.cachePath);
+    await atomicWriteTextFile(
+      this.indexPath,
+      JSON.stringify(this.index, null, 2),
+    );
+  }
+
+  /**
+   * Entries of the on-disk `.datastore-index.json`: what this cache last
+   * synced. Read before a pull or push replaces the index. Only remote reads
+   * and committed pushes write that file, so unlike the in-memory index it
+   * never holds an entry from a push whose commit failed. Null when absent
+   * or unreadable.
+   */
+  private async readLastSyncedEntries(): Promise<
+    Record<string, IndexEntry> | null
+  > {
+    try {
+      const parsed = JSON.parse(
+        await Deno.readTextFile(this.indexPath),
+      ) as DatastoreIndex;
+      return parsed?.entries ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Which entries an assembled index speaks for. A dirty-shards-only
+   * assembly read some shards, so only entries those shards hold can be
+   * missing because a peer removed them; a full assembly or monolith read
+   * speaks for every entry.
+   */
+  private assembledScope(
+    readKeys: ReadonlySet<string> | null | undefined,
+  ): (rel: string) => boolean {
+    if (!readKeys) return () => true;
+    return (rel) => {
+      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+      return key !== undefined && readKeys.has(key);
+    };
+  }
+
+  /**
+   * Removes local copies of files a peer deleted from the remote
+   * (swamp-club #2999). A file is a candidate when its entry was in
+   * `prior` (the last-synced index), is in scope, and is absent from the
+   * index just read from the remote. Without this, a pull leaves the file
+   * behind with no index entry, and the next push walk uploads it again —
+   * undoing the peer's `swamp data gc`.
+   *
+   * Callers pass `prior` only when `this.index` is an authoritative remote
+   * read. Nothing is removed when no in-scope entry remains remotely: an
+   * empty index reads the same as a wiped one, and removing every file on
+   * that evidence would empty the cache.
+   */
+  private async removePeerDeletedFiles(
+    prior: Record<string, IndexEntry> | null,
+    inScope: (rel: string) => boolean,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    if (!prior || !this.index) return 0;
+    const current = this.index.entries;
+    const candidates: Array<[string, IndexEntry]> = [];
+    for (const [rel, entry] of Object.entries(prior)) {
+      if (isInternalCacheFile(rel)) continue;
+      if (isStrayNamespacePath(rel, this.namespace)) continue;
+      if (!inScope(rel) || current[rel]) continue;
+      candidates.push([rel, entry]);
+    }
+    if (candidates.length === 0) return 0;
+    if (!Object.keys(current).some(inScope)) return 0;
+    return await this.removeUnchangedFiles(candidates, signal);
+  }
+
+  /**
+   * Removes each local file whose content is provably what `entry`
+   * recorded at sync time — same size, plus a matching sha256 (or, for a
+   * hashless entry, the recorded mtime) — then any parent directories the
+   * removal emptied.
+   * A file that changed locally holds work no remote has, so it is kept
+   * for the next push to send. Returns how many files were removed.
+   */
+  private async removeUnchangedFiles(
+    candidates: ReadonlyArray<[string, IndexEntry]>,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    let removed = 0;
+    let kept = 0;
+    const failed: string[] = [];
+    for (let i = 0; i < candidates.length; i += this.pullConcurrency) {
+      throwIfAborted(signal);
+      const batch = candidates.slice(i, i + this.pullConcurrency);
+      const results = await Promise.all(
+        batch.map(([rel, entry]) => this.removeIfUnchanged(rel, entry)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j] === "removed") removed++;
+        else if (results[j] === "changed") kept++;
+        else if (results[j] === "failed") failed.push(batch[j][0]);
+      }
+    }
+    if (kept > 0) {
+      console.warn(
+        `[gcs-sync] Kept ${kept} local file(s) that a peer deleted from the ` +
+          `remote, because they changed locally. A later push that walks ` +
+          `them uploads them.`,
+      );
+    }
+    if (failed.length > 0) {
+      console.warn(
+        `[gcs-sync] Could not remove ${failed.length} local file(s) that a peer ` +
+          `deleted from the remote (first: ${failed[0]}). Remove them by ` +
+          `hand, or a later push that walks them uploads them again.`,
+      );
+    }
+    return removed;
+  }
+
+  private async removeIfUnchanged(
+    rel: string,
+    entry: IndexEntry,
+  ): Promise<"removed" | "changed" | "absent" | "failed"> {
+    const localRel = this.localRelPath(rel);
+    if (this.dirtyPaths.has(localRel)) return "changed";
+    let localPath: string;
+    try {
+      localPath = assertSafePath(this.cachePath, localRel);
+    } catch {
+      return "absent";
+    }
+    try {
+      const stat = await Deno.stat(localPath);
+      if (!stat.isFile) return "absent";
+      if (stat.size !== entry.size) return "changed";
+      // Removal destroys the copy, so the hash decides whenever there is
+      // one: on a coarse-mtime filesystem a same-size rewrite in the same
+      // second keeps the recorded mtime. Only a hashless entry falls back
+      // to the mtime, and then only once it is over a second old.
+      if (entry.sha256) {
+        if (await streamingSha256(localPath) !== entry.sha256) {
+          return "changed";
+        }
+      } else if (
+        !entry.localMtime || !stat.mtime ||
+        entry.localMtime !== stat.mtime.toISOString() ||
+        Date.now() - stat.mtime.getTime() < 1000
+      ) {
+        return "changed";
+      }
+    } catch {
+      return "absent";
+    }
+    try {
+      await Deno.remove(localPath);
+    } catch (err) {
+      return err instanceof Deno.errors.NotFound ? "absent" : "failed";
+    }
+    await this.removeEmptyParents(localPath);
+    return "removed";
+  }
+
+  /**
+   * Removes directories emptied by a file removal, walking up from the
+   * file's directory. Stops at the first non-empty directory and never
+   * removes a top-level subdir (`data/`, `outputs/`, ...) or the namespace
+   * root. A peer's GC leaves no empty version directories, so this one
+   * should not either.
+   */
+  private async removeEmptyParents(filePath: string): Promise<void> {
+    const keepDepth = this.namespace ? 2 : 1;
+    let dir = dirname(filePath);
+    while (true) {
+      const rel = relative(this.cachePath, dir);
+      if (rel === "" || rel.startsWith("..")) return;
+      if (rel.split(/[\\/]/).length <= keepDepth) return;
+      try {
+        await Deno.remove(dir);
+      } catch {
+        return;
+      }
+      dir = dirname(dir);
+    }
   }
 
   /**
