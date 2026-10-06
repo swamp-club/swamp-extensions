@@ -20,9 +20,12 @@
 /**
  * Swamp vault provider backed by 1Password.
  *
- * Delegates all secret operations to the official `op` CLI, so the provider
- * inherits whichever authentication mechanism `op` is configured with
- * (service account token, desktop app, or Connect server). Use this
+ * Delegates all secret operations to the official `op` CLI. By default the
+ * provider inherits whichever authentication mechanism `op` is configured with
+ * (service account token, desktop app, or Connect server). When
+ * `op_service_account_token_file` is set, the service account token is read
+ * from that file on each `op` call and passed only to the `op` child process,
+ * never to the swamp process environment. Use this
  * entrypoint when a swamp deployment should store its secrets in 1Password.
  *
  * @module
@@ -213,12 +216,21 @@ class OnePasswordVaultProvider implements VaultProvider {
   private readonly name: string;
   private readonly opVault: string;
   private readonly opAccount: string | undefined;
+  private readonly tokenFile: string | undefined;
   private opInstalled: boolean | undefined;
 
-  constructor(name: string, config: { op_vault: string; op_account?: string }) {
+  constructor(
+    name: string,
+    config: {
+      op_vault: string;
+      op_account?: string;
+      op_service_account_token_file?: string;
+    },
+  ) {
     this.name = name;
     this.opVault = config.op_vault;
     this.opAccount = config.op_account;
+    this.tokenFile = config.op_service_account_token_file;
   }
 
   async get(secretKey: string): Promise<string> {
@@ -985,10 +997,44 @@ class OnePasswordVaultProvider implements VaultProvider {
       "1Password CLI (op) is not installed or not in PATH.\n\n" +
         "Install it from: https://developer.1password.com/docs/cli/get-started/\n\n" +
         "After installing, authenticate using one of:\n" +
-        "  - Service account: export OP_SERVICE_ACCOUNT_TOKEN=<token>\n" +
+        "  - Service account: export OP_SERVICE_ACCOUNT_TOKEN=<token>,\n" +
+        "    or set op_service_account_token_file in the vault config\n" +
         "  - Desktop app: enable CLI integration in 1Password settings\n" +
         "  - Connect Server: export OP_CONNECT_HOST and OP_CONNECT_TOKEN",
     );
+  }
+
+  /**
+   * Builds the extra env for an authenticated `op` child. Returns undefined
+   * when no token file is configured, so `op` inherits the process env as
+   * before. Otherwise the token is re-read on every call (so rotation needs no
+   * restart) and handed only to the child — never set on `Deno.env`, which
+   * swamp serve snapshots and ships to remote workers.
+   */
+  private async buildOpEnv(): Promise<Record<string, string> | undefined> {
+    if (this.tokenFile === undefined) {
+      return undefined;
+    }
+
+    let contents: string;
+    try {
+      contents = await Deno.readTextFile(this.tokenFile);
+    } catch (err) {
+      const kind = err instanceof Error ? err.name : "Error";
+      throw new Error(
+        `Failed to read 1Password service account token file '${this.tokenFile}' (${kind}). ` +
+          `op_service_account_token_file must be an absolute path to a readable file.`,
+      );
+    }
+
+    // trim() also drops a leading byte-order mark, which some editors write.
+    const token = contents.trim();
+    if (token === "") {
+      throw new Error(
+        `1Password service account token file '${this.tokenFile}' is empty.`,
+      );
+    }
+    return { OP_SERVICE_ACCOUNT_TOKEN: token };
   }
 
   private async runOp(args: string[]): Promise<string> {
@@ -1002,8 +1048,10 @@ class OnePasswordVaultProvider implements VaultProvider {
           [Attr.RPC_METHOD]: subcommand ?? "unknown",
         });
         try {
+          const env = await this.buildOpEnv();
           const command = new Deno.Command("op", {
             args,
+            ...(env ? { env } : {}),
             stdin: "null",
             stdout: "piped",
             stderr: "piped",
@@ -1024,7 +1072,8 @@ class OnePasswordVaultProvider implements VaultProvider {
               throw new Error(
                 `1Password authentication failed.\n\n` +
                   `Authenticate using one of:\n` +
-                  `  - Service account: export OP_SERVICE_ACCOUNT_TOKEN=<token>\n` +
+                  `  - Service account: export OP_SERVICE_ACCOUNT_TOKEN=<token>,\n` +
+                  `    or set op_service_account_token_file in the vault config\n` +
                   `  - Desktop app: enable CLI integration in 1Password settings\n` +
                   `  - Sign in: op signin\n\n` +
                   `Error: ${errorMessage}`,
@@ -1076,6 +1125,16 @@ export const vault = {
   configSchema: z.object({
     op_vault: z.string().min(1).describe("The 1Password vault to use"),
     op_account: z.string().optional().describe("Account shorthand or UUID"),
+    op_service_account_token_file: z.string().min(1).refine(
+      // POSIX absolute, Windows drive-absolute, or UNC path.
+      (p) =>
+        p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p) || p.startsWith("\\\\"),
+      "op_service_account_token_file must be an absolute path",
+    ).optional().describe(
+      "Absolute path to a file containing a 1Password service account token " +
+        "(not the token itself). Read on each op call and passed only to the " +
+        "op child process.",
+    ),
   }).strict(),
   createProvider(
     name: string,

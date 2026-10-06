@@ -33,10 +33,19 @@ Deno.test("vault export conforms to VaultProvider contract", () => {
     validConfigs: [
       { op_vault: "Engineering" },
       { op_vault: "Engineering", op_account: "my-team.1password.com" },
+      {
+        op_vault: "Engineering",
+        op_service_account_token_file: "/run/secrets/op-token",
+      },
     ],
     invalidConfigs: [
       {},
       { op_vault: "" },
+      { op_vault: "Engineering", op_service_account_token_file: "" },
+      {
+        op_vault: "Engineering",
+        op_service_account_token_file: "secrets/op-token",
+      },
     ],
   });
 });
@@ -1009,4 +1018,279 @@ Deno.test("1password vault: get preserves leading whitespace in secret values", 
   });
 
   assertEquals(result, paddedValue);
+});
+
+// --- Service account token file tests (issue #2789) ---
+
+interface CapturedEnvCall {
+  args: string[];
+  env: Record<string, string> | undefined;
+}
+
+/**
+ * Replaces Deno.Command with a stub that records each call's env option.
+ * withMockedCommand from @systeminit/swamp-testing drops the options object,
+ * so it cannot assert what env reaches the child (swamp-club #3090). Remove
+ * this helper once withMockedCommand captures env.
+ */
+async function withEnvCapturingCommand<T>(
+  fn: () => Promise<T>,
+  options: { failAuth?: boolean } = {},
+): Promise<{ result: T; calls: CapturedEnvCall[] }> {
+  const calls: CapturedEnvCall[] = [];
+  const original = Deno.Command;
+  // @ts-ignore: replacing Deno.Command for testing
+  Deno.Command = class {
+    #args: string[];
+    #env: Record<string, string> | undefined;
+
+    constructor(
+      _command: string | URL,
+      options?: { args?: string[]; env?: Record<string, string> },
+    ) {
+      this.#args = options?.args ?? [];
+      this.#env = options?.env;
+    }
+
+    output(): Promise<Deno.CommandOutput> {
+      calls.push({ args: this.#args, env: this.#env });
+      if (options.failAuth && this.#args[0] !== "--version") {
+        return Promise.resolve({
+          success: false,
+          code: 1,
+          signal: null,
+          stdout: new Uint8Array(),
+          stderr: new TextEncoder().encode(
+            "[ERROR] You are not signed in. authorization failed",
+          ),
+        } as Deno.CommandOutput);
+      }
+      const stdout = this.#args[0] === "read" ? "secret-value\n" : "op 2.30.0";
+      return Promise.resolve({
+        success: true,
+        code: 0,
+        signal: null,
+        stdout: new TextEncoder().encode(stdout),
+        stderr: new Uint8Array(),
+      } as Deno.CommandOutput);
+    }
+  };
+  try {
+    return { result: await fn(), calls };
+  } finally {
+    Deno.Command = original;
+  }
+}
+
+/**
+ * Runs fn with OP_SERVICE_ACCOUNT_TOKEN unset, so results never depend on
+ * the developer's shell, and restores the original value afterwards.
+ */
+async function withoutTokenEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const original = Deno.env.get("OP_SERVICE_ACCOUNT_TOKEN");
+  Deno.env.delete("OP_SERVICE_ACCOUNT_TOKEN");
+  try {
+    return await fn();
+  } finally {
+    if (original === undefined) {
+      Deno.env.delete("OP_SERVICE_ACCOUNT_TOKEN");
+    } else {
+      Deno.env.set("OP_SERVICE_ACCOUNT_TOKEN", original);
+    }
+  }
+}
+
+Deno.test("1password vault: token file is passed only to the op child", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    try {
+      await Deno.writeTextFile(tokenFile, "ops_file_token\n");
+      const { result, calls } = await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        return await provider.get("api-key");
+      });
+
+      assertEquals(result, "secret-value");
+      const readCall = calls.find((c) => c.args[0] === "read");
+      assertEquals(readCall?.env, {
+        OP_SERVICE_ACCOUNT_TOKEN: "ops_file_token",
+      });
+      assertEquals(Deno.env.get("OP_SERVICE_ACCOUNT_TOKEN"), undefined);
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("1password vault: token file strips leading whitespace and BOM", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    try {
+      await Deno.writeTextFile(tokenFile, "\uFEFF  ops_bom_token \r\n");
+      const { calls } = await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        await provider.get("api-key");
+      });
+
+      const readCall = calls.find((c) => c.args[0] === "read");
+      assertEquals(readCall?.env?.OP_SERVICE_ACCOUNT_TOKEN, "ops_bom_token");
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("1password vault: token file is re-read on every op call", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    try {
+      await Deno.writeTextFile(tokenFile, "first-token");
+      const { calls } = await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        await provider.get("api-key");
+        await Deno.writeTextFile(tokenFile, "rotated-token\n");
+        await provider.get("api-key");
+      });
+
+      const tokens = calls
+        .filter((c) => c.args[0] === "read")
+        .map((c) => c.env?.OP_SERVICE_ACCOUNT_TOKEN);
+      assertEquals(tokens, ["first-token", "rotated-token"]);
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("1password vault: op --version never receives the token", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    try {
+      await Deno.writeTextFile(tokenFile, "ops_file_token");
+      const { calls } = await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        await provider.get("api-key");
+      });
+
+      const versionCall = calls.find((c) => c.args[0] === "--version");
+      assertEquals(versionCall?.env, undefined);
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("1password vault: without a token file op inherits the env unchanged", async () => {
+  await withoutTokenEnv(async () => {
+    const { calls } = await withEnvCapturingCommand(async () => {
+      const provider = vault.createProvider("test", {
+        op_vault: "Engineering",
+      });
+      await provider.get("api-key");
+    });
+
+    for (const call of calls) {
+      assertEquals(call.env, undefined);
+    }
+  });
+});
+
+Deno.test("1password vault: missing token file rejects naming the path", async () => {
+  await withoutTokenEnv(async () => {
+    const dir = await Deno.makeTempDir();
+    const tokenFile = `${dir}/does-not-exist`;
+    try {
+      await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        await assertRejects(
+          () => provider.get("api-key"),
+          Error,
+          `token file '${tokenFile}' (NotFound)`,
+        );
+      });
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  });
+});
+
+Deno.test("1password vault: empty token file rejects", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    try {
+      await Deno.writeTextFile(tokenFile, "  \n");
+      await withEnvCapturingCommand(async () => {
+        const provider = vault.createProvider("test", {
+          op_vault: "Engineering",
+          op_service_account_token_file: tokenFile,
+        });
+        await assertRejects(
+          () => provider.get("api-key"),
+          Error,
+          "is empty",
+        );
+      });
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("1password vault: op errors never contain the token value", async () => {
+  await withoutTokenEnv(async () => {
+    const tokenFile = await Deno.makeTempFile();
+    const token = "ops_very_secret_token";
+    try {
+      await Deno.writeTextFile(tokenFile, token);
+      const { result: err, calls } = await withEnvCapturingCommand(
+        async () => {
+          const provider = vault.createProvider("test", {
+            op_vault: "Engineering",
+            op_service_account_token_file: tokenFile,
+          });
+          return await assertRejects(() => provider.get("api-key"), Error);
+        },
+        { failAuth: true },
+      );
+
+      // The failing call really carried the token, so its absence from the
+      // error is meaningful rather than trivially true.
+      const readCall = calls.find((c) => c.args[0] === "read");
+      assertEquals(readCall?.env?.OP_SERVICE_ACCOUNT_TOKEN, token);
+      assertEquals(err.message.includes(token), false);
+      assertEquals(
+        err.message.includes("op_service_account_token_file"),
+        true,
+      );
+    } finally {
+      await Deno.remove(tokenFile);
+    }
+  });
+});
+
+Deno.test("configSchema rejects a relative op_service_account_token_file", () => {
+  assertThrows(
+    () =>
+      vault.configSchema.parse({
+        op_vault: "Engineering",
+        op_service_account_token_file: "secrets/op-token",
+      }),
+    Error,
+    "must be an absolute path",
+  );
 });

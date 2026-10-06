@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/1password"
-version: "2026.09.10.0"
+version: "2026.10.06.0"
 description: |
   Read, write, delete, and annotate secrets stored in 1Password using the `op` CLI.
   Supports `swamp vault delete` for removing secrets and `swamp vault annotate`
@@ -13,7 +13,9 @@ description: |
 
   - [1Password CLI](https://developer.1password.com/docs/cli/get-started/) installed and in `PATH`
   - Authenticated via one of:
-    - **Service account**: `export OP_SERVICE_ACCOUNT_TOKEN=<token>`
+    - **Service account**: `export OP_SERVICE_ACCOUNT_TOKEN=<token>`, or set
+      `op_service_account_token_file` in the vault config to read the token from
+      a file and pass it only to the `op` child process
     - **Desktop app**: enable CLI integration in 1Password settings
     - **Connect Server**: `export OP_CONNECT_HOST=<url>` and `export OP_CONNECT_TOKEN=<token>`
 
