@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean nfs. Registered at `@swamp/digitalocean/nfs`. */
 export const model = {
   type: "@swamp/digitalocean/nfs",
-  version: "2026.06.26.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -205,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -338,12 +343,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          "/v2/nfs",
-          existing.nfsid ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
+        const result = await tryRead("/v2/nfs", storedId, undefined, g.token) as
+          | ResourceData
+          | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -353,7 +362,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          nfsid: existing.nfsid ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

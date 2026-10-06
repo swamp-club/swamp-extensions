@@ -90,7 +90,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  serverRef: z.string().optional(),
+  serverRef: z.string(),
   endpoint: z.string().optional(),
   transport: z.string().optional(),
   credentialRefSource: z.string().optional(),
@@ -131,10 +131,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway mcp server. Registered at `@swamp/digitalocean/action-gateway-mcp-server`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-mcp-server",
-  version: "2026.10.05.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -243,11 +248,18 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.serverRef ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no serverRef; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
         const result = await update(
           "/v2/action-gateway/mcp-servers",
-          existing.serverref ?? existing.id,
+          storedId,
           body,
           "PATCH",
           undefined,
@@ -282,6 +294,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          serverRef: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -307,9 +320,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.serverRef ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no serverRef; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/action-gateway/mcp-servers",
-          existing.serverref ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -322,7 +342,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          serverref: existing.serverref ?? existing.id,
+          serverRef: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

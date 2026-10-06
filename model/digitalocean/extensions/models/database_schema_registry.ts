@@ -71,7 +71,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database schema registry. Registered at `@swamp/digitalocean/database-schema-registry`. */
 export const model = {
   type: "@swamp/digitalocean/database-schema-registry",
-  version: "2026.06.08.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -80,6 +80,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -178,6 +183,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          subject_name: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -205,12 +211,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          endpoint,
-          existing.subject_name ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
+        const storedId = existing.subject_name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no subject_name; run get with the resource ID first",
+          );
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as
+          | ResourceData
+          | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -220,7 +230,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          subject_name: existing.subject_name ?? existing.id,
+          subject_name: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

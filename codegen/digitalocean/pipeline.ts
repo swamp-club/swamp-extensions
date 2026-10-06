@@ -98,11 +98,35 @@ const IDENTIFIER_MAP: Record<string, string> = {
   // IP-based
   floating_ip: "ip",
   reserved_ip: "ip",
+  reserved_ipv6: "ip",
+  // Named by the spec, not by the param: "The unique identifier for the BYOIP
+  // Prefix" is the `uuid` field, and the namespace ID (`fn-...`) is `namespace`.
+  byoip_prefix_uuid: "uuid",
+  namespace_id: "namespace",
 };
 
 // Endpoint-level overrides (path → identifier field)
 const ENDPOINT_IDENTIFIER_OVERRIDES: Record<string, string> = {
   "/v2/apps/{id}": "id",
+};
+
+// Resources whose API responses never carry their own ID: create returns no
+// body and GET omits it. The identifier is the path param itself, persisted
+// into state from the `get` argument so `sync` can address the resource.
+const IDENTIFIER_FROM_ARGS = new Set(["/v2/monitoring/sinks"]);
+
+// get/delete argument names that must not follow a newly resolved identifier.
+// Renaming a method argument breaks existing callers, so these keep `id`.
+const ID_ARG_FIELD_OVERRIDES: Record<string, string> = {
+  byoip_prefix_uuid: "id",
+  reserved_ipv6: "id",
+};
+
+// Create-response keys next to the resource object that must not be stored.
+// The dedicated inference `token` carries a secret in `token.value`, which
+// name-based sensitivity marking cannot reach.
+const SKIPPED_CREATE_SIBLINGS: Record<string, string[]> = {
+  "/v2/dedicated-inferences": ["token"],
 };
 
 // Paths to skip at the top level
@@ -286,6 +310,19 @@ export interface DigitalOceanResource {
   parentParam?: string;
   /** Force synthetic naming even if "name" exists in create properties */
   forceSyntheticName?: boolean;
+  /** Identifier field that names the get/delete argument, when it differs from identifyingField */
+  idArgField?: string;
+  /** Identifier is not in any response; `get` persists its argument under identifyingField */
+  identifierFromArgs?: boolean;
+  /**
+   * Create response wrapping the resource next to other keys (e.g.
+   * `{ session, mcpUrl, tools }`): the resource key, and the sibling keys
+   * kept on stored state with their properties.
+   */
+  createEnvelope?: {
+    key: string;
+    siblings: Record<string, DigitalOceanProperty>;
+  };
 }
 
 export interface DigitalOceanGeneratedFile {
@@ -396,6 +433,7 @@ export async function generateDigitalOceanModels(options: {
 
   for (const resource of resources) {
     try {
+      assertIdentifierResolvable(resource);
       const candidateCode = generateDigitalOceanExtensionModel({
         resource,
         extensionName,
@@ -963,11 +1001,16 @@ function buildDisplayName(basePath: string): string {
   return NAME_OVERRIDES[rawName] ?? rawName;
 }
 
-/** Determine the identifier field for a resource */
-function resolveIdentifierField(
+/**
+ * Determine the identifier field for a resource: the response field whose
+ * value fills the path param. Returns `undefined` when no response field
+ * matches; callers decide whether that is an error.
+ */
+export function resolveIdentifierField(
   idPath: string,
   idParam: string,
-): string {
+  responseFields: string[],
+): string | undefined {
   // Check endpoint-level overrides first
   if (ENDPOINT_IDENTIFIER_OVERRIDES[idPath]) {
     return ENDPOINT_IDENTIFIER_OVERRIDES[idPath];
@@ -978,8 +1021,89 @@ function resolveIdentifierField(
     return IDENTIFIER_MAP[idParam];
   }
 
-  // Fallback: strip underscores from param name
-  return idParam.replace(/_/g, "");
+  // The param names a response field directly (`access_key`, `view_id`)
+  if (responseFields.includes(idParam)) return idParam;
+
+  // ...or in another case convention (`server_ref` → `serverRef`)
+  const normalize = (s: string) => s.replace(/_/g, "").toLowerCase();
+  const match = responseFields.find((f) => normalize(f) === normalize(idParam));
+  if (match) return match;
+
+  if (responseFields.includes("id")) return "id";
+  return undefined;
+}
+
+/**
+ * Throw unless a resource's identifier can be read back from stored state.
+ * Called per resource during generation, so a failure is reported as that
+ * model's error rather than emitting a model that requests `/undefined`.
+ */
+export function assertIdentifierResolvable(
+  resource: DigitalOceanResource,
+): void {
+  // Without a GET-by-id or an update there is no get, sync or update; the
+  // identifier is only the delete argument.
+  const readsStoredId = resource.handlers.read || resource.handlers.update;
+  if (!readsStoredId || resource.identifierFromArgs) return;
+  const field = resource.identifyingField;
+  if (field === "id" || field in resource.resourceProperties) return;
+  throw new Error(
+    `${resource.endpoint}: path param "${resource.idParam}" matches no response field ` +
+      `(fields: ${Object.keys(resource.resourceProperties).join(", ")}). ` +
+      `Add an IDENTIFIER_MAP entry naming the field, or an IDENTIFIER_FROM_ARGS ` +
+      `entry if the API never returns it.`,
+  );
+}
+
+/**
+ * Find a create response that wraps the resource next to other top-level keys
+ * (`{ session, mcpUrl, tools }`). The resource key is the first one holding an
+ * object with the resource's identifier; the others are siblings,
+ * kept unless skipped or colliding with a resource field (the resource's own
+ * value wins).
+ */
+export function resolveCreateEnvelope(
+  postOp: OApiOperation,
+  basePath: string,
+  resourceFields: string[],
+  identifier: string,
+): DigitalOceanResource["createEnvelope"] {
+  const responses = postOp.responses ?? {};
+  const ok = Object.keys(responses).sort().find((code) => code.startsWith("2"));
+  const schema = ok
+    ? responses[ok].content?.["application/json"]?.schema
+    : undefined;
+  // A oneOf/anyOf response lists alternatives (droplet's `{ droplet }` or
+  // `{ droplets: [...] }`), not keys that arrive together.
+  if (!schema || schema.oneOf || schema.anyOf) return undefined;
+  const flat = flattenSchemaProperties(schema);
+  if (!flat.properties) return undefined;
+  const keys = Object.keys(flat.properties).filter(
+    (k) => k !== "links" && k !== "meta",
+  );
+  // The identifier at the top level means a flat response: the resource's
+  // own fields, not an envelope.
+  if (keys.length < 2 || keys.includes(identifier)) return undefined;
+
+  // The resource key holds an object carrying the resource's identifier, so a
+  // nested object field (`region: { name, slug }`) is never mistaken for it.
+  const fieldsOf = (k: string) =>
+    Object.keys(
+      flattenSchemaProperties(flat.properties![k] as OApiSchema).properties ??
+        {},
+    );
+  const key = keys.find((k) => fieldsOf(k).includes(identifier));
+  if (!key) return undefined;
+
+  const envelopeFields = fieldsOf(key);
+  const skipped = SKIPPED_CREATE_SIBLINGS[basePath] ?? [];
+  const siblings: Record<string, DigitalOceanProperty> = {};
+  for (const k of keys) {
+    if (k === key || skipped.includes(k)) continue;
+    if (resourceFields.includes(k) || envelopeFields.includes(k)) continue;
+    siblings[k] = normalizeProperty(flat.properties[k] as OApiSchema);
+  }
+  return { key, siblings };
 }
 
 function buildResource(
@@ -990,11 +1114,6 @@ function buildResource(
   const displayName = buildDisplayName(basePath);
   const modelSlug = displayName.toLowerCase().replace(/\s+/g, "-");
   const fileName = modelSlug.replace(/-/g, "_") + ".ts";
-
-  // Determine identifier field
-  const identifyingField = group.idParam
-    ? resolveIdentifierField(group.idPath!, group.idParam)
-    : "id";
 
   // Extract CRUD operations
   const hasCreate = !!group.baseOps.post;
@@ -1032,6 +1151,32 @@ function buildResource(
     ? extractResponseProperties(readOp, readPath, spec)
     : {};
 
+  // Determine identifier field. An unresolved identifier falls back to the
+  // path param name; assertIdentifierResolvable rejects it at generation time
+  // unless the resource has no read handler or takes its ID from arguments.
+  const identifierFromArgs = IDENTIFIER_FROM_ARGS.has(basePath);
+  const identifyingField = !group.idParam
+    ? "id"
+    : identifierFromArgs
+    ? group.idParam
+    : resolveIdentifierField(
+      group.idPath!,
+      group.idParam,
+      Object.keys(resourceProps),
+    ) ?? group.idParam;
+  const idArgField = group.idParam
+    ? ID_ARG_FIELD_OVERRIDES[group.idParam]
+    : undefined;
+
+  const createEnvelope = group.baseOps.post
+    ? resolveCreateEnvelope(
+      group.baseOps.post,
+      basePath,
+      Object.keys(resourceProps),
+      identifyingField,
+    )
+    : undefined;
+
   // Determine create-only properties (in create but not update)
   const createOnlyProperties = new Set<string>();
   for (const name of Object.keys(createProps.properties)) {
@@ -1067,6 +1212,9 @@ function buildResource(
     actions: [],
     subResourceMethods: [],
     readiness: READINESS_CONFIG[basePath],
+    ...(idArgField ? { idArgField } : {}),
+    ...(identifierFromArgs ? { identifierFromArgs } : {}),
+    ...(createEnvelope ? { createEnvelope } : {}),
   };
 }
 

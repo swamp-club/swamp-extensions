@@ -136,6 +136,33 @@ export async function create(
   return unwrap(data);
 }
 
+/**
+ * Create a resource whose response wraps it next to other keys, e.g.
+ * `{ session, mcpUrl, tools }`. Returns the object under `key` with the
+ * `siblings` copied onto it, without overwriting the resource's own fields.
+ */
+export async function createEnveloped(
+  endpoint: string,
+  body: Record<string, unknown>,
+  key: string,
+  siblings: string[],
+  token?: string,
+): Promise<Record<string, unknown>> {
+  const resp = await request("POST", endpoint, body, undefined, token);
+  const text = await resp.text();
+  if (!text) return {};
+  const data = JSON.parse(text) as Record<string, unknown>;
+  const inner = data[key];
+  if (!inner || typeof inner !== "object" || Array.isArray(inner)) {
+    return unwrap(data);
+  }
+  const result = { ...(inner as Record<string, unknown>) };
+  for (const s of siblings) {
+    if (data[s] !== undefined && result[s] === undefined) result[s] = data[s];
+  }
+  return result;
+}
+
 export async function read(
   endpoint: string,
   id: number | string,

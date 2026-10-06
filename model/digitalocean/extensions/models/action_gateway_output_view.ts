@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  view_id: z.string().optional(),
+  view_id: z.string(),
   tool_id: z.string().optional(),
   tool: z.string().optional(),
   version: z.string().optional(),
@@ -92,7 +92,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway output view. Registered at `@swamp/digitalocean/action-gateway-output-view`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-output-view",
-  version: "2026.10.01.1",
+  version: "2026.10.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -193,6 +200,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          view_id: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -218,9 +226,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.view_id ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no view_id; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/action-gateway/output-views",
-          existing.viewid ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -233,7 +248,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          viewid: existing.viewid ?? existing.id,
+          view_id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

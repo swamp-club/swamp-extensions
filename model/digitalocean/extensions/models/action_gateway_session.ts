@@ -33,11 +33,9 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  create,
-  read,
+  createEnveloped,
   remove,
   tryFindByField,
-  tryRead,
 } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
@@ -79,7 +77,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  sessionUrn: z.string().optional(),
+  sessionUrn: z.string(),
   name: z.string().optional(),
   actorId: z.string().optional(),
   policy: z.object({
@@ -111,6 +109,7 @@ const ResourceSchema = z.object({
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   owning_user_id: z.string().optional(),
+  mcpUrl: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -142,7 +141,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway session. Registered at `@swamp/digitalocean/action-gateway-session`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-session",
-  version: "2026.10.01.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -151,6 +150,11 @@ export const model = {
         const { actor_id: _actor_id, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -196,36 +200,13 @@ export const model = {
         if (g.config !== undefined) body.config = g.config;
         if (g.network !== undefined) body.network = g.network;
         if (g.insights !== undefined) body.insights = g.insights;
-        const result = await create(
+        const result = await createEnveloped(
           "/v2/action-gateway/sessions",
           body,
-          undefined,
+          "session",
+          ["mcpUrl"],
           g.token,
         ) as ResourceData;
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
-    get: {
-      description: "Get a action gateway session",
-      arguments: z.object({
-        id: z.union([z.string(), z.number()]).describe(
-          "The ID of the action gateway session",
-        ),
-      }),
-      execute: async (args: { id: string | number }, context: any) => {
-        const result = await read(
-          "/v2/action-gateway/sessions",
-          args.id,
-          undefined,
-          context.globalArgs.token,
-        ) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id.toString())
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -255,49 +236,10 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          sessionUrn: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
-      },
-    },
-    sync: {
-      description: "Sync action gateway session state from DigitalOcean",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error("No data found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          "/v2/action-gateway/sessions",
-          existing.sessionurn ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
-        if (result) {
-          const handle = await context.writeResource(
-            "state",
-            instanceName,
-            result,
-          );
-          return { dataHandles: [handle] };
-        }
-        const handle = await context.writeResource("state", instanceName, {
-          sessionurn: existing.sessionurn ?? existing.id,
-          status: "not_found",
-          syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

@@ -122,7 +122,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database logsink. Registered at `@swamp/digitalocean/database-logsink`. */
 export const model = {
   type: "@swamp/digitalocean/database-logsink",
-  version: "2026.10.05.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -141,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -230,23 +235,25 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.sink_id ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no sink_id; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.config !== undefined) body.config = g.config;
         const unset = ["config"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
-          const live = await read(
-            endpoint,
-            existing.sink_id ?? existing.id,
-            undefined,
-            g.token,
-          );
+          const live = await read(endpoint, storedId, undefined, g.token);
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
         }
         const result = await update(
           endpoint,
-          existing.sink_id ?? existing.id,
+          storedId,
           body,
           "PUT",
           undefined,
@@ -283,6 +290,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          sink_id: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -309,12 +317,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          endpoint,
-          existing.sink_id ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
+        const storedId = existing.sink_id ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no sink_id; run get with the resource ID first",
+          );
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as
+          | ResourceData
+          | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -324,7 +336,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          sink_id: existing.sink_id ?? existing.id,
+          sink_id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

@@ -139,7 +139,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean volume. Registered at `@swamp/digitalocean/volume`. */
 export const model = {
   type: "@swamp/digitalocean/volume",
-  version: "2026.06.08.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -193,6 +193,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -333,9 +338,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/volumes",
-          existing.id ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -348,7 +360,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

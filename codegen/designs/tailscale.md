@@ -25,6 +25,12 @@ Hetzner), containing:
 - `extensions/models/_lib/tailscale.ts` — shared HTTP helpers
 - `manifest.yaml` — extension package manifest (`@swamp/tailscale`)
 
+A `.ts` file directly under `extensions/models/` that generation no longer
+produces (the spec dropped the resource) is deleted on each run
+(`pruneOrphanModels` in `codegen/commands/generate.ts`). Pruning is skipped when
+generation reports errors, so a model that failed to generate keeps its last
+good file.
+
 **How to run**:
 
 ```sh

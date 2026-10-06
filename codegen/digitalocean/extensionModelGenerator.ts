@@ -98,20 +98,35 @@ export function generateDigitalOceanExtensionModel(
   // zod standalone — it doesn't read the package's deno.json import map.
   lines.push(`import { z } from "npm:zod@4.3.6";`);
 
-  const helperImports: string[] = ["create", "read", "tryRead"];
+  // Determine the naming field for instance names (factory pattern).
+  // This must be a user-provided field in globalArgs, not an API-generated value.
+  const { field: namingField, synthetic: isSyntheticName } = resolveNamingField(
+    resource,
+  );
+  // checkExists: guard against creating a resource that already exists.
+  // Available for all resources with a non-synthetic naming field.
+  // - Direct lookup: tryRead by the naming field, only when that field is the
+  //   identifier (a uuid- or ip-identified resource can't be read by its name)
+  // - List+filter otherwise: tryFindByField by name/label
+  const canDirectLookup = !isSyntheticName &&
+    resource.identifyingField === namingField;
+  const canListFilter = !isSyntheticName && !canDirectLookup;
+  // get and sync need a GET-by-id endpoint.
+  const hasRead = resource.handlers.read;
+  const envelope = resource.createEnvelope;
+  const siblingKeys = Object.keys(envelope?.siblings ?? {});
+
+  const helperImports: string[] = [envelope ? "createEnveloped" : "create"];
+  if (hasRead || resource.subResourceMethods.length > 0) {
+    helperImports.push("read");
+  }
+  if (hasRead || canDirectLookup) helperImports.push("tryRead");
   if (resource.discoveryEndpoint) helperImports.push("discover");
   if (resource.handlers.delete) helperImports.push("remove");
   if (resource.subResourceMethods.length > 0) {
     helperImports.push("subResourceUpdate");
   }
-  // tryFindByField needed for checkExists on numeric-id resources with a name/label field.
-  // Check if the resource has a natural naming field (same logic as resolveNamingField).
-  const hasNaturalName = !resource.forceSyntheticName &&
-    !!(resource.createProperties["name"] ||
-      resource.createProperties["label"]);
-  const hasListFilter = hasNaturalName &&
-    !["name", "ip", "uuid"].includes(resource.identifyingField);
-  if (hasListFilter) helperImports.push("tryFindByField");
+  if (canListFilter) helperImports.push("tryFindByField");
   if (resource.handlers.update) helperImports.push("update");
   if (resource.actions.length > 0) helperImports.push("createAndPollAction");
   if (resource.readiness) helperImports.push("pollResourceReady");
@@ -119,12 +134,6 @@ export function generateDigitalOceanExtensionModel(
     `import { ${helperImports.join(", ")} } from "./_lib/digitalocean.ts";`,
   );
   lines.push("");
-
-  // Determine the naming field for instance names (factory pattern).
-  // This must be a user-provided field in globalArgs, not an API-generated value.
-  const { field: namingField, synthetic: isSyntheticName } = resolveNamingField(
-    resource,
-  );
 
   // GlobalArgsSchema — all create + update properties with full fidelity
   const globalArgsProps = buildGlobalArgsProperties(resource);
@@ -158,10 +167,7 @@ export function generateDigitalOceanExtensionModel(
   for (const [name, prop] of Object.entries(resource.resourceProperties)) {
     // The identifying field is read back from stored state to build API paths,
     // so it must stay a plain value even when its name looks like a secret.
-    // The pipeline's fallback strips underscores from it (`accesskey` for the
-    // `access_key` property), so compare without them.
-    const isIdentifier = name === resource.identifyingField ||
-      name.replace(/_/g, "") === resource.identifyingField;
+    const isIdentifier = name === resource.identifyingField;
     const expr = isIdentifier
       ? generateSimplifiedZod(prop)
       : withSensitiveMeta(name, prop, generateSimplifiedZod(prop));
@@ -171,6 +177,21 @@ export function generateDigitalOceanExtensionModel(
       line += `.optional()`;
     }
     lines.push(`${line},`);
+  }
+  // An identifier the API never returns is persisted from the get argument.
+  if (
+    resource.identifierFromArgs &&
+    !(resource.identifyingField in resource.resourceProperties)
+  ) {
+    lines.push(`  ${resource.identifyingField}: z.string().optional(),`);
+  }
+  // Create-response siblings kept on stored state (e.g. a session's mcpUrl).
+  for (const [name, prop] of Object.entries(envelope?.siblings ?? {})) {
+    let line = `  ${name}: ${
+      withSensitiveMeta(name, prop, generateSimplifiedZod(prop))
+    }`;
+    if (prop.nullable) line += `.nullable()`;
+    lines.push(`${line}.optional(),`);
   }
   lines.push(`}).passthrough();`);
   lines.push("");
@@ -196,6 +217,9 @@ export function generateDigitalOceanExtensionModel(
 
   // Model export
   const identifyingField = resource.identifyingField;
+  const resultIdExpr = identifyingField === "id"
+    ? "result.id"
+    : `result.${identifyingField} ?? result.id`;
 
   lines.push(
     `/** Swamp extension model for DigitalOcean ${doSingular}. Registered at \`${modelType}\`. */`,
@@ -231,15 +255,6 @@ export function generateDigitalOceanExtensionModel(
   lines.push(`  methods: {`);
 
   // create method
-  // checkExists: guard against creating a resource that already exists.
-  // Available for all resources with a non-synthetic naming field.
-  // - Direct lookup (name/ip/uuid identified): tryRead by identifying field
-  // - List+filter (numeric id): tryFindByField by name/label
-  const canDirectLookup = !isSyntheticName &&
-    ["name", "ip", "uuid"].includes(resource.identifyingField);
-  const canListFilter = !isSyntheticName && !canDirectLookup &&
-    !!(resource.createProperties["name"] ||
-      resource.createProperties["label"]);
   const listFilterField = canListFilter
     ? (resource.createProperties["name"] ? "name" : "label")
     : undefined;
@@ -325,11 +340,17 @@ export function generateDigitalOceanExtensionModel(
   if (hasReadiness) {
     // Create then optionally poll for readiness
     lines.push(
-      `        let result = await create(${ep()}, body, undefined, g.token) as ResourceData;`,
+      `        let result = await ${
+        envelope
+          ? `createEnveloped(${ep()}, body, ${JSON.stringify(envelope.key)}, ${
+            JSON.stringify(siblingKeys)
+          }, g.token)`
+          : `create(${ep()}, body, undefined, g.token)`
+      } as ResourceData;`,
     );
     lines.push(`        if (args.waitForReady !== false) {`);
     lines.push(
-      `          const resourceId = result.${identifyingField} ?? result.id;`,
+      `          const resourceId = ${resultIdExpr};`,
     );
     lines.push(`          if (resourceId) {`);
     lines.push(
@@ -341,7 +362,13 @@ export function generateDigitalOceanExtensionModel(
     lines.push(`        }`);
   } else {
     lines.push(
-      `        const result = await create(${ep()}, body, undefined, g.token) as ResourceData;`,
+      `        const result = await ${
+        envelope
+          ? `createEnveloped(${ep()}, body, ${JSON.stringify(envelope.key)}, ${
+            JSON.stringify(siblingKeys)
+          }, g.token)`
+          : `create(${ep()}, body, undefined, g.token)`
+      } as ResourceData;`,
     );
   }
 
@@ -352,50 +379,82 @@ export function generateDigitalOceanExtensionModel(
   lines.push(`      },`);
   lines.push(`    },`);
 
-  // get method
   const idArg = resolveIdArg(resource);
-  lines.push(`    get: {`);
-  lines.push(
-    `      description: "Get a ${resource.displayName.toLowerCase()}",`,
-  );
-  lines.push(
-    `      arguments: z.object({ ${idArg.argName}: ${idArg.zodExpr}.describe(${
-      JSON.stringify(idArg.description)
-    }) }),`,
-  );
-  lines.push(
-    `      execute: async (args: { ${idArg.argName}: ${idArg.tsType} }, context: any) => {`,
-  );
-  if (endpointLine) {
-    lines.push(`        const g = context.globalArgs;`);
-    lines.push(endpointLine);
-  }
-  lines.push(
-    `        const result = await read(${ep()}, args.${idArg.argName}, undefined, context.globalArgs.token) as ResourceData;`,
-  );
-  if (isSyntheticName) {
+
+  // update and sync read the identifier back from stored state. Fail with a
+  // clear message when it is missing instead of requesting `/undefined`.
+  const storedIdExpr = identifyingField === "id"
+    ? "existing.id"
+    : `existing.${identifyingField} ?? existing.id`;
+  const pushStoredId = () => {
+    lines.push(`        const storedId = ${storedIdExpr};`);
+    lines.push(`        if (storedId === undefined || storedId === null) {`);
     lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `context.globalArgs.${namingField}?.toString() ?? args.${idArg.argName}.toString()`,
-        )
-      };`,
+      `          throw new Error("Stored state for " + instanceName + " has no ${identifyingField}; run get with the resource ID first");`,
     );
-  } else {
+    lines.push(`        }`);
+  };
+  // GET and update responses omit an identifier persisted from arguments;
+  // carry it over from stored state. Create-response siblings are a
+  // create-time snapshot and are not carried over: they go stale (a
+  // connection's pending authorization) once the resource moves on.
+  const pushCarryOver = (indent: string) => {
+    if (!resource.identifierFromArgs) return;
     lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `result.${namingField}?.toString() ?? args.${idArg.argName}.toString()`,
-        )
-      };`,
+      `${indent}if (result.${identifyingField} === undefined) result.${identifyingField} = String(storedId);`,
     );
+  };
+
+  // get method — only with a GET-by-id endpoint
+  if (hasRead) {
+    lines.push(`    get: {`);
+    lines.push(
+      `      description: "Get a ${resource.displayName.toLowerCase()}",`,
+    );
+    lines.push(
+      `      arguments: z.object({ ${idArg.argName}: ${idArg.zodExpr}.describe(${
+        JSON.stringify(idArg.description)
+      }) }),`,
+    );
+    lines.push(
+      `      execute: async (args: { ${idArg.argName}: ${idArg.tsType} }, context: any) => {`,
+    );
+    if (endpointLine) {
+      lines.push(`        const g = context.globalArgs;`);
+      lines.push(endpointLine);
+    }
+    lines.push(
+      `        const result = await read(${ep()}, args.${idArg.argName}, undefined, context.globalArgs.token) as ResourceData;`,
+    );
+    if (resource.identifierFromArgs) {
+      lines.push(
+        `        if (result.${identifyingField} === undefined) result.${identifyingField} = String(args.${idArg.argName});`,
+      );
+    }
+    if (isSyntheticName) {
+      lines.push(
+        `        const instanceName = ${
+          wrapWithSanitize(
+            `context.globalArgs.${namingField}?.toString() ?? args.${idArg.argName}.toString()`,
+          )
+        };`,
+      );
+    } else {
+      lines.push(
+        `        const instanceName = ${
+          wrapWithSanitize(
+            `result.${namingField}?.toString() ?? args.${idArg.argName}.toString()`,
+          )
+        };`,
+      );
+    }
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
   }
-  lines.push(
-    `        const handle = await context.writeResource("state", instanceName, result);`,
-  );
-  lines.push(`        return { dataHandles: [handle] };`);
-  lines.push(`      },`);
-  lines.push(`    },`);
 
   // update method — only if PATCH/PUT handler exists
   if (resource.handlers.update && resource.updateMethod) {
@@ -436,6 +495,7 @@ export function generateDigitalOceanExtensionModel(
     lines.push(
       `        const existing = JSON.parse(new TextDecoder().decode(content));`,
     );
+    pushStoredId();
     lines.push(`        const body: Record<string, unknown> = {};`);
     for (const name of Object.keys(resource.updateProperties)) {
       lines.push(
@@ -447,7 +507,8 @@ export function generateDigitalOceanExtensionModel(
     // from the live resource, not stored state (which can be stale), so an
     // unset field keeps its current value. See liveFillFields for which
     // fields qualify.
-    const liveFill = resource.updateMethod === "PUT"
+    // The live read needs a GET-by-id endpoint.
+    const liveFill = resource.updateMethod === "PUT" && hasRead
       ? liveFillFields(
         Object.keys(resource.updateProperties),
         resource.updateProperties,
@@ -462,7 +523,7 @@ export function generateDigitalOceanExtensionModel(
       );
       lines.push(`        if (unset.length > 0) {`);
       lines.push(
-        `          const live = await read(${ep()}, existing.${identifyingField} ?? existing.id, undefined, g.token);`,
+        `          const live = await read(${ep()}, storedId, undefined, g.token);`,
       );
       lines.push(
         `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
@@ -471,11 +532,11 @@ export function generateDigitalOceanExtensionModel(
     }
     if (hasReadiness) {
       lines.push(
-        `        let result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
+        `        let result = await update(${ep()}, storedId, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
       );
       lines.push(`        if (args.waitForReady !== false) {`);
       lines.push(
-        `          const resourceId = result.${identifyingField} ?? result.id ?? existing.${identifyingField} ?? existing.id;`,
+        `          const resourceId = ${resultIdExpr} ?? storedId;`,
       );
       lines.push(`          if (resourceId) {`);
       lines.push(
@@ -487,9 +548,10 @@ export function generateDigitalOceanExtensionModel(
       lines.push(`        }`);
     } else {
       lines.push(
-        `        const result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
+        `        const result = await update(${ep()}, storedId, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
       );
     }
+    pushCarryOver("        ");
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
     );
@@ -530,6 +592,10 @@ export function generateDigitalOceanExtensionModel(
       `        const handle = await context.writeResource("state", instanceName, {`,
     );
     lines.push(`          ${idArg.argName}: args.${idArg.argName},`);
+    // Record the identifier under its own field too, so the state carries it.
+    if (identifyingField !== idArg.argName) {
+      lines.push(`          ${identifyingField}: args.${idArg.argName},`);
+    }
     lines.push(`          existed,`);
     lines.push(
       `          status: existed ? "deleted" : "not_found",`,
@@ -541,56 +607,60 @@ export function generateDigitalOceanExtensionModel(
     lines.push(`    },`);
   }
 
-  // sync method — always generated
-  lines.push(`    sync: {`);
-  lines.push(
-    `      description: "Sync ${resource.displayName.toLowerCase()} state from DigitalOcean",`,
-  );
-  lines.push(`      arguments: z.object({}),`);
-  lines.push(
-    `      execute: async (_args: Record<string, never>, context: any) => {`,
-  );
-  lines.push(`        const g = context.globalArgs;`);
-  if (endpointLine) lines.push(endpointLine);
-  lines.push(
-    `        const instanceName = ${
-      wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-    };`,
-  );
-  lines.push(
-    `        const content = await context.dataRepository.getContent(`,
-  );
-  lines.push(
-    `          context.modelType, context.modelId, instanceName,`,
-  );
-  lines.push(`        );`);
-  lines.push(
-    `        if (!content) throw new Error("No data found - run create or get first");`,
-  );
-  lines.push(
-    `        const existing = JSON.parse(new TextDecoder().decode(content));`,
-  );
-  lines.push(
-    `        const result = await tryRead(${ep()}, existing.${identifyingField} ?? existing.id, undefined, g.token) as ResourceData | null;`,
-  );
-  lines.push(`        if (result) {`);
-  lines.push(
-    `          const handle = await context.writeResource("state", instanceName, result);`,
-  );
-  lines.push(`          return { dataHandles: [handle] };`);
-  lines.push(`        }`);
-  lines.push(
-    `        const handle = await context.writeResource("state", instanceName, {`,
-  );
-  lines.push(
-    `          ${identifyingField}: existing.${identifyingField} ?? existing.id,`,
-  );
-  lines.push(`          status: "not_found",`);
-  lines.push(`          syncedAt: new Date().toISOString(),`);
-  lines.push(`        });`);
-  lines.push(`        return { dataHandles: [handle] };`);
-  lines.push(`      },`);
-  lines.push(`    },`);
+  // sync method — only with a GET-by-id endpoint
+  if (hasRead) {
+    lines.push(`    sync: {`);
+    lines.push(
+      `      description: "Sync ${resource.displayName.toLowerCase()} state from DigitalOcean",`,
+    );
+    lines.push(`      arguments: z.object({}),`);
+    lines.push(
+      `      execute: async (_args: Record<string, never>, context: any) => {`,
+    );
+    lines.push(`        const g = context.globalArgs;`);
+    if (endpointLine) lines.push(endpointLine);
+    lines.push(
+      `        const instanceName = ${
+        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
+      };`,
+    );
+    lines.push(
+      `        const content = await context.dataRepository.getContent(`,
+    );
+    lines.push(
+      `          context.modelType, context.modelId, instanceName,`,
+    );
+    lines.push(`        );`);
+    lines.push(
+      `        if (!content) throw new Error("No data found - run create or get first");`,
+    );
+    lines.push(
+      `        const existing = JSON.parse(new TextDecoder().decode(content));`,
+    );
+    pushStoredId();
+    lines.push(
+      `        const result = await tryRead(${ep()}, storedId, undefined, g.token) as ResourceData | null;`,
+    );
+    lines.push(`        if (result) {`);
+    pushCarryOver("          ");
+    lines.push(
+      `          const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`          return { dataHandles: [handle] };`);
+    lines.push(`        }`);
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, {`,
+    );
+    lines.push(
+      `          ${identifyingField}: storedId,`,
+    );
+    lines.push(`          status: "not_found",`);
+    lines.push(`          syncedAt: new Date().toISOString(),`);
+    lines.push(`        });`);
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
 
   // Action methods
   if (resource.actions.length > 0) {
@@ -1041,7 +1111,7 @@ function resolveIdArg(resource: DigitalOceanResource): {
   tsType: string;
   description: string;
 } {
-  const field = resource.identifyingField;
+  const field = resource.idArgField ?? resource.identifyingField;
   const paramHint = resource.idParam;
 
   switch (field) {

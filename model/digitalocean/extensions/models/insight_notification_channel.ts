@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
     webhook_url: z.string().optional(),
     channel: z.string(),
   }).describe(
-    "Slack notification channel configuration. `webhook_url` is write-only: send\nthe full value on create/update; reads return a masked value (`********`).\nOmit `webhook_url` on update to keep the existing secret.\n",
+    "Slack notification channel configuration for create and update requests.\n`webhook_url` is write-only: send the full value to set or rotate. Omit\n`webhook_url` on update to keep the existing secret.\n",
   ).optional(),
   webhook: z.object({
     url: z.string(),
@@ -70,7 +70,7 @@ const GlobalArgsSchema = z.object({
       secret: z.string().meta({ sensitive: true }).optional(),
     }).optional(),
   }).describe(
-    "Generic HTTPS webhook notification channel configuration. The URL must use\nHTTPS and must not include userinfo. Optionally configure either\n`basic_auth` or `bearer_token` (not both), custom headers, and a signing\nsecret.\n\n`url` is not a secret and is returned in full on read. Credential fields\n(`basic_auth.password`, `bearer_token.token`, `signature.secret`) are\nwrite-only: full value on create/update; masked as `********` on read. Omit\na secret field on update to keep the existing value.\n",
+    "Generic HTTPS webhook notification channel configuration for create and\nupdate requests. The URL must use HTTPS and must not include userinfo.\nOptionally configure either `basic_auth` or `bearer_token` (not both),\ncustom headers, and a signing secret.\n\n`url` is not a secret and is returned in full on read. Credential fields\n(`basic_auth.password`, `bearer_token.token`, `signature.secret`) are\nwrite-only: send the full value to set or rotate. Omit a secret field on\nupdate to keep the existing value. Responses return nested `*_status`\nobjects instead of secret values.\n",
   ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -85,21 +85,29 @@ const ResourceSchema = z.object({
     to: z.string().optional(),
   }).optional(),
   slack: z.object({
-    webhook_url: z.string().optional(),
     channel: z.string().optional(),
+    webhook_url_status: z.object({
+      configured: z.boolean().optional(),
+    }).optional(),
   }).optional(),
   webhook: z.object({
     url: z.string().optional(),
     basic_auth: z.object({
       username: z.string().optional(),
-      password: z.string().meta({ sensitive: true }).optional(),
+      password_status: z.object({
+        configured: z.boolean().optional(),
+      }).optional(),
     }).optional(),
     bearer_token: z.object({
-      token: z.string().meta({ sensitive: true }).optional(),
+      token_status: z.object({
+        configured: z.boolean().optional(),
+      }).optional(),
     }).optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
     signature: z.object({
-      secret: z.string().meta({ sensitive: true }).optional(),
+      secret_status: z.object({
+        configured: z.boolean().optional(),
+      }).optional(),
     }).optional(),
   }).optional(),
   usage: z.object({
@@ -140,10 +148,20 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean insight notification channel. Registered at `@swamp/digitalocean/insight-notification-channel`. */
 export const model = {
   type: "@swamp/digitalocean/insight-notification-channel",
-  version: "2026.10.05.1",
+  version: "2026.10.06.2",
   upgrades: [
     {
       toVersion: "2026.10.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -242,6 +260,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.email !== undefined) body.email = g.email;
@@ -253,7 +278,7 @@ export const model = {
         if (unset.length > 0) {
           const live = await read(
             "/v2/insights/notification-channels",
-            existing.id ?? existing.id,
+            storedId,
             undefined,
             g.token,
           );
@@ -263,7 +288,7 @@ export const model = {
         }
         const result = await update(
           "/v2/insights/notification-channels",
-          existing.id ?? existing.id,
+          storedId,
           body,
           "PUT",
           undefined,
@@ -323,9 +348,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/insights/notification-channels",
-          existing.id ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -338,7 +370,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

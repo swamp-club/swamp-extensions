@@ -20,6 +20,12 @@ are always PUT, and the spec is already self-contained JSON.
 - `extensions/models/_lib/hetzner.ts` — shared HTTP helpers
 - `manifest.yaml` — extension package manifest
 
+A `.ts` file directly under `extensions/models/` that generation no longer
+produces (the spec dropped the resource) is deleted on each run
+(`pruneOrphanModels` in `codegen/commands/generate.ts`). Pruning is skipped when
+generation reports errors, so a model that failed to generate keeps its last
+good file.
+
 **How to run**:
 
 ```sh

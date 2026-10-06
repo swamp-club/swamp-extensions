@@ -124,9 +124,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await update("/v2/droplets", existing.id ?? existing.id, body, "PATCH", undefined, g.token) as ResourceData;
+        const result = await update("/v2/droplets", storedId, body, "PATCH", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -157,13 +161,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/droplets", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/droplets", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -291,8 +299,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/droplets", existing.id ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/droplets", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -323,13 +335,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/droplets", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/droplets", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -501,8 +517,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/databases", existing.id ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/databases", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -533,13 +553,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/databases", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/databases", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -700,8 +724,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.ip ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no ip; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/reserved_ips", existing.ip ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/reserved_ips", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -732,13 +760,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/reserved_ips", existing.ip ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.ip ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no ip; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/reserved_ips", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          ip: existing.ip ?? existing.id,
+          ip: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -842,7 +874,7 @@ export const model = {
         if (g.size !== undefined) body.size = g.size;
         let result = await create("/v2/droplets", body, undefined, g.token) as ResourceData;
         if (args.waitForReady !== false) {
-          const resourceId = result.id ?? result.id;
+          const resourceId = result.id;
           if (resourceId) {
             result = await pollResourceReady("/v2/droplets", resourceId as string | number, {"statusField":"status","readyValues":["active"],"failedValues":["errored"]}, g.token) as ResourceData;
           }
@@ -872,11 +904,15 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        let result = await update("/v2/droplets", existing.id ?? existing.id, body, "PATCH", undefined, g.token) as ResourceData;
+        let result = await update("/v2/droplets", storedId, body, "PATCH", undefined, g.token) as ResourceData;
         if (args.waitForReady !== false) {
-          const resourceId = result.id ?? result.id ?? existing.id ?? existing.id;
+          const resourceId = result.id ?? storedId;
           if (resourceId) {
             result = await pollResourceReady("/v2/droplets", resourceId as string | number, {"statusField":"status","readyValues":["active"],"failedValues":["errored"]}, g.token) as ResourceData;
           }
@@ -911,13 +947,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/droplets", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/droplets", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1042,8 +1082,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no name; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/domains", existing.name ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/domains", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1074,13 +1118,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/domains", existing.name ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no name; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/domains", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          name: existing.name ?? existing.id,
+          name: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1215,8 +1263,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/firewalls", existing.id ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/firewalls", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1247,13 +1299,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/firewalls", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/firewalls", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1385,8 +1441,12 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
-        const result = await update("/v2/kubernetes/clusters", existing.id ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update("/v2/kubernetes/clusters", storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1417,13 +1477,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/kubernetes/clusters", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/kubernetes/clusters", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1559,13 +1623,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/snapshots", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/snapshots", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1697,11 +1765,15 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
         if (g.type !== undefined) body.type = g.type;
         if (g.name !== undefined) body.name = g.name;
         if (g.data !== undefined) body.data = g.data;
-        const result = await update(endpoint, existing.id ?? existing.id, body, "PATCH", undefined, g.token) as ResourceData;
+        const result = await update(endpoint, storedId, body, "PATCH", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1735,13 +1807,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -1879,16 +1955,20 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no name; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
         if (g.db !== undefined) body.db = g.db;
         if (g.size !== undefined) body.size = g.size;
         if (g.mode !== undefined) body.mode = g.mode;
         const unset = ["db","mode","size"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
-          const live = await read(endpoint, existing.name ?? existing.id, undefined, g.token);
+          const live = await read(endpoint, storedId, undefined, g.token);
           for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
         }
-        const result = await update(endpoint, existing.name ?? existing.id, body, "PUT", undefined, g.token) as ResourceData;
+        const result = await update(endpoint, storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1922,13 +2002,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.name ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no name; run get with the resource ID first");
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          name: existing.name ?? existing.id,
+          name: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
@@ -2070,9 +2154,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await update("/v2/volumes", existing.id ?? existing.id, body, "PATCH", undefined, g.token) as ResourceData;
+        const result = await update("/v2/volumes", storedId, body, "PATCH", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -2103,13 +2191,17 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/volumes", existing.id ?? existing.id, undefined, g.token) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error("Stored state for " + instanceName + " has no id; run get with the resource ID first");
+        }
+        const result = await tryRead("/v2/volumes", storedId, undefined, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

@@ -53,7 +53,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  ip: z.string().optional(),
+  ip: z.string(),
   reserved_at: z.string().optional(),
   region_slug: z.string().optional(),
   droplet: z.object({
@@ -175,7 +175,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean reserved ipv6. Registered at `@swamp/digitalocean/reserved-ipv6`. */
 export const model = {
   type: "@swamp/digitalocean/reserved-ipv6",
-  version: "2026.09.23.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -229,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -323,6 +328,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          ip: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -348,9 +354,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.ip ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no ip; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/reserved_ipv6",
-          existing.reservedipv6 ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -363,7 +376,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          reservedipv6: existing.reservedipv6 ?? existing.id,
+          ip: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

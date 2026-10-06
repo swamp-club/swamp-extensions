@@ -9,6 +9,40 @@ import { generateTailscaleModels } from "../tailscale/pipeline.ts";
 import { generateVercelModels } from "../vercel/pipeline.ts";
 import { stripReleaseNotes } from "../shared/version.ts";
 
+/**
+ * Remove .ts files in `modelsDir` that generation no longer produces
+ * (typically because the schema dropped the resource). Test files are left
+ * alone. Without this, stale
+ * files sit in the repo with outdated codegen output. Callers skip it when
+ * generation reported errors, so a model that failed to generate keeps its
+ * last good file instead of being deleted.
+ */
+export async function pruneOrphanModels(
+  modelsDir: string,
+  generatedFileNames: Set<string>,
+  label: string,
+): Promise<void> {
+  try {
+    for await (const entry of Deno.readDir(modelsDir)) {
+      if (
+        entry.isFile && entry.name.endsWith(".ts") &&
+        !entry.name.endsWith("_test.ts") &&
+        !generatedFileNames.has(entry.name)
+      ) {
+        await Deno.remove(`${modelsDir}/${entry.name}`);
+        console.log(`  [${label}] removed orphan model: ${entry.name}`);
+      }
+    }
+  } catch (error) {
+    // extensions/models/ doesn't exist yet — nothing to prune
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+}
+
+function modelFileNames(models: { filePath: string }[]): Set<string> {
+  return new Set(models.map((m) => m.filePath.split("/").pop()!));
+}
+
 export async function generateModels(options: {
   provider: string;
   outputDir: string;
@@ -81,6 +115,14 @@ async function generateHetznerProvider(options: {
     const modelDir = modelPath.substring(0, modelPath.lastIndexOf("/"));
     await Deno.mkdir(modelDir, { recursive: true });
     await Deno.writeTextFile(modelPath, model.sourceCode);
+  }
+
+  if (errors.length === 0) {
+    await pruneOrphanModels(
+      `${hetznerOutputDir}/extensions/models`,
+      modelFileNames(models),
+      "hetzner",
+    );
   }
 
   // Write README, LICENSE, and deno.json
@@ -195,6 +237,14 @@ async function generateDigitalOceanProvider(options: {
     await Deno.writeTextFile(modelPath, model.sourceCode);
   }
 
+  if (errors.length === 0) {
+    await pruneOrphanModels(
+      `${doOutputDir}/extensions/models`,
+      modelFileNames(models),
+      "digitalocean",
+    );
+  }
+
   // Write README, LICENSE, and deno.json
   await Deno.writeTextFile(
     `${doOutputDir}/README.md`,
@@ -263,6 +313,9 @@ async function generateDigitalOceanProvider(options: {
     for (const err of errors) {
       console.log(`    ${err}`);
     }
+    // Exit 2 tells the nightly regeneration the run finished with errors, as
+    // for GCP: the output is complete, but the job must not pass silently.
+    Deno.exitCode = 2;
   }
   console.log(`  Version: ${version}`);
   console.log(`  Output directory: ${doOutputDir}`);
@@ -922,6 +975,14 @@ async function generateTailscaleProvider(options: {
       recursive: true,
     });
     await Deno.writeTextFile(path, file.sourceCode);
+  }
+
+  if (errors.length === 0) {
+    await pruneOrphanModels(
+      `${outputDir}/extensions/models`,
+      modelFileNames(models),
+      "tailscale",
+    );
   }
 
   // Write the manifest only when its content (minus per-run release notes)

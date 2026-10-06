@@ -7,6 +7,13 @@ import { generateDigitalOceanLibFile } from "./libGenerator.ts";
 // the module-level `validatedTokens` cache in getToken()).
 
 interface DigitalOceanLib {
+  createEnveloped: (
+    endpoint: string,
+    body: Record<string, unknown>,
+    key: string,
+    siblings: string[],
+    token?: string,
+  ) => Promise<Record<string, unknown>>;
   create: (
     endpoint: string,
     body: Record<string, unknown>,
@@ -331,5 +338,56 @@ Deno.test("token threads through remove (DELETE) to the Authorization header", a
   } finally {
     await cleanup();
     restoreToken();
+  }
+});
+
+Deno.test("createEnveloped: returns the resource with listed siblings, never overwriting its fields", async () => {
+  const { mod, cleanup } = await importFreshDigitalOceanLib();
+  try {
+    await withFetchQueue([
+      okAccount(),
+      jsonResponse(200, {
+        session: { sessionUrn: "do:s:1", tools: "own" },
+        mcpUrl: "https://mcp.example",
+        tools: "sibling",
+        secret: "not listed",
+      }),
+    ], async () => {
+      const result = await mod.createEnveloped(
+        "/v2/action-gateway/sessions",
+        {},
+        "session",
+        ["mcpUrl", "tools"],
+        "explicit-token",
+      );
+      assertEquals(result, {
+        sessionUrn: "do:s:1",
+        tools: "own",
+        mcpUrl: "https://mcp.example",
+      });
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+Deno.test("createEnveloped: falls back to unwrap when the key holds no object", async () => {
+  const { mod, cleanup } = await importFreshDigitalOceanLib();
+  try {
+    await withFetchQueue([
+      okAccount(),
+      jsonResponse(200, { thing: { id: "t1" }, links: {} }),
+    ], async () => {
+      const result = await mod.createEnveloped(
+        "/v2/things",
+        {},
+        "missing",
+        [],
+        "explicit-token",
+      );
+      assertEquals(result, { id: "t1" });
+    });
+  } finally {
+    await cleanup();
   }
 });

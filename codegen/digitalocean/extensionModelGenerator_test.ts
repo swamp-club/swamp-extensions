@@ -690,9 +690,10 @@ Deno.test("token arg - threaded into create/get/update/delete/sync call sites", 
     'await remove("/v2/droplets", args.name, undefined, context.globalArgs.token)',
   );
   // sync
+  assertStringIncludes(code, "const storedId = existing.name ?? existing.id;");
   assertStringIncludes(
     code,
-    'await tryRead("/v2/droplets", existing.name ?? existing.id, undefined, g.token)',
+    'await tryRead("/v2/droplets", storedId, undefined, g.token)',
   );
 });
 
@@ -985,15 +986,15 @@ Deno.test("sensitive fields - the identifying field is never marked in ResourceS
   assertStringIncludes(resource, `  password: z.string()${SENSITIVE}`);
 });
 
-Deno.test("sensitive fields - an underscore-stripped identifying field is not marked", () => {
-  // The pipeline's fallback names the Spaces key identifier `accesskey`; the
-  // property it identifies is the public access key ID `access_key`.
+Deno.test("sensitive fields - the identifying field is not marked", () => {
+  // The Spaces key identifier is the public access key ID `access_key`, whose
+  // name matches the secret pattern.
   const code = generateDigitalOceanExtensionModel({
     resource: makeResource({
       displayName: "Space Key",
       modelSlug: "space-key",
       endpoint: "/v2/spaces/keys",
-      identifyingField: "accesskey",
+      identifyingField: "access_key",
       createProperties: { name: stringProp },
       resourceProperties: { name: stringProp, access_key: stringProp },
     }),
@@ -1005,7 +1006,7 @@ Deno.test("sensitive fields - an underscore-stripped identifying field is not ma
     "const ResourceSchema = z.object({",
     "type ResourceData",
   );
-  assertStringIncludes(resource, "  access_key: z.string().optional(),");
+  assertStringIncludes(resource, "  access_key: z.string(),");
 });
 
 // ---------------------------------------------------------------------------
@@ -1058,7 +1059,7 @@ Deno.test("generateDigitalOceanExtensionModel - PUT update fills same-shaped uns
   );
   assertStringIncludes(
     update,
-    `const live = await read("/v2/load_balancers", existing.id ?? existing.id, undefined, g.token);`,
+    `const live = await read("/v2/load_balancers", storedId, undefined, g.token);`,
   );
   assertEquals(update.includes("= existing["), false);
   assertEquals(
@@ -1074,4 +1075,156 @@ Deno.test("generateDigitalOceanExtensionModel - PATCH update does not read the l
     version: "2026.01.01.1",
   }));
   assertEquals(update.includes("const live"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Identifier handling (swamp-club #2834)
+// ---------------------------------------------------------------------------
+
+Deno.test("checkExists - uuid-identified resource with a natural name uses list filter", () => {
+  // Reading a uuid-identified resource by its name would request
+  // /v2/byoip_prefixes/<name>; only list-and-filter can find it by name.
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "BYOIP Prefix",
+      modelSlug: "byoip-prefix",
+      endpoint: "/v2/byoip_prefixes",
+      identifyingField: "uuid",
+      idParam: "byoip_prefix_uuid",
+      createProperties: { name: stringProp },
+      resourceProperties: { uuid: stringProp, name: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    code,
+    'await tryFindByField("/v2/byoip_prefixes", "name"',
+  );
+  assertEquals(
+    code.includes('await tryRead("/v2/byoip_prefixes", g.name'),
+    false,
+  );
+});
+
+Deno.test("idArgField - keeps the get/delete argument name stable", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "BYOIP Prefix",
+      modelSlug: "byoip-prefix",
+      endpoint: "/v2/byoip_prefixes",
+      identifyingField: "uuid",
+      idArgField: "id",
+      idParam: "byoip_prefix_uuid",
+      resourceProperties: { uuid: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(code, "execute: async (args: { id: string }");
+  assertEquals(code.includes("args: { uuid"), false);
+  // delete records the identifier under its own field as well
+  assertStringIncludes(code, "uuid: args.id,");
+  assertStringIncludes(code, "const storedId = existing.uuid ?? existing.id;");
+});
+
+Deno.test("handlers.read - no get or sync without a GET-by-id endpoint", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "Action Gateway Session",
+      modelSlug: "action-gateway-session",
+      endpoint: "/v2/action-gateway/sessions",
+      identifyingField: "sessionUrn",
+      idParam: "session_urn",
+      handlers: { create: true, read: false, update: false, delete: true },
+      updateMethod: null,
+      resourceProperties: { sessionUrn: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertEquals(code.includes("    get: {"), false);
+  assertEquals(code.includes("    sync: {"), false);
+  assertStringIncludes(code, "    delete: {");
+  assertStringIncludes(
+    code,
+    'import { create, remove } from "./_lib/digitalocean.ts";',
+  );
+});
+
+Deno.test("identifierFromArgs - get persists the argument and sync carries it over", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "Monitoring Sink",
+      modelSlug: "monitoring-sink",
+      endpoint: "/v2/monitoring/sinks",
+      identifyingField: "sink_uuid",
+      idParam: "sink_uuid",
+      identifierFromArgs: true,
+      handlers: { create: true, read: true, update: false, delete: true },
+      updateMethod: null,
+      resourceProperties: { resources: stringProp },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(code, "  sink_uuid: z.string().optional(),");
+  assertStringIncludes(
+    code,
+    "if (result.sink_uuid === undefined) result.sink_uuid = String(args.id);",
+  );
+  assertStringIncludes(
+    code,
+    "if (result.sink_uuid === undefined) result.sink_uuid = String(storedId);",
+  );
+  assertStringIncludes(
+    code,
+    "has no sink_uuid; run get with the resource ID first",
+  );
+});
+
+Deno.test("createEnvelope - create keeps siblings; sync does not carry them over", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: makeResource({
+      displayName: "Action Gateway Connection",
+      modelSlug: "action-gateway-connection",
+      endpoint: "/v2/action-gateway/connections",
+      resourceProperties: { id: stringProp },
+      updateMethod: null,
+      handlers: { create: true, read: true, update: false, delete: true },
+      createEnvelope: {
+        key: "connection",
+        siblings: {
+          authorization: {
+            type: "object",
+            properties: { connect_url: stringProp },
+          },
+        },
+      },
+    }),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    code,
+    'await createEnveloped("/v2/action-gateway/connections", body, "connection", ["authorization"], g.token)',
+  );
+  assertStringIncludes(code, "  authorization: z.object({");
+  // Siblings are a create-time snapshot; sync replaces them with live state.
+  assertEquals(code.includes("existing.authorization"), false);
+  assertEquals(code.includes('for (const k of ["authorization"])'), false);
+  assertEquals(code.includes("import { create,"), false);
+});
+
+Deno.test("generateDigitalOceanExtensionModel - PUT update without a GET-by-id does not live-fill", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: {
+      ...loadBalancerResource("PUT"),
+      handlers: { create: true, read: false, update: true, delete: true },
+    },
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertEquals(code.includes("const live"), false);
+  assertEquals(code.includes("await read("), false);
 });

@@ -99,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean domain record. Registered at `@swamp/digitalocean/domain-record`. */
 export const model = {
   type: "@swamp/digitalocean/domain-record",
-  version: "2026.06.08.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -108,6 +108,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -201,6 +206,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.type !== undefined) body.type = g.type;
         if (g.name !== undefined) body.name = g.name;
@@ -213,7 +225,7 @@ export const model = {
         if (g.tag !== undefined) body.tag = g.tag;
         const result = await update(
           endpoint,
-          existing.id ?? existing.id,
+          storedId,
           body,
           "PATCH",
           undefined,
@@ -274,12 +286,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          endpoint,
-          existing.id ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as
+          | ResourceData
+          | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -289,7 +305,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

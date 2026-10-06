@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   api_host: z.string().optional(),
-  namespace: z.string().optional(),
+  namespace: z.string(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
   label: z.string().optional(),
@@ -104,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean function namespace. Registered at `@swamp/digitalocean/function-namespace`. */
 export const model = {
   type: "@swamp/digitalocean/function-namespace",
-  version: "2026.06.08.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -254,6 +259,7 @@ export const model = {
           ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
+          namespace: args.id,
           existed,
           status: existed ? "deleted" : "not_found",
           deletedAt: new Date().toISOString(),
@@ -279,9 +285,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.namespace ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no namespace; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/functions/namespaces",
-          existing.namespaceid ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -294,7 +307,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          namespaceid: existing.namespaceid ?? existing.id,
+          namespace: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

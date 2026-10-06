@@ -200,7 +200,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean insight alert rule. Registered at `@swamp/digitalocean/insight-alert-rule`. */
 export const model = {
   type: "@swamp/digitalocean/insight-alert-rule",
-  version: "2026.10.02.1",
+  version: "2026.10.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -281,6 +288,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.spec !== undefined) body.spec = g.spec;
         if (g.status !== undefined) body.status = g.status;
@@ -288,7 +302,7 @@ export const model = {
         if (unset.length > 0) {
           const live = await read(
             "/v2/insights/alert-rules",
-            existing.id ?? existing.id,
+            storedId,
             undefined,
             g.token,
           );
@@ -298,7 +312,7 @@ export const model = {
         }
         const result = await update(
           "/v2/insights/alert-rules",
-          existing.id ?? existing.id,
+          storedId,
           body,
           "PUT",
           undefined,
@@ -358,9 +372,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no id; run get with the resource ID first",
+          );
+        }
         const result = await tryRead(
           "/v2/insights/alert-rules",
-          existing.id ?? existing.id,
+          storedId,
           undefined,
           g.token,
         ) as ResourceData | null;
@@ -373,7 +394,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          id: existing.id ?? existing.id,
+          id: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });

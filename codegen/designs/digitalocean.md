@@ -16,6 +16,12 @@ unwrapping logic.
 - `extensions/models/_lib/digitalocean.ts` — shared HTTP helpers
 - `manifest.yaml` — extension package manifest
 
+A `.ts` file directly under `extensions/models/` that generation no longer
+produces (the spec dropped the resource) is deleted on each run
+(`pruneOrphanModels` in `codegen/commands/generate.ts`). Pruning is skipped when
+generation reports errors, so a model that failed to generate keeps its last
+good file.
+
 **How to run**:
 
 ```sh
@@ -293,17 +299,26 @@ uniquely identifies the resource (used to construct URLs like
 `/v2/droplets/{id}`). The path parameter name (e.g., `droplet_id`) must be
 mapped to the actual field in the response object (e.g., `id`).
 
-### Three-tier lookup
+### Lookup order
+
+`resolveIdentifierField` tries, in order:
 
 1. **Endpoint overrides** (`ENDPOINT_IDENTIFIER_OVERRIDES`): Exact path match.
    Used when the path parameter name is too generic to map correctly (e.g.,
    `/v2/apps/{id}` uses `id` directly, bypassing the param-level map).
 
 2. **Parameter-level map** (`IDENTIFIER_MAP`): Maps path parameter names to
-   response field names. Covers the majority of resources.
+   response field names. Covers the majority of resources, and every case the
+   spec names the field only in prose (`byoip_prefix_uuid` → `uuid`,
+   `namespace_id` → `namespace`).
 
-3. **Fallback**: Strip underscores from the parameter name. `droplet_id` →
-   `dropletid`. This is a last resort and rarely matches anything useful.
+3. **Response field match**: the parameter names a field of the GET response,
+   either exactly (`access_key`, `view_id`) or ignoring case and underscores
+   (`server_ref` → `serverRef`, `session_urn` → `sessionUrn`).
+
+4. **`id`**, when the response has one.
+
+Otherwise the identifier is unresolved.
 
 ### Why different resources use different identifier types
 
@@ -339,13 +354,41 @@ const IDENTIFIER_MAP: Record<string, string> = {
 };
 ```
 
-### Why the fallback strips underscores
+### Unresolved identifiers fail generation
 
-The fallback `idParam.replace(/_/g, "")` converts `droplet_id` to `dropletid`.
-This exists as a safety net for unmapped parameters. In practice it rarely
-produces a correct field name, but it ensures the pipeline doesn't crash on
-unknown resources — the generated code may need manual correction but will at
-least compile.
+`update` and `sync` read the identifier back from stored state, so an identifier
+that names no response field makes them request `/v2/.../undefined` — `sync`
+then records a live resource as `not_found`. A previous fallback stripped
+underscores from the parameter (`access_key` → `accesskey`) and produced exactly
+this for seven models (swamp-club#2834).
+
+`assertIdentifierResolvable` now runs per resource during generation. A resource
+whose identifier is neither a response field nor `id` is reported as an error:
+its previous file is kept, the run exits `2`, and the nightly regeneration
+fails. To fix it, add an `IDENTIFIER_MAP` entry naming the field the spec
+documents for the parameter, or an `IDENTIFIER_FROM_ARGS` entry if no response
+carries it. Resources without a GET-by-id endpoint are exempt: they have no
+`get` or `sync` (section 12), and the identifier is only the `delete` argument.
+
+### Identifiers the API never returns
+
+`IDENTIFIER_FROM_ARGS` lists resources whose responses never carry their own ID.
+The monitoring sink is one: create returns `202` with no body, and neither the
+GET nor the list items include the sink UUID. For these, the identifier is the
+path parameter (`sink_uuid`):
+
+- `get` stores its argument under that field when the response lacks it.
+- `sync` and `update` carry it over from stored state, since GET omits it.
+- After `create`, stored state has no identifier, so `sync` fails with "run get
+  with the resource ID first" (see section 12).
+
+### Stable get/delete arguments
+
+`resolveIdArg` names the `get`/`delete` argument after the identifier (`name`,
+`ip`, `uuid`, otherwise `id`). Renaming a method argument breaks existing
+callers, so `ID_ARG_FIELD_OVERRIDES` keeps `id` for identifiers that resolved to
+`uuid` or `ip` after the argument was published (`byoip_prefix_uuid`,
+`reserved_ipv6`).
 
 ---
 
@@ -392,6 +435,41 @@ function unwrap(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
 ```
+
+### Create responses with siblings
+
+A few create responses put the resource next to other data the caller needs,
+which GET never returns again:
+
+| Resource                  | Response                         |
+| ------------------------- | -------------------------------- |
+| Action Gateway Session    | `{ session, mcpUrl, tools }`     |
+| Action Gateway Connection | `{ connection, authorization }`  |
+| Dedicated Inference       | `{ dedicated_inference, token }` |
+
+`unwrap()` would keep only the first key's object and depend on JSON key order.
+`resolveCreateEnvelope` detects these responses (more than one top-level key
+besides `meta`/`links`, one holding an object with properties), and the
+generated `create` calls `createEnveloped(endpoint, body, key, siblings)`. It
+returns the resource object with the sibling keys copied on. A sibling never
+overwrites a resource field: the session's own `tools` wins over the top-level
+`tools`. Siblings are declared in ResourceSchema.
+
+Siblings are a create-time snapshot, not live values, so `update` and `sync` do
+not carry them over: the first `sync` replaces them with live state. The
+connection's `authorization` (`connect_url`, `verification_code`) is only
+meaningful while the connection is pending; it is stored unvaulted until that
+first `sync`.
+
+Detection skips `oneOf`/`anyOf` responses, whose keys are alternatives rather
+than data that arrives together (droplet's `{ droplet }` or
+`{ droplets: [...] }`). The resource key is the first one whose object carries
+the resource's identifier, and an identifier at the top level marks the response
+as flat (not an envelope), so a nested object field such as
+`region: { name, slug }` is never taken for the resource.
+`SKIPPED_CREATE_SIBLINGS` drops siblings that carry a secret name-based
+sensitivity marking cannot reach: the dedicated inference `token` is an object
+whose `value` is the secret, so it is not stored.
 
 ### Why two levels
 
@@ -473,8 +551,8 @@ this by failing fast before the API call.
 
 The strategy depends on how the resource is identified:
 
-**Direct lookup** — resources identified by a unique field (`name`, `ip`,
-`uuid`) that the API can look up directly:
+**Direct lookup** — resources identified by their naming field, which the API
+can look up directly:
 
 ```typescript
 // Domain, SSH Key, Reserved IP, etc.
@@ -482,11 +560,12 @@ const existing = await tryRead("/v2/domains", g.name);
 if (existing) throw new Error(`Resource already exists: ${g.name}`);
 ```
 
-One API call. Only available when the identifying field matches the naming field
-and the API enforces uniqueness on it.
+One API call. Only available when the identifying field is the naming field: a
+`uuid`-identified resource with a `name` (BYOIP prefix) cannot be read by its
+name, so it uses list + filter.
 
-**List + filter** — resources identified by numeric `id` that have a `name` or
-`label` field in create properties:
+**List + filter** — every other resource with a `name` or `label` field in
+create properties:
 
 ```typescript
 // Droplet, Volume, Database Cluster, Load Balancer, etc.
@@ -501,11 +580,11 @@ two resources share a name, it will find the first match.
 
 ### Which resources get checkExists
 
-| Condition                                                                              | Strategy                         | Examples                                                        |
-| -------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------- |
-| Non-synthetic name + identifying field is `name`/`ip`/`uuid`                           | Direct lookup (`tryRead`)        | Domain, SSH Key, Reserved IP, Tag                               |
-| Non-synthetic name + identifying field is `id` + has `name` or `label` in create props | List + filter (`tryFindByField`) | Droplet, Volume, Database Cluster, Firewall, VPC, Load Balancer |
-| Synthetic name (no natural naming field)                                               | Not available                    | —                                                               |
+| Condition (non-synthetic name unless stated) | Strategy                         | Examples                                                       |
+| -------------------------------------------- | -------------------------------- | -------------------------------------------------------------- |
+| Identifying field is the naming field        | Direct lookup (`tryRead`)        | Domain, Tag, Database User                                     |
+| Identifying field is anything else           | List + filter (`tryFindByField`) | Droplet, Volume, Database Cluster, Load Balancer, BYOIP Prefix |
+| Synthetic name (no natural naming field)     | Not available                    | —                                                              |
 
 ### tryFindByField helper
 
@@ -690,20 +769,26 @@ Generated discovery methods are named `list_options` and write results to the
 
 ## 12. Sync Method
 
-Every generated model includes a `sync` method for drift detection. Unlike `get`
-(which requires the resource identifier as an argument), `sync` reads the
-identifier from stored state, making it zero-arg and suitable for automated
-workflows.
+Every generated model with a GET-by-id endpoint (`handlers.read`) includes a
+`sync` method for drift detection; without one, neither `get` nor `sync` is
+generated, since both would call an endpoint that does not exist (the Action
+Gateway Session has only `DELETE /v2/action-gateway/sessions/{session_urn}`).
+Unlike `get` (which requires the resource identifier as an argument), `sync`
+reads the identifier from stored state, making it zero-arg and suitable for
+automated workflows.
 
 ### How sync works
 
 1. Read the instance name from `globalArgs` (same as `update`)
 2. Load existing state via `context.dataRepository.getContent()`
 3. Extract `existing.${identifyingField} ?? existing.id` (matches the `update`
-   pattern — uses the resource's identifying field with `id` as fallback)
+   pattern — uses the resource's identifying field with `id` as fallback). If it
+   is missing, throw "Stored state for <instance> has no <field>; run get with
+   the resource ID first" instead of requesting `/undefined`
 4. Call `tryRead(endpoint, identifier)` — returns `null` on 404 instead of
    throwing
-5. If result: write refreshed state
+5. If result: carry over an identifier persisted from arguments (section 5),
+   then write refreshed state
 6. If null: write a `not_found` marker
 
 ### `tryRead()` helper
@@ -817,9 +902,8 @@ before `.describe()`, `.nullable()` and `.optional()`.
 
 The resource's identifying field is never marked in ResourceSchema, whatever its
 name: `update` and `sync` read it back from stored state to build API paths, and
-a vaulted value there would be a `vault.get(...)` reference. The comparison
-ignores underscores, because the identifier fallback strips them: the Spaces
-key's public `access_key` ID is identified as `accesskey` and stays unmarked.
+a vaulted value there would be a `vault.get(...)` reference. The Spaces key's
+public `access_key` ID is its identifier, so it stays unmarked.
 
 What swamp core does with it:
 

@@ -246,7 +246,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database topic. Registered at `@swamp/digitalocean/database-topic`. */
 export const model = {
   type: "@swamp/digitalocean/database-topic",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -260,6 +260,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -359,6 +364,13 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no name; run get with the resource ID first",
+          );
+        }
         const body: Record<string, unknown> = {};
         if (g.replication_factor !== undefined) {
           body.replication_factor = g.replication_factor;
@@ -371,19 +383,14 @@ export const model = {
           body[k] === undefined
         );
         if (unset.length > 0) {
-          const live = await read(
-            endpoint,
-            existing.name ?? existing.id,
-            undefined,
-            g.token,
-          );
+          const live = await read(endpoint, storedId, undefined, g.token);
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
         }
         const result = await update(
           endpoint,
-          existing.name ?? existing.id,
+          storedId,
           body,
           "PUT",
           undefined,
@@ -444,12 +451,16 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(
-          endpoint,
-          existing.name ?? existing.id,
-          undefined,
-          g.token,
-        ) as ResourceData | null;
+        const storedId = existing.name ?? existing.id;
+        if (storedId === undefined || storedId === null) {
+          throw new Error(
+            "Stored state for " + instanceName +
+              " has no name; run get with the resource ID first",
+          );
+        }
+        const result = await tryRead(endpoint, storedId, undefined, g.token) as
+          | ResourceData
+          | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
@@ -459,7 +470,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
         const handle = await context.writeResource("state", instanceName, {
-          name: existing.name ?? existing.id,
+          name: storedId,
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
