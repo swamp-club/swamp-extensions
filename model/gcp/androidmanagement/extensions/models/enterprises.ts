@@ -528,7 +528,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises. Registered at `@swamp/gcp/androidmanagement/enterprises`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -667,6 +667,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -817,7 +822,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["name"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["name"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["contactInfo"] !== undefined) {
           body["contactInfo"] = g["contactInfo"];

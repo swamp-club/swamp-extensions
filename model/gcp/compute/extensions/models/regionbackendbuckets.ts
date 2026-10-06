@@ -474,7 +474,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendBuckets. Registered at `@swamp/gcp/compute/regionbackendbuckets`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendbuckets",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -503,6 +503,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -649,7 +654,14 @@ export const model = {
         else if (existing["region"]) {
           params["region"] = String(existing["region"]);
         }
-        params["backendBucket"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["backendBucket"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["bucketName"] !== undefined) body["bucketName"] = g["bucketName"];
         if (g["cdnPolicy"] !== undefined) body["cdnPolicy"] = g["cdnPolicy"];

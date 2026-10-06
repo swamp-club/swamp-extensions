@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/compute"
-version: "2026.09.29.2"
+version: "2026.10.06.1"
 description: "Google Cloud compute infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: backendbuckets, backendservices, firewalls, healthchecks, httphealthchecks, httpshealthchecks, instances, regionbackendservices, regionhealthchecks, regionurlmaps, routers, urlmaps
+  - Updated: autoscalers, backendbuckets, backendservices, crosssitenetworks, disks, firewallpolicies, firewalls, forwardingrules, futurereservations, globalforwardingrules, globalpublicdelegatedprefixes, globalvmextensionpolicies, healthchecks, httphealthchecks, httpshealthchecks, images, instancegroupmanagers, instancesettings, instances, interconnectattachmentgroups, interconnectattachments, interconnectgroups, interconnects, licenses, networkattachments, networkedgesecurityservices, networkfirewallpolicies, networks, nodegroups, organizationsecuritypolicies, packetmirrorings, previewfeatures, publicadvertisedprefixes, publicdelegatedprefixes, regionautoscalers, regionbackendbuckets, regionbackendservices, regioncommitments, regioncompositehealthchecks, regiondisks, regionhealthaggregationpolicies, regionhealthcheckservices, regionhealthchecks, regionhealthsources, regioninstancegroupmanagers, regionnetworkfirewallpolicies, regionsecuritypolicies, regionsnapshotsettings, regionsslpolicies, regiontargethttpsproxies, regionurlmaps, reservationslots, reservations, resourcepolicies, routers, securitypolicies, serviceattachments, sslpolicies, storagepools, subnetworks, targetgrpcproxies, targethttpproxies, targethttpsproxies, urlmaps, wiregroups, zonevmextensionpolicies
 models:
   - acceleratortypes.ts
   - addresses.ts

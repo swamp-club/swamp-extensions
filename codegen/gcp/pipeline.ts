@@ -167,6 +167,13 @@ export interface GcpParsedResource {
   updateProperties: Set<string>;
   /** Primary identifier field names */
   primaryIdentifier: string[];
+  /**
+   * Where each path parameter's value lives in stored state (the raw GET
+   * response), as a property path, e.g. datasetId → ["datasetReference",
+   * "datasetId"]. Resolved from the response schema; absent entries fall back
+   * to the primary identifier (last param) or the param name.
+   */
+  stateIdentifierPaths?: Record<string, string[]>;
   /** Available CRUD handlers */
   handlers: GcpResourceHandlers;
   /** Available scopes (projects, organizations, etc.) */
@@ -2154,6 +2161,18 @@ function buildGcpParsedResource(
       [...updatePropertyNames].map(sanitizePropertyName),
     ),
     primaryIdentifier,
+    stateIdentifierPaths: resolveStateIdentifierPaths(
+      resourceSchema,
+      [
+        getMethod,
+        update,
+        patch,
+        deleteMethod,
+        ...Object.values(spec.actionMethods || {}),
+      ].filter((m): m is GcpMethod => m !== undefined),
+      primaryIdentifier[0] || "name",
+      resourcePath[resourcePath.length - 1],
+    ),
     handlers,
     availableScopes,
     isGlobalOnly,
@@ -2715,6 +2734,89 @@ function determinePrimaryIdentifier(
   }
 
   return ["name"];
+}
+
+/**
+ * Resolve where each path parameter's value lives in stored state, which is
+ * the raw GET response. Runs on the unsanitized response schema because state
+ * keys are the API's own property names.
+ *
+ * `methods` lists get (or update/patch/delete) first; its last param is the
+ * resource identifier. For a param P: `name`, when P is the resource
+ * identifier, its description reads "Name of …" and state has a string `name`
+ * (Compute addresses carry an unrelated `address` IP field); else a top-level
+ * string property P; else a string property P inside a top-level `*Reference`
+ * object (BigQuery datasetReference.datasetId); else, for the resource
+ * identifier, the primary identifier, `<singular resource>Id` (Classroom
+ * topics → topicId), `name`, then `id` when they are top-level strings. Params that resolve nowhere are omitted so the generator
+ * keeps its existing fallback.
+ */
+export function resolveStateIdentifierPaths(
+  schema: NormalizedGcpSchema,
+  methods: Array<{
+    parameterOrder?: string[];
+    parameters?: Record<string, { location?: string; description?: string }>;
+  }>,
+  primaryId: string,
+  resourceName = "",
+): Record<string, string[]> {
+  const props = schema.properties ?? {};
+  // topics → topicId, policies → policyId, issuer → issuerId
+  const singularIdField = `${
+    resourceName.replace(/ies$/, "y").replace(/s$/, "")
+  }Id`;
+  const isString = (s: NormalizedGcpSchema | undefined) => s?.type === "string";
+  // The resource identifier is the last param of the first method (get, or
+  // update/patch/delete without one). Collection-level actions end in a
+  // parent param such as region or bucket, which is not an identifier.
+  const firstOrder = methods[0]?.parameterOrder ?? [];
+  const identifier = firstOrder[firstOrder.length - 1];
+  const identifierDescription =
+    (identifier && methods[0]?.parameters?.[identifier]?.description) || "";
+  const namedByName = /^(the )?name of\b/i.test(identifierDescription);
+  const namedById = /\bID\b/.test(identifierDescription);
+  const params: string[] = [];
+  for (const method of methods) {
+    for (const p of method.parameterOrder ?? []) {
+      if (!params.includes(p)) params.push(p);
+    }
+  }
+
+  const paths: Record<string, string[]> = {};
+  for (const param of params) {
+    if (param === "project" || param === "projectId") continue;
+    if (param === identifier && namedByName && isString(props.name)) {
+      paths[param] = ["name"];
+      continue;
+    }
+    if (isString(props[param])) {
+      paths[param] = [param];
+      continue;
+    }
+    const refs = Object.keys(props).filter((k) =>
+      k.endsWith("Reference") && isString(props[k].properties?.[param])
+    );
+    const stemRef = `${param.replace(/Id$/, "")}Reference`;
+    const ref = refs.length === 1
+      ? refs[0]
+      : refs.includes(stemRef)
+      ? stemRef
+      : undefined;
+    if (ref) {
+      paths[param] = [ref, param];
+      continue;
+    }
+    if (param !== identifier) continue;
+    if (namedById && isString(props.id)) {
+      paths[param] = ["id"];
+      continue;
+    }
+    const field = [primaryId, singularIdField, "name", "id"].find((f) =>
+      isString(props[f])
+    );
+    if (field) paths[param] = [field];
+  }
+  return paths;
 }
 
 /** Convert resource path to model slug, e.g., ["instances"] → "instances" */

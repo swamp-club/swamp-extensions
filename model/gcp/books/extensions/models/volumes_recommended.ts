@@ -336,7 +336,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Books Volumes.Recommended. Registered at `@swamp/gcp/books/volumes-recommended`. */
 export const model = {
   type: "@swamp/gcp/books/volumes-recommended",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -455,6 +455,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -651,7 +656,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["rating"] = existing["rating"]?.toString() ??
           g["rating"]?.toString() ?? "";
-        params["volumeId"] = existing["name"]?.toString() ??
+        params["volumeId"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["locale"] !== undefined) {
           params["locale"] = String(args["locale"]);

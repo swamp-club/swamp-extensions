@@ -221,7 +221,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Parents. Registered at `@swamp/gcp/drive/parents`. */
 export const model = {
   type: "@swamp/gcp/drive/parents",
-  version: "2026.09.28.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -235,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -396,7 +401,8 @@ export const model = {
           else if (existing["fileId"]) {
             params["fileId"] = String(existing["fileId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

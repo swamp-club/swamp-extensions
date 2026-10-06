@@ -1694,7 +1694,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Triggers. Registered at `@swamp/gcp/tagmanager/accounts-containers-triggers`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-triggers",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1713,6 +1713,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1915,7 +1920,14 @@ export const model = {
         } else if (existing["containerId"]) {
           params["containerId"] = String(existing["containerId"]);
         }
-        params["triggerId"] = existing["triggerId"]?.toString() ?? "";
+        const resourceId = existing["triggerId"]?.toString() ??
+          g["triggerId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["triggerId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["autoEventFilter"] !== undefined) {
           body["autoEventFilter"] = g["autoEventFilter"];
@@ -2124,7 +2136,8 @@ export const model = {
           } else if (existing["containerId"]) {
             params["containerId"] = String(existing["containerId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["triggerId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

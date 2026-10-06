@@ -621,7 +621,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS ResourceRecordSets. Registered at `@swamp/gcp/dns/resourcerecordsets`. */
 export const model = {
   type: "@swamp/gcp/dns/resourcerecordsets",
-  version: "2026.09.18.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -778,6 +778,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -920,7 +925,14 @@ export const model = {
         }
         if (g["name"] !== undefined) params["name"] = String(g["name"]);
         else if (existing["name"]) params["name"] = String(existing["name"]);
-        params["type"] = existing["type"]?.toString() ?? "";
+        const resourceId = existing["type"]?.toString() ??
+          g["type"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["type"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["routingPolicy"] !== undefined) {
           body["routingPolicy"] = g["routingPolicy"];
@@ -1029,7 +1041,8 @@ export const model = {
           }
           if (g["name"] !== undefined) params["name"] = String(g["name"]);
           else if (existing["name"]) params["name"] = String(existing["name"]);
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["type"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

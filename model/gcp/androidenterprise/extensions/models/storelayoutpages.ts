@@ -243,7 +243,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Storelayoutpages. Registered at `@swamp/gcp/androidenterprise/storelayoutpages`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/storelayoutpages",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -362,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -491,7 +496,13 @@ export const model = {
         } else if (existing["enterpriseId"]) {
           params["enterpriseId"] = String(existing["enterpriseId"]);
         }
-        params["pageId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["pageId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["link"] !== undefined) body["link"] = g["link"];
         if (g["name"] !== undefined) body["name"] = g["name"];
@@ -605,7 +616,8 @@ export const model = {
           } else if (existing["enterpriseId"]) {
             params["enterpriseId"] = String(existing["enterpriseId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

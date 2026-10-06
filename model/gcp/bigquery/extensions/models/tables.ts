@@ -2167,7 +2167,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Tables. Registered at `@swamp/gcp/bigquery/tables`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tables",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2351,6 +2351,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2530,10 +2535,20 @@ export const model = {
         const params: Record<string, string> = { projectId: projectId };
         if (g["datasetId"] !== undefined) {
           params["datasetId"] = String(g["datasetId"]);
-        } else if (existing["datasetId"]) {
-          params["datasetId"] = String(existing["datasetId"]);
+        } else if (existing["tableReference"]?.["datasetId"]) {
+          params["datasetId"] = String(
+            existing["tableReference"]?.["datasetId"],
+          );
         }
-        params["tableId"] = existing["name"]?.toString() ?? "";
+        const resourceId =
+          existing["tableReference"]?.["tableId"]?.toString() ??
+            g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["tableId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["biglakeConfiguration"] !== undefined) {
           body["biglakeConfiguration"] = g["biglakeConfiguration"];
@@ -2735,10 +2750,14 @@ export const model = {
           const params: Record<string, string> = { projectId: projectId };
           if (g["datasetId"] !== undefined) {
             params["datasetId"] = String(g["datasetId"]);
-          } else if (existing["datasetId"]) {
-            params["datasetId"] = String(existing["datasetId"]);
+          } else if (existing["tableReference"]?.["datasetId"]) {
+            params["datasetId"] = String(
+              existing["tableReference"]?.["datasetId"],
+            );
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier =
+            existing["tableReference"]?.["tableId"]?.toString() ??
+              g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

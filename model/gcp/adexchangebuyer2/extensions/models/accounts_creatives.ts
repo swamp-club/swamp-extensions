@@ -576,7 +576,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Creatives. Registered at `@swamp/gcp/adexchangebuyer2/accounts-creatives`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-creatives",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -708,6 +708,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -857,7 +862,14 @@ export const model = {
         } else if (existing["accountId"]) {
           params["accountId"] = String(existing["accountId"]);
         }
-        params["creativeId"] = existing["creativeId"]?.toString() ?? "";
+        const resourceId = existing["creativeId"]?.toString() ??
+          g["creativeId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["creativeId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["adChoicesDestinationUrl"] !== undefined) {
           body["adChoicesDestinationUrl"] = g["adChoicesDestinationUrl"];
@@ -971,7 +983,8 @@ export const model = {
           } else if (existing["accountId"]) {
             params["accountId"] = String(existing["accountId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["creativeId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

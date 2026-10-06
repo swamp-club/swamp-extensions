@@ -302,7 +302,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Labels. Registered at `@swamp/gcp/gmail/users-labels`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-labels",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -474,6 +474,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -618,7 +623,13 @@ export const model = {
         else if (existing["userId"]) {
           params["userId"] = String(existing["userId"]);
         }
-        params["id"] = existing["id"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["id"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["id"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["color"] !== undefined) body["color"] = g["color"];
         if (g["labelListVisibility"] !== undefined) {

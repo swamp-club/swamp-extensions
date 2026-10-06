@@ -314,7 +314,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Resources.Calendars. Registered at `@swamp/gcp/admin/resources-calendars`. */
 export const model = {
   type: "@swamp/gcp/admin/resources-calendars",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -333,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -496,7 +501,14 @@ export const model = {
         } else if (existing["customer"]) {
           params["customer"] = String(existing["customer"]);
         }
-        params["calendarResourceId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["calendarResourceId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["buildingId"] !== undefined) body["buildingId"] = g["buildingId"];
         if (g["capacity"] !== undefined) body["capacity"] = g["capacity"];

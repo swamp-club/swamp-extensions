@@ -259,7 +259,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments.Resourcefiles. Registered at `@swamp/gcp/apigee/environments-resourcefiles`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments-resourcefiles",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -388,6 +388,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -521,7 +526,14 @@ export const model = {
         }
         if (g["type"] !== undefined) params["type"] = String(g["type"]);
         else if (existing["type"]) params["type"] = String(existing["type"]);
-        params["name"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["name"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["contentType"] !== undefined) {
           body["contentType"] = g["contentType"];

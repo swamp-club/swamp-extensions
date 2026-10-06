@@ -533,7 +533,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Autoscalers. Registered at `@swamp/gcp/compute/autoscalers`. */
 export const model = {
   type: "@swamp/gcp/compute/autoscalers",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -730,6 +730,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -880,7 +885,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["zone"] = existing["zone"]?.toString() ?? "";
+        const resourceId = existing["zone"]?.toString() ??
+          g["zone"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["zone"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["autoscalingPolicy"] !== undefined) {
           body["autoscalingPolicy"] = g["autoscalingPolicy"];

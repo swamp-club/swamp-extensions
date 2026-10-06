@@ -272,7 +272,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/classroom/courses-posts-addonattachments-studentsubmissions",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -409,6 +409,11 @@ export const model = {
       description: "Added: itemId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -503,7 +508,13 @@ export const model = {
         } else if (existing["attachmentId"]) {
           params["attachmentId"] = String(existing["attachmentId"]);
         }
-        params["submissionId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["submissionId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["courseWorkSubmissionId"] !== undefined) {
           body["courseWorkSubmissionId"] = g["courseWorkSubmissionId"];
@@ -594,7 +605,8 @@ export const model = {
           } else if (existing["attachmentId"]) {
             params["attachmentId"] = String(existing["attachmentId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

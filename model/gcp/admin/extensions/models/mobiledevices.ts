@@ -241,7 +241,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Mobiledevices. Registered at `@swamp/gcp/admin/mobiledevices`. */
 export const model = {
   type: "@swamp/gcp/admin/mobiledevices",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -250,6 +250,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -371,7 +376,8 @@ export const model = {
           } else if (existing["customerId"]) {
             params["customerId"] = String(existing["customerId"]);
           }
-          const identifier = existing.id?.toString() ?? g["id"]?.toString();
+          const identifier = existing["resourceId"]?.toString() ??
+            g["id"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -501,7 +507,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["resourceId"] = existing["id"]?.toString() ??
+        params["resourceId"] = existing["resourceId"]?.toString() ??
           g["id"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["action"] !== undefined) body["action"] = args["action"];

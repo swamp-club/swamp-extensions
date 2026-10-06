@@ -1015,7 +1015,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1271,6 +1271,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1463,7 +1468,14 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
         else if (existing["zone"]) params["zone"] = String(existing["zone"]);
-        params["instanceGroupManager"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["instanceGroupManager"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["allInstancesConfig"] !== undefined) {
           body["allInstancesConfig"] = g["allInstancesConfig"];
@@ -2274,9 +2286,8 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["instanceGroupManager"] =
-          existing["instanceGroupManager"]?.toString() ??
-            g["instanceGroupManager"]?.toString() ?? "";
+        params["instanceGroupManager"] = existing["name"]?.toString() ??
+          g["instanceGroupManager"]?.toString() ?? "";
         params["size"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["requestId"] !== undefined) {

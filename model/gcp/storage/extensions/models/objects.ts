@@ -772,7 +772,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Objects. Registered at `@swamp/gcp/storage/objects`. */
 export const model = {
   type: "@swamp/gcp/storage/objects",
-  version: "2026.09.30.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -931,6 +931,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1148,7 +1153,14 @@ export const model = {
         else if (existing["bucket"]) {
           params["bucket"] = String(existing["bucket"]);
         }
-        params["object"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["object"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["acl"] !== undefined) body["acl"] = g["acl"];
         if (g["cacheControl"] !== undefined) {
@@ -2163,7 +2175,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["object"] = existing["object"]?.toString() ??
+        params["object"] = existing["name"]?.toString() ??
           g["object"]?.toString() ?? "";
         if (args["copySourceAcl"] !== undefined) {
           params["copySourceAcl"] = String(args["copySourceAcl"]);
@@ -2606,7 +2618,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["object"] = existing["object"]?.toString() ??
+        params["object"] = existing["name"]?.toString() ??
           g["object"]?.toString() ?? "";
         params["permissions"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";

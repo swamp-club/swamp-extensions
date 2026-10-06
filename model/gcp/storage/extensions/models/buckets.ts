@@ -1437,7 +1437,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.10.04.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1631,6 +1631,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1837,7 +1842,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["bucket"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["bucket"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["acl"] !== undefined) body["acl"] = g["acl"];
         if (g["autoclass"] !== undefined) body["autoclass"] = g["autoclass"];
@@ -2315,7 +2327,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["bucket"] = existing["bucket"]?.toString() ??
+        params["bucket"] = existing["name"]?.toString() ??
           g["bucket"]?.toString() ?? "";
         if (args["userProject"] !== undefined) {
           params["userProject"] = String(args["userProject"]);
@@ -2438,7 +2450,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["bucket"] = existing["bucket"]?.toString() ??
+        params["bucket"] = existing["name"]?.toString() ??
           g["bucket"]?.toString() ?? "";
         if (args["projection"] !== undefined) {
           params["projection"] = String(args["projection"]);
@@ -2558,7 +2570,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["bucket"] = existing["bucket"]?.toString() ??
+        params["bucket"] = existing["name"]?.toString() ??
           g["bucket"]?.toString() ?? "";
         params["permissions"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";

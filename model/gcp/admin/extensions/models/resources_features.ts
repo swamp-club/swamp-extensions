@@ -220,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Resources.Features. Registered at `@swamp/gcp/admin/resources-features`. */
 export const model = {
   type: "@swamp/gcp/admin/resources-features",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -239,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -372,7 +377,14 @@ export const model = {
         } else if (existing["customer"]) {
           params["customer"] = String(existing["customer"]);
         }
-        params["featureKey"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["featureKey"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["etags"] !== undefined) body["etags"] = g["etags"];
         if (g["name"] !== undefined) body["name"] = g["name"];

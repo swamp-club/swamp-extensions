@@ -242,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Properties. Registered at `@swamp/gcp/drive/properties`. */
 export const model = {
   type: "@swamp/gcp/drive/properties",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -266,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -392,7 +397,14 @@ export const model = {
         else if (existing["fileId"]) {
           params["fileId"] = String(existing["fileId"]);
         }
-        params["propertyKey"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["propertyKey"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["key"] !== undefined) body["key"] = g["key"];
         if (g["value"] !== undefined) body["value"] = g["value"];

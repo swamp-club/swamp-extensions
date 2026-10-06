@@ -1068,7 +1068,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Proposals. Registered at `@swamp/gcp/adexchangebuyer2/accounts-proposals`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-proposals",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1208,6 +1208,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1344,7 +1349,14 @@ export const model = {
         } else if (existing["accountId"]) {
           params["accountId"] = String(existing["accountId"]);
         }
-        params["proposalId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["proposalId"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["proposalId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["buyerContacts"] !== undefined) {
           body["buyerContacts"] = g["buyerContacts"];
@@ -1436,7 +1448,8 @@ export const model = {
           } else if (existing["accountId"]) {
             params["accountId"] = String(existing["accountId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["proposalId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -1554,7 +1567,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["proposalRevision"] !== undefined) {
@@ -1610,7 +1623,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["note"] !== undefined) body["note"] = args["note"];
@@ -1662,7 +1675,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,
@@ -1714,7 +1727,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["externalDealIds"] !== undefined) {
@@ -1770,7 +1783,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["reason"] !== undefined) body["reason"] = args["reason"];
@@ -1821,7 +1834,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["proposalId"] = existing["name"]?.toString() ??
+        params["proposalId"] = existing["proposalId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

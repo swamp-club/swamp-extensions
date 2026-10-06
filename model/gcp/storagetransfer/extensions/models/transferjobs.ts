@@ -2652,7 +2652,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage Transfer TransferJobs. Registered at `@swamp/gcp/storagetransfer/transferjobs`. */
 export const model = {
   type: "@swamp/gcp/storagetransfer/transferjobs",
-  version: "2026.08.25.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2811,6 +2811,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2974,7 +2979,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { projectId: projectId };
-        params["jobName"] = existing["jobName"]?.toString() ?? "";
+        const resourceId = existing["jobName"]?.toString() ??
+          g["jobName"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["jobName"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["projectId"] !== undefined) body["projectId"] = g["projectId"];
         if (g["transferJob"] !== undefined) {

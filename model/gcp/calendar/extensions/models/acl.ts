@@ -293,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Acl. Registered at `@swamp/gcp/calendar/acl`. */
 export const model = {
   type: "@swamp/gcp/calendar/acl",
-  version: "2026.10.01.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -445,6 +445,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -575,7 +580,13 @@ export const model = {
         } else if (existing["calendarId"]) {
           params["calendarId"] = String(existing["calendarId"]);
         }
-        params["ruleId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["ruleId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["role"] !== undefined) body["role"] = g["role"];
@@ -700,7 +711,8 @@ export const model = {
           } else if (existing["calendarId"]) {
             params["calendarId"] = String(existing["calendarId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

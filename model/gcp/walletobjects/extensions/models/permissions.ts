@@ -184,7 +184,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Wallet Permissions. Registered at `@swamp/gcp/walletobjects/permissions`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/permissions",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -296,6 +296,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -369,7 +374,13 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["resourceId"] = existing["id"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["id"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["resourceId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["issuerId"] !== undefined) body["issuerId"] = g["issuerId"];
         if (g["permissions"] !== undefined) {

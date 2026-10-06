@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/adexchangebuyer2"
-version: "2026.09.29.1"
+version: "2026.10.06.1"
 description: "Google Cloud adexchangebuyer2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accounts_clients, accounts_clients_users, accounts_creatives, accounts_proposals
+  - Updated: accounts_clients, accounts_clients_invitations, accounts_clients_users, accounts_creatives, accounts_finalizedproposals, accounts_products, accounts_proposals, accounts_publisherprofiles
 models:
   - accounts_clients.ts
   - accounts_clients_invitations.ts

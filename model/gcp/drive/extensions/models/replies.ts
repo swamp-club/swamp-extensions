@@ -298,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Replies. Registered at `@swamp/gcp/drive/replies`. */
 export const model = {
   type: "@swamp/gcp/drive/replies",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +425,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -561,7 +566,13 @@ export const model = {
         } else if (existing["commentId"]) {
           params["commentId"] = String(existing["commentId"]);
         }
-        params["replyId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["replyId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["action"] !== undefined) body["action"] = g["action"];
         if (g["content"] !== undefined) body["content"] = g["content"];
@@ -672,7 +683,8 @@ export const model = {
           } else if (existing["commentId"]) {
             params["commentId"] = String(existing["commentId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

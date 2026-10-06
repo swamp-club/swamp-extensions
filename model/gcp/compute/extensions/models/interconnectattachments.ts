@@ -582,7 +582,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InterconnectAttachments. Registered at `@swamp/gcp/compute/interconnectattachments`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnectattachments",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -735,6 +735,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -946,7 +951,14 @@ export const model = {
         else if (existing["region"]) {
           params["region"] = String(existing["region"]);
         }
-        params["interconnectAttachment"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["interconnectAttachment"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["adminEnabled"] !== undefined) {
           body["adminEnabled"] = g["adminEnabled"];

@@ -200,7 +200,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager AuditReports. Registered at `@swamp/gcp/auditmanager/auditreports`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/auditreports",
-  version: "2026.09.09.1",
+  version: "2026.10.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -386,7 +393,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["scope"] = existing["name"]?.toString() ??
+        params["scope"] = existing["scope"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["complianceFramework"] !== undefined) {

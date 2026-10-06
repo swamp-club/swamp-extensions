@@ -259,7 +259,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK RoleAssignments. Registered at `@swamp/gcp/admin/roleassignments`. */
 export const model = {
   type: "@swamp/gcp/admin/roleassignments",
-  version: "2026.09.04.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -274,6 +274,11 @@ export const model = {
     {
       toVersion: "2026.09.04.1",
       description: "Added: expirationDetails",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -443,7 +448,8 @@ export const model = {
           } else if (existing["customer"]) {
             params["customer"] = String(existing["customer"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["roleAssignmentId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

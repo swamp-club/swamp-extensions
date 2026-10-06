@@ -230,7 +230,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Sheets Spreadsheets.Values. Registered at `@swamp/gcp/sheets/spreadsheets-values`. */
 export const model = {
   type: "@swamp/gcp/sheets/spreadsheets-values",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -358,6 +358,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -439,7 +444,14 @@ export const model = {
         } else if (existing["spreadsheetId"]) {
           params["spreadsheetId"] = String(existing["spreadsheetId"]);
         }
-        params["range"] = existing["range"]?.toString() ?? "";
+        const resourceId = existing["range"]?.toString() ??
+          g["range"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["range"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["majorDimension"] !== undefined) {
           body["majorDimension"] = g["majorDimension"];
@@ -554,7 +566,8 @@ export const model = {
           } else if (existing["spreadsheetId"]) {
             params["spreadsheetId"] = String(existing["spreadsheetId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["range"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

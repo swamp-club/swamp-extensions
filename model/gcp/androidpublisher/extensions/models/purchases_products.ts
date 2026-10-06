@@ -166,7 +166,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Purchases.Products. Registered at `@swamp/gcp/androidpublisher/purchases-products`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/purchases-products",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +278,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -369,7 +374,8 @@ export const model = {
           } else if (existing["productId"]) {
             params["productId"] = String(existing["productId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["productId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -430,7 +436,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["token"] = existing["name"]?.toString() ??
+        params["token"] = existing["productId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["developerPayload"] !== undefined) {
@@ -488,7 +494,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["token"] = existing["name"]?.toString() ??
+        params["token"] = existing["productId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

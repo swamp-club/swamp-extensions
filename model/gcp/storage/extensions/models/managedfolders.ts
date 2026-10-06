@@ -319,7 +319,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON ManagedFolders. Registered at `@swamp/gcp/storage/managedfolders`. */
 export const model = {
   type: "@swamp/gcp/storage/managedfolders",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -444,6 +444,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: ifMetagenerationMatch, ifMetagenerationNotMatch",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -575,7 +580,14 @@ export const model = {
         else if (existing["bucket"]) {
           params["bucket"] = String(existing["bucket"]);
         }
-        params["managedFolder"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["managedFolder"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["id"] !== undefined) body["id"] = g["id"];
@@ -930,7 +942,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["managedFolder"] = existing["managedFolder"]?.toString() ??
+        params["managedFolder"] = existing["name"]?.toString() ??
           g["managedFolder"]?.toString() ?? "";
         params["permissions"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";

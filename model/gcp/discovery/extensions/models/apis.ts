@@ -140,7 +140,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Discovery Service Apis. Registered at `@swamp/gcp/discovery/apis`. */
 export const model = {
   type: "@swamp/gcp/discovery/apis",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -436,7 +441,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["api"] = existing["api"]?.toString() ?? g["api"]?.toString() ??
           "";
-        params["version"] = existing["name"]?.toString() ??
+        params["version"] = existing["version"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

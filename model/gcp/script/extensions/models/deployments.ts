@@ -300,7 +300,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apps Script Deployments. Registered at `@swamp/gcp/script/deployments`. */
 export const model = {
   type: "@swamp/gcp/script/deployments",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -414,6 +414,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -544,7 +549,14 @@ export const model = {
         } else if (existing["scriptId"]) {
           params["scriptId"] = String(existing["scriptId"]);
         }
-        params["deploymentId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["deploymentId"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["deploymentId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["deploymentConfig"] !== undefined) {
           body["deploymentConfig"] = g["deploymentConfig"];
@@ -659,7 +671,8 @@ export const model = {
           } else if (existing["scriptId"]) {
             params["scriptId"] = String(existing["scriptId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["deploymentId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

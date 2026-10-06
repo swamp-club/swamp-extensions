@@ -196,7 +196,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Workspace Alert Center Alerts. Registered at `@swamp/gcp/alertcenter/alerts`. */
 export const model = {
   type: "@swamp/gcp/alertcenter/alerts",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -313,6 +313,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -419,7 +424,8 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["alertId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -611,7 +617,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["alertId"] = existing["name"]?.toString() ??
+        params["alertId"] = existing["alertId"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["customerId"] !== undefined) {
           params["customerId"] = String(args["customerId"]);
@@ -662,7 +668,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["alertId"] = existing["name"]?.toString() ??
+        params["alertId"] = existing["alertId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["customerId"] !== undefined) {

@@ -165,7 +165,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Messages.Attachments. Registered at `@swamp/gcp/gmail/users-messages-attachments`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-messages-attachments",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +277,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -364,7 +369,8 @@ export const model = {
           } else if (existing["messageId"]) {
             params["messageId"] = String(existing["messageId"]);
           }
-          const identifier = existing.id?.toString() ?? g["id"]?.toString();
+          const identifier = existing["attachmentId"]?.toString() ??
+            g["id"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

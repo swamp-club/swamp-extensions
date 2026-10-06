@@ -173,7 +173,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Edits. Registered at `@swamp/gcp/androidpublisher/edits`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/edits",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -282,6 +282,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -439,7 +444,8 @@ export const model = {
           } else if (existing["packageName"]) {
             params["packageName"] = String(existing["packageName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -498,7 +504,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["editId"] = existing["name"]?.toString() ??
+        params["editId"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["changesInReviewBehavior"] !== undefined) {
           params["changesInReviewBehavior"] = String(
@@ -560,7 +566,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["editId"] = existing["name"]?.toString() ??
+        params["editId"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

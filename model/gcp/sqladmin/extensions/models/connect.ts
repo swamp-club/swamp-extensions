@@ -180,7 +180,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Connect. Registered at `@swamp/gcp/sqladmin/connect`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/connect",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -309,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -504,7 +509,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["location"] = existing["location"]?.toString() ??
           g["location"]?.toString() ?? "";
-        params["dnsName"] = existing["name"]?.toString() ??
+        params["dnsName"] = existing["dnsName"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

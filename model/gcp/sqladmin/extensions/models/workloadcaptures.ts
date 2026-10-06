@@ -143,7 +143,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin WorkloadCaptures. Registered at `@swamp/gcp/sqladmin/workloadcaptures`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/workloadcaptures",
-  version: "2026.09.20.1",
+  version: "2026.10.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -370,7 +377,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["workloadId"] = existing["name"]?.toString() ??
+        params["workloadId"] = existing["workloadId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["startWorkloadReplayContext"] !== undefined) {
@@ -471,7 +478,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["workloadId"] = existing["name"]?.toString() ??
+        params["workloadId"] = existing["workloadId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["stopWorkloadReplayContext"] !== undefined) {

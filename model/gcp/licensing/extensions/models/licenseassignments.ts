@@ -252,7 +252,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Enterprise License Manager LicenseAssignments. Registered at `@swamp/gcp/licensing/licenseassignments`. */
 export const model = {
   type: "@swamp/gcp/licensing/licenseassignments",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +376,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -508,7 +513,14 @@ export const model = {
         }
         if (g["skuId"] !== undefined) params["skuId"] = String(g["skuId"]);
         else if (existing["skuId"]) params["skuId"] = String(existing["skuId"]);
-        params["userId"] = existing["userId"]?.toString() ?? "";
+        const resourceId = existing["userId"]?.toString() ??
+          g["userId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["userId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["etags"] !== undefined) body["etags"] = g["etags"];
         if (g["kind"] !== undefined) body["kind"] = g["kind"];
@@ -633,7 +645,8 @@ export const model = {
           else if (existing["skuId"]) {
             params["skuId"] = String(existing["skuId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["userId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.Topics. Registered at `@swamp/gcp/classroom/courses-topics`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-topics",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -367,6 +367,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -495,7 +500,14 @@ export const model = {
         } else if (existing["courseId"]) {
           params["courseId"] = String(existing["courseId"]);
         }
-        params["id"] = existing["id"]?.toString() ?? "";
+        const resourceId = existing["topicId"]?.toString() ??
+          g["id"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["id"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["topicId"] !== undefined) body["topicId"] = g["topicId"];
@@ -600,7 +612,8 @@ export const model = {
           } else if (existing["courseId"]) {
             params["courseId"] = String(existing["courseId"]);
           }
-          const identifier = existing.id?.toString() ?? g["id"]?.toString();
+          const identifier = existing["topicId"]?.toString() ??
+            g["id"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

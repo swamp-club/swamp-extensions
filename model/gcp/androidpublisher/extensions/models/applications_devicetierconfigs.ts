@@ -295,7 +295,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Applications.DeviceTierConfigs. Registered at `@swamp/gcp/androidpublisher/applications-devicetierconfigs`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/applications-devicetierconfigs",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -414,6 +414,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -551,7 +556,8 @@ export const model = {
           } else if (existing["packageName"]) {
             params["packageName"] = String(existing["packageName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["deviceTierConfigId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

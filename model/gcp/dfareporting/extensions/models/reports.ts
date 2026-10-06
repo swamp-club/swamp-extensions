@@ -1850,7 +1850,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 Reports. Registered at `@swamp/gcp/dfareporting/reports`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/reports",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1974,6 +1974,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2129,7 +2134,13 @@ export const model = {
         } else if (existing["profileId"]) {
           params["profileId"] = String(existing["profileId"]);
         }
-        params["reportId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["reportId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["accountId"] !== undefined) body["accountId"] = g["accountId"];
         if (g["criteria"] !== undefined) body["criteria"] = g["criteria"];
@@ -2288,7 +2299,8 @@ export const model = {
           } else if (existing["profileId"]) {
             params["profileId"] = String(existing["profileId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -2408,7 +2420,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["reportId"] = existing["name"]?.toString() ??
+        params["reportId"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["synchronous"] !== undefined) {
           params["synchronous"] = String(args["synchronous"]);

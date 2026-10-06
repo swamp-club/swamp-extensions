@@ -510,6 +510,43 @@ const identifierMap: Record<string, string> = {
 
 Default: `["name"]` — most GCP resources use `name`.
 
+The primary identifier names the field used for instance naming, list lookups
+and argument descriptions. It is not used on its own to read a path parameter
+back out of stored state, because many resources keep their id elsewhere.
+
+### Path parameters in stored state
+
+Stored state is the raw GET response, so `update`, `sync` and action methods
+need to know where each path parameter's value lives in it.
+`resolveStateIdentifierPaths` (`pipeline.ts`) works this out from the
+unsanitized GET response schema and stores it as `stateIdentifierPaths`, a map
+from path parameter to property path. The resource identifier is the last
+parameter of the GET (or update/patch/delete when there is no GET); a
+collection-level action ending in `{region}` or `{bucket}` does not make that
+parameter an identifier. For a parameter P, the first match wins:
+
+1. `name`, when P is the identifier, its description starts with "Name of" or
+   "The name of", and `name` is a top-level string. Compute addresses carry an
+   unrelated `address` field holding the IP.
+2. `id`, when P is the identifier, its description mentions "ID", and `id` is a
+   top-level string. Drive files: `name` is the filename.
+3. A top-level string property named P (Tag Manager `path`, Vault `matterId`,
+   DNS record set `type`).
+4. A string property P inside a top-level `*Reference` object (BigQuery
+   `datasetReference.datasetId`, `tableReference.tableId`). When several
+   Reference objects hold P, the one named after P's stem (`datasetReference`
+   for `datasetId`) wins; otherwise the rule is skipped.
+5. When P is the identifier: the primary identifier, then
+   `<singular resource>Id` (Classroom topics → `topicId`), then `name`, then
+   `id`, whichever is a top-level string first.
+
+Parameters that match nothing are left out of the map, and the generator keeps
+its previous behaviour for them (the primary identifier for the identifier, the
+parameter name otherwise). Nested paths are read with optional chaining, e.g.
+`existing["datasetReference"]?.["datasetId"]`. The globalArgs fallback always
+uses a flat key (the primary identifier or the parameter name), never the nested
+path.
+
 ### Required properties from annotations
 
 GCP uses `annotations.required` on properties to list which methods require
@@ -1037,9 +1074,11 @@ parameters not available in globalArgs fall back to reading from existing state.
 This prevents action methods from requiring a prior `create` or `get` when all
 needed information is already in globalArgs.
 
-For the resource identifier (last path parameter), the code maps to the primary
-identifier field (e.g., `name`) rather than the raw path parameter name (e.g.,
-`instance`), and falls back to globalArgs.
+Parameters read from state use the path resolved in `stateIdentifierPaths` (see
+"Path parameters in stored state"). For the resource identifier (last path
+parameter) with no resolved path, the code maps to the primary identifier field
+(e.g., `name`) rather than the raw path parameter name (e.g., `instance`). Both
+fall back to globalArgs.
 
 ### Naming
 
@@ -1069,8 +1108,17 @@ fallback to globalArgs:
 const identifier = existing.name?.toString() ?? g["name"]?.toString();
 ```
 
+The state read uses the resolved path from `stateIdentifierPaths` when it
+differs from the primary identifier, e.g.
+`existing["datasetReference"]?.["datasetId"]` for BigQuery datasets.
+
 This handles the post-delete case where stored state is
 `{ identifier: "...", status: "deleted" }` without a `name` field.
+
+The `update` method resolves its identifier the same way: the resolved state
+path, then the flat globalArgs key. When neither yields a value it throws
+`No identifier found in existing state or globalArgs` before any request,
+instead of sending an empty path parameter.
 
 ### Full resource name in sync
 

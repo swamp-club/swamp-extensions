@@ -200,7 +200,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Blogger Blogs. Registered at `@swamp/gcp/blogger/blogs`. */
 export const model = {
   type: "@swamp/gcp/blogger/blogs",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -324,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -456,7 +461,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["url"] = existing["name"]?.toString() ?? g["name"]?.toString() ??
+        params["url"] = existing["url"]?.toString() ?? g["name"]?.toString() ??
           "";
         if (args["view"] !== undefined) params["view"] = String(args["view"]);
         const result = await createResource(

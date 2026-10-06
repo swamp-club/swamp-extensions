@@ -269,7 +269,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON RapidCaches. Registered at `@swamp/gcp/storage/rapidcaches`. */
 export const model = {
   type: "@swamp/gcp/storage/rapidcaches",
-  version: "2026.08.14.1",
+  version: "2026.10.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -401,7 +408,14 @@ export const model = {
         else if (existing["bucket"]) {
           params["bucket"] = String(existing["bucket"]);
         }
-        params["rapidCacheId"] = existing["rapidCacheId"]?.toString() ?? "";
+        const resourceId = existing["rapidCacheId"]?.toString() ??
+          g["rapidCacheId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["rapidCacheId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["admissionPolicy"] !== undefined) {
           body["admissionPolicy"] = g["admissionPolicy"];
@@ -479,7 +493,8 @@ export const model = {
           else if (existing["bucket"]) {
             params["bucket"] = String(existing["bucket"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["rapidCacheId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

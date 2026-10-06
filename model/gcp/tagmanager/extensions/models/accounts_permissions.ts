@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Permissions. Registered at `@swamp/gcp/tagmanager/accounts-permissions`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-permissions",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -277,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -411,7 +416,14 @@ export const model = {
         } else if (existing["accountId"]) {
           params["accountId"] = String(existing["accountId"]);
         }
-        params["permissionId"] = existing["permissionId"]?.toString() ?? "";
+        const resourceId = existing["permissionId"]?.toString() ??
+          g["permissionId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["permissionId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["accountAccess"] !== undefined) {
           body["accountAccess"] = g["accountAccess"];
@@ -533,7 +545,8 @@ export const model = {
           } else if (existing["accountId"]) {
             params["accountId"] = String(existing["accountId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["permissionId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

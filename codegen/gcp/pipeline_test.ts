@@ -9,6 +9,8 @@ import {
   nonCreatePathParams,
   type NormalizedGcpSchema,
   parseGcpDiscoveryDocument,
+  readGcpDiscoveryDocument,
+  resolveStateIdentifierPaths,
 } from "./pipeline.ts";
 
 type RawDoc = Parameters<typeof mergeGcpDiscoveryDocument>[0];
@@ -1032,4 +1034,310 @@ Deno.test("generateGcpModels - a document that fails keeps the models it used to
     await Deno.remove(schemaPath, { recursive: true });
     await Deno.remove(outputDir, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// resolveStateIdentifierPaths (swamp-club #2669)
+// ---------------------------------------------------------------------------
+
+function pathConfig(parameterOrder: string[]) {
+  return {
+    id: "test.method",
+    path: "",
+    httpMethod: "GET",
+    parameterOrder,
+    parameters: {},
+  };
+}
+
+Deno.test("parseGcpDiscoveryDocument - BigQuery dataset id resolves to datasetReference.datasetId", async () => {
+  const datasetParams = {
+    projectId: { type: "string", location: "path", required: true },
+    datasetId: { type: "string", location: "path", required: true },
+  } as const;
+  const doc = makeDiscoveryDoc({
+    name: "bigquery",
+    title: "BigQuery API",
+    schemas: {
+      DatasetReference: {
+        type: "object",
+        properties: {
+          datasetId: { type: "string" },
+          projectId: { type: "string" },
+        },
+      },
+      Dataset: {
+        type: "object",
+        properties: {
+          datasetReference: { $ref: "DatasetReference" },
+          // Composite "project:dataset" - not usable as the path param.
+          id: { type: "string" },
+          friendlyName: { type: "string" },
+        },
+      },
+    },
+    resources: {
+      datasets: {
+        methods: {
+          get: {
+            id: "bigquery.datasets.get",
+            path: "projects/{+projectId}/datasets/{+datasetId}",
+            httpMethod: "GET",
+            parameterOrder: ["projectId", "datasetId"],
+            parameters: datasetParams,
+            response: { $ref: "Dataset" },
+          },
+          patch: {
+            id: "bigquery.datasets.patch",
+            path: "projects/{+projectId}/datasets/{+datasetId}",
+            httpMethod: "PATCH",
+            parameterOrder: ["projectId", "datasetId"],
+            parameters: datasetParams,
+            request: { $ref: "Dataset" },
+            response: { $ref: "Dataset" },
+          },
+        },
+      },
+    },
+  });
+
+  // Round-trip through disk so $refs are dereferenced exactly as in a real run.
+  const file = await Deno.makeTempFile({ suffix: ".json" });
+  let resource;
+  try {
+    await Deno.writeTextFile(file, JSON.stringify(doc));
+    [resource] = parseGcpDiscoveryDocument(
+      await readGcpDiscoveryDocument(file),
+    );
+  } finally {
+    await Deno.remove(file);
+  }
+  assertEquals(resource.primaryIdentifier, ["name"]);
+  assertEquals(resource.stateIdentifierPaths, {
+    datasetId: ["datasetReference", "datasetId"],
+  });
+});
+
+Deno.test("resolveStateIdentifierPaths - top-level property named like the param wins", () => {
+  const schema: NormalizedGcpSchema = {
+    properties: { bucket: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [pathConfig(["bucket", "object"])],
+      "name",
+    ),
+    { bucket: ["bucket"], object: ["name"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - a param described as Name of ... keeps name over a same-named field", () => {
+  // Compute addresses: the `address` field is the IP, the id is `name`.
+  const schema: NormalizedGcpSchema = {
+    properties: { address: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [{
+        parameterOrder: ["project", "region", "address"],
+        parameters: {
+          address: { description: "Name of the address resource to return." },
+        },
+      }],
+      "name",
+    ),
+    { address: ["name"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - a param described as an ID reads id over a display name", () => {
+  // Drive files: `name` is the filename, the id is `id`.
+  const schema: NormalizedGcpSchema = {
+    properties: { id: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [{
+        parameterOrder: ["fileId"],
+        parameters: { fileId: { description: "The ID of the file." } },
+      }],
+      "name",
+    ),
+    { fileId: ["id"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - The name of ... keeps name even when an ID is also accepted", () => {
+  // Compute hosts: "The name of the host, formatted as RFC1035 or a resource ID".
+  const schema: NormalizedGcpSchema = {
+    properties: { id: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [{
+        parameterOrder: ["project", "zone", "host"],
+        parameters: {
+          host: {
+            description:
+              "The name of the host, formatted as RFC1035 or a resource ID number.",
+          },
+        },
+      }],
+      "name",
+    ),
+    { host: ["name"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - a same-named field wins over a display name", () => {
+  // Tag Manager: `name` is the display name, `path` is the identifier.
+  const schema: NormalizedGcpSchema = {
+    properties: { path: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [{
+        parameterOrder: ["path"],
+        parameters: {
+          path: { description: "GTM Account's API relative path." },
+        },
+      }],
+      "name",
+    ),
+    { path: ["path"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - identifier prefers <singular>Id over a display name", () => {
+  // Classroom topics: `name` is the display name, the id is `topicId`.
+  const schema: NormalizedGcpSchema = {
+    properties: { topicId: { type: "string" }, name: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [{ parameterOrder: ["courseId", "id"] }],
+      "id",
+      "topics",
+    ),
+    { id: ["topicId"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - a collection action's trailing parent param is not an identifier", () => {
+  // Compute regional resources: listUsable ends in {region}, described
+  // "Name of the region…"; region must still read the region field.
+  const schema: NormalizedGcpSchema = {
+    properties: { name: { type: "string" }, region: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [
+        {
+          parameterOrder: ["project", "region", "backendBucket"],
+          parameters: {
+            backendBucket: { description: "Name of the BackendBucket." },
+          },
+        },
+        {
+          parameterOrder: ["project", "region"],
+          parameters: { region: { description: "Name of the region." } },
+        },
+      ],
+      "name",
+    ),
+    { region: ["region"], backendBucket: ["name"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - identifier falls back to id when there is no string name", () => {
+  const schema: NormalizedGcpSchema = {
+    properties: {
+      id: { type: "string" },
+      // Admin SDK users: name is a UserName object, not the identifier.
+      name: { type: "object", properties: { givenName: { type: "string" } } },
+    },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(schema, [pathConfig(["userKey"])], "name"),
+    { userKey: ["id"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - nested params resolve through the Reference object", () => {
+  const schema: NormalizedGcpSchema = {
+    properties: {
+      tableReference: {
+        type: "object",
+        properties: {
+          projectId: { type: "string" },
+          datasetId: { type: "string" },
+          tableId: { type: "string" },
+        },
+      },
+    },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [pathConfig(["projectId", "datasetId", "tableId"])],
+      "name",
+    ),
+    {
+      datasetId: ["tableReference", "datasetId"],
+      tableId: ["tableReference", "tableId"],
+    },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - ambiguous Reference objects prefer the one matching the param stem", () => {
+  const ref = {
+    type: "object",
+    properties: { datasetId: { type: "string" } },
+  };
+  const schema: NormalizedGcpSchema = {
+    properties: { sourceReference: ref, datasetReference: ref },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(schema, [pathConfig(["datasetId"])], "name"),
+    { datasetId: ["datasetReference", "datasetId"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - ambiguous Reference objects without a stem match fall through", () => {
+  const ref = {
+    type: "object",
+    properties: { policyId: { type: "string" } },
+  };
+  const schema: NormalizedGcpSchema = {
+    properties: {
+      sourceReference: ref,
+      targetReference: ref,
+      name: { type: "string" },
+    },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(schema, [pathConfig(["policyId"])], "name"),
+    { policyId: ["name"] },
+  );
+});
+
+Deno.test("resolveStateIdentifierPaths - unresolvable params are omitted so the generator keeps its fallback", () => {
+  const schema: NormalizedGcpSchema = {
+    properties: { description: { type: "string" } },
+  };
+  assertEquals(
+    resolveStateIdentifierPaths(
+      schema,
+      [pathConfig(["project", "zone", "instance"])],
+      "name",
+    ),
+    {},
+  );
 });

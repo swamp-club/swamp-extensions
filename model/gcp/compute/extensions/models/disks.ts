@@ -704,7 +704,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Disks. Registered at `@swamp/gcp/compute/disks`. */
 export const model = {
   type: "@swamp/gcp/compute/disks",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -964,6 +964,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1181,7 +1186,14 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
         else if (existing["zone"]) params["zone"] = String(existing["zone"]);
-        params["disk"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["disk"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["accessMode"] !== undefined) body["accessMode"] = g["accessMode"];
         if (g["architecture"] !== undefined) {

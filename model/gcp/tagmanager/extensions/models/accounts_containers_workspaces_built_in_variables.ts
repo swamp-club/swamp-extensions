@@ -192,7 +192,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/tagmanager/accounts-containers-workspaces-built-in-variables",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -316,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -563,7 +568,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["path"] = existing["name"]?.toString() ??
+        params["path"] = existing["path"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["type"] !== undefined) params["type"] = String(args["type"]);
         const result = await createResource(

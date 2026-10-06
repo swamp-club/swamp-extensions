@@ -262,7 +262,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Apprecovery. Registered at `@swamp/gcp/androidpublisher/apprecovery`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/apprecovery",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -371,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -604,7 +609,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["appRecoveryId"] = existing["name"]?.toString() ??
+        params["appRecoveryId"] = existing["appRecoveryId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["targetingUpdate"] !== undefined) {
@@ -658,7 +663,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["appRecoveryId"] = existing["name"]?.toString() ??
+        params["appRecoveryId"] = existing["appRecoveryId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,
@@ -708,7 +713,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["appRecoveryId"] = existing["name"]?.toString() ??
+        params["appRecoveryId"] = existing["appRecoveryId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const result = await createResource(
           baseUrl,

@@ -262,7 +262,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON AnywhereCaches. Registered at `@swamp/gcp/storage/anywherecaches`. */
 export const model = {
   type: "@swamp/gcp/storage/anywherecaches",
-  version: "2026.08.13.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -391,6 +391,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -527,8 +532,14 @@ export const model = {
         else if (existing["bucket"]) {
           params["bucket"] = String(existing["bucket"]);
         }
-        params["anywhereCacheId"] = existing["anywhereCacheId"]?.toString() ??
-          "";
+        const resourceId = existing["anywhereCacheId"]?.toString() ??
+          g["anywhereCacheId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["anywhereCacheId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["admissionPolicy"] !== undefined) {
           body["admissionPolicy"] = g["admissionPolicy"];
@@ -605,7 +616,8 @@ export const model = {
           else if (existing["bucket"]) {
             params["bucket"] = String(existing["bucket"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["anywhereCacheId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

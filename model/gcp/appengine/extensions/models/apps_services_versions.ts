@@ -1496,7 +1496,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Engine Admin Apps.Services.Versions. Registered at `@swamp/gcp/appengine/apps-services-versions`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps-services-versions",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1630,6 +1630,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1847,7 +1852,14 @@ export const model = {
         } else if (existing["servicesId"]) {
           params["servicesId"] = String(existing["servicesId"]);
         }
-        params["versionsId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["versionsId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["apiConfig"] !== undefined) body["apiConfig"] = g["apiConfig"];
         if (g["appEngineApis"] !== undefined) {

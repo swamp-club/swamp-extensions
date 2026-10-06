@@ -581,7 +581,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Devices. Registered at `@swamp/gcp/androidenterprise/devices`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/devices",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -713,6 +713,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -800,7 +805,14 @@ export const model = {
         else if (existing["userId"]) {
           params["userId"] = String(existing["userId"]);
         }
-        params["deviceId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["deviceId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["androidId"] !== undefined) body["androidId"] = g["androidId"];
         if (g["device"] !== undefined) body["device"] = g["device"];

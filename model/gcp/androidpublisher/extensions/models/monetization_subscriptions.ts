@@ -817,7 +817,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Monetization.Subscriptions. Registered at `@swamp/gcp/androidpublisher/monetization-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/monetization-subscriptions",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -989,6 +989,11 @@ export const model = {
       description: "Added: allowMissing, latencyTolerance",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1121,7 +1126,14 @@ export const model = {
         } else if (existing["packageName"]) {
           params["packageName"] = String(existing["packageName"]);
         }
-        params["productId"] = existing["productId"]?.toString() ?? "";
+        const resourceId = existing["productId"]?.toString() ??
+          g["productId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["productId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["basePlans"] !== undefined) body["basePlans"] = g["basePlans"];
         if (g["listings"] !== undefined) body["listings"] = g["listings"];
@@ -1241,7 +1253,8 @@ export const model = {
           } else if (existing["packageName"]) {
             params["packageName"] = String(existing["packageName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["productId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

@@ -240,7 +240,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Service Management Services.Rollouts. Registered at `@swamp/gcp/servicemanagement/services-rollouts`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-rollouts",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -354,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -487,7 +492,8 @@ export const model = {
           } else if (existing["serviceName"]) {
             params["serviceName"] = String(existing["serviceName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["rolloutId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

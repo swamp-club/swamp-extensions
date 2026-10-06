@@ -156,7 +156,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Games Services Achievements. Registered at `@swamp/gcp/games/achievements`. */
 export const model = {
   type: "@swamp/gcp/games/achievements",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -270,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -474,7 +479,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["achievementId"] = existing["achievementId"]?.toString() ??
           g["achievementId"]?.toString() ?? "";
-        params["stepsToIncrement"] = existing["name"]?.toString() ??
+        params["stepsToIncrement"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["requestId"] !== undefined) {
           params["requestId"] = String(args["requestId"]);

@@ -144,7 +144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Workspace Marketplace CustomerLicense. Registered at `@swamp/gcp/appsmarket/customerlicense`. */
 export const model = {
   type: "@swamp/gcp/appsmarket/customerlicense",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +256,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -339,7 +344,8 @@ export const model = {
           } else if (existing["applicationId"]) {
             params["applicationId"] = String(existing["applicationId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["customerId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

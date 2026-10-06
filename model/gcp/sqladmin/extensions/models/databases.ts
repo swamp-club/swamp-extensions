@@ -289,7 +289,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Databases. Registered at `@swamp/gcp/sqladmin/databases`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/databases",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -423,6 +423,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -560,7 +565,14 @@ export const model = {
         } else if (existing["instance"]) {
           params["instance"] = String(existing["instance"]);
         }
-        params["database"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["database"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["charset"] !== undefined) body["charset"] = g["charset"];
         if (g["collation"] !== undefined) body["collation"] = g["collation"];

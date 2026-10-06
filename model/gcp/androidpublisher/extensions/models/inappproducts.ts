@@ -658,7 +658,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Inappproducts. Registered at `@swamp/gcp/androidpublisher/inappproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/inappproducts",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -787,6 +787,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -943,7 +948,13 @@ export const model = {
         } else if (existing["packageName"]) {
           params["packageName"] = String(existing["packageName"]);
         }
-        params["sku"] = existing["sku"]?.toString() ?? "";
+        const resourceId = existing["sku"]?.toString() ?? g["sku"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["sku"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["defaultLanguage"] !== undefined) {
           body["defaultLanguage"] = g["defaultLanguage"];
@@ -1106,7 +1117,8 @@ export const model = {
           } else if (existing["packageName"]) {
             params["packageName"] = String(existing["packageName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["sku"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

@@ -150,7 +150,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Device Provisioning Partner Partners.Devices. Registered at `@swamp/gcp/androiddeviceprovisioning/partners-devices`. */
 export const model = {
   type: "@swamp/gcp/androiddeviceprovisioning/partners-devices",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -695,7 +700,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["metadataOwnerId"] = existing["metadataOwnerId"]?.toString() ??
           g["metadataOwnerId"]?.toString() ?? "";
-        params["deviceId"] = existing["name"]?.toString() ??
+        params["deviceId"] = existing["deviceId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["deviceMetadata"] !== undefined) {

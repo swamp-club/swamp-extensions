@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Roles. Registered at `@swamp/gcp/admin/roles`. */
 export const model = {
   type: "@swamp/gcp/admin/roles",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -282,6 +282,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -425,7 +430,14 @@ export const model = {
         } else if (existing["customer"]) {
           params["customer"] = String(existing["customer"]);
         }
-        params["roleId"] = existing["roleId"]?.toString() ?? "";
+        const resourceId = existing["roleId"]?.toString() ??
+          g["roleId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["roleId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["isSuperAdminRole"] !== undefined) {
           body["isSuperAdminRole"] = g["isSuperAdminRole"];
@@ -564,7 +576,8 @@ export const model = {
           } else if (existing["customer"]) {
             params["customer"] = String(existing["customer"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["roleId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

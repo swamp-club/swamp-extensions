@@ -253,7 +253,9 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g[\\"zone\\"] !== undefined) params[\\"zone\\"] = String(g[\\"zone\\"]);
         else if (existing[\\"zone\\"]) params[\\"zone\\"] = String(existing[\\"zone\\"]);
-        params[\\"instance\\"] = existing[\\"name\\"]?.toString() ?? \\"\\";
+        const resourceId = existing[\\"name\\"]?.toString() ?? g[\\"name\\"]?.toString();
+        if (!resourceId) throw new Error(\\"No identifier found in existing state or globalArgs\\");
+        params[\\"instance\\"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g[\\"machineType\\"] !== undefined) body[\\"machineType\\"] = g[\\"machineType\\"];
         for (const key of Object.keys(existing)) {
@@ -575,7 +577,9 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g[\\"zone\\"] !== undefined) params[\\"zone\\"] = String(g[\\"zone\\"]);
         else if (existing[\\"zone\\"]) params[\\"zone\\"] = String(existing[\\"zone\\"]);
-        params[\\"instance\\"] = existing[\\"name\\"]?.toString() ?? \\"\\";
+        const resourceId = existing[\\"name\\"]?.toString() ?? g[\\"name\\"]?.toString();
+        if (!resourceId) throw new Error(\\"No identifier found in existing state or globalArgs\\");
+        params[\\"instance\\"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g[\\"name\\"] !== undefined) body[\\"name\\"] = g[\\"name\\"];
         for (const key of Object.keys(existing)) {
@@ -2079,7 +2083,9 @@ export const model = {
         if (!content) throw new Error(\\"No existing state found - run create, get, or list first\\");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params[\\"firewall\\"] = existing[\\"name\\"]?.toString() ?? \\"\\";
+        const resourceId = existing[\\"name\\"]?.toString() ?? g[\\"name\\"]?.toString();
+        if (!resourceId) throw new Error(\\"No identifier found in existing state or globalArgs\\");
+        params[\\"firewall\\"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g[\\"network\\"] !== undefined) body[\\"network\\"] = g[\\"network\\"];
         for (const key of Object.keys(existing)) {

@@ -333,7 +333,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery RowAccessPolicies. Registered at `@swamp/gcp/bigquery/rowaccesspolicies`. */
 export const model = {
   type: "@swamp/gcp/bigquery/rowaccesspolicies",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -457,6 +457,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -589,15 +594,27 @@ export const model = {
         const params: Record<string, string> = { projectId: projectId };
         if (g["datasetId"] !== undefined) {
           params["datasetId"] = String(g["datasetId"]);
-        } else if (existing["datasetId"]) {
-          params["datasetId"] = String(existing["datasetId"]);
+        } else if (existing["rowAccessPolicyReference"]?.["datasetId"]) {
+          params["datasetId"] = String(
+            existing["rowAccessPolicyReference"]?.["datasetId"],
+          );
         }
         if (g["tableId"] !== undefined) {
           params["tableId"] = String(g["tableId"]);
-        } else if (existing["tableId"]) {
-          params["tableId"] = String(existing["tableId"]);
+        } else if (existing["rowAccessPolicyReference"]?.["tableId"]) {
+          params["tableId"] = String(
+            existing["rowAccessPolicyReference"]?.["tableId"],
+          );
         }
-        params["policyId"] = existing["name"]?.toString() ?? "";
+        const resourceId =
+          existing["rowAccessPolicyReference"]?.["policyId"]?.toString() ??
+            g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["policyId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["filterPredicate"] !== undefined) {
           body["filterPredicate"] = g["filterPredicate"];
@@ -720,15 +737,21 @@ export const model = {
           const params: Record<string, string> = { projectId: projectId };
           if (g["datasetId"] !== undefined) {
             params["datasetId"] = String(g["datasetId"]);
-          } else if (existing["datasetId"]) {
-            params["datasetId"] = String(existing["datasetId"]);
+          } else if (existing["rowAccessPolicyReference"]?.["datasetId"]) {
+            params["datasetId"] = String(
+              existing["rowAccessPolicyReference"]?.["datasetId"],
+            );
           }
           if (g["tableId"] !== undefined) {
             params["tableId"] = String(g["tableId"]);
-          } else if (existing["tableId"]) {
-            params["tableId"] = String(existing["tableId"]);
+          } else if (existing["rowAccessPolicyReference"]?.["tableId"]) {
+            params["tableId"] = String(
+              existing["rowAccessPolicyReference"]?.["tableId"],
+            );
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier =
+            existing["rowAccessPolicyReference"]?.["policyId"]?.toString() ??
+              g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

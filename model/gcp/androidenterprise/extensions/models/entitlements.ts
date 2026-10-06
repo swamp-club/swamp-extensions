@@ -241,7 +241,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Entitlements. Registered at `@swamp/gcp/androidenterprise/entitlements`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/entitlements",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -368,6 +368,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -455,7 +460,14 @@ export const model = {
         else if (existing["userId"]) {
           params["userId"] = String(existing["userId"]);
         }
-        params["entitlementId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["entitlementId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["productId"] !== undefined) body["productId"] = g["productId"];
         if (g["reason"] !== undefined) body["reason"] = g["reason"];

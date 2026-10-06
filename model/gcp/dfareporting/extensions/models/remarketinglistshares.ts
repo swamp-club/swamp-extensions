@@ -187,7 +187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Campaign Manager 360 RemarketingListShares. Registered at `@swamp/gcp/dfareporting/remarketinglistshares`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/remarketinglistshares",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -309,6 +309,11 @@ export const model = {
       description: "Added: id",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -388,7 +393,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["profileId"] = existing["profileId"]?.toString() ?? "";
+        const resourceId = existing["profileId"]?.toString() ??
+          g["profileId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["profileId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["kind"] !== undefined) body["kind"] = g["kind"];
         if (g["remarketingListId"] !== undefined) {
@@ -462,7 +474,8 @@ export const model = {
           } else if (existing["profileId"]) {
             params["profileId"] = String(existing["profileId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["remarketingListId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

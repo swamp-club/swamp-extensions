@@ -1347,7 +1347,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Events. Registered at `@swamp/gcp/calendar/events`. */
 export const model = {
   type: "@swamp/gcp/calendar/events",
-  version: "2026.10.01.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1496,6 +1496,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1718,7 +1723,13 @@ export const model = {
         } else if (existing["calendarId"]) {
           params["calendarId"] = String(existing["calendarId"]);
         }
-        params["eventId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["id"]?.toString() ?? g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["eventId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["anyoneCanAddSelf"] !== undefined) {
           body["anyoneCanAddSelf"] = g["anyoneCanAddSelf"];
@@ -1935,7 +1946,8 @@ export const model = {
           } else if (existing["calendarId"]) {
             params["calendarId"] = String(existing["calendarId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["id"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -2341,7 +2353,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["eventId"] = existing["name"]?.toString() ??
+        params["eventId"] = existing["id"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["alwaysIncludeEmail"] !== undefined) {
           params["alwaysIncludeEmail"] = String(args["alwaysIncludeEmail"]);
@@ -2429,7 +2441,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["eventId"] = existing["eventId"]?.toString() ??
+        params["eventId"] = existing["id"]?.toString() ??
           g["eventId"]?.toString() ?? "";
         params["destination"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";

@@ -1513,3 +1513,108 @@ Deno.test("generateGcpExtensionModel - PATCH update does not fill or guard field
   assertEquals(updateBlock(code).includes("readResource("), false);
   assertEquals(code.includes(`body["network"] = existing["network"]`), false);
 });
+
+// ---------------------------------------------------------------------------
+// State identifier paths (swamp-club #2669)
+// ---------------------------------------------------------------------------
+
+function makeDatasetResource(
+  stateIdentifierPaths?: Record<string, string[]>,
+): GcpParsedResource {
+  const datasetConfig = (id: string, httpMethod: string) =>
+    makeMethodConfig({
+      id,
+      path: "projects/{+projectId}/datasets/{+datasetId}",
+      httpMethod,
+      parameterOrder: ["projectId", "datasetId"],
+      parameters: {
+        projectId: { location: "path", required: true },
+        datasetId: { location: "path", required: true },
+      },
+    });
+  return makeResource({
+    service: "bigquery",
+    resourcePath: ["datasets"],
+    primaryIdentifier: ["name"],
+    domainProperties: { friendlyName: { type: "string" } },
+    updateProperties: new Set(["friendlyName"]),
+    handlers: { create: false, read: true, update: true, delete: false },
+    methodConfigs: {
+      get: datasetConfig("bigquery.datasets.get", "GET"),
+      patch: datasetConfig("bigquery.datasets.patch", "PATCH"),
+    },
+    actionMethods: [{
+      name: "undelete",
+      description: "Undeletes a dataset",
+      config: {
+        ...datasetConfig("bigquery.datasets.undelete", "POST"),
+        path: "projects/{+projectId}/datasets/{+datasetId}:undelete",
+      },
+      requestProperties: {},
+      requiredProperties: [],
+    }],
+    stateIdentifierPaths,
+  });
+}
+
+Deno.test("generateGcpExtensionModel - update, sync and actions read the id from its resolved state path", () => {
+  const code = generateGcpExtensionModel(makeInput({
+    resource: makeDatasetResource({
+      datasetId: ["datasetReference", "datasetId"],
+    }),
+  }));
+  const read = `existing["datasetReference"]?.["datasetId"]?.toString()`;
+  // update: resolved path, then the flat globalArgs key, then a clear error.
+  assertStringIncludes(
+    code,
+    `const resourceId = ${read} ?? g["name"]?.toString();`,
+  );
+  assertStringIncludes(
+    code,
+    `if (!resourceId) throw new Error("No identifier found in existing state or globalArgs");`,
+  );
+  assertStringIncludes(code, `params["datasetId"] = resourceId;`);
+  // sync
+  assertStringIncludes(
+    code,
+    `const identifier = ${read} ?? g["name"]?.toString();`,
+  );
+  // action
+  assertStringIncludes(
+    code,
+    `params["datasetId"] = ${read} ?? g["name"]?.toString() ?? "";`,
+  );
+  // The nested path never becomes a globalArgs key.
+  assertEquals(code.includes(`g["datasetReference.datasetId"]`), false);
+  assertEquals(code.includes(`existing["name"]`), false);
+});
+
+Deno.test("generateGcpExtensionModel - a path resolved to the primary identifier emits the same code as no resolution", () => {
+  assertEquals(
+    generateGcpExtensionModel(makeInput({
+      resource: makeDatasetResource({ datasetId: ["name"] }),
+    })),
+    generateGcpExtensionModel(makeInput({
+      resource: makeDatasetResource(undefined),
+    })),
+  );
+});
+
+Deno.test("generateGcpExtensionModel - update with an id-keyed resource throws a clear error instead of sending an empty id", () => {
+  const resource = makeDatasetResource({ datasetId: ["id"] });
+  resource.primaryIdentifier = ["id"];
+  const code = generateGcpExtensionModel(makeInput({ resource }));
+  assertStringIncludes(
+    code,
+    `const resourceId = existing["id"]?.toString() ?? g["id"]?.toString();`,
+  );
+  assertStringIncludes(
+    code,
+    `if (!resourceId) throw new Error("No identifier found in existing state or globalArgs");`,
+  );
+  // The pre-#2669 update line sent an empty id when state lacked the field.
+  assertEquals(
+    code.includes(`params["datasetId"] = existing["id"]?.toString() ?? "";`),
+    false,
+  );
+});

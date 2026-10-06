@@ -179,7 +179,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Tokens. Registered at `@swamp/gcp/admin/tokens`. */
 export const model = {
   type: "@swamp/gcp/admin/tokens",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -188,6 +188,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -308,7 +313,8 @@ export const model = {
           } else if (existing["userKey"]) {
             params["userKey"] = String(existing["userKey"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["clientId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

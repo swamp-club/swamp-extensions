@@ -336,7 +336,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Edits.Tracks. Registered at `@swamp/gcp/androidpublisher/edits-tracks`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/edits-tracks",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -460,6 +460,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -590,7 +595,14 @@ export const model = {
         else if (existing["editId"]) {
           params["editId"] = String(existing["editId"]);
         }
-        params["track"] = existing["track"]?.toString() ?? "";
+        const resourceId = existing["track"]?.toString() ??
+          g["track"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["track"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["releases"] !== undefined) body["releases"] = g["releases"];
         let live: Record<string, unknown> | undefined;
@@ -672,7 +684,8 @@ export const model = {
           else if (existing["editId"]) {
             params["editId"] = String(existing["editId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["track"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

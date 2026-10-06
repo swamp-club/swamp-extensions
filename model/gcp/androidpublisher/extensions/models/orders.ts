@@ -261,7 +261,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Orders. Registered at `@swamp/gcp/androidpublisher/orders`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/orders",
-  version: "2026.09.07.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +398,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -481,7 +486,8 @@ export const model = {
           } else if (existing["packageName"]) {
             params["packageName"] = String(existing["packageName"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["orderId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -580,7 +586,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["orderId"] = existing["name"]?.toString() ??
+        params["orderId"] = existing["orderId"]?.toString() ??
           g["name"]?.toString() ?? "";
         if (args["revoke"] !== undefined) {
           params["revoke"] = String(args["revoke"]);
@@ -640,7 +646,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["orderId"] = existing["name"]?.toString() ??
+        params["orderId"] = existing["orderId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["consumptionPercentageMilliunits"] !== undefined) {

@@ -428,7 +428,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReservationSlots. Registered at `@swamp/gcp/compute/reservationslots`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationslots",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -575,6 +575,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -661,7 +666,14 @@ export const model = {
         } else if (existing["parentName"]) {
           params["parentName"] = String(existing["parentName"]);
         }
-        params["reservationSlot"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["name"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["reservationSlot"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["creationTimestamp"] !== undefined) {
           body["creationTimestamp"] = g["creationTimestamp"];

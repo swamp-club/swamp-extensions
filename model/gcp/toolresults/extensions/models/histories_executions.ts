@@ -690,7 +690,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Tool Results Histories.Executions. Registered at `@swamp/gcp/toolresults/histories-executions`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories-executions",
-  version: "2026.08.25.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -819,6 +819,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -964,7 +969,14 @@ export const model = {
         } else if (existing["historyId"]) {
           params["historyId"] = String(existing["historyId"]);
         }
-        params["executionId"] = existing["executionId"]?.toString() ?? "";
+        const resourceId = existing["executionId"]?.toString() ??
+          g["executionId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["executionId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["completionTime"] !== undefined) {
           body["completionTime"] = g["completionTime"];
@@ -1044,7 +1056,8 @@ export const model = {
           } else if (existing["historyId"]) {
             params["historyId"] = String(existing["historyId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["executionId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

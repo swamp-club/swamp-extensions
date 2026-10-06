@@ -17,6 +17,23 @@ function safeIdent(name: string): string {
   return name.replace(/[.\-/]/g, "_");
 }
 
+/**
+ * Expression reading a path param's value from stored state. Uses the path
+ * resolved from the response schema, falling back to `field`. Single-segment
+ * paths keep the bracket form; nested ones use optional chaining so a missing
+ * parent object yields undefined.
+ */
+function stateRead(
+  resource: GcpParsedResource,
+  paramName: string,
+  field: string,
+): string {
+  const path = resource.stateIdentifierPaths?.[paramName] ?? [field];
+  return "existing" +
+    path.map((seg, i) => `${i === 0 ? "" : "?."}[${JSON.stringify(seg)}]`)
+      .join("");
+}
+
 export interface GcpExtensionModelInput {
   /** Parsed GCP resource */
   resource: GcpParsedResource;
@@ -1030,9 +1047,17 @@ export function generateGcpExtensionModel(
             ? paramName
             : idField;
           lines.push(
-            `        params[${JSON.stringify(paramName)}] = existing[${
-              JSON.stringify(existingField)
-            }]?.toString() ?? "";`,
+            `        const resourceId = ${
+              stateRead(resource, paramName, existingField)
+            }?.toString() ?? g[${
+              JSON.stringify(safeIdent(existingField))
+            }]?.toString();`,
+          );
+          lines.push(
+            `        if (!resourceId) throw new Error("No identifier found in existing state or globalArgs");`,
+          );
+          lines.push(
+            `        params[${JSON.stringify(paramName)}] = resourceId;`,
           );
         }
       } else {
@@ -1044,10 +1069,11 @@ export function generateGcpExtensionModel(
           }]);`,
         );
         if (updateNeedsExisting) {
+          const read = stateRead(resource, paramName, paramName);
           lines.push(
-            `        else if (existing[${JSON.stringify(paramName)}]) params[${
+            `        else if (${read}) params[${
               JSON.stringify(paramName)
-            }] = String(existing[${JSON.stringify(paramName)}]);`,
+            }] = String(${read});`,
           );
         }
       }
@@ -1471,8 +1497,12 @@ export function generateGcpExtensionModel(
               );
             }
           } else {
+            const path = resource.stateIdentifierPaths?.[paramName];
+            const read = path && (path.length > 1 || path[0] !== primaryId)
+              ? stateRead(resource, paramName, primaryId)
+              : `existing.${primaryId}`;
             lines.push(
-              `          const identifier = existing.${primaryId}?.toString() ?? g[${
+              `          const identifier = ${read}?.toString() ?? g[${
                 JSON.stringify(safeIdent(primaryId))
               }]?.toString();`,
             );
@@ -1492,12 +1522,11 @@ export function generateGcpExtensionModel(
             }]);`,
           );
           if (syncNeedsExisting) {
+            const read = stateRead(resource, paramName, paramName);
             lines.push(
-              `          else if (existing[${
+              `          else if (${read}) params[${
                 JSON.stringify(paramName)
-              }]) params[${JSON.stringify(paramName)}] = String(existing[${
-                JSON.stringify(paramName)
-              }]);`,
+              }] = String(${read});`,
             );
           }
         }
@@ -1826,9 +1855,9 @@ export function generateGcpExtensionModel(
           ? (resource.primaryIdentifier[0] || paramName)
           : paramName;
         lines.push(
-          `        params[${JSON.stringify(paramName)}] = existing[${
-            JSON.stringify(stateField)
-          }]?.toString() ?? g[${
+          `        params[${JSON.stringify(paramName)}] = ${
+            stateRead(resource, paramName, stateField)
+          }?.toString() ?? g[${
             JSON.stringify(safeIdent(stateField))
           }]?.toString() ?? "";`,
         );
