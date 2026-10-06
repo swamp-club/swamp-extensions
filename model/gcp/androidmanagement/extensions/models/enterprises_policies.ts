@@ -1040,7 +1040,7 @@ const GlobalArgsSchema = z.object({
     "Controls the use of the microphone and whether the user has access to the microphone access toggle. This applies only on fully managed devices.",
   ).optional(),
   minimumApiLevel: z.number().int().describe(
-    "The minimum allowed Android API level.",
+    "The minimum allowed Android API level. A NonComplianceDetail with OS_NOT_PERMITTED is reported if the Android API level of the device is lower than this value.",
   ).optional(),
   mobileNetworksConfigDisabled: z.boolean().describe(
     "Whether configuring mobile networks is disabled.",
@@ -2885,7 +2885,7 @@ const InputsSchema = z.object({
     "Controls the use of the microphone and whether the user has access to the microphone access toggle. This applies only on fully managed devices.",
   ).optional(),
   minimumApiLevel: z.number().int().describe(
-    "The minimum allowed Android API level.",
+    "The minimum allowed Android API level. A NonComplianceDetail with OS_NOT_PERMITTED is reported if the Android API level of the device is lower than this value.",
   ).optional(),
   mobileNetworksConfigDisabled: z.boolean().describe(
     "Whether configuring mobile networks is disabled.",
@@ -3444,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.02.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3628,6 +3628,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

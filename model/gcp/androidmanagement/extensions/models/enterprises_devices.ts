@@ -638,6 +638,7 @@ const GlobalArgsSchema = z.object({
       "PENDING",
       "APP_INCOMPATIBLE",
       "APP_NOT_UPDATED",
+      "OS_NOT_PERMITTED",
       "DEVICE_INCOMPATIBLE",
       "APP_SIGNING_CERT_MISMATCH",
       "PROJECT_NOT_PERMITTED",
@@ -1547,6 +1548,7 @@ const InputsSchema = z.object({
       "PENDING",
       "APP_INCOMPATIBLE",
       "APP_NOT_UPDATED",
+      "OS_NOT_PERMITTED",
       "DEVICE_INCOMPATIBLE",
       "APP_SIGNING_CERT_MISMATCH",
       "PROJECT_NOT_PERMITTED",
@@ -1777,7 +1779,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1921,6 +1923,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

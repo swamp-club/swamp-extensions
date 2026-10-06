@@ -175,6 +175,13 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Optional. The aggregation interval for the logs. Default value is INTERVAL_5_SEC.",
   ).optional(),
+  connectionLogging: z.enum([
+    "CONNECTION_LOGGING_UNSPECIFIED",
+    "CONNECTION_LOGGING_ENABLED",
+    "CONNECTION_LOGGING_DISABLED",
+  ]).describe(
+    "Optional. Configures whether connection logging is enabled for VPC Flow Logs.",
+  ).optional(),
   crossProjectMetadata: z.enum([
     "CROSS_PROJECT_METADATA_UNSPECIFIED",
     "CROSS_PROJECT_METADATA_ENABLED",
@@ -233,6 +240,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   aggregationInterval: z.string().optional(),
+  connectionLogging: z.string().optional(),
   createTime: z.string().optional(),
   crossProjectMetadata: z.string().optional(),
   description: z.string().optional(),
@@ -270,6 +278,13 @@ const InputsSchema = z.object({
     "INTERVAL_15_MIN",
   ]).describe(
     "Optional. The aggregation interval for the logs. Default value is INTERVAL_5_SEC.",
+  ).optional(),
+  connectionLogging: z.enum([
+    "CONNECTION_LOGGING_UNSPECIFIED",
+    "CONNECTION_LOGGING_ENABLED",
+    "CONNECTION_LOGGING_DISABLED",
+  ]).describe(
+    "Optional. Configures whether connection logging is enabled for VPC Flow Logs.",
   ).optional(),
   crossProjectMetadata: z.enum([
     "CROSS_PROJECT_METADATA_UNSPECIFIED",
@@ -353,7 +368,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management VpcFlowLogsConfigs. Registered at `@swamp/gcp/networkmanagement/vpcflowlogsconfigs`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/vpcflowlogsconfigs",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -475,6 +490,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "Added: connectionLogging",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -505,6 +525,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["aggregationInterval"] !== undefined) {
           body["aggregationInterval"] = g["aggregationInterval"];
+        }
+        if (g["connectionLogging"] !== undefined) {
+          body["connectionLogging"] = g["connectionLogging"];
         }
         if (g["crossProjectMetadata"] !== undefined) {
           body["crossProjectMetadata"] = g["crossProjectMetadata"];
@@ -654,6 +677,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["aggregationInterval"] !== undefined) {
           body["aggregationInterval"] = g["aggregationInterval"];
+        }
+        if (g["connectionLogging"] !== undefined) {
+          body["connectionLogging"] = g["connectionLogging"];
         }
         if (g["crossProjectMetadata"] !== undefined) {
           body["crossProjectMetadata"] = g["crossProjectMetadata"];

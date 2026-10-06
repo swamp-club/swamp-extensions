@@ -115,6 +115,9 @@ const GET_CONFIG = {
     "pageToken": {
       "location": "query",
     },
+    "view": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -129,6 +132,9 @@ const LIST_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
+    },
+    "view": {
+      "location": "query",
     },
   },
 } as const;
@@ -294,7 +300,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Reports. Registered at `@swamp/gcp/firebasecrashlytics/apps-reports`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-reports",
-  version: "2026.10.03.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -343,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -462,6 +473,9 @@ export const model = {
     list: {
       description: "List reports resources",
       arguments: z.object({
+        view: z.string().describe(
+          "Optional. Response view. If not set, defaults to `REPORT_VIEW_BASIC`. `REPORT_VIEW_FULL` is not supported for list operations.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -474,6 +488,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
         const { items, nextPageToken } = await listResources(
           baseUrl,
           LIST_CONFIG,

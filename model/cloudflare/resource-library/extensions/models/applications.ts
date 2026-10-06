@@ -50,16 +50,18 @@ const GlobalArgsSchema = z.object({
     "IP subnets for this application. Custom application create and update requests accept IPv4 prefix lengths /8 through /32 and IPv6 prefix lengths /32 through /128.",
   ).optional(),
   port_protocols: z.array(z.string()).describe(
-    "Port and protocol pairs matched by the application.",
+    "Ports matched by the application, in `protocol/port` or inclusive `protocol/start-end` format (for example, `tcp/443` or `udp/10000-20000`). TCP and UDP ports must be between 0 and 65535.",
   ).optional(),
   support_domains: z.array(z.string()).describe(
     "Support domains matched by the application.",
   ).optional(),
   category_id: z.number().int().min(1).max(4294967295).describe(
-    "Returns the category ID.",
+    "Numeric identifier for an application category.",
   ).optional(),
-  human_id: z.string().describe("Returns the human readable ID.").optional(),
-  name: z.string().describe("Returns the application name.").optional(),
+  human_id: z.string().describe(
+    "Human-readable identifier for the application.",
+  ).optional(),
+  name: z.string().describe("Application name.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -111,7 +113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/resource-library/applications`. */
 export const model = {
   type: "@swamp/cloudflare/resource-library/applications",
-  version: "2026.09.29.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.09.24.1",
@@ -120,6 +122,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

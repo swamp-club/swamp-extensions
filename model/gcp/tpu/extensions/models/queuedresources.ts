@@ -279,13 +279,6 @@ const GlobalArgsSchema = z.object({
         networkEndpoints: z.array(z.unknown()).describe(
           "Output only. The network endpoints where TPU workers can be accessed and sent work. It is recommended that runtime clients of the node reach out to the 0th entry in this map first.",
         ).optional(),
-        protectionTier: z.enum([
-          "PROTECTION_TIER_UNSPECIFIED",
-          "STANDARD",
-          "CAPACITY_OPTIMIZED",
-        ]).describe(
-          "Output only. Protection tier for the workload which specifies the workload expectations in the event of infrastructure failures at data center (e.g. power and/or cooling failures).",
-        ).optional(),
         queuedResource: z.string().describe(
           "Output only. The qualified name of the QueuedResource that requested this Node.",
         ).optional(),
@@ -453,7 +446,6 @@ const StateSchema = z.object({
         }),
         networkConfigs: z.array(z.unknown()),
         networkEndpoints: z.array(z.unknown()),
-        protectionTier: z.string(),
         queuedResource: z.string(),
         runtimeVersion: z.string(),
         schedulingConfig: z.object({
@@ -624,13 +616,6 @@ const InputsSchema = z.object({
         networkEndpoints: z.array(z.unknown()).describe(
           "Output only. The network endpoints where TPU workers can be accessed and sent work. It is recommended that runtime clients of the node reach out to the 0th entry in this map first.",
         ).optional(),
-        protectionTier: z.enum([
-          "PROTECTION_TIER_UNSPECIFIED",
-          "STANDARD",
-          "CAPACITY_OPTIMIZED",
-        ]).describe(
-          "Output only. Protection tier for the workload which specifies the workload expectations in the event of infrastructure failures at data center (e.g. power and/or cooling failures).",
-        ).optional(),
         queuedResource: z.string().describe(
           "Output only. The qualified name of the QueuedResource that requested this Node.",
         ).optional(),
@@ -752,7 +737,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud TPU QueuedResources. Registered at `@swamp/gcp/tpu/queuedresources`. */
 export const model = {
   type: "@swamp/gcp/tpu/queuedresources",
-  version: "2026.10.04.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -889,6 +874,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

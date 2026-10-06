@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/ivs/channel` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/ivs/ad_configuration` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new channel model
-swamp model create @swamp/aws/ivs/channel my-channel
+# Create a new ad_configuration model
+swamp model create @swamp/aws/ivs/ad_configuration my-ad_configuration
 
 # Edit the model to configure its properties
-swamp model edit my-channel
+swamp model edit my-ad_configuration
 
 # Create the resource in AWS
-swamp model method run my-channel create
+swamp model method run my-ad_configuration create
 
 # Sync current state from AWS
-swamp model method run my-channel sync
+swamp model method run my-ad_configuration sync
 ```
 
 ## License

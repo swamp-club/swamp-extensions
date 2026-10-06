@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/applicationsignals"
-version: "2026.10.05.1"
+version: "2026.10.06.1"
 description: "AWS APPLICATIONSIGNALS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,9 +9,12 @@ labels:
   - applicationsignals
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: instrumentation_config
 models:
   - discovery.ts
   - grouping_configuration.ts
+  - instrumentation_config.ts
   - service_level_objective.ts
 additionalFiles:
   - LICENSE.txt

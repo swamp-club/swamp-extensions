@@ -92,6 +92,12 @@ const GlobalArgsSchema = z.object({
   public_interface: z.boolean().describe(
     "Enable or disable the public interface of the Load Balancer.",
   ).optional(),
+  public_net: z.object({
+    ipv4: z.unknown().optional(),
+    ipv6: z.unknown().optional(),
+  }).describe(
+    "Public network options of the Load Balancer.\n\nOnly allowed if the public interface is enabled.\n",
+  ).optional(),
   network: z.number().int().describe(
     "ID of the network the Load Balancer should be attached to on creation.",
   ).optional(),
@@ -110,11 +116,15 @@ const ResourceSchema = z.object({
   public_net: z.object({
     enabled: z.boolean().optional(),
     ipv4: z.object({
+      id: z.unknown().optional(),
       ip: z.unknown().optional(),
+      blocked: z.boolean().optional(),
       dns_ptr: z.unknown().optional(),
     }).optional(),
     ipv6: z.object({
+      id: z.unknown().optional(),
       ip: z.unknown().optional(),
+      blocked: z.boolean().optional(),
       dns_ptr: z.unknown().optional(),
     }).optional(),
   }).optional(),
@@ -251,6 +261,10 @@ const InputsSchema = z.object({
     use_private_ip: z.boolean().optional(),
   })).optional(),
   public_interface: z.boolean().optional(),
+  public_net: z.object({
+    ipv4: z.unknown().optional(),
+    ipv6: z.unknown().optional(),
+  }).optional(),
   network: z.number().int().optional(),
   network_zone: z.string().optional(),
   location: z.string().optional(),
@@ -260,7 +274,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud load balancer. Registered at `@swamp/hetzner-cloud/load-balancers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/load-balancers",
-  version: "2026.09.29.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -342,6 +356,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "Added: public_net",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -379,6 +398,7 @@ export const model = {
         if (g.public_interface !== undefined) {
           body.public_interface = g.public_interface;
         }
+        if (g.public_net !== undefined) body.public_net = g.public_net;
         if (g.network !== undefined) body.network = g.network;
         if (g.network_zone !== undefined) body.network_zone = g.network_zone;
         if (g.location !== undefined) body.location = g.location;

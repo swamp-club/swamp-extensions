@@ -215,9 +215,8 @@ const GlobalArgsSchema = z.object({
     status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
       "Whether the thread is open or resolved.",
     ).optional(),
-  })).describe(
-    "The comment threads associated with the spreadsheet. [Developer Preview](https://developers.google.com/workspace/preview).",
-  ).optional(),
+  })).describe("The comment threads associated with the spreadsheet.")
+    .optional(),
   dataSources: z.array(z.object({
     calculatedColumns: z.array(z.object({
       formula: z.string().describe("The formula of the calculated column.")
@@ -1035,9 +1034,7 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "The coordinate range inside the sheet where this comment is anchored.",
       ).optional(),
-    })).describe(
-      "The comment anchors on this sheet. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("The comment anchors on this sheet.").optional(),
     conditionalFormats: z.array(z.object({
       booleanRule: z.object({
         condition: z.unknown().describe(
@@ -2127,9 +2124,8 @@ const InputsSchema = z.object({
     status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
       "Whether the thread is open or resolved.",
     ).optional(),
-  })).describe(
-    "The comment threads associated with the spreadsheet. [Developer Preview](https://developers.google.com/workspace/preview).",
-  ).optional(),
+  })).describe("The comment threads associated with the spreadsheet.")
+    .optional(),
   dataSources: z.array(z.object({
     calculatedColumns: z.array(z.object({
       formula: z.string().describe("The formula of the calculated column.")
@@ -2947,9 +2943,7 @@ const InputsSchema = z.object({
       }).describe(
         "The coordinate range inside the sheet where this comment is anchored.",
       ).optional(),
-    })).describe(
-      "The comment anchors on this sheet. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("The comment anchors on this sheet.").optional(),
     conditionalFormats: z.array(z.object({
       booleanRule: z.object({
         condition: z.unknown().describe(
@@ -3385,7 +3379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Sheets Spreadsheets. Registered at `@swamp/gcp/sheets/spreadsheets`. */
 export const model = {
   type: "@swamp/gcp/sheets/spreadsheets",
-  version: "2026.09.25.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3505,6 +3499,11 @@ export const model = {
     {
       toVersion: "2026.09.25.1",
       description: "Added: comments",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

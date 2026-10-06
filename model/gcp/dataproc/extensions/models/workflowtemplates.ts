@@ -582,6 +582,13 @@ const GlobalArgsSchema = z.object({
           metadata: z.record(z.string(), z.unknown()).describe(
             "Optional. The Compute Engine metadata entries to add to all instances (see Project and instance metadata (https://cloud.google.com/compute/docs/storing-retrieving-metadata#project_and_instance_metadata)).",
           ).optional(),
+          multiZoneConfig: z.object({
+            targetShape: z.unknown().describe(
+              "Optional. The distribution shape of the nodes in the multi-zonal cluster.",
+            ).optional(),
+          }).describe(
+            "Optional. Controls how instances within this Cluster are allowed to exist in multiple Zones within the Region. Only one of zone_uri or multi_zone_config must be set.",
+          ).optional(),
           networkUri: z.string().describe(
             'Optional. The Compute Engine network to be used for machine communications. Cannot be specified with subnetwork_uri. If neither network_uri nor subnetwork_uri is specified, the "default" network of the project is used, if it exists. Cannot be a Custom Subnet Network (see Using Subnetworks (https://cloud.google.com/compute/docs/subnetworks) for more information).A full URL, partial URI, or short name are valid. Examples: https://www.googleapis.com/compute/v1/projects/[project_id]/global/networks/default projects/[project_id]/global/networks/default default',
           ).optional(),
@@ -1273,6 +1280,9 @@ const StateSchema = z.object({
           }),
           internalIpOnly: z.boolean(),
           metadata: z.record(z.string(), z.unknown()),
+          multiZoneConfig: z.object({
+            targetShape: z.unknown(),
+          }),
           networkUri: z.string(),
           nodeGroupAffinity: z.object({
             nodeGroupUri: z.unknown(),
@@ -1892,6 +1902,13 @@ const InputsSchema = z.object({
           metadata: z.record(z.string(), z.unknown()).describe(
             "Optional. The Compute Engine metadata entries to add to all instances (see Project and instance metadata (https://cloud.google.com/compute/docs/storing-retrieving-metadata#project_and_instance_metadata)).",
           ).optional(),
+          multiZoneConfig: z.object({
+            targetShape: z.unknown().describe(
+              "Optional. The distribution shape of the nodes in the multi-zonal cluster.",
+            ).optional(),
+          }).describe(
+            "Optional. Controls how instances within this Cluster are allowed to exist in multiple Zones within the Region. Only one of zone_uri or multi_zone_config must be set.",
+          ).optional(),
           networkUri: z.string().describe(
             'Optional. The Compute Engine network to be used for machine communications. Cannot be specified with subnetwork_uri. If neither network_uri nor subnetwork_uri is specified, the "default" network of the project is used, if it exists. Cannot be a Custom Subnet Network (see Using Subnetworks (https://cloud.google.com/compute/docs/subnetworks) for more information).A full URL, partial URI, or short name are valid. Examples: https://www.googleapis.com/compute/v1/projects/[project_id]/global/networks/default projects/[project_id]/global/networks/default default',
           ).optional(),
@@ -2421,7 +2438,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc WorkflowTemplates. Registered at `@swamp/gcp/dataproc/workflowtemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/workflowtemplates",
-  version: "2026.10.02.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2630,6 +2647,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

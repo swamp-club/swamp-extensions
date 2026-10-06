@@ -536,6 +536,7 @@ const ResourceSchema = z.object({
   autoAssignCustomDomainsUpdatedBy: z.string().nullable().optional(),
   autoExposeSystemEnvs: z.boolean().nullable().optional(),
   avatar: z.string().nullable().optional(),
+  avatarDarkMode: z.string().nullable().optional(),
   blobs: z.object({
     isDefaultApp: z.boolean().optional(),
   }).nullable().optional(),
@@ -1704,7 +1705,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.03.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1878,6 +1879,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2155,6 +2161,9 @@ export const model = {
           ]);
         }
         if (g.avatar !== undefined) filters.push(["avatar", String(g.avatar)]);
+        if (g.avatarDarkMode !== undefined) {
+          filters.push(["avatarDarkMode", String(g.avatarDarkMode)]);
+        }
         if (g.concurrencyBucketName !== undefined) {
           filters.push([
             "concurrencyBucketName",

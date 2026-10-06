@@ -639,7 +639,7 @@ const GlobalArgsSchema = z.object({
       "CONTENT_RATING_TIER_MATURE",
       "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
-      "Required. The display name of the digital content label rating tier to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept the value `CONTENT_RATING_TIER_UNRATED`. All other values will be deprecated and no longer be accepted.**",
+      "Required. The display name of the digital content label rating tier to be EXCLUDED. This field only accepts the value `CONTENT_RATING_TIER_UNRATED`.",
     ).optional(),
   }).describe(
     "Digital content label details. This field will be populated when the targeting_type is `TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION`. Digital content labels are targeting exclusions. Advertiser level digital content label exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content labels in addition to advertiser exclusions, but can't override them. A line item won't serve if all the digital content labels are excluded.",
@@ -805,27 +805,6 @@ const GlobalArgsSchema = z.object({
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
       "GEO_REGION_TYPE_WARD",
-      "GEO_REGION_TYPE_TOWN",
-      "GEO_REGION_TYPE_VILLAGE",
-      "GEO_REGION_TYPE_CITY_DISTRICT",
-      "GEO_REGION_TYPE_SUBURB",
-      "GEO_REGION_TYPE_HAMLET",
-      "GEO_REGION_TYPE_MUNICIPAL_DISTRICT",
-      "GEO_REGION_TYPE_COMMUNITY",
-      "GEO_REGION_TYPE_TOWNSHIP",
-      "GEO_REGION_TYPE_URBAN_DISTRICT",
-      "GEO_REGION_TYPE_RESIDENTIAL_AREA",
-      "GEO_REGION_TYPE_INDEPENDENT_CITY",
-      "GEO_REGION_TYPE_SECTOR",
-      "GEO_REGION_TYPE_AREA",
-      "GEO_REGION_TYPE_ESTATE",
-      "GEO_REGION_TYPE_PARISH",
-      "GEO_REGION_TYPE_SETTLEMENT",
-      "GEO_REGION_TYPE_ZONE",
-      "GEO_REGION_TYPE_COLONY",
-      "GEO_REGION_TYPE_INDUSTRIAL_AREA",
-      "GEO_REGION_TYPE_PROVINCIAL_CITY",
-      "GEO_REGION_TYPE_RURAL_DISTRICT",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -1035,7 +1014,7 @@ const GlobalArgsSchema = z.object({
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
-      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` or `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`. All other values will be deprecated and no longer be accepted.**",
+      "Required. An enum for the Display & Video 360 Sensitive category content classified to be EXCLUDED. This field only accepts the following values: * `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` * `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`",
     ).optional(),
   }).describe(
     "Sensitive category details. This field will be populated when the targeting_type is `TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION`. Sensitive categories are targeting exclusions. Advertiser level sensitive category exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude sensitive categories in addition to advertiser exclusions, but can't override them.",
@@ -2352,7 +2331,7 @@ const InputsSchema = z.object({
       "CONTENT_RATING_TIER_MATURE",
       "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
-      "Required. The display name of the digital content label rating tier to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept the value `CONTENT_RATING_TIER_UNRATED`. All other values will be deprecated and no longer be accepted.**",
+      "Required. The display name of the digital content label rating tier to be EXCLUDED. This field only accepts the value `CONTENT_RATING_TIER_UNRATED`.",
     ).optional(),
   }).describe(
     "Digital content label details. This field will be populated when the targeting_type is `TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION`. Digital content labels are targeting exclusions. Advertiser level digital content label exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content labels in addition to advertiser exclusions, but can't override them. A line item won't serve if all the digital content labels are excluded.",
@@ -2518,27 +2497,6 @@ const InputsSchema = z.object({
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
       "GEO_REGION_TYPE_WARD",
-      "GEO_REGION_TYPE_TOWN",
-      "GEO_REGION_TYPE_VILLAGE",
-      "GEO_REGION_TYPE_CITY_DISTRICT",
-      "GEO_REGION_TYPE_SUBURB",
-      "GEO_REGION_TYPE_HAMLET",
-      "GEO_REGION_TYPE_MUNICIPAL_DISTRICT",
-      "GEO_REGION_TYPE_COMMUNITY",
-      "GEO_REGION_TYPE_TOWNSHIP",
-      "GEO_REGION_TYPE_URBAN_DISTRICT",
-      "GEO_REGION_TYPE_RESIDENTIAL_AREA",
-      "GEO_REGION_TYPE_INDEPENDENT_CITY",
-      "GEO_REGION_TYPE_SECTOR",
-      "GEO_REGION_TYPE_AREA",
-      "GEO_REGION_TYPE_ESTATE",
-      "GEO_REGION_TYPE_PARISH",
-      "GEO_REGION_TYPE_SETTLEMENT",
-      "GEO_REGION_TYPE_ZONE",
-      "GEO_REGION_TYPE_COLONY",
-      "GEO_REGION_TYPE_INDUSTRIAL_AREA",
-      "GEO_REGION_TYPE_PROVINCIAL_CITY",
-      "GEO_REGION_TYPE_RURAL_DISTRICT",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -2748,7 +2706,7 @@ const InputsSchema = z.object({
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
-      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` or `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`. All other values will be deprecated and no longer be accepted.**",
+      "Required. An enum for the Display & Video 360 Sensitive category content classified to be EXCLUDED. This field only accepts the following values: * `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` * `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`",
     ).optional(),
   }).describe(
     "Sensitive category details. This field will be populated when the targeting_type is `TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION`. Sensitive categories are targeting exclusions. Advertiser level sensitive category exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude sensitive categories in addition to advertiser exclusions, but can't override them.",
@@ -3320,7 +3278,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/partners-targetingtypes-assignedtargetingoptions",
-  version: "2026.09.23.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3484,6 +3442,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

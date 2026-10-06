@@ -237,7 +237,8 @@ const GlobalArgsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
   }).describe(
     "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
@@ -720,7 +721,8 @@ const GlobalArgsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
     customParameters: z.record(z.string(), z.string()).describe(
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
@@ -778,7 +780,8 @@ const GlobalArgsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
     customParameters: z.record(z.string(), z.string()).describe(
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
@@ -1280,7 +1283,8 @@ const InputsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
   }).describe(
     "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
@@ -1763,7 +1767,8 @@ const InputsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
     customParameters: z.record(z.string(), z.string()).describe(
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
@@ -1821,7 +1826,8 @@ const InputsSchema = z.object({
         videoAssetId: z.string().describe(
           "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
         ).optional(),
-      }).describe("Required. The YouTube video of the ad.").optional(),
+      }).describe("Required. Immutable. The YouTube video of the ad.")
+        .optional(),
     }).describe("Required. Common ad attributes.").optional(),
     customParameters: z.record(z.string(), z.string()).describe(
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
@@ -1924,7 +1930,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.09.25.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2095,6 +2101,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

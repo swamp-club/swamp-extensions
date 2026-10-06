@@ -175,6 +175,14 @@ const GlobalArgsSchema = z.object({
       "Email domain allowlist for the instance.",
     ).optional(),
   }).describe("Looker Instance Admin settings.").optional(),
+  authType: z.object({
+    googleAuthEnabled: z.boolean().describe(
+      "Optional. Whether google auth is enabled on the Looker instance.",
+    ).optional(),
+    workforceAuthEnabled: z.boolean().describe(
+      "Optional. Whether Workforce auth is enabled on the Looker instance.",
+    ).optional(),
+  }).describe("Optional. Auth type for the Looker instance.").optional(),
   catalogIntegrationOptOut: z.boolean().describe(
     "Optional. Indicates whether catalog integration is disabled for the Looker instance.",
   ).optional(),
@@ -451,6 +459,10 @@ const StateSchema = z.object({
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()),
   }).optional(),
+  authType: z.object({
+    googleAuthEnabled: z.boolean(),
+    workforceAuthEnabled: z.boolean(),
+  }).optional(),
   catalogIntegrationOptOut: z.boolean().optional(),
   classType: z.string().optional(),
   consumerNetwork: z.string().optional(),
@@ -599,6 +611,14 @@ const InputsSchema = z.object({
       "Email domain allowlist for the instance.",
     ).optional(),
   }).describe("Looker Instance Admin settings.").optional(),
+  authType: z.object({
+    googleAuthEnabled: z.boolean().describe(
+      "Optional. Whether google auth is enabled on the Looker instance.",
+    ).optional(),
+    workforceAuthEnabled: z.boolean().describe(
+      "Optional. Whether Workforce auth is enabled on the Looker instance.",
+    ).optional(),
+  }).describe("Optional. Auth type for the Looker instance.").optional(),
   catalogIntegrationOptOut: z.boolean().describe(
     "Optional. Indicates whether catalog integration is disabled for the Looker instance.",
   ).optional(),
@@ -896,7 +916,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Looker (Google Cloud core) Instances. Registered at `@swamp/gcp/looker/instances`. */
 export const model = {
   type: "@swamp/gcp/looker/instances",
-  version: "2026.08.12.2",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1041,6 +1061,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "Added: authType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1078,6 +1103,7 @@ export const model = {
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
+        if (g["authType"] !== undefined) body["authType"] = g["authType"];
         if (g["catalogIntegrationOptOut"] !== undefined) {
           body["catalogIntegrationOptOut"] = g["catalogIntegrationOptOut"];
         }
@@ -1268,6 +1294,7 @@ export const model = {
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
+        if (g["authType"] !== undefined) body["authType"] = g["authType"];
         if (g["catalogIntegrationOptOut"] !== undefined) {
           body["catalogIntegrationOptOut"] = g["catalogIntegrationOptOut"];
         }
