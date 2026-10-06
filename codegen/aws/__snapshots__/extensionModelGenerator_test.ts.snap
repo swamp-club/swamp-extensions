@@ -1572,6 +1572,9 @@ const GlobalArgsSchema = z.object({
   StackSetName: z.string().describe(\\"The stack set name\\"),
 });
 
+const StackInstanceOutputSchema = z.object({ Account: z.string().optional(), Region: z.string().optional() });
+const OperationOutputSchema = z.object({ OperationId: z.string() });
+
 function createCfnClient(credentials: AwsCredentials): CloudFormationClient {
   return new CloudFormationClient({ region: credentials.region ?? \\"us-east-1\\" });
 }
@@ -1621,6 +1624,18 @@ export const model = {
       description: \\"CloudFormation StackSet resource state\\",
       schema: StateSchema,
       lifetime: \\"infinite\\",
+      garbageCollection: 10,
+    },
+    stackInstance: {
+      description: \\"Stack instance of this StackSet\\",
+      schema: StackInstanceOutputSchema,
+      lifetime: \\"30d\\",
+      garbageCollection: 10,
+    },
+    operation: {
+      description: \\"Operation performed on this StackSet\\",
+      schema: OperationOutputSchema,
+      lifetime: \\"30d\\",
       garbageCollection: 10,
     },
   },
@@ -1737,8 +1752,9 @@ export const model = {
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const instanceName = (String(i)).replace(/[\\\\/\\\\\\\\]/g, \\"_\\").replace(/\\\\.\\\\./g, \\"_\\").replace(/\\\\0/g, \\"\\");
-          const handle = await context.writeResource(\\"state\\", instanceName, item);
+          const keyParts = [item[\\"Account\\"], item[\\"Region\\"]].filter((v) => v !== undefined && v !== null && v !== \\"\\").map(String);
+          const instanceName = (keyParts.length > 0 ? keyParts.join(\\"-\\") : String(i)).replace(/[\\\\/\\\\\\\\]/g, \\"_\\").replace(/\\\\.\\\\./g, \\"_\\").replace(/\\\\0/g, \\"\\");
+          const handle = await context.writeResource(\\"stackInstance\\", instanceName, item);
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length } };
@@ -1753,10 +1769,9 @@ export const model = {
         const credentials = _buildCredentials(context.globalArgs);
         const mergedArgs = { ...context.globalArgs, ...args };
         const result = await describeOp(mergedArgs, credentials);
-        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
-        const suffix = argKeys.length > 0 ? \\"-\\" + argKeys.map((k) => String(args[k])).join(\\"-\\") : \\"\\";
-        const instanceName = (\\"describeOperation\\" + suffix).replace(/[\\\\/\\\\\\\\]/g, \\"_\\").replace(/\\\\.\\\\./g, \\"_\\").replace(/\\\\0/g, \\"\\");
-        const handle = await context.writeResource(\\"state\\", instanceName, result);
+        const instanceKey = mergedArgs[\\"operationId\\"];
+        const instanceName = (instanceKey === undefined || instanceKey === null || String(instanceKey) === \\"\\" ? \\"describeOperation\\" : String(instanceKey)).replace(/[\\\\/\\\\\\\\]/g, \\"_\\").replace(/\\\\.\\\\./g, \\"_\\").replace(/\\\\0/g, \\"\\");
+        const handle = await context.writeResource(\\"operation\\", instanceName, result);
         return { dataHandles: [handle] };
       },
     },

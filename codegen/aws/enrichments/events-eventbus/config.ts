@@ -18,6 +18,15 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "putEvents",
         returnsArray: false,
+        output: {
+          resourceName: "putEventsResult",
+          description:
+            "Result of the most recent PutEvents call on this event bus",
+          schemaExport: "PutEventsOutputSchema",
+          lifetime: "7d",
+          garbageCollection: 10,
+          instanceKey: { arg: "Name" },
+        },
       },
     ],
   },

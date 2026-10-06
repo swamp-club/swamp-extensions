@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-import-prefix
 
+import { z } from "npm:zod@4.3.6";
 import {
   EventBridgeClient,
   PutEventsCommand,
@@ -7,6 +8,15 @@ import {
 } from "npm:@aws-sdk/client-eventbridge@3.1127.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 import type { AwsCredentials } from "../../../../model/aws/events/extensions/models/_lib/aws.ts";
+
+export const PutEventsOutputSchema = z.object({
+  FailedEntryCount: z.number(),
+  Entries: z.array(z.object({
+    EventId: z.string().optional(),
+    ErrorCode: z.string().optional(),
+    ErrorMessage: z.string().optional(),
+  })),
+});
 
 function createClient(
   credentials: AwsCredentials,

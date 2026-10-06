@@ -4,6 +4,22 @@ import $RefParser from "@apidevtools/json-schema-ref-parser";
 import type { CfDb, CfProperty, CfSchema, RawCfProperty } from "./types.ts";
 
 /**
+ * True when the service segment of a type name ("AWS::Events::EventBus" →
+ * "events") equals one of the requested services, ignoring case. A substring
+ * match would pull single types into unrelated services ("events" matching
+ * AWS::RDS::EventSubscription), and regenerating a service from a partial
+ * type set deletes its other models.
+ */
+export function matchesServiceFilter(
+  typeName: string,
+  services: string[],
+): boolean {
+  const service = typeName.split("::")[1]?.toLowerCase();
+  return service !== undefined &&
+    services.some((s) => s.toLowerCase() === service);
+}
+
+/**
  * Loads the CloudFormation database from the bundled cf-schema.json.
  * Dereferences all $ref pointers and marks definition props with defName.
  */
@@ -25,10 +41,7 @@ export async function loadCfDatabase(options?: {
     const typeName: string = cfSchema.typeName;
 
     if (
-      options?.services &&
-      !options.services.some((service) =>
-        typeName.toLowerCase().includes(service.toLowerCase())
-      )
+      options?.services && !matchesServiceFilter(typeName, options.services)
     ) {
       continue;
     }

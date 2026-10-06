@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { putEvents } from "./methods.ts";
+import { putEvents, PutEventsOutputSchema } from "./methods.ts";
 import type { AwsCredentials } from "../../../../model/aws/events/extensions/models/_lib/aws.ts";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -79,6 +79,7 @@ Deno.test({
       assertEquals(entries.length, 2);
       assertEquals(entries[0].EventId, "evt-aaa-111");
       assertEquals(entries[1].EventId, "evt-bbb-222");
+      PutEventsOutputSchema.parse(result);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");
@@ -132,6 +133,8 @@ Deno.test({
       assertEquals(entries[0].ErrorCode, undefined);
       assertEquals(entries[1].ErrorCode, "InternalFailure");
       assertEquals(entries[1].ErrorMessage, "Internal service failure");
+      // Failed entry has no EventId — optional fields must stay optional
+      PutEventsOutputSchema.parse(result);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");

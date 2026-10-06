@@ -619,6 +619,24 @@ const GlobalArgsSchema = z.object({
   ).describe("A map of tag keys and values").optional(),
 });
 
+const RetrieveOutputSchema = z.object({
+  knowledgeBaseId: z.string(),
+  query: z.string(),
+  results: z.array(z.object({
+    contentText: z.string().optional(),
+    contentType: z.string().optional(),
+    score: z.number().optional(),
+    locationType: z.string().optional(),
+    locationUri: z.string().optional(),
+    locationUrl: z.string().optional(),
+    locationQuery: z.string().optional(),
+    locationId: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })),
+  resultCount: z.number(),
+  nextToken: z.string().optional(),
+});
+
 // Deno's node:http2 compat layer is incomplete — force HTTP/1.1
 function createClient(
   credentials: AwsCredentials,
@@ -747,6 +765,8 @@ async function retrieve(
     }
 
     const output: Record<string, unknown> = {
+      knowledgeBaseId,
+      query,
       results,
       resultCount: results.length,
     };
@@ -907,7 +927,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock KnowledgeBase. Registered at `@swamp/aws/bedrock/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/bedrock/knowledge-base",
-  version: "2026.09.12.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1019,6 +1039,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1027,6 +1052,13 @@ export const model = {
       description: "Bedrock KnowledgeBase resource state",
       schema: StateSchema,
       lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    retrieval: {
+      description:
+        "Chunks retrieved from the Knowledge Base for the most recent query",
+      schema: RetrieveOutputSchema,
+      lifetime: "7d",
       garbageCollection: 10,
     },
   },
@@ -1290,14 +1322,15 @@ export const model = {
         const credentials = _buildCredentials(context.globalArgs);
         const mergedArgs = { ...context.globalArgs, ...args };
         const result = await retrieve(mergedArgs, credentials);
-        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
-        const suffix = argKeys.length > 0
-          ? "-" + argKeys.map((k) => String(args[k])).join("-")
-          : "";
-        const instanceName = ("retrieve" + suffix).replace(/[\/\\]/g, "_")
-          .replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceKey = mergedArgs["knowledgeBaseId"];
+        const instanceName =
+          (instanceKey === undefined || instanceKey === null ||
+              String(instanceKey) === ""
+            ? "retrieve"
+            : String(instanceKey)).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+            .replace(/\0/g, "");
         const handle = await context.writeResource(
-          "state",
+          "retrieval",
           instanceName,
           result,
         );

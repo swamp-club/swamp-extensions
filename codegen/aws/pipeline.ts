@@ -347,6 +347,7 @@ export async function generateAwsModels(options: {
               argumentFields: m.argumentFields,
               functionExport: m.functionExport,
               returnsArray: m.returnsArray,
+              output: m.output,
             })),
           }
           : undefined;
@@ -512,7 +513,10 @@ export async function generateAwsModels(options: {
       const existingLib = await Deno.readTextFile(
         `${serviceOutputDir}/${libFile.filePath}`,
       );
-      libChanged = existingLib !== libFile.sourceCode;
+      // The on-disk lib is formatted by deno fmt after writing, so compare
+      // against formatted output (same as README above).
+      const formattedLib = await formatFile(libFile.sourceCode, ".ts");
+      libChanged = existingLib !== formattedLib;
     } catch {
       libChanged = true;
     }

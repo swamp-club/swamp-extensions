@@ -2,8 +2,11 @@ import { assertEquals, assertRejects } from "@std/assert";
 import {
   describeOperation,
   detectDrift,
+  DetectDriftOutputSchema,
   listInstances,
   listOperations,
+  OperationOutputSchema,
+  StackInstanceOutputSchema,
 } from "./methods.ts";
 import type { AwsCredentials } from "../../../../model/aws/cloudformation/extensions/models/_lib/aws.ts";
 
@@ -88,6 +91,7 @@ Deno.test({
       assertEquals(result[1].Account, "222222222222");
       assertEquals(result[1].Status, "OUTDATED");
       assertEquals(result[1].StatusReason, "Update pending");
+      for (const item of result) StackInstanceOutputSchema.parse(item);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");
@@ -166,6 +170,8 @@ Deno.test({
       assertEquals(result[1].OperationId, "op-5678");
       assertEquals(result[1].Status, "FAILED");
       assertEquals(result[1].StatusReason, "Deployment failure");
+      // listOperations and describeOperation share the operation resource
+      for (const item of result) OperationOutputSchema.parse(item);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");
@@ -211,6 +217,7 @@ Deno.test({
         result.ExecutionRoleName,
         "AWSCloudFormationStackSetExecutionRole",
       );
+      OperationOutputSchema.parse(result);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");
@@ -290,6 +297,7 @@ Deno.test({
       assertEquals(result.DriftedStackInstancesCount, 2);
       assertEquals(result.InSyncStackInstancesCount, 3);
       assertEquals(result.TotalStackInstancesCount, 5);
+      DetectDriftOutputSchema.parse(result);
     } finally {
       if (saved !== undefined) Deno.env.set("AWS_ENDPOINT_URL", saved);
       else Deno.env.delete("AWS_ENDPOINT_URL");

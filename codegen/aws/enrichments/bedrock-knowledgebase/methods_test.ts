@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { retrieve } from "./methods.ts";
+import { retrieve, RetrieveOutputSchema } from "./methods.ts";
 import type { AwsCredentials } from "../../../../model/aws/bedrock/extensions/models/_lib/aws.ts";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -85,6 +85,12 @@ Deno.test({
       assertEquals(results[1].locationType, "WEB");
       assertEquals(results[1].locationUrl, "https://docs.example.com/kb");
       assertEquals(output.nextToken, undefined);
+
+      // The query is carried in the persisted data, not the instance name
+      assertEquals(output.knowledgeBaseId, "KB123");
+      assertEquals(output.query, "What is Bedrock?");
+      // Second result has no metadata — optional fields must stay optional
+      RetrieveOutputSchema.parse(output);
     } finally {
       if (savedEndpoint !== undefined) {
         Deno.env.set("AWS_ENDPOINT_URL", savedEndpoint);

@@ -5,7 +5,10 @@ import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
-import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
+import type {
+  AwsEnrichmentMethodOutput,
+  ParsedEnrichmentSource,
+} from "./enrichments/types.ts";
 import type { ParsedSource } from "../shared/sourceParser.ts";
 
 /**
@@ -41,6 +44,8 @@ export interface ParsedModelMethod {
   functionExport: string;
   /** Whether the function returns an array or a single result */
   returnsArray: boolean;
+  /** Resource the method's result is written to */
+  output: AwsEnrichmentMethodOutput;
 }
 
 export interface ParsedModelMethods {
@@ -127,6 +132,15 @@ export function generateAwsExtensionModel(
   const stateSchemaName = hasStateSchemaCollision
     ? "_StateSchema"
     : "StateSchema";
+
+  const methodOutputs = input.modelMethods
+    ? collectMethodOutputs(input.modelMethods.methods, [
+      stateSchemaName,
+      "GlobalArgsSchema",
+      "InputsSchema",
+      ...zodResult.extractedSchemas.map((s) => s.name),
+    ])
+    : [];
 
   // Header
   lines.push(generateCopyrightHeader());
@@ -390,6 +404,14 @@ export function generateAwsExtensionModel(
   lines.push(`      lifetime: "infinite",`);
   lines.push(`      garbageCollection: 10,`);
   lines.push(`    },`);
+  for (const output of methodOutputs) {
+    lines.push(`    ${output.resourceName}: {`);
+    lines.push(`      description: ${JSON.stringify(output.description)},`);
+    lines.push(`      schema: ${output.schemaExport},`);
+    lines.push(`      lifetime: ${JSON.stringify(output.lifetime)},`);
+    lines.push(`      garbageCollection: ${output.garbageCollection},`);
+    lines.push(`    },`);
+  }
   lines.push(`  },`);
   lines.push(`  methods: {`);
 
@@ -860,10 +882,22 @@ export function generateAwsExtensionModel(
         lines.push(`        for (let i = 0; i < items.length; i++) {`);
         lines.push(`          const item = items[i];`);
         lines.push(
-          `          const instanceName = ${wrapWithSanitize(`String(i)`)};`,
+          `          const keyParts = [${
+            itemKeyFields(method).map((f) => `item[${JSON.stringify(f)}]`)
+              .join(", ")
+          }].filter((v) => v !== undefined && v !== null && v !== "").map(String);`,
         );
         lines.push(
-          `          const handle = await context.writeResource("state", instanceName, item);`,
+          `          const instanceName = ${
+            wrapWithSanitize(
+              `keyParts.length > 0 ? keyParts.join("-") : String(i)`,
+            )
+          };`,
+        );
+        lines.push(
+          `          const handle = await context.writeResource(${
+            JSON.stringify(method.output.resourceName)
+          }, instanceName, item);`,
         );
         lines.push(`          dataHandles.push(handle);`);
         lines.push(`        }`);
@@ -875,20 +909,23 @@ export function generateAwsExtensionModel(
           `        const result = await ${method.functionExport}(mergedArgs, credentials);`,
         );
         lines.push(
-          `        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);`,
-        );
-        lines.push(
-          `        const suffix = argKeys.length > 0 ? "-" + argKeys.map((k) => String(args[k])).join("-") : "";`,
+          `        const instanceKey = mergedArgs[${
+            JSON.stringify(argKey(method))
+          }];`,
         );
         lines.push(
           `        const instanceName = ${
             wrapWithSanitize(
-              `"${method.methodName}" + suffix`,
+              `instanceKey === undefined || instanceKey === null || String(instanceKey) === "" ? ${
+                JSON.stringify(method.methodName)
+              } : String(instanceKey)`,
             )
           };`,
         );
         lines.push(
-          `        const handle = await context.writeResource("state", instanceName, result);`,
+          `        const handle = await context.writeResource(${
+            JSON.stringify(method.output.resourceName)
+          }, instanceName, result);`,
         );
         lines.push(`        return { dataHandles: [handle] };`);
       }
@@ -902,6 +939,84 @@ export function generateAwsExtensionModel(
   lines.push("");
 
   return lines.join("\n");
+}
+
+/**
+ * Validates each custom method's declared output resource and returns the
+ * distinct resources in config order. Throws when a method targets the
+ * CloudControl `state` resource, when an output schema name breaks the
+ * `OutputSchema` convention or collides with a generated schema, when the
+ * instance key does not match the method's return shape, or when two
+ * methods declare the same resource differently.
+ */
+function collectMethodOutputs(
+  methods: ParsedModelMethod[],
+  generatedSchemaNames: string[],
+): AwsEnrichmentMethodOutput[] {
+  const reserved = new Set(generatedSchemaNames);
+  const byName = new Map<string, AwsEnrichmentMethodOutput>();
+  for (const method of methods) {
+    const output = method.output;
+    const where = `custom method "${method.methodName}"`;
+    if (output.resourceName === "state") {
+      throw new Error(
+        `${where} must not write to the "state" resource; declare a dedicated output resource`,
+      );
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(output.resourceName)) {
+      throw new Error(
+        `${where} has invalid output resourceName "${output.resourceName}"`,
+      );
+    }
+    if (!output.schemaExport.endsWith("OutputSchema")) {
+      throw new Error(
+        `${where} output schemaExport "${output.schemaExport}" must end in "OutputSchema"`,
+      );
+    }
+    if (reserved.has(output.schemaExport)) {
+      throw new Error(
+        `${where} output schemaExport "${output.schemaExport}" collides with a generated schema name`,
+      );
+    }
+    const key = output.instanceKey;
+    if (
+      ("arg" in key && key.arg === "") ||
+      ("itemFields" in key && key.itemFields.length === 0)
+    ) {
+      throw new Error(`${where} has an empty output instanceKey`);
+    }
+    if (method.returnsArray !== "itemFields" in key) {
+      throw new Error(
+        `${where} must use ${
+          method.returnsArray ? "instanceKey.itemFields" : "instanceKey.arg"
+        } for a ${method.returnsArray ? "array" : "single"} result`,
+      );
+    }
+    const existing = byName.get(output.resourceName);
+    if (!existing) {
+      byName.set(output.resourceName, output);
+    } else if (
+      existing.schemaExport !== output.schemaExport ||
+      existing.lifetime !== output.lifetime ||
+      existing.garbageCollection !== output.garbageCollection ||
+      existing.description !== output.description
+    ) {
+      throw new Error(
+        `${where} declares output resource "${output.resourceName}" differently from an earlier method`,
+      );
+    }
+  }
+  return [...byName.values()];
+}
+
+function itemKeyFields(method: ParsedModelMethod): string[] {
+  const key = method.output.instanceKey;
+  return "itemFields" in key ? key.itemFields : [];
+}
+
+function argKey(method: ParsedModelMethod): string {
+  const key = method.output.instanceKey;
+  return "arg" in key ? key.arg : "";
 }
 
 /**

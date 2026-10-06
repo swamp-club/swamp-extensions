@@ -24,6 +24,15 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "retrieve",
         returnsArray: false,
+        output: {
+          resourceName: "retrieval",
+          description:
+            "Chunks retrieved from the Knowledge Base for the most recent query",
+          schemaExport: "RetrieveOutputSchema",
+          lifetime: "7d",
+          garbageCollection: 10,
+          instanceKey: { arg: "knowledgeBaseId" },
+        },
       },
     ],
   },

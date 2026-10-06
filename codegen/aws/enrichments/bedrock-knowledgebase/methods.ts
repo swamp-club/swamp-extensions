@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-import-prefix
 
+import { z } from "npm:zod@4.3.6";
 import {
   BedrockAgentRuntimeClient,
   type KnowledgeBaseRetrievalResult,
@@ -8,6 +9,24 @@ import {
 } from "npm:@aws-sdk/client-bedrock-agent-runtime@3.1127.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 import type { AwsCredentials } from "../../../../model/aws/bedrock/extensions/models/_lib/aws.ts";
+
+export const RetrieveOutputSchema = z.object({
+  knowledgeBaseId: z.string(),
+  query: z.string(),
+  results: z.array(z.object({
+    contentText: z.string().optional(),
+    contentType: z.string().optional(),
+    score: z.number().optional(),
+    locationType: z.string().optional(),
+    locationUri: z.string().optional(),
+    locationUrl: z.string().optional(),
+    locationQuery: z.string().optional(),
+    locationId: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })),
+  resultCount: z.number(),
+  nextToken: z.string().optional(),
+});
 
 // Deno's node:http2 compat layer is incomplete — force HTTP/1.1
 function createClient(
@@ -137,6 +156,8 @@ export async function retrieve(
     }
 
     const output: Record<string, unknown> = {
+      knowledgeBaseId,
+      query,
       results,
       resultCount: results.length,
     };

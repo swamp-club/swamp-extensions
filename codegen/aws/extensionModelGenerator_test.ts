@@ -4,7 +4,12 @@ import {
   generateAwsExtensionModel,
   resolveNamingField,
 } from "./extensionModelGenerator.ts";
-import { assertEquals } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 
 // ---------------------------------------------------------------------------
 // resolveNamingField unit tests
@@ -468,13 +473,16 @@ Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
 // Snapshot: model with model methods (standalone native-SDK methods)
 // ---------------------------------------------------------------------------
 
-Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
+function buildModelMethodsInput(): AwsExtensionModelInput {
   const mockModelMethods = {
     source: {
       imports: [
         'import { CloudFormationClient, ListStackInstancesCommand } from "npm:@aws-sdk/client-cloudformation@3.1127.0";',
       ],
       body: [
+        "const StackInstanceOutputSchema = z.object({ Account: z.string().optional(), Region: z.string().optional() });",
+        "const OperationOutputSchema = z.object({ OperationId: z.string() });",
+        "",
         "function createCfnClient(credentials: AwsCredentials): CloudFormationClient {",
         '  return new CloudFormationClient({ region: credentials.region ?? "us-east-1" });',
         "}",
@@ -497,6 +505,14 @@ Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
         ],
         functionExport: "listInstances",
         returnsArray: true,
+        output: {
+          resourceName: "stackInstance",
+          description: "Stack instance of this StackSet",
+          schemaExport: "StackInstanceOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { itemFields: ["Account", "Region"] },
+        },
       },
       {
         methodName: "describeOperation",
@@ -506,11 +522,19 @@ Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
         ],
         functionExport: "describeOp",
         returnsArray: false,
+        output: {
+          resourceName: "operation",
+          description: "Operation performed on this StackSet",
+          schemaExport: "OperationOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { arg: "operationId" },
+        },
       },
     ],
   };
 
-  const input: AwsExtensionModelInput = {
+  return {
     typeName: "AWS::CloudFormation::StackSet",
     zodResult: {
       extractedSchemas: [],
@@ -546,6 +570,149 @@ Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
     domainPropertyNames: ["StackSetName"],
     modelMethods: mockModelMethods,
   };
+}
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
+  await assertSnapshot(t, generateAwsExtensionModel(buildModelMethodsInput()));
+});
+
+Deno.test("generateAwsExtensionModel - modelMethods write to their declared output resources", () => {
+  const code = generateAwsExtensionModel(buildModelMethodsInput());
+
+  // Output resources are emitted after state, in config order
+  const stateAt = code.indexOf("    state: {");
+  const stackInstanceAt = code.indexOf("    stackInstance: {");
+  const operationAt = code.indexOf("    operation: {");
+  assert(stateAt > 0 && stateAt < stackInstanceAt);
+  assert(stackInstanceAt < operationAt);
+  assertStringIncludes(
+    code,
+    `    operation: {
+      description: "Operation performed on this StackSet",
+      schema: OperationOutputSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },`,
+  );
+
+  assertStringIncludes(
+    code,
+    `context.writeResource("stackInstance", instanceName, item)`,
+  );
+  assertStringIncludes(
+    code,
+    `context.writeResource("operation", instanceName, result)`,
+  );
+  // Instance names never join every argument value
+  assert(!code.includes("argKeys"));
+});
+
+/** Pulls one emitted statement out of the generated code so it can be run. */
+function emittedLine(code: string, prefix: string): string {
+  const line = code.split("\n").map((l) => l.trim()).find((l) =>
+    l.startsWith(prefix)
+  );
+  assert(line, `no emitted line starting with: ${prefix}`);
+  return line;
+}
+
+Deno.test("generateAwsExtensionModel - modelMethods instance names", () => {
+  const code = generateAwsExtensionModel(buildModelMethodsInput());
+  const names = code.split("\n").map((l) => l.trim()).filter((l) =>
+    l.startsWith("const instanceName = (keyParts") ||
+    l.startsWith("const instanceName = (instanceKey")
+  );
+  assertEquals(names.length, 2);
+
+  // Array result: present key fields joined, index only when all are absent
+  const arrayName = new Function(
+    "item",
+    "i",
+    `${emittedLine(code, "const keyParts = ")} ${
+      names.find((l) => l.includes("keyParts"))
+    } return instanceName;`,
+  );
+  assertEquals(
+    arrayName({ Account: "111", Region: "us-east-1" }, 0),
+    "111-us-east-1",
+  );
+  assertEquals(
+    arrayName({ Account: undefined, Region: "us-east-1" }, 3),
+    "us-east-1",
+  );
+  assertEquals(arrayName({}, 3), "3");
+
+  // Single result: named from the declared arg only, method name when missing
+  const singleName = new Function(
+    "mergedArgs",
+    `${emittedLine(code, "const instanceKey = ")} ${
+      names.find((l) => l.includes("instanceKey"))
+    } return instanceName;`,
+  );
+  assertEquals(
+    singleName({ operationId: "op-1", StackSetName: "ss", callAs: "SELF" }),
+    "op-1",
+  );
+  assertEquals(singleName({ operationId: "a/../b" }), "a___b");
+  assertEquals(singleName({ StackSetName: "ss" }), "describeOperation");
+});
+
+Deno.test("generateAwsExtensionModel - modelMethods output validation", () => {
+  const withOutput = (
+    patch: Record<string, unknown>,
+    index = 1,
+  ): AwsExtensionModelInput => {
+    const input = buildModelMethodsInput();
+    const method = input.modelMethods!.methods[index];
+    method.output = { ...method.output, ...patch } as typeof method.output;
+    return input;
+  };
+
+  assertThrows(
+    () => generateAwsExtensionModel(withOutput({ resourceName: "state" })),
+    Error,
+    `must not write to the "state" resource`,
+  );
+  assertThrows(
+    () => generateAwsExtensionModel(withOutput({ schemaExport: "OpSchema" })),
+    Error,
+    `must end in "OutputSchema"`,
+  );
+
+  // Collides with a nested schema the generator itself emits
+  const colliding = withOutput({ schemaExport: "TargetOutputSchema" });
+  colliding.zodResult.extractedSchemas.push({
+    name: "TargetOutputSchema",
+    declaration: "const TargetOutputSchema = z.object({});",
+  });
+  assertThrows(
+    () => generateAwsExtensionModel(colliding),
+    Error,
+    "collides with a generated schema name",
+  );
+
+  // Same resource declared differently by two methods
+  assertThrows(
+    () =>
+      generateAwsExtensionModel(
+        withOutput({ resourceName: "stackInstance", lifetime: "7d" }),
+      ),
+    Error,
+    `declares output resource "stackInstance" differently`,
+  );
+
+  // Key kind must match the return shape
+  assertThrows(
+    () =>
+      generateAwsExtensionModel(
+        withOutput({ instanceKey: { itemFields: ["OperationId"] } }),
+      ),
+    Error,
+    "must use instanceKey.arg",
+  );
+  assertThrows(
+    () => generateAwsExtensionModel(withOutput({ instanceKey: { arg: "" } })),
+    Error,
+    "empty output instanceKey",
+  );
 });

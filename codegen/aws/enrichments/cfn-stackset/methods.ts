@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-import-prefix
 
+import { z } from "npm:zod@4.3.6";
 import {
   type CallAs,
   CloudFormationClient,
@@ -10,6 +11,72 @@ import {
   type StackInstanceFilter,
 } from "npm:@aws-sdk/client-cloudformation@3.1127.0";
 import type { AwsCredentials } from "../../../../model/aws/cloudformation/extensions/models/_lib/aws.ts";
+
+export const StackInstanceOutputSchema = z.object({
+  Account: z.string().optional(),
+  Region: z.string().optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
+  StackInstanceStatus: z.object({
+    DetailedStatus: z.string().optional(),
+  }).optional(),
+  DriftStatus: z.string().optional(),
+  StackId: z.string().optional(),
+  OrganizationalUnitId: z.string().optional(),
+  LastDriftCheckTimestamp: z.string().optional(),
+  LastOperationId: z.string().optional(),
+});
+
+/** Superset of the listOperations summary and describeOperation detail shapes. */
+export const OperationOutputSchema = z.object({
+  OperationId: z.string(),
+  StackSetId: z.string().optional(),
+  Action: z.string().optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
+  CreationTimestamp: z.string().optional(),
+  EndTimestamp: z.string().optional(),
+  StatusDetails: z.object({
+    FailedStackInstancesCount: z.number().optional(),
+  }).optional(),
+  DeploymentTargets: z.object({
+    Accounts: z.array(z.string()).optional(),
+    OrganizationalUnitIds: z.array(z.string()).optional(),
+    AccountFilterType: z.string().optional(),
+  }).optional(),
+  StackSetDriftDetectionDetails: z.object({
+    DriftStatus: z.string().optional(),
+    DriftedStackInstancesCount: z.number().optional(),
+    InSyncStackInstancesCount: z.number().optional(),
+    InProgressStackInstancesCount: z.number().optional(),
+    FailedStackInstancesCount: z.number().optional(),
+    TotalStackInstancesCount: z.number().optional(),
+  }).optional(),
+  OperationPreferences: z.object({
+    RegionConcurrencyType: z.string().optional(),
+    RegionOrder: z.array(z.string()).optional(),
+    MaxConcurrentCount: z.number().optional(),
+    MaxConcurrentPercentage: z.number().optional(),
+    FailureToleranceCount: z.number().optional(),
+    FailureTolerancePercentage: z.number().optional(),
+    ConcurrencyMode: z.string().optional(),
+  }).optional(),
+  AdministrationRoleARN: z.string().optional(),
+  ExecutionRoleName: z.string().optional(),
+});
+
+export const DetectDriftOutputSchema = z.object({
+  OperationId: z.string(),
+  OperationStatus: z.string(),
+  DriftStatus: z.string().optional(),
+  DriftDetectionStatus: z.string().optional(),
+  DriftedStackInstancesCount: z.number().optional(),
+  InSyncStackInstancesCount: z.number().optional(),
+  InProgressStackInstancesCount: z.number().optional(),
+  FailedStackInstancesCount: z.number().optional(),
+  TotalStackInstancesCount: z.number().optional(),
+  LastDriftCheckTimestamp: z.string().optional(),
+});
 
 function createCfnClient(credentials: AwsCredentials): CloudFormationClient {
   // disableImdsIfOffEc2 inlined — enrichments run at codegen time, not extension runtime

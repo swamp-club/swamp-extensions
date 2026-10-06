@@ -205,6 +205,72 @@ const GlobalArgsSchema = z.object({
   ).optional(),
 });
 
+const StackInstanceOutputSchema = z.object({
+  Account: z.string().optional(),
+  Region: z.string().optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
+  StackInstanceStatus: z.object({
+    DetailedStatus: z.string().optional(),
+  }).optional(),
+  DriftStatus: z.string().optional(),
+  StackId: z.string().optional(),
+  OrganizationalUnitId: z.string().optional(),
+  LastDriftCheckTimestamp: z.string().optional(),
+  LastOperationId: z.string().optional(),
+});
+
+/** Superset of the listOperations summary and describeOperation detail shapes. */
+const OperationOutputSchema = z.object({
+  OperationId: z.string(),
+  StackSetId: z.string().optional(),
+  Action: z.string().optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
+  CreationTimestamp: z.string().optional(),
+  EndTimestamp: z.string().optional(),
+  StatusDetails: z.object({
+    FailedStackInstancesCount: z.number().optional(),
+  }).optional(),
+  DeploymentTargets: z.object({
+    Accounts: z.array(z.string()).optional(),
+    OrganizationalUnitIds: z.array(z.string()).optional(),
+    AccountFilterType: z.string().optional(),
+  }).optional(),
+  StackSetDriftDetectionDetails: z.object({
+    DriftStatus: z.string().optional(),
+    DriftedStackInstancesCount: z.number().optional(),
+    InSyncStackInstancesCount: z.number().optional(),
+    InProgressStackInstancesCount: z.number().optional(),
+    FailedStackInstancesCount: z.number().optional(),
+    TotalStackInstancesCount: z.number().optional(),
+  }).optional(),
+  OperationPreferences: z.object({
+    RegionConcurrencyType: z.string().optional(),
+    RegionOrder: z.array(z.string()).optional(),
+    MaxConcurrentCount: z.number().optional(),
+    MaxConcurrentPercentage: z.number().optional(),
+    FailureToleranceCount: z.number().optional(),
+    FailureTolerancePercentage: z.number().optional(),
+    ConcurrencyMode: z.string().optional(),
+  }).optional(),
+  AdministrationRoleARN: z.string().optional(),
+  ExecutionRoleName: z.string().optional(),
+});
+
+const DetectDriftOutputSchema = z.object({
+  OperationId: z.string(),
+  OperationStatus: z.string(),
+  DriftStatus: z.string().optional(),
+  DriftDetectionStatus: z.string().optional(),
+  DriftedStackInstancesCount: z.number().optional(),
+  InSyncStackInstancesCount: z.number().optional(),
+  InProgressStackInstancesCount: z.number().optional(),
+  FailedStackInstancesCount: z.number().optional(),
+  TotalStackInstancesCount: z.number().optional(),
+  LastDriftCheckTimestamp: z.string().optional(),
+});
+
 function createCfnClient(credentials: AwsCredentials): CloudFormationClient {
   // disableImdsIfOffEc2 inlined — enrichments run at codegen time, not extension runtime
   if (
@@ -635,7 +701,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation StackSet. Registered at `@swamp/aws/cloudformation/stack-set`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack-set",
-  version: "2026.09.06.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.08.24.1",
@@ -652,6 +718,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -660,6 +731,24 @@ export const model = {
       description: "CloudFormation StackSet resource state",
       schema: StateSchema,
       lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    stackInstance: {
+      description: "Stack instance of this StackSet in one account and region",
+      schema: StackInstanceOutputSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    operation: {
+      description: "Operation performed on this StackSet",
+      schema: OperationOutputSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    driftDetection: {
+      description: "Result of the most recent drift detection on this StackSet",
+      schema: DetectDriftOutputSchema,
+      lifetime: "30d",
       garbageCollection: 10,
     },
   },
@@ -909,12 +998,16 @@ export const model = {
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const instanceName = (String(i)).replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, "");
+          const keyParts = [item["Account"], item["Region"]].filter((v) =>
+            v !== undefined && v !== null && v !== ""
+          ).map(String);
+          const instanceName =
+            (keyParts.length > 0 ? keyParts.join("-") : String(i)).replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
           const handle = await context.writeResource(
-            "state",
+            "stackInstance",
             instanceName,
             item,
           );
@@ -940,12 +1033,16 @@ export const model = {
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const instanceName = (String(i)).replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, "");
+          const keyParts = [item["OperationId"]].filter((v) =>
+            v !== undefined && v !== null && v !== ""
+          ).map(String);
+          const instanceName =
+            (keyParts.length > 0 ? keyParts.join("-") : String(i)).replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
           const handle = await context.writeResource(
-            "state",
+            "operation",
             instanceName,
             item,
           );
@@ -968,16 +1065,15 @@ export const model = {
         const credentials = _buildCredentials(context.globalArgs);
         const mergedArgs = { ...context.globalArgs, ...args };
         const result = await describeOperation(mergedArgs, credentials);
-        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
-        const suffix = argKeys.length > 0
-          ? "-" + argKeys.map((k) => String(args[k])).join("-")
-          : "";
-        const instanceName = ("describeOperation" + suffix).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceKey = mergedArgs["operationId"];
+        const instanceName =
+          (instanceKey === undefined || instanceKey === null ||
+              String(instanceKey) === ""
+            ? "describeOperation"
+            : String(instanceKey)).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+            .replace(/\0/g, "");
         const handle = await context.writeResource(
-          "state",
+          "operation",
           instanceName,
           result,
         );
@@ -1002,14 +1098,15 @@ export const model = {
         const credentials = _buildCredentials(context.globalArgs);
         const mergedArgs = { ...context.globalArgs, ...args };
         const result = await detectDrift(mergedArgs, credentials);
-        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
-        const suffix = argKeys.length > 0
-          ? "-" + argKeys.map((k) => String(args[k])).join("-")
-          : "";
-        const instanceName = ("detectDrift" + suffix).replace(/[\/\\]/g, "_")
-          .replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceKey = mergedArgs["StackSetName"];
+        const instanceName =
+          (instanceKey === undefined || instanceKey === null ||
+              String(instanceKey) === ""
+            ? "detectDrift"
+            : String(instanceKey)).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+            .replace(/\0/g, "");
         const handle = await context.writeResource(
-          "state",
+          "driftDetection",
           instanceName,
           result,
         );

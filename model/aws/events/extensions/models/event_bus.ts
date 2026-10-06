@@ -90,6 +90,15 @@ const GlobalArgsSchema = z.object({
   }).describe("The logging configuration settings for vended logs.").optional(),
 });
 
+const PutEventsOutputSchema = z.object({
+  FailedEntryCount: z.number(),
+  Entries: z.array(z.object({
+    EventId: z.string().optional(),
+    ErrorCode: z.string().optional(),
+    ErrorMessage: z.string().optional(),
+  })),
+});
+
 function createClient(
   credentials: AwsCredentials,
 ): EventBridgeClient {
@@ -251,7 +260,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.09.17.1",
+  version: "2026.10.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +327,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -326,6 +340,12 @@ export const model = {
       description: "Events EventBus resource state",
       schema: StateSchema,
       lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    putEventsResult: {
+      description: "Result of the most recent PutEvents call on this event bus",
+      schema: PutEventsOutputSchema,
+      lifetime: "7d",
       garbageCollection: 10,
     },
   },
@@ -579,14 +599,15 @@ export const model = {
         const credentials = _buildCredentials(context.globalArgs);
         const mergedArgs = { ...context.globalArgs, ...args };
         const result = await putEvents(mergedArgs, credentials);
-        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
-        const suffix = argKeys.length > 0
-          ? "-" + argKeys.map((k) => String(args[k])).join("-")
-          : "";
-        const instanceName = ("put_events" + suffix).replace(/[\/\\]/g, "_")
-          .replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceKey = mergedArgs["Name"];
+        const instanceName =
+          (instanceKey === undefined || instanceKey === null ||
+              String(instanceKey) === ""
+            ? "put_events"
+            : String(instanceKey)).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+            .replace(/\0/g, "");
         const handle = await context.writeResource(
-          "state",
+          "putEventsResult",
           instanceName,
           result,
         );

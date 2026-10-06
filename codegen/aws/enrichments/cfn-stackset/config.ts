@@ -20,6 +20,15 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "listInstances",
         returnsArray: true,
+        output: {
+          resourceName: "stackInstance",
+          description:
+            "Stack instance of this StackSet in one account and region",
+          schemaExport: "StackInstanceOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { itemFields: ["Account", "Region"] },
+        },
       },
       {
         methodName: "listOperations",
@@ -30,6 +39,14 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "listOperations",
         returnsArray: true,
+        output: {
+          resourceName: "operation",
+          description: "Operation performed on this StackSet",
+          schemaExport: "OperationOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { itemFields: ["OperationId"] },
+        },
       },
       {
         methodName: "describeOperation",
@@ -41,6 +58,14 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "describeOperation",
         returnsArray: false,
+        output: {
+          resourceName: "operation",
+          description: "Operation performed on this StackSet",
+          schemaExport: "OperationOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { arg: "operationId" },
+        },
       },
       {
         methodName: "detectDrift",
@@ -53,6 +78,15 @@ export const enrichment: AwsEnrichment = {
         ],
         functionExport: "detectDrift",
         returnsArray: false,
+        output: {
+          resourceName: "driftDetection",
+          description:
+            "Result of the most recent drift detection on this StackSet",
+          schemaExport: "DetectDriftOutputSchema",
+          lifetime: "30d",
+          garbageCollection: 10,
+          instanceKey: { arg: "StackSetName" },
+        },
       },
     ],
   },

@@ -28,7 +28,13 @@ containing:
 ```sh
 deno task fetch-schema:aws    # download CloudFormation schemas
 deno task generate:aws        # generate models from the local schemas
+deno task generate:aws ec2 s3 # regenerate only these services
 ```
+
+The service filter matches the service segment of the CloudFormation type name
+exactly (`events` selects `AWS::Events::*`, not `AWS::RDS::EventSubscription`).
+A looser match would regenerate unrelated services from a partial set of types
+and delete their other models.
 
 The pipeline is orchestrated by `src/commands/generateModels.ts`, which calls
 `generateAwsModels()` from the pipeline, writes all files per service, runs
@@ -622,11 +628,44 @@ The interface is strategy-agnostic. Three patterns are supported:
 6. Run `deno task generate:aws <service>` and verify the output
 7. Run a second time to confirm idempotency
 
+### Custom method output resources
+
+A `customMethods` entry adds a standalone method (for example Bedrock `retrieve`
+or StackSet `detectDrift`) to the model. Its result is derived data — query
+results, operation receipts, drift reports — not the resource's configuration,
+so it never goes into the CloudControl `state` resource. Each method declares an
+`output` block in its `config.ts`:
+
+- `resourceName` — the model resource the result is written to. `state` is
+  rejected at generation time. Methods may share a resource (StackSet
+  `listOperations` and `describeOperation` both write `operation`) only if they
+  declare it identically.
+- `schemaExport` — a Zod schema exported from `methods.ts` describing the
+  result. It must end in `OutputSchema`, and generation fails if it collides
+  with a schema the generator emits for the model.
+- `lifetime` / `garbageCollection` — short-lived data uses a duration such as
+  `7d`; `garbageCollection` caps versions per instance.
+- `instanceKey` — a stable, low-cardinality name for the data instance.
+  Single-result methods use `{ arg: "<argument>" }` (a global or method
+  argument; the method name is used when it is missing). Array methods use
+  `{ itemFields: [...] }`, joining the fields present on each item with `-` and
+  falling back to the item index only when all are missing.
+
+Because the instance name is stable, repeated calls replace the latest version
+of the same instance rather than creating new instances: Bedrock `retrieve` is
+keyed by knowledge-base ID, so each new query becomes the latest version and
+earlier results survive only as the last `garbageCollection` versions until the
+7-day lifetime expires. Free-form arguments such as a query must go in the
+result payload, never in the instance name.
+
 ### Current enrichments
 
-| Resource              | Strategy | Data added                                                |
-| --------------------- | -------- | --------------------------------------------------------- |
-| `AWS::RDS::DBCluster` | SDK      | `DBClusterMembers` with instance class, AZ, writer status |
+| Resource                        | Strategy | Data added                                                                    | Output resources                                     |
+| ------------------------------- | -------- | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `AWS::RDS::DBCluster`           | SDK      | `DBClusterMembers` with instance class, AZ, writer status                     | —                                                    |
+| `AWS::Bedrock::KnowledgeBase`   | SDK      | `retrieve` method                                                             | `retrieval` (7d)                                     |
+| `AWS::Events::EventBus`         | SDK      | `put_events` method                                                           | `putEventsResult` (7d)                               |
+| `AWS::CloudFormation::StackSet` | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods | `stackInstance`, `operation`, `driftDetection` (30d) |
 
 ### List method enrichment
 
