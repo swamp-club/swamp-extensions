@@ -626,7 +626,7 @@ index to the new ticket. `factory` is needed only when a new key is reserved.
 writes nothing. `claim` never writes to the tracker, and a refused claim writes
 nothing. A repeat claim refreshes only the ticket's snapshot, not the index
 record, so read the key with
-`swamp data query 'modelName == "board" && name == "ticket-ext-12"' --select content --json`.
+`swamp data query 'modelName == "board" && name == "ticket-ext-12"' --select content --single --json`.
 See [DESIGN.md](DESIGN.md), "Start from a ticket".
 
 ## swamp-club Lab (swamp-club team only)

@@ -484,7 +484,15 @@ Deno.test("dispatch: each subagent's prompt starts with the rendered prompt and 
     assert(
       prompt.includes(
         `- plan: swamp data query 'modelName == "wi-3" && ` +
-          `name == "artifact-plan"' --select content --json`,
+          `name == "artifact-plan"' --select content --single --json`,
+      ),
+      prompt,
+    );
+    assert(
+      prompt.includes(
+        "Each command prints\nthe product's payload as one JSON object. " +
+          "If it exits non-zero\nwith an error (the record is missing or " +
+          "not alone), stop and\nreport that; never guess the product.",
       ),
       prompt,
     );

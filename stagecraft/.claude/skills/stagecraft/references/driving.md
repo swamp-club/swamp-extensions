@@ -249,10 +249,11 @@ team-1 (Add a list method): active at stage 'plan-review' cycle 1
 
 To read a recorded product itself (to show a person, or to check a value), get
 its record. Artifacts are `artifact-<name>`, evidence is `evidence-<name>`.
-`--select content` prints the payload as the one entry of `results`:
+`--select content --single` prints the payload as one object, and fails when the
+record is missing or not alone:
 
 ```sh
-swamp data query 'modelName == "<key>" && name == "artifact-<name>"' --select content --json
+swamp data query 'modelName == "<key>" && name == "artifact-<name>"' --select content --single --json
 ```
 
 That is the latest version. An earlier one, such as the plan version a ticket
@@ -260,7 +261,7 @@ entry says was approved, is read by its number (stagecraft's answer to
 issue-lifecycle's `review --input version`):
 
 ```sh
-swamp data query 'modelName == "<key>" && name == "artifact-<name>" && version == <version>' --select content --json
+swamp data query 'modelName == "<key>" && name == "artifact-<name>" && version == <version>' --select content --single --json
 ```
 
 ## The loop

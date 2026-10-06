@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/stagecraft"
-version: "2026.10.02.1"
+version: "2026.10.05.1"
 description: |
   stagecraft builds factories. A factory describes your process as a set of
   stages: in each one, work makes an artifact or records evidence, and gates

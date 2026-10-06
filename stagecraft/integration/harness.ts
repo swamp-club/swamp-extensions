@@ -331,8 +331,8 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     await writeFactory(name, definition, options.scenarios);
   };
 
-  // `data query` succeeds with no results, so a record that is not there,
-  // or not alone, fails here instead.
+  // `--single` makes swamp itself fail, naming the predicate, when the
+  // record is not there or not alone; swamp() throws on that exit.
   const data: SwampRepo["data"] = async (instance, name, version) => {
     const predicate = [
       `modelName == ${JSON.stringify(instance)}`,
@@ -345,17 +345,10 @@ async function openRepo(dir: string): Promise<SwampRepo> {
       predicate,
       "--select",
       "content",
+      "--single",
       "--json",
     ]);
-    const { results } = JSON.parse(stdout) as {
-      results: Record<string, unknown>[];
-    };
-    if (results.length !== 1) {
-      throw new Error(
-        `${results.length} records match ${predicate}, not one`,
-      );
-    }
-    return results[0];
+    return JSON.parse(stdout) as Record<string, unknown>;
   };
 
   const run: SwampRepo["run"] = async (key) => {

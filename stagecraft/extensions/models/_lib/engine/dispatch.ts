@@ -216,7 +216,8 @@ export function buildSubagentPrompts(
   const dir = where.resultDir.replace(/\/+$/, "");
   const reads = packet.inject.map((name) =>
     `- ${name}: swamp data query 'modelName == "${where.key}" && ` +
-    `name == "${kindOf(definition, name)}-${name}"' --select content --json`
+    `name == "${kindOf(definition, name)}-${name}"' --select content ` +
+    "--single --json"
   );
   return Array.from({ length: packet.subagents }, (_, i) => {
     const skill = packet.skills[i];
@@ -244,7 +245,9 @@ export function buildSubagentPrompts(
       ...(reads.length > 0
         ? [
           "Read these products fresh from the store. Each command prints\n" +
-          '{"results": [...]} with one result, the product\'s payload:\n' +
+          "the product's payload as one JSON object. If it exits non-zero\n" +
+          "with an error (the record is missing or not alone), stop and\n" +
+          "report that; never guess the product.\n" +
           reads.join("\n"),
         ]
         : []),

@@ -440,11 +440,11 @@ export function checkCommand(
     return args.length === 4 ? null : "extension source add takes one path";
   }
   if (is("data", "query")) {
-    // One predicate naming the record, and its payload alone.
-    return args.length === 6 && args[3] === "--select" &&
-        args[4] === "content" && args[5] === "--json"
+    // One predicate naming the record, and its payload alone as one object.
+    return args.length === 7 && args[3] === "--select" &&
+        args[4] === "content" && args[5] === "--single" && args[6] === "--json"
       ? null
-      : "data query takes a predicate, --select content and --json";
+      : "data query takes a predicate, --select content, --single and --json";
   }
   return `not a command form the skill test knows: ${args.join(" ")}`;
 }

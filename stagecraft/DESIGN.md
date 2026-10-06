@@ -2455,7 +2455,7 @@ printed `start` at once race as any first start does (see "The model types").
 stagecraft through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution, without `--log` as the skill does, and
-reads results back from swamp's storage with `swamp data query --json`. Code:
+reads results back from swamp's storage with `swamp data query --single --json`. Code:
 `integration/harness.ts`, `integration/engine/cli_test.ts`;
 `integration/extension/skill_test.ts`, which checks every command the driving
 skill shows and runs its worked example as written; and
