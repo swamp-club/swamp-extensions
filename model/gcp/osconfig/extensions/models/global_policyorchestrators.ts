@@ -307,7 +307,7 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Selector for selecting resource hierarchy.").optional(),
     })).describe(
-      "Optional. Selectors of the orchestration scope. There is a logical AND between each selector defined. When there is no explicit `ResourceHierarchySelector` selector specified, the scope is by default bounded to the parent of the policy orchestrator resource.",
+      "Optional. Selectors of the orchestration scope. Each `Selector` entry can specify either a `ResourceHierarchySelector` or a `LocationSelector`, but not both. To filter by both resource hierarchy and location, specify separate `Selector` entries for each selector type. There is a logical AND between each selector defined. When there is no explicit `ResourceHierarchySelector` selector specified, the scope is by default bounded to the parent of the policy orchestrator resource.",
     ).optional(),
   }).describe(
     "Optional. Defines scope for the orchestration, in context of the enclosing PolicyOrchestrator resource. Scope is expanded into a list of pairs, in which the rollout action will take place. Expansion starts with a Folder resource parenting the PolicyOrchestrator resource: - All the descendant projects are listed. - List of project is cross joined with a list of all available zones. - Resulting list of pairs is filtered according to the selectors.",
@@ -564,7 +564,7 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Selector for selecting resource hierarchy.").optional(),
     })).describe(
-      "Optional. Selectors of the orchestration scope. There is a logical AND between each selector defined. When there is no explicit `ResourceHierarchySelector` selector specified, the scope is by default bounded to the parent of the policy orchestrator resource.",
+      "Optional. Selectors of the orchestration scope. Each `Selector` entry can specify either a `ResourceHierarchySelector` or a `LocationSelector`, but not both. To filter by both resource hierarchy and location, specify separate `Selector` entries for each selector type. There is a logical AND between each selector defined. When there is no explicit `ResourceHierarchySelector` selector specified, the scope is by default bounded to the parent of the policy orchestrator resource.",
     ).optional(),
   }).describe(
     "Optional. Defines scope for the orchestration, in context of the enclosing PolicyOrchestrator resource. Scope is expanded into a list of pairs, in which the rollout action will take place. Expansion starts with a Folder resource parenting the PolicyOrchestrator resource: - All the descendant projects are listed. - List of project is cross joined with a list of all available zones. - Resulting list of pairs is filtered according to the selectors.",
@@ -609,7 +609,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config Global.PolicyOrchestrators. Registered at `@swamp/gcp/osconfig/global-policyorchestrators`. */
 export const model = {
   type: "@swamp/gcp/osconfig/global-policyorchestrators",
-  version: "2026.08.12.2",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -776,6 +776,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

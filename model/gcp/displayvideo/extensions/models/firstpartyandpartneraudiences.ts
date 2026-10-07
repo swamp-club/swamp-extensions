@@ -422,7 +422,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FirstPartyAndPartnerAudiences. Registered at `@swamp/gcp/displayvideo/firstpartyandpartneraudiences`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/firstpartyandpartneraudiences",
-  version: "2026.08.13.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -569,6 +569,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -712,8 +717,15 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["firstPartyAndPartnerAudienceId"] =
-          existing["firstPartyAndPartnerAudienceId"]?.toString() ?? "";
+        const resourceId =
+          existing["firstPartyAndPartnerAudienceId"]?.toString() ??
+            g["firstPartyAndPartnerAudienceId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["firstPartyAndPartnerAudienceId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["appId"] !== undefined) body["appId"] = g["appId"];
         if (g["contactInfoList"] !== undefined) {
@@ -791,7 +803,9 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier =
+            existing["firstPartyAndPartnerAudienceId"]?.toString() ??
+              g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

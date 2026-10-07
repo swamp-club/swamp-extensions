@@ -110,9 +110,8 @@ const GlobalArgsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -162,7 +161,7 @@ const GlobalArgsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -170,7 +169,7 @@ const GlobalArgsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -383,9 +382,8 @@ const GlobalArgsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -435,7 +433,7 @@ const GlobalArgsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -443,7 +441,7 @@ const GlobalArgsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -663,9 +661,8 @@ const GlobalArgsSchema = z.object({
       })).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -760,7 +757,7 @@ const GlobalArgsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -768,7 +765,7 @@ const GlobalArgsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -1283,9 +1280,8 @@ const GlobalArgsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -1335,7 +1331,7 @@ const GlobalArgsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -1343,7 +1339,7 @@ const GlobalArgsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -2217,9 +2213,8 @@ const InputsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -2269,7 +2264,7 @@ const InputsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -2277,7 +2272,7 @@ const InputsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -2490,9 +2485,8 @@ const InputsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -2542,7 +2536,7 @@ const InputsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -2550,7 +2544,7 @@ const InputsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -2770,9 +2764,8 @@ const InputsSchema = z.object({
       })).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -2867,7 +2860,7 @@ const InputsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -2875,7 +2868,7 @@ const InputsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -3390,9 +3383,8 @@ const InputsSchema = z.object({
       objectAnchors: z.array(z.unknown()).describe(
         "Output only. All object ID-based locations within a page that refer to the anchor ID.",
       ).optional(),
-    })).describe(
-      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
-    ).optional(),
+    })).describe("Output only. The comment anchors present on the page.")
+      .optional(),
     comments: z.array(z.object({
       anchorId: z.string().describe(
         "The ID of the CommentAnchor in the presentation that this thread is tied to.",
@@ -3442,7 +3434,7 @@ const InputsSchema = z.object({
         "Whether the thread is open or resolved.",
       ).optional(),
     })).describe(
-      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest.",
     ).optional(),
     commentsViewMode: z.enum([
       "COMMENTS_VIEW_MODE_UNSPECIFIED",
@@ -3450,7 +3442,7 @@ const InputsSchema = z.object({
       "COMMENTS_VIEW_MODE_OMITTED",
       "COMMENTS_VIEW_MODE_INCLUDED",
     ]).describe(
-      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode.",
     ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
@@ -3681,7 +3673,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Slides Presentations. Registered at `@swamp/gcp/slides/presentations`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations",
-  version: "2026.10.06.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3810,6 +3802,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

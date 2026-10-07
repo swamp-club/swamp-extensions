@@ -1232,7 +1232,7 @@ const ResourceSchema = z.object({
         excludePaths: z.array(z.string()).optional(),
         excludeStatusCodes: z.array(z.number()).optional(),
         ingestWatermarkSeconds: z.number().optional(),
-        minSampleSize: z.number().optional(),
+        significanceLevel: z.number().optional(),
         type: z.string().optional(),
       })).optional(),
       dryRun: z.boolean().optional(),
@@ -1705,7 +1705,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.06.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1884,6 +1884,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2234,10 +2239,14 @@ export const model = {
             "At least one global argument must be set to filter by",
           );
         }
-        const items = await listAll(endpoint, "none", { token: g.token }, {
-          teamId: g.teamId,
-          slug: g.slug,
-        }, undefined);
+        const items = await listAll(
+          endpoint,
+          "cursor",
+          { token: g.token },
+          { teamId: g.teamId, slug: g.slug },
+          undefined,
+          "until",
+        );
         const matches = items.filter((item) => {
           for (const [key, val] of filters) {
             if (String((item as Record<string, unknown>)[key]) !== val) {

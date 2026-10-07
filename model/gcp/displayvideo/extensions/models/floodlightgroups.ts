@@ -349,7 +349,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups. Registered at `@swamp/gcp/displayvideo/floodlightgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups",
-  version: "2026.09.07.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -476,6 +476,11 @@ export const model = {
       description: "Added: partnerId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -550,8 +555,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["floodlightGroupId"] =
-          existing["floodlightGroupId"]?.toString() ?? "";
+        const resourceId = existing["floodlightGroupId"]?.toString() ??
+          g["floodlightGroupId"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["floodlightGroupId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["activeViewConfig"] !== undefined) {
           body["activeViewConfig"] = g["activeViewConfig"];
@@ -632,7 +643,8 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["floodlightGroupId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

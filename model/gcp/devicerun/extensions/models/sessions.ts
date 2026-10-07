@@ -529,10 +529,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run Sessions. Registered at `@swamp/gcp/devicerun/sessions`. */
 export const model = {
   type: "@swamp/gcp/devicerun/sessions",
-  version: "2026.10.02.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -806,6 +811,46 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    batch_get: {
+      description: "batch get",
+      arguments: z.object({
+        names: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["names"] !== undefined) {
+          params["names"] = String(args["names"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "devicerun.projects.locations.sessions.batchGet",
+            "path": "v1alpha/{+parent}/sessions:batchGet",
+            "httpMethod": "GET",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "names": { "location": "query" },
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
     cancel: {

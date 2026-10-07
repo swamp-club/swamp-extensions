@@ -748,7 +748,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroups. Registered at `@swamp/gcp/displayvideo/advertisers-adgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroups",
-  version: "2026.09.07.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -935,6 +935,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1080,7 +1085,14 @@ export const model = {
         } else if (existing["advertiserId"]) {
           params["advertiserId"] = String(existing["advertiserId"]);
         }
-        params["adGroupId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["adGroupId"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["adGroupId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["adGroupInventoryControl"] !== undefined) {
           body["adGroupInventoryControl"] = g["adGroupInventoryControl"];
@@ -1200,7 +1212,8 @@ export const model = {
           } else if (existing["advertiserId"]) {
             params["advertiserId"] = String(existing["advertiserId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["adGroupId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

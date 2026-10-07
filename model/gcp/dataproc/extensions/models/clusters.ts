@@ -2553,7 +2553,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.10.06.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2818,6 +2818,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2948,7 +2953,14 @@ export const model = {
         else if (existing["region"]) {
           params["region"] = String(existing["region"]);
         }
-        params["clusterName"] = existing["clusterName"]?.toString() ?? "";
+        const resourceId = existing["clusterName"]?.toString() ??
+          g["clusterName"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["clusterName"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["config"] !== undefined) body["config"] = g["config"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
@@ -3061,7 +3073,8 @@ export const model = {
           else if (existing["region"]) {
             params["region"] = String(existing["region"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["clusterName"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

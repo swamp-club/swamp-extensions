@@ -386,6 +386,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
@@ -416,6 +417,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
@@ -446,6 +448,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
@@ -476,6 +479,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
@@ -821,6 +825,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
@@ -851,6 +856,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
@@ -881,6 +887,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
@@ -911,6 +918,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
@@ -1403,6 +1411,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
@@ -1433,6 +1442,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
@@ -1463,6 +1473,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
@@ -1493,6 +1504,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
@@ -1838,6 +1850,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
@@ -1868,6 +1881,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
@@ -1898,6 +1912,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
@@ -1928,6 +1943,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_INTAGE",
           "THIRD_PARTY_VENDOR_MACROMILL",
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
+          "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
         "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
@@ -2036,7 +2052,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.LineItems. Registered at `@swamp/gcp/displayvideo/advertisers-lineitems`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-lineitems",
-  version: "2026.10.06.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2212,6 +2228,11 @@ export const model = {
     {
       toVersion: "2026.10.06.1",
       description: "Added: youtubeAndPartnersSettings",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2392,7 +2413,14 @@ export const model = {
         } else if (existing["advertiserId"]) {
           params["advertiserId"] = String(existing["advertiserId"]);
         }
-        params["lineItemId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["lineItemId"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["lineItemId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["bidStrategy"] !== undefined) {
           body["bidStrategy"] = g["bidStrategy"];
@@ -2540,7 +2568,8 @@ export const model = {
           } else if (existing["advertiserId"]) {
             params["advertiserId"] = String(existing["advertiserId"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["lineItemId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -2819,7 +2848,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["lineItemId"] = existing["name"]?.toString() ??
+        params["lineItemId"] = existing["lineItemId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["containsEuPoliticalAds"] !== undefined) {

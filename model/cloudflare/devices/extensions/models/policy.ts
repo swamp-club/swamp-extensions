@@ -113,7 +113,7 @@ const GlobalArgsSchema = z.object({
     "The size of the subnet for the local access network. Note that this field is omitted from the response if null or unset.",
   ).optional(),
   match: z.string().max(500).describe(
-    'The wirefilter expression to match devices. Available values: "identity.email", "identity.groups.id", "identity.groups.name", "identity.groups.email", "identity.service_token_uuid", "identity.saml_attributes", "network", "os.name", "os.version".',
+    'The wirefilter expression to match devices. Available values: "identity.email", "identity.groups.id", "identity.groups.name", "identity.groups.email", "identity.service_token_uuid", "identity.saml_attributes", "network", "os.name", "os.version", "device.tags".',
   ).optional(),
   name: z.string().max(100).describe("The name of the device settings profile.")
     .optional(),
@@ -297,7 +297,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.09.29.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -351,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

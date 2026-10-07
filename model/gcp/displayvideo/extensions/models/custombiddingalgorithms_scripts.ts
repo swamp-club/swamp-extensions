@@ -238,7 +238,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Scripts. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-scripts`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-scripts",
-  version: "2026.08.12.2",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -352,6 +352,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -491,7 +496,8 @@ export const model = {
               existing["customBiddingAlgorithmId"],
             );
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["customBiddingScriptId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

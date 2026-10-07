@@ -287,7 +287,7 @@ const GlobalArgsSchema = z.object({
     aptRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.apt.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.apt.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.object({
@@ -319,7 +319,7 @@ const GlobalArgsSchema = z.object({
     dockerRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the custom remote repository, for ex: "https://registry-1.docker.io".',
+          'An https uri reference to the custom remote repository, for ex: "https://registry-1.docker.io".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "DOCKER_HUB"])
@@ -330,7 +330,7 @@ const GlobalArgsSchema = z.object({
     mavenRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.maven.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.maven.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum([
@@ -346,7 +346,7 @@ const GlobalArgsSchema = z.object({
     npmRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.npm.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.npm.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "NPMJS"])
@@ -357,7 +357,7 @@ const GlobalArgsSchema = z.object({
     pythonRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.python.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.python.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "PYPI"])
@@ -381,7 +381,7 @@ const GlobalArgsSchema = z.object({
     yumRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.yum.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.yum.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.object({
@@ -679,7 +679,7 @@ const InputsSchema = z.object({
     aptRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.apt.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.apt.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.object({
@@ -711,7 +711,7 @@ const InputsSchema = z.object({
     dockerRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the custom remote repository, for ex: "https://registry-1.docker.io".',
+          'An https uri reference to the custom remote repository, for ex: "https://registry-1.docker.io".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "DOCKER_HUB"])
@@ -722,7 +722,7 @@ const InputsSchema = z.object({
     mavenRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.maven.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.maven.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum([
@@ -738,7 +738,7 @@ const InputsSchema = z.object({
     npmRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.npm.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.npm.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "NPMJS"])
@@ -749,7 +749,7 @@ const InputsSchema = z.object({
     pythonRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.python.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.python.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.enum(["PUBLIC_REPOSITORY_UNSPECIFIED", "PYPI"])
@@ -773,7 +773,7 @@ const InputsSchema = z.object({
     yumRepository: z.object({
       customRepository: z.object({
         uri: z.string().describe(
-          'An http/https uri reference to the upstream remote repository, for ex: "https://my.yum.registry/".',
+          'An https uri reference to the upstream remote repository, for ex: "https://my.yum.registry/".',
         ).optional(),
       }).describe("Customer-specified remote repository.").optional(),
       publicRepository: z.object({
@@ -867,7 +867,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories. Registered at `@swamp/gcp/artifactregistry/repositories`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories",
-  version: "2026.09.07.2",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1080,6 +1080,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

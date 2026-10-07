@@ -837,7 +837,7 @@ const GlobalArgsSchema = z.object({
       "Required. ID of the inventory source. Should refer to the inventory_source_id field of an InventorySource resource.",
     ).optional(),
   }).describe(
-    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE`.",
+    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE` or `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
   ).optional(),
   inventorySourceGroupDetails: z.object({
     inventorySourceGroupId: z.string().describe(
@@ -2529,7 +2529,7 @@ const InputsSchema = z.object({
       "Required. ID of the inventory source. Should refer to the inventory_source_id field of an InventorySource resource.",
     ).optional(),
   }).describe(
-    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE`.",
+    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE` or `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
   ).optional(),
   inventorySourceGroupDetails: z.object({
     inventorySourceGroupId: z.string().describe(
@@ -3281,7 +3281,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-targetingtypes-assignedtargetingoptions",
-  version: "2026.10.06.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3450,6 +3450,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3782,7 +3787,9 @@ export const model = {
           } else if (existing["targetingType"]) {
             params["targetingType"] = String(existing["targetingType"]);
           }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier =
+            existing["assignedTargetingOptionId"]?.toString() ??
+              g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",

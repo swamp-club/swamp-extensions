@@ -80,6 +80,10 @@ const GlobalArgsSchema = z.object({
   max_num_results: z.number().int().min(1).max(50).optional(),
   metadata: z.object({
     created_from_aisearch_wizard: z.boolean().optional(),
+    created_from_emdash_plugin: z.object({
+      type: z.enum(["native", "rest"]),
+      version: z.string(),
+    }).optional(),
     worker_domain: z.string().optional(),
   }).optional(),
   paused: z.boolean().optional(),
@@ -211,6 +215,10 @@ const ResourceSchema = z.object({
   max_num_results: z.number().optional(),
   metadata: z.object({
     created_from_aisearch_wizard: z.boolean().optional(),
+    created_from_emdash_plugin: z.object({
+      type: z.string().optional(),
+      version: z.string().optional(),
+    }).optional(),
     worker_domain: z.string().optional(),
   }).optional(),
   modified_at: z.string().optional(),
@@ -320,6 +328,10 @@ const InputsSchema = z.object({
   max_num_results: z.number().int().min(1).max(50).optional(),
   metadata: z.object({
     created_from_aisearch_wizard: z.boolean().optional(),
+    created_from_emdash_plugin: z.object({
+      type: z.enum(["native", "rest"]),
+      version: z.string(),
+    }).optional(),
     worker_domain: z.string().optional(),
   }).optional(),
   paused: z.boolean().optional(),
@@ -408,7 +420,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.09.29.2",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -492,6 +504,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

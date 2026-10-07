@@ -219,7 +219,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Users. Registered at `@swamp/gcp/displayvideo/users`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/users",
-  version: "2026.08.12.2",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -333,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -452,7 +457,14 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        params["userId"] = existing["name"]?.toString() ?? "";
+        const resourceId = existing["userId"]?.toString() ??
+          g["name"]?.toString();
+        if (!resourceId) {
+          throw new Error(
+            "No identifier found in existing state or globalArgs",
+          );
+        }
+        params["userId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -549,7 +561,8 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          const identifier = existing["userId"]?.toString() ??
+            g["name"]?.toString();
           if (!identifier) {
             throw new Error(
               "No identifier found in existing state or globalArgs",
@@ -662,7 +675,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        params["userId"] = existing["name"]?.toString() ??
+        params["userId"] = existing["userId"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["createdAssignedUserRoles"] !== undefined) {

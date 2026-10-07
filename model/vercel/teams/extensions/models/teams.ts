@@ -358,6 +358,7 @@ const ResourceSchema = z.object({
     default: z.boolean().optional(),
     supportUntil: z.number().optional(),
   })).nullable().optional(),
+  limited: z.boolean().nullable().optional(),
   membership: z.object({
     accessRequestedAt: z.number().optional(),
     confirmed: z.boolean().optional(),
@@ -637,7 +638,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.03.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -721,6 +722,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -912,6 +918,9 @@ export const model = {
         }
         if (g.inviteCode !== undefined) {
           filters.push(["inviteCode", String(g.inviteCode)]);
+        }
+        if (g.limited !== undefined) {
+          filters.push(["limited", String(g.limited)]);
         }
         if (g.orgRootTeamId !== undefined) {
           filters.push(["orgRootTeamId", String(g.orgRootTeamId)]);

@@ -44,7 +44,7 @@ const GlobalArgsSchema = z.object({
   category: z.string().optional(),
   createdAt: z.string().optional(),
   datasetId: z.array(z.string()).describe(
-    "Dataset UUIDs to query, or one standalone scope value: 'all'/'*' for the legacy all-datasets behavior, 'analytics' for isAnalytics=true datasets, or 'operational' for isAnalytics=false datasets. If not provided, uses the default dataset.",
+    "Dataset UUIDs to query, or one standalone scope value: 'all'/'*' or 'operational' for readable intelligence datasets (isAnalytics=false), or 'analytics' for readable analytics datasets (isAnalytics=true). Scope values query at most 50 datasets. If not provided, uses the default dataset.",
   ).optional(),
   date: z.string().optional(),
   event: z.string().optional(),
@@ -294,11 +294,16 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Events. Registered at `@swamp/cloudflare/cloudforce-one/events`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/events",
-  version: "2026.10.02.1",
+  version: "2026.10.07.1",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
       description: "Added: searchBranches",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

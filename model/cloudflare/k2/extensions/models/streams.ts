@@ -44,12 +44,16 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   http: z.object({
-    enabled: z.boolean(),
     authentication: z.boolean().optional(),
     cors: z.object({
-      origins: z.array(z.enum(["*"])).optional(),
+      origins: z.array(
+        z.string().regex(new RegExp("^(\\*|https?://[^/?#@]+)$")),
+      ).optional(),
     }).optional(),
-  }).optional(),
+    enabled: z.boolean(),
+  }).describe(
+    "Configures the HTTP endpoint. Disabling HTTP keeps `authentication` and `cors`, so enabling it again restores them.",
+  ).optional(),
   retention_seconds: z.number().int().min(3600).max(2592000).describe(
     "Sets the record retention period from 1 hour (3600 seconds) to 30 days (2592000 seconds), inclusive.",
   ).optional(),
@@ -71,11 +75,11 @@ const ResourceSchema = z.object({
   created_at: z.string().optional(),
   endpoint: z.string().optional(),
   http: z.object({
-    enabled: z.boolean().optional(),
     authentication: z.boolean().optional(),
     cors: z.object({
       origins: z.array(z.string()).optional(),
     }).optional(),
+    enabled: z.boolean().optional(),
   }).optional(),
   id: z.string(),
   modified_at: z.string().optional(),
@@ -91,11 +95,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   http: z.object({
-    enabled: z.boolean(),
     authentication: z.boolean().optional(),
     cors: z.object({
-      origins: z.array(z.enum(["*"])).optional(),
+      origins: z.array(
+        z.string().regex(new RegExp("^(\\*|https?://[^/?#@]+)$")),
+      ).optional(),
     }).optional(),
+    enabled: z.boolean(),
   }).optional(),
   retention_seconds: z.number().int().min(3600).max(2592000).optional(),
   worker_binding: z.string().optional(),
@@ -109,7 +115,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/k2/streams`. */
 export const model = {
   type: "@swamp/cloudflare/k2/streams",
-  version: "2026.10.01.1",
+  version: "2026.10.07.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -126,7 +139,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["http", "name"].filter((k) => g[k] === undefined);
+        const missing = ["name"].filter((k) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
