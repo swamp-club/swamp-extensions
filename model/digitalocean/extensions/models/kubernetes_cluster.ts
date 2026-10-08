@@ -162,10 +162,10 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The slug identifier for the region where the Kubernetes cluster is located.",
-  ),
+  ).optional(),
   version: z.string().describe(
     'The slug identifier for the version of Kubernetes used for the cluster. If set to a minor version (e.g. "1.14"), the latest version within it will be used (e.g. "1.14.6-do.1"); if set to "latest", the latest published version will be used. See the `/v2/kubernetes/options` endpoint to find all currently available versions.',
-  ),
+  ).optional(),
   cluster_subnet: z.string().describe(
     "The range of IP addresses for the overlay network of the Kubernetes cluster in CIDR notation.",
   ).optional(),
@@ -211,7 +211,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
   })).describe(
     "An object specifying the details of the worker nodes available to the Kubernetes cluster.",
-  ),
+  ).optional(),
   isolated_workers: z.boolean().describe(
     "A boolean value indicating whether worker nodes in the cluster are not assigned public IP addresses. When omitted on create, the default value is false. When enabled, a NAT gateway must exist in the VPC where the cluster is created.",
   ).optional(),
@@ -452,7 +452,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -549,6 +549,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -576,6 +581,14 @@ export const model = {
         context: any,
       ) => {
         const g = context.globalArgs;
+        const missing = ["name", "node_pools", "region", "version"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -810,6 +823,12 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         let result = await update(
           "/v2/kubernetes/clusters",

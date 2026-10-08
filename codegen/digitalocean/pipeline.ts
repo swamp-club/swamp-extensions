@@ -136,7 +136,7 @@ const SKIP_TOP_LEVEL = new Set(["add-ons", "gen-ai"]);
 // These are bulk-create alternatives that don't fit the single-resource model pattern.
 const SKIP_PROPERTIES = new Set(["names"]);
 
-// Additional required fields that can't be inferred from the schema.
+// Additional fields required at create that can't be inferred from the schema.
 // For example, droplet's "name" is required but the oneOf intersection misses it
 // because branch 1 uses "names" (which is in SKIP_PROPERTIES).
 const REQUIRED_FIELDS_OVERRIDES: Record<string, string[]> = {
@@ -277,8 +277,9 @@ export interface DigitalOceanResource {
   updateProperties: Record<string, DigitalOceanProperty>;
   /** Properties from GET response (resource state) */
   resourceProperties: Record<string, DigitalOceanProperty>;
-  /** Required properties for create */
-  requiredProperties: string[];
+  /** Properties the create request requires. Only create checks them; they
+   * are optional in GlobalArgsSchema unless a non-create method reads one. */
+  createRequiredProperties: string[];
   /** Available CRUD handlers */
   handlers: {
     create: boolean;
@@ -1198,7 +1199,12 @@ function buildResource(
     createProperties: createProps.properties,
     updateProperties: updateProps.properties,
     resourceProperties: resourceProps,
-    requiredProperties: createProps.required,
+    // Limited to properties the body sends: a required field the pipeline
+    // drops (e.g. "names" via SKIP_PROPERTIES, or a readOnly field) could
+    // never be set, so checking it would make create always fail.
+    createRequiredProperties: createProps.required.filter((name) =>
+      name in createProps.properties
+    ),
     handlers: {
       create: hasCreate,
       read: hasRead,

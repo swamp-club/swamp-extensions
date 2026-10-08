@@ -101,6 +101,59 @@ const SPEC = {
       },
       delete: { responses: {} },
     },
+    // A child resource whose create requires type, with a PUT-only update.
+    "/v2/domains/{domain_name}/records": {
+      post: {
+        requestBody: json({
+          ...obj({ type: str, name: str, data: str }),
+          required: ["type"],
+        }),
+        responses: {
+          "201": json(obj({
+            domain_record: obj({ id: str, type: str, name: str, data: str }),
+          })),
+        },
+      },
+    },
+    "/v2/domains/{domain_name}/records/{domain_record_id}": {
+      get: {
+        responses: {
+          "200": json(obj({
+            domain_record: obj({ id: str, type: str, name: str, data: str }),
+          })),
+        },
+      },
+      put: {
+        requestBody: json(obj({ type: str, name: str, data: str })),
+        responses: {},
+      },
+      delete: { responses: {} },
+    },
+    // A required field the pipeline drops ("names", via SKIP_PROPERTIES)
+    // must not be checked by create.
+    "/v2/droplets": {
+      post: {
+        requestBody: json({
+          ...obj({
+            name: str,
+            names: { type: "array", items: str },
+            size: str,
+          }),
+          required: ["names", "size"],
+        }),
+        responses: {
+          "202": json(obj({ droplet: obj({ id: str, name: str, size: str }) })),
+        },
+      },
+    },
+    "/v2/droplets/{droplet_id}": {
+      get: {
+        responses: {
+          "200": json(obj({ droplet: obj({ id: str, name: str, size: str }) })),
+        },
+      },
+      delete: { responses: {} },
+    },
   },
 };
 
@@ -110,7 +163,12 @@ type Method = {
     context: unknown,
   ) => Promise<unknown>;
 };
-type Model = { methods: Record<string, Method | undefined> };
+type Model = {
+  globalArguments: {
+    safeParse: (v: unknown) => { success: boolean };
+  };
+  methods: Record<string, Method | undefined>;
+};
 
 const tempDirs: string[] = [];
 
@@ -163,10 +221,11 @@ function makeContext(store: Map<string, unknown>, globalArgs = {}) {
 
 /**
  * Replace fetch with a router keyed by "METHOD /path" and record every
- * request. Unrouted requests get a 404.
+ * request, with its JSON body keyed the same way. Unrouted requests get a 404.
  */
 function stubFetch(routes: Record<string, unknown>) {
   const calls: string[] = [];
+  const bodies: Record<string, unknown> = {};
   const original = globalThis.fetch;
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(
@@ -174,6 +233,7 @@ function stubFetch(routes: Record<string, unknown>) {
     );
     const key = `${init?.method ?? "GET"} ${url.pathname}`;
     if (url.pathname !== "/v2/account") calls.push(key);
+    if (typeof init?.body === "string") bodies[key] = JSON.parse(init.body);
     if (url.pathname === "/v2/account") {
       return Promise.resolve(new Response("{}", { status: 200 }));
     }
@@ -189,7 +249,7 @@ function stubFetch(routes: Record<string, unknown>) {
       new Response(JSON.stringify({ id: "not_found" }), { status: 404 }),
     );
   }) as typeof fetch;
-  return { calls, restore: () => globalThis.fetch = original };
+  return { calls, bodies, restore: () => globalThis.fetch = original };
 }
 
 Deno.test("space key: sync and update address the key by access_key", async () => {
@@ -290,6 +350,104 @@ Deno.test("dedicated inference: create does not store the token secret", async (
     const store = new Map<string, unknown>();
     await model.methods.create!.execute({}, makeContext(store));
     assertEquals(store.get("k"), { id: "di-1", name: "k" });
+  } finally {
+    fetch.restore();
+  }
+});
+
+Deno.test("domain record: global args need only the parent and instance name", async () => {
+  const model = await loadModel("domain_record.ts");
+  assertEquals(
+    model.globalArguments.safeParse({
+      domain_name: "example.com",
+      instance_name: "www",
+    }).success,
+    true,
+  );
+  assertEquals(
+    model.globalArguments.safeParse({ instance_name: "www" }).success,
+    false,
+  );
+});
+
+Deno.test("domain record: create without type fails before any request", async () => {
+  const model = await loadModel("domain_record.ts");
+  const fetch = stubFetch({});
+  try {
+    const ctx = makeContext(new Map(), {
+      domain_name: "example.com",
+      instance_name: "www",
+    });
+    await assertRejects(
+      () => model.methods.create!.execute({}, ctx),
+      Error,
+      "create requires global arguments: type",
+    );
+    assertEquals(fetch.calls, []);
+  } finally {
+    fetch.restore();
+  }
+});
+
+Deno.test("domain record: PUT update fills type from the live resource, or fails before the PUT", async () => {
+  const model = await loadModel("domain_record.ts");
+  const path = "/v2/domains/example.com/records/r1";
+  const store = new Map<string, unknown>([["www", { id: "r1", type: "A" }]]);
+  const ctx = makeContext(store, {
+    domain_name: "example.com",
+    instance_name: "www",
+    data: "1.2.3.4",
+  });
+  let fetch = stubFetch({
+    [`GET ${path}`]: { domain_record: { id: "r1", type: "CNAME" } },
+    [`PUT ${path}`]: { domain_record: { id: "r1", type: "CNAME" } },
+  });
+  try {
+    await model.methods.update!.execute({}, ctx);
+    assertEquals(fetch.calls, [`GET ${path}`, `PUT ${path}`]);
+    // The live value, not stale stored state.
+    assertEquals(
+      (fetch.bodies[`PUT ${path}`] as { type: string }).type,
+      "CNAME",
+    );
+  } finally {
+    fetch.restore();
+  }
+  fetch = stubFetch({ [`GET ${path}`]: { domain_record: { id: "r1" } } });
+  try {
+    await assertRejects(
+      () => model.methods.update!.execute({}, ctx),
+      Error,
+      "update requires global arguments: type",
+    );
+    assertEquals(fetch.calls, [`GET ${path}`]);
+  } finally {
+    fetch.restore();
+  }
+});
+
+Deno.test("droplet: create checks only required fields the body sends", async () => {
+  const model = await loadModel("droplet.ts");
+  const fetch = stubFetch({
+    "POST /v2/droplets": { droplet: { id: "d1", name: "k", size: "s-1" } },
+  });
+  try {
+    await assertRejects(
+      () =>
+        model.methods.create!.execute(
+          { waitForReady: false },
+          makeContext(new Map()),
+        ),
+      Error,
+      "create requires global arguments: size",
+    );
+    const store = new Map<string, unknown>();
+    await model.methods.create!.execute(
+      { waitForReady: false },
+      makeContext(store, { size: "s-1" }),
+    );
+    assertEquals(fetch.calls, ["POST /v2/droplets"]);
+    assertEquals(fetch.bodies["POST /v2/droplets"], { name: "k", size: "s-1" });
   } finally {
     fetch.restore();
   }

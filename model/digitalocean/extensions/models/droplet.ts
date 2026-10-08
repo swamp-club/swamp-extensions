@@ -69,10 +69,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   size: z.string().describe(
     "The slug identifier for the size that you wish to select for this Droplet.",
-  ),
+  ).optional(),
   image: z.string().describe(
     "The image ID of a public or private image or the slug identifier for a public image. This image will be the base image for your Droplet.<br>Requires `image:read` scope.",
-  ),
+  ).optional(),
   ssh_keys: z.array(z.string()).describe(
     "An array containing the IDs or fingerprints of the SSH keys that you wish to embed in the Droplet's root account upon creation. You must add the keys to your team before they can be embedded on a Droplet.<br>Requires `ssh_key:read` scope.",
   ).optional(),
@@ -296,7 +296,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean droplet. Registered at `@swamp/digitalocean/droplet`. */
 export const model = {
   type: "@swamp/digitalocean/droplet",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -368,6 +368,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -401,6 +406,14 @@ export const model = {
         context: any,
       ) => {
         const g = context.globalArgs;
+        const missing = ["image", "name", "size"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

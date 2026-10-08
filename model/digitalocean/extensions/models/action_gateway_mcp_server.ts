@@ -50,10 +50,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   serverRef: z.string().regex(new RegExp("^[a-z][a-z0-9-]{0,63}$")).describe(
     "Identifier for the server, unique within your team. Must match `^`[a-z]``[a-z0-9-]`{0,63}$`.",
-  ),
+  ).optional(),
   endpoint: z.string().describe(
     "HTTPS URL of the server's MCP endpoint. Its host must resolve only to public IP addresses. Required.",
-  ),
+  ).optional(),
   transport: z.enum(["streamable_http"]).describe(
     "Optional. `streamable_http`, the default and only accepted value.",
   ).optional(),
@@ -131,7 +131,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway mcp server. Registered at `@swamp/digitalocean/action-gateway-mcp-server`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-mcp-server",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.10.05.1",
@@ -140,6 +140,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -160,6 +165,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["endpoint", "serverRef"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

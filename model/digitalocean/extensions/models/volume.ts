@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   size_gigabytes: z.number().int().describe(
     "The size of the block storage volume in GiB (1024^3). This field does not apply  when creating a volume from a snapshot.",
-  ),
+  ).optional(),
   tags: z.array(z.string()).describe(
     "A flat array of tag names as strings to be applied to the resource. Tag names may be for either existing or new tags. <br><br>Requires `tag:create` scope.",
   ).optional(),
@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The slug identifier for the region where the resource will initially be  available.",
-  ),
+  ).optional(),
   filesystem_label: z.string().describe(
     "The label applied to the filesystem. Labels for ext4 type filesystems may contain 16 characters while labels for xfs type filesystems are limited to 12 characters. May only be used in conjunction with filesystem_type.",
   ).optional(),
@@ -139,7 +139,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean volume. Registered at `@swamp/digitalocean/volume`. */
 export const model = {
   type: "@swamp/digitalocean/volume",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -201,6 +201,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -228,6 +233,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "region", "size_gigabytes"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

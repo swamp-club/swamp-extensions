@@ -57,12 +57,12 @@ const GlobalArgsSchema = z.object({
     datadog_api_key: z.string().meta({ sensitive: true }).optional(),
   }).describe(
     "Configuration for Datadog integration **applicable only to MongoDB clusters**.\n",
-  ),
-  sink_name: z.string().describe("The name of the Logsink"),
+  ).optional(),
+  sink_name: z.string().describe("The name of the Logsink").optional(),
   sink_type: z.enum(["rsyslog", "elasticsearch", "opensearch", "datadog"])
     .describe(
       "Type of logsink integration.\n\n- Use `datadog` for Datadog integration **only with MongoDB clusters**.\n- For non-MongoDB clusters, use `rsyslog` for general syslog forwarding.\n- Other supported types include `elasticsearch` and `opensearch`.\n\nMore details about the configuration can be found in the `config` property.\n",
-    ),
+    ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -122,7 +122,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database logsink. Registered at `@swamp/digitalocean/database-logsink`. */
 export const model = {
   type: "@swamp/digitalocean/database-logsink",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -149,6 +149,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -166,6 +171,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["config", "sink_name", "sink_type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/logsink`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -250,6 +263,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["config"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           endpoint,

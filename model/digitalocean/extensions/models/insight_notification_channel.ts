@@ -148,7 +148,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean insight notification channel. Registered at `@swamp/digitalocean/insight-notification-channel`. */
 export const model = {
   type: "@swamp/digitalocean/insight-notification-channel",
-  version: "2026.10.06.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.10.05.1",
@@ -162,6 +162,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -186,6 +191,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -285,6 +296,12 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/insights/notification-channels",

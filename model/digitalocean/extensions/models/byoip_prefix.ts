@@ -41,7 +41,8 @@ const GlobalArgsSchema = z.object({
   advertise: z.boolean().describe(
     "Whether the BYOIP prefix should be advertised",
   ).optional(),
-  prefix: z.string().describe("The IP prefix in CIDR notation to bring"),
+  prefix: z.string().describe("The IP prefix in CIDR notation to bring")
+    .optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -58,10 +59,10 @@ const GlobalArgsSchema = z.object({
     "sfo3",
     "syd1",
     "atl1",
-  ]).describe("The region where the prefix will be created"),
+  ]).describe("The region where the prefix will be created").optional(),
   signature: z.string().describe(
     "The signature hash for the prefix creation request",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -114,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean byoip prefix. Registered at `@swamp/digitalocean/byoip-prefix`. */
 export const model = {
   type: "@swamp/digitalocean/byoip-prefix",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -166,6 +167,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -183,6 +189,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["prefix", "region", "signature"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

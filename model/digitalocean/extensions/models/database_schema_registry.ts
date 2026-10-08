@@ -39,11 +39,13 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  subject_name: z.string().describe("The name of the schema subject."),
+  subject_name: z.string().describe("The name of the schema subject.")
+    .optional(),
   schema_type: z.enum(["AVRO", "JSON", "PROTOBUF"]).describe(
     "The type of the schema.",
-  ),
-  schema: z.string().describe("The schema definition in the specified format."),
+  ).optional(),
+  schema: z.string().describe("The schema definition in the specified format.")
+    .optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -71,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database schema registry. Registered at `@swamp/digitalocean/database-schema-registry`. */
 export const model = {
   type: "@swamp/digitalocean/database-schema-registry",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -85,6 +87,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -105,6 +112,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["schema", "schema_type", "subject_name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint =
           `/v2/databases/${g.database_cluster_uuid}/schema-registry`;
         const instanceName = (g.name?.toString() ?? "current").replace(

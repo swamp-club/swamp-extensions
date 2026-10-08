@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   origin: z.string().describe(
     "The fully qualified domain name (FQDN) for the origin server which provides the content for the CDN. This is currently restricted to a Space.",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean cdn endpoint. Registered at `@swamp/digitalocean/cdn-endpoint`. */
 export const model = {
   type: "@swamp/digitalocean/cdn-endpoint",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -148,6 +148,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -165,6 +170,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["origin"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

@@ -59,16 +59,16 @@ const GlobalArgsSchema = z.object({
     "advanced_mysql",
   ]).describe(
     'A slug representing the database engine used for the cluster. The possible values are: "pg" for PostgreSQL, "mysql" for MySQL, "redis" for Caching, "mongodb" for MongoDB, "kafka" for Kafka, "opensearch" for OpenSearch, "valkey" for Valkey, "advanced_pg" for PostgreSQL Advanced Edition, and "advanced_mysql" for MySQL Advanced Edition. Advanced Edition engines are currently in public preview.',
-  ),
+  ).optional(),
   version: z.string().describe(
     "A string representing the version of the database engine in use for the cluster.",
   ).optional(),
   num_nodes: z.number().int().describe(
     "The number of nodes in the database cluster.",
-  ),
+  ).optional(),
   size: z.string().describe(
     "The slug identifier representing the size of the nodes in the database cluster.",
-  ),
+  ).optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -87,7 +87,7 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The slug identifier for the region where the database cluster is located.",
-  ),
+  ).optional(),
   private_network_uuid: z.string().regex(
     new RegExp(
       "^$|[0-9a-f]{8}\\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\\b[0-9a-f]{12}",
@@ -468,7 +468,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database cluster. Registered at `@swamp/digitalocean/database-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/database-cluster",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -545,6 +545,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -572,6 +577,13 @@ export const model = {
         context: any,
       ) => {
         const g = context.globalArgs;
+        const missing = ["engine", "name", "num_nodes", "region", "size"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

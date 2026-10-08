@@ -88,7 +88,7 @@ function resource(
     createProperties: {},
     updateProperties: {},
     resourceProperties: { name: { type: "string" } },
-    requiredProperties: [],
+    createRequiredProperties: [],
     handlers: { create: true, read: true, update: true, delete: true },
     updateMethod: "PATCH",
     identifyingField: "thing_ref",

@@ -17,7 +17,7 @@ function makeResource(
     createProperties: {},
     updateProperties: {},
     resourceProperties: {},
-    requiredProperties: [],
+    createRequiredProperties: [],
     handlers: { create: true, read: true, update: true, delete: true },
     updateMethod: "PUT",
     createOnlyProperties: new Set<string>(),
@@ -70,7 +70,7 @@ Deno.test("generateDigitalOceanExtensionModel - all handlers, natural name", asy
         properties: { slug: stringProp, name: stringProp },
       },
     },
-    requiredProperties: ["name", "region", "size", "image"],
+    createRequiredProperties: ["name", "region", "size", "image"],
     updateMethod: "PATCH",
   });
 
@@ -103,7 +103,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with actions", async (t
       name: stringProp,
       status: stringProp,
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     actions: [
       {
         actionType: "power_on",
@@ -163,7 +163,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with sub-resource metho
       engine: stringProp,
       status: stringProp,
     },
-    requiredProperties: ["name", "engine"],
+    createRequiredProperties: ["name", "engine"],
     subResourceMethods: [
       {
         methodName: "resize",
@@ -240,7 +240,7 @@ Deno.test("generateDigitalOceanExtensionModel - synthetic name", async (t) => {
         properties: { id: intProp, name: stringProp },
       },
     },
-    requiredProperties: [],
+    createRequiredProperties: [],
   });
 
   await assertSnapshot(
@@ -284,7 +284,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with readiness polling"
       name: stringProp,
       status: stringProp,
     },
-    requiredProperties: ["name", "region", "size"],
+    createRequiredProperties: ["name", "region", "size"],
     updateMethod: "PATCH",
     readiness: {
       statusField: "status",
@@ -326,7 +326,7 @@ Deno.test("generateDigitalOceanExtensionModel - checkExists direct lookup", asyn
       ttl: intProp,
       zone_file: stringProp,
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
   });
 
   await assertSnapshot(
@@ -379,7 +379,7 @@ Deno.test("generateDigitalOceanExtensionModel - checkExists list filter", async 
         },
       },
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
   });
 
   await assertSnapshot(
@@ -424,7 +424,7 @@ Deno.test("generateDigitalOceanExtensionModel - discovery endpoint", async (t) =
         properties: { state: stringProp, message: stringProp },
       },
     },
-    requiredProperties: ["name", "region", "version"],
+    createRequiredProperties: ["name", "region", "version"],
     discoveryEndpoint: "/v2/kubernetes/options",
   });
 
@@ -465,7 +465,7 @@ Deno.test("generateDigitalOceanExtensionModel - no update, no delete", async (t)
       resource_type: stringProp,
       created_at: stringProp,
     },
-    requiredProperties: ["resource_id", "name"],
+    createRequiredProperties: ["resource_id", "name"],
   });
 
   await assertSnapshot(
@@ -509,7 +509,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with forceSynthet
       data: stringProp,
       ttl: intProp,
     },
-    requiredProperties: ["type"],
+    createRequiredProperties: ["type"],
     updateMethod: "PATCH",
   });
 
@@ -553,7 +553,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with natural name
       size: intProp,
       mode: stringProp,
     },
-    requiredProperties: ["name", "db", "size", "mode"],
+    createRequiredProperties: ["name", "db", "size", "mode"],
     updateMethod: "PUT",
   });
 
@@ -604,7 +604,7 @@ Deno.test("generateDigitalOceanExtensionModel - with upgrades block", async (t) 
         properties: { slug: stringProp, name: stringProp },
       },
     },
-    requiredProperties: ["name", "size_gigabytes", "region"],
+    createRequiredProperties: ["name", "size_gigabytes", "region"],
     updateMethod: "PATCH",
   });
 
@@ -639,7 +639,7 @@ function tokenResource(): DigitalOceanResource {
       name: { type: "string", description: "The new hostname" },
     },
     resourceProperties: { id: intProp, name: stringProp, status: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     updateMethod: "PATCH",
   });
 }
@@ -706,7 +706,7 @@ Deno.test("token arg - threaded into action methods", () => {
       name: { type: "string", description: "The hostname" },
     },
     resourceProperties: { id: intProp, name: stringProp, status: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     actions: [
       {
         actionType: "power_on",
@@ -738,7 +738,7 @@ Deno.test("token arg - threaded into sub-resource methods", () => {
       name: { type: "string", description: "A unique name" },
     },
     resourceProperties: { id: stringProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     subResourceMethods: [
       {
         methodName: "resize",
@@ -776,7 +776,7 @@ Deno.test("token arg - collision guard omits the injected arg when a real 'token
       token: { type: "string", description: "A real API token field" },
     },
     resourceProperties: { id: intProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
   });
   const code = generateDigitalOceanExtensionModel({
     resource,
@@ -847,7 +847,7 @@ function secretResource(): DigitalOceanResource {
       destinations,
       credential_id: stringProp,
     },
-    requiredProperties: ["name", "private_key"],
+    createRequiredProperties: ["name", "private_key"],
     actions: [{
       actionType: "rotate",
       properties: { secret: stringProp, reason: stringProp },
@@ -884,7 +884,7 @@ Deno.test("sensitive fields - marked in GlobalArgsSchema at every depth", () => 
   );
   assertStringIncludes(
     globalArgs,
-    `private_key: z.string()${SENSITIVE}.describe("PEM private key"),`,
+    `private_key: z.string()${SENSITIVE}.describe("PEM private key").optional(),`,
   );
   // Nested in an object, and in an object inside an array.
   assertStringIncludes(globalArgs, `password: z.string()${SENSITIVE}`);
@@ -1227,4 +1227,152 @@ Deno.test("generateDigitalOceanExtensionModel - PUT update without a GET-by-id d
   });
   assertEquals(code.includes("const live"), false);
   assertEquals(code.includes("await read("), false);
+});
+
+// ---------------------------------------------------------------------------
+// Create-required fields: optional in GlobalArgsSchema, checked by create
+// ---------------------------------------------------------------------------
+
+function poolResource(
+  updateMethod: "PATCH" | "PUT",
+  handlers = { create: true, read: true, update: true, delete: true },
+): DigitalOceanResource {
+  return makeResource({
+    displayName: "Database Pool",
+    modelSlug: "database-pool",
+    endpoint: "/v2/databases/{database_cluster_uuid}/pools",
+    identifyingField: "name",
+    idParam: "pool_name",
+    parentParam: "database_cluster_uuid",
+    createProperties: {
+      name: stringProp,
+      db: stringProp,
+      size: intProp,
+      mode: stringProp,
+    },
+    updateProperties: { db: stringProp, size: intProp, mode: stringProp },
+    resourceProperties: {
+      name: stringProp,
+      db: stringProp,
+      size: intProp,
+      mode: stringProp,
+    },
+    createRequiredProperties: ["name", "size", "db", "mode"],
+    updateMethod,
+    handlers,
+  });
+}
+
+function generate(resource: DigitalOceanResource): string {
+  return generateDigitalOceanExtensionModel({
+    resource,
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+}
+
+function createBlock(code: string): string {
+  const start = code.indexOf("    create: {");
+  return code.slice(start, code.indexOf("\n    },", start));
+}
+
+Deno.test("create-required - only a create-required real naming field stays required", () => {
+  const globalArgs = schemaBlock(
+    generate(poolResource("PATCH")),
+    "const GlobalArgsSchema = z.object({",
+    "const ResourceSchema",
+  );
+  assertStringIncludes(
+    globalArgs,
+    `database_cluster_uuid: z.string().describe("Parent resource identifier"),`,
+  );
+  assertStringIncludes(globalArgs, "  name: z.string(),");
+  assertStringIncludes(globalArgs, "  db: z.string().optional(),");
+  assertStringIncludes(globalArgs, "  size: z.number().int().optional(),");
+  assertStringIncludes(globalArgs, "  mode: z.string().optional(),");
+});
+
+Deno.test("create-required - synthetic naming field leaves a real name optional", () => {
+  const code = generate(makeResource({
+    displayName: "Domain Record",
+    modelSlug: "domain-record",
+    endpoint: "/v2/domains/{domain_name}/records",
+    parentParam: "domain_name",
+    forceSyntheticName: true,
+    createProperties: { type: stringProp, name: stringProp },
+    updateProperties: { type: stringProp, name: stringProp },
+    resourceProperties: { id: intProp, type: stringProp, name: stringProp },
+    createRequiredProperties: ["type", "name"],
+    updateMethod: "PATCH",
+  }));
+  const globalArgs = schemaBlock(
+    code,
+    "const GlobalArgsSchema = z.object({",
+    "const ResourceSchema",
+  );
+  assertStringIncludes(globalArgs, "  instance_name: z.string().describe(");
+  assertStringIncludes(globalArgs, "  name: z.string().optional(),");
+  assertStringIncludes(globalArgs, "  type: z.string().optional(),");
+  assertStringIncludes(
+    createBlock(code),
+    `const missing = ["name","type"].filter((k) => g[k] === undefined);`,
+  );
+});
+
+Deno.test("create-required - create checks sorted fields before checkExists", () => {
+  const create = createBlock(generate(poolResource("PATCH")));
+  const check = create.indexOf(
+    `const missing = ["db","mode","name","size"].filter((k) => g[k] === undefined);`,
+  );
+  const throwAt = create.indexOf(
+    `throw new Error("create requires global arguments: " + missing.join(", "));`,
+  );
+  assertEquals(check > 0, true);
+  assertEquals(throwAt > check, true);
+  assertEquals(create.indexOf("if (args.checkExists)") > throwAt, true);
+});
+
+Deno.test("create-required - no create check when nothing is required", () => {
+  const code = generate(makeResource({
+    displayName: "Tag",
+    modelSlug: "tag",
+    endpoint: "/v2/tags",
+    createProperties: { name: stringProp },
+    resourceProperties: { name: stringProp },
+  }));
+  assertEquals(code.includes("create requires global arguments"), false);
+});
+
+Deno.test("create-required - PUT update checks create-required update fields after the live fill", () => {
+  const update = updateBlock(generate(poolResource("PUT")));
+  const fill = update.indexOf("const live = await read(");
+  const check = update.indexOf(
+    `const missingForUpdate = ["db","mode","size"].filter((k) => body[k] === undefined);`,
+  );
+  assertEquals(fill > 0, true);
+  assertEquals(check > fill, true);
+  assertEquals(
+    update.indexOf(`await update(endpoint, storedId, body, "PUT"`) > check,
+    true,
+  );
+});
+
+Deno.test("create-required - PUT update without a GET-by-id still checks", () => {
+  const update = updateBlock(
+    generate(
+      poolResource("PUT", {
+        create: true,
+        read: false,
+        update: true,
+        delete: true,
+      }),
+    ),
+  );
+  assertEquals(update.includes("const live"), false);
+  assertStringIncludes(update, "update requires global arguments");
+});
+
+Deno.test("create-required - PATCH update has no update check", () => {
+  const code = generate(poolResource("PATCH"));
+  assertEquals(code.includes("update requires global arguments"), false);
 });

@@ -136,7 +136,7 @@ export function generateDigitalOceanExtensionModel(
   lines.push("");
 
   // GlobalArgsSchema — all create + update properties with full fidelity
-  const globalArgsProps = buildGlobalArgsProperties(resource);
+  const globalArgsProps = buildGlobalArgsProperties(resource, namingField);
   // The auth `token` arg is injected unless the resource already has a real
   // property named "token" (guards against an API field collision).
   const hasTokenProp = globalArgsProps.some((p) => p.nameOnly === "token");
@@ -298,6 +298,19 @@ export function generateDigitalOceanExtensionModel(
     );
   }
   lines.push(`        const g = context.globalArgs;`);
+  // Create-required fields are optional in GlobalArgsSchema so other methods
+  // can run without them; enforce them here before any API call.
+  const createRequired = [...resource.createRequiredProperties].sort();
+  if (createRequired.length > 0) {
+    lines.push(
+      `        const missing = ${
+        JSON.stringify(createRequired)
+      }.filter((k) => g[k] === undefined);`,
+    );
+    lines.push(
+      `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+    );
+  }
   if (endpointLine) lines.push(endpointLine);
   lines.push(
     `        const instanceName = ${
@@ -529,6 +542,24 @@ export function generateDigitalOceanExtensionModel(
         `          for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];`,
       );
       lines.push(`        }`);
+    }
+    // Create-required fields are optional in GlobalArgsSchema, but a PUT
+    // replaces the resource, so it must still send the ones it carries. Fail
+    // before the PUT if neither globalArgs nor the live fill supplied them.
+    const updateRequired = resource.updateMethod === "PUT"
+      ? resource.createRequiredProperties
+        .filter((name) => name in resource.updateProperties)
+        .sort()
+      : [];
+    if (updateRequired.length > 0) {
+      lines.push(
+        `        const missingForUpdate = ${
+          JSON.stringify(updateRequired)
+        }.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(
+        `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));`,
+      );
     }
     if (hasReadiness) {
       lines.push(
@@ -1040,9 +1071,18 @@ function generateSubResourceMethod(
   lines.push(`    },`);
 }
 
-/** Build the list of globalArgs properties (create + update, deduped) */
+/**
+ * Build the list of globalArgs properties (create + update, deduped).
+ *
+ * swamp checks the whole GlobalArgsSchema whenever any global argument is
+ * set, so a field is required only if a non-create method reads it: the
+ * naming field, which names the instance in get, delete, update, sync and
+ * actions. Other create-required fields are optional here and enforced by a
+ * check at the start of create.
+ */
 function buildGlobalArgsProperties(
   resource: DigitalOceanResource,
+  namingField: string,
 ): { line: string; nameOnly: string; baseExpr: string }[] {
   const result: { line: string; nameOnly: string; baseExpr: string }[] = [];
   const seen = new Set<string>();
@@ -1066,7 +1106,8 @@ function buildGlobalArgsProperties(
       line += `.describe(${JSON.stringify(prop.description)})`;
     }
 
-    const isRequired = resource.requiredProperties.includes(name);
+    const isRequired = name === namingField &&
+      resource.createRequiredProperties.includes(name);
     if (!isRequired) {
       line += `.optional()`;
     }

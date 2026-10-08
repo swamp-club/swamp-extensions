@@ -59,7 +59,7 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The [datacenter region](https://docs.digitalocean.com/products/platform/availability-matrix/#available-datacenters) in which to create the namespace.",
-  ),
+  ).optional(),
   label: z.string().describe("The namespace's unique name."),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -104,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean function namespace. Registered at `@swamp/digitalocean/function-namespace`. */
 export const model = {
   type: "@swamp/digitalocean/function-namespace",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -161,6 +161,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -182,6 +187,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["label", "region"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.label?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   purpose: z.string().max(255).describe(
     'The purpose of the project. The maximum length is 255 characters. It can\nhave one of the following values:\n\n- Just trying out DigitalOcean\n- Class project / Educational purposes\n- Website or blog\n- Web Application\n- Service or API\n- Mobile Application\n- Machine learning / AI / Data processing\n- IoT\n- Operational / Developer tooling\n\nIf another value for purpose is specified, for example, "your custom purpose",\nyour purpose will be stored as `Other: your custom purpose`.\n',
-  ),
+  ).optional(),
   environment: z.enum(["Development", "Staging", "Production"]).describe(
     "The environment of the project's resources.",
   ).optional(),
@@ -89,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean project. Registered at `@swamp/digitalocean/project`. */
 export const model = {
   type: "@swamp/digitalocean/project",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -146,6 +146,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -167,6 +172,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "purpose"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

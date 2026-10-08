@@ -38,11 +38,12 @@ const GlobalArgsSchema = z.object({
   database_cluster_uuid: z.string().describe("Parent resource identifier"),
   mode: z.string().describe(
     "The PGBouncer transaction mode for the connection pool. The allowed values are session, transaction, and statement.",
-  ),
+  ).optional(),
   size: z.number().int().describe(
     "The desired size of the PGBouncer connection pool. The maximum allowed size is determined by the size of the cluster's primary node. 25 backend server connections are allowed for every 1GB of RAM. Three are reserved for maintenance. For example, a primary node with 1 GB of RAM allows for a maximum of 22 backend server connections while one with 4 GB would allow for 97. Note that these are shared across all connection pools in a cluster.",
-  ),
-  db: z.string().describe("The database for use with the connection pool."),
+  ).optional(),
+  db: z.string().describe("The database for use with the connection pool.")
+    .optional(),
   user: z.string().describe(
     "The name of the user for use with the connection pool. When excluded, all sessions connect to the database as the inbound user.",
   ).optional(),
@@ -185,7 +186,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database pool. Registered at `@swamp/digitalocean/database-pool`. */
 export const model = {
   type: "@swamp/digitalocean/database-pool",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -212,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -233,6 +239,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["db", "mode", "name", "size"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/pools`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -335,6 +349,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["db", "mode", "size"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           endpoint,

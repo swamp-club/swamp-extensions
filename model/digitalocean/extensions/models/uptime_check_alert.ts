@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("A human-friendly display name."),
   type: z.enum(["latency", "down", "down_global", "ssl_expiry"]).describe(
     "The type of alert.",
-  ),
+  ).optional(),
   threshold: z.number().int().describe(
     "The threshold at which the alert will enter a trigger state. The specific threshold is dependent on the alert type.",
   ).optional(),
@@ -59,10 +59,10 @@ const GlobalArgsSchema = z.object({
       channel: z.string(),
       url: z.string(),
     })),
-  }).describe("The notification settings for a trigger alert."),
+  }).describe("The notification settings for a trigger alert.").optional(),
   period: z.enum(["2m", "3m", "5m", "10m", "15m", "30m", "1h"]).describe(
     "Period of time the threshold must be exceeded to trigger the alert.",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean uptime check alert. Registered at `@swamp/digitalocean/uptime-check-alert`. */
 export const model = {
   type: "@swamp/digitalocean/uptime-check-alert",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -125,6 +125,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -149,6 +154,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "notifications", "period", "type"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/uptime/checks/${g.check_id}/alerts`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -256,6 +269,13 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["name", "notifications", "period", "type"]
+          .filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           endpoint,

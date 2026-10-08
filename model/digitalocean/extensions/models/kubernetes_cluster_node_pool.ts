@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("A human-readable name for the node pool."),
   count: z.number().int().describe(
     "The number of Droplet instances in the node pool.",
-  ),
+  ).optional(),
   tags: z.array(z.string()).describe(
     "An array containing the tags applied to the node pool. All node pools are automatically tagged `k8s`, `k8s-worker`, and `k8s:$K8S_CLUSTER_ID`. <br><br>Requires `tag:read` scope.",
   ).optional(),
@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   size: z.string().describe(
     "The slug identifier for the type of Droplet used as workers in the node pool.",
-  ),
+  ).optional(),
   gpu_partition_mode: z.enum([
     "AMD_PARTITION_MODE_SPX_NPS1",
     "AMD_PARTITION_MODE_DPX_NPS2",
@@ -138,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster node pool. Registered at `@swamp/digitalocean/kubernetes-cluster-node-pool`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster-node-pool",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -165,6 +165,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -186,6 +191,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["count", "name", "size"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/kubernetes/clusters/${g.cluster_id}/node_pools`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -303,6 +316,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["count", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           endpoint,

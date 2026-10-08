@@ -41,7 +41,7 @@ const GlobalArgsSchema = z.object({
   ),
   type: z.string().describe(
     "The type of the DNS record. For example: A, CNAME, TXT, ...",
-  ),
+  ).optional(),
   name: z.string().describe(
     "The host name, alias, or service being defined by the record.",
   ).optional(),
@@ -99,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean domain record. Registered at `@swamp/digitalocean/domain-record`. */
 export const model = {
   type: "@swamp/digitalocean/domain-record",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -133,6 +138,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/domains/${g.domain_name}/records`;
         const instanceName = (g.instance_name?.toString() ?? "current").replace(
           /[\/\\]/g,

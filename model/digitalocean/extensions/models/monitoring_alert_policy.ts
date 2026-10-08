@@ -44,12 +44,12 @@ const GlobalArgsSchema = z.object({
       channel: z.string(),
       url: z.string(),
     })),
-  }),
-  compare: z.enum(["GreaterThan", "LessThan"]),
-  description: z.string(),
-  enabled: z.boolean(),
-  entities: z.array(z.string()),
-  tags: z.array(z.string()),
+  }).optional(),
+  compare: z.enum(["GreaterThan", "LessThan"]).optional(),
+  description: z.string().optional(),
+  enabled: z.boolean().optional(),
+  entities: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
   type: z.enum([
     "v1/insights/droplet/load_1",
     "v1/insights/droplet/load_5",
@@ -87,9 +87,9 @@ const GlobalArgsSchema = z.object({
     "v1/droplet/autoscale_alerts/target_memory_utilization",
     "v1/droplet/autoscale_alerts/scale_up",
     "v1/droplet/autoscale_alerts/scale_down",
-  ]),
-  value: z.number(),
-  window: z.enum(["5m", "10m", "30m", "1h"]),
+  ]).optional(),
+  value: z.number().optional(),
+  window: z.enum(["5m", "10m", "30m", "1h"]).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -176,7 +176,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean monitoring alert policy. Registered at `@swamp/digitalocean/monitoring-alert-policy`. */
 export const model = {
   type: "@swamp/digitalocean/monitoring-alert-policy",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -233,6 +233,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -250,6 +255,22 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "alerts",
+          "compare",
+          "description",
+          "enabled",
+          "entities",
+          "tags",
+          "type",
+          "value",
+          "window",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -357,6 +378,22 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = [
+          "alerts",
+          "compare",
+          "description",
+          "enabled",
+          "entities",
+          "tags",
+          "type",
+          "value",
+          "window",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/monitoring/alerts",

@@ -40,10 +40,10 @@ const GlobalArgsSchema = z.object({
   ),
   provider: z.string().describe(
     "Required provider slug, from the provider list.",
-  ),
+  ).optional(),
   user_id: z.string().regex(new RegExp("^[A-Za-z0-9._-]{1,64}$")).describe(
     "Required. Your identifier for the user the connection acts for: 1 to 64 characters from `[A-Za-z0-9._-]`. A session whose `actor_id` equals it uses this connection.",
-  ),
+  ).optional(),
   scopes: z.array(z.string()).describe(
     "Optional OAuth scopes to request. Defaults to every scope the provider offers; scopes outside that set are rejected. Ignored for API-key credentials.",
   ).optional(),
@@ -146,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway connection. Registered at `@swamp/digitalocean/action-gateway-connection`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-connection",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -163,6 +163,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -183,6 +188,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["provider", "user_id"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

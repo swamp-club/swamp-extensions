@@ -92,7 +92,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
   }).describe(
     "Spec for an Insights alert rule. On create, `name`, `query`, `thresholds`,\nand at least one `notification_channels` binding are required. On update,\nomit `notification_channels` to keep existing bindings; an explicit empty\nlist is rejected.\n",
-  ),
+  ).optional(),
   status: z.enum(["ALERT_RULE_STATUS_ACTIVE", "ALERT_RULE_STATUS_PAUSED"])
     .describe(
       "Desired alert rule status. Allowed values:\n\n- `ALERT_RULE_STATUS_ACTIVE` = active\n- `ALERT_RULE_STATUS_PAUSED` = paused\n",
@@ -200,10 +200,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean insight alert rule. Registered at `@swamp/digitalocean/insight-alert-rule`. */
 export const model = {
   type: "@swamp/digitalocean/insight-alert-rule",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -224,6 +229,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["spec"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -309,6 +320,12 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["spec"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/insights/alert-rules",

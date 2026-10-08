@@ -39,9 +39,9 @@ import { create, read, tryRead, remove, tryFindByField, update } from "./_lib/di
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("The hostname for the Droplet"),
-  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region"),
-  size: z.string().describe("The slug of the Droplet size"),
-  image: z.string().describe("The image ID or slug"),
+  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region").optional(),
+  size: z.string().describe("The slug of the Droplet size").optional(),
+  image: z.string().describe("The image ID or slug").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -86,6 +86,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["image","name","region","size"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/droplets", "name", g.name?.toString() ?? "", g.token);
@@ -264,6 +266,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/droplets", "name", g.name?.toString() ?? "", g.token);
@@ -442,7 +446,7 @@ import { create, read, tryRead, remove, subResourceUpdate, tryFindByField, updat
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("A unique name for the database cluster"),
-  engine: z.string().describe("The database engine"),
+  engine: z.string().describe("The database engine").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -481,6 +485,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["engine","name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/databases", "name", g.name?.toString() ?? "", g.token);
@@ -821,8 +827,8 @@ import { create, read, tryRead, remove, tryFindByField, update, pollResourceRead
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("The hostname for the Droplet"),
-  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region"),
-  size: z.string().describe("The slug of the Droplet size"),
+  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region").optional(),
+  size: z.string().describe("The slug of the Droplet size").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -861,6 +867,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional(), waitForReady: z.boolean().describe("Wait for the resource to reach ready state after creation (default: true)").optional() }),
       execute: async (args: { checkExists?: boolean, waitForReady?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name","region","size"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/droplets", "name", g.name?.toString() ?? "", g.token);
@@ -1046,6 +1054,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryRead("/v2/domains", g.name, undefined, g.token);
@@ -1227,6 +1237,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/firewalls", "name", g.name?.toString() ?? "", g.token);
@@ -1360,8 +1372,8 @@ import { create, read, tryRead, discover, remove, tryFindByField, update } from 
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("A human-friendly name for the cluster"),
-  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region"),
-  version: z.string().describe("The Kubernetes version"),
+  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region").optional(),
+  version: z.string().describe("The Kubernetes version").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -1404,6 +1416,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name","region","version"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/kubernetes/clusters", "name", g.name?.toString() ?? "", g.token);
@@ -1546,7 +1560,7 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, tryRead, tryFindByField } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
-  resource_id: z.string().describe("The ID of the resource to snapshot"),
+  resource_id: z.string().describe("The ID of the resource to snapshot").optional(),
   name: z.string().describe("A name for the snapshot"),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
@@ -1587,6 +1601,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name","resource_id"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/snapshots", "name", g.name?.toString() ?? "", g.token);
@@ -1685,7 +1701,7 @@ import { create, read, tryRead, remove, update } from "./_lib/digitalocean.ts";
 const GlobalArgsSchema = z.object({
   domain_name: z.string().describe("Parent resource identifier"),
   instance_name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
-  type: z.string().describe("The DNS record type"),
+  type: z.string().describe("The DNS record type").optional(),
   name: z.string().describe("The hostname").optional(),
   data: z.string().describe("The record data").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
@@ -1730,6 +1746,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const endpoint = \`/v2/domains/\${g.domain_name}/records\`;
         const instanceName = (g.instance_name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const body: Record<string, unknown> = {};
@@ -1868,9 +1886,9 @@ import { create, read, tryRead, remove, update } from "./_lib/digitalocean.ts";
 
 const GlobalArgsSchema = z.object({
   database_cluster_uuid: z.string().describe("Parent resource identifier"),
-  db: z.string().describe("The database name"),
-  size: z.number().int().describe("The pool size"),
-  mode: z.string().describe("The pool mode"),
+  db: z.string().describe("The database name").optional(),
+  size: z.number().int().describe("The pool size").optional(),
+  mode: z.string().describe("The pool mode").optional(),
   name: z.string().describe("The pool name"),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
@@ -1913,6 +1931,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["db","mode","name","size"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const endpoint = \`/v2/databases/\${g.database_cluster_uuid}/pools\`;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
@@ -1968,6 +1988,8 @@ export const model = {
           const live = await read(endpoint, storedId, undefined, g.token);
           for (const k of unset) if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
         }
+        const missingForUpdate = ["db","mode","size"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));
         const result = await update(endpoint, storedId, body, "PUT", undefined, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -2063,8 +2085,8 @@ import { create, read, tryRead, remove, tryFindByField, update } from "./_lib/di
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("A human-friendly name"),
-  size_gigabytes: z.number().int().min(1).max(16384).describe("The size in GiB"),
-  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region"),
+  size_gigabytes: z.number().int().min(1).max(16384).describe("The size in GiB").optional(),
+  region: z.enum(["nyc1", "sfo1", "nyc2", "ams2", "sgp1", "lon1", "nyc3", "ams3", "fra1", "tor1", "sfo2", "blr1", "sfo3", "syd1", "atl1"]).describe("The slug of the region").optional(),
   token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
@@ -2117,6 +2139,8 @@ export const model = {
       arguments: z.object({ checkExists: z.boolean().describe("If true, check whether a resource with this name already exists before creating and fail if it does (default: false)").optional() }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name","region","size_gigabytes"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         if (args.checkExists) {
           const existing = await tryFindByField("/v2/volumes", "name", g.name?.toString() ?? "", g.token);

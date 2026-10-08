@@ -45,7 +45,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().regex(new RegExp("^[a-zA-Z0-9\\-\\.]+$")).describe(
     "The name of the partner attachment. Must be unique and may only contain alphanumeric characters, dashes, and periods.",
   ),
-  vpc_ids: z.array(z.string()).describe("An array of VPCs IDs."),
+  vpc_ids: z.array(z.string()).describe("An array of VPCs IDs.").optional(),
   bgp: z.object({
     local_router_ip: z.string(),
     peer_router_ip: z.string(),
@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
     z.literal(2000),
     z.literal(5000),
     z.literal(10000),
-  ]).describe("Bandwidth (in Mbps) of the connection."),
+  ]).describe("Bandwidth (in Mbps) of the connection.").optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -74,8 +74,8 @@ const GlobalArgsSchema = z.object({
     "sfo3",
     "syd1",
     "atl1",
-  ]).describe("The region to create the partner attachment."),
-  naas_provider: z.string(),
+  ]).describe("The region to create the partner attachment.").optional(),
+  naas_provider: z.string().optional(),
   parent_uuid: z.string().describe(
     "Optional associated partner attachment UUID",
   ).optional(),
@@ -149,7 +149,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean partner network connect attachment. Registered at `@swamp/digitalocean/partner-network-connect-attachment`. */
 export const model = {
   type: "@swamp/digitalocean/partner-network-connect-attachment",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -227,6 +232,18 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "connection_bandwidth_in_mbps",
+          "naas_provider",
+          "name",
+          "region",
+          "vpc_ids",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

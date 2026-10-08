@@ -45,15 +45,16 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("A human-friendly display name."),
   type: z.enum(["ping", "http", "https"]).describe(
     "The type of health check to perform.",
-  ),
-  target: z.string().describe("The endpoint to perform healthchecks on."),
+  ).optional(),
+  target: z.string().describe("The endpoint to perform healthchecks on.")
+    .optional(),
   regions: z.array(z.enum(["us_east", "us_west", "eu_west", "se_asia"]))
     .describe(
       "An array containing the selected regions to perform healthchecks from.",
-    ),
+    ).optional(),
   enabled: z.boolean().describe(
     "A boolean value indicating whether the check is enabled/disabled.",
-  ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -83,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean uptime check. Registered at `@swamp/digitalocean/uptime-check`. */
 export const model = {
   type: "@swamp/digitalocean/uptime-check",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -145,6 +146,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -166,6 +172,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["enabled", "name", "regions", "target", "type"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -267,6 +281,18 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = [
+          "enabled",
+          "name",
+          "regions",
+          "target",
+          "type",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/uptime/checks",

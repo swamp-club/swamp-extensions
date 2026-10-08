@@ -43,12 +43,14 @@ import {
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("The human-readable name of the VPC NAT gateway."),
-  size: z.number().int().describe("The size of the VPC NAT gateway."),
+  size: z.number().int().describe("The size of the VPC NAT gateway.")
+    .optional(),
   vpcs: z.array(z.object({
     vpc_uuid: z.string(),
     subnet_uuid: z.string().optional(),
     default_gateway: z.boolean().optional(),
-  })).describe("An array of VPCs associated with the VPC NAT gateway."),
+  })).describe("An array of VPCs associated with the VPC NAT gateway.")
+    .optional(),
   udp_timeout_seconds: z.number().int().describe(
     "The UDP timeout in seconds for the VPC NAT gateway.",
   ).optional(),
@@ -58,7 +60,8 @@ const GlobalArgsSchema = z.object({
   tcp_timeout_seconds: z.number().int().describe(
     "The TCP timeout in seconds for the VPC NAT gateway.",
   ).optional(),
-  type: z.enum(["PUBLIC"]).describe("The type of the VPC NAT gateway."),
+  type: z.enum(["PUBLIC"]).describe("The type of the VPC NAT gateway.")
+    .optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -75,7 +78,7 @@ const GlobalArgsSchema = z.object({
     "sfo3",
     "syd1",
     "atl1",
-  ]).describe("The region in which the VPC NAT gateway is created."),
+  ]).describe("The region in which the VPC NAT gateway is created.").optional(),
   egresses: z.object({
     public_gateways: z.array(z.object({
       ip: z.string().optional(),
@@ -156,7 +159,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean vpc nat gateway. Registered at `@swamp/digitalocean/vpc-nat-gateway`. */
 export const model = {
   type: "@swamp/digitalocean/vpc-nat-gateway",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -228,6 +231,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -249,6 +257,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "region", "size", "type", "vpcs"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -372,6 +388,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["name", "size", "vpcs"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/vpc_nat_gateways",

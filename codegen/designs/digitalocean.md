@@ -246,6 +246,14 @@ that never come back from `GET`, must be set explicitly. A `null` live value is
 not copied. For example, a load balancer's `region` is a slug in the request but
 an object in the response, so it is not filled.
 
+A create-required field that is also in the PUT body (see
+[Required fields](#required-fields-in-globalargsschema)) is optional in
+GlobalArgsSchema, but the PUT must still send it. After the live fill, `update`
+throws `update requires global arguments: <names>` before the PUT if globalArgs
+and the live resource together left any of them unset. So a load balancer update
+without `region` in globalArgs fails before any request is sent, rather than
+sending a PUT without it. PATCH updates have no such check.
+
 ### Schema flattening for composed schemas
 
 OpenAPI uses `allOf`, `anyOf`, and `oneOf` to compose schemas. The pipeline
@@ -278,7 +286,7 @@ branches — one requires `name` (single create) and the other requires `names`
 (bulk create). The intersection of required fields across these branches is
 empty (neither field is required in both). Since the pipeline skips `names` (via
 `SKIP_PROPERTIES` — bulk create doesn't fit the single-resource model pattern),
-`name` must be manually forced as required.
+`name` must be manually forced as required at create.
 
 ```typescript
 REQUIRED_FIELDS_OVERRIDES: { "/v2/droplets": ["name"] }
@@ -856,7 +864,37 @@ Used for create/update arguments. Preserves all OpenAPI constraints:
 - Nested objects with typed properties
 - Region fields → hardcoded `z.enum(["nyc1", "sfo1", ...])`
 
-Required fields are non-optional; everything else gets `.optional()`.
+See [Required fields](#required-fields-in-globalargsschema) for which fields are
+non-optional; everything else gets `.optional()`.
+
+### Required fields in GlobalArgsSchema
+
+swamp checks the whole GlobalArgsSchema whenever any global argument is set: in
+`swamp model create` with any `--global-arg`, and in `swamp workflow
+validate`
+for steps that name a model type. (Method runs check it with `.partial()`.) So a
+field is required only when a method other than `create` reads it from
+globalArgs:
+
+- the parent path parameter (`parentParam`, e.g. `domain_name`);
+- the synthetic naming field (`name` or `instance_name`), when one is injected;
+- a real naming field that the create request requires (e.g. a droplet's
+  `name`). `get`, `delete`, `update`, `sync` and actions use it to name the
+  instance.
+
+Every other field the create request requires is `.optional()`. The pipeline
+records them as `createRequiredProperties`: the POST body's `required` list plus
+[`REQUIRED_FIELDS_OVERRIDES`](#required_fields_overrides), limited to properties
+the body actually sends. A required field the pipeline drops, such as `names`
+(via `SKIP_PROPERTIES`) or a read-only field, could never be set, so it is not
+checked. The generated `create` checks these fields first and throws
+`create requires global arguments: <names>` (sorted) before any API call,
+including the `checkExists` lookup. For example, a domain record needs only
+`domain_name` and `instance_name` to be set up for `get` or `sync`; its `type`
+is checked when `create` runs.
+
+As a result, `workflow validate` and `swamp model type describe` no longer flag
+a missing create-required field; the error appears when `create` runs.
 
 ### ResourceSchema — simplified response parsing
 
@@ -1125,8 +1163,11 @@ Maps auto-generated display names to preferred human-readable names.
 
 ### REQUIRED_FIELDS_OVERRIDES
 
-Forces specific fields to be required when the schema inference can't determine
-it.
+Forces specific fields to be required at create when the schema inference can't
+determine it. Like every create-required field, they are checked by `create` and
+are required in GlobalArgsSchema only under the rule in
+[Required fields](#required-fields-in-globalargsschema) (droplet `name` is the
+naming field, so it stays required).
 
 | Endpoint       | Fields     | Reason                                                               |
 | -------------- | ---------- | -------------------------------------------------------------------- |

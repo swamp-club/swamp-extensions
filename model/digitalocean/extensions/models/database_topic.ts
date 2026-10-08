@@ -246,7 +246,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database topic. Registered at `@swamp/digitalocean/database-topic`. */
 export const model = {
   type: "@swamp/digitalocean/database-topic",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -265,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -289,6 +294,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/topics`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

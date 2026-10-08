@@ -648,7 +648,7 @@ const GlobalArgsSchema = z.object({
         ip: z.string().optional(),
       })).optional(),
     }).optional(),
-  }).describe("The desired configuration of an application."),
+  }).describe("The desired configuration of an application.").optional(),
   update_all_source_versions: z.boolean().describe(
     "Whether or not to update the source versions (for example fetching a new commit or image digest) of all components. By default (when this is false) only newly added sources will be updated to avoid changes like updating the scale of a component from also updating the respective code.",
   ).optional(),
@@ -4171,7 +4171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.10.08.1",
+  version: "2026.10.08.2",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4253,6 +4253,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -4270,6 +4275,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["spec"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -4352,6 +4363,12 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["spec"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/apps",

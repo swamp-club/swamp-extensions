@@ -45,7 +45,8 @@ const GlobalArgsSchema = z.object({
   name: z.string().regex(new RegExp("^[a-zA-Z0-9\\-]+$")).describe(
     "The name of the VPC peering. Must be unique within the team and may only contain alphanumeric characters and dashes.",
   ),
-  vpc_ids: z.array(z.string()).describe("An array of the two peered VPCs IDs."),
+  vpc_ids: z.array(z.string()).describe("An array of the two peered VPCs IDs.")
+    .optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -70,7 +71,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean vpc peering. Registered at `@swamp/digitalocean/vpc-peering`. */
 export const model = {
   type: "@swamp/digitalocean/vpc-peering",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -127,6 +128,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -148,6 +154,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "vpc_ids"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

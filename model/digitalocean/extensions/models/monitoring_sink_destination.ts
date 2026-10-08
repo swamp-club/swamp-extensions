@@ -44,7 +44,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("destination name").optional(),
   type: z.enum(["opensearch_dbaas", "opensearch_ext"]).describe(
     "The destination type. `opensearch_dbaas` for a DigitalOcean managed OpenSearch\ncluster or `opensearch_ext` for an externally managed one.\n",
-  ),
+  ).optional(),
   config: z.object({
     credentials: z.object({
       username: z.string().optional(),
@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
     cluster_name: z.string().optional(),
     index_name: z.string().optional(),
     retention_days: z.number().int().optional(),
-  }),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -97,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean monitoring sink destination. Registered at `@swamp/digitalocean/monitoring-sink-destination`. */
 export const model = {
   type: "@swamp/digitalocean/monitoring-sink-destination",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -159,6 +159,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -180,6 +185,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["config", "type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

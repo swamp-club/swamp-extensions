@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
     cooldown_minutes: z.number().int().min(5).max(20).optional(),
   }).describe(
     "The scaling configuration for an autoscale pool, which is how the pool scales up and down (either by resource utilization or static configuration).",
-  ),
+  ).optional(),
   droplet_template: z.object({
     name: z.string().optional(),
     region: z.enum([
@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     ipv6: z.boolean().optional(),
     user_data: z.string().optional(),
     public_networking: z.boolean().optional(),
-  }),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -171,7 +171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean droplet autoscale. Registered at `@swamp/digitalocean/droplet-autoscale`. */
 export const model = {
   type: "@swamp/digitalocean/droplet-autoscale",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -238,6 +238,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -259,6 +264,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["config", "droplet_template", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -360,6 +373,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["config", "droplet_template", "name"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(
           "/v2/droplets/autoscale",

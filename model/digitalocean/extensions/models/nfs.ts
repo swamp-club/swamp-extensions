@@ -45,7 +45,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("The human-readable name of the share."),
   size_gib: z.number().int().describe(
     "The desired/provisioned size of the share in GiB (Gibibytes). Must be >= 50.",
-  ),
+  ).optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -64,10 +64,10 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The DigitalOcean region slug (e.g., nyc2, atl1) where the NFS share resides.",
-  ),
+  ).optional(),
   vpc_ids: z.array(z.string()).describe(
     "List of VPC IDs that should be able to access the share.",
-  ),
+  ).optional(),
   performance_tier: z.string().describe("The performance tier of the share.")
     .optional(),
   token: z.string().meta({ sensitive: true }).describe(
@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean nfs. Registered at `@swamp/digitalocean/nfs`. */
 export const model = {
   type: "@swamp/digitalocean/nfs",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -213,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -240,6 +245,14 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "region", "size_gib", "vpc_ids"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

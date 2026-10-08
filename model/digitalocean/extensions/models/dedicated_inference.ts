@@ -64,7 +64,8 @@ const GlobalArgsSchema = z.object({
         status: z.enum(["new", "provisioning", "active"]).optional(),
       })).optional(),
     })),
-  }).describe("Structured configuration for a Dedicated Inference deployment."),
+  }).describe("Structured configuration for a Dedicated Inference deployment.")
+    .optional(),
   access_tokens: z.record(z.string(), z.unknown()).describe(
     "Key-value pairs for provider tokens (e.g. Hugging Face).",
   ).optional(),
@@ -163,7 +164,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean dedicated inference. Registered at `@swamp/digitalocean/dedicated-inference`. */
 export const model = {
   type: "@swamp/digitalocean/dedicated-inference",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -215,6 +216,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +238,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["spec"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

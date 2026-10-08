@@ -64,7 +64,7 @@ const GlobalArgsSchema = z.object({
     "atl1",
   ]).describe(
     "The slug identifier for the region where the resource will initially be  available.",
-  ),
+  ).optional(),
   name: z.string().describe(
     "A human-readable name for a load balancer instance.",
   ).optional(),
@@ -89,7 +89,7 @@ const GlobalArgsSchema = z.object({
     tls_passthrough: z.boolean().optional(),
   })).describe(
     "An array of objects specifying the forwarding rules for a load balancer.",
-  ),
+  ).optional(),
   health_check: z.object({
     protocol: z.enum(["http", "https", "tcp"]).optional(),
     port: z.number().int().optional(),
@@ -347,7 +347,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -429,6 +429,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -456,6 +461,14 @@ export const model = {
         context: any,
       ) => {
         const g = context.globalArgs;
+        const missing = ["forwarding_rules", "region"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -681,6 +694,14 @@ export const model = {
           for (const k of unset) {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
+        }
+        const missingForUpdate = ["forwarding_rules", "region"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         let result = await update(
           "/v2/load_balancers",

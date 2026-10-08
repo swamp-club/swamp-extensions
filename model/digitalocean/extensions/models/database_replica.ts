@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   size: z.string().describe(
     "A slug identifier representing the size of the node for the read-only replica. The size of the replica must be at least as large as the node size for the database cluster from which it is replicating.",
-  ),
+  ).optional(),
   tags: z.array(z.string()).describe(
     "A flat array of tag names as strings to apply to the read-only replica after it is created. Tag names can either be existing or new tags. <br><br>Requires `tag:create` scope.",
   ).optional(),
@@ -193,7 +193,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database replica. Registered at `@swamp/digitalocean/database-replica`. */
 export const model = {
   type: "@swamp/digitalocean/database-replica",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -212,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -236,6 +241,12 @@ export const model = {
       }),
       execute: async (args: { checkExists?: boolean }, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "size"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/replicas`;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
