@@ -286,6 +286,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   defaultFlagRevisions: z.array(z.string()).optional(),
   defaultRelease: z.string().optional(),
+  deleteTime: z.string().optional(),
   dependencies: z.array(z.object({
     alias: z.string(),
     unitKind: z.string(),
@@ -452,7 +453,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.08.12.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +597,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

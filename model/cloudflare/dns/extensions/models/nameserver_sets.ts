@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
     "Whether to allocate the nameservers from distinct Advanced anycast groups.",
   ).optional(),
   ip_set: z.number().int().min(1).describe(
-    "Selects the account-specific IP set that supplies the nameserver addresses. The account's entitlement determines the maximum value. Nameserver sets with the same `ip_set` and `advanced` value may reuse addresses; otherwise, they use disjoint address groups.",
+    "Selects the account-specific IP set that supplies the nameserver addresses. Nameserver sets with the same `ip_set` and `advanced` value may reuse addresses; otherwise, they use disjoint address groups.",
   ).optional(),
   nameservers: z.array(z.object({
     ip_count: z.number().int().min(1).max(3).optional(),
@@ -113,10 +113,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Nameserver Sets. Registered at `@swamp/cloudflare/dns/nameserver-sets`. */
 export const model = {
   type: "@swamp/cloudflare/dns/nameserver-sets",
-  version: "2026.09.29.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

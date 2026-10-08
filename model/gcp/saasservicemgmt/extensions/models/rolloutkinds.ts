@@ -208,7 +208,7 @@ const GlobalArgsSchema = z.object({
     'Optional. The strategy used for executing a Rollout. This is a required field. There are two supported values strategies which are used to control - "Google.Cloud.Simple.AllAtOnce" - "Google.Cloud.Simple.OneLocationAtATime" A rollout with one of these simple strategies will rollout across all locations defined in the associated UnitKind\'s Saas Locations.',
   ).optional(),
   unitFilter: z.string().describe(
-    "Optional. CEL(https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
+    "Optional. [CEL](https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
   ).optional(),
   unitKind: z.string().describe(
     "Optional. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
@@ -301,7 +301,7 @@ const InputsSchema = z.object({
     'Optional. The strategy used for executing a Rollout. This is a required field. There are two supported values strategies which are used to control - "Google.Cloud.Simple.AllAtOnce" - "Google.Cloud.Simple.OneLocationAtATime" A rollout with one of these simple strategies will rollout across all locations defined in the associated UnitKind\'s Saas Locations.',
   ).optional(),
   unitFilter: z.string().describe(
-    "Optional. CEL(https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
+    "Optional. [CEL](https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
   ).optional(),
   unitKind: z.string().describe(
     "Optional. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
@@ -364,7 +364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager RolloutKinds. Registered at `@swamp/gcp/saasservicemgmt/rolloutkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rolloutkinds",
-  version: "2026.09.26.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -523,6 +523,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

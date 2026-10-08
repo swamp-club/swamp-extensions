@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud App Lifecycle Manager Releases.
  *
- * A new version to be propagated and deployed to units. This includes pointers to packaged blueprints for actuation (e.g Helm or Terraform configuration packages) via artifact registry.
+ * A new version to be propagated and deployed to units. This includes pointers to packaged blueprints for actuation via Artifact Registry.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -190,7 +190,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   blueprint: z.object({
     engine: z.string().describe(
-      "Output only. Type of the engine used to actuate the blueprint. e.g. terraform, helm etc.",
+      "Output only. Type of the engine used to actuate the blueprint. (Terraform, for example)",
     ).optional(),
     package: z.string().describe(
       "Optional. Immutable. URI to a blueprint used by the Unit (required unless unitKind or release is set).",
@@ -295,7 +295,7 @@ const InputsSchema = z.object({
   ).optional(),
   blueprint: z.object({
     engine: z.string().describe(
-      "Output only. Type of the engine used to actuate the blueprint. e.g. terraform, helm etc.",
+      "Output only. Type of the engine used to actuate the blueprint. (Terraform, for example)",
     ).optional(),
     package: z.string().describe(
       "Optional. Immutable. URI to a blueprint used by the Unit (required unless unitKind or release is set).",
@@ -378,7 +378,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Releases. Registered at `@swamp/gcp/saasservicemgmt/releases`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/releases",
-  version: "2026.08.12.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -537,6 +537,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

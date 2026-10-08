@@ -991,6 +991,7 @@ const StateSchema = z.object({
       taskId: z.string(),
     })),
   })).optional(),
+  eucHardeningDisposition: z.string().optional(),
   integrationConfigParameters: z.array(z.object({
     parameter: z.object({
       containsLargeData: z.boolean(),
@@ -2317,7 +2318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.Integrations.Versions. Registered at `@swamp/gcp/integrations/products-integrations-versions`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-integrations-versions",
-  version: "2026.10.01.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2393,6 +2394,11 @@ export const model = {
     {
       toVersion: "2026.10.01.1",
       description: "Added: quotaProject, apiEndpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

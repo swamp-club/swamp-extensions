@@ -251,7 +251,7 @@ const GlobalArgsSchema = z.object({
     value: z.string().describe("Required. The value for the attribute.")
       .optional(),
   })).describe(
-    "Required. Unordered list. The list of filters that applies to event attributes. Only events that match all the provided filters are sent to the destination.",
+    "Optional. Unordered list. The list of filters that applies to event attributes. Only events that match all the provided filters are sent to the destination.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User labels attached to the triggers that can be used to group resources.",
@@ -422,7 +422,7 @@ const InputsSchema = z.object({
     value: z.string().describe("Required. The value for the attribute.")
       .optional(),
   })).describe(
-    "Required. Unordered list. The list of filters that applies to event attributes. Only events that match all the provided filters are sent to the destination.",
+    "Optional. Unordered list. The list of filters that applies to event attributes. Only events that match all the provided filters are sent to the destination.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User labels attached to the triggers that can be used to group resources.",
@@ -491,7 +491,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc Triggers. Registered at `@swamp/gcp/eventarc/triggers`. */
 export const model = {
   type: "@swamp/gcp/eventarc/triggers",
-  version: "2026.09.07.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -658,6 +658,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

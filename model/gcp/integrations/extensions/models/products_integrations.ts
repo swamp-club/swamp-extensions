@@ -156,7 +156,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Products.Integrations. Registered at `@swamp/gcp/integrations/products-integrations`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-integrations",
-  version: "2026.10.01.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +222,11 @@ export const model = {
     {
       toVersion: "2026.10.01.1",
       description: "Added: quotaProject, apiEndpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -521,6 +526,7 @@ export const model = {
         asyncExecution: z.any().optional(),
         clientId: z.any().optional(),
         configParameters: z.any().optional(),
+        credentialMode: z.any().optional(),
         deadlineSecondsTime: z.any().optional(),
         inputParameters: z.any().optional(),
         integrationVersion: z.any().optional(),
@@ -543,6 +549,9 @@ export const model = {
         if (args["clientId"] !== undefined) body["clientId"] = args["clientId"];
         if (args["configParameters"] !== undefined) {
           body["configParameters"] = args["configParameters"];
+        }
+        if (args["credentialMode"] !== undefined) {
+          body["credentialMode"] = args["credentialMode"];
         }
         if (args["deadlineSecondsTime"] !== undefined) {
           body["deadlineSecondsTime"] = args["deadlineSecondsTime"];

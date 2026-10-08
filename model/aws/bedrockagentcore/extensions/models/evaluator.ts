@@ -155,6 +155,19 @@ const CodeBasedEvaluatorConfigSchema = z.object({
   ),
 });
 
+const DerivedEvaluatorConfigSchema = z.object({
+  BaseEvaluatorId: z.string().regex(
+    new RegExp(
+      "^(Builtin\\.[a-zA-Z0-9._-]+|ThirdParty\\.[a-zA-Z0-9._-]+|[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10})$",
+    ),
+  ).describe(
+    "The identifier of the base evaluator whose logic to run (a Builtin.* or ThirdParty.* evaluator).",
+  ),
+  ModelConfig: EvaluatorModelConfigSchema.describe(
+    "The model configuration that specifies which foundation model to use for evaluation.",
+  ),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
@@ -188,9 +201,14 @@ const GlobalArgsSchema = z.object({
     CodeBased: CodeBasedEvaluatorConfigSchema.describe(
       "The configuration for code-based evaluation using a Lambda function.",
     ).optional(),
-  }).describe("The configuration for the evaluator."),
+    Derived: DerivedEvaluatorConfigSchema.describe(
+      "The configuration for an evaluator derived from an existing base evaluator (a built-in or third-party evaluator), run on your own model. The base evaluator supplies the prompt and scoring logic.",
+    ).optional(),
+  }).describe(
+    "The configuration for the evaluator, including LLM-as-a-Judge, code-based, or derived settings.",
+  ),
   Level: z.enum(["TOOL_CALL", "TRACE", "SESSION"]).describe(
-    "The evaluation level that determines the scope of evaluation.",
+    "The evaluation level that determines the scope of evaluation. Required for all evaluator configuration types. For Derived evaluators it must match the level of the base evaluator identified by BaseEvaluatorId.",
   ),
   KmsKeyArn: z.string().min(1).max(2048).regex(
     new RegExp(
@@ -211,8 +229,11 @@ const StateSchema = z.object({
   EvaluatorConfig: z.object({
     LlmAsAJudge: LlmAsAJudgeEvaluatorConfigSchema,
     CodeBased: CodeBasedEvaluatorConfigSchema,
+    Derived: DerivedEvaluatorConfigSchema,
   }).optional(),
   Level: z.string().optional(),
+  EvaluatorType: z.string().optional(),
+  Provider: z.string().optional(),
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
@@ -241,9 +262,14 @@ const InputsSchema = z.object({
     CodeBased: CodeBasedEvaluatorConfigSchema.describe(
       "The configuration for code-based evaluation using a Lambda function.",
     ).optional(),
-  }).describe("The configuration for the evaluator.").optional(),
+    Derived: DerivedEvaluatorConfigSchema.describe(
+      "The configuration for an evaluator derived from an existing base evaluator (a built-in or third-party evaluator), run on your own model. The base evaluator supplies the prompt and scoring logic.",
+    ).optional(),
+  }).describe(
+    "The configuration for the evaluator, including LLM-as-a-Judge, code-based, or derived settings.",
+  ).optional(),
   Level: z.enum(["TOOL_CALL", "TRACE", "SESSION"]).describe(
-    "The evaluation level that determines the scope of evaluation.",
+    "The evaluation level that determines the scope of evaluation. Required for all evaluator configuration types. For Derived evaluators it must match the level of the base evaluator identified by BaseEvaluatorId.",
   ).optional(),
   KmsKeyArn: z.string().min(1).max(2048).regex(
     new RegExp(
@@ -275,7 +301,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.08.17.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -344,6 +370,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -454,7 +485,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["EvaluatorName"],
+          ["EvaluatorName", "BaseEvaluatorId"],
           credentials,
         );
         const handle = await context.writeResource(

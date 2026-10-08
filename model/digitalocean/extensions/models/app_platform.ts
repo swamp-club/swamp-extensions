@@ -653,7 +653,7 @@ const GlobalArgsSchema = z.object({
     "Whether or not to update the source versions (for example fetching a new commit or image digest) of all components. By default (when this is false) only newly added sources will be updated to avoid changes like updating the scale of a component from also updating the respective code.",
   ).optional(),
   project_id: z.string().describe(
-    "The ID of the project the app should be assigned to. If omitted, it will be assigned to your default project.\n<br><br>Requires `project:assign_resource` scope.\n",
+    "The ID of the project the app should be assigned to. If omitted, it will be assigned to your default project.\n<br><br>Requires `project:assign_resource` and `project:update` scopes.\n",
   ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -4171,7 +4171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4245,6 +4245,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

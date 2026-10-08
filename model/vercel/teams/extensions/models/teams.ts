@@ -380,6 +380,7 @@ const ResourceSchema = z.object({
       ssoConnectedAt: z.number().optional(),
       ssoUserId: z.string().optional(),
     }).optional(),
+    organizationId: z.string().optional(),
     role: z.string().optional(),
     teamId: z.string().optional(),
     teamPermissions: z.array(z.string()).optional(),
@@ -638,7 +639,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.07.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -727,6 +728,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

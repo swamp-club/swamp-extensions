@@ -276,6 +276,7 @@ const ResourceSchema = z.object({
         endTimeNs: z.string().optional(),
         error: z.string().optional(),
         errorTemplate: z.string().optional(),
+        eventSize: z.number().optional(),
         fingerprint: z.string().optional(),
         id: z.string().optional(),
         level: z.string().optional(),
@@ -560,7 +561,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Query. Registered at `@swamp/cloudflare/workers/query`. */
 export const model = {
   type: "@swamp/cloudflare/workers/query",
-  version: "2026.10.02.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -614,6 +615,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -275,6 +275,13 @@ const GlobalArgsSchema = z.object({
         })).describe(
           "Optional. Error Catch Task configuration for the integration. It's optional.",
         ).optional(),
+        eucHardeningDisposition: z.enum([
+          "EUC_HARDENING_DISPOSITION_UNSPECIFIED",
+          "LEGACY",
+          "HARDENED",
+        ]).describe(
+          "Output only. The EUC hardening disposition of this version. Set by the service when the integration is first created and inherited unchanged by every later version, so all versions of an integration report the same value.",
+        ).optional(),
         integrationConfigParameters: z.array(z.object({
           parameter: z.unknown().describe(
             "Optional. Integration Parameter to provide the default value, data type and attributes required for the Integration config variables.",
@@ -658,6 +665,13 @@ const GlobalArgsSchema = z.object({
         errorCatcherConfigs: z.array(z.unknown()).describe(
           "Optional. Error Catch Task configuration for the integration. It's optional.",
         ).optional(),
+        eucHardeningDisposition: z.enum([
+          "EUC_HARDENING_DISPOSITION_UNSPECIFIED",
+          "LEGACY",
+          "HARDENED",
+        ]).describe(
+          "Output only. The EUC hardening disposition of this version. Set by the service when the integration is first created and inherited unchanged by every later version, so all versions of an integration report the same value.",
+        ).optional(),
         integrationConfigParameters: z.array(z.unknown()).describe(
           "Optional. Config Parameters that are expected to be passed to the integration when an integration is published. This consists of all the parameters that are expected to provide configuration in the integration execution. This gives the user the ability to provide default values, value, add information like connection url, project based configuration value and also provide data types of each parameter.",
         ).optional(),
@@ -790,6 +804,7 @@ const StateSchema = z.object({
           position: z.unknown(),
           startErrorTasks: z.unknown(),
         })),
+        eucHardeningDisposition: z.string(),
         integrationConfigParameters: z.array(z.object({
           parameter: z.unknown(),
           value: z.unknown(),
@@ -928,6 +943,7 @@ const StateSchema = z.object({
         description: z.string(),
         enableVariableMasking: z.boolean(),
         errorCatcherConfigs: z.array(z.unknown()),
+        eucHardeningDisposition: z.string(),
         integrationConfigParameters: z.array(z.unknown()),
         integrationParameters: z.array(z.unknown()),
         integrationParametersInternal: z.object({
@@ -1081,6 +1097,13 @@ const InputsSchema = z.object({
         })).describe(
           "Optional. Error Catch Task configuration for the integration. It's optional.",
         ).optional(),
+        eucHardeningDisposition: z.enum([
+          "EUC_HARDENING_DISPOSITION_UNSPECIFIED",
+          "LEGACY",
+          "HARDENED",
+        ]).describe(
+          "Output only. The EUC hardening disposition of this version. Set by the service when the integration is first created and inherited unchanged by every later version, so all versions of an integration report the same value.",
+        ).optional(),
         integrationConfigParameters: z.array(z.object({
           parameter: z.unknown().describe(
             "Optional. Integration Parameter to provide the default value, data type and attributes required for the Integration config variables.",
@@ -1464,6 +1487,13 @@ const InputsSchema = z.object({
         errorCatcherConfigs: z.array(z.unknown()).describe(
           "Optional. Error Catch Task configuration for the integration. It's optional.",
         ).optional(),
+        eucHardeningDisposition: z.enum([
+          "EUC_HARDENING_DISPOSITION_UNSPECIFIED",
+          "LEGACY",
+          "HARDENED",
+        ]).describe(
+          "Output only. The EUC hardening disposition of this version. Set by the service when the integration is first created and inherited unchanged by every later version, so all versions of an integration report the same value.",
+        ).optional(),
         integrationConfigParameters: z.array(z.unknown()).describe(
           "Optional. Config Parameters that are expected to be passed to the integration when an integration is published. This consists of all the parameters that are expected to provide configuration in the integration execution. This gives the user the ability to provide default values, value, add information like connection url, project based configuration value and also provide data types of each parameter.",
         ).optional(),
@@ -1586,7 +1616,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Templates. Registered at `@swamp/gcp/integrations/templates`. */
 export const model = {
   type: "@swamp/gcp/integrations/templates",
-  version: "2026.10.01.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1661,6 +1691,11 @@ export const model = {
     {
       toVersion: "2026.10.01.1",
       description: "Added: quotaProject, apiEndpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

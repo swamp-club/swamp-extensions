@@ -67,8 +67,12 @@ const GlobalArgsSchema = z.object({
   networkFlowLoggingOn: z.boolean().nullable().describe(
     "Whether [network flog logs](/docs/features/logging/network-flow-logs) are enabled for the tailnet.",
   ).optional(),
-  regionalRoutingOn: z.boolean().nullable().describe(
-    "Whether [regional routing](/docs/how-to/set-up-high-availability#regional-routing) is enabled for the tailnet.",
+  routeSelection: z.enum([
+    "active-passive-failover",
+    "regional-routing",
+    "regional-routing-failover",
+  ]).describe(
+    'The [route selection](/docs/how-to/set-up-high-availability) algorithm used by the tailnet:\n* `active-passive-failover` - Active-passive failover (formerly known as "Failover")\n* `regional-routing` - Regional routing\n* `regional-routing-failover` - Regional routing with in-region failover\nA PATCH request must not specify both the `regionalRoutingOn` and `routeSelection` fields.',
   ).optional(),
   postureIdentityCollectionOn: z.boolean().nullable().describe(
     "Whether [identity collection](/docs/features/access-control/device-management/how-to/manage-identity) is enabled for [device posture](/docs/features/device-posture) integrations for the tailnet.",
@@ -106,6 +110,7 @@ const ResourceSchema = z.object({
   usersRoleAllowedToJoinExternalTailnets: z.string().optional(),
   networkFlowLoggingOn: z.boolean().nullable().optional(),
   regionalRoutingOn: z.boolean().nullable().optional(),
+  routeSelection: z.string().optional(),
   postureIdentityCollectionOn: z.boolean().nullable().optional(),
   httpsEnabled: z.boolean().nullable().optional(),
 }).passthrough();
@@ -120,7 +125,11 @@ const InputsSchema = z.object({
   usersRoleAllowedToJoinExternalTailnets: z.enum(["none", "admin", "member"])
     .optional(),
   networkFlowLoggingOn: z.boolean().nullable().optional(),
-  regionalRoutingOn: z.boolean().nullable().optional(),
+  routeSelection: z.enum([
+    "active-passive-failover",
+    "regional-routing",
+    "regional-routing-failover",
+  ]).optional(),
   postureIdentityCollectionOn: z.boolean().nullable().optional(),
   httpsEnabled: z.boolean().nullable().optional(),
 });
@@ -128,7 +137,17 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale tailnet settings. Registered at `@swamp/tailscale/tailnet-settings`. */
 export const model = {
   type: "@swamp/tailscale/tailnet-settings",
-  version: "2026.10.02.1",
+  version: "2026.10.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.08.1",
+      description: "Added: routeSelection. Removed: regionalRoutingOn",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { regionalRoutingOn: _regionalRoutingOn, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -154,7 +173,7 @@ export const model = {
           "usersApprovalOn",
           "usersRoleAllowedToJoinExternalTailnets",
           "networkFlowLoggingOn",
-          "regionalRoutingOn",
+          "routeSelection",
           "postureIdentityCollectionOn",
           "httpsEnabled",
         ]);
@@ -199,7 +218,7 @@ export const model = {
           "usersApprovalOn",
           "usersRoleAllowedToJoinExternalTailnets",
           "networkFlowLoggingOn",
-          "regionalRoutingOn",
+          "routeSelection",
           "postureIdentityCollectionOn",
           "httpsEnabled",
         ]);

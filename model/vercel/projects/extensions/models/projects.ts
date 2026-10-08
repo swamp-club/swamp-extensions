@@ -644,6 +644,11 @@ const ResourceSchema = z.object({
     functionDefaultTimeout: z.number().optional(),
     functionZeroConfigFailover: z.boolean().optional(),
     isNSNBDisabled: z.boolean().optional(),
+    elasticBuildMachine: z.object({
+      cores: z.number().optional(),
+      label: z.string().optional(),
+      memory: z.number().optional(),
+    }).optional(),
   }).nullable().optional(),
   deploymentExpiration: z.object({
     deploymentsToKeep: z.number().optional(),
@@ -1217,6 +1222,11 @@ const ResourceSchema = z.object({
     functionDefaultTimeout: z.number().optional(),
     functionZeroConfigFailover: z.boolean().optional(),
     isNSNBDisabled: z.boolean().optional(),
+    elasticBuildMachine: z.object({
+      cores: z.number().optional(),
+      label: z.string().optional(),
+      memory: z.number().optional(),
+    }).optional(),
   }).nullable().optional(),
   rollbackDescription: z.object({
     createdAt: z.number().optional(),
@@ -1705,7 +1715,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.07.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1889,6 +1899,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

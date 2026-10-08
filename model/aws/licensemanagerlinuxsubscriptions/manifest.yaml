@@ -1,23 +1,18 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
-name: "@swamp/cloudflare/workers"
+name: "@swamp/aws/licensemanagerlinuxsubscriptions"
 version: "2026.10.08.1"
-description: "Cloudflare workers infrastructure models"
+description: "AWS LICENSEMANAGERLINUXSUBSCRIPTIONS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
-  - cloudflare
-  - workers
+  - aws
+  - licensemanagerlinuxsubscriptions
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: query
+  - Added: subscription_provider
 models:
-  - automations.ts
-  - namespaces.ts
-  - queries.ts
-  - query.ts
-  - routes.ts
-  - workers.ts
+  - subscription_provider.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

@@ -2190,17 +2190,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.07.21.1",
-      description: "Removed: youtubeAndPartnersSettings",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const {
-          youtubeAndPartnersSettings: _youtubeAndPartnersSettings,
-          ...rest
-        } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.07.21.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,

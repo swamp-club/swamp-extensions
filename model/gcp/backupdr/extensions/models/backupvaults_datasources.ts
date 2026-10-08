@@ -227,8 +227,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   backupCount: z.string().describe("Number of backups in the data source.")
     .optional(),
-  configState: z.enum(["BACKUP_CONFIG_STATE_UNSPECIFIED", "ACTIVE", "PASSIVE"])
-    .describe("Output only. The backup configuration state.").optional(),
+  configState: z.enum([
+    "BACKUP_CONFIG_STATE_UNSPECIFIED",
+    "ACTIVE",
+    "PASSIVE",
+    "PAUSED",
+  ]).describe("Output only. The backup configuration state.").optional(),
   createTime: z.string().describe(
     "Output only. The time when the instance was created.",
   ).optional(),
@@ -543,8 +547,12 @@ const InputsSchema = z.object({
   ).optional(),
   backupCount: z.string().describe("Number of backups in the data source.")
     .optional(),
-  configState: z.enum(["BACKUP_CONFIG_STATE_UNSPECIFIED", "ACTIVE", "PASSIVE"])
-    .describe("Output only. The backup configuration state.").optional(),
+  configState: z.enum([
+    "BACKUP_CONFIG_STATE_UNSPECIFIED",
+    "ACTIVE",
+    "PASSIVE",
+    "PAUSED",
+  ]).describe("Output only. The backup configuration state.").optional(),
   createTime: z.string().describe(
     "Output only. The time when the instance was created.",
   ).optional(),
@@ -716,7 +724,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources. Registered at `@swamp/gcp/backupdr/backupvaults-datasources`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources",
-  version: "2026.09.07.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -851,6 +859,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: allowMissing, requestId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
