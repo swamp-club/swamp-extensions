@@ -201,6 +201,16 @@ export interface DatastoreSyncService {
     relPath: string,
     options?: DatastoreSyncOptions,
   ): Promise<boolean>;
+  /**
+   * Reads one file as the remote holds it and writes nothing locally.
+   * `relPath` is cache-relative, so with a namespace it already starts with
+   * `{namespace}/`. Resolves to null only when the remote has no such file;
+   * any other failure rejects.
+   */
+  fetchContent?(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<Uint8Array | null>;
   /** Writes a catalog export JSON to {namespace}/.catalog-export.json. */
   exportCatalog?(
     namespace: string,

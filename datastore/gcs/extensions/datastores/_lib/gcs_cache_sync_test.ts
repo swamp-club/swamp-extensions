@@ -46,6 +46,7 @@ import {
   PreconditionFailedError,
 } from "./gcs_client.ts";
 import type { GcsObjectMetadata, GcsWriteResult } from "./gcs_client.ts";
+import { assertSyncServiceRoundTripConformance } from "@swamp-club/swamp-testing";
 
 /** Captured putObject call for test assertions. */
 interface PutCall {
@@ -73,6 +74,7 @@ function createMockGcsClient(): GcsClient & {
   gets: string[];
   heads: string[];
   deletes: string[];
+  bucketCheck: { checks: number; failure: Error | null };
 } {
   const storage = new Map<string, Uint8Array>();
   const generations = new Map<string, number>();
@@ -83,6 +85,10 @@ function createMockGcsClient(): GcsClient & {
   const gets: string[] = [];
   const heads: string[] = [];
   const deletes: string[] = [];
+  const bucketCheck: { checks: number; failure: Error | null } = {
+    checks: 0,
+    failure: null,
+  };
 
   const nextGen = (key: string): string => {
     const g = (generations.get(key) ?? 0) + 1;
@@ -108,6 +114,19 @@ function createMockGcsClient(): GcsClient & {
     gets,
     heads,
     deletes,
+    bucketCheck,
+
+    listObjects(
+      _subPrefix?: string,
+      _pageToken?: string,
+      signal?: AbortSignal,
+    ): Promise<{ entries: never[]; truncated: boolean }> {
+      throwIfAborted(signal);
+      bucketCheck.checks++;
+      return bucketCheck.failure
+        ? Promise.reject(bucketCheck.failure)
+        : Promise.resolve({ entries: [], truncated: false });
+    },
 
     putObject(
       key: string,
@@ -263,6 +282,7 @@ function createMockGcsClient(): GcsClient & {
     gets: string[];
     heads: string[];
     deletes: string[];
+    bucketCheck: { checks: number; failure: Error | null };
   };
 }
 
@@ -10434,4 +10454,558 @@ Deno.test("swamp-club#2999: the next pull finishes removals an interrupted monol
     await Deno.remove(cacheA, { recursive: true });
     await Deno.remove(cacheB, { recursive: true });
   }
+});
+
+// -- fetchContent (swamp-club#3161) ------------------------------------------
+
+Deno.test("fetchContent: passes core's round-trip conformance suite (swamp-club#3161)", async () => {
+  const result = await assertSyncServiceRoundTripConformance(async () => {
+    const mock = createMockGcsClient();
+    const firstCache = await Deno.makeTempDir({ prefix: "gcssync-conf-a-" });
+    const secondCache = await Deno.makeTempDir({ prefix: "gcssync-conf-b-" });
+    // 403 is not retried, so one denial fails the whole call.
+    const failOnce = (method: "putObject" | "getObject") => {
+      const original = mock[method];
+      mock[method] = (() => {
+        mock[method] = original as never;
+        return Promise.reject(makeGcsErr(403));
+      }) as never;
+    };
+    return {
+      first: {
+        service: new GcsCacheSyncService(mock, firstCache),
+        cacheDir: firstCache,
+      },
+      second: {
+        service: new GcsCacheSyncService(mock, secondCache),
+        cacheDir: secondCache,
+      },
+      failNextPush: () => failOnce("putObject"),
+      failNextFetch: () => failOnce("getObject"),
+      namespace: "conf-ns",
+      cleanup: async () => {
+        await Deno.remove(firstCache, { recursive: true });
+        await Deno.remove(secondCache, { recursive: true });
+      },
+    };
+  });
+  for (
+    const name of [
+      "round-trip",
+      "push-deletes",
+      "bulk-mark",
+      "failed-push-retry",
+      "two-phase",
+      "pull-nothing-new",
+      "forward-slash-paths",
+      "fetch-content",
+      "fetch-content-error",
+      "fetch-content-namespace",
+    ]
+  ) {
+    assert(result.passed.includes(name), `${name} did not run`);
+  }
+  for (const { name, reason } of result.skipped) {
+    console.log(`skipped ${name}: ${reason}`);
+  }
+});
+
+const RAW_3161 = "data/m/1/raw";
+
+Deno.test("fetchContent: reads the cache-relative path as the key and never adds the namespace again", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    mock.storage.set(RAW_3161, new TextEncoder().encode("root"));
+    mock.storage.set(`ns/${RAW_3161}`, new TextEncoder().encode("namespaced"));
+
+    const root = await service.fetchContent(RAW_3161);
+    assertEquals(new TextDecoder().decode(root!), "root");
+    // An empty namespace is no namespace.
+    await service.fetchContent(RAW_3161, { namespace: "" });
+    assertEquals(mock.gets, [RAW_3161, RAW_3161]);
+
+    mock.gets.length = 0;
+    const namespaced = await service.fetchContent(`ns/${RAW_3161}`, {
+      namespace: "ns",
+    });
+    assertEquals(new TextDecoder().decode(namespaced!), "namespaced");
+    assertEquals(mock.gets, [`ns/${RAW_3161}`], "the namespaced object wins");
+    assertEquals(mock.bucketCheck.checks, 0, "a hit never checks the bucket");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchContent: rejects a path outside the namespace or the datastore without a request", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    mock.storage.set(RAW_3161, new TextEncoder().encode("root"));
+    mock.storage.set(`other/${RAW_3161}`, new TextEncoder().encode("other"));
+    mock.storage.set("/x", new TextEncoder().encode("slash"));
+
+    for (
+      const relPath of [RAW_3161, `other/${RAW_3161}`, "ns", "ns/", "ns//x"]
+    ) {
+      await assertRejects(
+        () => service.fetchContent(relPath, { namespace: "ns" }),
+        Error,
+        'is not a file in namespace "ns"',
+      );
+    }
+    for (
+      const relPath of [
+        "",
+        `/${RAW_3161}`,
+        `\\${RAW_3161}`,
+        `C:/${RAW_3161}`,
+        "c:\\data\\raw",
+        "data/../data/m/1/raw",
+        "data\\..\\raw",
+        "..",
+      ]
+    ) {
+      await assertRejects(
+        () => service.fetchContent(relPath),
+        Error,
+        "Path traversal rejected",
+      );
+    }
+    await assertRejects(
+      () => service.fetchContent("ns/../other/raw", { namespace: "ns" }),
+      Error,
+      "Path traversal rejected",
+    );
+    assertEquals(mock.gets, []);
+    assertEquals(mock.bucketCheck.checks, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchContent: with a namespace, never reads the pre-namespace root key", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    // Only at the root: another tenant's object, or a migration leftover.
+    mock.storage.set(RAW_3161, new TextEncoder().encode("root"));
+
+    assertEquals(
+      await service.fetchContent(`ns/${RAW_3161}`, { namespace: "ns" }),
+      null,
+    );
+    assertEquals(mock.gets, [`ns/${RAW_3161}`]);
+    assertEquals(mock.bucketCheck.checks, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchContent: a 404 is null only once the bucket is confirmed", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    assertEquals(await service.fetchContent(RAW_3161), null);
+    assertEquals(mock.gets, [RAW_3161]);
+    assertEquals(mock.bucketCheck.checks, 1);
+
+    mock.gets.length = 0;
+    assertEquals(
+      await service.fetchContent(`ns/${RAW_3161}`, { namespace: "ns" }),
+      null,
+    );
+    assertEquals(mock.gets, [`ns/${RAW_3161}`]);
+    assertEquals(mock.bucketCheck.checks, 2);
+
+    // A bucket that is not there either: the 404 says nothing about the file.
+    const noBucket = new NotFoundError("GCS listObjects not found (404)");
+    mock.bucketCheck.failure = noBucket;
+    const error = await assertRejects(
+      () => service.fetchContent(RAW_3161),
+      Error,
+      "the bucket could not be confirmed",
+    );
+    assertEquals(error.cause, noBucket);
+
+    // Any other failure of the check reaches the caller as it is, so its
+    // name and HTTP status still say whether to retry.
+    for (const failure of [makeGcsErr(403), new TypeError("network down")]) {
+      mock.bucketCheck.failure = failure;
+      const thrown = await assertRejects(() => service.fetchContent(RAW_3161));
+      assertEquals(thrown, failure);
+    }
+
+    // A signal that aborts between the object read and the bucket check.
+    mock.bucketCheck.failure = null;
+    const controller = new AbortController();
+    const get = mock.getObject.bind(mock);
+    mock.getObject = (key, signal) => {
+      const result = get(key, signal);
+      controller.abort();
+      return result;
+    };
+    const aborted = await assertRejects(
+      () => service.fetchContent(RAW_3161, { signal: controller.signal }),
+    );
+    assertEquals((aborted as Error).name, "AbortError");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchContent: retries a transient failure of the read and of the bucket check", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    mock.storage.set(RAW_3161, new TextEncoder().encode("root"));
+
+    // One 503 on the read, then the object.
+    let reads = 0;
+    const get = mock.getObject.bind(mock);
+    mock.getObject = (key, signal) =>
+      ++reads === 1 ? Promise.reject(makeGcsErr(503)) : get(key, signal);
+    const fetched = await service.fetchContent(RAW_3161);
+    assertEquals(new TextDecoder().decode(fetched!), "root");
+    assertEquals(reads, 2);
+    mock.getObject = get;
+
+    // One 503 on the bucket check of a missing file, then the listing.
+    const list = mock.listObjects.bind(mock);
+    mock.listObjects = (subPrefix, pageToken, signal) =>
+      mock.bucketCheck.checks === 0
+        ? (mock.bucketCheck.checks++, Promise.reject(makeGcsErr(503)))
+        : list(subPrefix, pageToken, signal);
+    assertEquals(await service.fetchContent("data/m/1/missing"), null);
+    assertEquals(mock.bucketCheck.checks, 2);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchContent: honors an aborted signal", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    mock.storage.set(RAW_3161, new TextEncoder().encode("root"));
+    const controller = new AbortController();
+    controller.abort();
+    const error = await assertRejects(
+      () => service.fetchContent(RAW_3161, { signal: controller.signal }),
+    );
+    assertEquals((error as Error).name, "AbortError");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+/** Every file under `dir` with its bytes and mtime, keyed by relative path. */
+async function snapshotDir3161(
+  dir: string,
+  rel = "",
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for await (const entry of Deno.readDir(join(dir, rel))) {
+    const child = rel ? `${rel}/${entry.name}` : entry.name;
+    if (entry.isDirectory) {
+      Object.assign(out, await snapshotDir3161(dir, child));
+    } else {
+      const path = join(dir, child);
+      const stat = await Deno.stat(path);
+      out[child] = `${stat.mtime?.getTime()}:${await sha256Hex(
+        await Deno.readTextFile(path),
+      )}`;
+    }
+  }
+  return out;
+}
+
+Deno.test("fetchContent: changes nothing in the cache and binds no namespace", async () => {
+  const mock = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  const freshCache = await Deno.makeTempDir({ prefix: "gcssync-fetch-" });
+  try {
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    await service.markDirty({ relPath: RAW_3161 });
+    await seedFile(cachePath, RAW_3161, "local");
+    await service.pushChanged();
+    // A pending change that differs from the remote copy.
+    await service.markDirty({ relPath: RAW_3161 });
+    await seedFile(cachePath, RAW_3161, "local, not pushed");
+    const before = await snapshotDir3161(cachePath);
+
+    const fetched = await service.fetchContent(RAW_3161);
+    assertEquals(new TextDecoder().decode(fetched!), "local");
+    assertEquals(await service.fetchContent("data/m/1/missing"), null);
+
+    assertEquals(await snapshotDir3161(cachePath), before);
+    // The pending change is still pending.
+    await service.pushChanged();
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(RAW_3161)),
+      "local, not pushed",
+    );
+
+    // A service that has not synced yet stays unbound.
+    const fresh = new GcsCacheSyncService(mock, freshCache);
+    await fresh.fetchContent(`ns/${RAW_3161}`, { namespace: "ns" });
+    assertEquals(await snapshotDir3161(freshCache), {});
+    await fresh.pullChanged();
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+    await Deno.remove(freshCache, { recursive: true });
+  }
+});
+
+/**
+ * A local stand-in for the GCS JSON API that answers object reads from
+ * `objects` and the object listing that confirms the bucket from `listing`,
+ * and records the decoded object names requested. The 404 bodies are the
+ * ones real GCS and fake-gcs-server 1.56.1 were measured to send.
+ */
+function startFetchServer3161(opts: {
+  objects?: Record<string, string>;
+  objectMiss?: () => Response;
+  listing?: () => Response;
+}): {
+  url: string;
+  shutdown: () => Promise<void>;
+  objectNames: string[];
+  listings: string[];
+} {
+  const objectNames: string[] = [];
+  const listings: string[] = [];
+  const server = startIntegrationServer((req) => {
+    const url = new URL(req.url);
+    const object = url.pathname.match(/\/b\/b\/o\/(.+)$/);
+    if (!object) {
+      listings.push(url.searchParams.get("prefix") ?? "");
+      return opts.listing?.() ?? Response.json({ kind: "storage#objects" });
+    }
+    const name = decodeURIComponent(object[1]);
+    objectNames.push(name);
+    const body = opts.objects?.[name];
+    if (body !== undefined) return new Response(body);
+    return opts.objectMiss?.() ?? GCS_NO_SUCH_OBJECT_3161(name);
+  });
+  return { ...server, objectNames, listings };
+}
+
+const GCS_NO_SUCH_OBJECT_3161 = (name: string) =>
+  new Response(`No such object: b/${name}`, {
+    status: 404,
+    headers: { "content-type": "text/html; charset=UTF-8" },
+  });
+const GCS_NO_SUCH_BUCKET_OBJECT_3161 = () =>
+  new Response("The specified bucket does not exist.", {
+    status: 404,
+    headers: { "content-type": "text/html; charset=UTF-8" },
+  });
+const GCS_NO_SUCH_BUCKET_LISTING_3161 = () =>
+  Response.json({
+    error: { code: 404, message: "The specified bucket does not exist." },
+  }, { status: 404 });
+const HTML_PAGE_3161 = (status: number) => () =>
+  new Response("<html><body>Blocked by gateway</body></html>", {
+    status,
+    headers: { "content-type": "text/html" },
+  });
+
+async function withFetchService3161(
+  server: { url: string; shutdown: () => Promise<void> },
+  prefix: string | undefined,
+  fn: (service: GcsCacheSyncService) => Promise<void>,
+): Promise<void> {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fetch-http-" });
+  try {
+    const client = new GcsClient({
+      bucket: "b",
+      prefix,
+      apiEndpoint: server.url,
+      defaultRequestTimeoutMs: 2000,
+    });
+    await fn(new GcsCacheSyncService(client, cachePath));
+  } finally {
+    await server.shutdown();
+    await Deno.remove(cachePath, { recursive: true });
+  }
+}
+
+// sanitizeResources: false in the tests below because the GcsClient's fetch
+// keeps pooled connections to the local server open past the test.
+for (const prefix of [undefined, "swamp"]) {
+  const label = prefix ? `bucket prefix "${prefix}"` : "no bucket prefix";
+  const full = (key: string) => prefix ? `${prefix}/${key}` : key;
+
+  Deno.test({
+    name: `fetchContent over HTTP, ${label}: requests the exact object name`,
+    sanitizeResources: false,
+    fn: async () => {
+      const server = startFetchServer3161({
+        objects: {
+          [full(RAW_3161)]: "root",
+          [full(`ns/${RAW_3161}`)]: "namespaced",
+          [full("data/root-only/raw")]: "root only",
+        },
+      });
+      await withFetchService3161(server, prefix, async (service) => {
+        const text = async (relPath: string, namespace?: string) =>
+          new TextDecoder().decode(
+            (await service.fetchContent(relPath, { namespace }))!,
+          );
+        assertEquals(await text(RAW_3161), "root");
+        assertEquals(await text(`ns/${RAW_3161}`, "ns"), "namespaced");
+        assertEquals(
+          await service.fetchContent("ns/data/root-only/raw", {
+            namespace: "ns",
+          }),
+          null,
+          "the pre-namespace root key is not read",
+        );
+        assertEquals(server.objectNames, [
+          full(RAW_3161),
+          full(`ns/${RAW_3161}`),
+          full("ns/data/root-only/raw"),
+        ]);
+        assertEquals(server.listings.length, 1);
+      });
+    },
+  });
+
+  Deno.test({
+    name:
+      `fetchContent over HTTP, ${label}: a missing object in an existing bucket is null`,
+    sanitizeResources: false,
+    fn: async () => {
+      for (
+        const objectMiss of [
+          undefined,
+          // fake-gcs-server answers a bare text/plain body.
+          () => new Response("Not Found", { status: 404 }),
+        ]
+      ) {
+        const server = startFetchServer3161({ objectMiss });
+        await withFetchService3161(server, prefix, async (service) => {
+          assertEquals(await service.fetchContent(RAW_3161), null);
+          assertEquals(server.objectNames, [full(RAW_3161)]);
+          // One listing, scoped to the file that was asked for.
+          assertEquals(server.listings, [full(RAW_3161)]);
+        });
+      }
+    },
+  });
+
+  Deno.test({
+    name:
+      `fetchContent over HTTP, ${label}: a 404 that is not a missing object rejects`,
+    sanitizeResources: false,
+    fn: async () => {
+      // No such bucket, as real GCS and as fake-gcs-server answer it.
+      for (
+        const [objectMiss, listing] of [
+          [GCS_NO_SUCH_BUCKET_OBJECT_3161, GCS_NO_SUCH_BUCKET_LISTING_3161],
+          [
+            () => new Response("Not Found", { status: 404 }),
+            () =>
+              Response.json({ error: { code: 404, message: "Not Found" } }, {
+                status: 404,
+              }),
+          ],
+          // Something answering 404 to everything in place of GCS.
+          [HTML_PAGE_3161(404), HTML_PAGE_3161(404)],
+        ] as const
+      ) {
+        const server = startFetchServer3161({ objectMiss, listing });
+        await withFetchService3161(server, prefix, async (service) => {
+          await assertRejects(
+            () => service.fetchContent(RAW_3161),
+            Error,
+            "the bucket could not be confirmed",
+          );
+          assertEquals(server.listings.length, 1);
+        });
+      }
+
+      // A listing that is refused keeps its own error and status.
+      const denied = startFetchServer3161({ listing: HTML_PAGE_3161(403) });
+      await withFetchService3161(denied, prefix, async (service) => {
+        const error = await assertRejects(
+          () => service.fetchContent(RAW_3161),
+          GcsOperationError,
+        );
+        assertEquals(error.httpStatusCode, 403);
+      });
+
+      // A page served with 200 in place of the listing is not a listing.
+      const page = startFetchServer3161({ listing: HTML_PAGE_3161(200) });
+      await withFetchService3161(page, prefix, async (service) => {
+        await assertRejects(() => service.fetchContent(RAW_3161));
+      });
+    },
+  });
+
+  Deno.test({
+    name:
+      `fetchContent over HTTP, ${label}: an unreadable remote rejects, never null`,
+    sanitizeResources: false,
+    fn: async () => {
+      for (
+        const objectMiss of [
+          HTML_PAGE_3161(403),
+          () => new Response(null, { status: 401 }),
+          () => new Response("{not json", { status: 400 }),
+        ]
+      ) {
+        const server = startFetchServer3161({ objectMiss });
+        await withFetchService3161(server, prefix, async (service) => {
+          await assertRejects(
+            () => service.fetchContent(RAW_3161),
+            GcsOperationError,
+          );
+          assertEquals(server.objectNames.length, 1);
+          assertEquals(server.listings, []);
+        });
+      }
+    },
+  });
+}
+
+// One run, not one per prefix: each case waits out the retry backoff.
+Deno.test({
+  name:
+    "fetchContent over HTTP: a remote that stays down rejects after its retries",
+  sanitizeResources: false,
+  fn: async () => {
+    const down = startFetchServer3161({
+      objectMiss: () => new Response("upstream down", { status: 500 }),
+    });
+    await withFetchService3161(down, undefined, async (service) => {
+      const error = await assertRejects(
+        () => service.fetchContent(RAW_3161),
+        GcsOperationError,
+      );
+      assertEquals(error.httpStatusCode, 500);
+      assertEquals(down.objectNames.length, 3, "three attempts");
+      assertEquals(down.listings, []);
+    });
+
+    // Nothing listening at all.
+    const gone = startFetchServer3161({});
+    await gone.shutdown();
+    await withFetchService3161(gone, undefined, async (service) => {
+      const error = await assertRejects(
+        () => service.fetchContent(RAW_3161),
+        GcsOperationError,
+      );
+      assertEquals(error.httpStatusCode, null);
+    });
+  },
 });

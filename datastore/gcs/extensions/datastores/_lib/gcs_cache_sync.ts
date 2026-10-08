@@ -4518,6 +4518,97 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     );
   }
 
+  /**
+   * Reads one object by its cache-relative path and writes nothing locally:
+   * no cache file, index, sidecar, dirty state or namespace binding changes.
+   *
+   * The object key is `relPath` as given, since a cache-relative path
+   * already starts with the namespace. `options.namespace` only guards the
+   * path. The pre-namespace root key that `pullFile` falls back to is not
+   * read: nothing here shows that this namespace owns the object at it.
+   * Transient failures are retried as `pullFile` retries them.
+   */
+  async fetchContent(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<Uint8Array | null> {
+    return await getTracer().startActiveSpan(
+      "gcs-datastore fetchContent",
+      async (span) => {
+        try {
+          const namespace = options?.namespace || undefined;
+          const signal = options?.signal;
+          span.setAttribute(Attr.DATASTORE_FILE, relPath);
+          if (namespace) {
+            span.setAttribute(Attr.DATASTORE_NAMESPACE, namespace);
+          }
+
+          if (
+            relPath === "" || /^([\\/]|[A-Za-z]:[\\/])/.test(relPath) ||
+            relPath.split(/[\\/]/).some((seg) => seg === "..")
+          ) {
+            throw new Error(`Path traversal rejected: ${relPath}`);
+          }
+          if (namespace) {
+            const nsPrefix = `${namespace}/`;
+            const rest = relPath.startsWith(nsPrefix)
+              ? relPath.substring(nsPrefix.length)
+              : "";
+            if (rest === "" || rest.startsWith("/")) {
+              throw new Error(
+                `fetchContent: ${JSON.stringify(relPath)} is not a file in ` +
+                  `namespace ${JSON.stringify(namespace)}`,
+              );
+            }
+          }
+
+          try {
+            const { data } = await retryWithBackoff(
+              () => this.gcs.getObject(relPath, signal),
+              { signal },
+            );
+            return data;
+          } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+          }
+
+          // GCS answers 404 for a missing bucket too, and so does anything
+          // answering in its place, so a 404 alone does not show the file
+          // is gone. A listing answers 200 only for a bucket that exists,
+          // and needs no permission a sync does not already use. Any other
+          // failure of the check is rethrown as it is, so a caller still
+          // sees an abort, a timeout or the HTTP status.
+          try {
+            await retryWithBackoff(
+              () => this.gcs.listObjects(relPath, undefined, signal),
+              { signal },
+            );
+          } catch (cause) {
+            if (!(cause instanceof NotFoundError)) throw cause;
+            throw new Error(
+              `GCS answered 404 for ${JSON.stringify(relPath)}, but the ` +
+                `bucket could not be confirmed, so the file is not known ` +
+                `to be missing: ${cause.message}`,
+              { cause },
+            );
+          }
+          return null;
+        } catch (err) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err instanceof Error ? err.message : String(err),
+          });
+          span.recordException(
+            err instanceof Error ? err : new Error(String(err)),
+          );
+          throw err;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
   async exportCatalog(
     namespace: string,
     rows: CatalogExportRow[],

@@ -275,6 +275,17 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   namespaced key 404s. Three additional methods support multi-repo shared
   datastores: `exportCatalog`, `pullForeignCatalogs`, and `fetchForeignContent`.
   Solo mode (no namespace) is fully backward compatible.
+- **Single-file remote read** — `fetchContent(relPath, options)` returns the
+  bytes of one object as the bucket holds it, or `null` when it does not exist,
+  and writes nothing to the local cache, index, or sync state. `relPath` is
+  cache-relative, so with a namespace it already starts with `{namespace}/` and
+  is used as the object key as given; a path outside `options.namespace`, an
+  absolute path, or one with a `..` segment is rejected. The pre-namespace root
+  key that `pullFile` falls back to is not read. GCS also answers 404 for a
+  bucket that does not exist, so a miss is reported as `null` only after an
+  object listing confirms the bucket (`storage.objects.list`, which sync already
+  needs); any other failure is an error. Transient failures are retried with
+  backoff, as on a pull.
 - **Namespace manifest support** — the provider implements `registerNamespace`
   and `listNamespaces` for multi-repo conflict detection. `registerNamespace`
   writes a `.namespace.json` manifest to `{namespace}/.namespace.json` in the
