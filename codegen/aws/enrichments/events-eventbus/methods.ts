@@ -5,7 +5,7 @@ import {
   EventBridgeClient,
   PutEventsCommand,
   type PutEventsRequestEntry,
-} from "npm:@aws-sdk/client-eventbridge@3.1127.0";
+} from "npm:@aws-sdk/client-eventbridge@3.1147.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 import type { AwsCredentials } from "../../../../model/aws/events/extensions/models/_lib/aws.ts";
 

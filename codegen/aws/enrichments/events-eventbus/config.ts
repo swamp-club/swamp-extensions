@@ -3,7 +3,7 @@ import type { AwsEnrichment } from "../types.ts";
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::Events::EventBus",
   npmImports: {
-    "@aws-sdk/client-eventbridge": "npm:@aws-sdk/client-eventbridge@3.1127.0",
+    "@aws-sdk/client-eventbridge": "npm:@aws-sdk/client-eventbridge@3.1147.0",
     "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7",
   },
   customMethods: {

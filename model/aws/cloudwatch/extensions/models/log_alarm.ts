@@ -55,11 +55,11 @@ const ScheduleConfigurationSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
-    "A unique identifier for the tag. The combination of tag keys and values can help you organize and categorize your resources.",
-  ),
   Value: z.string().min(1).max(256).describe(
     "The value for the specified tag key.",
+  ),
+  Key: z.string().min(1).max(128).describe(
+    "A unique identifier for the tag. The combination of tag keys and values can help you organize and categorize your resources.",
   ),
 });
 
@@ -76,57 +76,51 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  AlarmName: z.string().min(1).max(255).describe("The name of the log alarm.")
-    .optional(),
-  AlarmDescription: z.string().describe("The description of the log alarm.")
-    .optional(),
-  ActionsEnabled: z.boolean().describe(
-    "Indicates whether actions should be executed during any changes to the alarm state. The default is TRUE.",
-  ).optional(),
-  OKActions: z.array(z.string()).describe(
-    "The actions to execute when this alarm transitions to the OK state from any other state.",
-  ).optional(),
-  AlarmActions: z.array(z.string()).describe(
-    "The list of actions to execute when this alarm transitions into an ALARM state from any other state.",
-  ).optional(),
-  InsufficientDataActions: z.array(z.string()).describe(
-    "The actions to execute when this alarm transitions to the INSUFFICIENT_DATA state from any other state.",
-  ).optional(),
-  Threshold: z.number().describe(
-    "The value to compare against the results of the scheduled query evaluation.",
-  ),
   ComparisonOperator: z.string().describe(
     "The arithmetic operation to use when comparing the specified threshold and the query results. Valid values are GreaterThanOrEqualToThreshold, GreaterThanThreshold, LessThanThreshold, and LessThanOrEqualToThreshold.",
-  ),
-  QueryResultsToEvaluate: z.number().int().describe(
-    "The number of query results over which data is compared to the specified threshold.",
-  ),
-  QueryResultsToAlarm: z.number().int().describe(
-    "The number of query results that must be breaching to trigger the alarm.",
   ),
   TreatMissingData: z.string().describe(
     "Sets how this alarm is to handle missing data points. Valid values are breaching, notBreaching, ignore, and missing.",
   ).optional(),
   ScheduledQueryConfiguration: z.object({
-    QueryString: z.string().describe(
-      "The query string to execute against the specified log groups.",
-    ),
-    AggregationExpression: z.string().max(2048).describe(
-      "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
-    ),
-    LogGroupIdentifiers: z.array(z.string()).describe(
-      "The log groups to query.",
-    ).optional(),
     ScheduledQueryRoleARN: z.string().describe(
       "The ARN of the IAM role that grants permissions to execute the scheduled query.",
     ),
     ScheduleConfiguration: ScheduleConfigurationSchema.describe(
       "The schedule configuration.",
     ),
+    QueryString: z.string().describe(
+      "The query string to execute against the specified log groups.",
+    ),
+    LogGroupIdentifiers: z.array(z.string()).describe(
+      "The log groups to query.",
+    ).optional(),
     Tags: z.array(TagSchema).describe(
       "A list of key-value pairs to associate with the scheduled query that backs the log alarm.",
     ).optional(),
+    AggregationExpression: z.string().max(2048).describe(
+      "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
+    ),
   }).describe("The scheduled query configuration for the log alarm."),
+  QueryResultsToEvaluate: z.number().int().describe(
+    "The number of query results over which data is compared to the specified threshold.",
+  ),
+  OKActions: z.array(z.string()).describe(
+    "The actions to execute when this alarm transitions to the OK state from any other state.",
+  ).optional(),
+  AlarmActions: z.array(z.string()).describe(
+    "The list of actions to execute when this alarm transitions into an ALARM state from any other state.",
+  ).optional(),
+  ActionsEnabled: z.boolean().describe(
+    "Indicates whether actions should be executed during any changes to the alarm state. The default is TRUE.",
+  ).optional(),
+  ActionLogLineRoleArn: z.string().describe(
+    "The ARN of the IAM role that grants CloudWatch permissions to fetch log lines for alarm notifications. Required when ActionLogLineCount is greater than 0.",
+  ).optional(),
+  AlarmName: z.string().min(1).max(255).describe("The name of the log alarm.")
+    .optional(),
+  AlarmDescription: z.string().describe("The description of the log alarm.")
+    .optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number().int().min(1).max(2880).describe(
       "The length of the warm-up period, in minutes. For this duration after you create or update the alarm, the alarm stays in INSUFFICIENT_DATA and doesn't perform alarm actions. Valid values range from 1 to 2,880 minutes (2 days). You can change this value while the alarm is still in its warm-up period. Changes have no effect after the warm-up period ends.",
@@ -140,42 +134,48 @@ const GlobalArgsSchema = z.object({
   ActionLogLineCount: z.number().int().min(0).max(50).describe(
     "The number of log lines to include in alarm notifications. Valid values are 0 to 50.",
   ).optional(),
-  ActionLogLineRoleArn: z.string().describe(
-    "The ARN of the IAM role that grants CloudWatch permissions to fetch log lines for alarm notifications. Required when ActionLogLineCount is greater than 0.",
+  InsufficientDataActions: z.array(z.string()).describe(
+    "The actions to execute when this alarm transitions to the INSUFFICIENT_DATA state from any other state.",
   ).optional(),
+  QueryResultsToAlarm: z.number().int().describe(
+    "The number of query results that must be breaching to trigger the alarm.",
+  ),
   Tags: z.array(TagSchema).describe(
     "A list of key-value pairs to associate with the log alarm.",
   ).optional(),
+  Threshold: z.number().describe(
+    "The value to compare against the results of the scheduled query evaluation.",
+  ),
 });
 
 const StateSchema = z.object({
-  AlarmName: z.string(),
-  AlarmDescription: z.string().optional(),
-  ActionsEnabled: z.boolean().optional(),
-  OKActions: z.array(z.string()).optional(),
-  AlarmActions: z.array(z.string()).optional(),
-  InsufficientDataActions: z.array(z.string()).optional(),
-  Threshold: z.number().optional(),
   ComparisonOperator: z.string().optional(),
-  QueryResultsToEvaluate: z.number().optional(),
-  QueryResultsToAlarm: z.number().optional(),
   TreatMissingData: z.string().optional(),
   ScheduledQueryConfiguration: z.object({
-    QueryString: z.string(),
-    AggregationExpression: z.string(),
-    LogGroupIdentifiers: z.array(z.string()),
     ScheduledQueryRoleARN: z.string(),
     ScheduleConfiguration: ScheduleConfigurationSchema,
+    QueryString: z.string(),
+    LogGroupIdentifiers: z.array(z.string()),
     Tags: z.array(TagSchema),
+    AggregationExpression: z.string(),
   }).optional(),
+  QueryResultsToEvaluate: z.number().optional(),
+  OKActions: z.array(z.string()).optional(),
+  AlarmActions: z.array(z.string()).optional(),
+  ActionsEnabled: z.boolean().optional(),
+  ActionLogLineRoleArn: z.string().optional(),
+  AlarmName: z.string(),
+  AlarmDescription: z.string().optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number(),
     OnlyStartEvaluatingAfterWarmUpPeriodEnds: z.boolean(),
   }).optional(),
   ActionLogLineCount: z.number().optional(),
-  ActionLogLineRoleArn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  InsufficientDataActions: z.array(z.string()).optional(),
+  QueryResultsToAlarm: z.number().optional(),
   Arn: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
+  Threshold: z.number().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -185,12 +185,35 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  AlarmName: z.string().min(1).max(255).describe("The name of the log alarm.")
+  ComparisonOperator: z.string().describe(
+    "The arithmetic operation to use when comparing the specified threshold and the query results. Valid values are GreaterThanOrEqualToThreshold, GreaterThanThreshold, LessThanThreshold, and LessThanOrEqualToThreshold.",
+  ).optional(),
+  TreatMissingData: z.string().describe(
+    "Sets how this alarm is to handle missing data points. Valid values are breaching, notBreaching, ignore, and missing.",
+  ).optional(),
+  ScheduledQueryConfiguration: z.object({
+    ScheduledQueryRoleARN: z.string().describe(
+      "The ARN of the IAM role that grants permissions to execute the scheduled query.",
+    ).optional(),
+    ScheduleConfiguration: ScheduleConfigurationSchema.describe(
+      "The schedule configuration.",
+    ).optional(),
+    QueryString: z.string().describe(
+      "The query string to execute against the specified log groups.",
+    ).optional(),
+    LogGroupIdentifiers: z.array(z.string()).describe(
+      "The log groups to query.",
+    ).optional(),
+    Tags: z.array(TagSchema).describe(
+      "A list of key-value pairs to associate with the scheduled query that backs the log alarm.",
+    ).optional(),
+    AggregationExpression: z.string().max(2048).describe(
+      "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
+    ).optional(),
+  }).describe("The scheduled query configuration for the log alarm.")
     .optional(),
-  AlarmDescription: z.string().describe("The description of the log alarm.")
-    .optional(),
-  ActionsEnabled: z.boolean().describe(
-    "Indicates whether actions should be executed during any changes to the alarm state. The default is TRUE.",
+  QueryResultsToEvaluate: z.number().int().describe(
+    "The number of query results over which data is compared to the specified threshold.",
   ).optional(),
   OKActions: z.array(z.string()).describe(
     "The actions to execute when this alarm transitions to the OK state from any other state.",
@@ -198,44 +221,15 @@ const InputsSchema = z.object({
   AlarmActions: z.array(z.string()).describe(
     "The list of actions to execute when this alarm transitions into an ALARM state from any other state.",
   ).optional(),
-  InsufficientDataActions: z.array(z.string()).describe(
-    "The actions to execute when this alarm transitions to the INSUFFICIENT_DATA state from any other state.",
+  ActionsEnabled: z.boolean().describe(
+    "Indicates whether actions should be executed during any changes to the alarm state. The default is TRUE.",
   ).optional(),
-  Threshold: z.number().describe(
-    "The value to compare against the results of the scheduled query evaluation.",
+  ActionLogLineRoleArn: z.string().describe(
+    "The ARN of the IAM role that grants CloudWatch permissions to fetch log lines for alarm notifications. Required when ActionLogLineCount is greater than 0.",
   ).optional(),
-  ComparisonOperator: z.string().describe(
-    "The arithmetic operation to use when comparing the specified threshold and the query results. Valid values are GreaterThanOrEqualToThreshold, GreaterThanThreshold, LessThanThreshold, and LessThanOrEqualToThreshold.",
-  ).optional(),
-  QueryResultsToEvaluate: z.number().int().describe(
-    "The number of query results over which data is compared to the specified threshold.",
-  ).optional(),
-  QueryResultsToAlarm: z.number().int().describe(
-    "The number of query results that must be breaching to trigger the alarm.",
-  ).optional(),
-  TreatMissingData: z.string().describe(
-    "Sets how this alarm is to handle missing data points. Valid values are breaching, notBreaching, ignore, and missing.",
-  ).optional(),
-  ScheduledQueryConfiguration: z.object({
-    QueryString: z.string().describe(
-      "The query string to execute against the specified log groups.",
-    ).optional(),
-    AggregationExpression: z.string().max(2048).describe(
-      "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
-    ).optional(),
-    LogGroupIdentifiers: z.array(z.string()).describe(
-      "The log groups to query.",
-    ).optional(),
-    ScheduledQueryRoleARN: z.string().describe(
-      "The ARN of the IAM role that grants permissions to execute the scheduled query.",
-    ).optional(),
-    ScheduleConfiguration: ScheduleConfigurationSchema.describe(
-      "The schedule configuration.",
-    ).optional(),
-    Tags: z.array(TagSchema).describe(
-      "A list of key-value pairs to associate with the scheduled query that backs the log alarm.",
-    ).optional(),
-  }).describe("The scheduled query configuration for the log alarm.")
+  AlarmName: z.string().min(1).max(255).describe("The name of the log alarm.")
+    .optional(),
+  AlarmDescription: z.string().describe("The description of the log alarm.")
     .optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number().int().min(1).max(2880).describe(
@@ -250,11 +244,17 @@ const InputsSchema = z.object({
   ActionLogLineCount: z.number().int().min(0).max(50).describe(
     "The number of log lines to include in alarm notifications. Valid values are 0 to 50.",
   ).optional(),
-  ActionLogLineRoleArn: z.string().describe(
-    "The ARN of the IAM role that grants CloudWatch permissions to fetch log lines for alarm notifications. Required when ActionLogLineCount is greater than 0.",
+  InsufficientDataActions: z.array(z.string()).describe(
+    "The actions to execute when this alarm transitions to the INSUFFICIENT_DATA state from any other state.",
+  ).optional(),
+  QueryResultsToAlarm: z.number().int().describe(
+    "The number of query results that must be breaching to trigger the alarm.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of key-value pairs to associate with the log alarm.",
+  ).optional(),
+  Threshold: z.number().describe(
+    "The value to compare against the results of the scheduled query evaluation.",
   ).optional(),
 });
 
@@ -277,7 +277,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch LogAlarm. Registered at `@swamp/aws/cloudwatch/log-alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/log-alarm",
-  version: "2026.08.21.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.06.16.1",
@@ -307,6 +307,11 @@ export const model = {
     {
       toVersion: "2026.08.21.1",
       description: "Added: WarmUpConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

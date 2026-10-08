@@ -45,7 +45,7 @@ import {
   EventBridgeClient,
   PutEventsCommand,
   type PutEventsRequestEntry,
-} from "npm:@aws-sdk/client-eventbridge@3.1127.0";
+} from "npm:@aws-sdk/client-eventbridge@3.1147.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 
 const TagSchema = z.object({
@@ -260,7 +260,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.10.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -365,7 +365,7 @@ Deno.test("wrapAwsSmError: falls back to AWS_PROFILE when no profile is configur
 // shared classifier maps CredentialsProviderError to 'session-expired', which
 // would advise refreshing an SSO session for a profile that does not exist.
 // The message text is the SDK's own, verified against
-// @aws-sdk/credential-providers@3.1127.0.
+// @aws-sdk/credential-providers@3.1147.0.
 Deno.test("wrapAwsSmError: unresolvable profile reports profile-not-found", () => {
   const original = new Error(
     "Could not resolve credentials using profile: [missing-profile] in configuration/credentials file(s).",

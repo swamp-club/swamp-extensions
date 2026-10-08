@@ -3,9 +3,9 @@ import {
   assertStringIncludes,
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
-import { S3Client } from "npm:@aws-sdk/client-s3@3.1127.0";
-import { IAMClient } from "npm:@aws-sdk/client-iam@3.1127.0";
-import { STSClient } from "npm:@aws-sdk/client-sts@3.1127.0";
+import { S3Client } from "npm:@aws-sdk/client-s3@3.1147.0";
+import { IAMClient } from "npm:@aws-sdk/client-iam@3.1147.0";
+import { STSClient } from "npm:@aws-sdk/client-sts@3.1147.0";
 import {
   ensureBucket,
   ensurePolicy,

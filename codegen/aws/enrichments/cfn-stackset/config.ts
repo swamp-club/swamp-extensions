@@ -4,7 +4,7 @@ export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::CloudFormation::StackSet",
   npmImports: {
     "@aws-sdk/client-cloudformation":
-      "npm:@aws-sdk/client-cloudformation@3.1127.0",
+      "npm:@aws-sdk/client-cloudformation@3.1147.0",
   },
   customMethods: {
     sourceFile: new URL("./methods.ts", import.meta.url).pathname,

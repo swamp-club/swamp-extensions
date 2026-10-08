@@ -42,7 +42,7 @@ import {
   PutObjectCommand,
   type PutObjectCommandOutput,
   S3Client as AwsS3Client,
-} from "npm:@aws-sdk/client-s3@3.1127.0";
+} from "npm:@aws-sdk/client-s3@3.1147.0";
 import { Readable } from "node:stream";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { Attr, getTracer } from "./tracing.ts";

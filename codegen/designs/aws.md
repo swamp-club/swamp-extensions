@@ -140,6 +140,19 @@ Resources are grouped by the second segment of the CloudFormation type name:
 Each service produces an independent publishable extension package:
 `@swamp/aws/ec2`, `@swamp/aws/s3`, `@swamp/aws/lambda`, etc.
 
+### Dropped resources and services
+
+When a resource type leaves the CloudFormation schema (or loses its read
+handler), its `.ts` file under `extensions/models/` is deleted on the next run.
+When every type in a service leaves, the whole `model/aws/<service>/` directory
+is deleted (`pruneOrphanServices` in `codegen/commands/generate.ts`); otherwise
+it would sit in the repo forever, pinned to whatever SDK version it was last
+generated with. Service pruning only runs on an unfiltered `generate:aws`, only
+removes directories whose `manifest.yaml` carries the auto-generated header, and
+keeps any service that reported a generation error so it retains its last good
+output. Already-published versions stay in the registry; they just stop
+receiving updates.
+
 ### Why per-service splitting
 
 A single `@swamp/aws` package with 1300+ models would be impractical:

@@ -27,7 +27,7 @@ import {
   GetResourceRequestStatusCommand,
   ListResourcesCommand,
   UpdateResourceCommand,
-} from "npm:@aws-sdk/client-cloudcontrol@3.1127.0";
+} from "npm:@aws-sdk/client-cloudcontrol@3.1147.0";
 import jsonpatch from "npm:fast-json-patch@3.1.1";
 
 export interface AwsCredentials {

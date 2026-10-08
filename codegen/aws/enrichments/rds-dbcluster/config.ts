@@ -3,7 +3,7 @@ import type { AwsEnrichment } from "../types.ts";
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::RDS::DBCluster",
   npmImports: {
-    "@aws-sdk/client-rds": "npm:@aws-sdk/client-rds@3.1127.0",
+    "@aws-sdk/client-rds": "npm:@aws-sdk/client-rds@3.1147.0",
   },
   sourceFile: new URL("./enrich.ts", import.meta.url).pathname,
   functionExport: "enrichState",

@@ -42,6 +42,15 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const OTelEnrichmentMetricSelectorSchema = z.object({
+  Namespace: z.string().min(1).max(255).regex(new RegExp("^[^:].*$")).describe(
+    "The CloudWatch namespace this selector applies to.",
+  ),
+  MetricNames: z.array(z.string().min(1).max(255)).describe(
+    "Absent or empty means every metric in this namespace, in whichever direction this selector appears. Present means only these metric names.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -58,11 +67,19 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  IncludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).describe(
+    "Scopes enrichment to a subset of the account's telemetry. Absent or empty means all namespaces are in scope. Present means only these are. The service enforces a combined cap of 100 selectors across IncludeFilters and ExcludeFilters, and rejects more than one selector for the same namespace within a direction.",
+  ).optional(),
+  ExcludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).describe(
+    "Removes metrics from the include set. Absent or empty means nothing is removed. Evaluated after IncludeFilters, so ExcludeFilters always wins.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
   AccountId: z.string(),
   Status: z.string().optional(),
+  IncludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).optional(),
+  ExcludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -73,6 +90,12 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  IncludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).describe(
+    "Scopes enrichment to a subset of the account's telemetry. Absent or empty means all namespaces are in scope. Present means only these are. The service enforces a combined cap of 100 selectors across IncludeFilters and ExcludeFilters, and rejects more than one selector for the same namespace within a direction.",
+  ).optional(),
+  ExcludeFilters: z.array(OTelEnrichmentMetricSelectorSchema).describe(
+    "Removes metrics from the include set. Absent or empty means nothing is removed. Evaluated after IncludeFilters, so ExcludeFilters always wins.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -94,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch OTelEnrichment. Registered at `@swamp/aws/cloudwatch/otel-enrichment`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/otel-enrichment",
-  version: "2026.08.17.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -119,6 +142,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "Added: IncludeFilters, ExcludeFilters",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -44,7 +44,7 @@ import {
   DescribeDBClustersCommand,
   DescribeDBInstancesCommand,
   RDSClient,
-} from "npm:@aws-sdk/client-rds@3.1127.0";
+} from "npm:@aws-sdk/client-rds@3.1147.0";
 
 const DBClusterRoleSchema = z.object({
   FeatureName: z.string().describe(
@@ -778,7 +778,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.09.06.1",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -877,6 +877,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

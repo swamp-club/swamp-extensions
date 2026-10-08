@@ -25,7 +25,7 @@ export function generateAwsDenoConfig(
 ): string {
   const imports: Record<string, string> = {
     "zod": "npm:zod@4.3.6",
-    "@aws-sdk/client-cloudcontrol": "npm:@aws-sdk/client-cloudcontrol@3.1127.0",
+    "@aws-sdk/client-cloudcontrol": "npm:@aws-sdk/client-cloudcontrol@3.1147.0",
     "fast-json-patch": "npm:fast-json-patch@3.1.1",
     ...additionalImports,
   };

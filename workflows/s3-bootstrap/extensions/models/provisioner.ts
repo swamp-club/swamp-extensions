@@ -10,9 +10,9 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { IAMClient } from "npm:@aws-sdk/client-iam@3.1127.0";
-import { S3Client } from "npm:@aws-sdk/client-s3@3.1127.0";
-import { STSClient } from "npm:@aws-sdk/client-sts@3.1127.0";
+import { IAMClient } from "npm:@aws-sdk/client-iam@3.1147.0";
+import { S3Client } from "npm:@aws-sdk/client-s3@3.1147.0";
+import { STSClient } from "npm:@aws-sdk/client-sts@3.1147.0";
 import {
   ensureBucket,
   ensurePolicy,
@@ -31,7 +31,7 @@ import {
  */
 export const model = {
   type: "@swamp/s3-datastore-bootstrap/provisioner",
-  version: "2026.09.06.1",
+  version: "2026.10.08.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -61,6 +61,12 @@ export const model = {
     {
       toVersion: "2026.09.06.1",
       description: "Bump AWS SDK from 3.1090.0 to 3.1127.0. " +
+        "No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description: "Bump AWS SDK from 3.1127.0 to 3.1147.0. " +
         "No schema or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

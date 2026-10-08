@@ -24,12 +24,16 @@ export interface ManifestInput {
   platforms?: string[];
 }
 
+/** First line of every generated manifest; marks a directory as codegen output. */
+export const GENERATED_MANIFEST_HEADER =
+  "# Auto-generated manifest. Re-generate with the appropriate deno task.";
+
 /**
  * Generates a manifest.yaml string for a swamp extension.
  */
 export function generateManifest(input: ManifestInput): string {
   const lines: string[] = [
-    "# Auto-generated manifest. Re-generate with the appropriate deno task.",
+    GENERATED_MANIFEST_HEADER,
     `manifestVersion: 1`,
     `name: "${input.name}"`,
     `version: "${input.version}"`,

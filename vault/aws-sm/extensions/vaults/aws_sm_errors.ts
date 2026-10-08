@@ -74,7 +74,7 @@ export class AwsSmOperationError extends Error {
  * is actually configured; anything else falls through to the shared
  * classification untouched.
  */
-// Verified against @aws-sdk/credential-providers@3.1127.0, which produces:
+// Verified against @aws-sdk/credential-providers@3.1147.0, which produces:
 //   "Could not resolve credentials using profile: [name] in
 //    configuration/credentials file(s)."
 // The other alternatives cover wordings used elsewhere in the SDK's ini and

@@ -9,7 +9,7 @@ import {
   ListStackInstancesCommand,
   ListStackSetOperationsCommand,
   type StackInstanceFilter,
-} from "npm:@aws-sdk/client-cloudformation@3.1127.0";
+} from "npm:@aws-sdk/client-cloudformation@3.1147.0";
 import type { AwsCredentials } from "../../../../model/aws/cloudformation/extensions/models/_lib/aws.ts";
 
 export const StackInstanceOutputSchema = z.object({

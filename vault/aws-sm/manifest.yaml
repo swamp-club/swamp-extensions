@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.09.15.0"
+version: "2026.10.08.1"
 description: |
   Read, write, and delete secrets stored in AWS Secrets Manager, with support
   for vault annotations (`swamp vault annotate` / `swamp vault inspect`).

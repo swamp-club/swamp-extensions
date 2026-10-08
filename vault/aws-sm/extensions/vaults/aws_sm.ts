@@ -40,12 +40,12 @@ import {
   TagResourceCommand,
   UntagResourceCommand,
   UpdateSecretCommand,
-} from "npm:@aws-sdk/client-secrets-manager@3.1127.0";
+} from "npm:@aws-sdk/client-secrets-manager@3.1147.0";
 // Fully-qualified specifier, like every other import here: deno.json is not
 // published with the extension (manifest.yaml ships aws_sm.ts plus README and
 // LICENSE only), so a bare import-map name would resolve locally and fail for
 // every installed copy.
-import { fromIni } from "npm:@aws-sdk/credential-providers@3.1127.0";
+import { fromIni } from "npm:@aws-sdk/credential-providers@3.1147.0";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { AwsSmOperationError, wrapAwsSmError } from "./aws_sm_errors.ts";
 import { Attr, getTracer } from "./_lib/tracing.ts";

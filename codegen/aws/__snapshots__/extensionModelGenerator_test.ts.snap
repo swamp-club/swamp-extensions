@@ -1359,7 +1359,7 @@ snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
-import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1127.0";
+import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1147.0";
 
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
@@ -1562,7 +1562,7 @@ snapshot[`generateAwsExtensionModel - with modelMethods 1`] = `
 import { z } from \\"npm:zod@4.3.6\\";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from \\"./_lib/aws.ts\\";
 import type { AwsCredentials } from \\"./_lib/aws.ts\\";
-import { CloudFormationClient, ListStackInstancesCommand } from \\"npm:@aws-sdk/client-cloudformation@3.1127.0\\";
+import { CloudFormationClient, ListStackInstancesCommand } from \\"npm:@aws-sdk/client-cloudformation@3.1147.0\\";
 
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(\\"AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.\\").optional(),

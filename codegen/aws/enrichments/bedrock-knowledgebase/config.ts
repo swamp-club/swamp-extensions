@@ -4,7 +4,7 @@ export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::Bedrock::KnowledgeBase",
   npmImports: {
     "@aws-sdk/client-bedrock-agent-runtime":
-      "npm:@aws-sdk/client-bedrock-agent-runtime@3.1127.0",
+      "npm:@aws-sdk/client-bedrock-agent-runtime@3.1147.0",
     "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7",
   },
   customMethods: {

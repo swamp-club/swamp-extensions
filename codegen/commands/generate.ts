@@ -1,5 +1,6 @@
 // generate-models command implementation
 
+import { typeNameToServiceName } from "../aws/extensionModelGenerator.ts";
 import { generateAwsModels } from "../aws/pipeline.ts";
 import { generateCloudflareModels } from "../cloudflare/pipeline.ts";
 import { generateDigitalOceanModels } from "../digitalocean/pipeline.ts";
@@ -7,6 +8,7 @@ import { generateGcpModels } from "../gcp/pipeline.ts";
 import { generateHetznerModels } from "../hetzner/pipeline.ts";
 import { generateTailscaleModels } from "../tailscale/pipeline.ts";
 import { generateVercelModels } from "../vercel/pipeline.ts";
+import { GENERATED_MANIFEST_HEADER } from "../shared/manifestGenerator.ts";
 import { stripReleaseNotes } from "../shared/version.ts";
 
 /**
@@ -37,6 +39,47 @@ export async function pruneOrphanModels(
     // extensions/models/ doesn't exist yet — nothing to prune
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
+}
+
+/**
+ * Remove service directories in `providerDir` that generation no longer
+ * produces (every resource type in the service was dropped by the schema).
+ * `pruneOrphanModels` only cleans files inside services that still exist, so
+ * without this a fully dropped service sits in the repo forever, pinned to
+ * whatever dependencies it was last generated with. Only directories whose
+ * manifest carries the auto-generated header are removed; anything else is
+ * left alone. Callers include errored services in `keepServiceNames` so a
+ * service that failed to generate keeps its last good output, and skip this
+ * entirely on filtered runs, which only produce a subset of services.
+ * Returns the names of the removed directories.
+ */
+export async function pruneOrphanServices(
+  providerDir: string,
+  keepServiceNames: Set<string>,
+  label: string,
+): Promise<string[]> {
+  const removed: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(providerDir)) {
+      if (!entry.isDirectory || keepServiceNames.has(entry.name)) continue;
+      const serviceDir = `${providerDir}/${entry.name}`;
+      let manifest: string;
+      try {
+        manifest = await Deno.readTextFile(`${serviceDir}/manifest.yaml`);
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) continue;
+        throw error;
+      }
+      if (!manifest.startsWith(GENERATED_MANIFEST_HEADER)) continue;
+      await Deno.remove(serviceDir, { recursive: true });
+      removed.push(entry.name);
+      console.log(`  [${label}] removed orphan service: ${entry.name}`);
+    }
+  } catch (error) {
+    // The provider directory doesn't exist yet — nothing to prune
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  return removed.sort();
 }
 
 function modelFileNames(models: { filePath: string }[]): Set<string> {
@@ -467,6 +510,23 @@ async function generateAwsProvider(options: {
     }
   }
 
+  // Remove services whose every resource type left the schema. Only on an
+  // unfiltered run, and never for a service that had a generation error
+  // (errors are "<typeName>: <message>"), so it keeps its last good output.
+  let orphanServices: string[] = [];
+  if (!options.services || options.services.length === 0) {
+    const keep = new Set(services.keys());
+    for (const err of errors) {
+      const sep = err.indexOf(": ");
+      if (sep > 0) keep.add(typeNameToServiceName(err.slice(0, sep)));
+    }
+    orphanServices = await pruneOrphanServices(
+      `${options.outputDir}/aws`,
+      keep,
+      "aws",
+    );
+  }
+
   // Summarize skipped schemas by reason
   const skipsByReason = new Map<string, number>();
   for (const s of skipped) {
@@ -475,6 +535,7 @@ async function generateAwsProvider(options: {
 
   console.log(`\nGeneration complete!`);
   console.log(`  Services: ${services.size}`);
+  console.log(`  Orphaned services removed: ${orphanServices.length}`);
   console.log(
     `  Models: ${totalModelsChanged} changed, ${totalModelsUnchanged} unchanged`,
   );
