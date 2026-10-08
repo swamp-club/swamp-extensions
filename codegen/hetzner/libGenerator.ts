@@ -323,5 +323,119 @@ export async function postAction(
   const data = await resp.json();
   return unwrap(data);
 }
+
+/**
+ * Sleeps for the poll interval, capped at the time left before the deadline.
+ */
+async function sleepUntil(deadline: number, pollIntervalMs: number): Promise<void> {
+  const delay = Math.min(pollIntervalMs, Math.max(0, deadline - Date.now()));
+  if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+// Statuses a poll treats as "not yet": rate limiting and transient server
+// errors. The action may still complete on Hetzner's side, so polling keeps
+// going until the deadline instead of failing on the first one.
+const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
+
+/**
+ * GETs \`path\` for a poll loop, retrying transient statuses until the deadline
+ * (epoch milliseconds). Returns an OK or 404 response.
+ */
+async function pollGet(
+  path: string,
+  deadline: number,
+  token: string | undefined,
+  pollIntervalMs: number,
+): Promise<Response> {
+  for (;;) {
+    const resp = await request("GET", path, undefined, {
+      allowStatus: TRANSIENT_STATUSES,
+      token,
+    });
+    if (!TRANSIENT_STATUSES.includes(resp.status)) return resp;
+    const text = await resp.text();
+    if (Date.now() >= deadline) {
+      throw new Error(
+        \`Hetzner API error: GET \${path} still returned \${resp.status} at the deadline: \${text}\`,
+      );
+    }
+    await sleepUntil(deadline, pollIntervalMs);
+  }
+}
+
+/**
+ * Polls GET /actions/{id} until the action succeeds, errors, or the deadline
+ * (epoch milliseconds) passes. Throws on an \`error\` status, a 404, a reply
+ * without an action, or timeout. Rate limiting and 5xx are retried.
+ */
+export async function waitForAction(
+  actionId: number,
+  deadline: number,
+  token?: string,
+  pollIntervalMs = 2000,
+): Promise<Record<string, unknown>> {
+  let action: Record<string, unknown> = {};
+  for (;;) {
+    const path = \`/actions/\${actionId}\`;
+    const resp = await pollGet(path, deadline, token, pollIntervalMs);
+    if (resp.status === 404) {
+      const text = await resp.text();
+      throw new Error(
+        \`Action not found: GET \${path} returned 404: \${text}\`,
+      );
+    }
+    const data = await resp.json() as { action?: Record<string, unknown> };
+    if (!data.action) {
+      throw new Error(
+        \`GET \${path} returned no action: \${JSON.stringify(data)}\`,
+      );
+    }
+    action = data.action;
+    if (action.status === "success") return action;
+    if (action.status === "error") {
+      const err = action.error as { code?: string; message?: string } | undefined;
+      throw new Error(
+        \`Action \${actionId} (\${action.command}) failed: \${err?.code ?? "unknown"}: \${err?.message ?? "no message"}\`,
+      );
+    }
+    if (Date.now() >= deadline) break;
+    await sleepUntil(deadline, pollIntervalMs);
+  }
+  throw new Error(
+    \`Action \${actionId} (\${action.command}) timed out with status \${action.status}\`,
+  );
+}
+
+/**
+ * Re-reads a resource until its \`status\` equals \`target\` or the deadline
+ * (epoch milliseconds) passes. Returns the resource; throws on timeout with
+ * the last status seen, or on 404. Rate limiting and 5xx are retried.
+ */
+export async function waitForStatus(
+  endpoint: string,
+  id: number | string,
+  target: string,
+  deadline: number,
+  token?: string,
+  pollIntervalMs = 2000,
+): Promise<Record<string, unknown>> {
+  let resource: Record<string, unknown> = {};
+  for (;;) {
+    const resp = await pollGet(\`\${endpoint}/\${id}\`, deadline, token, pollIntervalMs);
+    if (resp.status === 404) {
+      const text = await resp.text();
+      throw new Error(
+        \`Resource not found: GET \${endpoint}/\${id} returned 404: \${text}\`,
+      );
+    }
+    resource = unwrap(await resp.json());
+    if (resource.status === target) return resource;
+    if (Date.now() >= deadline) break;
+    await sleepUntil(deadline, pollIntervalMs);
+  }
+  throw new Error(
+    \`Timed out waiting for \${endpoint}/\${id} to reach status \${target}; last status: \${resource.status}\`,
+  );
+}
 `;
 }

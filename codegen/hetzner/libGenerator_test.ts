@@ -27,6 +27,20 @@ interface HetznerLib {
     id: number | string,
     token?: string,
   ) => Promise<{ existed: boolean }>;
+  waitForAction: (
+    actionId: number,
+    deadline: number,
+    token?: string,
+    pollIntervalMs?: number,
+  ) => Promise<Record<string, unknown>>;
+  waitForStatus: (
+    endpoint: string,
+    id: number | string,
+    target: string,
+    deadline: number,
+    token?: string,
+    pollIntervalMs?: number,
+  ) => Promise<Record<string, unknown>>;
 }
 
 async function importFreshHetznerLib(): Promise<
@@ -512,6 +526,281 @@ Deno.test("listAll: surfaces a non-OK page response as an error", async () => {
           () => mod.listAll("/servers", undefined, "t"),
           Error,
           "returned 401",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// waitForAction / waitForStatus
+// ---------------------------------------------------------------------------
+
+function action(status: string, extra: Record<string, unknown> = {}): Response {
+  return jsonResponse(200, {
+    action: { id: 7, command: "start_server", status, ...extra },
+  });
+}
+
+Deno.test("waitForAction: polls a running action until success", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [okLocations(), action("running"), action("running"), action("success")],
+      async () => {
+        const result = await mod.waitForAction(
+          7,
+          Date.now() + 5000,
+          undefined,
+          1,
+        );
+        assertEquals(result.status, "success");
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: throws with the action error code and message", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [
+        okLocations(),
+        action("error", {
+          error: { code: "action_failed", message: "server is locked" },
+        }),
+      ],
+      async () => {
+        await assertRejects(
+          () => mod.waitForAction(7, Date.now() + 5000, undefined, 1),
+          Error,
+          "Action 7 (start_server) failed: action_failed: server is locked",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: throws action-not-found on 404", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [okLocations(), jsonResponse(404, { error: { code: "not_found" } })],
+      async () => {
+        await assertRejects(
+          () => mod.waitForAction(7, Date.now() + 5000, undefined, 1),
+          Error,
+          "Action not found: GET /actions/7 returned 404",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: times out when the deadline passes", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        new URL(req.url).pathname === "/v1/locations"
+          ? okLocations()
+          : action("running"),
+      async () => {
+        await assertRejects(
+          () => mod.waitForAction(7, Date.now() + 20, undefined, 5),
+          Error,
+          "Action 7 (start_server) timed out with status running",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForStatus: re-reads until the target status", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [
+        okLocations(),
+        jsonResponse(200, { server: { id: 1, status: "starting" } }),
+        jsonResponse(200, { server: { id: 1, status: "running" } }),
+      ],
+      async () => {
+        const result = await mod.waitForStatus(
+          "/servers",
+          1,
+          "running",
+          Date.now() + 5000,
+          undefined,
+          1,
+        );
+        assertEquals(result, { id: 1, status: "running" });
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForStatus: times out with the last status seen", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        new URL(req.url).pathname === "/v1/locations"
+          ? okLocations()
+          : jsonResponse(200, { server: { id: 1, status: "stopping" } }),
+      async () => {
+        await assertRejects(
+          () =>
+            mod.waitForStatus(
+              "/servers",
+              1,
+              "off",
+              Date.now() + 20,
+              undefined,
+              5,
+            ),
+          Error,
+          "Timed out waiting for /servers/1 to reach status off; last status: stopping",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: keeps polling through 429 and 5xx", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [
+        okLocations(),
+        jsonResponse(429, { error: { code: "rate_limit_exceeded" } }),
+        jsonResponse(503, { error: { code: "unavailable" } }),
+        action("success"),
+      ],
+      async () => {
+        const result = await mod.waitForAction(
+          7,
+          Date.now() + 5000,
+          undefined,
+          1,
+        );
+        assertEquals(result.status, "success");
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: a transient status at the deadline surfaces it", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        new URL(req.url).pathname === "/v1/locations"
+          ? okLocations()
+          : jsonResponse(429, { error: { code: "rate_limit_exceeded" } }),
+      async () => {
+        await assertRejects(
+          () => mod.waitForAction(7, Date.now() + 20, undefined, 5),
+          Error,
+          "GET /actions/7 still returned 429 at the deadline",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForAction: a reply without an action throws at once", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [okLocations(), jsonResponse(200, {})],
+      async () => {
+        await assertRejects(
+          () => mod.waitForAction(7, Date.now() + 5000, undefined, 1),
+          Error,
+          "GET /actions/7 returned no action",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("waitForStatus: keeps polling through a 502 and throws on 404", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchQueue(
+      [
+        okLocations(),
+        jsonResponse(502, { error: { code: "bad_gateway" } }),
+        jsonResponse(200, { server: { id: 1, status: "off" } }),
+      ],
+      async () => {
+        const result = await mod.waitForStatus(
+          "/servers",
+          1,
+          "off",
+          Date.now() + 5000,
+          undefined,
+          1,
+        );
+        assertEquals(result, { id: 1, status: "off" });
+      },
+    );
+    await withFetchQueue(
+      [jsonResponse(404, { error: { code: "not_found" } })],
+      async () => {
+        await assertRejects(
+          () =>
+            mod.waitForStatus(
+              "/servers",
+              1,
+              "off",
+              Date.now() + 5000,
+              undefined,
+              1,
+            ),
+          Error,
+          "Resource not found: GET /servers/1 returned 404",
         );
       },
     );

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { extractListFilters } from "./pipeline.ts";
+import { extractListFilters, parseResources } from "./pipeline.ts";
 
 Deno.test("extractListFilters: keeps filters, drops pagination/sort/label_selector, sorted by name", () => {
   const spec = {
@@ -92,5 +92,41 @@ Deno.test("extractListFilters: skips unsupported parameter shapes", () => {
     assertEquals(warnings.length, 2);
   } finally {
     console.warn = originalWarn;
+  }
+});
+
+Deno.test("parseResources: captures server power actions, skips non-allowlisted actions", () => {
+  const ok = { responses: { "200": {} } };
+  const spec = {
+    paths: {
+      "/servers": { get: ok },
+      "/servers/{id}": { get: ok },
+      "/servers/{id}/actions/poweron": { post: ok },
+      "/servers/{id}/actions/shutdown": { post: ok },
+      "/servers/{id}/actions/poweroff": { post: ok },
+      "/servers/{id}/actions/reboot": { post: ok },
+      "/servers/{id}/actions/reset": { post: ok },
+      "/servers/{id}/actions/change_protection": { post: ok },
+      "/servers/{id}/actions/rebuild": { post: ok },
+      "/servers/actions/{id}": { get: ok },
+    },
+  };
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    const resources = parseResources(
+      spec as unknown as Parameters<typeof parseResources>[0],
+    );
+    const servers = resources.find((r) => r.noun === "servers");
+    assertEquals(servers?.actions, [
+      "change_protection",
+      "poweroff",
+      "poweron",
+      "reboot",
+      "reset",
+      "shutdown",
+    ]);
+  } finally {
+    console.log = originalLog;
   }
 });

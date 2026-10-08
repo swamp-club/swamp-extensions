@@ -8,10 +8,11 @@ a self-contained TypeScript file that exports a `model` object with Zod schemas
 and CRUD methods. A shared `_lib/hetzner.ts` file provides the HTTP client and
 response unwrapping logic.
 
-Compared to the DigitalOcean provider, the Hetzner pipeline is simpler: no
-action methods, no sub-resource methods, no discovery endpoints, no identifier
-mapping. Hetzner's API is more uniform — all resources use numeric `id`, updates
-are always PUT, and the spec is already self-contained JSON.
+Compared to the DigitalOcean provider, the Hetzner pipeline is simpler: only an
+allowlist of action methods (see Section 11), no sub-resource methods, no
+discovery endpoints, no identifier mapping. Hetzner's API is more uniform — all
+resources use numeric `id`, updates are always PUT, and the spec is already
+self-contained JSON.
 
 **Output**: `outputs/hetzner-cloud/` containing:
 
@@ -113,10 +114,10 @@ operations — a GET-only resource gets `list` and `get` but no `create`,
 
 ### Exclusion rules
 
-| Rule                                      | Rationale                                                                                                                                                                                           |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Selectively parse `/actions` paths        | Allowlisted actions (`change_protection`, `set_rules`, `apply_to_resources`, `remove_from_resources`) are captured per resource; all other action endpoints (e.g., `poweron`, `reboot`) are skipped |
-| Skip paths with >1 segment after the noun | Deep sub-resources (e.g., `/servers/{id}/metrics`) don't fit the flat model pattern; only `/{noun}` and `/{noun}/{id}` are processed                                                                |
+| Rule                                      | Rationale                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Selectively parse `/actions` paths        | Allowlisted actions (`change_protection`, `set_rules`, `apply_to_resources`, `remove_from_resources`, and the server power actions `poweron`, `shutdown`, `poweroff`, `reboot`, `reset`) are captured per resource; all other action endpoints (e.g., `rebuild`, `rescue`) are skipped |
+| Skip paths with >1 segment after the noun | Deep sub-resources (e.g., `/servers/{id}/metrics`) don't fit the flat model pattern; only `/{noun}` and `/{noun}/{id}` are processed                                                                                                                                                   |
 
 ### What Hetzner doesn't need
 
@@ -721,8 +722,8 @@ establishes a cross-provider standard.
 ### Action methods
 
 Selected Hetzner `/actions/` endpoints are exposed as model methods. The
-pipeline uses an allowlist (`ALLOWED_ACTIONS`) to capture only management-
-relevant actions, not operational ones (power_on, reboot, etc.):
+pipeline uses an allowlist (`ALLOWED_ACTIONS`) to capture only the actions the
+generator has a template for:
 
 - **`change_protection`** — servers (`{delete, rebuild}`) and primary IPs
   (`{delete}`). Reads existing state for the resource ID, POSTs to the action
@@ -733,6 +734,40 @@ relevant actions, not operational ones (power_on, reboot, etc.):
 - **`apply_to_resources`** / **`remove_from_resources`** — firewalls only. Adds
   or removes firewall attachments to servers or label selectors.
 
+- **Power methods** — servers only (swamp-club #3140): `poweron`, `shutdown`
+  (graceful ACPI), `poweroff` (hard), `reboot` (graceful) and `reset` (hard).
+  They come from one table (`POWER_ACTIONS` in `extensionModelGenerator.ts`) and
+  are emitted only when the noun is `servers`, since the allowlist matches by
+  action name alone. Each takes an optional `timeoutSeconds` and:
+  1. loads stored state for the server id, then reads the live server, so the
+     decision never rests on stale state;
+  2. treats a no-op as success: `poweron` on a `running` server, or
+     `poweroff`/`shutdown` on an `off` server, writes the fresh state and
+     returns without POSTing, so workflows can call them unconditionally;
+  3. rejects `reboot`/`reset` unless the server is `running`, naming the current
+     status;
+  4. POSTs the action with an empty body, then `waitForAction` and
+     `waitForStatus` share one deadline of `timeoutSeconds` from the start;
+  5. writes the server read by the final status wait as state.
+
+  | Method   | No-op when | Requires  | Waits for | Default timeout |
+  | -------- | ---------- | --------- | --------- | --------------- |
+  | poweron  | `running`  | —         | `running` | 120s            |
+  | shutdown | `off`      | —         | `off`     | 300s            |
+  | poweroff | `off`      | —         | `off`     | 120s            |
+  | reboot   | —          | `running` | `running` | 300s            |
+  | reset    | —          | `running` | `running` | 120s            |
+
+  Hetzner marks a `shutdown` action successful once the ACPI signal is sent, not
+  once the guest is off, so the status wait is what confirms it; a timeout there
+  says the guest may not have honoured ACPI and suggests `poweroff`. `reboot`
+  and `reset` normally stay `running`, so they complete when the action succeeds
+  — not when the guest is ready. A reply with no action id throws rather than
+  polling. Hetzner `locked`/`conflict` errors (another action in progress,
+  common right after `create`) surface as thrown request errors without retry.
+  In-between states (`starting`, `stopping`) are not special-cased: the action
+  is sent and Hetzner's answer surfaces as-is.
+
 The action body schemas are templated per action type (not auto-generated from
 the OpenAPI spec) since there are few action types in the allowlist and their
 schemas are stable. The pipeline only detects which actions each resource
@@ -741,7 +776,7 @@ supports.
 ### Shared lib (`_lib/hetzner.ts`)
 
 Exports: `create`, `read`, `tryRead`, `listAll`, `update`, `remove`,
-`postAction`
+`postAction`, `waitForAction`, `waitForStatus`
 
 Key behaviors:
 
@@ -767,7 +802,17 @@ Key behaviors:
   (collection arrays) — see Section 7
 - `postAction()` POSTs to `/{endpoint}/{id}/actions/{action}` with a JSON body
   and returns the unwrapped response; used by `change_protection`, `set_rules`,
-  `apply_to_resources`, and `remove_from_resources` methods
+  `apply_to_resources`, and `remove_from_resources` methods, and the server
+  power methods
+- `waitForAction()` polls `GET /actions/{id}` every 2s until the action is
+  `success`, throwing on `error` (with the action's error code and message), on
+  404, on a reply with no `action`, or when the deadline (epoch milliseconds)
+  passes. `waitForStatus()` re-reads a resource until its `status` equals the
+  target, throwing on 404 or on timeout with the last status seen. Both treat
+  429 and 5xx as "not yet" and keep polling until the deadline, since the action
+  may still complete on Hetzner's side; a transient status still present at the
+  deadline is surfaced. Both cap each sleep at the time left before the
+  deadline, and take an optional poll interval that only tests pass
 - No `subResourceUpdate` or `discover` exports (Hetzner doesn't need them)
 
 #### `remove()` retry on `resource_in_use` (swamp-club #41)

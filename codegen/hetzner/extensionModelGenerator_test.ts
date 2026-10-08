@@ -855,6 +855,97 @@ Deno.test("emits change_protection with delete-only for non-servers", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Behavior: server power methods
+// ---------------------------------------------------------------------------
+
+const POWER = ["poweron", "shutdown", "poweroff", "reboot", "reset"];
+
+Deno.test("emits each server power method only when its action is present", () => {
+  const resource = serversResource();
+  resource.actions = ["poweron", "reboot"];
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(out, "poweron: {");
+  assertStringIncludes(out, "reboot: {");
+  for (const missing of ["shutdown", "poweroff", "reset"]) {
+    assertFalse(out.includes(`${missing}: {`), `no ${missing} without action`);
+  }
+  assertStringIncludes(out, "waitForAction");
+  assertStringIncludes(out, "waitForStatus");
+});
+
+Deno.test("emits no power methods or wait imports without power actions", () => {
+  const resource = serversResource();
+  resource.actions = ["change_protection"];
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  for (const method of POWER) {
+    assertFalse(out.includes(`${method}: {`), `no ${method}`);
+  }
+  assertFalse(out.includes("waitForAction"), "no waitForAction import");
+});
+
+Deno.test("does not emit power methods on a non-server resource", () => {
+  const resource = makeResource({
+    noun: "load_balancers",
+    modelSlug: "load-balancers",
+    fileName: "load_balancers.ts",
+    createProperties: { name: stringProp },
+    resourceProperties: { id: intProp, name: stringProp },
+    actions: ["reset"],
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertFalse(out.includes("reset: {"), "power methods are servers-only");
+  assertFalse(out.includes("waitForStatus"), "no wait imports");
+});
+
+Deno.test("power methods: guards, default timeouts and shutdown hint", () => {
+  const resource = serversResource();
+  resource.actions = [...POWER].sort();
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  const block = (method: string): string => {
+    const start = out.indexOf(`    ${method}: {`);
+    assert(start >= 0, `${method} emitted`);
+    const end = out.indexOf("\n    },\n", start);
+    return out.slice(start, end);
+  };
+  assertStringIncludes(block("poweron"), 'if (current.status === "running")');
+  assertStringIncludes(block("poweroff"), 'if (current.status === "off")');
+  assertStringIncludes(block("shutdown"), 'if (current.status === "off")');
+  assertStringIncludes(block("reboot"), 'if (current.status !== "running")');
+  assertStringIncludes(block("reset"), 'if (current.status !== "running")');
+  assertStringIncludes(block("shutdown"), "args.timeoutSeconds ?? 300");
+  assertStringIncludes(block("poweroff"), "args.timeoutSeconds ?? 120");
+  assertStringIncludes(block("shutdown"), "use poweroff to force it off");
+  assertFalse(
+    block("poweroff").includes("use poweroff"),
+    "hint is shutdown-only",
+  );
+  assertStringIncludes(
+    block("reset"),
+    'postAction("/servers", existing.id, "reset", {}, g.token)',
+  );
+  assertStringIncludes(block("reboot"), "returned no action id");
+  for (const method of POWER) {
+    assertFalse(block(method).includes("id: z.number()"), "no id argument");
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Behavior: firewall action methods
 // ---------------------------------------------------------------------------
 

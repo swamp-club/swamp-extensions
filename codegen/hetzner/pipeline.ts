@@ -413,6 +413,12 @@ const ALLOWED_ACTIONS = new Set([
   "set_rules",
   "apply_to_resources",
   "remove_from_resources",
+  // Server power actions
+  "poweron",
+  "shutdown",
+  "poweroff",
+  "reboot",
+  "reset",
 ]);
 
 // Resources whose naming field repeats across distinct resources, so the name
@@ -492,7 +498,7 @@ export function extractListFilters(
  * Parse the Hetzner OpenAPI spec, group endpoints by noun,
  * and extract resource definitions.
  */
-function parseResources(spec: OApiSpec): HetznerResource[] {
+export function parseResources(spec: OApiSpec): HetznerResource[] {
   const paths: Record<string, Record<string, OApiOperation>> = spec.paths ??
     {};
 

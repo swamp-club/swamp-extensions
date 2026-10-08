@@ -463,3 +463,381 @@ Deno.test({
     }
   },
 });
+
+// ---------------------------------------------------------------------------
+// Server power methods
+// ---------------------------------------------------------------------------
+
+// How the mock answers the next power action POST.
+type PowerMode =
+  | "ok" // action succeeds and the server reaches the action's target
+  | "stuck" // action succeeds but the status never changes
+  | "no-action" // response has no action object
+  | "no-id" // action object without an id
+  | "action-error" // action ends in status error
+  | "action-404" // GET /actions/{id} returns 404
+  | "deleted" // server disappears while waiting
+  | "action-stuck"; // action never leaves status running
+
+function createMockPowerServer(): {
+  port: number;
+  close: () => Promise<void>;
+  requests: MockRequest[];
+  server: { status: string; exists: boolean; mode: PowerMode };
+} {
+  const requests: MockRequest[] = [];
+  const state = { status: "off", exists: true, mode: "ok" as PowerMode };
+  const targets: Record<string, string> = {
+    poweron: "running",
+    shutdown: "off",
+    poweroff: "off",
+    reboot: "running",
+    reset: "running",
+  };
+
+  const server = Deno.serve(
+    { port: 0, onListen: () => {} },
+    async (req) => {
+      const url = new URL(req.url);
+      const path = url.pathname;
+      const text = await req.text();
+      requests.push({
+        method: req.method,
+        path,
+        query: url.searchParams,
+        body: text ? JSON.parse(text) : undefined,
+      });
+
+      if (req.method === "GET" && path === "/v1/locations") {
+        return Response.json({ locations: [] });
+      }
+      if (req.method === "GET" && path === "/v1/servers/2") {
+        if (!state.exists) {
+          return Response.json({ error: { code: "not_found" } }, {
+            status: 404,
+          });
+        }
+        return Response.json({
+          server: { id: 2, name: "pw-1", status: state.status },
+        });
+      }
+      const post = path.match(/^\/v1\/servers\/2\/actions\/([a-z]+)$/);
+      if (req.method === "POST" && post) {
+        switch (state.mode) {
+          case "no-action":
+            return Response.json({});
+          case "no-id":
+            return Response.json({ action: { status: "running" } });
+          case "action-error":
+            return Response.json({ action: { id: 51, status: "running" } });
+          case "action-404":
+            return Response.json({ action: { id: 52, status: "running" } });
+          case "action-stuck":
+            return Response.json({ action: { id: 53, status: "running" } });
+          case "deleted":
+            state.exists = false;
+            return Response.json({ action: { id: 50, status: "running" } });
+          case "stuck":
+            return Response.json({ action: { id: 50, status: "running" } });
+          default:
+            state.status = targets[post[1]];
+            return Response.json({ action: { id: 50, status: "running" } });
+        }
+      }
+      if (req.method === "GET" && path === "/v1/actions/50") {
+        return Response.json({
+          action: { id: 50, command: "power", status: "success" },
+        });
+      }
+      if (req.method === "GET" && path === "/v1/actions/53") {
+        return Response.json({
+          action: { id: 53, command: "shutdown_server", status: "running" },
+        });
+      }
+      if (req.method === "GET" && path === "/v1/actions/51") {
+        return Response.json({
+          action: {
+            id: 51,
+            command: "start_server",
+            status: "error",
+            error: { code: "action_failed", message: "server is locked" },
+          },
+        });
+      }
+      return Response.json({ error: { code: "not_found" } }, { status: 404 });
+    },
+  );
+
+  const addr = server.addr as Deno.NetAddr;
+  return {
+    port: addr.port,
+    close: () => server.shutdown(),
+    requests,
+    server: state,
+  };
+}
+
+/** A mock context whose data repository holds stored state for the server. */
+function createStoredStateContext(
+  globalArgs: Record<string, unknown>,
+  stored?: Record<string, unknown>,
+) {
+  const { context, written } = createMockContext(globalArgs);
+  return {
+    context: {
+      ...context,
+      modelType: "@swamp/hetzner-cloud/servers",
+      modelId: "test",
+      dataRepository: {
+        getContent: () =>
+          Promise.resolve(
+            stored
+              ? new TextEncoder().encode(JSON.stringify(stored))
+              : undefined,
+          ),
+      },
+    },
+    written,
+  };
+}
+
+Deno.test({
+  name: "servers: power methods skip no-ops, guard state, wait and refresh",
+  // The generated lib is imported dynamically and its fetches outlive a single
+  // test step.
+  sanitizeResources: false,
+  async fn(t) {
+    const mock = createMockPowerServer();
+    const origToken = Deno.env.get("HETZNER_API_TOKEN");
+    let redirect: { restore: () => void } | undefined;
+    let cleanup: (() => Promise<void>) | undefined;
+
+    try {
+      redirect = redirectFetchToMock(mock.port);
+      Deno.env.delete("HETZNER_API_TOKEN");
+      const generated = await importGeneratedModel({
+        ...serversResource,
+        resourceProperties: {
+          ...serversResource.resourceProperties,
+          status: { type: "string" },
+        },
+        actions: ["poweroff", "poweron", "reboot", "reset", "shutdown"],
+      });
+      cleanup = generated.cleanup;
+      const model = generated.model;
+      const stored = { id: 2, name: "pw-1" };
+      const run = (method: string, args: Record<string, unknown> = {}) => {
+        const { context, written } = createStoredStateContext(
+          { name: "pw-1", token: "p1" },
+          stored,
+        );
+        return {
+          written,
+          done: model.methods[method].execute(args, context),
+        };
+      };
+      const posts = () =>
+        mock.requests.filter((r) =>
+          r.method === "POST" && r.path.includes("/actions/")
+        );
+      const reset = (status: string, mode: PowerMode = "ok") => {
+        mock.server.status = status;
+        mock.server.exists = true;
+        mock.server.mode = mode;
+        mock.requests.length = 0;
+      };
+
+      await t.step(
+        "poweron on an off server posts, waits and writes running",
+        async () => {
+          reset("off");
+          const { written, done } = run("poweron");
+          await done;
+          assertEquals(posts().map((r) => r.path), [
+            "/v1/servers/2/actions/poweron",
+          ]);
+          assertEquals(posts()[0].body, {});
+          assertEquals(
+            mock.requests.some((r) => r.path === "/v1/actions/50"),
+            true,
+          );
+          assertEquals(written.get("pw-1"), {
+            id: 2,
+            name: "pw-1",
+            status: "running",
+          });
+        },
+      );
+
+      await t.step(
+        "poweron on a running server only refreshes state",
+        async () => {
+          reset("running");
+          const { written, done } = run("poweron");
+          await done;
+          assertEquals(posts().length, 0);
+          assertEquals(written.get("pw-1"), {
+            id: 2,
+            name: "pw-1",
+            status: "running",
+          });
+        },
+      );
+
+      await t.step(
+        "poweroff and shutdown on an off server are no-ops",
+        async () => {
+          for (const method of ["poweroff", "shutdown"]) {
+            reset("off");
+            await run(method).done;
+            assertEquals(posts().length, 0, method);
+          }
+        },
+      );
+
+      await t.step("shutdown on a running server waits for off", async () => {
+        reset("running");
+        const { written, done } = run("shutdown");
+        await done;
+        assertEquals(posts().map((r) => r.path), [
+          "/v1/servers/2/actions/shutdown",
+        ]);
+        assertEquals((written.get("pw-1") as { status: string }).status, "off");
+      });
+
+      await t.step(
+        "shutdown that never reaches off suggests poweroff",
+        async () => {
+          reset("running", "stuck");
+          await assertRejects(
+            () => run("shutdown", { timeoutSeconds: 1 }).done,
+            Error,
+            "use poweroff to force it off",
+          );
+        },
+      );
+
+      await t.step(
+        "a shutdown action that never finishes also suggests poweroff",
+        async () => {
+          reset("running", "action-stuck");
+          await assertRejects(
+            () => run("shutdown", { timeoutSeconds: 1 }).done,
+            Error,
+            "timed out with status running. The guest may not have honoured",
+          );
+        },
+      );
+
+      await t.step("reboot and reset require a running server", async () => {
+        for (const method of ["reboot", "reset"]) {
+          reset("off");
+          await assertRejects(
+            () => run(method).done,
+            Error,
+            `${method} requires the server to be running; current status: off`,
+          );
+          assertEquals(posts().length, 0, method);
+        }
+      });
+
+      await t.step(
+        "reset on a running server posts and refreshes",
+        async () => {
+          reset("running");
+          const { written, done } = run("reset");
+          await done;
+          assertEquals(posts().map((r) => r.path), [
+            "/v1/servers/2/actions/reset",
+          ]);
+          assertEquals(
+            (written.get("pw-1") as { status: string }).status,
+            "running",
+          );
+        },
+      );
+
+      await t.step(
+        "an action ending in error surfaces its message",
+        async () => {
+          reset("off", "action-error");
+          await assertRejects(
+            () => run("poweron").done,
+            Error,
+            "failed: action_failed: server is locked",
+          );
+        },
+      );
+
+      await t.step(
+        "a reply without an action or an id throws without polling",
+        async () => {
+          for (const mode of ["no-action", "no-id"] as const) {
+            reset("off", mode);
+            await assertRejects(
+              () => run("poweron").done,
+              Error,
+              "poweron returned no action id",
+            );
+            assertEquals(
+              mock.requests.some((r) => r.path.startsWith("/v1/actions/")),
+              false,
+              mode,
+            );
+          }
+        },
+      );
+
+      await t.step(
+        "an action that returns 404 throws action-not-found",
+        async () => {
+          reset("off", "action-404");
+          await assertRejects(
+            () => run("poweron").done,
+            Error,
+            "Action not found: GET /actions/52 returned 404",
+          );
+        },
+      );
+
+      await t.step(
+        "a server deleted mid-wait surfaces resource-not-found",
+        async () => {
+          reset("running", "deleted");
+          await assertRejects(
+            () => run("poweroff").done,
+            Error,
+            "Resource not found: GET /servers/2 returned 404",
+          );
+        },
+      );
+
+      await t.step(
+        "a power method with no stored state asks for lookup first",
+        async () => {
+          reset("off");
+          const { context } = createStoredStateContext({
+            name: "pw-1",
+            token: "p1",
+          });
+          await assertRejects(
+            () => model.methods.poweron.execute({}, context),
+            Error,
+            "No data found - run create, lookup, or adopt first",
+          );
+          assertEquals(mock.requests.length, 0);
+        },
+      );
+    } finally {
+      // Restore globals first so a failing cleanup cannot leak them.
+      redirect?.restore();
+      if (origToken === undefined) Deno.env.delete("HETZNER_API_TOKEN");
+      else Deno.env.set("HETZNER_API_TOKEN", origToken);
+      try {
+        await cleanup?.();
+      } finally {
+        await mock.close();
+      }
+    }
+  },
+});

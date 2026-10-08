@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for a Hetzner Cloud server.
  *
- * Wraps the `/servers` API as a swamp model so create, get, update, delete, sync, list, lookup, adopt, change_protection
+ * Wraps the `/servers` API as a swamp model so create, get, update, delete, sync, list, lookup, adopt, change_protection, poweroff, poweron, reboot, reset, shutdown
  * can be driven through `swamp model`.
  *
  * @module
@@ -40,6 +40,8 @@ import {
   remove,
   tryRead,
   update,
+  waitForAction,
+  waitForStatus,
 } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
@@ -210,7 +212,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud server. Registered at `@swamp/hetzner-cloud/servers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/servers",
-  version: "2026.09.29.2",
+  version: "2026.10.08.1",
   upgrades: [
     {
       toVersion: "2026.04.02.1",
@@ -292,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -640,6 +647,355 @@ export const model = {
         const result = await read(
           "/servers",
           existing.id,
+          g.token,
+        ) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    poweron: {
+      description:
+        "Power on the server and wait until it is running. Does nothing if it is already running.",
+      arguments: z.object({
+        timeoutSeconds: z.number().int().positive().describe(
+          "Seconds to wait for the server to finish (default 120)",
+        ).optional(),
+      }),
+      execute: async (args: { timeoutSeconds?: number }, context: any) => {
+        const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("poweron requires global argument: name");
+        }
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, lookup, or adopt first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const deadline = Date.now() + (args.timeoutSeconds ?? 120) * 1000;
+        const current = await read(
+          "/servers",
+          existing.id,
+          g.token,
+        ) as ResourceData;
+        if (current.status === "running") {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            current,
+          );
+          return { dataHandles: [handle] };
+        }
+        const response = await postAction(
+          "/servers",
+          existing.id,
+          "poweron",
+          {},
+          g.token,
+        );
+        const action = response.action as { id?: unknown } | undefined;
+        if (typeof action?.id !== "number") {
+          throw new Error(
+            `poweron returned no action id: ${JSON.stringify(response)}`,
+          );
+        }
+        await waitForAction(action.id, deadline, g.token);
+        const result = await waitForStatus(
+          "/servers",
+          existing.id,
+          "running",
+          deadline,
+          g.token,
+        ) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    shutdown: {
+      description:
+        "Gracefully shut down the server (ACPI) and wait until it is off. Does nothing if it is already off. Depends on the guest OS honouring ACPI; use poweroff to force it.",
+      arguments: z.object({
+        timeoutSeconds: z.number().int().positive().describe(
+          "Seconds to wait for the server to finish (default 300)",
+        ).optional(),
+      }),
+      execute: async (args: { timeoutSeconds?: number }, context: any) => {
+        const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("shutdown requires global argument: name");
+        }
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, lookup, or adopt first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const deadline = Date.now() + (args.timeoutSeconds ?? 300) * 1000;
+        const current = await read(
+          "/servers",
+          existing.id,
+          g.token,
+        ) as ResourceData;
+        if (current.status === "off") {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            current,
+          );
+          return { dataHandles: [handle] };
+        }
+        const response = await postAction(
+          "/servers",
+          existing.id,
+          "shutdown",
+          {},
+          g.token,
+        );
+        const action = response.action as { id?: unknown } | undefined;
+        if (typeof action?.id !== "number") {
+          throw new Error(
+            `shutdown returned no action id: ${JSON.stringify(response)}`,
+          );
+        }
+        let result: ResourceData;
+        try {
+          await waitForAction(action.id, deadline, g.token);
+          result = await waitForStatus(
+            "/servers",
+            existing.id,
+            "off",
+            deadline,
+            g.token,
+          ) as ResourceData;
+        } catch (e) {
+          if (e instanceof Error && /timed out/i.test(e.message)) {
+            throw new Error(
+              `${e.message}. The guest may not have honoured the ACPI shutdown; use poweroff to force it off`,
+            );
+          }
+          throw e;
+        }
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    poweroff: {
+      description:
+        "Hard power off the server and wait until it is off. Does nothing if it is already off.",
+      arguments: z.object({
+        timeoutSeconds: z.number().int().positive().describe(
+          "Seconds to wait for the server to finish (default 120)",
+        ).optional(),
+      }),
+      execute: async (args: { timeoutSeconds?: number }, context: any) => {
+        const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("poweroff requires global argument: name");
+        }
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, lookup, or adopt first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const deadline = Date.now() + (args.timeoutSeconds ?? 120) * 1000;
+        const current = await read(
+          "/servers",
+          existing.id,
+          g.token,
+        ) as ResourceData;
+        if (current.status === "off") {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            current,
+          );
+          return { dataHandles: [handle] };
+        }
+        const response = await postAction(
+          "/servers",
+          existing.id,
+          "poweroff",
+          {},
+          g.token,
+        );
+        const action = response.action as { id?: unknown } | undefined;
+        if (typeof action?.id !== "number") {
+          throw new Error(
+            `poweroff returned no action id: ${JSON.stringify(response)}`,
+          );
+        }
+        await waitForAction(action.id, deadline, g.token);
+        const result = await waitForStatus(
+          "/servers",
+          existing.id,
+          "off",
+          deadline,
+          g.token,
+        ) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    reboot: {
+      description:
+        "Gracefully reboot the server (ACPI). The server must be running. Completes when Hetzner reports the action successful, not when the guest is ready.",
+      arguments: z.object({
+        timeoutSeconds: z.number().int().positive().describe(
+          "Seconds to wait for the server to finish (default 300)",
+        ).optional(),
+      }),
+      execute: async (args: { timeoutSeconds?: number }, context: any) => {
+        const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("reboot requires global argument: name");
+        }
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, lookup, or adopt first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const deadline = Date.now() + (args.timeoutSeconds ?? 300) * 1000;
+        const current = await read(
+          "/servers",
+          existing.id,
+          g.token,
+        ) as ResourceData;
+        if (current.status !== "running") {
+          throw new Error(
+            `reboot requires the server to be running; current status: ${current.status}`,
+          );
+        }
+        const response = await postAction(
+          "/servers",
+          existing.id,
+          "reboot",
+          {},
+          g.token,
+        );
+        const action = response.action as { id?: unknown } | undefined;
+        if (typeof action?.id !== "number") {
+          throw new Error(
+            `reboot returned no action id: ${JSON.stringify(response)}`,
+          );
+        }
+        await waitForAction(action.id, deadline, g.token);
+        const result = await waitForStatus(
+          "/servers",
+          existing.id,
+          "running",
+          deadline,
+          g.token,
+        ) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    reset: {
+      description:
+        "Hard reset the server. The server must be running. Completes when Hetzner reports the action successful, not when the guest is ready.",
+      arguments: z.object({
+        timeoutSeconds: z.number().int().positive().describe(
+          "Seconds to wait for the server to finish (default 120)",
+        ).optional(),
+      }),
+      execute: async (args: { timeoutSeconds?: number }, context: any) => {
+        const g = context.globalArgs;
+        if (g.name === undefined || g.name === null || g.name === "") {
+          throw new Error("reset requires global argument: name");
+        }
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, lookup, or adopt first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const deadline = Date.now() + (args.timeoutSeconds ?? 120) * 1000;
+        const current = await read(
+          "/servers",
+          existing.id,
+          g.token,
+        ) as ResourceData;
+        if (current.status !== "running") {
+          throw new Error(
+            `reset requires the server to be running; current status: ${current.status}`,
+          );
+        }
+        const response = await postAction(
+          "/servers",
+          existing.id,
+          "reset",
+          {},
+          g.token,
+        );
+        const action = response.action as { id?: unknown } | undefined;
+        if (typeof action?.id !== "number") {
+          throw new Error(
+            `reset returned no action id: ${JSON.stringify(response)}`,
+          );
+        }
+        await waitForAction(action.id, deadline, g.token);
+        const result = await waitForStatus(
+          "/servers",
+          existing.id,
+          "running",
+          deadline,
           g.token,
         ) as ResourceData;
         const handle = await context.writeResource(

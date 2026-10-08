@@ -20,6 +20,69 @@ export interface ExtensionModelInput {
   upgradesBlock?: string;
 }
 
+/** A server power action and how its generated method behaves. */
+interface PowerAction {
+  action: string;
+  description: string;
+  /** Live status that makes the action a no-op (state is refreshed only) */
+  noopStatus?: string;
+  /** Live status the server must be in, otherwise the method throws */
+  requiredStatus?: string;
+  /** Status to wait for after the action succeeds */
+  targetStatus: string;
+  defaultTimeoutSeconds: number;
+  /** Appended to a status-wait timeout error */
+  timeoutHint?: string;
+}
+
+// Hetzner marks shutdown successful once the ACPI signal is sent, so the
+// status wait (not the action) is what confirms the server is off. reboot and
+// reset usually stay "running", so they complete when the action succeeds.
+const POWER_ACTIONS: PowerAction[] = [
+  {
+    action: "poweron",
+    description:
+      "Power on the server and wait until it is running. Does nothing if it is already running.",
+    noopStatus: "running",
+    targetStatus: "running",
+    defaultTimeoutSeconds: 120,
+  },
+  {
+    action: "shutdown",
+    description:
+      "Gracefully shut down the server (ACPI) and wait until it is off. Does nothing if it is already off. Depends on the guest OS honouring ACPI; use poweroff to force it.",
+    noopStatus: "off",
+    targetStatus: "off",
+    defaultTimeoutSeconds: 300,
+    timeoutHint:
+      "The guest may not have honoured the ACPI shutdown; use poweroff to force it off",
+  },
+  {
+    action: "poweroff",
+    description:
+      "Hard power off the server and wait until it is off. Does nothing if it is already off.",
+    noopStatus: "off",
+    targetStatus: "off",
+    defaultTimeoutSeconds: 120,
+  },
+  {
+    action: "reboot",
+    description:
+      "Gracefully reboot the server (ACPI). The server must be running. Completes when Hetzner reports the action successful, not when the guest is ready.",
+    requiredStatus: "running",
+    targetStatus: "running",
+    defaultTimeoutSeconds: 300,
+  },
+  {
+    action: "reset",
+    description:
+      "Hard reset the server. The server must be running. Completes when Hetzner reports the action successful, not when the guest is ready.",
+    requiredStatus: "running",
+    targetStatus: "running",
+    defaultTimeoutSeconds: 120,
+  },
+];
+
 /**
  * Generates a complete extension model .ts file for a single Hetzner resource.
  */
@@ -143,6 +206,12 @@ export function generateHetznerExtensionModel(
   if (resource.handlers.update) helperImports.push("update");
   if (resource.handlers.list || hasLookup) helperImports.push("listAll");
   if (resource.actions.length > 0) helperImports.push("postAction");
+  if (
+    resource.noun === "servers" &&
+    POWER_ACTIONS.some((p) => resource.actions.includes(p.action))
+  ) {
+    helperImports.push("waitForAction", "waitForStatus");
+  }
   if (helperImports.length > 0) {
     lines.push(
       `import { ${helperImports.join(", ")} } from "./_lib/hetzner.ts";`,
@@ -747,6 +816,105 @@ export function generateHetznerExtensionModel(
     lines.push(`        return { dataHandles: [handle] };`);
     lines.push(`      },`);
     lines.push(`    },`);
+  }
+
+  // Power methods — servers only. Each reads the live status first, skips a
+  // no-op or rejects a server in the wrong state, posts the action, then waits
+  // for the action and the target status under one shared deadline.
+  if (resource.noun === "servers") {
+    for (const power of POWER_ACTIONS) {
+      if (!resource.actions.includes(power.action)) continue;
+      lines.push(`    ${power.action}: {`);
+      lines.push(`      description: ${JSON.stringify(power.description)},`);
+      lines.push(
+        `      arguments: z.object({ timeoutSeconds: z.number().int().positive().describe(${
+          JSON.stringify(
+            `Seconds to wait for the ${singularName} to finish (default ${power.defaultTimeoutSeconds})`,
+          )
+        }).optional() }),`,
+      );
+      lines.push(
+        `      execute: async (args: { timeoutSeconds?: number }, context: any) => {`,
+      );
+      lines.push(`        const g = context.globalArgs;`);
+      lines.push(...instanceNameLines(power.action));
+      lines.push(
+        `        const content = await context.dataRepository.getContent(`,
+      );
+      lines.push(
+        `          context.modelType, context.modelId, instanceName,`,
+      );
+      lines.push(`        );`);
+      lines.push(
+        `        if (!content) throw new Error("No data found - run create, lookup, or adopt first");`,
+      );
+      lines.push(
+        `        const existing = JSON.parse(new TextDecoder().decode(content));`,
+      );
+      lines.push(
+        `        const deadline = Date.now() + (args.timeoutSeconds ?? ${power.defaultTimeoutSeconds}) * 1000;`,
+      );
+      lines.push(
+        `        const current = await read("${endpoint}", existing.id, g.token) as ResourceData;`,
+      );
+      if (power.noopStatus) {
+        lines.push(`        if (current.status === "${power.noopStatus}") {`);
+        lines.push(
+          `          const handle = await context.writeResource("state", instanceName, current);`,
+        );
+        lines.push(`          return { dataHandles: [handle] };`);
+        lines.push(`        }`);
+      }
+      if (power.requiredStatus) {
+        lines.push(
+          `        if (current.status !== "${power.requiredStatus}") {`,
+        );
+        lines.push(
+          `          throw new Error(\`${power.action} requires the ${singularName} to be ${power.requiredStatus}; current status: \${current.status}\`);`,
+        );
+        lines.push(`        }`);
+      }
+      lines.push(
+        `        const response = await postAction("${endpoint}", existing.id, "${power.action}", {}, g.token);`,
+      );
+      lines.push(
+        `        const action = response.action as { id?: unknown } | undefined;`,
+      );
+      lines.push(`        if (typeof action?.id !== "number") {`);
+      lines.push(
+        `          throw new Error(\`${power.action} returned no action id: \${JSON.stringify(response)}\`);`,
+      );
+      lines.push(`        }`);
+      const actionWait = `await waitForAction(action.id, deadline, g.token);`;
+      const waitCall =
+        `await waitForStatus("${endpoint}", existing.id, "${power.targetStatus}", deadline, g.token) as ResourceData`;
+      if (power.timeoutHint) {
+        // Either wait can use up the shared deadline; both timeouts get the hint.
+        lines.push(`        let result: ResourceData;`);
+        lines.push(`        try {`);
+        lines.push(`          ${actionWait}`);
+        lines.push(`          result = ${waitCall};`);
+        lines.push(`        } catch (e) {`);
+        lines.push(
+          `          if (e instanceof Error && /timed out/i.test(e.message)) {`,
+        );
+        lines.push(
+          `            throw new Error(\`\${e.message}. ${power.timeoutHint}\`);`,
+        );
+        lines.push(`          }`);
+        lines.push(`          throw e;`);
+        lines.push(`        }`);
+      } else {
+        lines.push(`        ${actionWait}`);
+        lines.push(`        const result = ${waitCall};`);
+      }
+      lines.push(
+        `        const handle = await context.writeResource("state", instanceName, result);`,
+      );
+      lines.push(`        return { dataHandles: [handle] };`);
+      lines.push(`      },`);
+      lines.push(`    },`);
+    }
   }
 
   // set_rules method — only for firewalls
