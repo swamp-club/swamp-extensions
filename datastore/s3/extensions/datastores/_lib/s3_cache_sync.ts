@@ -4726,6 +4726,79 @@ export class S3CacheSyncService implements DatastoreSyncService {
     );
   }
 
+  /**
+   * Reads one remote file by its cache-relative path without touching the
+   * cache, the index or any dirty state (swamp-club#3160).
+   *
+   * The key is `relPath` as given: a cache-relative path already starts with
+   * the namespace. `options.namespace` only guards — a path outside it is a
+   * caller bug and rejects, since null would say the remote file is gone.
+   * The namespace is taken from `options` alone, so this works on a service
+   * that has not pulled yet and never binds one.
+   *
+   * A miss is not retried at the pre-namespace root key as {@link pullFile}
+   * does: nothing here says the file is this namespace's, so an object at the
+   * root may be another repo's or a leftover of a file since deleted. Only
+   * `NoSuchKey` counts as a miss: a 404 without that code (a proxy's error
+   * page, say) rejects rather than read as a deleted file.
+   */
+  async fetchContent(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<Uint8Array | null> {
+    return await getTracer().startActiveSpan(
+      "s3-datastore fetchContent",
+      async (span) => {
+        try {
+          span.setAttribute(Attr.DATASTORE_FILE, relPath);
+          span.setAttribute(Attr.DATASTORE_NAMESPACE, options?.namespace ?? "");
+          const signal = options?.signal;
+          if (
+            relPath === "" || /^([\\/]|[A-Za-z]:[\\/])/.test(relPath) ||
+            relPath.split(/[\\/]/).some((seg) => seg === "..")
+          ) {
+            throw new Error(`Path traversal rejected: ${relPath}`);
+          }
+          if (options?.namespace) {
+            const nsPrefix = `${options.namespace}/`;
+            const rest = relPath.startsWith(nsPrefix)
+              ? relPath.substring(nsPrefix.length)
+              : "";
+            if (rest === "" || rest.startsWith("/")) {
+              throw new Error(
+                `fetchContent: ${JSON.stringify(relPath)} is not a file in ` +
+                  `namespace ${JSON.stringify(options.namespace)}`,
+              );
+            }
+          }
+          try {
+            const { data } = await retryWithBackoff(
+              () => this.s3.getObject(relPath, signal),
+              { signal },
+            );
+            return data;
+          } catch (error) {
+            if (error instanceof Error && error.name === "NoSuchKey") {
+              return null;
+            }
+            throw error;
+          }
+        } catch (err) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err instanceof Error ? err.message : String(err),
+          });
+          span.recordException(
+            err instanceof Error ? err : new Error(String(err)),
+          );
+          throw err;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
   async exportCatalog(
     namespace: string,
     rows: CatalogExportRow[],

@@ -178,6 +178,17 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   bucket, with check-then-write conflict detection (a second repo with a
   different `repoId` is rejected). `listNamespaces` scans the bucket for all
   registered namespace manifests and returns the namespace slugs.
+- **Single-file remote read**: `fetchContent` returns the bytes of one file as
+  the bucket holds it and writes nothing to the local cache, the index or the
+  dirty state, so a local change that has not been pushed is left alone. The
+  path is cache-relative and is used as the object key as given: with a
+  namespace it already starts with `{namespace}/`, and a path outside
+  `options.namespace`, an absolute path, or one with a `..` segment is an error.
+  Only that key is read: a namespaced file that is missing is absent, even if an
+  object sits at the pre-namespace root key a pull would fall back to. Only a
+  `NoSuchKey` answer means the file is absent; any other failure, including a
+  404 without that error code, is an error rather than a missing file. Transient
+  failures are retried with backoff, as on a pull.
 
 ## Observability
 

@@ -17,6 +17,7 @@
     "@std/path": "jsr:@std/path@1",
     "@std/fs": "jsr:@std/fs@1",
     "@systeminit/swamp-testing": "jsr:@systeminit/swamp-testing@0.20260331.5",
+    "@swamp-club/swamp-testing": "jsr:@swamp-club/swamp-testing@0.20261007.46",
     "@opentelemetry/api": "npm:@opentelemetry/api@1.9.0"
   }
 }

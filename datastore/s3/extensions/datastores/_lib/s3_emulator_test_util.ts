@@ -41,6 +41,8 @@ export interface S3EmulatorOptions {
   omitHeadETag?: boolean;
   /** PutObject answers 403 AccessDenied for keys this matches. */
   denyPut?: (key: string) => boolean;
+  /** GetObject answers with this response for keys it returns one for. */
+  respondToGet?: (key: string) => Response | undefined;
   /** Called as each object request arrives, before it is handled. */
   onRequest?: (method: string, key: string) => void;
 }
@@ -134,6 +136,11 @@ export function createS3EmulatorHandler(
     state.options.onRequest?.(req.method, key);
     const current = state.objects.get(key);
 
+    if (req.method === "GET") {
+      const override = state.options.respondToGet?.(key);
+      if (override) return override;
+    }
+
     if (req.method === "GET" || req.method === "HEAD") {
       if (!current) {
         return req.method === "HEAD"
@@ -204,11 +211,16 @@ export function createS3EmulatorHandler(
 
 /**
  * Runs `fn` with an `S3Client` wired to a fresh emulator. Sets dummy AWS
- * credentials for the SDK and restores the prior env in `finally`.
+ * credentials for the SDK and restores the prior env in `finally`. `fn`
+ * also gets the endpoint, for a test that needs a client of its own.
  */
 export async function withS3Emulator(
   options: S3EmulatorOptions,
-  fn: (s3: S3Client, state: S3EmulatorState) => Promise<void>,
+  fn: (
+    s3: S3Client,
+    state: S3EmulatorState,
+    endpoint: string,
+  ) => Promise<void>,
 ): Promise<void> {
   const { handler, state } = createS3EmulatorHandler(options);
   const server = Deno.serve({ port: 0, onListen() {} }, handler);
@@ -219,13 +231,14 @@ export async function withS3Emulator(
   Deno.env.set("AWS_ACCESS_KEY_ID", "test");
   Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
   try {
+    const endpoint = `http://127.0.0.1:${port}`;
     const s3 = new S3Client({
       bucket: "test-bucket",
       region: "us-east-1",
-      endpoint: `http://127.0.0.1:${port}`,
+      endpoint,
       forcePathStyle: true,
     });
-    await fn(s3, state);
+    await fn(s3, state, endpoint);
   } finally {
     if (priorKey !== undefined) Deno.env.set("AWS_ACCESS_KEY_ID", priorKey);
     else Deno.env.delete("AWS_ACCESS_KEY_ID");

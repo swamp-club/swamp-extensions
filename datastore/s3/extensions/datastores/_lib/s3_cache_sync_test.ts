@@ -30,7 +30,7 @@ import {
   assertRejects,
 } from "jsr:@std/assert@1.0.19";
 import { join } from "jsr:@std/path@1";
-import { ensureDir } from "jsr:@std/fs@1";
+import { ensureDir, walk } from "jsr:@std/fs@1";
 import {
   isInsideNamespaceDir,
   isInternalCacheFile,
@@ -45,7 +45,10 @@ import {
   S3Client,
   S3OperationError,
 } from "./s3_client.ts";
-import { withS3Emulator } from "./s3_emulator_test_util.ts";
+import {
+  type S3EmulatorState,
+  withS3Emulator,
+} from "./s3_emulator_test_util.ts";
 
 /** Creates an error that matches the SDK's "object not found" shape. */
 function makeNoSuchKeyError(key: string): Error {
@@ -11337,3 +11340,497 @@ Deno.test("swamp-club#2999: the next pull finishes removals an interrupted monol
     await Deno.remove(cacheB, { recursive: true });
   }
 });
+
+// -- fetchContent (swamp-club#3160) ----------------------------------------
+//
+// The round-trip conformance suite (s3_sync_roundtrip_test.ts) holds
+// fetchContent to core's contract. It does not cover the namespace guard, and
+// it cannot see which key reached the bucket, so these go through the real SDK
+// and read the emulator's request log.
+
+interface FetchContentFixture {
+  state: S3EmulatorState;
+  /** A client on the emulator with no bucket prefix. */
+  s3: S3Client;
+  cachePath: string;
+  /** A sync service on the emulator, optionally under a bucket prefix. */
+  service: (prefix?: string) => S3CacheSyncService;
+}
+
+// sanitizeResources: false — the AWS SDK's pooled connections outlive the
+// test body but are reclaimed by GC.
+function fetchContentTest(
+  name: string,
+  fn: (fixture: FetchContentFixture) => Promise<void>,
+): void {
+  Deno.test({
+    name: `fetchContent: ${name}`,
+    sanitizeResources: false,
+    fn: () =>
+      withS3Emulator({}, async (s3, state, endpoint) => {
+        const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3160-" });
+        try {
+          await fn({
+            state,
+            s3,
+            cachePath,
+            service: (prefix) =>
+              new S3CacheSyncService(
+                new S3Client({
+                  bucket: "test-bucket",
+                  region: "us-east-1",
+                  endpoint,
+                  forcePathStyle: true,
+                  prefix,
+                }),
+                cachePath,
+              ),
+          });
+        } finally {
+          await Deno.remove(cachePath, { recursive: true });
+        }
+      }),
+  });
+}
+
+function storeObject(
+  state: S3EmulatorState,
+  key: string,
+  text: string,
+): void {
+  state.objects.set(key, {
+    body: new TextEncoder().encode(text),
+    etag: crypto.randomUUID().replaceAll("-", ""),
+  });
+}
+
+/** Keys of the object GETs the emulator has answered, in order. */
+function objectGets(state: S3EmulatorState): string[] {
+  return state.requests
+    .filter((r) => r.method === "GET" && r.key !== null)
+    .map((r) => r.key!);
+}
+
+function textOf(bytes: Uint8Array | null): string | null {
+  return bytes === null ? null : new TextDecoder().decode(bytes);
+}
+
+function s3ErrorResponse(code: string, status: number): Response {
+  return new Response(
+    `<?xml version="1.0"?><Error><Code>${code}</Code><Message>${code}</Message></Error>`,
+    { status, headers: { "content-type": "application/xml" } },
+  );
+}
+
+/** Relative path, size and mtime of everything under `dir`. */
+async function snapshotDir(dir: string): Promise<string[]> {
+  const entries: string[] = [];
+  for await (const entry of walk(dir)) {
+    const info = await Deno.stat(entry.path);
+    entries.push(
+      `${entry.path.substring(dir.length)} ${info.size} ${
+        info.isFile ? info.mtime?.getTime() : "dir"
+      }`,
+    );
+  }
+  return entries.sort();
+}
+
+fetchContentTest(
+  "reads relPath as the key, with and without a bucket prefix",
+  async ({ state, service }) => {
+    for (const prefix of [undefined, "swamp"]) {
+      const key = `${prefix ? `${prefix}/` : ""}data/m/1/raw`;
+      storeObject(state, key, `remote ${prefix}`);
+      state.requests.length = 0;
+
+      const bytes = await service(prefix).fetchContent("data/m/1/raw");
+
+      assertEquals(textOf(bytes), `remote ${prefix}`);
+      assertEquals(objectGets(state), [key]);
+    }
+  },
+);
+
+fetchContentTest(
+  "does not add the namespace a second time, with and without a bucket prefix",
+  async ({ state, service }) => {
+    for (const prefix of [undefined, "swamp"]) {
+      const key = `${prefix ? `${prefix}/` : ""}team-a/data/m/1/raw`;
+      storeObject(state, key, `remote ${prefix}`);
+      state.requests.length = 0;
+
+      const bytes = await service(prefix).fetchContent(
+        "team-a/data/m/1/raw",
+        { namespace: "team-a" },
+      );
+
+      assertEquals(textOf(bytes), `remote ${prefix}`);
+      assertEquals(objectGets(state), [key]);
+    }
+  },
+);
+
+fetchContentTest(
+  "an empty object is zero bytes, not null",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "");
+    const bytes = await service().fetchContent("data/m/1/raw");
+    assertExists(bytes);
+    assertEquals(bytes.length, 0);
+  },
+);
+
+fetchContentTest(
+  "an empty namespace is no namespace",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "remote");
+    const bytes = await service().fetchContent("data/m/1/raw", {
+      namespace: "",
+    });
+    assertEquals(textOf(bytes), "remote");
+    assertEquals(objectGets(state), ["data/m/1/raw"]);
+  },
+);
+
+fetchContentTest(
+  "a missing object is null after one GET without a namespace",
+  async ({ state, service }) => {
+    assertEquals(await service().fetchContent("data/m/1/raw"), null);
+    assertEquals(objectGets(state), ["data/m/1/raw"]);
+  },
+);
+
+// pullFile retries a namespaced miss at the pre-namespace root key.
+// fetchContent must not: an object at the root may be another repo's, or the
+// leftover of a file since deleted, and null is the answer the contract wants.
+fetchContentTest(
+  "a namespaced miss is null after one GET, whatever the root key holds",
+  async ({ state, service }) => {
+    for (const prefix of [undefined, "swamp"]) {
+      const p = prefix ? `${prefix}/` : "";
+      state.requests.length = 0;
+      assertEquals(
+        await service(prefix).fetchContent("team-a/data/m/1/raw", {
+          namespace: "team-a",
+        }),
+        null,
+      );
+
+      storeObject(state, `${p}data/m/1/raw`, "root");
+      assertEquals(
+        await service(prefix).fetchContent("team-a/data/m/1/raw", {
+          namespace: "team-a",
+        }),
+        null,
+      );
+      assertEquals(objectGets(state), [
+        `${p}team-a/data/m/1/raw`,
+        `${p}team-a/data/m/1/raw`,
+      ]);
+    }
+  },
+);
+
+fetchContentTest(
+  "a namespaced read does not look at the root key",
+  async ({ state, service }) => {
+    storeObject(state, "team-a/data/m/1/raw", "namespaced");
+    storeObject(state, "data/m/1/raw", "legacy");
+
+    const bytes = await service().fetchContent("team-a/data/m/1/raw", {
+      namespace: "team-a",
+    });
+
+    assertEquals(textOf(bytes), "namespaced");
+    assertEquals(objectGets(state), ["team-a/data/m/1/raw"]);
+  },
+);
+
+fetchContentTest(
+  "an error on the namespaced key rejects",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "legacy");
+    state.options.respondToGet = (key) =>
+      key === "team-a/data/m/1/raw"
+        ? s3ErrorResponse("AccessDenied", 403)
+        : undefined;
+
+    await assertRejects(
+      () =>
+        service().fetchContent("team-a/data/m/1/raw", { namespace: "team-a" }),
+      Error,
+      "AccessDenied",
+    );
+    assertEquals(objectGets(state), ["team-a/data/m/1/raw"]);
+  },
+);
+
+// Only NoSuchKey is a missing file. The text/plain 403 is the shape DO Spaces
+// sends (issue #74); the HTML 404 is what a proxy in front of the bucket
+// answers, and the SDK names it NotFound.
+const UNREADABLE_3160: Record<string, () => Response> = {
+  "AccessDenied in XML": () => s3ErrorResponse("AccessDenied", 403),
+  "a text/plain 403": () =>
+    new Response("Forbidden", {
+      status: 403,
+      headers: { "content-type": "text/plain" },
+    }),
+  "a 403 with an HTML body": () =>
+    new Response("<html><body>403 Forbidden</body></html>", {
+      status: 403,
+      headers: { "content-type": "text/html" },
+    }),
+  "a 401 with no body": () => new Response(null, { status: 401 }),
+  "a 400 with a malformed body": () =>
+    new Response("<Error><Code>Malformed", {
+      status: 400,
+      headers: { "content-type": "application/xml" },
+    }),
+  "NoSuchBucket": () => s3ErrorResponse("NoSuchBucket", 404),
+  "a 404 with an HTML body": () =>
+    new Response("<html><body>404 Not Found</body></html>", {
+      status: 404,
+      headers: { "content-type": "text/html" },
+    }),
+  "a 404 with a text body": () =>
+    new Response("not found", {
+      status: 404,
+      headers: { "content-type": "text/plain" },
+    }),
+};
+
+for (const [shape, respond] of Object.entries(UNREADABLE_3160)) {
+  fetchContentTest(`${shape} rejects, never null`, async ({
+    state,
+    service,
+  }) => {
+    state.options.respondToGet = () => respond();
+    await assertRejects(() => service().fetchContent("data/m/1/raw"));
+    assertEquals(objectGets(state), ["data/m/1/raw"]);
+  });
+}
+
+fetchContentTest(
+  "a 404 without NoSuchKey on the namespaced key rejects",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "legacy");
+    state.options.respondToGet = (key) =>
+      key === "team-a/data/m/1/raw"
+        ? UNREADABLE_3160["a 404 with an HTML body"]()
+        : undefined;
+
+    await assertRejects(
+      () =>
+        service().fetchContent("team-a/data/m/1/raw", { namespace: "team-a" }),
+    );
+    assertEquals(objectGets(state), ["team-a/data/m/1/raw"]);
+  },
+);
+
+fetchContentTest(
+  "an aborted signal rejects as AbortError before any request",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "remote");
+    const error = await assertRejects(
+      () =>
+        service().fetchContent("data/m/1/raw", { signal: AbortSignal.abort() }),
+    );
+    assertEquals((error as Error).name, "AbortError");
+    assertEquals(state.requests.length, 0);
+  },
+);
+
+fetchContentTest(
+  "a transient 500 is retried",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "remote");
+    let failures = 1;
+    state.options.respondToGet = () =>
+      failures-- > 0 ? s3ErrorResponse("InternalError", 500) : undefined;
+
+    const bytes = await service().fetchContent("data/m/1/raw");
+
+    assertEquals(textOf(bytes), "remote");
+    assertEquals(objectGets(state), ["data/m/1/raw", "data/m/1/raw"]);
+  },
+);
+
+fetchContentTest(
+  "a remote that stays at 500 rejects after three attempts",
+  async ({ state, service }) => {
+    storeObject(state, "data/m/1/raw", "remote");
+    state.options.respondToGet = () => s3ErrorResponse("InternalError", 500);
+
+    const error = await assertRejects(
+      () => service().fetchContent("data/m/1/raw"),
+      S3OperationError,
+    );
+
+    assertEquals(error.httpStatusCode, 500);
+    assertEquals(objectGets(state).length, 3);
+  },
+);
+
+// sanitizeResources: false — the AWS SDK's pooled connections outlive the
+// test body but are reclaimed by GC.
+Deno.test({
+  name: "fetchContent: nothing listening rejects, never null",
+  sanitizeResources: false,
+  fn: async () => {
+    const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+    const { port } = listener.addr as Deno.NetAddr;
+    listener.close();
+    const priorKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+    const priorSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+    Deno.env.set("AWS_ACCESS_KEY_ID", "test");
+    Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
+    try {
+      const service = new S3CacheSyncService(
+        new S3Client({
+          bucket: "test-bucket",
+          region: "us-east-1",
+          endpoint: `http://127.0.0.1:${port}`,
+          forcePathStyle: true,
+        }),
+        "/tmp/unused",
+      );
+      const error = await assertRejects(
+        () => service.fetchContent("data/m/1/raw"),
+        S3OperationError,
+      );
+      assertEquals(error.httpStatusCode, undefined);
+    } finally {
+      if (priorKey !== undefined) Deno.env.set("AWS_ACCESS_KEY_ID", priorKey);
+      else Deno.env.delete("AWS_ACCESS_KEY_ID");
+      if (priorSecret !== undefined) {
+        Deno.env.set("AWS_SECRET_ACCESS_KEY", priorSecret);
+      } else Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+    }
+  },
+});
+
+fetchContentTest(
+  "rejects a path that could leave the datastore, without a request",
+  async ({ state, service }) => {
+    const svc = service();
+    for (
+      const relPath of [
+        "",
+        "/data/m/1/raw",
+        "\\data\\m\\1\\raw",
+        "C:\\data\\m\\1\\raw",
+        "C:/data/m/1/raw",
+        "data/../m/1/raw",
+        "data\\..\\m\\1\\raw",
+        "..",
+      ]
+    ) {
+      await assertRejects(
+        () => svc.fetchContent(relPath),
+        Error,
+        "Path traversal rejected",
+        `relPath ${JSON.stringify(relPath)}`,
+      );
+    }
+    // A dot-dot inside the caller's own namespace is no safer.
+    await assertRejects(
+      () =>
+        svc.fetchContent("team-a/../team-b/data/m/1/raw", {
+          namespace: "team-a",
+        }),
+      Error,
+      "Path traversal rejected",
+    );
+    assertEquals(state.requests.length, 0);
+  },
+);
+
+fetchContentTest(
+  "rejects a path outside options.namespace, without a request",
+  async ({ state, service }) => {
+    // Each of these exists, so reading the key as given, or adding the
+    // namespace in front, would return bytes.
+    storeObject(state, "data/m/1/raw", "root");
+    storeObject(state, "team-a/data/m/1/raw", "namespaced");
+    storeObject(state, "team-b/data/m/1/raw", "another namespace");
+    storeObject(state, "team-ab/data/m/1/raw", "a longer namespace");
+    const svc = service();
+    for (
+      const relPath of [
+        "data/m/1/raw",
+        "team-b/data/m/1/raw",
+        "team-ab/data/m/1/raw",
+        "team-a",
+        "team-a/",
+        "team-a//data/m/1/raw",
+      ]
+    ) {
+      await assertRejects(
+        () => svc.fetchContent(relPath, { namespace: "team-a" }),
+        Error,
+        'is not a file in namespace "team-a"',
+        `relPath ${JSON.stringify(relPath)}`,
+      );
+    }
+    assertEquals(state.requests.length, 0);
+  },
+);
+
+fetchContentTest(
+  "writes nothing under the cache path",
+  async ({ state, s3, cachePath, service }) => {
+    const rel = "data/m/1/raw";
+    const pusher = await Deno.makeTempDir({ prefix: "s3sync-3160-pusher-" });
+    try {
+      await pushThrough(s3, pusher, rel, "remote\n");
+    } finally {
+      await Deno.remove(pusher, { recursive: true });
+    }
+    const svc = service();
+    await svc.pullChanged();
+    // A local copy that differs from the remote one, and a file the remote
+    // has that the cache lacks.
+    await Deno.writeTextFile(join(cachePath, rel), "local\n");
+    const old = new Date("2001-01-01T00:00:00Z");
+    await Deno.utime(join(cachePath, rel), old, old);
+    storeObject(state, "data/m/2/raw", "remote only");
+    const before = await snapshotDir(cachePath);
+
+    assertEquals(textOf(await svc.fetchContent(rel)), "remote\n");
+    assertEquals(textOf(await svc.fetchContent("data/m/2/raw")), "remote only");
+    assertEquals(await svc.fetchContent("data/m/3/raw"), null);
+
+    assertEquals(await snapshotDir(cachePath), before);
+    assertEquals(await Deno.readTextFile(join(cachePath, rel)), "local\n");
+  },
+);
+
+fetchContentTest(
+  "keeps a pending push pending",
+  async ({ state, s3, cachePath, service }) => {
+    const rel = "data/m/1/raw";
+    const svc = service();
+    await pushThrough(s3, cachePath, rel, "first\n", svc);
+    await svc.markDirty({ relPath: rel });
+    await Deno.writeTextFile(join(cachePath, rel), "second\n");
+
+    assertEquals(textOf(await svc.fetchContent(rel)), "first\n");
+
+    await svc.pushChanged();
+    assertEquals(textOf(state.objects.get(rel)?.body ?? null), "second\n");
+  },
+);
+
+fetchContentTest(
+  "does not bind the service to options.namespace",
+  async ({ service }) => {
+    const svc = service();
+    assertEquals(
+      await svc.fetchContent("team-a/data/m/1/raw", { namespace: "team-a" }),
+      null,
+    );
+    // A service keeps the namespace of its first pull and rejects another.
+    await svc.pullChanged({ namespace: "team-b" });
+  },
+);
