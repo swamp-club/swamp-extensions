@@ -36,6 +36,11 @@ import {
   type FindingView,
 } from "../../extensions/models/_lib/engine/design_view.ts";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
+import {
+  storedVersion,
+  UpgradeError,
+  upgradeFactoryArguments,
+} from "../../extensions/models/_lib/engine/definition_upgrade.ts";
 
 /** Where a factory's definition sits in its model definition file. */
 export const DEFINITION_PATH = "globalArguments.definition";
@@ -85,6 +90,9 @@ interface Base {
   rangeOf(path: string): SourceRange | null;
   /** The saved scenarios, in file order; empty when there are none. */
   scenarios: SavedScenario[];
+  /** The schemaVersion the file was written at, when it is older than the
+   * current one and the page shows it upgraded; else null. */
+  upgradedFrom: number | null;
 }
 
 export type Loaded =
@@ -202,7 +210,7 @@ export async function loadDefinition(
 ): Promise<Loaded> {
   const doc = parseDocument(text);
   const rangeOf = makeRangeOf(doc, text, DEFINITION_PATH);
-  const base: Base = { file, text, rangeOf, scenarios: [] };
+  const base: Base = { file, text, rangeOf, scenarios: [], upgradedFrom: null };
   const fail = (problems: Problem[]): Loaded => ({
     ...base,
     ok: false,
@@ -243,13 +251,41 @@ export async function loadDefinition(
     }]);
   }
 
-  const parsed = DefinitionSchema.safeParse(held);
+  // An older definition is shown upgraded, as validate and a work item read
+  // it (definition_upgrade.ts). Its document paths are then the upgraded
+  // form's, which the file's text does not hold, so they get no range.
+  let args: Record<string, unknown>;
+  try {
+    args = upgradeFactoryArguments(
+      (raw as { globalArguments: Record<string, unknown> }).globalArguments,
+    );
+  } catch (e) {
+    // A step that failed on the saved scenarios is theirs, not the
+    // definition's; only an unread version has a place in the definition.
+    const path = e instanceof UpgradeError ? e.path : "(root)";
+    return fail([{
+      path: path === "scenarios" ? SCENARIOS_PATH : path,
+      message: message(e),
+      range: path === "schemaVersion" ? rangeOf(path) : null,
+    }]);
+  }
+  if (args.definition !== held) {
+    base.upgradedFrom = storedVersion(held);
+    const list = args.scenarios;
+    base.scenarios = base.scenarios.map((s, i) => ({
+      ...s,
+      value: Array.isArray(list) ? list[i] : s.value,
+    }));
+  }
+  const at = (path: string) =>
+    base.upgradedFrom === null ? rangeOf(path) : null;
+  const parsed = DefinitionSchema.safeParse(args.definition);
   if (!parsed.success) {
     return fail(parsed.error.issues.map((issue) => {
       const path = issue.path.length > 0
         ? issue.path.map(String).join(".")
         : "(root)";
-      return { path, message: issue.message, range: rangeOf(path) };
+      return { path, message: issue.message, range: at(path) };
     }));
   }
 
@@ -268,6 +304,6 @@ export async function loadDefinition(
     ok: true,
     definition,
     view,
-    findings: view.findings.map((f) => ({ ...f, range: rangeOf(f.path) })),
+    findings: view.findings.map((f) => ({ ...f, range: at(f.path) })),
   };
 }

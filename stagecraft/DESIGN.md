@@ -325,7 +325,8 @@ the run record indexes each one's version and digest. Code:
   let a rollback delete the feedback a retry needs.
 - **Swamp never upgrades stored data**, only `globalArguments`. The run record
   carries its own `schemaVersion`, and a record this runtime cannot read is an
-  error, never a fresh start.
+  error, never a fresh start. A stored factory definition is upgraded as it is
+  read; see "Format changes upgrade, they never break".
 
 ### Approvals, usage and actors
 
@@ -354,6 +355,72 @@ write. Product records need duration-based retention. Building the CEL context
 reads each referenced version and checks it against the recorded digest, so a
 pruned version, or one changed outside the runtime, is an error rather than
 wrong data.
+
+## Format changes upgrade, they never break
+
+**Decision** (swamp-club #3194). A change to the factory definition format
+upgrades what is stored and what people wrote; it never strands a work item in
+progress or makes anyone edit a definition by hand.
+
+**The rule.** Every format change:
+
+1. bumps `DEFINITION_SCHEMA_VERSION` (`definition_schema.ts`);
+2. appends one step to `DEFINITION_UPGRADES` (`definition_upgrade.ts`): a pure
+   JSON-to-JSON function from the previous version to the new one that keeps
+   the definition's meaning exactly. It runs on the raw definition, so it moves
+   template text (`${{ }}`, `{{name}}`) without evaluating it. A step that
+   renames anything a saved scenario names upgrades the factory's scenarios
+   too (`upgradeScenarios`);
+3. adds an entry to the factory type's `upgrades` for its release, calling
+   `upgradeFactoryArguments` like every other entry;
+4. adds fixtures at the new version to `testdata/definition-versions/`, and
+   updates every fixture's `<name>.expected.json` to the new current form.
+   `definition_versions_test.ts` reads every fixture of every version,
+   upgrades it, checks the expected form and runs its saved scenarios, and fails
+   when a version has no fixture.
+
+**One read path.** `readDefinition` reads `schemaVersion`, applies the steps
+in memory and parses with the current schema, so the rest of the engine sees
+only the current form. Everything that reads a stored definition goes through
+it: a work item's pinned copy (`checkPinned`, which the work-item methods, the
+trackers, the studio server and the summary report all use), the factory's own
+definition (`loadFactory`), and the studio's view of a factory file. A
+version newer than the runtime is refused with "needs a newer
+@swamp/stagecraft", and the schema's `schemaVersion` literal says the same
+when it is reached without the upgrade.
+
+**Pinned copies are never rewritten.** A work item claimed on v1 keeps its v1
+copy and the digest its run recorded. `checkPinned` checks the digest on the
+copy as stored, then upgrades it. That works because `pin` stores
+`jsonSafe` of the parsed definition, parsing applies no default or transform,
+and the digest is over canonical JSON (sorted keys): the stored copy digests to
+the recorded value (`work_item_test`, and on the real engine
+`integration/engine/definition_upgrade_test.ts`). A schema change that adds
+a `.default()` or `.transform()` breaks that and fails those tests.
+
+**A definition someone wrote is upgraded by swamp.** swamp runs a type's
+`upgrades` when one of that model's own methods runs, before checking its
+`globalArguments`, and saves the result to the model's file, merged into the
+existing YAML so its comments stay (`method_execution_service.ts` and
+`yaml_definition_repository.ts` in swamp). For a factory that is `validate`.
+The entries go by the definition's own `schemaVersion`, not by swamp's
+`typeVersion`, so they are right whichever version an instance is at and do
+nothing to a current definition. A work item reads the factory's raw model
+definition, which swamp does not upgrade for it, so `loadFactory` upgrades in
+memory too. swamp model validate checks `globalArguments` without running
+`upgrades` (swamp-club #3196), so `FactoryArgumentsSchema` upgrades the
+definition before its schema check (`upgradeOrPass`); methods never read that
+evaluated form.
+
+**Staleness compares current forms.** The studio Board's stale-pin badge and
+the work-item page compare the digest of the pinned definition, upgraded, with
+the digest of the factory file's definition, upgraded. A v1 pin of a definition
+that only moved to v2 is not stale. The run record keeps the digest of the copy
+as stored, which is what `checkPinned` checks.
+
+**Run records.** `RUN_SCHEMA_VERSION` has no upgrade chain yet. When it first
+changes, `UpgradeChain` and `upgradeDefinition`'s pattern apply to it as they
+are: steps per version, applied on read, stored records never rewritten.
 
 ## The CEL vocabulary
 
@@ -2596,6 +2663,30 @@ Scenarios have no includes: variants of one late path each repeat the walk
 that reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-08: stored definitions are upgraded on read (swamp-club #3194)
+
+**Decision.** See "Format changes upgrade, they never break". Every stored
+definition is read through `readDefinition`. Pinned copies are checked
+against their digest as stored, then upgraded in memory, never rewritten. The
+factory type declares `upgrades` that run the same steps, and its schema
+upgrades before checking because swamp model validate does not run
+`upgrades` (swamp-club #3196). The chain is empty: #3190 adds the first step,
+v1 to v2. Model versions: the factory is 2026.10.08.1, with its first
+`upgrades` entry; the work item is 2026.10.08.1 with a no-op entry, since it
+has no `globalArguments` to change and swamp moves an instance's
+`typeVersion` only through an entry. (The repo's upgrade gate does not see
+models under `extensions/models/engine/` yet: swamp-club #3201.)
+
+**Why.** `@swamp/stagecraft` is published, so the notes below that say there
+are no users and nothing to upgrade no longer hold. Before this, any format
+change would have failed every work item in progress with "the pinned
+definition is invalid", and left every factory to be edited by hand.
+
+**Deferred.** The full method-level proof is a work item pinned at v1 that
+dispatches, records and advances after the change. It needs a real v2, so
+#3190 carries it. Here the same path is proven with a made-up version 0
+(`definition_upgrade_test.ts`).
 
 ### 2026-10-02: the swamp-club Lab adapter is kept, not shipped (swamp-club #2820)
 

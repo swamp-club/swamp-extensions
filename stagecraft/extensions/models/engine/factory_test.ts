@@ -20,8 +20,10 @@ import {
   assertFalse,
   assertMatch,
   assertRejects,
+  assertStrictEquals,
   assertThrows,
 } from "@std/assert";
+import { DEFINITION_SCHEMA_VERSION } from "../_lib/engine/definition_schema.ts";
 import { parse as parseYaml } from "@std/yaml";
 import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
@@ -73,6 +75,47 @@ Deno.test("factory: the globalArguments schema survives swamp's .partial() and t
     ),
     JSON.stringify(bad.error.issues),
   );
+});
+
+Deno.test("factory: the schema reads every schemaVersion the runtime reads, and refuses a newer one by name", async () => {
+  // swamp model validate checks globalArguments without running upgrades
+  // (swamp-club #3196), so the schema upgrades the definition itself.
+  const definition = await buildDefinition();
+  assert(
+    FactoryArgumentsSchema.safeParse({ definition, tracker: "b" }).success,
+  );
+  const newer = { ...definition, schemaVersion: DEFINITION_SCHEMA_VERSION + 1 };
+  const refused = FactoryArgumentsSchema.partial().safeParse({
+    definition: newer,
+  });
+  assertFalse(refused.success);
+  assert(
+    refused.error.issues.some((i) =>
+      i.path.join(".") === "definition.schemaVersion" &&
+      i.message.includes("needs a newer @swamp/stagecraft")
+    ),
+    JSON.stringify(refused.error.issues),
+  );
+});
+
+Deno.test("factory: the JSON Schema swamp shows still describes the definition", () => {
+  const schema = z.toJSONSchema(FactoryArgumentsSchema) as unknown as {
+    properties: { definition: { properties?: Record<string, unknown> } };
+  };
+  const definition = schema.properties.definition.properties ?? {};
+  for (const key of ["schemaVersion", "stages", "globalTransitions"]) {
+    assert(key in definition, key);
+  }
+});
+
+Deno.test("factory: its upgrades end at its version and leave a current definition alone", async () => {
+  // swamp refuses a model whose last upgrade is not its version.
+  const upgrades = factory.upgrades;
+  assertEquals(upgrades.at(-1)?.toVersion, factory.version);
+  const args = { definition: await buildDefinition(), tracker: "board" };
+  for (const upgrade of upgrades) {
+    assertStrictEquals(upgrade.upgradeAttributes(args), args);
+  }
 });
 
 Deno.test("factory: definition and scenarios are marked as foreign template text", () => {

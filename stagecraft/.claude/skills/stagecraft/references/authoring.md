@@ -361,6 +361,11 @@ the person.
 Work items already running are not affected by an edit. Each work item pinned a
 copy of the definition when it started, and works on that copy to the end.
 
+Never change `schemaVersion` by hand. A definition at an older version is
+upgraded by stagecraft itself when it is read, and `validate` writes the upgrade
+into the factory's file; a newer one needs a newer @swamp/stagecraft
+(`swamp extension pull @swamp/stagecraft`).
+
 1. **Edit in place** by default: change the definition in
    `models/@swamp/stagecraft/factory/<factory>.yaml`, update or add saved
    scenarios for what changed, and go through State 3 and State 4 again. New

@@ -19,6 +19,7 @@
 // and marks its path in the source.
 
 import type { JSX } from "preact";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type { Located, Problem } from "./model.ts";
 import { findingTarget, targetKey } from "./selection.ts";
 import { good, loaded, select, selection, trace } from "./state.ts";
@@ -66,6 +67,28 @@ function moveInList(e: JSX.TargetedKeyboardEvent<HTMLElement>, cls: string) {
 }
 
 export function Findings() {
+  const from = loaded.value?.upgradedFrom ?? null;
+  return (
+    <>
+      {from !== null && <UpgradedNote from={from} />}
+      <FileFindings />
+    </>
+  );
+}
+
+/** Says the file is shown upgraded from an older schemaVersion. */
+function UpgradedNote({ from }: { from: number }) {
+  return (
+    <p class="desc upgraded">
+      This file is written at schemaVersion {from}. It is shown upgraded to{" "}
+      {DEFINITION_SCHEMA_VERSION}, as validate and work items read it, so paths
+      name the upgraded form and are not marked in the source. The factory's
+      next validate writes the upgrade into the file.
+    </p>
+  );
+}
+
+function FileFindings() {
   const l = loaded.value;
   if (l !== null && !l.ok) return <Problems problems={l.problems} />;
   const g = good.value;

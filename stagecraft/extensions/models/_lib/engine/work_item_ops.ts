@@ -46,6 +46,13 @@ import {
   trackerKindOf,
 } from "./definition_schema.ts";
 import {
+  DEFINITION_CHAIN,
+  readDefinition,
+  type UpgradeChain,
+  UpgradeError,
+  upgradeFactoryArguments,
+} from "./definition_upgrade.ts";
+import {
   advance,
   checkExpected,
   dispatchCap,
@@ -396,20 +403,37 @@ function checkRefsFitTracker(
 /**
  * A factory's definition, read from the factory's raw model definition through
  * the definition repository and validated in full, with the raw
- * globalArguments it came from; throws with every error. The raw definition
- * is read, not swamp's evaluated globalArguments, so a pinned copy is exactly
- * what was written: no expression evaluated, no default filled in.
+ * globalArguments it came from, both in the current form; throws with every
+ * error. The raw definition is read, not swamp's evaluated globalArguments,
+ * so a pinned copy is exactly what was written, upgraded: no expression
+ * evaluated, no default filled in.
  */
 export async function loadFactory(
   ctx: MethodContextLike,
   name: string,
 ): Promise<{ definition: FactoryDefinition; args: Record<string, unknown> }> {
-  const args = factoryArguments((await findFactoryModel(ctx, name)).definition);
-  if (args.definition === undefined) {
+  const raw = factoryArguments((await findFactoryModel(ctx, name)).definition);
+  if (raw.definition === undefined) {
     throw new Error(
       `factory '${name}' has no definition: write one under ` +
         `globalArguments.definition in its model definition, starting from ` +
         `one of the skill's examples`,
+    );
+  }
+  // Upgraded in memory as well: swamp upgrades a factory's model definition
+  // only when one of the factory's own methods runs, not when a work item
+  // reads it (definition_upgrade.ts).
+  let args: Record<string, unknown>;
+  try {
+    args = upgradeFactoryArguments(raw);
+  } catch (e) {
+    const where = e instanceof UpgradeError && e.path === "scenarios"
+      ? "scenarios"
+      : "definition";
+    throw new Error(
+      `factory '${name}': globalArguments.${where} cannot be upgraded: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
     );
   }
   const parsed = parseDefinition(args.definition);
@@ -725,26 +749,30 @@ async function readPinned(
 }
 
 /**
- * A pinned factory definition record, parsed and checked against the digest the
- * run recorded. Shared with the summary report, which reads the record through
- * swamp's data repository rather than a method context.
+ * A pinned factory definition record, checked against the digest the run
+ * recorded, then upgraded and parsed. The digest is of the copy as it was
+ * stored, so a copy pinned at an older schemaVersion still matches; the
+ * upgrade is in memory and the copy is never rewritten (definition_upgrade.ts).
+ * Shared with the summary report, which reads the record through swamp's data
+ * repository rather than a method context.
  */
 export async function checkPinned(
   record: Record<string, unknown> | null,
   run: RunRecord,
+  chain: UpgradeChain = DEFINITION_CHAIN,
 ): Promise<Pinned> {
   if (record === null) {
     throw new Error("the work item's pinned definition is missing");
   }
-  const parsed = parseDefinition(record.definition);
+  if (await digestOf(record.definition) !== run.definition.digest) {
+    throw new Error(
+      "the pinned definition does not match the digest the run recorded",
+    );
+  }
+  const parsed = readDefinition(record.definition, chain);
   if (!parsed.ok) {
     throw new Error(
       `the pinned definition is invalid:\n${parsed.errors.join("\n")}`,
-    );
-  }
-  if (await digestOf(parsed.value) !== run.definition.digest) {
-    throw new Error(
-      "the pinned definition does not match the digest the run recorded",
     );
   }
   return {

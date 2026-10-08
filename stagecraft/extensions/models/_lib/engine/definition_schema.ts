@@ -679,7 +679,19 @@ export type StageSpec = z.infer<typeof StageSchema>;
  * the factory model that holds it names it (#2816).
  */
 export const DefinitionSchema = z.strictObject({
-  schemaVersion: z.literal(DEFINITION_SCHEMA_VERSION),
+  // Older versions are upgraded before parsing (definition_upgrade.ts), so
+  // only the current one reaches here; anything else is one this runtime
+  // cannot read.
+  schemaVersion: z.literal(DEFINITION_SCHEMA_VERSION, {
+    error: (issue) =>
+      typeof issue.input === "number" &&
+        issue.input > DEFINITION_SCHEMA_VERSION
+        ? `schemaVersion ${issue.input} is newer than this stagecraft reads ` +
+          `(up to ${DEFINITION_SCHEMA_VERSION}): it needs a newer ` +
+          `@swamp/stagecraft`
+        : `schemaVersion must be a version this stagecraft reads ` +
+          `(up to ${DEFINITION_SCHEMA_VERSION})`,
+  }),
   description: z.string().optional(),
   /** The kind of tracker the factory definition is written for; the factory
    * names the instance. Absent: the built-in tracker. */

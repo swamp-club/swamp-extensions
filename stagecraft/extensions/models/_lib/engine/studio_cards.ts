@@ -65,7 +65,9 @@ export interface BoardCard {
   /** Held only by a person: since when, and on which exits. */
   waiting: { since: string; exits: CardExit[] } | null;
   parked: Park[];
-  /** The digest of the factory definition the work item is pinned to. */
+  /** The digest of the factory definition the work item is pinned to, in the
+   * current form (definition_upgrade.ts); the recorded one when it could not
+   * be read. */
   pinnedDigest: string;
   /** Why some of the card could not be worked out, if so. */
   problem?: string;

@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "description": "A piece of content, from draft to published: write the draft, have an\neditor review it, have a person approve it, and publish it.\n\nFor: web posts, announcements, newsletters, documentation pages, anything\nwritten that goes out under your name. A person approves every piece before\nit is published, and confirms abandoning one. An editorial review with a\nblocking finding sends the draft back; a person can also send it back by\nhand with their feedback. Stages name tracker status keys, so a work item\ncan drive a ticket; drop the stages' tracker blocks if it will not.\n\nChange first: the editorial review prompt (your voice and what you never\npublish), the draft schema (what a piece records), and publish's\ndescription (where your content goes).",
+  "stages": [
+    {
+      "id": "draft",
+      "initial": true,
+      "tracker": {
+        "status": "open",
+        "duplicate": {
+          "on": {
+            "approve": "duplicate-confirmation"
+          },
+          "record": "duplicate-of",
+          "field": "primary"
+        }
+      },
+      "maxCycles": 3,
+      "description": "Write the draft. Entered at most three times: a review or a person sends it back, and after that a person decides whether another round is worth it.",
+      "work": {
+        "mode": "interactive",
+        "systemPrompt": "First, check the piece is not a duplicate of another ticket. If it\nis, find out whether that ticket, the primary, already has a work\nitem: run the tracker's claim on it with dryRun=true, which writes\nnothing. Record duplicate-of with the primary's stable id, its\ndisplay id and why, and wait for a person to approve\nduplicate-confirmation. Once it is approved, move the work to the\nprimary. When the primary has no work item, retarget this work item\nonto the primary's externalRefs and publish at once, then write the\nprimary's draft here. When it has one, take the duplicate exit.\n\nWrite the draft with the person: who it is for, what it should leave\nthem knowing or doing, and the facts it rests on. Save it where the\nperson keeps drafts, and record draft with its title, audience, where\nit is, and a short summary.\n\nOn a later draft, read the injected draft (the last one),\neditorial-review (its review) and editorial-feedback (the person's\nlatest feedback). After a review sends it back, address its findings.\nAfter revise, address the feedback, and record feedbackIncorporated as\nthe last draft's list with the feedback added word for word.\n",
+        "context": {
+          "inject": [
+            "draft",
+            "editorial-review",
+            "editorial-feedback"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "name": "draft",
+          "schema": {
+            "type": "object",
+            "required": [
+              "title",
+              "audience",
+              "location",
+              "summary"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "audience": {
+                "type": "string",
+                "minLength": 1
+              },
+              "location": {
+                "description": "Where the draft is, a path or a link.",
+                "type": "string",
+                "minLength": 1
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "feedbackIncorporated": {
+                "description": "Every round of a person's feedback this draft answers, oldest first.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "duplicate-of",
+          "schema": {
+            "type": "object",
+            "required": [
+              "primary",
+              "display",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "primary": {
+                "description": "The primary ticket's stable id.",
+                "type": "string",
+                "minLength": 1
+              },
+              "display": {
+                "description": "The primary ticket's display id.",
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "name": "submit",
+          "to": "editorial-review",
+          "gates": [
+            {
+              "type": "artifact-exists",
+              "config": {
+                "artifact": "draft"
+              }
+            }
+          ]
+        },
+        {
+          "name": "duplicate",
+          "to": "duplicate",
+          "description": "The piece duplicates a primary ticket that already has a work item; a person confirms it. When the primary has none, the work item is retargeted onto it instead, and the cel gate closes this exit to it. \"builtin\" there is the built-in tracker's externalRefs key; a definition for Linear names \"linear\".",
+          "gates": [
+            {
+              "type": "human-approval",
+              "config": {
+                "id": "duplicate-confirmation"
+              }
+            },
+            {
+              "type": "cel",
+              "config": {
+                "expr": "\"duplicate-of\" in artifacts && (!(\"builtin\" in item.externalRefs) || item.externalRefs[\"builtin\"] != artifacts[\"duplicate-of\"].payload.primary)",
+                "message": "this work item is on the primary ticket now; draft it here"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "editorial-review",
+      "tracker": {
+        "status": "in_progress"
+      },
+      "description": "An editor reads the draft. Open blocking findings send it back; none lets it through to approval.",
+      "work": {
+        "mode": "dispatch",
+        "systemPrompt": "You are an editor. Read the draft \"{{title}}\" at {{location}}, for\n{{audience}}. Look for claims that are wrong or unsupported, anything\nthat could harm a reader or the person publishing it, anything that\nmisses what the piece is for, and anything a reader would trip on.\nRate a finding critical or high only if publishing it as it is would\nstate something false, cause harm, or miss the brief. Style, wording\nand structure are medium at most. Judge the draft against the size of\nthe piece: do not ask for research bigger than the piece, and give\nthe smallest adequate fix for each finding. Report findings with\nseverities, and do not soften the severity of a real defect.\n",
+        "bindings": {
+          "title": "artifacts[\"draft\"].payload.title",
+          "location": "artifacts[\"draft\"].payload.location",
+          "audience": "artifacts[\"draft\"].payload.audience"
+        },
+        "context": {
+          "inject": [
+            "draft"
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "name": "editorial-review",
+          "kind": "findings",
+          "reviews": "draft"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "accept",
+          "to": "approval",
+          "gates": [
+            {
+              "type": "artifact-fresh",
+              "config": {
+                "artifact": "editorial-review",
+                "recordedThisCycle": true
+              }
+            },
+            {
+              "type": "findings-clear",
+              "config": {
+                "artifact": "editorial-review",
+                "blocking": [
+                  "critical",
+                  "high"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "rework",
+          "to": "draft",
+          "description": "The fresh editorial review has an open critical or high finding, so the draft goes back to be fixed.",
+          "gates": [
+            {
+              "type": "artifact-fresh",
+              "config": {
+                "artifact": "editorial-review",
+                "recordedThisCycle": true
+              }
+            },
+            {
+              "type": "findings-open",
+              "config": {
+                "artifact": "editorial-review",
+                "blocking": [
+                  "critical",
+                  "high"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "approval",
+      "tracker": {
+        "status": "in_progress"
+      },
+      "description": "A person reads the draft and the editor's open findings, and approves it for publishing or sends it back with their feedback.",
+      "work": {
+        "mode": "interactive",
+        "systemPrompt": "Show the person where the draft is and the editorial review's open\nfindings. Ask them to approve it for publishing, or to say what to\nchange.\n",
+        "context": {
+          "inject": [
+            "draft",
+            "editorial-review"
+          ]
+        }
+      },
+      "evidence": [
+        {
+          "name": "editorial-feedback",
+          "description": "A person's feedback on the draft, in their words; revise needs it.",
+          "recordedBy": "person",
+          "schema": {
+            "type": "object",
+            "required": [
+              "feedback"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "feedback": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "name": "approve",
+          "to": "publish",
+          "gates": [
+            {
+              "type": "human-approval",
+              "config": {
+                "id": "publish-approval"
+              }
+            }
+          ]
+        },
+        {
+          "name": "revise",
+          "to": "draft",
+          "manual": true,
+          "description": "A person sent the draft back to change it. Manual, so it never fires on its own, and the person's feedback is recorded first, so the next draft knows what to answer.",
+          "gates": [
+            {
+              "type": "evidence-recorded",
+              "description": "The person's feedback on this draft is recorded.",
+              "config": {
+                "name": "editorial-feedback"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "publish",
+      "tracker": {
+        "status": "in_progress"
+      },
+      "description": "Publish the approved draft where your content goes (a site, a blog, a newsletter tool), and record where it went.",
+      "work": {
+        "mode": "interactive",
+        "systemPrompt": "Publish the approved draft at {{location}} as it was approved, and\nrecord published with the URL it is live at.\n",
+        "bindings": {
+          "location": "artifacts[\"draft\"].payload.location"
+        }
+      },
+      "evidence": [
+        {
+          "name": "published",
+          "schema": {
+            "type": "object",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "name": "published",
+          "to": "done",
+          "gates": [
+            {
+              "type": "evidence-recorded",
+              "config": {
+                "name": "published"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "terminal": true,
+      "tracker": {
+        "status": "shipped"
+      }
+    },
+    {
+      "id": "duplicate",
+      "terminal": true,
+      "description": "The piece duplicated a primary ticket that has its own work item.",
+      "tracker": {
+        "status": "closed"
+      }
+    },
+    {
+      "id": "abandoned",
+      "terminal": true,
+      "tracker": {
+        "status": "closed"
+      }
+    }
+  ],
+  "globalTransitions": [
+    {
+      "name": "abandon",
+      "to": "abandoned",
+      "gates": [
+        {
+          "type": "human-approval",
+          "config": {
+            "id": "abandon-confirmation"
+          }
+        }
+      ]
+    }
+  ]
+}

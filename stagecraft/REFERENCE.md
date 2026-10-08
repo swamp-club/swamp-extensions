@@ -45,6 +45,14 @@ work item starts on it; the graph analysis (below) runs only in `validate`.
 Editing a factory with `swamp model edit` does not check it: swamp only applies
 a lenient version of a model's schema, so the full check is stagecraft's own.
 
+A definition names its format with `schemaVersion`. When a stagecraft release
+changes the format, a definition at an older version is **upgraded**, never
+refused: work items read it upgraded, the factory's `validate` writes the
+upgrade into its file (keeping the file's comments), and work items already
+running keep the copy they pinned and go on. A definition at a newer version
+than the installed stagecraft reads is refused with "needs a newer
+@swamp/stagecraft".
+
 A factory definition is ported from software-factory's definition schema:
 stages, work, artifacts, evidence, transitions and gates. Three things change:
 
@@ -370,7 +378,9 @@ shows them as the agent saves.
   Home and End to the first and last, and Enter opens the work item.
 - **Work item** (`/w/<key>`, from a Board card or the bar's **go to work
   item** box, which takes a key) draws one work item on the definition it
-  pinned, which may be older than the file's; a notice says so. Stages it
+  pinned, which may be older than the file's; a notice says so. A copy pinned
+  at an older `schemaVersion` is compared upgraded, so a format change alone
+  does not make it older. Stages it
   entered show how many times (this era), the current stage glows, exits it
   took are solid with how often, and stages it never entered are dimmed.
   **Now** shows where it waits, from the code `status` prints from: a person's

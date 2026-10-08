@@ -167,3 +167,23 @@ Deno.test("model: path segments", () => {
   ]);
   assertEquals(pathSegments("(root)"), []);
 });
+
+Deno.test("model: a current definition is shown as written, not upgraded", async () => {
+  const loaded = await loadDefinition(FILE, modelFile(TEXT));
+  assert(loaded.ok);
+  assertEquals(loaded.upgradedFrom, null);
+});
+
+Deno.test("model: a definition newer than this stagecraft reads is one problem at its schemaVersion", async () => {
+  const text = modelFile(TEXT.replace("schemaVersion: 1", "schemaVersion: 99"));
+  const loaded = await loadDefinition(FILE, text);
+  assert(!loaded.ok);
+  assertEquals(loaded.problems.length, 1);
+  const [problem] = loaded.problems;
+  assertEquals(problem.path, "schemaVersion");
+  assert(
+    problem.message.includes("needs a newer @swamp/stagecraft"),
+    problem.message,
+  );
+  assertEquals(lineOf(text, problem.range!.line), held("schemaVersion: 99"));
+});

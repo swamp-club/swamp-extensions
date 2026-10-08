@@ -16,6 +16,10 @@
 
 import { z } from "npm:zod@4.3.6";
 import { DefinitionSchema } from "../_lib/engine/definition_schema.ts";
+import {
+  upgradeFactoryArguments,
+  upgradeOrPass,
+} from "../_lib/engine/definition_upgrade.ts";
 import { SavedScenariosSchema } from "../_lib/engine/scenario.ts";
 import {
   type MethodContextLike,
@@ -49,11 +53,20 @@ import {
 // not swamp's evaluated globalArguments (work_item_ops.ts, loadFactory). The
 // full check is the validate method (schema, tracker, graph analysis, saved
 // scenarios), and its schema check runs again whenever a work item starts.
+// A method never reads context.globalArgs.definition: that is the upgraded
+// form swamp checked, not what was written.
+//
+// A definition at an older schemaVersion is upgraded by the same steps
+// everywhere (definition_upgrade.ts). swamp writes the upgrade back to the
+// factory's file through `upgrades` when one of its methods runs. swamp model
+// validate checks globalArguments without running `upgrades` (swamp-club
+// #3196), so the schema upgrades a definition before checking it, and accepts
+// every version this runtime reads.
 // ---------------------------------------------------------------------------
 
 /** A factory's global arguments: its definition and its saved scenarios. */
 export const FactoryArgumentsSchema = z.object({
-  definition: DefinitionSchema.optional().meta({
+  definition: z.preprocess(upgradeOrPass, DefinitionSchema).optional().meta({
     foreignTemplate: true,
     description: "The factory definition: its stages, transitions, gates " +
       "and prompts. Start from one of the skill's examples.",
@@ -78,8 +91,20 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.
   type: "@swamp/stagecraft/factory",
-  version: "2026.10.02.1",
+  version: "2026.10.08.1",
   globalArguments: FactoryArgumentsSchema,
+  // Every entry runs the same function: it goes by the definition's own
+  // schemaVersion, so it is right whichever typeVersion an instance is at,
+  // and does nothing to a definition already current. A format change adds
+  // an entry for its release (definition_upgrade.ts).
+  upgrades: [
+    {
+      toVersion: "2026.10.08.1",
+      description: "Upgrade the definition to the current schemaVersion",
+      upgradeAttributes: (old: Record<string, unknown>) =>
+        upgradeFactoryArguments(old),
+    },
+  ],
   resources: {},
   methods: {
     validate: {

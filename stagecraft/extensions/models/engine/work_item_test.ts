@@ -24,6 +24,7 @@ import {
 } from "../_lib/engine/fake_swamp.ts";
 import { type Env, systemEnv } from "../_lib/engine/run_ops.ts";
 import type { RunRecord } from "../_lib/engine/run_record.ts";
+import { digestOf } from "../_lib/engine/canonical.ts";
 import { contextStore, loadRun } from "../_lib/engine/run_store.ts";
 import {
   advanceMethod,
@@ -117,6 +118,22 @@ Deno.test("start: pins the factory's definition and starts at its initial stage"
     summary.includes("(factory 'team'; "),
     summary,
   );
+});
+
+Deno.test("start: the pinned copy, as stored, has the digest the run records, so it is checked before any upgrade", async () => {
+  // checkPinned digests the stored form before upgrading it (#3194). That
+  // holds only if parsing changes nothing the digest sees: no default, no
+  // transform. A stored record is JSON, so read it back as JSON.
+  const swamp = await started();
+  const run = await runOf(swamp);
+  const pinned = swamp.resources.get(ITEM)?.get("definition")?.[0];
+  const stored = JSON.parse(JSON.stringify(pinned)) as {
+    definition: unknown;
+  };
+  assertEquals(await digestOf(stored.definition), run.definition.digest);
+  // And the factory's file as written digests the same: what was written is
+  // what is pinned.
+  assertEquals(await digestOf(await buildDefinition()), run.definition.digest);
 });
 
 Deno.test("start: records the work's title when given, and none when not", async () => {

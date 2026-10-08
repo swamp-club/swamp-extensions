@@ -63,6 +63,10 @@ async function withWatch(
   const file = join(dir, "team.yaml");
   await Deno.mkdir(dir);
   await Deno.writeTextFile(file, "a: 1\n");
+  // macOS can report a write made just before a watch opens as an event on
+  // the new watch, which would show as an edit nobody made (swamp-club
+  // #3200). In use that is one extra reload; here the write settles first.
+  await settle();
   const watcher = watchStudio(undefined, 20);
   const events: StudioEvent[] = [];
   let waiter: ((e: StudioEvent) => void) | undefined;

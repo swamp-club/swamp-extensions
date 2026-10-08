@@ -157,9 +157,11 @@ export async function readWorkItem(
       `work item '${key}': ${e instanceof Error ? e.message : String(e)}`,
     );
   }
+  // The digest of the pinned definition in the current form, which the page
+  // compares with the factory file's, as the Board does (boardCard).
   const pinned = {
     factory: run.factory,
-    digest: run.definition.digest,
+    digest: await digestOf(definition),
     definition,
   };
   const store = queryStore(query, key);

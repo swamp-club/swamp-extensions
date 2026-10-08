@@ -96,7 +96,9 @@ until you stop it with Ctrl-C. It listens on your machine only.
 
 - **Factory:** your process, as a swamp model your agent creates and edits.
 - **Factory definition:** the factory's stages, gates and transitions, held in
-  the factory's model file.
+  the factory's model file. When a stagecraft release changes the definition
+  format, your definitions and running work items are upgraded for you; the
+  factory's `validate` writes the upgrade into its file.
 - **Stage:** one step of the process: the work done there, by whom, and what it
   must produce.
 - **Product:** what a stage produces. An **artifact** is a document such as a

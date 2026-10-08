@@ -19,6 +19,7 @@ import {
   findStage,
   transitionsFrom,
 } from "./definition_schema.ts";
+import { digestOf } from "./canonical.ts";
 import { evaluateGates } from "./gates.ts";
 import {
   currentPark,
@@ -431,6 +432,10 @@ export async function boardCard(
       "is parked is unknown";
     return card;
   }
+  // The digest of the pinned definition in the current form, as the page
+  // digests the factory's file: a copy pinned at an older schemaVersion is
+  // not stale when its upgrade is what the factory holds now.
+  card.pinnedDigest = await digestOf(definition);
   try {
     card.parked = await parksOf(run, definition, store, env);
   } catch (e) {

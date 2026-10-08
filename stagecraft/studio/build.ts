@@ -59,6 +59,7 @@ export const ENGINE_INPUTS = [
   "cel_context.ts",
   "cel_refs.ts",
   "definition_schema.ts",
+  "definition_upgrade.ts",
   "design_view.ts",
   "dispatch.ts",
   "entry_summary.ts",

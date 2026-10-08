@@ -78,7 +78,16 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/stagecraft/work-item",
-  version: "2026.10.02.1",
+  version: "2026.10.08.1",
+  // The work item has no globalArguments to upgrade; the entry moves an
+  // instance's typeVersion to the version it runs at.
+  upgrades: [
+    {
+      toVersion: "2026.10.08.1",
+      description: "Pinned definitions are read upgraded (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   // A string literal, for the same reason as the type; the report's test
   // checks it names the report.
   reports: ["@swamp/stagecraft/work-item-summary"],
