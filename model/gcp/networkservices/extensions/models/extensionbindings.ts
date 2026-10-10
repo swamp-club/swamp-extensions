@@ -175,7 +175,7 @@ const GlobalArgsSchema = z.object({
       destination: z.object({
         headerSet: z.object({
           headers: z.unknown().describe(
-            "Required. A list of headers to match against in http header. If multiple header matches are provided, they will be evaluated as an AND, i.e. all header matches must match for the request to match.",
+            "Required. A list of HTTP headers to match against. If multiple header matches are provided, they are evaluated as an AND, meaning that all header matches must match for the request to match. Limited to 10 headers.",
           ).optional(),
         }).describe(
           "Optional. A set of HTTP headers to match against. If not specified, requests with any headers are matched.",
@@ -190,12 +190,12 @@ const GlobalArgsSchema = z.object({
           "Optional. A list of non-empty strings whose value is matched against the resource to which a request is sent (e.g., an Agent in AiApplication). If not specified, any resource is allowed. If specified, a match occurs if any of the resources matches the resource value in the request. Limited to 5 resources. When matching against resources in the AgentRegistry, use the URNs of the registry resources.",
         ).optional(),
       }).describe(
-        "Optional. Describes properties of destination of a request. Within a destination, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches. At least one of destination or not_destination must be specified.",
+        "Optional. Describes properties of the destination of a request. A request matches the destination only if it matches every field that is set. Fields that are not set are always considered a match. For example, if only `hosts` and `paths` are set, a request matches when any host matches and any path matches. At least one of `destination` or `not_destination` must be specified.",
       ).optional(),
       notDestination: z.object({
         headerSet: z.object({
           headers: z.unknown().describe(
-            "Required. A list of headers to match against in http header. If multiple header matches are provided, they will be evaluated as an AND, i.e. all header matches must match for the request to match.",
+            "Required. A list of HTTP headers to match against. If multiple header matches are provided, they are evaluated as an AND, meaning that all header matches must match for the request to match. Limited to 10 headers.",
           ).optional(),
         }).describe(
           "Optional. A set of HTTP headers to match against. If not specified, requests with any headers are matched.",
@@ -216,27 +216,27 @@ const GlobalArgsSchema = z.object({
       "Optional. Describes properties of a destination of a request. If specified, the extension will only be invoked on requests to destinations that match the specified criteria.",
     ).optional(),
   })).describe(
-    "Optional. A list of match conditions to match against the incoming request. The extension will be invoked if at least one condition matches the request, or if no match conditions are specified. Limited to 5 conditions.",
+    "Optional. A list of match conditions to evaluate against the incoming request. The extension is invoked if the request matches at least one condition, or if no match conditions are specified. A request matches a condition only if it matches every field that is set in that condition. Limited to 5 conditions.",
   ).optional(),
   name: z.string().describe(
     "Identifier. Name of the `ExtensionBinding` resource in the following format: `projects/{project}/locations/{location}/extensionBindings/{extension_binding}`.",
   ).optional(),
   priority: z.number().int().describe(
-    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. Priority of extension bindings are used to determine the order in which extension bindings are applied to a request.",
+    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. The priority determines the order in which extension bindings are applied to a request.",
   ).optional(),
   producerExtension: z.string().describe(
-    "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint (see [Model Armor integration](https://docs.cloud.google.com/model-armor/integrations))",
+    "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint, for example `modelarmor.us-central1.rep.googleapis.com`.",
   ).optional(),
   producerMetadata: z.record(z.string(), z.string()).describe(
-    "Optional. Additional metadata that should be passed to the attached extension with each request.",
+    "Optional. Additional metadata that should be passed to the attached extension with each request. This field is subject to the following limitations: * The total size of the metadata must be less than 1 KiB. * The total number of keys must be less than 16. * The length of each key must be less than 64 characters. * The length of each value must be less than 1024 characters.",
   ).optional(),
   target: z.object({
     resources: z.array(z.string()).describe(
-      "Optional. The reference to the target resource, to which this binding should attach. Exactly one of `resources` or `scope` must be set.",
+      "Optional. The references to the target resources to which this binding should attach. Exactly one of `resources` or `scope` must be set. For AI Application resources, specify the full resource name in the format: `projects/{project}/locations/{location}/applications/{application}`. Limited to 1 resource.",
     ).optional(),
     scope: z.object({
       parent: z.string().describe(
-        "Required. Parent resource name specification, in the format: `projects/{project_number}`.",
+        "Required. The parent resource that defines the scope, in the format `projects/{project_number}`. When the scope is a project, the binding applies to the resources that meet all of the following conditions: * The resource belongs to the specified project. * The resource is in the same location as the `ExtensionBinding`. * The resource type is listed in `resource_types`.",
       ).optional(),
       resourceTypes: z.array(
         z.enum([
@@ -245,13 +245,13 @@ const GlobalArgsSchema = z.object({
           "AGENT_GATEWAY",
         ]),
       ).describe(
-        "Required. Type of the resource to which the binding should attach. Limited to 1 resource type.",
+        "Required. The types of resources to which the binding should attach. Limited to 1 resource type.",
       ).optional(),
     }).describe(
       "Optional. Specifies the scope of resources to which this binding should attach. Exactly one of `resources` or `scope` must be set.",
     ).optional(),
   }).describe(
-    "Required. Specifies a target to which this `ExtensionBinding` should be attached. The target can be either a single resource or a scope of resources.",
+    "Required. Specifies a target to which this `ExtensionBinding` should be attached.",
   ).optional(),
   extensionBindingId: z.string().describe(
     "Required. Short name of the `ExtensionBinding` resource to be created.",
@@ -324,7 +324,7 @@ const InputsSchema = z.object({
       destination: z.object({
         headerSet: z.object({
           headers: z.unknown().describe(
-            "Required. A list of headers to match against in http header. If multiple header matches are provided, they will be evaluated as an AND, i.e. all header matches must match for the request to match.",
+            "Required. A list of HTTP headers to match against. If multiple header matches are provided, they are evaluated as an AND, meaning that all header matches must match for the request to match. Limited to 10 headers.",
           ).optional(),
         }).describe(
           "Optional. A set of HTTP headers to match against. If not specified, requests with any headers are matched.",
@@ -339,12 +339,12 @@ const InputsSchema = z.object({
           "Optional. A list of non-empty strings whose value is matched against the resource to which a request is sent (e.g., an Agent in AiApplication). If not specified, any resource is allowed. If specified, a match occurs if any of the resources matches the resource value in the request. Limited to 5 resources. When matching against resources in the AgentRegistry, use the URNs of the registry resources.",
         ).optional(),
       }).describe(
-        "Optional. Describes properties of destination of a request. Within a destination, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches. At least one of destination or not_destination must be specified.",
+        "Optional. Describes properties of the destination of a request. A request matches the destination only if it matches every field that is set. Fields that are not set are always considered a match. For example, if only `hosts` and `paths` are set, a request matches when any host matches and any path matches. At least one of `destination` or `not_destination` must be specified.",
       ).optional(),
       notDestination: z.object({
         headerSet: z.object({
           headers: z.unknown().describe(
-            "Required. A list of headers to match against in http header. If multiple header matches are provided, they will be evaluated as an AND, i.e. all header matches must match for the request to match.",
+            "Required. A list of HTTP headers to match against. If multiple header matches are provided, they are evaluated as an AND, meaning that all header matches must match for the request to match. Limited to 10 headers.",
           ).optional(),
         }).describe(
           "Optional. A set of HTTP headers to match against. If not specified, requests with any headers are matched.",
@@ -365,27 +365,27 @@ const InputsSchema = z.object({
       "Optional. Describes properties of a destination of a request. If specified, the extension will only be invoked on requests to destinations that match the specified criteria.",
     ).optional(),
   })).describe(
-    "Optional. A list of match conditions to match against the incoming request. The extension will be invoked if at least one condition matches the request, or if no match conditions are specified. Limited to 5 conditions.",
+    "Optional. A list of match conditions to evaluate against the incoming request. The extension is invoked if the request matches at least one condition, or if no match conditions are specified. A request matches a condition only if it matches every field that is set in that condition. Limited to 5 conditions.",
   ).optional(),
   name: z.string().describe(
     "Identifier. Name of the `ExtensionBinding` resource in the following format: `projects/{project}/locations/{location}/extensionBindings/{extension_binding}`.",
   ).optional(),
   priority: z.number().int().describe(
-    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. Priority of extension bindings are used to determine the order in which extension bindings are applied to a request.",
+    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. The priority determines the order in which extension bindings are applied to a request.",
   ).optional(),
   producerExtension: z.string().describe(
-    "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint (see [Model Armor integration](https://docs.cloud.google.com/model-armor/integrations))",
+    "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint, for example `modelarmor.us-central1.rep.googleapis.com`.",
   ).optional(),
   producerMetadata: z.record(z.string(), z.string()).describe(
-    "Optional. Additional metadata that should be passed to the attached extension with each request.",
+    "Optional. Additional metadata that should be passed to the attached extension with each request. This field is subject to the following limitations: * The total size of the metadata must be less than 1 KiB. * The total number of keys must be less than 16. * The length of each key must be less than 64 characters. * The length of each value must be less than 1024 characters.",
   ).optional(),
   target: z.object({
     resources: z.array(z.string()).describe(
-      "Optional. The reference to the target resource, to which this binding should attach. Exactly one of `resources` or `scope` must be set.",
+      "Optional. The references to the target resources to which this binding should attach. Exactly one of `resources` or `scope` must be set. For AI Application resources, specify the full resource name in the format: `projects/{project}/locations/{location}/applications/{application}`. Limited to 1 resource.",
     ).optional(),
     scope: z.object({
       parent: z.string().describe(
-        "Required. Parent resource name specification, in the format: `projects/{project_number}`.",
+        "Required. The parent resource that defines the scope, in the format `projects/{project_number}`. When the scope is a project, the binding applies to the resources that meet all of the following conditions: * The resource belongs to the specified project. * The resource is in the same location as the `ExtensionBinding`. * The resource type is listed in `resource_types`.",
       ).optional(),
       resourceTypes: z.array(
         z.enum([
@@ -394,13 +394,13 @@ const InputsSchema = z.object({
           "AGENT_GATEWAY",
         ]),
       ).describe(
-        "Required. Type of the resource to which the binding should attach. Limited to 1 resource type.",
+        "Required. The types of resources to which the binding should attach. Limited to 1 resource type.",
       ).optional(),
     }).describe(
       "Optional. Specifies the scope of resources to which this binding should attach. Exactly one of `resources` or `scope` must be set.",
     ).optional(),
   }).describe(
-    "Required. Specifies a target to which this `ExtensionBinding` should be attached. The target can be either a single resource or a scope of resources.",
+    "Required. Specifies a target to which this `ExtensionBinding` should be attached.",
   ).optional(),
   extensionBindingId: z.string().describe(
     "Required. Short name of the `ExtensionBinding` resource to be created.",
@@ -436,10 +436,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ExtensionBindings. Registered at `@swamp/gcp/networkservices/extensionbindings`. */
 export const model = {
   type: "@swamp/gcp/networkservices/extensionbindings",
-  version: "2026.08.22.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.08.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

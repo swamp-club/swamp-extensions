@@ -63,7 +63,7 @@ const CloudWatchLogsInputConfigSchema = z.object({
 const EvaluatorReferenceSchema = z.object({
   EvaluatorId: z.string().regex(
     new RegExp(
-      "^(Builtin\\.[a-zA-Z0-9_-]+|[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10})$",
+      "^(Builtin\\.[a-zA-Z0-9._-]+|ThirdParty\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+|[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10})$",
     ),
   ).describe("The unique identifier of the evaluator."),
 });
@@ -333,7 +333,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.09.30.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -402,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

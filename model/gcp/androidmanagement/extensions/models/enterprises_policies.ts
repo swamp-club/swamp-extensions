@@ -1006,7 +1006,7 @@ const GlobalArgsSchema = z.object({
       "Optional. Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
     ).optional(),
   }).describe(
-    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
+    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with the KIOSK role.",
   ).optional(),
   locationMode: z.enum([
     "LOCATION_MODE_UNSPECIFIED",
@@ -2851,7 +2851,7 @@ const InputsSchema = z.object({
       "Optional. Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode.",
     ).optional(),
   }).describe(
-    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with installType KIOSK.",
+    "Optional. Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with the KIOSK role.",
   ).optional(),
   locationMode: z.enum([
     "LOCATION_MODE_UNSPECIFIED",
@@ -3444,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.06.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3633,6 +3633,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

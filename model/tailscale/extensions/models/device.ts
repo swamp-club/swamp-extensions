@@ -117,6 +117,11 @@ const ResourceSchema = z.object({
     serialNumbers: z.array(z.string()).optional(),
     disabled: z.boolean().optional(),
   }).passthrough().optional(),
+  postureStatus: z.object({
+    passing: z.boolean().optional(),
+    impacting: z.boolean().optional(),
+    failingAssertions: z.array(z.string()).optional(),
+  }).passthrough().optional(),
   isEphemeral: z.boolean().optional(),
   distro: z.object({
     name: z.string().optional(),
@@ -130,7 +135,14 @@ const InputsSchema = z.object({});
 /** Swamp extension model for a Tailscale device. Registered at `@swamp/tailscale/device`. */
 export const model = {
   type: "@swamp/tailscale/device",
-  version: "2026.10.02.1",
+  version: "2026.10.09.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

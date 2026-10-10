@@ -160,6 +160,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   createTime: z.string().optional(),
   dataset: z.string().optional(),
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   filter: z.string().optional(),
   mostRecentEditor: z.string().optional(),
@@ -177,6 +178,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   createTime: z.string().optional(),
   dataset: z.string().optional(),
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   filter: z.string().optional(),
   mostRecentEditor: z.string().optional(),
@@ -196,6 +198,7 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   createTime: z.string().optional(),
   dataset: z.string().optional(),
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   filter: z.string().optional(),
   mostRecentEditor: z.string().optional(),
@@ -236,7 +239,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center BigQueryExports. Registered at `@swamp/gcp/securitycenter/bigqueryexports`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/bigqueryexports",
-  version: "2026.08.12.2",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -363,6 +366,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.09.1",
+      description: "Added: deletionNotificationsEnabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -389,6 +397,10 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["dataset"] !== undefined) body["dataset"] = g["dataset"];
+        if (g["deletionNotificationsEnabled"] !== undefined) {
+          body["deletionNotificationsEnabled"] =
+            g["deletionNotificationsEnabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -512,6 +524,10 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["dataset"] !== undefined) body["dataset"] = g["dataset"];
+        if (g["deletionNotificationsEnabled"] !== undefined) {
+          body["deletionNotificationsEnabled"] =
+            g["deletionNotificationsEnabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }

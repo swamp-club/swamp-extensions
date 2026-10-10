@@ -153,13 +153,13 @@ const GlobalArgsSchema = z.object({
     }).describe("Metadata for hardware keys.").optional(),
     kaclsKeyMetadata: z.object({
       kaclsData: z.string().describe(
-        "Opaque data generated and used by the key access control list service. Maximum size: 8 KiB.",
+        "Opaque data generated and used by the key access control list service.",
       ).optional(),
       kaclsUri: z.string().describe(
-        "The URI of the key access control list service that manages the private key.",
+        "The URI of the key access control list service that manages the key.",
       ).optional(),
     }).describe(
-      "Metadata for a private key instance managed by an external key access control list service.",
+      "Metadata for a private key instance managed by an external key access control list service. The maximum size of the KACLS data field is 8 KiB.",
     ).optional(),
     privateKeyMetadataId: z.string().describe(
       "Output only. The immutable ID for the private key metadata instance.",
@@ -213,13 +213,13 @@ const InputsSchema = z.object({
     }).describe("Metadata for hardware keys.").optional(),
     kaclsKeyMetadata: z.object({
       kaclsData: z.string().describe(
-        "Opaque data generated and used by the key access control list service. Maximum size: 8 KiB.",
+        "Opaque data generated and used by the key access control list service.",
       ).optional(),
       kaclsUri: z.string().describe(
-        "The URI of the key access control list service that manages the private key.",
+        "The URI of the key access control list service that manages the key.",
       ).optional(),
     }).describe(
-      "Metadata for a private key instance managed by an external key access control list service.",
+      "Metadata for a private key instance managed by an external key access control list service. The maximum size of the KACLS data field is 8 KiB.",
     ).optional(),
     privateKeyMetadataId: z.string().describe(
       "Output only. The immutable ID for the private key metadata instance.",
@@ -260,7 +260,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Settings.Cse.Keypairs. Registered at `@swamp/gcp/gmail/users-settings-cse-keypairs`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-cse-keypairs",
-  version: "2026.10.06.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -374,6 +374,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -235,16 +235,6 @@ const GlobalArgsSchema = z.object({
           "Optional. Whether to disable the inference of data types for JSON data. If true, all columns are registered as their primitive types (strings, number, or boolean).",
         ).optional(),
       }).describe("Optional. Configuration for JSON data.").optional(),
-      unstructuredDataOptions: z.object({
-        globalEndpointEnabled: z.boolean().describe(
-          "Optional. Whether to use the global model endpoint.",
-        ).optional(),
-        semanticInferenceEnabled: z.boolean().describe(
-          "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
-        ).optional(),
-      }).describe(
-        "Optional. Specifies configuration for unstructured data discovery.",
-      ).optional(),
     }).describe("Cloud Storage related configurations.").optional(),
   }).describe("Settings for a data discovery scan.").optional(),
   dataDocumentationSpec: z.object({
@@ -552,18 +542,6 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the scan.",
   ).optional(),
-  unstructuredDataProfileSpec: z.object({
-    customizedPrompt: z.string().describe(
-      "Optional. Customized prompt for unstructured data profile. The field will be used as part of the prompt, could be some instruction, specifying skill, or specific area to focus.",
-    ).optional(),
-    globalEndpointEnabled: z.boolean().describe(
-      "Optional. Whether to use the global model.",
-    ).optional(),
-    graphProfilePublishingEnabled: z.boolean().describe(
-      "Optional. Whether to publish graph-profile as aspect on the catalog entry.",
-    ).optional(),
-  }).describe("Optional. Settings for an unstructured data profile scan.")
-    .optional(),
   dataScanId: z.string().describe(
     'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
@@ -615,10 +593,6 @@ const StateSchema = z.object({
       jsonOptions: z.object({
         encoding: z.string(),
         typeInferenceDisabled: z.boolean(),
-      }),
-      unstructuredDataOptions: z.object({
-        globalEndpointEnabled: z.boolean(),
-        semanticInferenceEnabled: z.boolean(),
       }),
     }),
   }).optional(),
@@ -934,37 +908,6 @@ const StateSchema = z.object({
   state: z.string().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
-  unstructuredDataProfileResult: z.object({
-    description: z.string(),
-    graphProfile: z.object({
-      edgeTypes: z.array(z.object({
-        description: z.string(),
-        extractionHints: z.object({
-          cardinality: z.unknown(),
-        }),
-        fields: z.array(z.unknown()),
-        foreignKeys: z.array(z.unknown()),
-        name: z.string(),
-        sourceNodeType: z.string(),
-        targetNodeType: z.string(),
-      })),
-      nodeTypes: z.array(z.object({
-        description: z.string(),
-        extractionHints: z.object({
-          cardinality: z.unknown(),
-        }),
-        fields: z.array(z.unknown()),
-        name: z.string(),
-        primaryKeys: z.array(z.unknown()),
-      })),
-    }),
-    partialFailureMessage: z.string(),
-  }).optional(),
-  unstructuredDataProfileSpec: z.object({
-    customizedPrompt: z.string(),
-    globalEndpointEnabled: z.boolean(),
-    graphProfilePublishingEnabled: z.boolean(),
-  }).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -1034,16 +977,6 @@ const InputsSchema = z.object({
           "Optional. Whether to disable the inference of data types for JSON data. If true, all columns are registered as their primitive types (strings, number, or boolean).",
         ).optional(),
       }).describe("Optional. Configuration for JSON data.").optional(),
-      unstructuredDataOptions: z.object({
-        globalEndpointEnabled: z.boolean().describe(
-          "Optional. Whether to use the global model endpoint.",
-        ).optional(),
-        semanticInferenceEnabled: z.boolean().describe(
-          "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
-        ).optional(),
-      }).describe(
-        "Optional. Specifies configuration for unstructured data discovery.",
-      ).optional(),
     }).describe("Cloud Storage related configurations.").optional(),
   }).describe("Settings for a data discovery scan.").optional(),
   dataDocumentationSpec: z.object({
@@ -1351,18 +1284,6 @@ const InputsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the scan.",
   ).optional(),
-  unstructuredDataProfileSpec: z.object({
-    customizedPrompt: z.string().describe(
-      "Optional. Customized prompt for unstructured data profile. The field will be used as part of the prompt, could be some instruction, specifying skill, or specific area to focus.",
-    ).optional(),
-    globalEndpointEnabled: z.boolean().describe(
-      "Optional. Whether to use the global model.",
-    ).optional(),
-    graphProfilePublishingEnabled: z.boolean().describe(
-      "Optional. Whether to publish graph-profile as aspect on the catalog entry.",
-    ).optional(),
-  }).describe("Optional. Settings for an unstructured data profile scan.")
-    .optional(),
   dataScanId: z.string().describe(
     'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
@@ -1397,7 +1318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.09.07.2",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1701,6 +1622,17 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.09.1",
+      description: "Removed: unstructuredDataProfileSpec",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          unstructuredDataProfileSpec: _unstructuredDataProfileSpec,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1758,10 +1690,6 @@ export const model = {
           body["executionSpec"] = g["executionSpec"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["unstructuredDataProfileSpec"] !== undefined) {
-          body["unstructuredDataProfileSpec"] =
-            g["unstructuredDataProfileSpec"];
-        }
         if (g["dataScanId"] !== undefined) {
           params["dataScanId"] = String(g["dataScanId"]);
         }
@@ -1911,10 +1839,6 @@ export const model = {
           body["executionSpec"] = g["executionSpec"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["unstructuredDataProfileSpec"] !== undefined) {
-          body["unstructuredDataProfileSpec"] =
-            g["unstructuredDataProfileSpec"];
-        }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {
           params["updateMask"] = updateMaskKeys.join(",");

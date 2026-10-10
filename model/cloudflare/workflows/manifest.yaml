@@ -1,23 +1,18 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
-name: "@swamp/gcp/health"
+name: "@swamp/cloudflare/workflows"
 version: "2026.10.09.1"
-description: "Google Cloud health infrastructure models"
+description: "Cloudflare workflows infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
-  - gcp
-  - google-cloud
-  - health
+  - cloudflare
+  - workflows
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: users_datatypes_datapoints
+  - Added: concurrency
 models:
-  - shl_r.ts
-  - subscribers.ts
-  - subscribers_subscriptions.ts
-  - users_datatypes_datapoints.ts
-  - users_paireddevices.ts
+  - concurrency.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

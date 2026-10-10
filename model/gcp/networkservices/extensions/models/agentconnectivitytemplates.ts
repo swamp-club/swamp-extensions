@@ -180,6 +180,7 @@ const GlobalArgsSchema = z.object({
     "GKE",
     "CLOUD_RUN",
     "BORG",
+    "GCE_VM",
   ]).describe(
     "Optional. The compute environment where the agent is hosted. Exactly one type of compute must be chosen.",
   ).optional(),
@@ -291,6 +292,7 @@ const InputsSchema = z.object({
     "GKE",
     "CLOUD_RUN",
     "BORG",
+    "GCE_VM",
   ]).describe(
     "Optional. The compute environment where the agent is hosted. Exactly one type of compute must be chosen.",
   ).optional(),
@@ -376,7 +378,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentConnectivityTemplates. Registered at `@swamp/gcp/networkservices/agentconnectivitytemplates`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentconnectivitytemplates",
-  version: "2026.09.26.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.08.16.1",
@@ -385,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

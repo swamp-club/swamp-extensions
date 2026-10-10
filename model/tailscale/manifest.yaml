@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/tailscale"
-version: "2026.10.08.1"
+version: "2026.10.09.1"
 description: "Tailscale tailnet management models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,7 +9,7 @@ labels:
   - networking
   - vpn
 releaseNotes: |
-  - Updated: tailnet_settings
+  - Updated: tailnet_settings, device
 models:
   - contacts.ts
   - device.ts

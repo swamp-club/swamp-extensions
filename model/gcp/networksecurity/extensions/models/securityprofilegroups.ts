@@ -182,6 +182,9 @@ const GlobalArgsSchema = z.object({
   urlFilteringProfile: z.string().describe(
     "Optional. Reference to a SecurityProfile with the UrlFiltering configuration.",
   ).optional(),
+  wildfireAnalysisProfile: z.string().describe(
+    "Optional. Reference to a SecurityProfile with the WildFire configuration.",
+  ).optional(),
   securityProfileGroupId: z.string().describe(
     'Required. Short name of the SecurityProfileGroup resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile_group1".',
   ).optional(),
@@ -202,6 +205,7 @@ const StateSchema = z.object({
   threatPreventionProfile: z.string().optional(),
   updateTime: z.string().optional(),
   urlFilteringProfile: z.string().optional(),
+  wildfireAnalysisProfile: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -233,6 +237,9 @@ const InputsSchema = z.object({
   ).optional(),
   urlFilteringProfile: z.string().describe(
     "Optional. Reference to a SecurityProfile with the UrlFiltering configuration.",
+  ).optional(),
+  wildfireAnalysisProfile: z.string().describe(
+    "Optional. Reference to a SecurityProfile with the WildFire configuration.",
   ).optional(),
   securityProfileGroupId: z.string().describe(
     'Required. Short name of the SecurityProfileGroup resource to be created. This value should be 1-63 characters long, containing only letters, numbers, hyphens, and underscores, and should not start with a number. E.g. "security_profile_group1".',
@@ -268,7 +275,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security SecurityProfileGroups. Registered at `@swamp/gcp/networksecurity/securityprofilegroups`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/securityprofilegroups",
-  version: "2026.09.29.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -404,6 +411,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.09.1",
+      description: "Added: wildfireAnalysisProfile",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -445,6 +457,9 @@ export const model = {
         }
         if (g["urlFilteringProfile"] !== undefined) {
           body["urlFilteringProfile"] = g["urlFilteringProfile"];
+        }
+        if (g["wildfireAnalysisProfile"] !== undefined) {
+          body["wildfireAnalysisProfile"] = g["wildfireAnalysisProfile"];
         }
         if (g["securityProfileGroupId"] !== undefined) {
           params["securityProfileGroupId"] = String(
@@ -576,6 +591,9 @@ export const model = {
         }
         if (g["urlFilteringProfile"] !== undefined) {
           body["urlFilteringProfile"] = g["urlFilteringProfile"];
+        }
+        if (g["wildfireAnalysisProfile"] !== undefined) {
+          body["wildfireAnalysisProfile"] = g["wildfireAnalysisProfile"];
         }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

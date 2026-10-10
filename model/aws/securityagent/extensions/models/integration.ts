@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/lambda/web-function-revision
+// Auto-generated extension model for @swamp/aws/securityagent/integration
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Lambda WebFunctionRevision (AWS::Lambda::WebFunctionRevision).
+ * Swamp extension model for SecurityAgent Integration (AWS::SecurityAgent::Integration).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -38,32 +38,61 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const S3ObjectSchema = z.object({
-  Bucket: z.string().min(3).max(63).regex(
-    new RegExp("^([a-z0-9][a-z0-9\\.\\-]{1,61}[a-z0-9])$"),
-  ).describe("The S3 bucket name."),
-  Key: z.string().min(1).max(1024).describe("The S3 object key."),
-  VersionId: z.string().describe("The S3 object version ID.").optional(),
+const GitHubInputSchema = z.object({
+  Code: z.string().describe(
+    "The OAuth authorization code received from GitHub.",
+  ),
+  State: z.string().describe(
+    "The CSRF state token for validating the OAuth flow.",
+  ),
+  OrganizationName: z.string().describe(
+    "The name of the GitHub organization to integrate with.",
+  ).optional(),
 });
 
-const LoggingConfigSchema = z.object({
-  LogGroup: z.string().min(1).max(500).regex(
-    new RegExp("^[a-zA-Z0-9\\.\\-_/#]+$"),
-  ).describe("The CloudWatch log group name.").optional(),
-  ApplicationLogLevel: z.enum([
-    "TRACE",
-    "DEBUG",
-    "INFO",
-    "WARN",
-    "ERROR",
-    "FATAL",
-  ]).describe("The application log level.").optional(),
-  SystemLogLevel: z.enum(["DEBUG", "INFO", "WARN"]).describe(
-    "The system log level.",
+const GitLabInputSchema = z.object({
+  AccessToken: z.string().describe(
+    "The GitLab access token used to authenticate. This can be a personal access token or a group access token.",
+  ),
+  TokenType: z.enum(["PERSONAL", "GROUP"]).describe(
+    "The type of GitLab access token.",
+  ),
+  GroupId: z.string().describe(
+    "The identifier of the GitLab group. Required when TokenType is GROUP and ignored for personal tokens.",
   ).optional(),
+});
+
+const BitbucketInputSchema = z.object({
+  Workspace: z.string().describe(
+    "The Bitbucket workspace slug that identifies the workspace to integrate.",
+  ),
+  Code: z.string().describe(
+    "The OAuth 2.0 authorization code returned from the consent redirect.",
+  ),
+  State: z.string().describe(
+    "The CSRF state token echoed back from the OAuth redirect.",
+  ),
+});
+
+const ConfluenceInputSchema = z.object({
+  Code: z.string().describe(
+    "The OAuth 2.0 authorization code returned from the consent redirect.",
+  ),
+  State: z.string().describe(
+    "The CSRF state token echoed back from the OAuth redirect.",
+  ),
+  SiteUrl: z.string().describe(
+    "The Confluence Cloud site URL, for example https://mysite.atlassian.net.",
+  ),
+});
+
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -82,82 +111,54 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  FunctionName: z.string().min(1).max(256).describe(
-    "The name of the web function this revision belongs to. The length constraint applies only to the full ARN. If you specify only the function name, it is limited to 64 characters in length.",
+  Provider: z.enum(["GITHUB", "GITLAB", "BITBUCKET", "CONFLUENCE"]).describe(
+    "The integration provider.",
   ),
-  Description: z.string().min(0).max(256).describe(
-    "A description of the revision.",
+  ProviderInput: z.object({
+    Github: GitHubInputSchema.describe(
+      "The input required to create a GitHub integration.",
+    ).optional(),
+    Gitlab: GitLabInputSchema.describe(
+      "The input required to create a GitLab integration.",
+    ).optional(),
+    Bitbucket: BitbucketInputSchema.describe(
+      "The input required to create a Bitbucket integration.",
+    ).optional(),
+    Confluence: ConfluenceInputSchema.describe(
+      "The input required to create a Confluence integration.",
+    ).optional(),
+  }).describe(
+    "The provider-specific input required to create the integration. Exactly one of the provider input objects must be specified.",
   ).optional(),
-  KmsKeyArn: z.string().min(20).max(2048).regex(
-    new RegExp("^arn:(aws[a-z-]*){1}:kms:[a-z0-9-]+:[0-9]{12}:key/.*$"),
-  ).describe("The ARN of the KMS key used to encrypt the revision.").optional(),
-  BuildConfig: z.object({
-    CodeConfig: z.object({
-      S3Object: S3ObjectSchema.describe(
-        "The Amazon S3 location of the deployment artifact.",
-      ),
-    }).describe("The code configuration for the revision."),
-    RuntimeConfig: z.object({
-      Runtime: z.string().min(1).max(30).regex(
-        new RegExp("^[a-z][a-z0-9]*[0-9]+(\\.[a-z0-9]+)*$"),
-      ).describe("The runtime identifier."),
-    }).describe("The runtime configuration for the revision."),
-  }).describe("The build configuration for the revision."),
-  ServiceConfig: z.object({
-    ExecutionRoleArn: z.string().min(20).max(2048).regex(
-      new RegExp("^arn:(aws[a-z-]*){1}:iam::[0-9]{12}:role/.*$"),
-    ).describe("The ARN of the execution role."),
-    TimeoutSeconds: z.number().int().min(3).max(900).describe(
-      "The function timeout in seconds.",
-    ).optional(),
-    EgressNetworkConnectorArn: z.string().min(1).max(2048).regex(
-      new RegExp(
-        "^arn:(aws[a-z-]*):lambda:[a-z0-9-]+:[0-9]{12}:network-connector:[a-zA-Z0-9_-]+:[0-9]+$",
-      ),
-    ).describe(
-      "The versioned ARN of the network connector used for outbound network access from the revision.",
-    ).optional(),
-    MaxConcurrencyPerEnvironment: z.number().int().min(1).max(128).describe(
-      "The maximum concurrency per environment.",
-    ).optional(),
-    EnvironmentVariables: z.record(z.string(), z.string().min(1).max(4096))
-      .describe("Environment variables for the function.").optional(),
-    TelemetryConfig: z.object({
-      LoggingConfig: LoggingConfigSchema.describe(
-        "The logging configuration for the web function.",
-      ).optional(),
-    }).describe("The telemetry configuration.").optional(),
-  }).describe("The service configuration for the revision."),
+  DisplayName: z.string().describe("The display name for the integration."),
+  KmsKeyId: z.string().describe(
+    "The identifier of the AWS KMS key to use for encrypting data associated with the integration. Can be a key ID, key ARN, alias name, or alias ARN.",
+  ).optional(),
+  PrivateConnectionName: z.string().describe(
+    "The name of an active private connection used to reach a self-hosted provider instance over private networking.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "The tags to associate with the integration.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  FunctionName: z.string().optional(),
-  FunctionArn: z.string().optional(),
-  RevisionId: z.string().optional(),
-  RevisionArn: z.string(),
-  Description: z.string().optional(),
-  KmsKeyArn: z.string().optional(),
-  BuildConfig: z.object({
-    CodeConfig: z.object({
-      S3Object: S3ObjectSchema,
-    }),
-    RuntimeConfig: z.object({
-      Runtime: z.string(),
-    }),
+  Arn: z.string(),
+  IntegrationId: z.string().optional(),
+  Provider: z.string().optional(),
+  ProviderType: z.string().optional(),
+  ProviderInput: z.object({
+    Github: GitHubInputSchema,
+    Gitlab: GitLabInputSchema,
+    Bitbucket: BitbucketInputSchema,
+    Confluence: ConfluenceInputSchema,
   }).optional(),
-  ServiceConfig: z.object({
-    ExecutionRoleArn: z.string(),
-    TimeoutSeconds: z.number(),
-    EgressNetworkConnectorArn: z.string(),
-    MaxConcurrencyPerEnvironment: z.number(),
-    EnvironmentVariables: z.record(z.string(), z.unknown()),
-    TelemetryConfig: z.object({
-      LoggingConfig: LoggingConfigSchema,
-    }),
-  }).optional(),
-  State: z.string().optional(),
-  StateReason: z.string().optional(),
-  CreatedAt: z.string().optional(),
+  DisplayName: z.string().optional(),
+  KmsKeyId: z.string().optional(),
+  InstallationId: z.string().optional(),
+  TargetUrl: z.string().optional(),
+  PrivateConnectionName: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -168,52 +169,36 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  FunctionName: z.string().min(1).max(256).describe(
-    "The name of the web function this revision belongs to. The length constraint applies only to the full ARN. If you specify only the function name, it is limited to 64 characters in length.",
+  Provider: z.enum(["GITHUB", "GITLAB", "BITBUCKET", "CONFLUENCE"]).describe(
+    "The integration provider.",
   ).optional(),
-  Description: z.string().min(0).max(256).describe(
-    "A description of the revision.",
+  ProviderInput: z.object({
+    Github: GitHubInputSchema.describe(
+      "The input required to create a GitHub integration.",
+    ).optional(),
+    Gitlab: GitLabInputSchema.describe(
+      "The input required to create a GitLab integration.",
+    ).optional(),
+    Bitbucket: BitbucketInputSchema.describe(
+      "The input required to create a Bitbucket integration.",
+    ).optional(),
+    Confluence: ConfluenceInputSchema.describe(
+      "The input required to create a Confluence integration.",
+    ).optional(),
+  }).describe(
+    "The provider-specific input required to create the integration. Exactly one of the provider input objects must be specified.",
   ).optional(),
-  KmsKeyArn: z.string().min(20).max(2048).regex(
-    new RegExp("^arn:(aws[a-z-]*){1}:kms:[a-z0-9-]+:[0-9]{12}:key/.*$"),
-  ).describe("The ARN of the KMS key used to encrypt the revision.").optional(),
-  BuildConfig: z.object({
-    CodeConfig: z.object({
-      S3Object: S3ObjectSchema.describe(
-        "The Amazon S3 location of the deployment artifact.",
-      ).optional(),
-    }).describe("The code configuration for the revision.").optional(),
-    RuntimeConfig: z.object({
-      Runtime: z.string().min(1).max(30).regex(
-        new RegExp("^[a-z][a-z0-9]*[0-9]+(\\.[a-z0-9]+)*$"),
-      ).describe("The runtime identifier.").optional(),
-    }).describe("The runtime configuration for the revision.").optional(),
-  }).describe("The build configuration for the revision.").optional(),
-  ServiceConfig: z.object({
-    ExecutionRoleArn: z.string().min(20).max(2048).regex(
-      new RegExp("^arn:(aws[a-z-]*){1}:iam::[0-9]{12}:role/.*$"),
-    ).describe("The ARN of the execution role.").optional(),
-    TimeoutSeconds: z.number().int().min(3).max(900).describe(
-      "The function timeout in seconds.",
-    ).optional(),
-    EgressNetworkConnectorArn: z.string().min(1).max(2048).regex(
-      new RegExp(
-        "^arn:(aws[a-z-]*):lambda:[a-z0-9-]+:[0-9]{12}:network-connector:[a-zA-Z0-9_-]+:[0-9]+$",
-      ),
-    ).describe(
-      "The versioned ARN of the network connector used for outbound network access from the revision.",
-    ).optional(),
-    MaxConcurrencyPerEnvironment: z.number().int().min(1).max(128).describe(
-      "The maximum concurrency per environment.",
-    ).optional(),
-    EnvironmentVariables: z.record(z.string(), z.string().min(1).max(4096))
-      .describe("Environment variables for the function.").optional(),
-    TelemetryConfig: z.object({
-      LoggingConfig: LoggingConfigSchema.describe(
-        "The logging configuration for the web function.",
-      ).optional(),
-    }).describe("The telemetry configuration.").optional(),
-  }).describe("The service configuration for the revision.").optional(),
+  DisplayName: z.string().describe("The display name for the integration.")
+    .optional(),
+  KmsKeyId: z.string().describe(
+    "The identifier of the AWS KMS key to use for encrypting data associated with the integration. Can be a key ID, key ARN, alias name, or alias ARN.",
+  ).optional(),
+  PrivateConnectionName: z.string().describe(
+    "The name of an active private connection used to reach a self-hosted provider instance over private networking.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "The tags to associate with the integration.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -232,22 +217,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Lambda WebFunctionRevision. Registered at `@swamp/aws/lambda/web-function-revision`. */
+/** Swamp extension model for SecurityAgent Integration. Registered at `@swamp/aws/securityagent/integration`. */
 export const model = {
-  type: "@swamp/aws/lambda/web-function-revision",
+  type: "@swamp/aws/securityagent/integration",
   version: "2026.10.09.1",
-  upgrades: [
-    {
-      toVersion: "2026.10.09.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Lambda WebFunctionRevision resource state",
+      description: "SecurityAgent Integration resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -255,7 +233,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Lambda WebFunctionRevision",
+      description: "Create a SecurityAgent Integration",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -267,7 +245,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Lambda::WebFunctionRevision",
+          "AWS::SecurityAgent::Integration",
           desiredState,
           credentials,
         ) as StateData;
@@ -284,16 +262,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Lambda WebFunctionRevision",
+      description: "Get a SecurityAgent Integration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Lambda WebFunctionRevision",
+          "The primary identifier of the SecurityAgent Integration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Lambda::WebFunctionRevision",
+          "AWS::SecurityAgent::Integration",
           args.identifier,
           credentials,
         ) as StateData;
@@ -310,17 +288,73 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    update: {
+      description: "Update a SecurityAgent Integration",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const identifier = existing.Arn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
+        }
+        const currentState = await readResource(
+          "AWS::SecurityAgent::Integration",
+          identifier,
+          credentials,
+        ) as StateData;
+        const desiredState: Record<string, unknown> = { ...currentState };
+        for (const [key, value] of Object.entries(g)) {
+          if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
+          if (value !== undefined) desiredState[key] = value;
+        }
+        const result = await updateResource(
+          "AWS::SecurityAgent::Integration",
+          identifier,
+          currentState,
+          desiredState,
+          [
+            "Provider",
+            "DisplayName",
+            "KmsKeyId",
+            "PrivateConnectionName",
+            "ProviderInput",
+          ],
+          credentials,
+        );
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     delete: {
-      description: "Delete a Lambda WebFunctionRevision",
+      description: "Delete a SecurityAgent Integration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Lambda WebFunctionRevision",
+          "The primary identifier of the SecurityAgent Integration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Lambda::WebFunctionRevision",
+          "AWS::SecurityAgent::Integration",
           args.identifier,
           credentials,
         );
@@ -339,7 +373,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Lambda WebFunctionRevision state from AWS",
+      description: "Sync SecurityAgent Integration state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -357,13 +391,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.RevisionArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Lambda::WebFunctionRevision",
+            "AWS::SecurityAgent::Integration",
             identifier,
             credentials,
           ) as StateData;
@@ -387,7 +421,7 @@ export const model = {
       },
     },
     list: {
-      description: "List Lambda WebFunctionRevision resources",
+      description: "List SecurityAgent Integration resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -402,7 +436,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::Lambda::WebFunctionRevision",
+          "AWS::SecurityAgent::Integration",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -413,8 +447,10 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.RevisionArn?.toString() ?? item.identifier)
-              .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+            (item.properties?.Arn?.toString() ?? item.identifier).replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
           const handle = await context.writeResource("state", instanceName, {
             ...item.properties,
             _identifier: item.identifier,

@@ -42,6 +42,43 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ContainerDependencySchema = z.object({
+  ContainerName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
+    .describe(
+      "A descriptive label for the container definition. The container being defined depends on this container's condition.",
+    ),
+  Condition: z.enum(["START", "COMPLETE", "SUCCESS", "HEALTHY"]).describe(
+    "The type of dependency.",
+  ),
+});
+
+const ContainerEnvironmentSchema = z.object({
+  Name: z.string().min(1).max(255).regex(new RegExp("^.*$")).describe(
+    "The environment variable name.",
+  ),
+  Value: z.string().min(1).max(255).regex(new RegExp("^.*$")).describe(
+    "The environment variable value.",
+  ),
+});
+
+const ContainerPortRangeSchema = z.object({
+  FromPort: z.number().int().min(1).max(60000).describe(
+    "A starting value for the range of allowed port numbers.",
+  ),
+  Protocol: z.enum(["TCP", "UDP"]).describe(
+    "Defines the protocol of these ports.",
+  ),
+  ToPort: z.number().int().min(1).max(60000).describe(
+    "An ending value for the range of allowed port numbers. Port numbers are end-inclusive. This value must be equal to or greater than FromPort.",
+  ),
+});
+
+const PortConfigurationSchema = z.object({
+  ContainerPortRanges: z.array(ContainerPortRangeSchema).describe(
+    "Specifies one or more ranges of ports on a container.",
+  ),
+});
+
 const ContainerMountPointSchema = z.object({
   InstancePath: z.string().min(1).max(1024).regex(new RegExp("^\\/[\\s\\S]*$"))
     .describe("The path on the host that will be mounted in the container."),
@@ -52,25 +89,6 @@ const ContainerMountPointSchema = z.object({
   AccessLevel: z.enum(["READ_ONLY", "READ_AND_WRITE"]).describe(
     "The access permissions for the mounted path.",
   ).optional(),
-});
-
-const ContainerDependencySchema = z.object({
-  Condition: z.enum(["START", "COMPLETE", "SUCCESS", "HEALTHY"]).describe(
-    "The type of dependency.",
-  ),
-  ContainerName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
-    .describe(
-      "A descriptive label for the container definition. The container being defined depends on this container's condition.",
-    ),
-});
-
-const ContainerEnvironmentSchema = z.object({
-  Value: z.string().min(1).max(255).regex(new RegExp("^.*$")).describe(
-    "The environment variable value.",
-  ),
-  Name: z.string().min(1).max(255).regex(new RegExp("^.*$")).describe(
-    "The environment variable name.",
-  ),
 });
 
 const LinuxCapabilitiesSchema = z.object({
@@ -119,46 +137,19 @@ const LinuxCapabilitiesSchema = z.object({
   ).optional(),
 });
 
-const ContainerPortRangeSchema = z.object({
-  FromPort: z.number().int().min(1).max(60000).describe(
-    "A starting value for the range of allowed port numbers.",
-  ),
-  ToPort: z.number().int().min(1).max(60000).describe(
-    "An ending value for the range of allowed port numbers. Port numbers are end-inclusive. This value must be equal to or greater than FromPort.",
-  ),
-  Protocol: z.enum(["TCP", "UDP"]).describe(
-    "Defines the protocol of these ports.",
-  ),
-});
-
-const PortConfigurationSchema = z.object({
-  ContainerPortRanges: z.array(ContainerPortRangeSchema).describe(
-    "Specifies one or more ranges of ports on a container.",
-  ),
-});
-
-const TagSchema = z.object({
-  Value: z.string().min(0).max(256).regex(new RegExp("^.*$")).describe(
-    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length.",
-  ),
-  Key: z.string().min(1).max(128).regex(new RegExp("^.*$")).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length.",
-  ),
-});
-
 const ContainerHealthCheckSchema = z.object({
   Command: z.array(z.string().min(1).max(255).regex(new RegExp("^.*$")))
     .describe(
       "A string array representing the command that the container runs to determine if it is healthy.",
     ),
+  Interval: z.number().int().min(60).max(300).describe(
+    "How often (in seconds) the health is checked.",
+  ).optional(),
   Timeout: z.number().int().min(30).max(60).describe(
     "How many seconds the process manager allows the command to run before canceling it.",
   ).optional(),
   Retries: z.number().int().min(5).max(10).describe(
     "How many times the process manager will retry the command after a timeout. (The first run of the command does not count as a retry.)",
-  ).optional(),
-  Interval: z.number().int().min(60).max(300).describe(
-    "How often (in seconds) the health is checked.",
   ).optional(),
   StartPeriod: z.number().int().min(0).max(300).describe(
     "The optional grace period (in seconds) to give a container time to boostrap before teh health check is declared failed.",
@@ -166,40 +157,49 @@ const ContainerHealthCheckSchema = z.object({
 });
 
 const SupportContainerDefinitionSchema = z.object({
-  MountPoints: z.array(ContainerMountPointSchema).describe(
-    "A list of mount point configurations to be used in a container.",
+  ContainerName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
+    .describe("A descriptive label for the container definition."),
+  Vcpu: z.number().min(0.125).max(10).describe(
+    "The number of virtual CPUs to give to the support group",
   ).optional(),
   DependsOn: z.array(ContainerDependencySchema).describe(
     "A list of container dependencies that determines when this container starts up and shuts down. For container groups with multiple containers, dependencies let you define a startup/shutdown sequence across the containers.",
   ).optional(),
-  ContainerName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
-    .describe("A descriptive label for the container definition."),
-  MemoryHardLimitMebibytes: z.number().int().min(4).max(1024000).describe(
-    "The total memory limit of container groups following this definition in MiB",
-  ).optional(),
-  EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
-    "The environment variables to pass to a container.",
-  ).optional(),
-  HealthCheck: ContainerHealthCheckSchema.describe(
-    "Specifies how the health of the containers will be checked.",
-  ).optional(),
-  LinuxCapabilities: LinuxCapabilitiesSchema.describe(
-    "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
-  ).optional(),
-  Vcpu: z.number().min(0.125).max(10).describe(
-    "The number of virtual CPUs to give to the support group",
+  Essential: z.boolean().describe(
+    "Specifies if the container is essential. If an essential container fails a health check, then all containers in the container group will be restarted. You must specify exactly 1 essential container in a container group.",
   ).optional(),
   ImageUri: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9-_\\.@\\/:]+$"),
   ).describe("Specifies the image URI of this container."),
   ResolvedImageDigest: z.string().regex(new RegExp("^sha256:[a-fA-F0-9]{64}$"))
     .describe("The digest of the container image.").optional(),
-  Essential: z.boolean().describe(
-    "Specifies if the container is essential. If an essential container fails a health check, then all containers in the container group will be restarted. You must specify exactly 1 essential container in a container group.",
+  MemoryHardLimitMebibytes: z.number().int().min(4).max(1024000).describe(
+    "The total memory limit of container groups following this definition in MiB",
+  ).optional(),
+  EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
+    "The environment variables to pass to a container.",
   ).optional(),
   PortConfiguration: PortConfigurationSchema.describe(
     "Defines the ports on the container.",
   ).optional(),
+  HealthCheck: ContainerHealthCheckSchema.describe(
+    "Specifies how the health of the containers will be checked.",
+  ).optional(),
+  MountPoints: z.array(ContainerMountPointSchema).describe(
+    "A list of mount point configurations to be used in a container.",
+  ).optional(),
+  LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+    "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+  ).optional(),
+});
+
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).regex(new RegExp("^.*$")).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length.",
+  ),
+  Value: z.string().min(0).max(256).regex(new RegExp("^.*$")).describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length.",
+  ),
 });
 
 const GlobalArgsSchema = z.object({
@@ -218,31 +218,25 @@ const GlobalArgsSchema = z.object({
   OperatingSystem: z.enum(["AMAZON_LINUX_2023"]).describe(
     "The operating system of the container group",
   ),
-  VersionDescription: z.string().min(1).max(1024).describe(
-    "The description of this version",
+  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
+    .describe("A descriptive label for the container group definition."),
+  ContainerGroupType: z.enum(["GAME_SERVER", "PER_INSTANCE"]).describe(
+    "The scope of the container group",
   ).optional(),
+  TotalMemoryLimitMebibytes: z.number().int().min(4).max(1024000).describe(
+    "The total memory limit of container groups following this definition in MiB",
+  ),
   TotalVcpuLimit: z.number().min(0.125).max(10).describe(
     "The total amount of virtual CPUs on the container group definition",
   ).optional(),
-  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
-    .describe("A descriptive label for the container group definition."),
   GameServerContainerDefinition: z.object({
-    MountPoints: z.array(ContainerMountPointSchema).describe(
-      "A list of mount point configurations to be used in a container.",
-    ).optional(),
-    DependsOn: z.array(ContainerDependencySchema).describe(
-      "A list of container dependencies that determines when this container starts up and shuts down. For container groups with multiple containers, dependencies let you define a startup/shutdown sequence across the containers.",
-    ).optional(),
     ContainerName: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z0-9-]+$"),
     ).describe(
       "A descriptive label for the container definition. Container definition names must be unique with a container group definition.",
     ),
-    EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
-      "The environment variables to pass to a container.",
-    ).optional(),
-    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
-      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    DependsOn: z.array(ContainerDependencySchema).describe(
+      "A list of container dependencies that determines when this container starts up and shuts down. For container groups with multiple containers, dependencies let you define a startup/shutdown sequence across the containers.",
     ).optional(),
     ServerSdkVersion: z.string().max(128).regex(
       new RegExp("^\\d+\\.\\d+\\.\\d+$"),
@@ -253,57 +247,67 @@ const GlobalArgsSchema = z.object({
     ResolvedImageDigest: z.string().regex(
       new RegExp("^sha256:[a-fA-F0-9]{64}$"),
     ).describe("The digest of the container image.").optional(),
+    EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
+      "The environment variables to pass to a container.",
+    ).optional(),
     PortConfiguration: PortConfigurationSchema.describe(
       "Defines the ports on the container.",
     ).optional(),
+    MountPoints: z.array(ContainerMountPointSchema).describe(
+      "A list of mount point configurations to be used in a container.",
+    ).optional(),
+    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    ).optional(),
+    Vcpu: z.number().min(0.125).max(10).describe(
+      "The number of virtual CPUs to give to the game server container. This is required when the container group definition doesn't set TotalVcpuLimit.",
+    ).optional(),
   }).describe(
     "Specifies the information required to run game servers with this container group",
-  ).optional(),
-  TotalMemoryLimitMebibytes: z.number().int().min(4).max(1024000).describe(
-    "The total memory limit of container groups following this definition in MiB",
-  ),
-  SourceVersionNumber: z.number().int().min(0).describe(
-    "A specific ContainerGroupDefinition version to be updated",
-  ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  ContainerGroupType: z.enum(["GAME_SERVER", "PER_INSTANCE"]).describe(
-    "The scope of the container group",
   ).optional(),
   SupportContainerDefinitions: z.array(SupportContainerDefinitionSchema)
     .describe(
       "A collection of support container definitions that define the containers in this group.",
     ).optional(),
+  SourceVersionNumber: z.number().int().min(0).describe(
+    "A specific ContainerGroupDefinition version to be updated",
+  ).optional(),
+  VersionDescription: z.string().min(1).max(1024).describe(
+    "The description of this version",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  OperatingSystem: z.string().optional(),
-  Status: z.string().optional(),
-  VersionDescription: z.string().optional(),
-  StatusReason: z.string().optional(),
-  TotalVcpuLimit: z.number().optional(),
-  VersionNumber: z.number().optional(),
-  Name: z.string(),
   ContainerGroupDefinitionArn: z.string().optional(),
+  CreationTime: z.string().optional(),
+  OperatingSystem: z.string().optional(),
+  Name: z.string(),
+  ContainerGroupType: z.string().optional(),
+  TotalMemoryLimitMebibytes: z.number().optional(),
+  TotalVcpuLimit: z.number().optional(),
   GameServerContainerDefinition: z.object({
-    MountPoints: z.array(ContainerMountPointSchema),
-    DependsOn: z.array(ContainerDependencySchema),
     ContainerName: z.string(),
-    EnvironmentOverride: z.array(ContainerEnvironmentSchema),
-    LinuxCapabilities: LinuxCapabilitiesSchema,
+    DependsOn: z.array(ContainerDependencySchema),
     ServerSdkVersion: z.string(),
     ImageUri: z.string(),
     ResolvedImageDigest: z.string(),
+    EnvironmentOverride: z.array(ContainerEnvironmentSchema),
     PortConfiguration: PortConfigurationSchema,
+    MountPoints: z.array(ContainerMountPointSchema),
+    LinuxCapabilities: LinuxCapabilitiesSchema,
+    Vcpu: z.number(),
   }).optional(),
-  CreationTime: z.string().optional(),
-  TotalMemoryLimitMebibytes: z.number().optional(),
-  SourceVersionNumber: z.number().optional(),
-  Tags: z.array(TagSchema).optional(),
-  ContainerGroupType: z.string().optional(),
   SupportContainerDefinitions: z.array(SupportContainerDefinitionSchema)
     .optional(),
+  VersionNumber: z.number().optional(),
+  SourceVersionNumber: z.number().optional(),
+  VersionDescription: z.string().optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -316,32 +320,26 @@ const InputsSchema = z.object({
   OperatingSystem: z.enum(["AMAZON_LINUX_2023"]).describe(
     "The operating system of the container group",
   ).optional(),
-  VersionDescription: z.string().min(1).max(1024).describe(
-    "The description of this version",
+  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
+    .describe("A descriptive label for the container group definition.")
+    .optional(),
+  ContainerGroupType: z.enum(["GAME_SERVER", "PER_INSTANCE"]).describe(
+    "The scope of the container group",
+  ).optional(),
+  TotalMemoryLimitMebibytes: z.number().int().min(4).max(1024000).describe(
+    "The total memory limit of container groups following this definition in MiB",
   ).optional(),
   TotalVcpuLimit: z.number().min(0.125).max(10).describe(
     "The total amount of virtual CPUs on the container group definition",
   ).optional(),
-  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-]+$"))
-    .describe("A descriptive label for the container group definition.")
-    .optional(),
   GameServerContainerDefinition: z.object({
-    MountPoints: z.array(ContainerMountPointSchema).describe(
-      "A list of mount point configurations to be used in a container.",
-    ).optional(),
-    DependsOn: z.array(ContainerDependencySchema).describe(
-      "A list of container dependencies that determines when this container starts up and shuts down. For container groups with multiple containers, dependencies let you define a startup/shutdown sequence across the containers.",
-    ).optional(),
     ContainerName: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z0-9-]+$"),
     ).describe(
       "A descriptive label for the container definition. Container definition names must be unique with a container group definition.",
     ).optional(),
-    EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
-      "The environment variables to pass to a container.",
-    ).optional(),
-    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
-      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    DependsOn: z.array(ContainerDependencySchema).describe(
+      "A list of container dependencies that determines when this container starts up and shuts down. For container groups with multiple containers, dependencies let you define a startup/shutdown sequence across the containers.",
     ).optional(),
     ServerSdkVersion: z.string().max(128).regex(
       new RegExp("^\\d+\\.\\d+\\.\\d+$"),
@@ -353,28 +351,37 @@ const InputsSchema = z.object({
     ResolvedImageDigest: z.string().regex(
       new RegExp("^sha256:[a-fA-F0-9]{64}$"),
     ).describe("The digest of the container image.").optional(),
+    EnvironmentOverride: z.array(ContainerEnvironmentSchema).describe(
+      "The environment variables to pass to a container.",
+    ).optional(),
     PortConfiguration: PortConfigurationSchema.describe(
       "Defines the ports on the container.",
     ).optional(),
+    MountPoints: z.array(ContainerMountPointSchema).describe(
+      "A list of mount point configurations to be used in a container.",
+    ).optional(),
+    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    ).optional(),
+    Vcpu: z.number().min(0.125).max(10).describe(
+      "The number of virtual CPUs to give to the game server container. This is required when the container group definition doesn't set TotalVcpuLimit.",
+    ).optional(),
   }).describe(
     "Specifies the information required to run game servers with this container group",
-  ).optional(),
-  TotalMemoryLimitMebibytes: z.number().int().min(4).max(1024000).describe(
-    "The total memory limit of container groups following this definition in MiB",
-  ).optional(),
-  SourceVersionNumber: z.number().int().min(0).describe(
-    "A specific ContainerGroupDefinition version to be updated",
-  ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  ContainerGroupType: z.enum(["GAME_SERVER", "PER_INSTANCE"]).describe(
-    "The scope of the container group",
   ).optional(),
   SupportContainerDefinitions: z.array(SupportContainerDefinitionSchema)
     .describe(
       "A collection of support container definitions that define the containers in this group.",
     ).optional(),
+  SourceVersionNumber: z.number().int().min(0).describe(
+    "A specific ContainerGroupDefinition version to be updated",
+  ).optional(),
+  VersionDescription: z.string().min(1).max(1024).describe(
+    "The description of this version",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -396,7 +403,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift ContainerGroupDefinition. Registered at `@swamp/aws/gamelift/container-group-definition`. */
 export const model = {
   type: "@swamp/aws/gamelift/container-group-definition",
-  version: "2026.10.02.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -455,6 +462,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

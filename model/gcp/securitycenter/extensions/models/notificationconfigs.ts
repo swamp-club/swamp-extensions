@@ -158,6 +158,7 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   name: z.string().optional(),
   pubsubTopic: z.string().optional(),
@@ -172,6 +173,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   name: z.string(),
   pubsubTopic: z.string().optional(),
@@ -190,6 +192,7 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  deletionNotificationsEnabled: z.boolean().optional(),
   description: z.string().optional(),
   name: z.string().optional(),
   pubsubTopic: z.string().optional(),
@@ -229,7 +232,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center NotificationConfigs. Registered at `@swamp/gcp/securitycenter/notificationconfigs`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/notificationconfigs",
-  version: "2026.08.12.2",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -356,6 +359,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.09.1",
+      description: "Added: deletionNotificationsEnabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -380,6 +388,10 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["deletionNotificationsEnabled"] !== undefined) {
+          body["deletionNotificationsEnabled"] =
+            g["deletionNotificationsEnabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -504,6 +516,10 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["deletionNotificationsEnabled"] !== undefined) {
+          body["deletionNotificationsEnabled"] =
+            g["deletionNotificationsEnabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }

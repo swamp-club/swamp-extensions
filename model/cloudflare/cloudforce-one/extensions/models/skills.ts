@@ -48,7 +48,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   output_schema: z.string().min(1).max(4096).optional(),
   prompt: z.string().min(1).max(4000).optional(),
-  type: z.enum(["summary", "tags"]).optional(),
+  type: z.enum(["summary", "tags"]).describe(
+    'Optional label; does not affect execution. Defaults to "summary".',
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -91,7 +93,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Skills. Registered at `@swamp/cloudflare/cloudforce-one/skills`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/skills",
-  version: "2026.09.29.2",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -100,6 +102,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -120,9 +127,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["name", "output_schema", "prompt", "type"].filter((
-          k,
-        ) => g[k] === undefined);
+        const missing = ["name", "output_schema", "prompt"].filter((k) =>
+          g[k] === undefined
+        );
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),

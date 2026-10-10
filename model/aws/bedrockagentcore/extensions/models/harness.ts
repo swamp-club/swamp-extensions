@@ -472,10 +472,10 @@ const HarnessHookSchema = z.object({
 
 const HarnessAgentCoreMemoryRetrievalConfigSchema = z.object({
   TopK: z.number().int().describe(
-    "Maximum number of memory records to retrieve. Typed as both integer and string because CloudFormation marshals scalars nested in dynamic-key (patternProperties) maps as strings, while direct API/CDK callers send a JSON integer; both forms must validate.",
+    "Maximum number of memory records to retrieve.",
   ).optional(),
   RelevanceScore: z.number().describe(
-    "Minimum relevance score for retrieved memories. Typed as both number and string because CloudFormation marshals scalars nested in dynamic-key (patternProperties) maps as strings, while direct API/CDK callers send a JSON number; both forms must validate.",
+    "Minimum relevance score for retrieved memories.",
   ).optional(),
   StrategyId: z.string().optional(),
 });
@@ -769,7 +769,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.10.04.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -818,6 +818,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
