@@ -1,4 +1,4 @@
-schemaVersion: 1
+schemaVersion: 2
 description: >-
   plan → review → implement → test → release → UAT, with a cooldown after
   release and a CEL rule on the UAT report.
@@ -81,7 +81,8 @@ stages:
       mode: workflow
       workflow:
         name: "@acme/test-suite"
-      bindings:
+        passAsInputs: [ref]
+      let:
         ref: evidence["change-request"].payload.branch
       resultEvidence: test-run
     evidence:

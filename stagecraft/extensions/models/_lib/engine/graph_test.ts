@@ -24,13 +24,14 @@ import {
   type GraphReport,
 } from "./graph.ts";
 import {
+  DEFINITION_SCHEMA_VERSION,
   type FactoryDefinition,
   parseDefinition,
 } from "./definition_schema.ts";
 
 function definition(yaml: string): FactoryDefinition {
   const result = parseDefinition(
-    parseYaml(`schemaVersion: 1\n${yaml}`),
+    parseYaml(`schemaVersion: ${DEFINITION_SCHEMA_VERSION}\n${yaml}`),
   );
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
@@ -367,31 +368,31 @@ ${build}
 `);
 }
 
-Deno.test("graph: a binding reading a product one path does not produce warns at the binding", () => {
+Deno.test("graph: a let value reading a product one path does not produce warns at the let value", () => {
   const report = analyzeDefinition(twoPaths(`
     work:
       mode: interactive
-      bindings: { summary: 'artifacts["spec"].payload.summary' }
+      let: { summary: 'artifacts["spec"].payload.summary' }
     transitions: [{ name: finish, to: done }]`));
   assertEquals(report.errors, []);
   const finding = only(report, "product-missing-on-path");
-  assertEquals(finding.path, "stages.2.work.bindings.summary");
+  assertEquals(finding.path, "stages.2.work.let.summary");
   assertEquals(finding.stage, "build");
   assertEquals(finding.trace, ["start", "build"]);
   assertEquals(
     finding.message,
-    "stage 'build' binding 'summary' reads artifact 'spec', which this path to it does not produce",
+    "stage 'build' let 'summary' reads artifact 'spec', which this path to it does not produce",
   );
 });
 
-Deno.test("graph: a binding reading a product no path produces warns", () => {
+Deno.test("graph: a let value reading a product no path produces warns", () => {
   const report = analyzeDefinition(definition(`
 stages:
   - id: a
     initial: true
     work:
       mode: interactive
-      bindings: { later: 'artifacts.later.payload' }
+      let: { later: 'artifacts.later.payload' }
     transitions: [{ name: next, to: b }]
   - id: b
     artifacts: [{ name: later, schema: ${OBJECT} }]
@@ -407,17 +408,17 @@ Deno.test("graph: member, index and validations reads are all caught, once per p
   const report = analyzeDefinition(twoPaths(`
     work:
       mode: interactive
-      bindings:
+      let:
         a: 'artifacts.spec.payload'
         b: 'artifacts["spec"].version + validations.artifacts.spec.errors.size()'
         c: 'validations["evidence"]["review"]'
         d: 'evidence.review.payload'
     transitions: [{ name: finish, to: done }]`));
   assertEquals(codes(report.warnings), [
-    "product-missing-on-path stages.2.work.bindings.a [build]",
-    "product-missing-on-path stages.2.work.bindings.b [build]",
-    "product-missing-on-path stages.2.work.bindings.c [build]",
-    "product-missing-on-path stages.2.work.bindings.d [build]",
+    "product-missing-on-path stages.2.work.let.a [build]",
+    "product-missing-on-path stages.2.work.let.b [build]",
+    "product-missing-on-path stages.2.work.let.c [build]",
+    "product-missing-on-path stages.2.work.let.d [build]",
   ]);
   assert(report.warnings[2].message.includes("evidence 'review'"));
 });
@@ -426,14 +427,14 @@ Deno.test("graph: a test for a product exempts the expression's reads of it, and
   const report = analyzeDefinition(twoPaths(`
     work:
       mode: interactive
-      bindings:
+      let:
         guarded: 'has(artifacts.spec) ? artifacts.spec.payload.summary : ""'
         nested: 'has(artifacts.spec.payload.summary) ? artifacts.spec.payload.summary : ""'
         inMap: '"spec" in artifacts ? artifacts["spec"].version : 0'
         other: 'has(artifacts.spec) ? evidence.review.payload : null'
     transitions: [{ name: finish, to: done }]`));
   assertEquals(codes(report.warnings), [
-    "product-missing-on-path stages.2.work.bindings.other [build]",
+    "product-missing-on-path stages.2.work.let.other [build]",
   ]);
   assert(report.warnings[0].message.includes("evidence 'review'"));
 });
@@ -478,7 +479,7 @@ stages:
   assert(finding.message.includes("no path to it produces"), finding.message);
 });
 
-Deno.test("graph: a binding reading a product of its own loop warns, unlike an inject", () => {
+Deno.test("graph: a let value reading a product of its own loop warns, unlike an inject", () => {
   const report = analyzeDefinition(definition(`
 stages:
   - id: plan
@@ -487,7 +488,7 @@ stages:
     work:
       mode: interactive
       context: { inject: [feedback] }
-      bindings: { notes: 'evidence.feedback.payload' }
+      let: { notes: 'evidence.feedback.payload' }
     artifacts: [{ name: plan, schema: ${OBJECT} }]
     transitions: [{ name: submit, to: review }]
   - id: review
@@ -504,19 +505,19 @@ stages:
     terminal: true
 `));
   assertEquals(codes(report.warnings), [
-    "product-missing-on-path stages.0.work.bindings.notes [plan]",
+    "product-missing-on-path stages.0.work.let.notes [plan]",
   ]);
   assertEquals(report.warnings[0].trace, ["plan"]);
 });
 
-Deno.test("graph: a binding reading its stage's own product warns; a gate reading it does not", () => {
+Deno.test("graph: a let value reading its stage's own product warns; a gate reading it does not", () => {
   const report = analyzeDefinition(definition(`
 stages:
   - id: plan
     initial: true
     work:
       mode: interactive
-      bindings: { previous: 'artifacts.plan.payload' }
+      let: { previous: 'artifacts.plan.payload' }
     artifacts: [{ name: plan, schema: ${OBJECT} }]
     transitions:
       - name: finish
@@ -526,7 +527,7 @@ stages:
     terminal: true
 `));
   assertEquals(codes(report.warnings), [
-    "product-missing-on-path stages.0.work.bindings.previous [plan]",
+    "product-missing-on-path stages.0.work.let.previous [plan]",
   ]);
   assert(
     report.warnings[0].message.includes("no path to it produces"),
@@ -544,7 +545,7 @@ stages:
   - id: build
     work:
       mode: interactive
-      bindings: { summary: 'artifacts.spec.payload.summary', key: 'item.key' }
+      let: { summary: 'artifacts.spec.payload.summary', key: 'item.key' }
     transitions:
       - name: finish
         to: done
@@ -1450,7 +1451,7 @@ function generated(seed: number): FactoryDefinition {
   });
   stages.push({ id: "done", terminal: true });
   const doc: Record<string, unknown> = {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages,
   };
   if (rand() < 0.3) {
@@ -1550,5 +1551,38 @@ globalTransitions:
   assertEquals(report.statesExplored.counts, 4);
   assert(
     analyzeDefinition(doc, { pruneCounts: false, maxStates: 1000 }).truncated,
+  );
+});
+
+Deno.test("graph: a literal call target swamp would not create warns; a templated one does not", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: a
+    initial: true
+    work:
+      mode: method
+      method: { modelIdOrName: My Legacy Server, methodName: run }
+    transitions: [{ name: next, to: b }]
+  - id: b
+    work:
+      mode: workflow
+      workflow: { name: "{{suite}}_tests" }
+      let: { suite: "'smoke'" }
+    transitions: [{ name: next, to: c }]
+  - id: c
+    work:
+      mode: method
+      method: { modelIdOrName: "@acme/planner", methodName: run }
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(codes(report.warnings), [
+    "target-name stages.0.work.method.modelIdOrName [a]",
+  ]);
+  assert(
+    report.warnings[0].message.includes("a name swamp would not create"),
+    report.warnings[0].message,
   );
 });

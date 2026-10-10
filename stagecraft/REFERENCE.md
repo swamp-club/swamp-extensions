@@ -23,9 +23,9 @@ it works this way is in [DESIGN.md](DESIGN.md).
 
 ## The model types
 
-- **factory**: a model of type `@swamp/stagecraft/factory`, created
-  once and named, for example `team`. You run `validate` on it, and start
-  work items on it.
+- **factory**: a model of type `@swamp/stagecraft/factory`, created once and
+  named, for example `team`. You run `validate` on it, and start work items on
+  it.
 - **factory definition**: the YAML document of a factory's stages, work,
   transitions and gates. It lives in the factory's own model definition,
   `models/@swamp/stagecraft/factory/<factory>.yaml`, under
@@ -61,19 +61,37 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   unknown keywords and unknown `format` names are rejected, so a typo is an
   error, not a silent no-op. References must be local (`#/...` or `#anchor`),
   and nothing is fetched.
-- **Runtime values are bare CEL**, in `work.bindings`, `cel` gates and a
+- **Runtime values are bare CEL**, in `work.let`, `cel` gates and a
   `human-approval` gate's `when` (the gate applies only while it is true). Never
   use `${{ }}`, swamp's own expression syntax: a factory definition rejects
-  `${{` anywhere. The definition lives in the factory's `globalArguments`,
-  where swamp evaluates every `${{ }}` before each method runs, so a prompt
-  cannot contain a literal `${{` (a GitHub Actions snippet, say). See
-  DESIGN.md, "Where a factory definition lives".
-- **Prompts refer to bindings as `{{name}}`**, in `systemPrompt` and `command`.
-  A placeholder holds a binding name, never an expression, and an undeclared
-  name is an error when the factory definition is checked. `{{` around anything
-  that is not a bare name (`{{ .Values.x }}`, `{{#each}}`) is literal text, and
-  `\{{` is a literal `{{`. At dispatch, a null or missing value fails the stage
-  rather than rendering blank. See [DESIGN.md](DESIGN.md) for why.
+  `${{` anywhere. The definition lives in the factory's `globalArguments`, where
+  swamp evaluates every `${{ }}` before each method runs, so a prompt cannot
+  contain a literal `${{` (a GitHub Actions snippet, say). See DESIGN.md, "Where
+  a factory definition lives".
+- **Text fields refer to let values as `{{name}}`**: `systemPrompt`, `command`,
+  and a call's target (`workflow.name`, `method.modelIdOrName`). A placeholder
+  holds a let name, never an expression, and an undeclared name is an error when
+  the factory definition is checked. `{{` around anything that is not a bare
+  name (`{{ .Values.x }}`, `{{#each}}`) is literal text, and `\{{` is a literal
+  `{{`. At dispatch, a null or missing value fails the stage rather than
+  rendering blank. See [DESIGN.md](DESIGN.md) for why.
+- **A workflow or method call sends what its `passAsInputs` lists**: the named
+  let values, under their own names and with their types kept, beside its
+  literal `inputs`. A let value not listed is never sent, since swamp refuses a
+  model-method input the method does not declare. A name may not be both a
+  literal input and passed. Interactive and dispatch stages hand every let value
+  to the agent as data. Until schemaVersion 2 these were `work.bindings`, all
+  sent; an older definition is upgraded on read to the same inputs, and its call
+  target, plain text in v1, is escaped so it is called as written.
+- **A call's target may come from run data**:
+  `modelIdOrName:
+  "agent-{{workItem}}"`. Each value in it must be a non-empty
+  string, and the filled target must be a name swamp would create (its
+  model-name or workflow-name rule, mirrored in `_lib/engine/swamp_names.ts`),
+  or the dispatch fails and records nothing. The filled target is in the packet
+  and recorded on the dispatch; the studio shows the template. A literal target
+  is left as written, since it may name an older model, and `validate` warns
+  when it breaks swamp's rule.
 - **References are checked when the factory definition is checked.** This covers
   transition targets, gate references, `reviews` links and injected context, and
   every problem is reported with its path. A name is one kind: an artifact and
@@ -90,10 +108,10 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   is a global transition such as `abandon`, loops bounded only by the default
   cycle limit, products that some path to a stage does not produce (except
   context from an earlier pass: a product injected from the stage's own loop),
-  including products a binding, `cel` gate or approval's `when` reads without
-  testing for them with `has()`, and transitions only a cycle override opens.
-  Each finding gives its path, the stage it is judged from, and a trace of
-  stages from the initial stage. See
+  including products a let value, `cel` gate or approval's `when` reads without
+  testing for them with `has()`, transitions only a cycle override opens, and a
+  literal call target swamp would not create today. Each finding gives its path,
+  the stage it is judged from, and a trace of stages from the initial stage. See
   [DESIGN.md](DESIGN.md), "Graph validation".
 - **A factory definition names the kind of tracker it is written for**,
   `tracker: { kind: builtin | linear }` (the built-in tracker when absent), new
@@ -101,28 +119,27 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   argument), which keeps the tracker's own settings; `validate` and `start`
   refuse an instance of another type than the kind needs, and `start` pins the
   binding in the run record. See [DESIGN.md](DESIGN.md), "The seam".
-- **A stage may name a tracker status key**, `tracker: { status: <key> }`,
-  new in stagecraft. When a work item enters the stage, the publisher
-  moves its ticket to the status the tracker adapter's `statuses` argument maps
-  that key to. A stage without one leaves the ticket's status alone. See
+- **A stage may name a tracker status key**, `tracker: { status: <key> }`, new
+  in stagecraft. When a work item enters the stage, the publisher moves its
+  ticket to the status the tracker adapter's `statuses` argument maps that key
+  to. A stage without one leaves the ticket's status alone. See
   [DESIGN.md](DESIGN.md), "The publisher".
-- **A stage may list tracker entries**, `tracker.entries`, new in
-  stagecraft: which of its journal events become structured entries in the
-  ticket's history. Each has a trigger
-  (`on: enter`, `on: dispatch` for the stage's first dispatch in a cycle,
-  `on: { record: <product> }`, `on: { approve: <gate id> }` or
-  `on: { transition: <name> }` for leaving the stage by it),
-  a `step`, `emoji` and `summary` (whose `{{field}}` placeholders are fields of
-  the recorded payload; `{{$cycle}}`, `{{$version}}`, `{{$version.<product>}}`
-  and, on dispatch, `{{$input.<name>}}` come from the event, and
-  `{{count findings severity=critical}}` counts a list's items), and optionally `match` (payload fields that must hold a
-  value), `cycle` (`first` or `later`), `status` (the status key labelling it,
-  defaulting to the stage's), `verbose`, `setsType` (a payload field holding
-  the ticket type to set first) and `linkPr` (a payload field holding a pull
-  request url to link on the ticket first, where the tracker links pull
-  requests). Two entries on one trigger must be told apart
-  by `cycle` or `match`. To a tracker that keeps entries, a factory definition
-  that declares any is published as entries instead of comments.
+- **A stage may list tracker entries**, `tracker.entries`, new in stagecraft:
+  which of its journal events become structured entries in the ticket's history.
+  Each has a trigger (`on: enter`, `on: dispatch` for the stage's first dispatch
+  in a cycle, `on: { record: <product> }`, `on: { approve: <gate id> }` or
+  `on: { transition: <name> }` for leaving the stage by it), a `step`, `emoji`
+  and `summary` (whose `{{field}}` placeholders are fields of the recorded
+  payload; `{{$cycle}}`, `{{$version}}`, `{{$version.<product>}}` and, on
+  dispatch, `{{$input.<name>}}` come from the event, and
+  `{{count findings severity=critical}}` counts a list's items), and optionally
+  `match` (payload fields that must hold a value), `cycle` (`first` or `later`),
+  `status` (the status key labelling it, defaulting to the stage's), `verbose`,
+  `setsType` (a payload field holding the ticket type to set first) and `linkPr`
+  (a payload field holding a pull request url to link on the ticket first, where
+  the tracker links pull requests). Two entries on one trigger must be told
+  apart by `cycle` or `match`. To a tracker that keeps entries, a factory
+  definition that declares any is published as entries instead of comments.
 
 ## Loops
 
@@ -146,11 +163,13 @@ cycle of it. The controls:
   cap parks the work item until a person grants an override; the park is
   journaled, measured as a wait and published to the ticket.
 - **The interruption cap** (`maxInterruptionsPerCycle`, default 3). A dispatch
-  closed as `interrupted` (a restart killed its work) does not count against
-  the dispatch cap, but past this many the next dispatch is refused as a
-  suspected restart loop and parks the same way. A dispatch override lifts both
-  caps by one, so an entry takes at most `maxDispatchesPerCycle +
-  maxInterruptionsPerCycle` dispatches before a person is asked.
+  closed as `interrupted` (a restart killed its work) does not count against the
+  dispatch cap, but past this many the next dispatch is refused as a suspected
+  restart loop and parks the same way. A dispatch override lifts both caps by
+  one, so an entry takes at most
+  `maxDispatchesPerCycle +
+  maxInterruptionsPerCycle` dispatches before a
+  person is asked.
 - **Routing on the loop count** with a `max-cycles` gate, such as escalating
   after a number of passes.
 - **Escape hatches.** Global transitions are exempt from cycle limits, and a
@@ -163,15 +182,14 @@ example.
 
 ## Example factory definitions
 
-stagecraft ships no factory definition of its own. The skill carries
-examples to write into a factory and change, under
-`.claude/skills/stagecraft/references/examples/`, so they reach every
-agent the skill is installed for. Each holds a `definition:` block and a
-`scenarios:` block, the part of a factory's `globalArguments` the agent writes
-in beside its `tracker`. Each definition's description says what it is for and
-what to change first, and each example passes the factory type's schema and
-`validate` with its saved scenarios
-(`extensions/models/engine/examples_test.ts`):
+stagecraft ships no factory definition of its own. The skill carries examples to
+write into a factory and change, under
+`.claude/skills/stagecraft/references/examples/`, so they reach every agent the
+skill is installed for. Each holds a `definition:` block and a `scenarios:`
+block, the part of a factory's `globalArguments` the agent writes in beside its
+`tracker`. Each definition's description says what it is for and what to change
+first, and each example passes the factory type's schema and `validate` with its
+saved scenarios (`extensions/models/engine/examples_test.ts`):
 
 - `minimal.yaml`: one stage of work, then done.
 - `starter.yaml`: a general change, from plan through plan review, implement,
@@ -181,8 +199,8 @@ what to change first, and each example passes the factory type's schema and
 - `incident-review.yaml`: an incident, from timeline through analysis, review
   and a person's sign-off on the action items to published.
 - `openapi-models.yaml`: an API's OpenAPI spec, or a slice of it, mapped to
-  swamp models, implemented as an extension, checked, reviewed, optionally
-  tried against the live API, and released.
+  swamp models, implemented as an extension, checked, reviewed, optionally tried
+  against the live API, and released.
 - `build-swamp-extension.yaml`, below.
 
 `build-swamp-extension.yaml` takes a change to a swamp extension from plan to
@@ -224,11 +242,11 @@ A saved scenario is a known path through a factory, written down so a change to
 the factory definition that breaks it fails `validate`. A factory keeps them in
 its model definition, as the `scenarios` list under `globalArguments`, beside
 its `definition`; no two share a name. swamp checks their shape before every
-factory method. `validate` runs every one on the real engine, in process
-against an in-memory store, and fails naming each step that did not do what its
-scenario said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`.
-An agent writes them (the skill's `references/scenarios.md`); nothing else
-creates them. One entry:
+factory method. `validate` runs every one on the real engine, in process against
+an in-memory store, and fails naming each step that did not do what its scenario
+said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`. An agent
+writes them (the skill's `references/scenarios.md`); nothing else creates them.
+One entry:
 
 ```yaml
 scenario: plan-waits-for-approval
@@ -260,8 +278,8 @@ One engine call per step:
 - `record: { artifact: <name> }` or `record: { evidence: <name> }`, with
   `payload`: record a product.
 - `approve: <gate id>`, `decline: <gate id>`: a person's decision.
-- `move: <transition>`: take a transition; `manual: true` is a person's go for
-  a manual one.
+- `move: <transition>`: take a transition; `manual: true` is a person's go for a
+  manual one.
 - `override: { stage, note }`: a person grants one more entry into a stage past
   its cycle limit.
 - `wait: <seconds>`: time passes on the scenario's clock.
@@ -312,8 +330,8 @@ swamp model @swamp/stagecraft/work-item method run status team-1
 ```
 
 `start` also takes any unused name chosen by hand, for work with no ticket.
-`title` is optional: a work item started without one shows its key where a
-title would be.
+`title` is optional: a work item started without one shows its key where a title
+would be.
 
 `status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
 `expectedEra` every write must pass back; each exit's readiness, with its
@@ -323,8 +341,8 @@ whose `when` is false); the stage's work mode and dispatch count; and any
 payload rejections. `dispatch` prints the whole dispatch packet, including the
 products the stage must record and each one's schema; for a dispatch stage it
 prints one ready-to-send prompt per subagent instead of the rendered prompt,
-with result files under `resultDir` (a new temporary directory when omitted). Writes are
-`record_artifact`, `record_evidence`, `dispatch`, `record_usage`,
+with result files under `resultDir` (a new temporary directory when omitted).
+Writes are `record_artifact`, `record_evidence`, `dispatch`, `record_usage`,
 `record_outcome`, `record_checkpoint`, `approve`, `decline`, `grant_override`,
 `advance`, `reset` and `retarget`. A refused write fails with its reason and
 writes nothing. A payload that breaks its schema also fails, but is kept on the
@@ -337,23 +355,23 @@ output without it, and twice with it.
 
 A dispatch is open until it has an outcome, set once:
 
-| Method / input                                  | What it does                                                                                                                                                                         |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dispatch` `driverId=<id>`                      | Records who is doing the work (the actor is empty on remote workers). Optional.                                                                                                      |
-| `dispatch` `supersedes=<dispatch id>`           | Replaces an open dispatch of this stage and cycle, closing it as `interrupted`. Closed even when this dispatch is then refused at a cap.                                             |
-| `record_outcome` `dispatchId` `outcome`         | `succeeded`, `failed` or `interrupted` (optional `reason`), named by id like `record_usage`. Interrupted ones count against `maxInterruptionsPerCycle`, not the dispatch cap.        |
-| `record_checkpoint` `dispatchId` `payload`      | Saves a JSON object for an open dispatch, as often as the work likes. Only the latest dispatch of its stage and cycle takes one. Keep it small: point at large state.                |
-| `open_dispatches` `driverId`                    | A read, no lock: the open dispatches of the current stage and cycle, optionally one driver's.                                                                                        |
+| Method / input                             | What it does                                                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dispatch` `driverId=<id>`                 | Records who is doing the work (the actor is empty on remote workers). Optional.                                                                                               |
+| `dispatch` `supersedes=<dispatch id>`      | Replaces an open dispatch of this stage and cycle, closing it as `interrupted`. Closed even when this dispatch is then refused at a cap.                                      |
+| `record_outcome` `dispatchId` `outcome`    | `succeeded`, `failed` or `interrupted` (optional `reason`), named by id like `record_usage`. Interrupted ones count against `maxInterruptionsPerCycle`, not the dispatch cap. |
+| `record_checkpoint` `dispatchId` `payload` | Saves a JSON object for an open dispatch, as often as the work likes. Only the latest dispatch of its stage and cycle takes one. Keep it small: point at large state.         |
+| `open_dispatches` `driverId`               | A read, no lock: the open dispatches of the current stage and cycle, optionally one driver's.                                                                                 |
 
-The dispatch packet carries `workItem`, `dispatchId` (the id this dispatch
-gets) and `resume`: the latest checkpoint an earlier dispatch of the same stage
-and cycle wrote, or null. A dispatch recorded between reading the run and
+The dispatch packet carries `workItem`, `dispatchId` (the id this dispatch gets)
+and `resume`: the latest checkpoint an earlier dispatch of the same stage and
+cycle wrote, or null. A dispatch recorded between reading the run and
 dispatching makes the packet stale, and `dispatch` refuses it with
 `stale: dispatch N was recorded after this packet was built`.
 
 A workflow or method stage gets those three as one input, `_stagecraft`, when
-its `inputsSchema` declares that property and no literal input or binding
-supplies it. Its shape:
+its `inputsSchema` declares that property and no literal input or passed let
+value supplies it. Its shape:
 
 ```json
 {
@@ -374,20 +392,20 @@ is added, because swamp refuses an input the method does not declare.
 ## The studio
 
 The studio is a local page for looking at the factories in a repo, reloaded as
-their model definitions change. It is read-only. Edits come from the agent, and the page
-shows them as the agent saves.
+their model definitions change. It is read-only. Edits come from the agent, and
+the page shows them as the agent saves.
 
 - **Design** draws a factory's definition: one row per tracker status, stages in
   flow order, each exit a port with pips for its gates (gold where a person
   decides), and every forward edge, loop back and global exit. The page runs
   stagecraft's own schema check and graph analysis on the definition, as
-  `validate` does, every time the file changes. Select a stage, an exit or a gate to inspect it;
-  select a finding to walk its trace on the graph and underline its path in the
-  source. Stages that changed since you last looked are marked until you select
-  them.
+  `validate` does, every time the file changes. Select a stage, an exit or a
+  gate to inspect it; select a finding to walk its trace on the graph and
+  underline its path in the source. Stages that changed since you last looked
+  are marked until you select them.
 - **Copy reference** on any stage, exit, gate or finding copies one line to
-  paste to the agent, naming the model definition file and the path in it,
-  such as
+  paste to the agent, naming the model definition file and the path in it, such
+  as
   `models/@swamp/stagecraft/factory/team.yaml globalArguments.definition.stages.2.transitions.0 (exit submit: plan → review)`.
 - **Keyboard:** the graph is one tab stop. Arrows move between stages, Enter
   steps into a stage's exits, Enter on an exit follows it to the next stage, →
@@ -395,70 +413,69 @@ shows them as the agent saves.
 - **Simulate** plays the factory's saved scenarios (`globalArguments.scenarios`
   in the same file) on the real engine in the browser, and plays them again
   every time the file changes, with a pass or fail for each and the steps that
-  did not go as expected. Step through the frames to see the stage, its exits
-  as `status` reports them (READY, PERSON or BLOCKED, with the engine's
-  messages), the journal and the metrics. From any frame, **walk from here**:
-  take an exit, approve or decline, override a cycle limit, wait, or record a
-  payload a saved scenario uses, and the engine goes on from there. **Copy as
-  scenario** gives the walk as one entry for `globalArguments.scenarios`, to
-  paste to the agent, which saves it. Space plays, ← and → step.
+  did not go as expected. Step through the frames to see the stage, its exits as
+  `status` reports them (READY, PERSON or BLOCKED, with the engine's messages),
+  the journal and the metrics. From any frame, **walk from here**: take an exit,
+  approve or decline, override a cycle limit, wait, or record a payload a saved
+  scenario uses, and the engine goes on from there. **Copy as scenario** gives
+  the walk as one entry for `globalArguments.scenarios`, to paste to the agent,
+  which saves it. Space plays, ← and → step.
 - **Board** lists every work item started on the factory, in a column for its
   stage, in the order Design draws the stages; a work item in a stage the
-  current definition no longer has gets a column of its own at the end.
-  Finished stages show a count, and **Show finished** lists their work items.
-  Each card shows the title (else the key), then the key on one line (in
-  full on hover and focus) and the ticket's display id when it is not the key
-  itself (the built-in tracker's ticket id is the key), time in the stage,
-  the cycle when above 1, and, in words and colour: **waiting on a
-  person** (the exits a person holds, as the run's `awaiting` events record
-  them, and for how long), **parked** at the dispatch cap or by a cycle limit
-  (an exit whose gates all pass but whose target stage is at its limit, so only
-  a cycle override lets it through), and **stale pin** (pinned to another
-  definition than the file's current one). Filters keep any of those, and
-  search matches the key or title. A column shows 50 cards, then **Show
-  more**. The cards move as work items change: while a board is open, `serve`
-  reads each of its work items' run record versions every 3 seconds and tells
-  the page when one is written, added or removed. **Keyboard:** each column is
-  one tab stop; ↑ and ↓ move between its cards, ← and → to the next column's,
-  Home and End to the first and last, and Enter opens the work item.
-- **Work item** (`/w/<key>`, from a Board card or the bar's **go to work
-  item** box, which takes a key) draws one work item on the definition it
-  pinned, which may be older than the file's; a notice says so. A copy pinned
-  at an older `schemaVersion` is compared upgraded, so a format change alone
-  does not make it older. Stages it
-  entered show how many times (this era), the current stage glows, exits it
-  took are solid with how often, and stages it never entered are dimmed.
-  **Now** shows where it waits, from the code `status` prints from: a person's
-  decision and which gates, evidence a person records, the stage's dispatch,
-  parked at the dispatch cap, each exit's readiness with the engine's own
-  reasons, and how long it has been in the stage entry. **Timeline** is the
-  journal (products, approvals and declines with the person, moves,
-  overrides, dispatches, resets); ↑ and ↓ move through it, and Enter selects
-  the entry's stage on the graph. **Metrics** is Simulate's, on the real run.
-  **Ticket**, which a work item with a ticket opens on, shows the ticket as
-  its tracker last recorded it: title, status, labels or type, assignees,
-  created and updated times, its description (markdown, drawn safely: no
-  markup or script in it runs), and its comments and lifecycle entries oldest
-  first, each labelled a person's comment, one stagecraft posted, or an entry.
-  Its relations (parent, blocked by, duplicate, related) link to the work item
-  on the other ticket, in any factory, and an external ticket links out to
-  its tracker, such as Linear. It is read from the tracker's records with no
-  network call, and says when its copy was recorded: run the tracker's `fetch_issue`
-  for a newer one, then **Refresh**. A work item with no ticket, or one the
-  tracker has no record of yet, says so. **Scenario** shows this era of the run as one
-  entry for `globalArguments.scenarios`, with the payloads it recorded, replays
-  it on the pinned definition to say whether it ends where the run is, and
-  notes what a scenario cannot carry (dispatches, dispatch overrides,
-  retargets, an earlier era). It is made again when the journal grows, and
-  says when it was made from a newer read of the run than the page shows.
-  **Copy reference** gives the work item, its stage and the `status` command
-  to paste to the agent. The page reads the work item again when it changes.
+  current definition no longer has gets a column of its own at the end. Finished
+  stages show a count, and **Show finished** lists their work items. Each card
+  shows the title (else the key), then the key on one line (in full on hover and
+  focus) and the ticket's display id when it is not the key itself (the built-in
+  tracker's ticket id is the key), time in the stage, the cycle when above 1,
+  and, in words and colour: **waiting on a person** (the exits a person holds,
+  as the run's `awaiting` events record them, and for how long), **parked** at
+  the dispatch cap or by a cycle limit (an exit whose gates all pass but whose
+  target stage is at its limit, so only a cycle override lets it through), and
+  **stale pin** (pinned to another definition than the file's current one).
+  Filters keep any of those, and search matches the key or title. A column shows
+  50 cards, then **Show more**. The cards move as work items change: while a
+  board is open, `serve` reads each of its work items' run record versions every
+  3 seconds and tells the page when one is written, added or removed.
+  **Keyboard:** each column is one tab stop; ↑ and ↓ move between its cards, ←
+  and → to the next column's, Home and End to the first and last, and Enter
+  opens the work item.
+- **Work item** (`/w/<key>`, from a Board card or the bar's **go to work item**
+  box, which takes a key) draws one work item on the definition it pinned, which
+  may be older than the file's; a notice says so. A copy pinned at an older
+  `schemaVersion` is compared upgraded, so a format change alone does not make
+  it older. Stages it entered show how many times (this era), the current stage
+  glows, exits it took are solid with how often, and stages it never entered are
+  dimmed. **Now** shows where it waits, from the code `status` prints from: a
+  person's decision and which gates, evidence a person records, the stage's
+  dispatch, parked at the dispatch cap, each exit's readiness with the engine's
+  own reasons, and how long it has been in the stage entry. **Timeline** is the
+  journal (products, approvals and declines with the person, moves, overrides,
+  dispatches, resets); ↑ and ↓ move through it, and Enter selects the entry's
+  stage on the graph. **Metrics** is Simulate's, on the real run. **Ticket**,
+  which a work item with a ticket opens on, shows the ticket as its tracker last
+  recorded it: title, status, labels or type, assignees, created and updated
+  times, its description (markdown, drawn safely: no markup or script in it
+  runs), and its comments and lifecycle entries oldest first, each labelled a
+  person's comment, one stagecraft posted, or an entry. Its relations (parent,
+  blocked by, duplicate, related) link to the work item on the other ticket, in
+  any factory, and an external ticket links out to its tracker, such as Linear.
+  It is read from the tracker's records with no network call, and says when its
+  copy was recorded: run the tracker's `fetch_issue` for a newer one, then
+  **Refresh**. A work item with no ticket, or one the tracker has no record of
+  yet, says so. **Scenario** shows this era of the run as one entry for
+  `globalArguments.scenarios`, with the payloads it recorded, replays it on the
+  pinned definition to say whether it ends where the run is, and notes what a
+  scenario cannot carry (dispatches, dispatch overrides, retargets, an earlier
+  era). It is made again when the journal grows, and says when it was made from
+  a newer read of the run than the page shows. **Copy reference** gives the work
+  item, its stage and the `status` command to paste to the agent. The page reads
+  the work item again when it changes.
 - **Addresses:** each view has its own path: `/f/<factory>/design`,
   `/f/<factory>/simulate`, `/f/<factory>/board`, and `/w/<key>` for one work
   item. `/` opens the last factory you looked at. Back and forward move between
-  views. The bar's Design, Simulate and Board are links: the one shown is
-  marked (a work item's page marks Board, under a "Board › key" breadcrumb),
-  and the browser tab's title says where you are.
+  views. The bar's Design, Simulate and Board are links: the one shown is marked
+  (a work item's page marks Board, under a "Board › key" breadcrumb), and the
+  browser tab's title says where you are.
 
 ```bash
 # Once per repo.
@@ -469,20 +486,20 @@ swamp model method run studio serve --input port=8123   # a fixed port
 ```
 
 The server listens on 127.0.0.1 only, answers only requests addressed to it from
-its own page, and serves nothing but the page, each factory's model
-definition file, at the path swamp's definition repository gives, and what
-the Board needs of its work items, which it reads with swamp's data query
-(`GET /api/work-items?factory=<name>`, `GET /api/work-items/<key>` for
-one, and `GET /api/work-items/<key>/ticket` for its ticket), so it works whatever datastore holds them. `serve` holds the
-studio's lock while it runs, so a second `serve` of the same studio waits; it
-never takes a factory's lock. See [DESIGN.md](DESIGN.md), "The studio server".
+its own page, and serves nothing but the page, each factory's model definition
+file, at the path swamp's definition repository gives, and what the Board needs
+of its work items, which it reads with swamp's data query
+(`GET /api/work-items?factory=<name>`, `GET /api/work-items/<key>` for one, and
+`GET /api/work-items/<key>/ticket` for its ticket), so it works whatever
+datastore holds them. `serve` holds the studio's lock while it runs, so a second
+`serve` of the same studio waits; it never takes a factory's lock. See
+[DESIGN.md](DESIGN.md), "The studio server".
 
 ## Summary and metrics
 
 `summary` is a read that prints the work item's timeline, per era, and its
-metrics as markdown. The `@swamp/stagecraft/work-item-summary` report
-runs after it and stores the same markdown, with the metrics and timeline as
-JSON:
+metrics as markdown. The `@swamp/stagecraft/work-item-summary` report runs after
+it and stores the same markdown, with the metrics and timeline as JSON:
 
 ```bash
 swamp model @swamp/stagecraft/work-item method run summary <key>
@@ -491,11 +508,11 @@ swamp report get @swamp/stagecraft/work-item-summary --model <key>
 
 Every write also stores a `metrics` record on the work item: time in each stage
 and cycle, rework (re-entries, review rounds, declines, rejected payloads),
-waits at human stops (including a park at the dispatch cap, ended by a
-dispatch override), dispatches and retries (an interrupted dispatch is not a
-retry) with how each ended, overrides, and token usage, marked
-attested. It is computed from the run record alone and names the journal version
-it was computed from. A dashboard reads every work item's metrics in one query:
+waits at human stops (including a park at the dispatch cap, ended by a dispatch
+override), dispatches and retries (an interrupted dispatch is not a retry) with
+how each ended, overrides, and token usage, marked attested. It is computed from
+the run record alone and names the journal version it was computed from. A
+dashboard reads every work item's metrics in one query:
 
 ```bash
 swamp data query 'modelType == "@swamp/stagecraft/work-item" && name == "metrics"' --json
@@ -512,9 +529,9 @@ See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
 
 ## Built-in tracker
 
-`@swamp/stagecraft/tracker` keeps tickets in swamp data, for a project
-with no external tracker. It makes no network call. Keep one instance per
-project. See [DESIGN.md](DESIGN.md), "The built-in tracker".
+`@swamp/stagecraft/tracker` keeps tickets in swamp data, for a project with no
+external tracker. It makes no network call. Keep one instance per project. See
+[DESIGN.md](DESIGN.md), "The built-in tracker".
 
 ```bash
 swamp model create @swamp/stagecraft/tracker board --json
@@ -529,25 +546,23 @@ swamp model method run board claim --input issue=cue-1 \
 swamp model method run board publish --input workItem=<key>
 ```
 
-Ticket ids are `<prefix>-<n>`: `prefix` is lowercase letters, digits and `-`,
-at most 12 characters, and `n` is counted per prefix in the tracker's own data
-(a `counter-<prefix>` record). A new counter starts above the highest number any
+Ticket ids are `<prefix>-<n>`: `prefix` is lowercase letters, digits and `-`, at
+most 12 characters, and `n` is counted per prefix in the tracker's own data (a
+`counter-<prefix>` record). A new counter starts above the highest number any
 ticket or work item with that prefix already has, so a recreated tracker never
-reuses an id; a name one of its own tickets or any model already has is
-passed over. Two built-in trackers with one prefix can still both file the
-same id, and `claim` then qualifies the second work item's key. The
-counter is unique within one swamp repository's data: clones with separate
-data can each file `cue-5`. Changing the prefix affects only new tickets. A
-ticket's `issue-<id>` record is the
-ticket itself. A new ticket starts in the first status, and a ticket may move
-between any two statuses; `statuses` keys are also the status names, so a
-factory definition's status keys name them directly. It keeps lifecycle
-entries and the ticket type, so `publish` writes entries for a
-factory definition that declares them, and `set_type` sets a type by hand. A
-ticket has assignees, swamp usernames: `publish` assigns your stored login's
-user when it delivers the work item's start.
-`prefix`, `statuses` and `types` are the instance's own settings: a factory
-definition names only the kind of tracker (`builtin` unless it says
+reuses an id; a name one of its own tickets or any model already has is passed
+over. Two built-in trackers with one prefix can still both file the same id, and
+`claim` then qualifies the second work item's key. The counter is unique within
+one swamp repository's data: clones with separate data can each file `cue-5`.
+Changing the prefix affects only new tickets. A ticket's `issue-<id>` record is
+the ticket itself. A new ticket starts in the first status, and a ticket may
+move between any two statuses; `statuses` keys are also the status names, so a
+factory definition's status keys name them directly. It keeps lifecycle entries
+and the ticket type, so `publish` writes entries for a factory definition that
+declares them, and `set_type` sets a type by hand. A ticket has assignees, swamp
+usernames: `publish` assigns your stored login's user when it delivers the work
+item's start. `prefix`, `statuses` and `types` are the instance's own settings:
+a factory definition names only the kind of tracker (`builtin` unless it says
 otherwise), and a factory names the instance with `--global-arg
 tracker=board`.
 
@@ -562,13 +577,12 @@ swamp model method run board unrelate --input issue=<parent> \
 
 `type` is `parent_of` (`issue` is the parent), `blocked_by` (`issue` waits on
 `to`), `related_to` or `duplicate_of` (`to` is the canonical). Relating again,
-or removing what is absent, writes nothing, and `workItem` with
-`journalVersion` makes either idempotent through the ledger. Every tracker
-refuses the same relations: a second parent, a parent cycle, a second
-canonical, a duplicate of a duplicate, and a duplicate that has duplicates of
-its own. `fetch_issue` reports a ticket's relations, each with its direction;
-`related_to` is read with one too. The built-in tracker keeps them on both
-tickets.
+or removing what is absent, writes nothing, and `workItem` with `journalVersion`
+makes either idempotent through the ledger. Every tracker refuses the same
+relations: a second parent, a parent cycle, a second canonical, a duplicate of a
+duplicate, and a duplicate that has duplicates of its own. `fetch_issue` reports
+a ticket's relations, each with its direction; `related_to` is read with one
+too. The built-in tracker keeps them on both tickets.
 
 To mark a duplicate, which also closes it (Linear closes a duplicate itself):
 
@@ -587,8 +601,8 @@ field. See [DESIGN.md](DESIGN.md), "Duplicates".
 
 ## Linear
 
-`@swamp/stagecraft/linear` connects a Linear workspace. Keep one instance
-per workspace; its API key comes from a vault. See [DESIGN.md](DESIGN.md),
+`@swamp/stagecraft/linear` connects a Linear workspace. Keep one instance per
+workspace; its API key comes from a vault. See [DESIGN.md](DESIGN.md),
 "Trackers".
 
 ```bash
@@ -613,20 +627,20 @@ files in. `teamId` is the team's UUID, not its key (ENG). A new issue starts in
 the team's default status, often Backlog, until `publish` moves it.
 
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
-item with, and records the issue's assignee. `comment` and `set_status` take the UUID; given `workItem` and
-`journalVersion`, a repeat of the same pair writes nothing to Linear. `create`
-files an issue in the `teamId` team. Linear has no issue type, so `types` maps
-each type to a label name, matched exactly among the team's and the workspace's
-labels; an unmapped type, or a label the team cannot use, is refused.
-`relate` and `unrelate` (see "Built-in tracker") take UUIDs: `parent_of` sets
-the child's parent, `blocked_by` is Linear's blocks read the other way, and
-Linear may move an issue marked a duplicate to its own Duplicate status, which
-swamp does not undo; Linear moves it back out when the relation is removed. Up
-to 250 relations of each kind are read per issue.
+item with, and records the issue's assignee. `comment` and `set_status` take the
+UUID; given `workItem` and `journalVersion`, a repeat of the same pair writes
+nothing to Linear. `create` files an issue in the `teamId` team. Linear has no
+issue type, so `types` maps each type to a label name, matched exactly among the
+team's and the workspace's labels; an unmapped type, or a label the team cannot
+use, is refused. `relate` and `unrelate` (see "Built-in tracker") take UUIDs:
+`parent_of` sets the child's parent, `blocked_by` is Linear's blocks read the
+other way, and Linear may move an issue marked a duplicate to its own Duplicate
+status, which swamp does not undo; Linear moves it back out when the relation is
+removed. Up to 250 relations of each kind are read per issue.
 
 `publish` assigns the issue to the API key's owner when it delivers the work
-item's start: every Linear write acts as that user, and no swamp login maps to
-a Linear user. A Linear issue has one assignee, so a person already assigned is
+item's start: every Linear write acts as that user, and no swamp login maps to a
+Linear user. A Linear issue has one assignee, so a person already assigned is
 replaced, and the log names them. It tries once, and if it cannot it warns and
 goes on. `assign` assigns by hand, to the key's owner or, with
 `--input user=<Linear user id>`, to someone else; assigning the one already
@@ -636,19 +650,18 @@ assigned writes nothing.
 a tracker that keeps lifecycle entries, with a factory definition that declares
 them, it writes those instead of comments): a comment for each event a person
 needs (the start, each stage entered, approvals, waits at a human stop, a park
-at the dispatch cap and the dispatch override that ends it, resets, the
-finish), and the status when the stage's status key changes. Run it after
-any change; it delivers only what is new, and after a failure a re-run picks up
-where it stopped. It is the only writer of a work item's ticket status, and it
-runs only on the tracker instance the work item's factory was bound to at
-start. The work item's `status` reads that instance's publish cursor, with no
-network call, and says `tracker '<instance>' behind by N event(s)` while
-`publish` has events to deliver. A status move the tracker refuses (a key
-missing from the instance's `statuses` argument, say) fails the publish but
-does not hold back later events: they are still delivered, the next publish
-retries only the move, and `status` says
-`tracker '<instance>' could not move the ticket to '<key>'` and why until it
-lands.
+at the dispatch cap and the dispatch override that ends it, resets, the finish),
+and the status when the stage's status key changes. Run it after any change; it
+delivers only what is new, and after a failure a re-run picks up where it
+stopped. It is the only writer of a work item's ticket status, and it runs only
+on the tracker instance the work item's factory was bound to at start. The work
+item's `status` reads that instance's publish cursor, with no network call, and
+says `tracker '<instance>' behind by N event(s)` while `publish` has events to
+deliver. A status move the tracker refuses (a key missing from the instance's
+`statuses` argument, say) fails the publish but does not hold back later events:
+they are still delivered, the next publish retries only the move, and `status`
+says `tracker '<instance>' could not move the ticket to '<key>'` and why until
+it lands.
 
 ## Start from a ticket
 
@@ -662,26 +675,25 @@ swamp model method run board claim --input issue=ext-12 \
 
 With no work item for the ticket, `claim` reserves a key, the ticket's id as a
 key: `ext-12` for a built-in ticket, `abc-12` for Linear's `ABC-12`, and the
-instance's `prefix` before a number-only id (`ops-2711` for `#2711`).
-A later work item on the same ticket adds a number (`abc-12-2`). When another
-work item already has the name, which happens only when two trackers share a
-prefix, the tracker instance's name qualifies it (`abc-12-linear`, then
-`abc-12-linear-2`); if that is taken too, `claim` refuses and says to give one
-tracker another prefix. `claim` records the key in the adapter's ticket index
+instance's `prefix` before a number-only id (`ops-2711` for `#2711`). A later
+work item on the same ticket adds a number (`abc-12-2`). When another work item
+already has the name, which happens only when two trackers share a prefix, the
+tracker instance's name qualifies it (`abc-12-linear`, then `abc-12-linear-2`);
+if that is taken too, `claim` refuses and says to give one tracker another
+prefix. `claim` records the key in the adapter's ticket index
 (`ticket-<stable id>`), and prints the work-item `start` command to run, with
-the ticket's `externalRefs` and title. The record
-is written before the work item starts, so if anything fails in between, `claim`
-again hands back the same key and command. If the reserved factory no longer
-loads, claiming with another factory moves the reservation to it under the
-same key. Once the work item has started,
-`claim` names it and its stage. Once it has finished, the ticket can claim a new
-one; the record keeps the earlier keys. A work item `retarget` moved to another
-ticket counts as finished here, and the `publish` after the retarget moves the
-index to the new ticket. `factory` is needed only when a new key is reserved.
-`--input dryRun=true` reports the ticket's work item, or that it has none, and
-writes nothing. `claim` never writes to the tracker, and a refused claim writes
-nothing. A repeat claim refreshes only the ticket's snapshot, not the index
-record, so read the key with
+the ticket's `externalRefs` and title. The record is written before the work
+item starts, so if anything fails in between, `claim` again hands back the same
+key and command. If the reserved factory no longer loads, claiming with another
+factory moves the reservation to it under the same key. Once the work item has
+started, `claim` names it and its stage. Once it has finished, the ticket can
+claim a new one; the record keeps the earlier keys. A work item `retarget` moved
+to another ticket counts as finished here, and the `publish` after the retarget
+moves the index to the new ticket. `factory` is needed only when a new key is
+reserved. `--input dryRun=true` reports the ticket's work item, or that it has
+none, and writes nothing. `claim` never writes to the tracker, and a refused
+claim writes nothing. A repeat claim refreshes only the ticket's snapshot, not
+the index record, so read the key with
 `swamp data query 'modelName == "board" && name == "ticket-ext-12"' --select content --single --json`.
 See [DESIGN.md](DESIGN.md), "Start from a ticket".
 
@@ -693,15 +705,15 @@ an option for anyone else: use the built-in tracker or Linear. It is not in the
 published `@swamp/stagecraft` package; the swamp-club team runs it from this
 repository's source.
 
-`@swamp/stagecraft/swamp-club` connects a swamp-club server, for the
-swamp-club team. It uses the same key as swamp and issue-lifecycle: the
-`apiKey` global argument if set, otherwise `SWAMP_API_KEY`, otherwise your
-`swamp auth login` (whose key is only ever sent to the server you logged in
-to). Status moves past open or closed,
-assignment, attestations, lifecycle entries, the type and the team check need an
-admin key. A Lab issue's id is only a number, so a work item claimed from it
-is keyed with the instance's `prefix` global argument (default: the instance's
-name): `lab-2631`. See [DESIGN.md](DESIGN.md), "The swamp-club Lab adapter".
+`@swamp/stagecraft/swamp-club` connects a swamp-club server, for the swamp-club
+team. It uses the same key as swamp and issue-lifecycle: the `apiKey` global
+argument if set, otherwise `SWAMP_API_KEY`, otherwise your `swamp auth login`
+(whose key is only ever sent to the server you logged in to). Status moves past
+open or closed, assignment, attestations, lifecycle entries, the type and the
+team check need an admin key. A Lab issue's id is only a number, so a work item
+claimed from it is keyed with the instance's `prefix` global argument (default:
+the instance's name): `lab-2631`. See [DESIGN.md](DESIGN.md), "The swamp-club
+Lab adapter".
 
 ```bash
 # swamp-club team only
@@ -731,18 +743,19 @@ status move the issue cannot make, such as back to `triaged` after a reset,
 rather than failing. For a factory definition that declares tracker entries it
 writes lifecycle entries instead of ripples, and the type (`setsType`) and the
 pull request (`linkPr`, the issue's `githubPrUrl` and `githubPrNumber`, a later
-one replacing it) an entry reads just before it; it is the only writer of a
-work item's status, type and pull request link. `claim` refuses an issue that issue-lifecycle drives in the repository (an
-instance `issue-<N>`), even a finished one. `post_attestation` posts an
-attestation built elsewhere (`deno task build-attestation`), and posting the
-same one again for a commit writes nothing. `create` files an issue of type
-feature, bug or security (platform needs an admin key) and records it from
-swamp-club's reply. `fetch_issue` records the issue's body, type, author and
-ripples too. `set_type` sets the type by hand. `team_member` says whether the
-issue's author is on swamp-club's team, failing rather than guessing when a
-lookup fails. `relate` and `unrelate` (see "Built-in tracker") take issue
-numbers; `blocked_by` needs an admin key, as do relations on another user's
-issues, and `duplicate_of` leaves the issue's status alone. `thank_author` posts
-issue-lifecycle's thank-you ripple to an author outside the team and skips a
-team member; a failed lookup posts nothing, and `force=true` skips only the team
-check. `assign` also records issue-lifecycle's `assigned` entry, best effort.
+one replacing it) an entry reads just before it; it is the only writer of a work
+item's status, type and pull request link. `claim` refuses an issue that
+issue-lifecycle drives in the repository (an instance `issue-<N>`), even a
+finished one. `post_attestation` posts an attestation built elsewhere
+(`deno task build-attestation`), and posting the same one again for a commit
+writes nothing. `create` files an issue of type feature, bug or security
+(platform needs an admin key) and records it from swamp-club's reply.
+`fetch_issue` records the issue's body, type, author and ripples too. `set_type`
+sets the type by hand. `team_member` says whether the issue's author is on
+swamp-club's team, failing rather than guessing when a lookup fails. `relate`
+and `unrelate` (see "Built-in tracker") take issue numbers; `blocked_by` needs
+an admin key, as do relations on another user's issues, and `duplicate_of`
+leaves the issue's status alone. `thank_author` posts issue-lifecycle's
+thank-you ripple to an author outside the team and skips a team member; a failed
+lookup posts nothing, and `force=true` skips only the team check. `assign` also
+records issue-lifecycle's `assigned` entry, best effort.

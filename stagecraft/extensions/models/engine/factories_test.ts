@@ -678,7 +678,7 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
   // The schema only syntax-checks CEL. The plan-to-release scenario drives a
   // real run through the runtime and the real gate evaluator, recording each
   // product on the stage that declares it and each approval the gates need;
-  // this evaluates every binding and cel gate against the context the
+  // this evaluates every let value and cel gate against the context the
   // runtime builds on it. It catches expressions cel-js parses but cannot
   // run (has() on an indexed path).
   const definition = await load(BUILD);
@@ -700,18 +700,18 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
       }
     }
   };
-  let bindings = 0;
+  let lets = 0;
   for (const s of definition.stages) {
-    for (const expr of Object.values(s.work?.bindings ?? {})) {
+    for (const expr of Object.values(s.work?.let ?? {})) {
       evaluateCel(expr, context);
-      bindings++;
+      lets++;
     }
     celGates(s.id, s.transitions ?? []);
   }
   celGates("global", definition.globalTransitions ?? []);
   assert(
-    bindings >= 5 && results.size >= 5,
-    `${bindings} bindings, ${results.size} gates`,
+    lets >= 5 && results.size >= 5,
+    `${lets} let values, ${results.size} gates`,
   );
   // With this run's data: the checks and release are bound to the reviewed
   // commit, the push publishes the reviewed version, nothing asks for

@@ -18,8 +18,9 @@ import { loadDefinition } from "./model.ts";
 import { referenceLine } from "./reference.ts";
 import { findingTarget } from "./selection.ts";
 import { modelFile } from "./test_support.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
-const TEXT = `schemaVersion: 1
+const TEXT = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
   - id: plan
     initial: true

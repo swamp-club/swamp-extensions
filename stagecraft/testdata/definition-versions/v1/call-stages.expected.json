@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "description": "A model method writes a plan, fed its earlier rejection on a retry; a workflow then tests the plan's ref.",
+  "stages": [
+    {
+      "id": "plan",
+      "initial": true,
+      "tracker": {
+        "entries": [
+          {
+            "on": "dispatch",
+            "step": "planning",
+            "emoji": "📝",
+            "summary": "Planning {{$input.workItem}} at depth {{$input.depth}}"
+          }
+        ]
+      },
+      "description": "A model method writes the plan.",
+      "work": {
+        "mode": "method",
+        "method": {
+          "modelIdOrName": "@acme/planner",
+          "methodName": "generate",
+          "inputs": {
+            "depth": 2
+          },
+          "passAsInputs": [
+            "workItem",
+            "feedback"
+          ]
+        },
+        "inputsSchema": {
+          "type": "object",
+          "required": [
+            "depth",
+            "workItem"
+          ],
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "workItem": {
+              "type": "string"
+            }
+          }
+        },
+        "resultEvidence": "plan-run",
+        "let": {
+          "workItem": "item.key",
+          "feedback": "\"plan\" in validations.artifacts ? validations.artifacts[\"plan\"] : null"
+        }
+      },
+      "artifacts": [
+        {
+          "name": "plan",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "name": "submit",
+          "to": "test",
+          "gates": [
+            {
+              "type": "artifact-exists",
+              "config": {
+                "artifact": "plan"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test",
+      "description": "A workflow tests the plan's ref.",
+      "work": {
+        "mode": "workflow",
+        "workflow": {
+          "name": "@acme/run-tests",
+          "passAsInputs": [
+            "ref"
+          ]
+        },
+        "resultEvidence": "test-run",
+        "let": {
+          "ref": "artifacts[\"plan\"].payload.ref"
+        }
+      },
+      "transitions": [
+        {
+          "name": "finish",
+          "to": "done",
+          "gates": [
+            {
+              "type": "evidence-recorded",
+              "config": {
+                "name": "test-run"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "terminal": true
+    }
+  ]
+}

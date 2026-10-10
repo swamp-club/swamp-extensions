@@ -208,7 +208,7 @@ export function start(
 /**
  * Start over at the initial stage in a new era. Earlier products, approvals
  * and dispatches stay recorded but belong to the old era, so no gate or
- * binding sees them. A finished run can be reset too: starting over is
+ * let value sees them. A finished run can be reset too: starting over is
  * how finished (or abandoned) work is taken up again.
  */
 export function reset(
@@ -455,6 +455,8 @@ export interface DispatchInput {
   inputs: Record<string, unknown>;
   prompt?: string;
   command?: string;
+  workflow?: string;
+  method?: { modelIdOrName: string; methodName: string };
   subagentPrompts?: SubagentPrompt[];
   /** Who is doing the work, as the driver names itself. */
   driverId?: string;
@@ -552,6 +554,8 @@ export function recordDispatch(
     inputs: jsonSafe(input.inputs) as Record<string, unknown>,
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.command !== undefined ? { command: input.command } : {}),
+    ...(input.workflow !== undefined ? { workflow: input.workflow } : {}),
+    ...(input.method !== undefined ? { method: input.method } : {}),
     ...(input.subagentPrompts !== undefined
       ? { subagentPrompts: input.subagentPrompts }
       : {}),

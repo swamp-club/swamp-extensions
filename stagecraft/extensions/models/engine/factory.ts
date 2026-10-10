@@ -91,7 +91,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.
   type: "@swamp/stagecraft/factory",
-  version: "2026.10.08.1",
+  version: "2026.10.09.1",
   globalArguments: FactoryArgumentsSchema,
   // Every entry runs the same function: it goes by the definition's own
   // schemaVersion, so it is right whichever typeVersion an instance is at,
@@ -101,6 +101,13 @@ export const model = {
     {
       toVersion: "2026.10.08.1",
       description: "Upgrade the definition to the current schemaVersion",
+      upgradeAttributes: (old: Record<string, unknown>) =>
+        upgradeFactoryArguments(old),
+    },
+    {
+      toVersion: "2026.10.09.1",
+      description: "Definition schemaVersion 2: bindings become let and " +
+        "passAsInputs (#3190)",
       upgradeAttributes: (old: Record<string, unknown>) =>
         upgradeFactoryArguments(old),
     },

@@ -36,6 +36,7 @@ import {
   scenarioItem,
 } from "./studio_work_items_testing.ts";
 import { FACTORY_TYPE } from "./work_item_ops.ts";
+import { DEFINITION_SCHEMA_VERSION } from "./definition_schema.ts";
 
 // The studio's handler on an in-memory repo: each route, each refusal, and
 // the headers every response carries. The real server, file watch and
@@ -46,7 +47,7 @@ const HOST = `127.0.0.1:${PORT}`;
 
 const TEAM_FILE = "models/@swamp/stagecraft/factory/team.yaml";
 const TEAM_TEXT = "type: '@swamp/stagecraft/factory'\nname: team\n" +
-  "globalArguments:\n  tracker: board\n  definition:\n    schemaVersion: 1\n";
+  `globalArguments:\n  tracker: board\n  definition:\n    schemaVersion: ${DEFINITION_SCHEMA_VERSION}\n`;
 
 function setup() {
   const repo = memoryRepo();

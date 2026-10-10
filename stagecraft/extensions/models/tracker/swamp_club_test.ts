@@ -33,6 +33,7 @@ import {
   swampClubFake,
 } from "../_lib/tracker/backends/swamp_club_fake.ts";
 import {
+  DEFINITION_SCHEMA_VERSION,
   type FakeSwamp,
   fakeSwamp,
   smallDefinition,
@@ -833,7 +834,7 @@ function issueLifecycleShaped(): Record<string, unknown> {
     ...extra,
   });
   return {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "planning",
@@ -897,7 +898,7 @@ function issueLifecycleShaped(): Record<string, unknown> {
         id: "verify",
         work: {
           mode: "interactive",
-          bindings: { commit: `'${COMMIT}'`, branch: "'fix-2772'" },
+          let: { commit: `'${COMMIT}'`, branch: "'fix-2772'" },
         },
         transitions: [{ name: "open-pr", to: "pull-request" }],
         tracker: {

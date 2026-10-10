@@ -45,6 +45,7 @@ import {
   parseDefinition,
   type ParseResult,
 } from "./definition_schema.ts";
+import { escapeTemplate } from "./template.ts";
 
 /** A JSON object, as a stored definition is. */
 export type JsonObject = { [key: string]: Json };
@@ -68,8 +69,66 @@ export interface UpgradeChain {
   steps: readonly UpgradeStep[];
 }
 
+/** Each call block and the key of its target. */
+const CALL_TARGETS = [
+  ["workflow", "name"],
+  ["method", "modelIdOrName"],
+] as const;
+
+/**
+ * 1 to 2 (#3190): a stage's `bindings` become `let`, unchanged. In v1 a
+ * workflow or method call sent every binding as an input, so its call block
+ * gets `passAsInputs` naming each one, in order: the same inputs are sent.
+ * A call's target (`workflow.name`, `method.modelIdOrName`) was plain text in
+ * v1 and is a template in v2, so it is escaped (escapeTemplate): a `{{x}}`
+ * in it stays literal text rather than becoming an undeclared placeholder.
+ */
+const LET_AND_PASS_AS_INPUTS: UpgradeStep = {
+  from: 1,
+  description: "bindings become let, and a call passes each as an input",
+  upgrade(definition) {
+    const stages = Array.isArray(definition.stages)
+      ? definition.stages.map((stage) => {
+        if (!isObject(stage) || !isObject(stage.work)) return stage;
+        const { bindings, ...work } = stage.work;
+        const next: JsonObject = bindings === undefined
+          ? { ...work }
+          : { ...work, let: bindings };
+        let changed = bindings !== undefined;
+        for (const [block, key] of CALL_TARGETS) {
+          const call = work[block];
+          if (!isObject(call)) continue;
+          const nextCall: JsonObject = { ...call };
+          const target = call[key];
+          if (typeof target === "string") {
+            nextCall[key] = escapeTemplate(target);
+          }
+          if (work.mode === block && isObject(bindings)) {
+            nextCall.passAsInputs = Object.keys(bindings);
+          }
+          if (
+            nextCall[key] !== target ||
+            nextCall.passAsInputs !== undefined
+          ) {
+            next[block] = nextCall;
+            changed = true;
+          }
+        }
+        return changed ? { ...stage, work: next } : stage;
+      })
+      : definition.stages;
+    return {
+      ...definition,
+      schemaVersion: 2,
+      ...(stages === undefined ? {} : { stages }),
+    };
+  },
+};
+
 /** Every format change since schemaVersion 1, oldest first. */
-export const DEFINITION_UPGRADES: readonly UpgradeStep[] = [];
+export const DEFINITION_UPGRADES: readonly UpgradeStep[] = [
+  LET_AND_PASS_AS_INPUTS,
+];
 
 /** The chain this runtime reads factory definitions with. */
 export const DEFINITION_CHAIN: UpgradeChain = checkChain({

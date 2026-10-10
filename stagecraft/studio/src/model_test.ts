@@ -22,8 +22,9 @@ import {
   MODEL_LINES,
   modelFile,
 } from "./test_support.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
-const TEXT = `schemaVersion: 1
+const TEXT = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
   - id: a
     initial: true
@@ -92,7 +93,7 @@ Deno.test("model: schema errors keep their paths and positions", async () => {
 });
 
 Deno.test("model: YAML that does not parse is one problem, with its position", async () => {
-  const text = "schemaVersion: 1\nname: [tiny\n";
+  const text = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}\nname: [tiny\n`;
   const loaded = await loadDefinition(FILE, text);
   assert(!loaded.ok);
   assertEquals(loaded.problems.length, 1);
@@ -175,7 +176,12 @@ Deno.test("model: a current definition is shown as written, not upgraded", async
 });
 
 Deno.test("model: a definition newer than this stagecraft reads is one problem at its schemaVersion", async () => {
-  const text = modelFile(TEXT.replace("schemaVersion: 1", "schemaVersion: 99"));
+  const text = modelFile(
+    TEXT.replace(
+      `schemaVersion: ${DEFINITION_SCHEMA_VERSION}`,
+      "schemaVersion: 99",
+    ),
+  );
   const loaded = await loadDefinition(FILE, text);
   assert(!loaded.ok);
   assertEquals(loaded.problems.length, 1);

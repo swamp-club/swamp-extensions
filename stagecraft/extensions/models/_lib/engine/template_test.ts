@@ -16,7 +16,10 @@
 
 import { assertEquals } from "@std/assert";
 import {
+  escapeTemplate,
+  hasPlaceholders,
   parseTemplate,
+  renderTarget,
   renderTemplate,
   undeclaredPlaceholders,
 } from "./template.ts";
@@ -97,4 +100,52 @@ Deno.test("render: a CEL integer (BigInt) inside a map or list renders as JSON",
     renderTemplate("{{n}} {{o}}", { n: 7n, o: { counts: [1n, 2n] } }),
     { ok: true, text: '7 {\n  "counts": [\n    1,\n    2\n  ]\n}' },
   );
+});
+
+Deno.test("renderTarget: fills only from non-empty strings", () => {
+  assertEquals(renderTarget("agent-{{who}}", { who: "wi-7" }), {
+    ok: true,
+    text: "agent-wi-7",
+  });
+  assertEquals(renderTarget("plain", {}), { ok: true, text: "plain" });
+  assertEquals(
+    renderTarget("{{a}}-{{b}}-{{a}}-{{c}}", { a: null, b: 3, c: "" }),
+    {
+      ok: false,
+      problems: [
+        { name: "a", value: null },
+        { name: "b", value: 3 },
+        { name: "c", value: "" },
+      ],
+    },
+  );
+  assertEquals(renderTarget("{{gone}}", {}), {
+    ok: false,
+    problems: [{ name: "gone", value: undefined }],
+  });
+});
+
+Deno.test("hasPlaceholders: only live placeholders count", () => {
+  assertEquals(hasPlaceholders("agent-{{who}}"), true);
+  assertEquals(hasPlaceholders("@acme/planner"), false);
+  assertEquals(hasPlaceholders("\\{{who}} and {{ .Values.x }}"), false);
+});
+
+Deno.test("escapeTemplate: the escaped text renders as the original, with no placeholders", () => {
+  for (
+    const text of [
+      "@acme/planner",
+      "{{deploy}}",
+      "agent-{{ who }}-x",
+      "\\{{kept}}",
+      "a\\b{{c}}",
+      "{{{raw}}}",
+      "{{ .Values.x }}",
+      "{{",
+    ]
+  ) {
+    const escaped = escapeTemplate(text);
+    assertEquals(hasPlaceholders(escaped), false, text);
+    assertEquals(renderTarget(escaped, {}), { ok: true, text }, text);
+  }
 });

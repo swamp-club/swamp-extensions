@@ -19,6 +19,7 @@ import type { TrackerBinding } from "./tracker_binding.ts";
 import { type Expected, expectedOf } from "./run_ops.ts";
 import { loadRun, type RunStore } from "./run_store.ts";
 import {
+  DEFINITION_SCHEMA_VERSION,
   type FactoryDefinition,
   parseDefinition,
 } from "./definition_schema.ts";
@@ -68,7 +69,7 @@ export const FAIL: GateEvaluator = () =>
  */
 export function smallDefinition(): FactoryDefinition {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "write",
@@ -76,7 +77,7 @@ export function smallDefinition(): FactoryDefinition {
         work: {
           mode: "interactive",
           systemPrompt: "Write about {{topic}}.",
-          bindings: { topic: "item.key" },
+          let: { topic: "item.key" },
         },
         artifacts: [{
           name: "summary",
@@ -104,8 +105,12 @@ export function smallDefinition(): FactoryDefinition {
         id: "review",
         work: {
           mode: "workflow",
-          workflow: { name: "@acme/tests", inputs: { suite: "all" } },
-          bindings: { text: 'artifacts["summary"].payload.text' },
+          workflow: {
+            name: "@acme/tests",
+            inputs: { suite: "all" },
+            passAsInputs: ["text"],
+          },
+          let: { text: 'artifacts["summary"].payload.text' },
           inputsSchema: {
             type: "object",
             required: ["suite", "text"],
@@ -171,7 +176,7 @@ const TEXT_SCHEMA = {
 export function stopsDefinition(minApprovals = 1): Record<string, unknown> {
   const work = { mode: "interactive", systemPrompt: "Do the work." };
   return {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "draft",
@@ -294,7 +299,7 @@ export function handoffDefinition(): Record<string, unknown> {
     }],
   };
   return {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "build",

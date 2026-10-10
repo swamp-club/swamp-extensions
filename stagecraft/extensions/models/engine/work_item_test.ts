@@ -39,6 +39,7 @@ import {
   summary,
   WORK_ITEM_TYPE,
 } from "../_lib/engine/work_item_ops.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../_lib/engine/definition_schema.ts";
 
 const BUILD = new URL(
   "../../../.claude/skills/stagecraft/references/examples/build-swamp-extension.yaml",
@@ -946,7 +947,7 @@ Deno.test("status: names each exit's human gates, global exits included, and the
   // when cannot be evaluated counts as required, so the driver stops and asks.
   const conditional = fakeSwamp();
   conditional.factory("team", {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "review",
@@ -1428,4 +1429,84 @@ Deno.test("dispatch lifecycle: past maxInterruptionsPerCycle a superseding dispa
     ...await expected(swamp),
   });
   await call(swamp, "dispatch", { driverId: "w1", ...await expected(swamp) });
+});
+
+// --- a work item pinned before a format change (#3190) ---------------------------
+
+const CALL_STAGES_V1 = new URL(
+  "../../../testdata/definition-versions/v1/call-stages.yaml",
+  import.meta.url,
+);
+
+Deno.test("dispatch: a work item pinned at schemaVersion 1 dispatches, records and advances after the upgrade, sending what v1 sent", async () => {
+  const v1 = parseExample(await Deno.readTextFile(CALL_STAGES_V1)).definition;
+  assertEquals(v1.schemaVersion, 1);
+  const swamp = fakeSwamp();
+  swamp.factory("team", v1);
+  await call(swamp, "start", { factory: "team" });
+  const [instance] = [...swamp.resources.keys()];
+  // Make it a work item claimed before this stagecraft: its pinned copy is
+  // the v1 form, and its run records that copy's digest.
+  const digest = await digestOf(v1);
+  const items = swamp.resources.get(instance);
+  const pinned = items?.get("definition");
+  const runs = items?.get("run");
+  assert(pinned !== undefined && runs !== undefined);
+  pinned[0] = { factory: "team", digest, definition: v1 };
+  const latest = runs[runs.length - 1] as unknown as RunRecord;
+  runs[runs.length - 1] = {
+    ...latest,
+    definition: { ...latest.definition, digest },
+  } as unknown as Record<string, unknown>;
+  const expectation = async () => {
+    const view = await describeStatus(swamp.context(instance), systemEnv);
+    return {
+      expectedStage: view.expected.expectedStage,
+      expectedCycle: String(view.expected.expectedCycle),
+      expectedEra: view.expected.expectedEra,
+    };
+  };
+  await call(swamp, "dispatch", await expectation(), instance);
+  const run = await loadRun(contextStore(swamp.context(instance)));
+  assert(run !== null);
+  // v1 sent the literal inputs and every binding; so does the upgrade.
+  assertEquals(run.dispatches[0].inputs, {
+    depth: 2,
+    workItem: instance,
+    feedback: null,
+  });
+  assertEquals(run.dispatches[0].method, {
+    modelIdOrName: "@acme/planner",
+    methodName: "generate",
+  });
+  // It records and advances on the upgraded copy, and the workflow stage
+  // sends its one binding, now passed.
+  await call(swamp, "record_artifact", {
+    name: "plan",
+    payload: JSON.stringify({ ref: "main" }),
+    ...await expectation(),
+  }, instance);
+  await call(swamp, "advance", {
+    transition: "submit",
+    ...await expectation(),
+  }, instance);
+  await call(swamp, "dispatch", await expectation(), instance);
+  const after = await loadRun(contextStore(swamp.context(instance)));
+  assert(after !== null);
+  assertEquals(after.stage, "test");
+  assertEquals(after.dispatches[1].inputs, { ref: "main" });
+  assertEquals(after.dispatches[1].workflow, "@acme/run-tests");
+  // The pinned copy is never rewritten.
+  assertEquals(pinned[0].definition, v1);
+});
+
+Deno.test("work item: its upgrades end at its version and change no arguments", () => {
+  // swamp refuses a model whose last upgrade is not its version; the
+  // repository's upgrade gate does not see models under engine/ yet
+  // (swamp-club #3201), so this is the check.
+  assertEquals(model.upgrades.at(-1)?.toVersion, model.version);
+  const args = { anything: "kept" };
+  for (const upgrade of model.upgrades) {
+    assertEquals(upgrade.upgradeAttributes(args), args);
+  }
 });

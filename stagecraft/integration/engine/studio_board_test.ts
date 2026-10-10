@@ -18,6 +18,7 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 import type { BoardCard } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { STUDIO_TYPE } from "../../extensions/models/_lib/engine/studio_server.ts";
 import { type SwampRepo, withRepo } from "../harness.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
 // ---------------------------------------------------------------------------
 // The Board's route through the installed swamp CLI: the studio's serve reads
@@ -29,7 +30,7 @@ import { type SwampRepo, withRepo } from "../harness.ts";
 // ---------------------------------------------------------------------------
 
 const DEFINITION = {
-  schemaVersion: 1,
+  schemaVersion: DEFINITION_SCHEMA_VERSION,
   stages: [
     {
       id: "write",

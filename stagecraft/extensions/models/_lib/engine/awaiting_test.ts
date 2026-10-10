@@ -30,7 +30,10 @@ import {
   noteAwaiting,
   personHeldExits,
 } from "./awaiting.ts";
-import { parseDefinition } from "./definition_schema.ts";
+import {
+  DEFINITION_SCHEMA_VERSION,
+  parseDefinition,
+} from "./definition_schema.ts";
 import {
   committingStore,
   loadRun,
@@ -347,7 +350,7 @@ Deno.test("awaiting: nothing is noted on a commit whose run data cannot be read"
 
 Deno.test("awaiting: a conditional approval is a stop only while its when is true; one that errors is not a stop", async () => {
   const parsed = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "review",
@@ -486,7 +489,7 @@ Deno.test("awaiting: once the agent's product closes its way out, the manual exi
 
 Deno.test("awaiting: an exit gated on another stage's product is no way out for the agent", async () => {
   const parsed = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "a",

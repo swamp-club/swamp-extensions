@@ -34,6 +34,7 @@ export {
   parseDefinition,
   type StageSpec,
 } from "./definition_schema.ts";
+export { DEFINITION_SCHEMA_VERSION } from "./definition_schema.ts";
 export { RUN_SCHEMA_VERSION } from "./run_record.ts";
 export { TRACKER_KINDS, TRACKER_TYPES } from "./tracker_binding.ts";
 export { systemEnv } from "./run_ops.ts";

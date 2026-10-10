@@ -89,6 +89,7 @@ import {
   update,
   writeCheckpoint,
 } from "./run_store.ts";
+import { SWAMP_NAME_MAX_LENGTH } from "./swamp_names.ts";
 
 export type { Pinned } from "./status_view.ts";
 
@@ -582,10 +583,9 @@ async function runSavedScenarios(
   return passed;
 }
 
-// swamp's definition names: at most 64 characters matching
-// ^[a-z0-9][a-z0-9_-]*$ (DEFINITION_NAME_MAX_LENGTH and
-// DEFINITION_NAME_PATTERN in swamp's src/domain/definitions/definition.ts).
-const KEY_MAX_LENGTH = 64;
+// A key names a work item's swamp model, so it is held to swamp's model-name
+// length (swamp_names.ts); keyPart keeps it to the model-name pattern.
+const KEY_MAX_LENGTH = SWAMP_NAME_MAX_LENGTH;
 
 /** The longest tracker prefix: short, since it leads every id. */
 export const PREFIX_MAX_LENGTH = 12;
@@ -1291,6 +1291,10 @@ export async function dispatch(
           inputs: packet.inputs ?? packet.values,
           ...(packet.prompt !== undefined ? { prompt: packet.prompt } : {}),
           ...(packet.command !== undefined ? { command: packet.command } : {}),
+          ...(packet.workflow !== undefined
+            ? { workflow: packet.workflow }
+            : {}),
+          ...(packet.method !== undefined ? { method: packet.method } : {}),
           ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
           ...lifecycle,
         },

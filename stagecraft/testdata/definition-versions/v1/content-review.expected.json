@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "description": "A piece of content, from draft to published: write the draft, have an\neditor review it, have a person approve it, and publish it.\n\nFor: web posts, announcements, newsletters, documentation pages, anything\nwritten that goes out under your name. A person approves every piece before\nit is published, and confirms abandoning one. An editorial review with a\nblocking finding sends the draft back; a person can also send it back by\nhand with their feedback. Stages name tracker status keys, so a work item\ncan drive a ticket; drop the stages' tracker blocks if it will not.\n\nChange first: the editorial review prompt (your voice and what you never\npublish), the draft schema (what a piece records), and publish's\ndescription (where your content goes).",
   "stages": [
     {
@@ -141,15 +141,15 @@
       "work": {
         "mode": "dispatch",
         "systemPrompt": "You are an editor. Read the draft \"{{title}}\" at {{location}}, for\n{{audience}}. Look for claims that are wrong or unsupported, anything\nthat could harm a reader or the person publishing it, anything that\nmisses what the piece is for, and anything a reader would trip on.\nRate a finding critical or high only if publishing it as it is would\nstate something false, cause harm, or miss the brief. Style, wording\nand structure are medium at most. Judge the draft against the size of\nthe piece: do not ask for research bigger than the piece, and give\nthe smallest adequate fix for each finding. Report findings with\nseverities, and do not soften the severity of a real defect.\n",
-        "bindings": {
-          "title": "artifacts[\"draft\"].payload.title",
-          "location": "artifacts[\"draft\"].payload.location",
-          "audience": "artifacts[\"draft\"].payload.audience"
-        },
         "context": {
           "inject": [
             "draft"
           ]
+        },
+        "let": {
+          "title": "artifacts[\"draft\"].payload.title",
+          "location": "artifacts[\"draft\"].payload.location",
+          "audience": "artifacts[\"draft\"].payload.audience"
         }
       },
       "artifacts": [
@@ -284,7 +284,7 @@
       "work": {
         "mode": "interactive",
         "systemPrompt": "Publish the approved draft at {{location}} as it was approved, and\nrecord published with the URL it is live at.\n",
-        "bindings": {
+        "let": {
           "location": "artifacts[\"draft\"].payload.location"
         }
       },

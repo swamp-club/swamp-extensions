@@ -24,8 +24,9 @@ import {
   targetAt,
 } from "./selection.ts";
 import { modelFile, modelPath } from "./test_support.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
-const BASE = `schemaVersion: 1
+const BASE = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
   - id: plan
     initial: true

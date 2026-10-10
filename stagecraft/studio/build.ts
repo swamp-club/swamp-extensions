@@ -74,6 +74,7 @@ export const ENGINE_INPUTS = [
   "scenario.ts",
   "studio_cards.ts",
   "studio_item_types.ts",
+  "swamp_names.ts",
   "template.ts",
   "tracker_binding.ts",
 ];

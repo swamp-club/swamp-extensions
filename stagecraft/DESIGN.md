@@ -12,10 +12,10 @@ This section is for people changing stagecraft itself. Using it is in the
 
 CI publishes any directory whose `manifest.yaml` changes on main, so merging a
 change to `manifest.yaml` is a release. `extensions/models/manifest_test.ts`
-checks the manifest lists every model and report entry point but the
-swamp-club Lab's, the skill and each additional file. swamp bundles each entry
-point with everything it imports, so `_lib/` and the embedded studio page need
-no entry, and the Lab adapter, which no shipped module imports (rule 7 of
+checks the manifest lists every model and report entry point but the swamp-club
+Lab's, the skill and each additional file. swamp bundles each entry point with
+everything it imports, so `_lib/` and the embedded studio page need no entry,
+and the Lab adapter, which no shipped module imports (rule 7 of
 `boundary_test.ts`), stays out of the package.
 
 Shipped code names its packages by `npm:` or `jsr:` specifier (rule 6 of
@@ -43,7 +43,8 @@ extensions/models/
     engine/
       definition_schema.ts   the definition meta-schema
       payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
-      template.ts           {{name}} placeholders in prompts
+      template.ts           {{name}} placeholders in prompts and call targets
+      swamp_names.ts        swamp's model and workflow name rules, mirrored
       canonical.ts          JSON safety (CEL integers) and content digests
       journal.ts            journal events and actors
       run_record.ts         the per-work-item run record
@@ -53,10 +54,10 @@ extensions/models/
       awaiting.ts           which exits only a person can open, journaled
       metrics.ts            per-work-item metrics from the run and journal
       summary.ts            the summary: timeline and metrics as markdown
-      cel_context.ts        the CEL vocabulary for bindings, cel gates and when
+      cel_context.ts        the CEL vocabulary for let values, cel gates and when
       cel_refs.ts           the products a CEL expression reads or tests for
-      dispatch.ts           dispatch packets: bindings, inputs, rendered prompts,
-                            products, subagent prompts
+      dispatch.ts           dispatch packets: let values, inputs, rendered
+                            prompts and targets, products, subagent prompts
       gates.ts              gate evaluation and transition readiness
       graph.ts              graph analysis of a definition
       scenario.ts           saved scenarios: the file format and the runner
@@ -170,14 +171,14 @@ if `swamp` is not on `PATH`. It uses your swamp config and login and deno's npm
 cache, and needs no network once that cache is warm. See "Tests on the real
 engine" below.
 
-The stagecraft skill, in `.claude/skills/stagecraft/`, is tracked here and
-ships with the extension. `integration/extension/skill_test.ts` keeps it
-honest: every command the skill shows must name a real method with inputs it accepts, the worked example
-(`references/examples/build-swamp-extension.md`) runs, as written, from start to
-done on the real engine, and so do authoring's commands, from no factory to a
-started work item. Authoring's table of graph findings must name every finding
-`validate` can report. The README's commands are checked the same way, and its
-relative links must resolve.
+The stagecraft skill, in `.claude/skills/stagecraft/`, is tracked here and ships
+with the extension. `integration/extension/skill_test.ts` keeps it honest: every
+command the skill shows must name a real method with inputs it accepts, the
+worked example (`references/examples/build-swamp-extension.md`) runs, as
+written, from start to done on the real engine, and so do authoring's commands,
+from no factory to a started work item. Authoring's table of graph findings must
+name every finding `validate` can report. The README's commands are checked the
+same way, and its relative links must resolve.
 
 ### The README's studio screenshot
 
@@ -187,23 +188,40 @@ repo, source-add this directory, write `starter` into a factory bound to a
 built-in tracker, run the studio's `serve`, and capture the page in headless
 Chromium over the DevTools protocol at 1280 by 800, after clicking the stage.
 
-## Runtime values in prompts: bindings plus `{{name}}` placeholders
+## Runtime values: `let`, `{{name}}` placeholders and `passAsInputs`
 
 **Decision.** Values that come from run data are declared once, as named bare
-CEL expressions under a stage's `work.bindings`. Prose fields (`systemPrompt`,
-`command`) refer to them by name with `{{name}}` placeholders, which are filled
-when the stage is dispatched. Carried out in
-`extensions/models/_lib/engine/template.ts` and checked in
+CEL expressions under a stage's `work.let`. Text fields refer to them by name
+with `{{name}}` placeholders, which are filled when the stage is dispatched: the
+prompts (`systemPrompt`, `command`) and a call's target (`workflow.name`,
+`method.modelIdOrName`). A `workflow` or `method` call sends the let values its
+`passAsInputs` lists as inputs, and no others. Carried out in
+`extensions/models/_lib/engine/template.ts` and `dispatch.ts`, and checked in
 `definition_schema.ts`.
 
 ```yaml
 work:
-  mode: dispatch
+  mode: method
   systemPrompt: |
-    Review the change at {{changeUrl}} against the plan.
-  bindings:
+    Plan {{workItem}} against the review at {{changeUrl}}.
+  method:
+    modelIdOrName: "agent-{{agent}}" # each work item has its own agent
+    methodName: generate
+    inputs: { depth: 2 } # literal inputs
+    passAsInputs: [workItem, feedback] # let values sent, types kept
+  let:
+    agent: item.key
+    workItem: item.key
     changeUrl: evidence["change-request"].payload.url
+    feedback: '"plan" in validations.artifacts ? validations.artifacts["plan"] : null'
 ```
+
+Until schemaVersion 2 (#3190) the named values were `work.bindings`, and a call
+sent every one of them as an input. A definition at schemaVersion 1 is upgraded
+on read (see "Format changes upgrade, they never break"): its `bindings` become
+`let`, and its call's `passAsInputs` names every one, so it sends what it always
+sent. Its call's target, plain text in v1, is escaped (`escapeTemplate`,
+`template.ts`), so a `{{x}}` in it stays literal text and is called as written.
 
 ### Why software-factory's `${{ }}` could not be kept
 
@@ -232,43 +250,89 @@ below handle the common clashes.
 
 ### Why names, not expressions
 
-A placeholder holds a binding name, never CEL. Every expression lives in one
-place, `work.bindings`, where:
+A placeholder holds a let name, never CEL. Every expression lives in one place,
+`work.let`, where:
 
 - it is syntax-checked when the factory definition is checked;
 - its resolved value is recorded on the dispatch, typed, so a stage can later be
   replayed and evaluated against a changed prompt;
-- it can also feed a workflow's or method's inputs and be handed to an agent as
-  data, not only pasted into prose.
+- it can also be sent as a call's input and be handed to an agent as data, not
+  only pasted into text.
 
 The cost is one extra line per value: you cannot write an expression inline in a
 prompt.
 
+### Why a call names what it sends (`passAsInputs`)
+
+swamp refuses a model-method input the method does not declare
+(`Unknown method input(s): ...`), for built-in and extension types alike, and a
+workflow with a closed inputs schema refuses one too. When every named value was
+also an input, a value needed only for a target or a prompt could not exist in a
+method stage without breaking the call. So a let value is only a value, and a
+call lists the ones it sends. Each is sent under its own name with its type kept
+(an object stays an object, a null stays null): no template is involved, so
+there is no rule about when a value keeps its type and no YAML quoting trap.
+Literal `inputs` are unchanged, and a name may not be both a literal input and
+passed. `inputsSchema` checks the merged inputs, as before.
+
+The interactive and dispatch modes have no call: every let value is handed to
+the agent as data, as before.
+
 ### The rules
 
-| Text                                                                    | Meaning                                                                                                                              |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared binding, or the factory definition is rejected when checked, with the error's path.                    |
-| `{{` around anything else (`{{ .Values.x }}`, `{{#each}}`, `{{ a.b }}`) | Literal text, so most Helm, Handlebars and Go template snippets pass through unescaped.                                              |
-| `{{` directly after `{` (`{{{body}}}`)                                  | Literal text, so Handlebars triple-stash passes through.                                                                             |
-| `\{{`                                                                   | A literal `{{`, for text that would otherwise be a placeholder.                                                                      |
+| Text                                                                    | Meaning                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared let value, or the factory definition is rejected when checked, with the error's path.                                                                                                                                        |
+| `{{` around anything else (`{{ .Values.x }}`, `{{#each}}`, `{{ a.b }}`) | Literal text, so most Helm, Handlebars and Go template snippets pass through unescaped.                                                                                                                                                                             |
+| `{{` directly after `{` (`{{{body}}}`)                                  | Literal text, so Handlebars triple-stash passes through.                                                                                                                                                                                                            |
+| `\{{`                                                                   | A literal `{{`, for text that would otherwise be a placeholder.                                                                                                                                                                                                     |
 | `${{`                                                                   | Rejected anywhere in a factory definition. It is swamp's syntax, with no escape; swamp no longer evaluates the definition's file, but the rejection is kept until go-live (see "Where a factory definition lives"), so a prompt cannot yet contain a literal `${{`. |
 
 Bare-word template tags such as Go's `{{end}}` or Handlebars' `{{else}}` look
 exactly like placeholders. They are rejected when the factory definition is
-checked, as undeclared bindings, and are written `\{{end}}`. The failure is loud
-and the error names the escape. There is no way to write a literal `\` directly
-before a live placeholder.
+checked, as undeclared let values, and are written `\{{end}}`. The failure is
+loud and the error names the escape. There is no way to write a literal `\`
+directly before a live placeholder.
 
-Binding names are identifiers (letters, digits and `_`, not starting with a
-digit), so every binding can be used as a placeholder.
+Let names are identifiers (letters, digits and `_`, not starting with a digit),
+so every let value can be used as a placeholder.
 
-At dispatch, strings are inserted as they are, numbers and booleans as text, and
+In a prompt, strings are inserted as they are, numbers and booleans as text, and
 objects and arrays as indented JSON. A placeholder whose value is null or
 missing **fails the dispatch** rather than rendering blank. This fixes a
 software-factory failure mode: an expression that failed to evaluate was left in
 the prompt as literal `${{ … }}`, and a null value became an empty string, so a
-broken binding produced a prompt that looked fine and was quietly wrong.
+broken value produced a prompt that looked fine and was quietly wrong.
+
+### A call's target
+
+`workflow.name` and `method.modelIdOrName` may hold placeholders, so a
+definition can call a model per work item (`agent-{{workItem}}`), which
+software-factory allowed with `${{ }}` and #3141 needed. A target is filled more
+strictly than a prompt, because it chooses what runs:
+
+- Every placeholder's value must be a **non-empty string**. A null, a missing
+  value, a number, an object or an empty string fails the dispatch, rather than
+  calling a target made from a stringified or blank value.
+- The filled target must be a name **swamp would create**: swamp's own rule for
+  a model name (for `modelIdOrName`) or a workflow name (for `workflow.name`),
+  mirrored in `_lib/engine/swamp_names.ts` because swamp does not export it (see
+  that file for the swamp source and commit it copies). So a value from run data
+  with a space, a newline, uppercase, a leading `-` or leftover braces never
+  reaches a swamp command line; the problem names the target, the value and
+  swamp's rule. A model id is a lowercase UUID, which the rule accepts.
+- A **literal** target (no placeholders) is not checked at dispatch. It may name
+  a model or workflow created before swamp's naming rule, which swamp still
+  reads, and a schema error would also refuse the pinned copies of every work
+  item in progress. The factory's `validate` warns about one instead
+  (`target-name`, `graph.ts`). The rule is about values from run data; a name
+  written by hand is the author's.
+- The filled target is in the packet (`workflow`, `method`) and **recorded on
+  the dispatch**, so what was called is in the run record. The studio's design
+  view shows the template, never a filled name.
+
+A refused dispatch records nothing, so it does not count toward the stage's
+dispatch cap.
 
 ### Alternative considered: no templating at all
 
@@ -366,44 +430,44 @@ progress or makes anyone edit a definition by hand.
 
 1. bumps `DEFINITION_SCHEMA_VERSION` (`definition_schema.ts`);
 2. appends one step to `DEFINITION_UPGRADES` (`definition_upgrade.ts`): a pure
-   JSON-to-JSON function from the previous version to the new one that keeps
-   the definition's meaning exactly. It runs on the raw definition, so it moves
+   JSON-to-JSON function from the previous version to the new one that keeps the
+   definition's meaning exactly. It runs on the raw definition, so it moves
    template text (`${{ }}`, `{{name}}`) without evaluating it. A step that
-   renames anything a saved scenario names upgrades the factory's scenarios
-   too (`upgradeScenarios`);
+   renames anything a saved scenario names upgrades the factory's scenarios too
+   (`upgradeScenarios`);
 3. adds an entry to the factory type's `upgrades` for its release, calling
    `upgradeFactoryArguments` like every other entry;
 4. adds fixtures at the new version to `testdata/definition-versions/`, and
    updates every fixture's `<name>.expected.json` to the new current form.
-   `definition_versions_test.ts` reads every fixture of every version,
-   upgrades it, checks the expected form and runs its saved scenarios, and fails
-   when a version has no fixture.
+   `definition_versions_test.ts` reads every fixture of every version, upgrades
+   it, checks the expected form and runs its saved scenarios, and fails when a
+   version has no fixture.
 
-**One read path.** `readDefinition` reads `schemaVersion`, applies the steps
-in memory and parses with the current schema, so the rest of the engine sees
-only the current form. Everything that reads a stored definition goes through
-it: a work item's pinned copy (`checkPinned`, which the work-item methods, the
+**One read path.** `readDefinition` reads `schemaVersion`, applies the steps in
+memory and parses with the current schema, so the rest of the engine sees only
+the current form. Everything that reads a stored definition goes through it: a
+work item's pinned copy (`checkPinned`, which the work-item methods, the
 trackers, the studio server and the summary report all use), the factory's own
-definition (`loadFactory`), and the studio's view of a factory file. A
-version newer than the runtime is refused with "needs a newer
-@swamp/stagecraft", and the schema's `schemaVersion` literal says the same
-when it is reached without the upgrade.
+definition (`loadFactory`), and the studio's view of a factory file. A version
+newer than the runtime is refused with "needs a newer @swamp/stagecraft", and
+the schema's `schemaVersion` literal says the same when it is reached without
+the upgrade.
 
 **Pinned copies are never rewritten.** A work item claimed on v1 keeps its v1
 copy and the digest its run recorded. `checkPinned` checks the digest on the
-copy as stored, then upgrades it. That works because `pin` stores
-`jsonSafe` of the parsed definition, parsing applies no default or transform,
-and the digest is over canonical JSON (sorted keys): the stored copy digests to
-the recorded value (`work_item_test`, and on the real engine
-`integration/engine/definition_upgrade_test.ts`). A schema change that adds
-a `.default()` or `.transform()` breaks that and fails those tests.
+copy as stored, then upgrades it. That works because `pin` stores `jsonSafe` of
+the parsed definition, parsing applies no default or transform, and the digest
+is over canonical JSON (sorted keys): the stored copy digests to the recorded
+value (`work_item_test`, and on the real engine
+`integration/engine/definition_upgrade_test.ts`). A schema change that adds a
+`.default()` or `.transform()` breaks that and fails those tests.
 
 **A definition someone wrote is upgraded by swamp.** swamp runs a type's
 `upgrades` when one of that model's own methods runs, before checking its
 `globalArguments`, and saves the result to the model's file, merged into the
 existing YAML so its comments stay (`method_execution_service.ts` and
-`yaml_definition_repository.ts` in swamp). For a factory that is `validate`.
-The entries go by the definition's own `schemaVersion`, not by swamp's
+`yaml_definition_repository.ts` in swamp). For a factory that is `validate`. The
+entries go by the definition's own `schemaVersion`, not by swamp's
 `typeVersion`, so they are right whichever version an instance is at and do
 nothing to a current definition. A work item reads the factory's raw model
 definition, which swamp does not upgrade for it, so `loadFactory` upgrades in
@@ -412,11 +476,11 @@ memory too. swamp model validate checks `globalArguments` without running
 definition before its schema check (`upgradeOrPass`); methods never read that
 evaluated form.
 
-**Staleness compares current forms.** The studio Board's stale-pin badge and
-the work-item page compare the digest of the pinned definition, upgraded, with
-the digest of the factory file's definition, upgraded. A v1 pin of a definition
-that only moved to v2 is not stale. The run record keeps the digest of the copy
-as stored, which is what `checkPinned` checks.
+**Staleness compares current forms.** The studio Board's stale-pin badge and the
+work-item page compare the digest of the pinned definition, upgraded, with the
+digest of the factory file's definition, upgraded. A v1 pin of a definition that
+only moved to v2 is not stale. The run record keeps the digest of the copy as
+stored, which is what `checkPinned` checks.
 
 **Run records.** `RUN_SCHEMA_VERSION` has no upgrade chain yet. When it first
 changes, `UpgradeChain` and `upgradeDefinition`'s pattern apply to it as they
@@ -424,7 +488,7 @@ are: steps per version, applied on read, stored records never rewritten.
 
 ## The CEL vocabulary
 
-Bindings, `cel` gates and an approval's `when` see
+Let values, `cel` gates and an approval's `when` see
 (`_lib/engine/cel_context.ts`):
 
 | Name          | Value                                                       |
@@ -456,9 +520,9 @@ checked, every fixed product name in its CEL must be a declared product of the
 kind its map holds: `artifacts.x`, `artifacts["x"]` and
 `validations.artifacts.x` must name an artifact, and the same forms on
 `evidence` must name evidence (a stage's `resultEvidence` counts). Tests for
-presence, `has(...)` and `"x" in artifacts`, are checked too, since a typo
-there leaves the test false forever. A lookup by variable (`artifacts[k]`) is
-not checked, nor are payload field paths against payload schemas. The walk is
+presence, `has(...)` and `"x" in artifacts`, are checked too, since a typo there
+leaves the test false forever. A lookup by variable (`artifacts[k]`) is not
+checked, nor are payload field paths against payload schemas. The walk is
 `productRefs` in `_lib/engine/cel_refs.ts`, and it tells reads from tests.
 
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
@@ -520,8 +584,8 @@ A way back either reads the run data or waits for a person:
   and recording it after a decline is not rework (see "Why `awaiting` is
   journaled"). `plan` injects the last plan, its review and the feedback, and
   the revised plan lists every round it answers in `feedbackIncorporated`, so
-  the feedback reaches the next planning pass and the ticket's history. A
-  person can always record feedback, so the gate never wedges the work.
+  the feedback reaches the next planning pass and the ticket's history. A person
+  can always record feedback, so the gate never wedges the work.
 
 ### The cycle limit
 
@@ -796,9 +860,8 @@ the full exploration, which the tests keep as the reference. It also bounds the
 count pass by the structural pass, times the counts an inverted gate's stage can
 take. Seven stages that each loop on themselves, at the default limit, take 8
 count states instead of 175,780 (`graph_test.ts`). A `needs-cycle-override`
-finding gives the refusal
-seen in the state with the fewest entries, so its message does not depend on the
-order states are explored in.
+finding gives the refusal seen in the state with the fewest entries, so its
+message does not depend on the order states are explored in.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
 errors are reported as warnings, because they rest on a partial exploration. The
@@ -849,32 +912,31 @@ Warnings:
   an earlier stage that closes no loop is not one.
 - **`product-missing-on-path`:** a stage injects, gates on, or reads in CEL an
   artifact or evidence that some path to it does not produce. An inject is not
-  reported when some path produces it and every stage that produces it is in
-  the injecting stage's own loop (its strongly connected component over live,
+  reported when some path produces it and every stage that produces it is in the
+  injecting stage's own loop (its strongly connected component over live,
   non-global edges): that is context from an earlier pass, such as the last
   review and a person's feedback handed to the next plan, absent on the first
   pass by design (swamp-club #2770). A producer upstream of the stage but
-  outside its loop is still reported, and gates are judged as before.
-  CEL reads (swamp-club #2792) are the fixed product references of a stage's
-  `work.bindings`, its `cel` gates and its approvals' `when`, found by the same
-  walker as the declared-name check (`cel_refs.ts`). A read of a product the
-  expression also tests for anywhere (`has(artifacts.plan)`,
-  `"plan" in artifacts`) is guarded and not reported; the guard need not sit
-  around the read, so this is generous on purpose. `artifacts.plan` and
-  `validations.artifacts.plan` are the same product, reported once per
-  expression. An unguarded read of a missing product fails at run time (cel-js
-  throws "No such key"), so a CEL read is reported even when no path produces
-  it (gate-never-passes assumes cel gates can pass) and even when it comes from
-  the stage's own loop. Bindings are evaluated when the stage is entered, before
-  it records anything, so the stage's own products do not count for them; a
-  gate or `when` is evaluated at the transition, where they do. Availability is
-  the stages entered, as for injects, which matches the CEL context (the era's
-  latest record of each product, from whichever stage recorded it); a work item
-  reset, which starts a new era, is not modelled. Payload field paths are not
-  checked, nor are global transitions, whose CEL runs from every stage (the
-  same as their named gates). A binding read in a loop is judged as on the
-  loop's first pass, so its message can say no path produces a product that a
-  later pass has.
+  outside its loop is still reported, and gates are judged as before. CEL reads
+  (swamp-club #2792) are the fixed product references of a stage's `work.let`,
+  its `cel` gates and its approvals' `when`, found by the same walker as the
+  declared-name check (`cel_refs.ts`). A read of a product the expression also
+  tests for anywhere (`has(artifacts.plan)`, `"plan" in artifacts`) is guarded
+  and not reported; the guard need not sit around the read, so this is generous
+  on purpose. `artifacts.plan` and `validations.artifacts.plan` are the same
+  product, reported once per expression. An unguarded read of a missing product
+  fails at run time (cel-js throws "No such key"), so a CEL read is reported
+  even when no path produces it (gate-never-passes assumes cel gates can pass)
+  and even when it comes from the stage's own loop. Let values are evaluated
+  when the stage is entered, before it records anything, so the stage's own
+  products do not count for them; a gate or `when` is evaluated at the
+  transition, where they do. Availability is the stages entered, as for injects,
+  which matches the CEL context (the era's latest record of each product, from
+  whichever stage recorded it); a work item reset, which starts a new era, is
+  not modelled. Payload field paths are not checked, nor are global transitions,
+  whose CEL runs from every stage (the same as their named gates). A let value
+  read in a loop is judged as on the loop's first pass, so its message can say
+  no path produces a product that a later pass has.
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
@@ -962,45 +1024,44 @@ their own, that the wrapper waits for both, and that it fails when either does.
 
 ## The dispatch contract
 
-Whoever does a stage's work gets everything it needs from the dispatch, and
-what is recorded is what was sent and what came back (swamp-club #2776). In a
-trial, the driving agent wrote its own reviewer prompts. It added scope and
-severity guidance, and once left a shell placeholder where the plan summary
-belonged. It then retyped the reviewers' findings, which lost half their text.
-The dispatch record held a prompt no subagent saw.
+Whoever does a stage's work gets everything it needs from the dispatch, and what
+is recorded is what was sent and what came back (swamp-club #2776). In a trial,
+the driving agent wrote its own reviewer prompts. It added scope and severity
+guidance, and once left a shell placeholder where the plan summary belonged. It
+then retyped the reviewers' findings, which lost half their text. The dispatch
+record held a prompt no subagent saw.
 
 - **The packet names the products.** `products` lists every artifact and
   evidence the stage declares, each with the schema its payload is checked
-  against: the declared schema, the findings contract, both (as `allOf`), or
-  the outcome contract for result evidence. `artifactContract` and
+  against: the declared schema, the findings contract, both (as `allOf`), or the
+  outcome contract for result evidence. `artifactContract` and
   `evidenceContract` in `payload_schema.ts` give the same contracts that
   recording applies, and a test pins that they accept and reject the same
-  payloads. Schemas are shown without their `description` and `$comment`,
-  which are for the definition's authors.
+  payloads. Schemas are shown without their `description` and `$comment`, which
+  are for the definition's authors.
 - **Evidence a person records is not the work's.** An evidence spec with
   `recordedBy: person` (a person's feedback on the plan, say) is left out of
   `products`, so no subagent is asked to write it and no driver records it as
   the stage's work. `status` names it (`a person records: <name>`), the design
   page marks it, and a saved scenario records it as the person. Recording,
-  gates, injection and CEL treat it like any evidence. Declaring it on the
-  stage whose exit it gates is what lets `evidence-recorded` require it in the
-  current pass (swamp-club #2770).
+  gates, injection and CEL treat it like any evidence. Declaring it on the stage
+  whose exit it gates is what lets `evidence-recorded` require it in the current
+  pass (swamp-club #2770).
 - **The engine writes the subagent prompt.** For a dispatch stage,
-  `buildSubagentPrompts` gives each subagent the rendered prompt byte for
-  byte. A fixed section follows it: the skill to follow, a `swamp data query`
-  read per injected product, and a result file per product with its schema,
-  inline. The dispatch records these prompts, so replay shows exactly what was
-  sent. The driver adds nothing. That makes the driver honest by construction,
-  which is stronger than recording whatever addendum it chose to write.
+  `buildSubagentPrompts` gives each subagent the rendered prompt byte for byte.
+  A fixed section follows it: the skill to follow, a `swamp data query` read per
+  injected product, and a result file per product with its schema, inline. The
+  dispatch records these prompts, so replay shows exactly what was sent. The
+  driver adds nothing. That makes the driver honest by construction, which is
+  stronger than recording whatever addendum it chose to write.
 - **Results are files, recorded as written.** Each result path is
   `<resultDir>/<key>-d<dispatchId>-<n>-<product>.json`. `resultDir` is the
-  driver's scratch directory, or a new temporary directory that is removed
-  again if the dispatch is refused. The driver records a result with
+  driver's scratch directory, or a new temporary directory that is removed again
+  if the dispatch is refused. The driver records a result with
   `payload=@<path>`, which swamp reads from the file, and it never edits the
-  file. Findings from several subagents on one artifact are joined
-  mechanically with `jq`, not by the engine, since no bundled definition runs
-  more than one. Each subagent's findings ids carry its number, so a join
-  cannot repeat an id.
+  file. Findings from several subagents on one artifact are joined mechanically
+  with `jq`, not by the engine, since no bundled definition runs more than one.
+  Each subagent's findings ids carry its number, so a join cannot repeat an id.
 
 ## The dispatch lifecycle
 
@@ -1014,9 +1075,9 @@ the dispatch; `maxInterruptionsPerCycle` on the stage) is optional, so records
 and definitions written before stay valid and the schema versions stay at 1.
 That makes it no format change in the sense of "Format changes upgrade, they
 never break": every stored definition reads unchanged and means the same, so
-there is no step to add.
-Code: `recordDispatch`, `recordOutcome`, `recordCheckpoint`, `dispatchCap` in
-`_lib/engine/run_ops.ts`; `writeCheckpoint` in `_lib/engine/run_store.ts`.
+there is no step to add. Code: `recordDispatch`, `recordOutcome`,
+`recordCheckpoint`, `dispatchCap` in `_lib/engine/run_ops.ts`; `writeCheckpoint`
+in `_lib/engine/run_store.ts`.
 
 - **Why no elapsed-time inference.** A serve restart on k3s killed a long LLM
   session in a `method` stage on a remote worker. The run record survived; the
@@ -1026,13 +1087,13 @@ Code: `recordDispatch`, `recordOutcome`, `recordCheckpoint`, `dispatchCap` in
   by `record_outcome`.
 - **Driver identity and the scan.** `actor` is empty on remote workers, so a
   dispatch records the `driverId` the driver passes. `open_dispatches` lists the
-  open dispatches of the current stage and cycle, filtered by driver id; it is
-  a read and takes no lock. The driver's rule, at startup and on an interval: an
+  open dispatches of the current stage and cycle, filtered by driver id; it is a
+  read and takes no lock. The driver's rule, at startup and on an interval: an
   open dispatch under my id that is not in my in-flight set is dead, so dispatch
   again with `supersedes`. A restart is the case where the in-flight set is
-  empty, so startup and polling are the same query. Only the current stage
-  entry has open dispatches; a dispatch of an entry the work item has left with
-  no outcome is counted as `none` in the metrics, never as in flight.
+  empty, so startup and polling are the same query. Only the current stage entry
+  has open dispatches; a dispatch of an entry the work item has left with no
+  outcome is counted as `none` in the metrics, never as in flight.
 - **What the scan cannot see.** A dispatch still in the driver's in-flight set
   whose remote run died: the driver is waiting on the call. A call that fails is
   superseded at once; one that hangs needs swamp to mark the run orphaned
@@ -1048,29 +1109,30 @@ Code: `recordDispatch`, `recordOutcome`, `recordCheckpoint`, `dispatchCap` in
   returned always agree.
 - **Checkpoints.** `record_checkpoint` writes a payload for an open dispatch, as
   often as the work likes, under its own record (`checkpoint-d<id>`, resource
-  spec `checkpoint`), payload first and the run record last, like products.
-  Only the latest dispatch of its stage entry takes one, so work a later
-  dispatch replaced cannot overwrite the retry's state. The next dispatch of the
-  same era, stage and cycle gets the latest checkpoint as `resume` in its
-  packet, with a read pinned to the version the run indexes: a version written
-  just before a crash is unreferenced and never handed out. A dispatch stage's
+  spec `checkpoint`), payload first and the run record last, like products. Only
+  the latest dispatch of its stage entry takes one, so work a later dispatch
+  replaced cannot overwrite the retry's state. The next dispatch of the same
+  era, stage and cycle gets the latest checkpoint as `resume` in its packet,
+  with a read pinned to the version the run indexes: a version written just
+  before a crash is unreferenced and never handed out. A dispatch stage's
   subagent prompt gains the read only when there is a checkpoint, so prompts are
   otherwise byte for byte as before. stagecraft does not limit a checkpoint's
   size; large state (an agent session) is better kept elsewhere, with the
   checkpoint holding a pointer to it.
-- **The `_stagecraft` input.** Every packet carries `workItem`, `dispatchId`
-  and `resume`, so any driver can pass them on. A workflow or method stage also
-  gets them as one input, `_stagecraft`, when its `inputsSchema` declares that
-  property and no literal input or binding already supplies the name. It cannot
-  be filled unconditionally: swamp's CLI refuses an input the method does not
-  declare ("Unknown method input(s)", even for a plain `z.object`), and a
-  `z.strictObject` method refuses it inside a workflow step. Nor can stagecraft
-  ask: a method's context has no model registry, and `runModel` is a stub on
-  remote workers, so the stage's `inputsSchema` is the one place that says the
-  call takes it. No other channel reaches a remote worker either (run tags are
-  not in the remote dispatch envelope). The underscore marks the input as the
-  engine's, not the author's. Should swamp expose method schemas to a method,
-  the gate can widen to "the method declares it" without a format change.
+- **The `_stagecraft` input.** Every packet carries `workItem`, `dispatchId` and
+  `resume`, so any driver can pass them on. A workflow or method stage also gets
+  them as one input, `_stagecraft`, when its `inputsSchema` declares that
+  property and no literal input or passed let value already supplies the name.
+  It cannot be filled unconditionally: swamp's CLI refuses an input the method
+  does not declare ("Unknown method input(s)", even for a plain `z.object`), and
+  a `z.strictObject` method refuses it inside a workflow step. Nor can
+  stagecraft ask: a method's context has no model registry, and `runModel` is a
+  stub on remote workers, so the stage's `inputsSchema` is the one place that
+  says the call takes it. No other channel reaches a remote worker either (run
+  tags are not in the remote dispatch envelope). The underscore marks the input
+  as the engine's, not the author's. Should swamp expose method schemas to a
+  method, the gate can widen to "the method declares it" without a format
+  change.
 
 ## The model types: a factory and work items
 
@@ -1079,8 +1141,8 @@ Code: `recordDispatch`, `recordOutcome`, `recordCheckpoint`, `dispatchCap` in
 
 - A **factory** is an instance whose `globalArguments` hold a team's factory
   definition, the tracker instance its work items publish to, and its saved
-  scenarios, `{ definition: {...}, tracker: board, scenarios: [...] }` ("Where
-  a factory definition lives", "The factory's tracker", "Saved scenarios").
+  scenarios, `{ definition: {...}, tracker: board, scenarios: [...] }` ("Where a
+  factory definition lives", "The factory's tracker", "Saved scenarios").
 - A **work item** is one instance per piece of work, named by a key. `start`
   reads the factory's definition and **pins a copy** of it with its digest.
   Every later method uses that copy, so editing the factory never changes a
@@ -1105,36 +1167,35 @@ them as it checks any model ("What swamp checks, and what validate checks").
 stagecraft's methods still read the definition from the factory's **raw** model
 definition through the definition repository, never swamp's evaluated
 `globalArguments`, so a pinned copy is exactly what was written. On a remote
-worker that model definition arrives as a plain object with
-`_globalArguments`; both shapes are read.
+worker that model definition arrives as a plain object with `_globalArguments`;
+both shapes are read.
 
-**Keys are stagecraft's.** swamp cannot generate instance names, so a key is
-the work's ticket's id, which the tracker's `claim` reserves, and the work item
-is created under it. A key is how a person refers to a work item everywhere
-(`status`, the summary report, commands, conversation), so it is short enough
-to say: `blog-12`, `abc-12`. It does not say what the work is; the title does,
-and `status`, the summary and the studio show it beside the key.
+**Keys are stagecraft's.** swamp cannot generate instance names, so a key is the
+work's ticket's id, which the tracker's `claim` reserves, and the work item is
+created under it. A key is how a person refers to a work item everywhere
+(`status`, the summary report, commands, conversation), so it is short enough to
+say: `blog-12`, `abc-12`. It does not say what the work is; the title does, and
+`status`, the summary and the studio show it beside the key.
 
 - **On the built-in tracker** the ticket is the work, so the ticket's id is the
   key: `<prefix>-<n>`, with `n` from the tracker's counter (see "The built-in
   tracker"). The ticket's first work item is `blog-12`.
 - **From an external ticket,** the key is the ticket's own id, lowercased, with
-  every character outside `[a-z0-9]` a `-`: Linear's `ABC-12` gives `abc-12`.
-  An id that is only a number, like the Lab's `#2711`, takes the tracker
-  instance's prefix: `lab-2711`. The id there is for reading only (see "Tracker
-  ids are data").
+  every character outside `[a-z0-9]` a `-`: Linear's `ABC-12` gives `abc-12`. An
+  id that is only a number, like the Lab's `#2711`, takes the tracker instance's
+  prefix: `lab-2711`. The id there is for reading only (see "Tracker ids are
+  data").
 - **A later work item on the same ticket** adds a number: `abc-12-2`,
   `abc-12-3`. `n` is one more than the keys the ticket index lists for the
   ticket (a key a retarget moved onto it counts too, so a number can be
   skipped).
 - **A collision** happens only when two tracker instances share a prefix (a
-  built-in tracker `abc` beside Linear team `ABC`, or two Linear workspaces
-  with one team key), or a key was started by hand. The tracker instance's name
-  then qualifies the key, `abc-12-linear`, cut to fit; a ticket whose key was
-  qualified keeps the qualifier for its later work items (`abc-12-linear-2`).
-  If the qualified key is taken too, `claim` refuses and says to give one
-  tracker another prefix. The first tracker to reach a number gets the plain
-  key.
+  built-in tracker `abc` beside Linear team `ABC`, or two Linear workspaces with
+  one team key), or a key was started by hand. The tracker instance's name then
+  qualifies the key, `abc-12-linear`, cut to fit; a ticket whose key was
+  qualified keeps the qualifier for its later work items (`abc-12-linear-2`). If
+  the qualified key is taken too, `claim` refuses and says to give one tracker
+  another prefix. The first tracker to reach a number gets the plain key.
 - **The prefix** is a tracker instance's `prefix` global argument, on the
   built-in, Linear and swamp-club models: lowercase letters, digits and `-`, at
   most 12 characters, a trailing `-` dropped. Unset, it is the instance's name
@@ -1146,9 +1207,9 @@ and `status`, the summary and the studio show it beside the key.
 - **The length** is swamp's: an instance name is at most 64 characters matching
   `^[a-z0-9][a-z0-9_-]*$` (`DEFINITION_NAME_MAX_LENGTH` and
   `DEFINITION_NAME_PATTERN` in swamp's `src/domain/definitions/definition.ts`).
-  A longer ticket id, or an old id that already fills the length, is cut
-  before the `-<n>` or the qualifier, never refused; `claim` checks the cut key
-  is free.
+  A longer ticket id, or an old id that already fills the length, is cut before
+  the `-<n>` or the qualifier, never refused; `claim` checks the cut key is
+  free.
 - **A key never changes.** If the work changes meaning the key stays; a person
   may abandon the item and start a new one. `start` takes any unused name, so a
   person may also choose a key by hand for work with no ticket.
@@ -1164,16 +1225,16 @@ into those a person must decide now and conditional ones whose `when` is false
 (`humanGates` and `humanGatesNotRequired` in the logged status), the stage's
 work mode, the dispatch count, and payload rejections; and `dispatch` prints the
 whole packet. Every write ends its text with the status that follows it, the
-same block `status` prints, built from the run the write committed, so reading
-a write's output counts as reading status; a dispatch prints it after the last
+same block `status` prints, built from the run the write committed, so reading a
+write's output counts as reading status; a dispatch prints it after the last
 subagent prompt. The write is committed by then, so a status that cannot be
 built is reported in the text, not thrown. Drivers run methods without `--log`:
-swamp shows a method's log text without it, and with it prints the text a
-second time through its console log sink. `status` is a `read` method, so it
-takes no lock. A refused write throws with its reason and writes nothing. A
-rejected payload is committed to the run as retry feedback and then thrown: no
-method declares `rollbackOnFailure`, so the feedback survives and the caller
-still gets a non-zero exit.
+swamp shows a method's log text without it, and with it prints the text a second
+time through its console log sink. `status` is a `read` method, so it takes no
+lock. A refused write throws with its reason and writes nothing. A rejected
+payload is committed to the run as retry feedback and then thrown: no method
+declares `rollbackOnFailure`, so the feedback survives and the caller still gets
+a non-zero exit.
 
 **Model types are string literals.** swamp reads a model's `type` from the
 source without running it, so each model file writes its type literally; tests
@@ -1200,32 +1261,32 @@ globalArguments:
 
 #2803 had moved the definition into a file the factory named, because people
 pasted it into `globalArguments` by hand while keeping a file copy, and the two
-drifted. That reason went when factories became authored and edited only by
-the agent: a swamp model definition is already a YAML file in the repo that an
-agent edits directly. Keeping the definition there gives one copy in the place
-swamp already looks, lets swamp's own checks see it (the old software-factory
-defect #1236 was a platform-facing schema of `stages: unknown[]`), and lets a
-remote worker start work, since it receives the model definition but not the
-repo. There were no users before go-live, so the file form was removed, not
-kept beside it.
+drifted. That reason went when factories became authored and edited only by the
+agent: a swamp model definition is already a YAML file in the repo that an agent
+edits directly. Keeping the definition there gives one copy in the place swamp
+already looks, lets swamp's own checks see it (the old software-factory defect
+#1236 was a platform-facing schema of `stages: unknown[]`), and lets a remote
+worker start work, since it receives the model definition but not the repo.
+There were no users before go-live, so the file form was removed, not kept
+beside it.
 
 **Who reads it.** `start` pins the parsed definition and its digest, and every
 later method reads the pinned copy, so only the methods that pin or check read
-the factory's definition: `validate`, `start`,
-`reset` with `repin=true`, and the tracker's `claim`, which starts a work item.
-All of them go through `loadFactory` in `_lib/engine/work_item_ops.ts`. The
-studio reads the model definition file too, and does not hand-edit it: edits
-come from the agent. Editing it never changes a running work item.
+the factory's definition: `validate`, `start`, `reset` with `repin=true`, and
+the tracker's `claim`, which starts a work item. All of them go through
+`loadFactory` in `_lib/engine/work_item_ops.ts`. The studio reads the model
+definition file too, and does not hand-edit it: edits come from the agent.
+Editing it never changes a running work item.
 
 **No `init`.** The agent creates the factory with only its tracker
 (`swamp model create ... --global-arg tracker=<instance>`), then writes the
 `definition:` and `scenarios:` blocks of one of the skill's examples into the
 file, and never replaces a definition that is there. A method that wrote its own
 model definition would have been new and local-only, and an `init` needed the
-examples embedded in the engine (`starters.ts`, a generator and a drift test)
-as a second copy of each. Each example is now one file holding those two
-blocks, and `examples_test.ts` checks every one against the factory type's full
-schema, its graph and its scenarios.
+examples embedded in the engine (`starters.ts`, a generator and a drift test) as
+a second copy of each. Each example is now one file holding those two blocks,
+and `examples_test.ts` checks every one against the factory type's full schema,
+its graph and its scenarios.
 
 **What swamp checks, and what validate checks.** swamp checks a factory's
 `globalArguments` against the factory type's schema with `schema.partial()`, in
@@ -1238,42 +1299,45 @@ swamp falls back to checking key by key when it cannot call `partial()`.
 whenever a `--global-arg` is given, and a factory is created with only its
 tracker. So:
 
-- `swamp model validate <factory>` reports a schema error in the definition or
-  a scenario, with its path, as `<message> at "definition.stages.1.transitions.0.to"`.
-  It does not report a missing definition (an optional key), and it skips a key
-  holding a swamp expression (below).
-- Every factory method stops on the same error first, as `Global arguments
-  validation failed: ...`, before stagecraft's own code runs.
+- `swamp model validate <factory>` reports a schema error in the definition or a
+  scenario, with its path, as
+  `<message> at "definition.stages.1.transitions.0.to"`. It does not report a
+  missing definition (an optional key), and it skips a key holding a swamp
+  expression (below).
+- Every factory method stops on the same error first, as
+  `Global arguments
+  validation failed: ...`, before stagecraft's own code
+  runs.
 - stagecraft's `validate` checks the schema again on the raw definition (which
-  also catches `${{`), then the tracker binding, the graph analysis and the saved
-  scenarios, and reports a missing definition with where to write it.
+  also catches `${{`), then the tracker binding, the graph analysis and the
+  saved scenarios, and reports a missing definition with where to write it.
 
 **`{{name}}` is marked as foreign template text.** swamp scans `globalArguments`
 for `{{...}}` and fails `swamp model validate` on one whose root is a swamp
 namespace (`{{run}}`, `{{steps}}`); others are warnings. stagecraft's
 placeholders are its own, so `definition` and `scenarios` carry
 `.meta({ foreignTemplate: true })`, which silences the scan for the whole
-subtree. Bare CEL in gates and bindings has no `${{`, so swamp never touches it.
-`cli_test.ts` checks a definition with CEL gates and a placeholder named `run`
-through `swamp model validate` and a start, and that the pinned copy is the
-written one.
+subtree. Bare CEL in gates and let values has no `${{`, so swamp never touches
+it. `cli_test.ts` checks a definition with CEL gates and a placeholder named
+`run` through `swamp model validate` and a start, and that the pinned copy is
+the written one.
 
-**`${{` stays rejected.** swamp evaluates `${{ }}` anywhere in
-`globalArguments` before each method runs, vault and env references included,
-and skips its schema check for a top-level key that holds one. So a `${{` under
-`definition` is refused by stagecraft's own check of the raw definition (it
-reaches the method because swamp skipped the key), never evaluated into a
-pinned copy. Allowing swamp-native `${{ }}` later, for a vault or env reference
-in a specific field, would mean reading that field from the evaluated
-arguments while the rest stays raw, and accepting that swamp then skips the
-schema check of the whole definition; it is not enabled here.
+**`${{` stays rejected.** swamp evaluates `${{ }}` anywhere in `globalArguments`
+before each method runs, vault and env references included, and skips its schema
+check for a top-level key that holds one. So a `${{` under `definition` is
+refused by stagecraft's own check of the raw definition (it reaches the method
+because swamp skipped the key), never evaluated into a pinned copy. Allowing
+swamp-native `${{ }}` later, for a vault or env reference in a specific field,
+would mean reading that field from the evaluated arguments while the rest stays
+raw, and accepting that swamp then skips the schema check of the whole
+definition; it is not enabled here.
 
 ## Summary and metrics
 
 **Decision.** Metrics are a pure function of the run record and its journal
 (`_lib/engine/metrics.ts`), stored as a `metrics` record after every commit. The
-`summary` method and the `@swamp/stagecraft/work-item-summary` report
-render the same data as markdown (`_lib/engine/summary.ts`,
+`summary` method and the `@swamp/stagecraft/work-item-summary` report render the
+same data as markdown (`_lib/engine/summary.ts`,
 `extensions/reports/work_item_summary_report.ts`). One thing is newly recorded:
 the `awaiting` journal event (`_lib/engine/awaiting.ts`), including a park at
 the dispatch cap.
@@ -1316,20 +1380,19 @@ passing, and the agent has no way out of its own. A conditional approval whose
 The agent has a **way out of its own** while a non-manual exit is ready without
 a pending approval, waits on a product the stage declares for the agent
 (`artifact-exists`, `artifact-fresh`, `evidence-recorded`, or a cooldown
-counting from one) that has not been recorded in this stage entry, or waits
-only on cooldowns that will lift. A gate that fails on a product already
-recorded (a `requireField` or `match` that does not hold, `findings-clear`,
-`findings-open`, `max-cycles`, `cel`) leaves a decision, not work: the agent
-has recorded what it records. So a manual `complete` whose gates pass from
-entry waits on nobody while the agent works toward the merge evidence its
-`merged` exit needs; once a failed merge is recorded, `complete` and `new-pr`
-wait on the person. A pending or declined approval is not the agent's way
-either, so a gated manual exit beside one waits too; the summary counts that
-time once (see "The metrics"). A product of another stage cannot be recorded
-here, and evidence `recordedBy: person` is not the agent's. A stage whose agent
-exits are gated only by `cel` over data not yet recorded has no way out the
-engine can see: pair the `cel` gate with an `evidence-recorded` or
-`artifact-exists` gate.
+counting from one) that has not been recorded in this stage entry, or waits only
+on cooldowns that will lift. A gate that fails on a product already recorded (a
+`requireField` or `match` that does not hold, `findings-clear`, `findings-open`,
+`max-cycles`, `cel`) leaves a decision, not work: the agent has recorded what it
+records. So a manual `complete` whose gates pass from entry waits on nobody
+while the agent works toward the merge evidence its `merged` exit needs; once a
+failed merge is recorded, `complete` and `new-pr` wait on the person. A pending
+or declined approval is not the agent's way either, so a gated manual exit
+beside one waits too; the summary counts that time once (see "The metrics"). A
+product of another stage cannot be recorded here, and evidence
+`recordedBy: person` is not the agent's. A stage whose agent exits are gated
+only by `cel` over data not yet recorded has no way out the engine can see: pair
+the `cel` gate with an `evidence-recorded` or `artifact-exists` gate.
 
 Excluded, on purpose:
 
@@ -1338,9 +1401,11 @@ Excluded, on purpose:
   every stage a stop from the moment it is entered.
 - **A global transition** (`abandon`) is an escape hatch, open everywhere.
 - **A freshly declined gate** waits on rework, not on a person, until a product
-  is recorded after the decline. Evidence a person records (`recordedBy:
-  person`, such as their feedback) is not rework and does not count: after a
-  declined plan and the person's feedback, only `revise` waits on them.
+  is recorded after the decline. Evidence a person records
+  (`recordedBy:
+  person`, such as their feedback) is not rework and does not
+  count: after a declined plan and the person's feedback, only `revise` waits on
+  them.
 - **A conditional approval whose `when` cannot be evaluated** waits on a fix to
   the run data or the factory definition, not on a person.
 
@@ -1352,20 +1417,21 @@ payload failing its digest check) notes nothing, since the journal cannot take a
 wrong event back; the next readable commit notes any change. Runs started before
 the event existed have no waits rather than guessed ones.
 
-**A park at the dispatch cap** is a stop too: once a dispatch is refused at
-the cap, the work item waits on a person to grant a dispatch override. It is
-not derived from the gates, and a refusal commits nothing of its own, so the
-refused `dispatch` commits the park itself (`parkAtDispatchCap`): an `awaiting`
-event with the exits already held plus `dispatchOverride` (the count, limit and
-grants the cap had), whose actor is the caller who dispatched. It is written
-once; a dispatch refused again while parked writes nothing. Every later commit
-in the stage entry carries the hold forward, without a new event, while the cap
-still refuses one more dispatch. The commit of a dispatch override drops it
-with a new `awaiting`; so do the end of the stage entry and a reset, which
-start without one. A park stands only for the grants it saw, so a grant whose
-commit could not read the run data still ends it: the next readable commit
-drops it, and a dispatch refused after that parks again. Reaching the cap alone parks nothing: the last allowed
-dispatch may still advance the work item, so only a refused dispatch is a stop.
+**A park at the dispatch cap** is a stop too: once a dispatch is refused at the
+cap, the work item waits on a person to grant a dispatch override. It is not
+derived from the gates, and a refusal commits nothing of its own, so the refused
+`dispatch` commits the park itself (`parkAtDispatchCap`): an `awaiting` event
+with the exits already held plus `dispatchOverride` (the count, limit and grants
+the cap had), whose actor is the caller who dispatched. It is written once; a
+dispatch refused again while parked writes nothing. Every later commit in the
+stage entry carries the hold forward, without a new event, while the cap still
+refuses one more dispatch. The commit of a dispatch override drops it with a new
+`awaiting`; so do the end of the stage entry and a reset, which start without
+one. A park stands only for the grants it saw, so a grant whose commit could not
+read the run data still ends it: the next readable commit drops it, and a
+dispatch refused after that parks again. Reaching the cap alone parks nothing:
+the last allowed dispatch may still advance the work item, so only a refused
+dispatch is a stop.
 
 The event is a new journal variant, so a run that holds one cannot be read by an
 earlier stagecraft; `dispatchOverride` is the same kind of change. Before
@@ -1375,15 +1441,15 @@ go-live that is accepted: the upgrade is one-way.
 
 Per era, and summed over every era:
 
-| Metric       | Meaning                                                                                                                                                                                                                                                                   |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                            |
-| Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
-| Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                    |
+| Metric       | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stage visits | Each entry into a stage: entered, left, duration, and the transition taken out (or `reset`). A terminal stage has no duration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A park at the dispatch cap is a wait of kind `dispatch-override` (every other is `exit`), with no transition: from the refused dispatch until the hold is dropped (`overridden` when a dispatch override caused that, otherwise `cleared`, as when the commit of the grant could not read the run data and a later readable one dropped it), the work item moves on, or a reset. A wait still running has no end. The summary's time is the time covered by finished waits: waits at once count once. |
-| Dispatches   | Per stage entry; retries are the dispatches after the first, not counting interrupted ones. How they ended: succeeded, failed, interrupted, open (no outcome, in the entry the work item is in now) or none (no outcome, in an entry it has left).                       |
-| Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
-| Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it. |
+| Dispatches   | Per stage entry; retries are the dispatches after the first, not counting interrupted ones. How they ended: succeeded, failed, interrupted, open (no outcome, in the entry the work item is in now) or none (no outcome, in an entry it has left).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it.                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 A wait that would end before its cooldown lifted is not counted: the person
 decided before the exit was ready. With `minApprovals` above 1, one wait stays
@@ -1396,11 +1462,12 @@ roll-ups are out of scope: they are a query over these records.
 
 **Decision.** `designView` (`_lib/engine/design_view.ts`) derives, once, what
 the studio shows of a factory definition: its stages with their handoffs (work
-mode, what it calls, skills, injected context, bindings, result evidence,
-prompts) and products, each transition's gates in words, the human stops, the
-loops back, and the graph analysis's findings with their traces. The studio
-bundles it and draws from it rather than re-deriving the graph. It is pure and
-reads no clock, so the same factory definition always gives the same view.
+mode, what it calls (as written), skills, injected context, let values and
+passAsInputs, result evidence, prompts) and products, each transition's gates in
+words, the human stops, the loops back, and the graph analysis's findings with
+their traces. The studio bundles it and draws from it rather than re-deriving
+the graph. It is pure and reads no clock, so the same factory definition always
+gives the same view.
 
 **Descriptions, not comments.** The factory definition, its stages, transitions,
 gates, work, artifacts and evidence each take an optional `description`, and the
@@ -1415,13 +1482,13 @@ schema uses JSON Schema's own `description` or `$comment`.
 carries every finding, and the studio is where an author sees them, with each
 trace walked across the graph.
 
-**Loops back.** A real process has many rework edges, and drawn all at once
-they bury the main line, so each transition says whether it closes a cycle. It
-does when a depth-first walk along stage transitions (from the initial stage,
-then from any stage it never reached, in document order) meets its target on
-its current path. Leaving those out leaves a graph with no cycles in which
-every stage keeps the edge it was entered by, so leaving out loops never
-strands a stage. A global transition is never a loop back.
+**Loops back.** A real process has many rework edges, and drawn all at once they
+bury the main line, so each transition says whether it closes a cycle. It does
+when a depth-first walk along stage transitions (from the initial stage, then
+from any stage it never reached, in document order) meets its target on its
+current path. Leaving those out leaves a graph with no cycles in which every
+stage keeps the edge it was entered by, so leaving out loops never strands a
+stage. A global transition is never a loop back.
 
 **Human stops.** A manual transition and a human-approval gate without `when`
 are human stops. A human-approval gate with `when` is a conditional one, shown
@@ -1430,15 +1497,14 @@ not apply.
 
 ## The studio server
 
-**Decision.** The studio is a model type of its own,
-`@swamp/stagecraft/studio` (`extensions/models/engine/studio.ts`), with
-one instance per repo and one method, `serve`. `serve` runs a web server on
-127.0.0.1 (port 0, a free one, unless `port` says otherwise), logs its URL, and
-runs until swamp aborts the method on Ctrl-C (`ctx.signal`). The page lists
-every factory in the repo and shows its model definition file, which holds its
-definition and saved scenarios (#2884), reloading it as it changes
-(`_lib/engine/studio_server.ts`, `studio_watch.ts`, `studio_serve.ts`). What the
-page shows is in "Design mode".
+**Decision.** The studio is a model type of its own, `@swamp/stagecraft/studio`
+(`extensions/models/engine/studio.ts`), with one instance per repo and one
+method, `serve`. `serve` runs a web server on 127.0.0.1 (port 0, a free one,
+unless `port` says otherwise), logs its URL, and runs until swamp aborts the
+method on Ctrl-C (`ctx.signal`). The page lists every factory in the repo and
+shows its model definition file, which holds its definition and saved scenarios
+(#2884), reloading it as it changes (`_lib/engine/studio_server.ts`,
+`studio_watch.ts`, `studio_serve.ts`). What the page shows is in "Design mode".
 
 **Its own type, not a factory method.** One studio covers every factory in the
 repo through a picker, rather than one server per factory. It finds the
@@ -1447,29 +1513,28 @@ with the repository's `getPath`, which answers from the path the listing just
 cached; it is only called on a definition that listing returned. swamp skips a
 model definition file it cannot parse, such as one an agent has left mid-edit,
 so `serve` remembers the factories it has listed: one swamp now skips stays
-listed, with its file, while that file is there and no factory listed now
-claims it, and the page shows why the file does not parse (#2889). A file swamp
-keeps outside the repo (a managed-config datastore) is shown by its absolute
-path. It takes only its
-own instance's lock, which `serve` holds while it runs, and never a factory's,
-so `validate` and `start` run while it is open.
+listed, with its file, while that file is there and no factory listed now claims
+it, and the page shows why the file does not parse (#2889). A file swamp keeps
+outside the repo (a managed-config datastore) is shown by its absolute path. It
+takes only its own instance's lock, which `serve` holds while it runs, and never
+a factory's, so `validate` and `start` run while it is open.
 
 **Read-only.** The studio views; it never writes (Seth, 2026-09-30: edits come
 from the agent, and people do not create or edit factory definitions by hand).
-The agent writes the factory's model definition, and the page reloads it.
-Every route is `GET`; any other method gets 405. No route writes a file or runs
-swamp, a shell or a method.
+The agent writes the factory's model definition, and the page reloads it. Every
+route is `GET`; any other method gets 405. No route writes a file or runs swamp,
+a shell or a method.
 
-| Route                                             | Returns                                        |
-| ------------------------------------------------- | ---------------------------------------------- |
-| `GET /`, `/assets/<file>`                         | the page                                       |
-| `GET /api/factories`                              | every factory, with its model definition file  |
-| `GET /api/factories/<factory>`                    | that file: path, text, digest                  |
-| `GET /api/events`                                 | server-sent events when a watched file changes, or a watched set of work items |
-| `GET /api/work-items?factory=<factory>`           | the Board's card for each work item of the factory, and what could not be read |
-| `GET /api/work-items/<key>`                       | one work item: its run, pinned definition, status and readiness, and its ticket; `?payloads=1` adds its product payloads |
-| `GET /api/work-items/<key>/ticket`                | the work item's ticket as its tracker instance last recorded it: content, comments and lifecycle entries, relations |
-| `GET /f/<factory>/{design,simulate,board}`, `/w/<key>` | the page, at each view's own address        |
+| Route                                                  | Returns                                                                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET /`, `/assets/<file>`                              | the page                                                                                                                 |
+| `GET /api/factories`                                   | every factory, with its model definition file                                                                            |
+| `GET /api/factories/<factory>`                         | that file: path, text, digest                                                                                            |
+| `GET /api/events`                                      | server-sent events when a watched file changes, or a watched set of work items                                           |
+| `GET /api/work-items?factory=<factory>`                | the Board's card for each work item of the factory, and what could not be read                                           |
+| `GET /api/work-items/<key>`                            | one work item: its run, pinned definition, status and readiness, and its ticket; `?payloads=1` adds its product payloads |
+| `GET /api/work-items/<key>/ticket`                     | the work item's ticket as its tracker instance last recorded it: content, comments and lifecycle entries, relations      |
+| `GET /f/<factory>/{design,simulate,board}`, `/w/<key>` | the page, at each view's own address                                                                                     |
 
 The page reads the definition at `globalArguments.definition` in that text and
 the saved scenarios at `globalArguments.scenarios`; there is no scenario route
@@ -1478,66 +1543,64 @@ or scenario event.
 **Work items are read through swamp's data query** (`ctx.queryData`,
 `_lib/engine/studio_work_items.ts`), never from files, so the Board works
 whatever datastore holds them. One query reads the latest run record of every
-work item whose `attributes.factory` is the factory; one more reads their
-pinned definitions, each accepted only when its digest is the one the run
-recorded (`checkPinned`), with the exact pinned version read for a run whose
-latest copy is another. The route sends a card per work item, only what the
-Board shows: where it is, since when, whether a person holds it (from the
-stage entry's last `awaiting` event), and what parks it. A cycle-limit park is
-not recorded in the run, so it is worked out: an exit whose cycle limit refuses
-entry and whose gates all pass, checked through a read-only store over the same
-query, and only for items with such an exit. Every value put in a predicate
-passes `safePart` first.
+work item whose `attributes.factory` is the factory; one more reads their pinned
+definitions, each accepted only when its digest is the one the run recorded
+(`checkPinned`), with the exact pinned version read for a run whose latest copy
+is another. The route sends a card per work item, only what the Board shows:
+where it is, since when, whether a person holds it (from the stage entry's last
+`awaiting` event), and what parks it. A cycle-limit park is not recorded in the
+run, so it is worked out: an exit whose cycle limit refuses entry and whose
+gates all pass, checked through a read-only store over the same query, and only
+for items with such an exit. Every value put in a predicate passes `safePart`
+first.
 
-**One work item** (`GET /api/work-items/<key>`, `_lib/engine/studio_work_item.ts`)
-is read through the same query: its latest run record (only one whose own key
-is the key), its pinned definition at the exact version the run names, checked
-by digest (not the factory's every pin, as the Board reads them), and its
-ticket from the tracker instance's `issue-<id>` record (only one whose
-`tracker` is the run's tracker kind, as the run's own key is checked). With
-`?payloads=1`, the page's Scenario tab also gets every product version the
-journal records, each checked against the recorded digest (null when no stored
-copy matches); a live re-read leaves them out, and the tab asks again only when
-the journal has grown. Its status comes from `status_view.ts`, the code the
-`status` method prints from, over a read-only store on the query, with the
-transition readiness it was built from, so the page shows the engine's own
-messages and never evaluates a gate itself. A key that fails `safePart` is a
-404 before any query, and only a key that has a work item is watched; a run
-that does not parse, or a pinned copy that fails its digest, is a 422 with the
-reason. The answer's shape is
-`studio_item_types.ts`, which imports types only from modules the page already
-bundles.
+**One work item** (`GET /api/work-items/<key>`,
+`_lib/engine/studio_work_item.ts`) is read through the same query: its latest
+run record (only one whose own key is the key), its pinned definition at the
+exact version the run names, checked by digest (not the factory's every pin, as
+the Board reads them), and its ticket from the tracker instance's `issue-<id>`
+record (only one whose `tracker` is the run's tracker kind, as the run's own key
+is checked). With `?payloads=1`, the page's Scenario tab also gets every product
+version the journal records, each checked against the recorded digest (null when
+no stored copy matches); a live re-read leaves them out, and the tab asks again
+only when the journal has grown. Its status comes from `status_view.ts`, the
+code the `status` method prints from, over a read-only store on the query, with
+the transition readiness it was built from, so the page shows the engine's own
+messages and never evaluates a gate itself. A key that fails `safePart` is a 404
+before any query, and only a key that has a work item is watched; a run that
+does not parse, or a pinned copy that fails its digest, is a 422 with the
+reason. The answer's shape is `studio_item_types.ts`, which imports types only
+from modules the page already bundles.
 
 **The ticket** (`GET /api/work-items/<key>/ticket`,
 `_lib/engine/studio_ticket.ts`, #2969) is the Ticket tab's: the work item's
-ticket as its tracker instance last recorded it, read through the same query
-(a record counts only when its `tracker` is the run's tracker kind, since a
-query is not limited to this repository's namespace).
-For an external tracker that is the `issue-<id>` snapshot `fetch_issue`,
-`claim` or `create` stored, now with the ticket's description, labels,
-assignees, times, and its comments and lifecycle entries (`activity`); for the
-built-in tracker it is the ticket record with its `comment-` and `entry-`
-records. A comment or entry whose id the instance's delivery ledger records is
-marked as stagecraft's; a relation names the newest work item, in any factory,
-whose run has that ticket in its `externalRefs` on the same instance. The
-answer is `none` (the run names no ticket), `missing` (the instance has no
-record of it), or the ticket; a record that does not parse is a 422. It calls
-no tracker and resolves no credential: the engine does not import tracker code
-("The seam"), so it parses the records with its own schemas, and the page
-never contacts Linear or the Lab either. A newer copy comes from running the
-tracker's `fetch_issue`; the tab says when its copy was recorded. Because the
-read is local, there is no cache: the tab reads when it opens and on Refresh,
-and no poll watches it.
+ticket as its tracker instance last recorded it, read through the same query (a
+record counts only when its `tracker` is the run's tracker kind, since a query
+is not limited to this repository's namespace). For an external tracker that is
+the `issue-<id>` snapshot `fetch_issue`, `claim` or `create` stored, now with
+the ticket's description, labels, assignees, times, and its comments and
+lifecycle entries (`activity`); for the built-in tracker it is the ticket record
+with its `comment-` and `entry-` records. A comment or entry whose id the
+instance's delivery ledger records is marked as stagecraft's; a relation names
+the newest work item, in any factory, whose run has that ticket in its
+`externalRefs` on the same instance. The answer is `none` (the run names no
+ticket), `missing` (the instance has no record of it), or the ticket; a record
+that does not parse is a 422. It calls no tracker and resolves no credential:
+the engine does not import tracker code ("The seam"), so it parses the records
+with its own schemas, and the page never contacts Linear or the Lab either. A
+newer copy comes from running the tracker's `fetch_issue`; the tab says when its
+copy was recorded. Because the read is local, there is no cache: the tab reads
+when it opens and on Refresh, and no poll watches it.
 
-**Live updates by poll.** Run records may be in S3 or GCS, not files a watch
-can follow, so while a page has a board open, `serve` reads each watched set's
+**Live updates by poll.** Run records may be in S3 or GCS, not files a watch can
+follow, so while a page has a board open, `serve` reads each watched set's
 `[modelName, version]` pairs every 3 seconds, a projection rather than whole
-records, and sends `{"kind":"work-items","factory":...}` when the set changes.
-A work item's page is watched the same way, by its key, and hears
-`{"kind":"work-item","key":...}`.
-The first ask reads where the set stands, so no change after it is missed. A
-set not asked for in five minutes is dropped; the page reads the board again
-every two minutes, and on returning to a hidden tab, which keeps it alive.
+records, and sends `{"kind":"work-items","factory":...}` when the set changes. A
+work item's page is watched the same way, by its key, and hears
+`{"kind":"work-item","key":...}`. The first ask reads where the set stands, so
+no change after it is missed. A set not asked for in five minutes is dropped;
+the page reads the board again every two minutes, and on returning to a hidden
+tab, which keeps it alive.
 
 **Addresses.** Each view has its own path (`/f/<factory>/<view>`, `/w/<key>`),
 which the server answers with the page and the page routes by
@@ -1545,26 +1608,25 @@ which the server answers with the page and the page routes by
 back and forward move between views.
 
 **Where you are** (#2969). The bar's views are links, one tab stop each, to
-those addresses; the one shown carries `aria-current="page"`, and a work
-item's page marks Board, which it is under, `aria-current="true"`. Until a
-factory is picked only Design has an address; Simulate and Board are
-`aria-disabled`. The work-item page opens with a breadcrumb, "Board › <key>",
-its key `aria-current="page"`, and every route sets the browser tab's title,
-most specific first ("blog-12 · Board · blog · Stagecraft Studio";
-`titleFor`).
+those addresses; the one shown carries `aria-current="page"`, and a work item's
+page marks Board, which it is under, `aria-current="true"`. Until a factory is
+picked only Design has an address; Simulate and Board are `aria-disabled`. The
+work-item page opens with a breadcrumb, "Board › <key>", its key
+`aria-current="page"`, and every route sets the browser tab's title, most
+specific first ("blog-12 · Board · blog · Stagecraft Studio"; `titleFor`).
 
 **Security posture.** Any page in any browser tab can send requests to
 localhost, so the server trusts nothing a request says about where it came from,
 and reveals only files the local account can already read.
 
-| Threat                                       | Control                                                                                                                                                                                                                                                   |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Another machine on the network               | Binds 127.0.0.1 only                                                                                                                                                                                                                                      |
-| DNS rebinding (a hostile name for 127.0.0.1) | `Host` must be `127.0.0.1:<port>` or `localhost:<port>`                                                                                                                                                                                                   |
-| Another website reading responses            | A request carrying `Origin` must carry the server's own; a `Sec-Fetch-Site` other than `same-origin` or `none` is refused, except a person opening `/` itself from a link (a top-level document navigation, which the linking page cannot read); no CORS header is ever sent; `Cross-Origin-Resource-Policy: same-origin` and `nosniff` stop no-cors embedding                  |
-| Reading other files (path traversal)         | A request names a factory, never a path. The only file read is the one swamp's definition repository gives for that factory's model definition |
-| A query changed by a crafted name            | A factory must be one the repo lists, and every name put in a data-query predicate passes `safePart` (letters, digits, `.`, `_`, `-`, no `..`), so no quote or operator reaches the predicate |
-| Scripts from elsewhere                       | CSP `default-src 'self'`, no inline script or style; the fonts are bundled                                                                                                                                                                                |
+| Threat                                       | Control                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Another machine on the network               | Binds 127.0.0.1 only                                                                                                                                                                                                                                                                                                                                           |
+| DNS rebinding (a hostile name for 127.0.0.1) | `Host` must be `127.0.0.1:<port>` or `localhost:<port>`                                                                                                                                                                                                                                                                                                        |
+| Another website reading responses            | A request carrying `Origin` must carry the server's own; a `Sec-Fetch-Site` other than `same-origin` or `none` is refused, except a person opening `/` itself from a link (a top-level document navigation, which the linking page cannot read); no CORS header is ever sent; `Cross-Origin-Resource-Policy: same-origin` and `nosniff` stop no-cors embedding |
+| Reading other files (path traversal)         | A request names a factory, never a path. The only file read is the one swamp's definition repository gives for that factory's model definition                                                                                                                                                                                                                 |
+| A query changed by a crafted name            | A factory must be one the repo lists, and every name put in a data-query predicate passes `safePart` (letters, digits, `.`, `_`, `-`, no `..`), so no quote or operator reaches the predicate                                                                                                                                                                  |
+| Scripts from elsewhere                       | CSP `default-src 'self'`, no inline script or style; the fonts are bundled                                                                                                                                                                                                                                                                                     |
 
 There is no token or cookie: nothing is written, and the files are ones the
 local account can already read. **If a write route is ever added**, it needs the
@@ -1575,39 +1637,38 @@ that carries the digest the page loaded and is refused on a mismatch.
 **Live reload.** The file watch (`Deno.watchFs`) covers the directory of each
 factory's model definition file, so an agent's write by rename is seen. Every
 watch is one level deep, on the directory of a path the definition repository
-gave. It follows the factory list each
-time the page reads it, one refresh at a time so a slow one never wins over a
-newer list; a refresh that fails keeps the old watches and the next one retries.
-swamp says nothing when a factory is created or removed, so `serve`
-reads the factory list again every three seconds, and a change sends
-`{ kind: "factories" }`, on which the page lists them again; when the
-selected factory has gone, the page says so and shows the next. The watch drops
-paths nobody asked about, coalesces a save's several events, and sends
-`{ kind: "definition", factory }` to every open event stream. Deno's server waits for
-open responses when it stops, so the event streams close on the same signal.
-A watched directory deleted and made again leaves its watch silent, so each
-watched directory is known by its inode too: the next list closes the old watch,
-waits for it to end (Deno keeps one watch per path, and a new one opened before
-the old has closed sees nothing), watches the new directory, and sends
-`definition` for each factory in it, as it does for a factory whose file newly
-resolves. Nothing is sent for a change while the page's event stream is down, so
-the page lists the factories and reads its definition again when the stream
-reconnects.
+gave. It follows the factory list each time the page reads it, one refresh at a
+time so a slow one never wins over a newer list; a refresh that fails keeps the
+old watches and the next one retries. swamp says nothing when a factory is
+created or removed, so `serve` reads the factory list again every three seconds,
+and a change sends `{ kind: "factories" }`, on which the page lists them again;
+when the selected factory has gone, the page says so and shows the next. The
+watch drops paths nobody asked about, coalesces a save's several events, and
+sends `{ kind: "definition", factory }` to every open event stream. Deno's
+server waits for open responses when it stops, so the event streams close on the
+same signal. A watched directory deleted and made again leaves its watch silent,
+so each watched directory is known by its inode too: the next list closes the
+old watch, waits for it to end (Deno keeps one watch per path, and a new one
+opened before the old has closed sees nothing), watches the new directory, and
+sends `definition` for each factory in it, as it does for a factory whose file
+newly resolves. Nothing is sent for a change while the page's event stream is
+down, so the page lists the factories and reads its definition again when the
+stream reconnects.
 
 **The page is embedded, not beside the module.** The page's source is
 `studio/src/` (Preact with signals, grown from the prototype; its tokens follow
 swamp-club's HUD style) with the fonts in `studio/fonts/`.
 `deno task build:studio` bundles it with `deno bundle --platform browser` and
-writes every served file into generated modules beside the engine, which
-`serve` serves from: the script in `_lib/engine/studio_asset_app.ts`, the fonts
-in `studio_asset_fonts.ts`, and the HTML and CSS, with the map of them all, in
-`studio_assets.ts`. A model added as an extension source runs from
-swamp's bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the
-source module can be found from `import.meta.url`, and `ctx.extensionFile()`
-needs a manifest. Embedding works the same before and after go-live, and it
-stays after go-live too: an embedded page is served the same way from source,
-from an installed package and on a remote worker, with no dependence on how
-swamp lays out or ships an extension's files.
+writes every served file into generated modules beside the engine, which `serve`
+serves from: the script in `_lib/engine/studio_asset_app.ts`, the fonts in
+`studio_asset_fonts.ts`, and the HTML and CSS, with the map of them all, in
+`studio_assets.ts`. A model added as an extension source runs from swamp's
+bundle directory (`.swamp/bundles/<hash>/`), so nothing beside the source module
+can be found from `import.meta.url`, and `ctx.extensionFile()` needs a manifest.
+Embedding works the same before and after go-live, and it stays after go-live
+too: an embedded page is served the same way from source, from an installed
+package and on a remote worker, with no dependence on how swamp lays out or
+ships an extension's files.
 
 **Fresh by digest.** `studio_assets.ts` records a sha256 of the build's inputs,
 and `studio_assets_test` recomputes it, so a stale page fails the unit tests.
@@ -1615,20 +1676,19 @@ The inputs are `studio/src` (its tests aside), `studio/fonts`,
 `studio/build.ts`, the engine modules the page bundles (`ENGINE_INPUTS` in
 `build.ts`), and `deno.json` and `deno.lock`, which pin the packages in the
 bundle. So a change to one of those engine modules needs
-`deno task build:studio` in the same change (accepted 2026-09-30). Text inputs are hashed with
-LF line endings, so a checkout that writes CRLF gives the same digest. Rebuilding
-and diffing
-would depend on the Deno version that bundles, which verification does not pin.
-`build.ts` refuses to build when the bundle's graph differs from the inputs:
-a local module outside `studio/src` and `ENGINE_INPUTS`, an engine module
-missing from the list or listed but not imported, or a remote module that is
-not an exact npm or JSR version. `studio_assets_test` also compares
-`ENGINE_INPUTS` with a walk of the import lines (it may only read, so it cannot
-run `deno info`), so an engine import added without a rebuild fails the tests
-too. The same test keeps every generated module under 800 KB, well under the
-registry's 976.6 KB file limit. The script is the one to watch: 670 KB with
-Design mode, 737 KB with Simulate mode and 774 KB with the work-item page's
-Ticket tab, most of it zod, cel-js and the yaml
+`deno task build:studio` in the same change (accepted 2026-09-30). Text inputs
+are hashed with LF line endings, so a checkout that writes CRLF gives the same
+digest. Rebuilding and diffing would depend on the Deno version that bundles,
+which verification does not pin. `build.ts` refuses to build when the bundle's
+graph differs from the inputs: a local module outside `studio/src` and
+`ENGINE_INPUTS`, an engine module missing from the list or listed but not
+imported, or a remote module that is not an exact npm or JSR version.
+`studio_assets_test` also compares `ENGINE_INPUTS` with a walk of the import
+lines (it may only read, so it cannot run `deno info`), so an engine import
+added without a rebuild fails the tests too. The same test keeps every generated
+module under 800 KB, well under the registry's 976.6 KB file limit. The script
+is the one to watch: 670 KB with Design mode, 737 KB with Simulate mode and 774
+KB with the work-item page's Ticket tab, most of it zod, cel-js and the yaml
 packages the engine and page need. If it nears the limit, the next step is to
 store it gzipped and serve it with `content-encoding: gzip`, about a fifth of
 the size.
@@ -1651,9 +1711,9 @@ zod's `jitless` before the engine loads (`jitless.ts`); otherwise zod's probe
 for eval logs a violation on every load.
 
 **The layout** (`layout.ts`, from the prototype). One row per tracker status: a
-stage's `tracker.status`, else the status its enter entry sets, else its
-latest predecessor's in flow order. Columns follow the longest forward path from
-the initial stage, loops left out. Each exit is a port on the right of its tile,
+stage's `tracker.status`, else the status its enter entry sets, else its latest
+predecessor's in flow order. Columns follow the longest forward path from the
+initial stage, loops left out. Each exit is a port on the right of its tile,
 with a pip per gate, gold where a person decides. Edges are orthogonal and run
 through the channels between columns and rows, one track per edge per channel,
 forward edges nearest the tiles. Each edge enters its target at a point of its
@@ -1690,8 +1750,8 @@ request form.
 STAGE, has a fingerprint of its parsed spec. The browser keeps, per factory in
 `localStorage`, the fingerprints it last showed. A stage counts as seen when it
 is selected, or on Mark all seen; the first visit records a baseline and marks
-nothing. Storage that throws (private windows) only means the marks last as
-long as the page.
+nothing. Storage that throws (private windows) only means the marks last as long
+as the page.
 
 **A file that fails the schema** shows its problems in Findings and underlines
 them in the source; the graph keeps the last version that passed, dimmed and
@@ -1716,31 +1776,31 @@ below 980px the panels stack under the graph, which scrolls in its own pane.
 
 **Decision** (swamp-club #2808). The studio's Simulate mode plays a factory's
 saved scenarios on the real engine in the browser, re-runs them whenever the
-factory's model definition changes, and lets a person step a work item
-through by hand from any frame. It never writes: a walk worth keeping goes to
-the agent as text, and the agent saves it.
+factory's model definition changes, and lets a person step a work item through
+by hand from any frame. It never writes: a walk worth keeping goes to the agent
+as text, and the agent saves it.
 
 **The runner in the page.** Simulate reads the scenarios through Design mode's
-own loader (`model.ts`, which keeps each entry as `@std/yaml` reads it) and
-the same `definition` event; there is no route or watch of its own. Each entry
-is checked with `parseScenario` and played with the engine's `runScenario`
+own loader (`model.ts`, which keeps each entry as `@std/yaml` reads it) and the
+same `definition` event; there is no route or watch of its own. Each entry is
+checked with `parseScenario` and played with the engine's `runScenario`
 (`scenario.ts`, bundled with `metrics.ts`), so a frame in the page is the frame
 `validate` sees: the committed run after one step, every exit's readiness, and
 `computeMetrics` on the scenario's clock. An entry that does not parse is
-reported on its own, and the rest still run. A reload that fails the schema
-does not re-run: the last results stay under the STALE note, so the scenarios
-of a broken file never run against the last good definition.
+reported on its own, and the rest still run. A reload that fails the schema does
+not re-run: the last results stay under the STALE note, so the scenarios of a
+broken file never run against the last good definition.
 
 **Walk from here** (`simulate.ts`). From any frame a person can take a step of
-their own: an exit (every exit, so a refusal can be seen), approve or decline
-on a pending human approval, an override where a cycle limit closes an exit, a
+their own: an exit (every exit, so a refusal can be seen), approve or decline on
+a pending human approval, an override where a cycle limit closes an exit, a
 wait, or a record. A walk is the base scenario's steps up to that frame, copied,
 then the person's, run as a scenario like any other, so it replays on every
 reload and still runs when its base is renamed or removed. Stepping from an
 earlier frame of a walk cuts it back there. Until swamp-club #2809, `record`
-offers only the payloads that the factory's saved scenarios already record
-for that product; a product with none is listed as having nothing to offer.
-Another scenario discards a walk with steps of its own only after a yes.
+offers only the payloads that the factory's saved scenarios already record for
+that product; a product with none is listed as having nothing to offer. Another
+scenario discards a walk with steps of its own only after a yes.
 
 **Exits as status reads them.** READY, PERSON or BLOCKED comes from an exit's
 gate checks and cycle limit, not its failure messages: PERSON is a manual exit
@@ -1762,23 +1822,24 @@ replaces stay, dimmed, and take no clicks; a walk the engine cannot run keeps
 its banner, with Discard, and Copy says why it could not run.
 
 **Overlay and dock.** On the graph: the current stage glows, visited stages
-carry their entry count, exits taken carry theirs, the current stage's exits
-are coloured by what they need, a refused move flashes its exit, a token runs
-along each transition taken when stepping forward, and the canvas follows the
-current stage. The dock plays the frames (first, back, play, step, last, speed),
-with a tick per step coloured by kind, outlined red when not as expected and
-marked when it is the person's own, and a ribbon of the stages over them. Space
-plays and the arrow keys step, but only while focus is on no control, so a key
-a focused button, field, tab list or the graph uses is never taken twice. Under
+carry their entry count, exits taken carry theirs, the current stage's exits are
+coloured by what they need, a refused move flashes its exit, a token runs along
+each transition taken when stepping forward, and the canvas follows the current
+stage. The dock plays the frames (first, back, play, step, last, speed), with a
+tick per step coloured by kind, outlined red when not as expected and marked
+when it is the person's own, and a ribbon of the stages over them. Space plays
+and the arrow keys step, but only while focus is on no control, so a key a
+focused button, field, tab list or the graph uses is never taken twice. Under
 `prefers-reduced-motion` there is no token, no pulse, and the canvas jumps
-rather than scrolls. Timeline positions are set as style properties through
-the CSSOM, which the CSP allows; the page writes no style attribute.
+rather than scrolls. Timeline positions are set as style properties through the
+CSSOM, which the CSP allows; the page writes no style attribute.
 
 ## Trackers
 
 **Decision.** A tracker (the built-in tracker, Linear, and the swamp-club Lab,
-which is the swamp-club team's own: see "The swamp-club Lab adapter") is reached only through an **adapter**: its own model type, never part of the
-work item. The contract is written once, in `_lib/tracker/core/adapter.ts` and
+which is the swamp-club team's own: see "The swamp-club Lab adapter") is reached
+only through an **adapter**: its own model type, never part of the work item.
+The contract is written once, in `_lib/tracker/core/adapter.ts` and
 `_lib/tracker/core/tracker_methods.ts`, and each tracker is a thin model over it
 (`extensions/models/tracker/builtin.ts`, with its backend in
 `_lib/tracker/backends/builtin.ts`; `extensions/models/tracker/linear.ts`, with
@@ -1792,44 +1853,42 @@ The contract:
 - **Swamp owns the lifecycle facts; the tracker is a view of them.** The work
   item's run record and journal are the truth. What a ticket shows is written
   from them, never read back into them.
-- **A ticket's own facts belong to its tracker, and each record says who
-  holds them.** A ticket's identity, title, type and status belong to the
-  tracker, and the adapter's `issue-<id>` record carries an `origin`. With an
-  external tracker (Linear, the Lab) it is `snapshot`: the tracker owns the
-  facts, and the record is its last read, stamped `fetchedAt`. `fetch_issue`,
-  `claim` and `create` write it, and it may be stale: a change made in the
-  tracker since is seen at the next of those reads, which is acceptable because
-  nothing gates on it. With the built-in tracker it is `builtin`: the record
-  is the ticket, with its body, type and timestamps, and no read overwrites
-  it. The adapter declares which it is (`origin`), and the shared methods write
-  a snapshot only for `snapshot`.
+- **A ticket's own facts belong to its tracker, and each record says who holds
+  them.** A ticket's identity, title, type and status belong to the tracker, and
+  the adapter's `issue-<id>` record carries an `origin`. With an external
+  tracker (Linear, the Lab) it is `snapshot`: the tracker owns the facts, and
+  the record is its last read, stamped `fetchedAt`. `fetch_issue`, `claim` and
+  `create` write it, and it may be stale: a change made in the tracker since is
+  seen at the next of those reads, which is acceptable because nothing gates on
+  it. With the built-in tracker it is `builtin`: the record is the ticket, with
+  its body, type and timestamps, and no read overwrites it. The adapter declares
+  which it is (`origin`), and the shared methods write a snapshot only for
+  `snapshot`.
 - **The state piece makes no network calls.** Only adapters talk to a tracker.
   The work-item type and its runtime make no network call, so a tracker being
   down or slow never holds a work item's lock or fails one of its writes.
 - **One writer per tracker field.** An adapter's `set_status` is the only code
-  that writes a ticket's status, and the publisher (`publish`, below)
-  is its only caller for a work item. The same holds for a ticket's type, where
-  the tracker has one: `publish` sets it from the entry that names it. A stage
-  that wants the ticket to move requests a transition; the publisher reflects
-  it. A person moving the ticket in the tracker is outside this rule;
-  reconciling that belongs with inbound webhooks.
+  that writes a ticket's status, and the publisher (`publish`, below) is its
+  only caller for a work item. The same holds for a ticket's type, where the
+  tracker has one: `publish` sets it from the entry that names it. A stage that
+  wants the ticket to move requests a transition; the publisher reflects it. A
+  person moving the ticket in the tracker is outside this rule; reconciling that
+  belongs with inbound webhooks.
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
-  `<tracker>.display`, for example
-  `{"builtin": "cue-12", ...}` for a built-in ticket, or
-  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`.
-  `claim` makes the key from the display id for a person to read, but no code
-  reads it back: `externalRefs` is the only link. It changes only through
-  `start`, which sets it, and `retarget`, which replaces it whole and journals a
-  `retargeted` event (the old and new maps, the reason and the actor).
-  `retarget` is an engine method: it has no gate, changes no stage, and is
-  refused on a finished work item and for a map that names no ticket (no
-  non-empty stable id, only `<tracker>.display` keys), which would silently
-  detach the work item from every tracker. It knows nothing of trackers or
-  duplicates, and the publisher works out from the journal which ticket each
-  event belongs to (see "Retargeting" under "The publisher"). A
-  Linear identifier that changes when
-  an issue moves team leaves that key's id stale, which is accepted. Linear
+  `<tracker>.display`, for example `{"builtin": "cue-12", ...}` for a built-in
+  ticket, or `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`. `claim`
+  makes the key from the display id for a person to read, but no code reads it
+  back: `externalRefs` is the only link. It changes only through `start`, which
+  sets it, and `retarget`, which replaces it whole and journals a `retargeted`
+  event (the old and new maps, the reason and the actor). `retarget` is an
+  engine method: it has no gate, changes no stage, and is refused on a finished
+  work item and for a map that names no ticket (no non-empty stable id, only
+  `<tracker>.display` keys), which would silently detach the work item from
+  every tracker. It knows nothing of trackers or duplicates, and the publisher
+  works out from the journal which ticket each event belongs to (see
+  "Retargeting" under "The publisher"). A Linear identifier that changes when an
+  issue moves team leaves that key's id stale, which is accepted. Linear
   identifiers change when an issue moves team, so Linear keys on the UUID:
   `comment` and `set_status` refuse an identifier, and `fetch_issue`, which
   accepts either, reports the UUID and the `externalRefs` to start a work item
@@ -1865,23 +1924,23 @@ The contract:
   `statuses` mapping has changed since. The record keeps a digest of what was
   asked (the comment body or the status key), so the same key for a different
   ticket or a different request is refused rather than silently skipped. One
-  journal version can need a write on two tickets: a retarget's notes to the
-  old and the new ticket. `publish` names the new ticket's note with an
-  `-opening` suffix, so each ticket has its own key. `relate` and `unrelate`
-  name theirs for the relation too (`-<issue>-<type>-<to>`), so one journal
-  version can relate several tickets, as a breakdown relates each child.
+  journal version can need a write on two tickets: a retarget's notes to the old
+  and the new ticket. `publish` names the new ticket's note with an `-opening`
+  suffix, so each ticket has its own key. `relate` and `unrelate` name theirs
+  for the relation too (`-<issue>-<type>-<to>`), so one journal version can
+  relate several tickets, as a breakdown relates each child.
 - **The tracker owns relations.** A ticket's relations to other tickets
   (`parent_of`, `blocked_by`, `related_to`, `duplicate_of`) are tracker facts,
   like its status. Swamp reads them at decision points (`fetch_issue`, `claim`,
   and before each `relate`), never reconciles them, and a relation changed in
-  the tracker is seen at the next read; `relate` and `unrelate` do not refresh
-  a snapshot. Every tracker keeps the same rules
+  the tracker is seen at the next read; `relate` and `unrelate` do not refresh a
+  snapshot. Every tracker keeps the same rules
   (`_lib/tracker/core/relations.ts`): one parent per child, no parent cycle
-  (walked 10 deep), one canonical per duplicate, and no duplicate chain. The
-  Lab enforces them itself and Linear does not, so each adapter checks them
-  before it writes; two relates racing on Linear can both pass. The built-in
-  tracker keeps a relation on both tickets' records. A Lab `duplicate_of`
-  leaves the issue's status alone.
+  (walked 10 deep), one canonical per duplicate, and no duplicate chain. The Lab
+  enforces them itself and Linear does not, so each adapter checks them before
+  it writes; two relates racing on Linear can both pass. The built-in tracker
+  keeps a relation on both tickets' records. A Lab `duplicate_of` leaves the
+  issue's status alone.
 
 Every adapter provides eight operations, as swamp methods built by
 `trackerMethods`:
@@ -1894,17 +1953,17 @@ Every adapter provides eight operations, as swamp methods built by
 | `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
 | `relate`      | `issue`, `type`, `to` (stable ids), optional key   | the ledger record, when keyed                             |
 | `unrelate`    | `issue`, `type`, `to` (stable ids), optional key   | the ledger record, when keyed                             |
-| `claim`       | `issue`: id or display, optional `factory`       | the snapshot, and the ticket index when it reserves a key |
+| `claim`       | `issue`: id or display, optional `factory`         | the snapshot, and the ticket index when it reserves a key |
 | `publish`     | `workItem`: the work item's key                    | ledger records and its cursor                             |
 
 **Create.** `create` files a new ticket. With an external tracker the ticket is
 filed there first and its id is used; swamp never mints an id for a ticket
-another tracker owns. The type is required and must be one the tracker has:
-the Lab's feature, bug or security (platform needs an admin key), the built-in
+another tracker owns. The type is required and must be one the tracker has: the
+Lab's feature, bug or security (platform needs an admin key), the built-in
 tracker's `types`, or, for Linear, which has no issue type, a type the `types`
-argument maps to a label (matched exactly among the labels the `teamId` team
-can use: its own and the workspace's). Linear files in the `teamId` team and
-refuses `create` without one. `create` is not idempotent: see the known gaps.
+argument maps to a label (matched exactly among the labels the `teamId` team can
+use: its own and the workspace's). Linear files in the `teamId` team and refuses
+`create` without one. `create` is not idempotent: see the known gaps.
 
 **Capabilities.** What a tracker offers beside the contract is an explicit
 `capabilities` object on the adapter. A capability is present or absent; asking
@@ -1916,28 +1975,28 @@ adapter lacks.
 **The history capability.** A tracker that keeps a structured history of each
 ticket and a ticket type (the built-in tracker's own records, and the Lab's
 lifecycle entries and issue type) offers it as `capabilities.history`
-(`postEntry`, `setType`). Linear has neither, so it lacks the capability. `publish` uses it when the factory definition declares
-tracker entries; its writes go through the same ledger (actions
-`lifecycle_entry` and `set_type`). The conformance suite checks it for an
-adapter that declares it (an entry returns its id, a type move is a no-op the
-second time, bad credentials are `auth`) and skips it otherwise. A snapshot may
-also carry the tracker's own `details` (the Lab's body, type, author and
-ripples).
+(`postEntry`, `setType`). Linear has neither, so it lacks the capability.
+`publish` uses it when the factory definition declares tracker entries; its
+writes go through the same ledger (actions `lifecycle_entry` and `set_type`).
+The conformance suite checks it for an adapter that declares it (an entry
+returns its id, a type move is a no-op the second time, bad credentials are
+`auth`) and skips it otherwise. A snapshot may also carry the tracker's own
+`details` (the Lab's body, type, author and ripples).
 
 **The ticket's content** (#2969). `fetchIssue` also reads what the studio's
-Ticket tab shows: `description`, `labels` (the ticket's type where the
-tracker has no labels), `assignees`, `createdAt`, `updatedAt`, and `activity`,
-the comments and lifecycle entries oldest first, each with the tracker's id
-for it. The snapshot keeps them, so the studio reads them as data. Linear
-reads its description, labels and up to 250 comments; the Lab its body, type,
-ripples and `lifecycleEntries` (one it cannot read is skipped, as a
-relationship is); the built-in tracker its body and its own comment and entry
-records, through the data query, when the method has one: without it the read
-leaves `activity` absent, meaning not read, so a `claim` never fails for want
-of it. The conformance suite checks that a created ticket's body comes back
-as its description with its times, and that a comment and an entry come back
-in `activity` under the id the write returned: the id the delivery ledger
-records, which is how the studio marks what stagecraft posted.
+Ticket tab shows: `description`, `labels` (the ticket's type where the tracker
+has no labels), `assignees`, `createdAt`, `updatedAt`, and `activity`, the
+comments and lifecycle entries oldest first, each with the tracker's id for it.
+The snapshot keeps them, so the studio reads them as data. Linear reads its
+description, labels and up to 250 comments; the Lab its body, type, ripples and
+`lifecycleEntries` (one it cannot read is skipped, as a relationship is); the
+built-in tracker its body and its own comment and entry records, through the
+data query, when the method has one: without it the read leaves `activity`
+absent, meaning not read, so a `claim` never fails for want of it. The
+conformance suite checks that a created ticket's body comes back as its
+description with its times, and that a comment and an entry come back in
+`activity` under the id the write returned: the id the delivery ledger records,
+which is how the studio marks what stagecraft posted.
 
 **The assign capability.** A tracker whose tickets have assignees offers
 `capabilities.assign` (`assign`): it adds the tracker's user to the ticket's
@@ -1952,18 +2011,18 @@ API key's owner (its `viewer`), since every Linear write already acts as that
 user and no swamp login maps to a Linear user. `publish` assigns only when a
 tracker has both (see "The publisher"). The conformance suite checks the
 capability for an adapter that declares it (the user is added once, bad
-credentials are `auth`, a missing ticket is `not_found`) and that one without
-it refuses.
+credentials are `auth`, a missing ticket is `not_found`) and that one without it
+refuses.
 
-**The pull request capability.** A tracker that links a pull request on a
-ticket offers `capabilities.pullRequests` (`linkPr`): it links the url, and a
-url already linked writes nothing. Only the Lab has it, as the issue's
-`githubPrUrl` and `githubPrNumber`, which keep one pull request, so a new url
-replaces the old. `publish` links one when an entry reads its url (`linkPr`),
-through the same ledger (action `link_pr`); a tracker without the capability
-publishes the entry without a link. The conformance suite checks it for an
-adapter that declares it (linked once, another url replaces it, bad credentials
-are `auth`, a missing ticket is `not_found`) and that one without it refuses.
+**The pull request capability.** A tracker that links a pull request on a ticket
+offers `capabilities.pullRequests` (`linkPr`): it links the url, and a url
+already linked writes nothing. Only the Lab has it, as the issue's `githubPrUrl`
+and `githubPrNumber`, which keep one pull request, so a new url replaces the
+old. `publish` links one when an entry reads its url (`linkPr`), through the
+same ledger (action `link_pr`); a tracker without the capability publishes the
+entry without a link. The conformance suite checks it for an adapter that
+declares it (linked once, another url replaces it, bad credentials are `auth`, a
+missing ticket is `not_found`) and that one without it refuses.
 
 `set_status` takes a stagecraft **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
@@ -1993,15 +2052,16 @@ retry. For a comment that means a duplicate. A hidden marker in the comment
 body, searched on retry, would close it if that matters. Ledger records are kept
 by age for a year; a replay of a key older than that would write again. Linear
 status lookup reads up to 250 statuses per team, Linear's page limit; label
-lookup filters by the mapped name on the server, so it has no such limit. `create` has no ledger key: a crash after the
-tracker accepted a new ticket but before swamp saw the reply, and a retry, file
-a second ticket. That is accepted for now; the duplicate is closed by hand.
+lookup filters by the mapped name on the server, so it has no such limit.
+`create` has no ledger key: a crash after the tracker accepted a new ticket but
+before swamp saw the reply, and a retry, file a second ticket. That is accepted
+for now; the duplicate is closed by hand.
 
 ### The seam
 
-**Decision.** Tracker code lives in stagecraft, apart from the engine,
-and a test keeps the two apart. The engine is the factory, the work
-item and everything under `_lib/engine/`. The tracker is the adapter models in
+**Decision.** Tracker code lives in stagecraft, apart from the engine, and a
+test keeps the two apart. The engine is the factory, the work item and
+everything under `_lib/engine/`. The tracker is the adapter models in
 `extensions/models/tracker/`, the contract in `_lib/tracker/core/`, and the
 clients and their fakes in `_lib/tracker/backends/`. `boundary_test.ts` holds
 the rules:
@@ -2014,8 +2074,9 @@ the rules:
 - Tracker code imports the engine only through `_lib/engine/tracker.ts`, which
   re-exports exactly what tracker code uses: the run record, the journal types,
   the pinned factory definition, the template renderer, the publish cursor's
-  schema and a few work-item helpers. Tracker tests may also use `_lib/engine/tracker_testing.ts` (the
-  fakes and the work-item operations they drive) and `integration/harness.ts`.
+  schema and a few work-item helpers. Tracker tests may also use
+  `_lib/engine/tracker_testing.ts` (the fakes and the work-item operations they
+  drive) and `integration/harness.ts`.
 - Tracker core imports no backend, so the contract never depends on one tracker.
 - Production code imports no test code, and the surface exports nothing that
   tracker code does not import.
@@ -2037,13 +2098,13 @@ what the tracker depends on.
 `tracker: { kind: builtin | swamp-club | linear }`, and the built-in tracker
 when it names none. The kind belongs to the definition because what the
 definition says depends on it: its stage entries need a tracker that keeps
-history, and its status keys and type fields must be ones that tracker has. The factory names the tracker
-instance, its required `tracker` global argument, because which instance is a
-choice per repo and the definition is portable. The instance keeps the
-tracker's own settings (the built-in tracker's `prefix`, `statuses` and
-`types`, Linear's `teamId`, `statuses` and `types`, the Lab's `statuses`): the
-tracker instance is the tracker's definition, so there is no separate document
-for it.
+history, and its status keys and type fields must be ones that tracker has. The
+factory names the tracker instance, its required `tracker` global argument,
+because which instance is a choice per repo and the definition is portable. The
+instance keeps the tracker's own settings (the built-in tracker's `prefix`,
+`statuses` and `types`, Linear's `teamId`, `statuses` and `types`, the Lab's
+`statuses`): the tracker instance is the tracker's definition, so there is no
+separate document for it.
 
 - **validate and start check the binding.** Both resolve the instance through
   the definition repository and refuse, naming both sides, a factory with no
@@ -2051,21 +2112,22 @@ for it.
   not the one the kind needs. `kinds_test.ts` on the tracker side keeps each
   kind's type and tracker name equal to its adapter's.
 - **start pins it.** The run record carries `tracker: { instance, kind }` beside
-  `externalRefs`, so a later edit to the factory never moves a running work
-  item to another tracker. A retarget changes the refs, not the tracker. A
-  saved scenario runs in memory with no tracker, so it pins
+  `externalRefs`, so a later edit to the factory never moves a running work item
+  to another tracker. A retarget changes the refs, not the tracker. A saved
+  scenario runs in memory with no tracker, so it pins
   `{ instance: scenario, kind: <the definition's> }`. start also refuses
   `externalRefs` whose tickets are all on another kind of tracker (a ticket
-  claimed on one tracker, started under a factory bound to another): no
-  tracker could publish that work item, and status would call it never
-  behind.
+  claimed on one tracker, started under a factory bound to another): no tracker
+  could publish that work item, and status would call it never behind.
 - **status shows the lag.** It reads the pinned instance's `cursor-<key>` as
   data (`readModelData`, no network call) and reports the journal version
-  delivered against the journal's length: `tracker '<instance>' behind by N
-  event(s): run publish on it`, and nothing once they match. The count is not
-  split by ticket after a retarget. A work item with no `externalRefs` under
-  its kind has nothing to publish and is never behind. A cursor that cannot be
-  read shows `lag unknown` and the reason, and status still answers.
+  delivered against the journal's length:
+  `tracker '<instance>' behind by N
+  event(s): run publish on it`, and nothing
+  once they match. The count is not split by ticket after a retarget. A work
+  item with no `externalRefs` under its kind has nothing to publish and is never
+  behind. A cursor that cannot be read shows `lag unknown` and the reason, and
+  status still answers.
 - **publish runs only on the pinned instance.** Any other instance refuses the
   work item, so the cursor status reads is the one publish moves.
 
@@ -2090,18 +2152,17 @@ published as entries instead, below):
    (a query naming `version` reaches history; `readModelData` gives only the
    latest), and otherwise, or if that query fails (logged), the latest copy. The
    query is not limited to this repository's namespace, so a candidate is used
-   only if its digest is the one the run recorded; when none is, the error
-   lists each candidate's reason. The ticket is
-   `externalRefs[<tracker>]`, one ticket per segment of the journal (see
-   "Retargeting" below); a work item that never had one is refused.
+   only if its digest is the one the run recorded; when none is, the error lists
+   each candidate's reason. The ticket is `externalRefs[<tracker>]`, one ticket
+   per segment of the journal (see "Retargeting" below); a work item that never
+   had one is refused.
 2. **Reads its cursor**, `cursor-<key>` on the adapter instance: the journal
    version delivered so far, the ticket, the last status key written as of the
    cursor's own write, and the status move the last publish could not make, if
-   any (`statusFailed`). The
-   cursor's ticket must be the one its journal version belongs to: a cursor for
-   an older ticket is where the publish resumes, and one for a ticket no
-   retarget explains is refused, since one work item projects to one ticket at
-   a time.
+   any (`statusFailed`). The cursor's ticket must be the one its journal version
+   belongs to: a cursor for an older ticket is where the publish resumes, and
+   one for a ticket no retarget explains is refused, since one work item
+   projects to one ticket at a time.
 3. **Posts a comment for each event after the cursor** that a person on the
    ticket needs, keyed on (work item, that event's journal version). publish
    keeps its own ledger records, `delivery-publish-<action>-<key>-<version>`, so
@@ -2110,75 +2171,74 @@ published as entries instead, below):
    finishing when the stage is terminal, so `abandoned` is not announced as
    done), `approval` (given or declined, naming the actor's platform principal
    as the journal records it; an asserted actor is free text and left out),
-   `awaiting` with exits (each exit and what it needs), `awaiting` parked at
-   the dispatch cap (the cap it hit, and that a person must grant a dispatch
+   `awaiting` with exits (each exit and what it needs), `awaiting` parked at the
+   dispatch cap (the cap it hit, and that a person must grant a dispatch
    override; any exits held beside it are listed after), a dispatch `override`
-   (who granted it), and `reset`. `dispatched`, `usage`, `recorded`,
-   `rejected`, a cycle `override` and an `awaiting` with neither exits nor a
-   park post nothing; `retargeted` is said by the two tickets' notes
-   (see "Retargeting").
+   (who granted it), and `reset`. `dispatched`, `usage`, `recorded`, `rejected`,
+   a cycle `override` and an `awaiting` with neither exits nor a park post
+   nothing; `retargeted` is said by the two tickets' notes (see "Retargeting").
 4. **Writes the status once**, keyed on (work item, journal length), and only
    when the current stage's status key differs from the last one written. The
-   last one written is publish's own: the latest `set_status` ledger record
-   from the cursor's journal version on, else the cursor's key, since a cursor
-   write that failed after the status landed leaves the cursor behind. A
-   person who moves the ticket in the tracker is not undone by a publish that
-   did not change the stage; the next stage whose key differs moves it again. A
-   move the tracker refuses as `unreachable` is recorded in the ledger as
-   skipped, counts as written, and is logged rather than failing the publish.
-   Any other failure (a key missing from the `statuses` argument, a ticket in
-   a status the tracker cannot move from, a tracker that is down) still fails
-   the publish, but only after the cursor moves past the events delivered
-   before it, keeping the key last written and recording the failed move as
-   `statusFailed`. The error names the key and what to fix (for an unmapped
-   key, the tracker instance whose `statuses` argument lacks it). Later events
-   are not held back: the next publish delivers them, and, because the stage's
-   key still differs from the cursor's, retries only the move until it lands.
-   The work item's `status` prints the failed move until then. On a ticket a
-   retarget left behind, the next ticket's events wait for that ticket's move,
-   as the segments are walked in order.
-5. **Writes the cursor last.** A failure part-way leaves the cursor where it
-   was (except for the status move, step 4); the re-run replays from there and
-   the ledger turns every write that landed into a no-op. A publish with
-   nothing new writes nothing, except a cursor the ledger shows is behind: it
-   is brought level, and a failed move that has since landed is cleared.
+   last one written is publish's own: the latest `set_status` ledger record from
+   the cursor's journal version on, else the cursor's key, since a cursor write
+   that failed after the status landed leaves the cursor behind. A person who
+   moves the ticket in the tracker is not undone by a publish that did not
+   change the stage; the next stage whose key differs moves it again. A move the
+   tracker refuses as `unreachable` is recorded in the ledger as skipped, counts
+   as written, and is logged rather than failing the publish. Any other failure
+   (a key missing from the `statuses` argument, a ticket in a status the tracker
+   cannot move from, a tracker that is down) still fails the publish, but only
+   after the cursor moves past the events delivered before it, keeping the key
+   last written and recording the failed move as `statusFailed`. The error names
+   the key and what to fix (for an unmapped key, the tracker instance whose
+   `statuses` argument lacks it). Later events are not held back: the next
+   publish delivers them, and, because the stage's key still differs from the
+   cursor's, retries only the move until it lands. The work item's `status`
+   prints the failed move until then. On a ticket a retarget left behind, the
+   next ticket's events wait for that ticket's move, as the segments are walked
+   in order.
+5. **Writes the cursor last.** A failure part-way leaves the cursor where it was
+   (except for the status move, step 4); the re-run replays from there and the
+   ledger turns every write that landed into a no-op. A publish with nothing new
+   writes nothing, except a cursor the ledger shows is behind: it is brought
+   level, and a failed move that has since landed is cleared.
 
-**Assigning when work starts.** On the work item's `started` event, after
-that event's own comment or entry and before any later event's, `publish`
-assigns the ticket through the assign capability to the tracker model's
-`assignee` (the stored login's user, or Linear's API key owner), under its own ledger key (action `assign`, the `started` event's
-journal version). It is best effort and never retried, as issue-lifecycle's
-`start` assigns: any failure, finding the user included (no stored login, a
-login for another server, a user the tracker does not know, a tracker that is
-down), is logged as a warning and recorded in the ledger as skipped, so a
-re-run tries nothing and the replay goes on. Assigning a ticket is a
-convenience, not a lifecycle fact, and a person can assign it by hand; a
-publish that stalled on it would hold back every later write. In entry mode,
-when the assign added the user, issue-lifecycle's `assigned` entry follows,
-labelled with the ticket's status, under the `started` event's entry key with
-an `-assigned` suffix. It is driven from the assign's ledger record, so a
-re-run after the entry failed writes it without assigning again. Only the
-publish that delivers the `started` event assigns: a work item first published
-before `publish` assigned is never assigned by a later one, and a retarget's
-new ticket is not assigned. A reset is not a start and assigns nothing. A
-tracker without the capability, or without a login mapping, is never asked.
+**Assigning when work starts.** On the work item's `started` event, after that
+event's own comment or entry and before any later event's, `publish` assigns the
+ticket through the assign capability to the tracker model's `assignee` (the
+stored login's user, or Linear's API key owner), under its own ledger key
+(action `assign`, the `started` event's journal version). It is best effort and
+never retried, as issue-lifecycle's `start` assigns: any failure, finding the
+user included (no stored login, a login for another server, a user the tracker
+does not know, a tracker that is down), is logged as a warning and recorded in
+the ledger as skipped, so a re-run tries nothing and the replay goes on.
+Assigning a ticket is a convenience, not a lifecycle fact, and a person can
+assign it by hand; a publish that stalled on it would hold back every later
+write. In entry mode, when the assign added the user, issue-lifecycle's
+`assigned` entry follows, labelled with the ticket's status, under the `started`
+event's entry key with an `-assigned` suffix. It is driven from the assign's
+ledger record, so a re-run after the entry failed writes it without assigning
+again. Only the publish that delivers the `started` event assigns: a work item
+first published before `publish` assigned is never assigned by a later one, and
+a retarget's new ticket is not assigned. A reset is not a start and assigns
+nothing. A tracker without the capability, or without a login mapping, is never
+asked.
 
-**Entries instead of comments.** A stage's `tracker.entries` says which of
-its journal events become structured entries in the ticket's history: entering
-the stage (or starting in it), its first dispatch in a cycle, a product it
-declares being recorded, one of its human-approval gates being approved, or the
-work item leaving it by a transition (its own or a global one). When the pinned
-factory definition declares any and the adapter has the history capability,
-`publish` writes those entries and no comments: one entry per event, or none if
-no entry answers it (a decline, a wait, a reset, a stage without entries). An
-advance is the one event that can be two: the transition out of one stage,
-written first and labelled with the status of the stage it goes to, then the
-entry into the next. The transition's entry is written under the advance's
-ledger key with a `-transition` suffix, so each lands once. This is how a built-in
-ticket keeps a history of steps rather than a stream of comments; a definition
-names each entry's step, emoji and status label. (The swamp-club team's own
-factory definition uses it to write issue-lifecycle's step names on its Lab
-issues.)
+**Entries instead of comments.** A stage's `tracker.entries` says which of its
+journal events become structured entries in the ticket's history: entering the
+stage (or starting in it), its first dispatch in a cycle, a product it declares
+being recorded, one of its human-approval gates being approved, or the work item
+leaving it by a transition (its own or a global one). When the pinned factory
+definition declares any and the adapter has the history capability, `publish`
+writes those entries and no comments: one entry per event, or none if no entry
+answers it (a decline, a wait, a reset, a stage without entries). An advance is
+the one event that can be two: the transition out of one stage, written first
+and labelled with the status of the stage it goes to, then the entry into the
+next. The transition's entry is written under the advance's ledger key with a
+`-transition` suffix, so each lands once. This is how a built-in ticket keeps a
+history of steps rather than a stream of comments; a definition names each
+entry's step, emoji and status label. (The swamp-club team's own factory
+definition uses it to write issue-lifecycle's step names on its Lab issues.)
 Which event is which step belongs to the factory definition, pinned with it, for
 the same reason as the status key. For a recorded product, `publish` reads the
 payload at the version the journal names (by query, falling back to the latest
@@ -2194,33 +2254,33 @@ with its `pr_linked` entry. An entry's `targetStatus` is a label only
 (swamp-club never moves the issue for it): the entry's own `status` key, else
 its stage's, else the last stage's before it, else the ticket's current status.
 A key missing from the `statuses` argument labels the entry with the ticket's
-current status too, with a warning naming the key: a label is no reason to
-hold back the entry and every later one.
-Summaries are a template, not CEL (`_lib/engine/entry_summary.ts`). Besides
-`{{field}}` from the payload, a summary reads what issue-lifecycle computes
-for its entries from the event: `{{$cycle}}` (the stage's cycle, so a stage
-re-entered for each try counts attempts), `{{$version}}` (the recorded
-product's version), `{{$version.<product>}}` (a product's version as of the
-event, counted in its era since a reset clears the products; for an approval,
-the version in the approval's own products snapshot, which is the one the
-person approved), `{{$input.<name>}}` (a binding or input the first dispatch
-resolved, only on `dispatch`, since bindings are resolved at dispatch and not
-on entering the stage) and `{{count <field>}}` or
-`{{count <field> <key>=<value>}}` (items of an array field, or those whose key
-holds the value). A fixed set rather than CEL keeps a summary one line of text
-whose every name is checked when the factory definition is saved, against the
-trigger (payload fields and counts only on a recorded product), the product's
-schema (the findings contract for `kind: findings`) and the stage's bindings.
-The `$` prefix cannot collide with a payload field: those keys are dropped
-before sending. Any other `{{$...}}` or `{{count ...}}` is an error rather than
-literal text. A summary needs fixed text besides its placeholders, and names
-only scalar fields. The payload sent is the recorded
-one without keys that start with `$`, which swamp-club refuses. An entry or type
-the tracker still refuses outright (`invalid`) is recorded in the ledger as
-skipped and logged, and the replay moves past it: its request comes from a
-digest-pinned payload, so no re-run could ever land it, and stalling there would
-freeze the ticket's status and every later entry. Other failures stop the
-publish for a re-run.
+current status too, with a warning naming the key: a label is no reason to hold
+back the entry and every later one. Summaries are a template, not CEL
+(`_lib/engine/entry_summary.ts`). Besides `{{field}}` from the payload, a
+summary reads what issue-lifecycle computes for its entries from the event:
+`{{$cycle}}` (the stage's cycle, so a stage re-entered for each try counts
+attempts), `{{$version}}` (the recorded product's version),
+`{{$version.<product>}}` (a product's version as of the event, counted in its
+era since a reset clears the products; for an approval, the version in the
+approval's own products snapshot, which is the one the person approved),
+`{{$input.<name>}}` (an input the first dispatch recorded: a call's literal
+inputs and passAsInputs, or an interactive or dispatch stage's let values; only
+on `dispatch`, since let values are resolved at dispatch and not on entering the
+stage) and `{{count <field>}}` or `{{count <field> <key>=<value>}}` (items of an
+array field, or those whose key holds the value). A fixed set rather than CEL
+keeps a summary one line of text whose every name is checked when the factory
+definition is saved, against the trigger (payload fields and counts only on a
+recorded product), the product's schema (the findings contract for
+`kind: findings`) and the inputs its dispatch records. The `$` prefix cannot
+collide with a payload field: those keys are dropped before sending. Any other
+`{{$...}}` or `{{count ...}}` is an error rather than literal text. A summary
+needs fixed text besides its placeholders, and names only scalar fields. The
+payload sent is the recorded one without keys that start with `$`, which
+swamp-club refuses. An entry or type the tracker still refuses outright
+(`invalid`) is recorded in the ledger as skipped and logged, and the replay
+moves past it: its request comes from a digest-pinned payload, so no re-run
+could ever land it, and stalling there would freeze the ticket's status and
+every later entry. Other failures stop the publish for a re-run.
 
 **Where the stage-to-status mapping lives: both places.** A stage names a
 stagecraft status key (`tracker: { status: in_progress }`), and the adapter's
@@ -2230,25 +2290,24 @@ it is pinned by digest with the rest of the run. The tracker's names belong to
 whoever runs the workspace, and differ per team. The example factory definitions
 use the built-in tracker's default statuses as keys (`open`, `in_progress`,
 `shipped`, `closed`), so the built-in tracker needs no `statuses` list and
-Linear maps the same keys to its team's names. A stage without a key leaves the status
-alone.
+Linear maps the same keys to its team's names. A stage without a key leaves the
+status alone.
 
 **Past events read the definition pinned now.** Whether an `advanced` event is
 worded as entering or finishing, which entries an event becomes, and each
 segment's status key all come from the factory definition the run pins when
-`publish` runs, not the one pinned when the event happened. After a `reset`
-with `repin=true`, an event not yet published from before the reset is worded
-from the newer definition. The journal cannot say otherwise: the `started`
-event records no digest, and a reset records only the copy it adopts. The
-window is only the events still unpublished at the repin, so it is left as
-is.
+`publish` runs, not the one pinned when the event happened. After a `reset` with
+`repin=true`, an event not yet published from before the reset is worded from
+the newer definition. The journal cannot say otherwise: the `started` event
+records no digest, and a reset records only the copy it adopts. The window is
+only the events still unpublished at the repin, so it is left as is.
 
 **Retargeting.** A `retargeted` event whose old and new maps name different
 tickets for this tracker ends one segment of the journal and starts the next
 (`ticketSegments` in `ticket_view.ts`). A retarget of another tracker's ref does
-not split this tracker's journal. Events up to and including the retarget
-belong to the old ticket, later ones to the new. `publish` walks the segments
-from the cursor, doing steps 3 to 5 for each ticket in turn:
+not split this tracker's journal. Events up to and including the retarget belong
+to the old ticket, later ones to the new. `publish` walks the segments from the
+cursor, doing steps 3 to 5 for each ticket in turn:
 
 - The old ticket gets what it had not been sent yet, then a note naming the new
   ticket (by its display id, else its stable id), and its status only up to the
@@ -2257,11 +2316,11 @@ from the cursor, doing steps 3 to 5 for each ticket in turn:
 - The new ticket gets a note naming the old one and the stage, then every later
   event, and the current stage's status whatever the old ticket had: its first
   status write is unconditional.
-- A ref the retarget adds (no old ticket) gets a "linked" note instead. A ref
-  it removes leaves the old ticket a note that the work item no longer reports
-  to it. The events after that have no ticket for this tracker, so they are
-  never pending: once the old ticket has its note, `publish` reports the work
-  item up to date.
+- A ref the retarget adds (no old ticket) gets a "linked" note instead. A ref it
+  removes leaves the old ticket a note that the work item no longer reports to
+  it. The events after that have no ticket for this tracker, so they are never
+  pending: once the old ticket has its note, `publish` reports the work item up
+  to date.
 - The notes are comments in entry mode too, since no entry answers a retarget.
   The new ticket's history starts at the retarget; the earlier entries stay on
   the old ticket, and the note says where they are.
@@ -2270,10 +2329,10 @@ from the cursor, doing steps 3 to 5 for each ticket in turn:
   hand-typed one that swamp-club refuses (swamp-club#2284) stops the publish.
 - The cursor is written after each ticket, so a failure on the new ticket keeps
   the old ticket's delivery. The old ticket's status write is keyed on the
-  journal version before the retarget (the stage is the same there), and the
-  new ticket's on the journal length, so no status key names two tickets.
-  swamp refuses a method's output that names one record twice, so `publish`
-  reports only the last handle of each name; every version is still stored.
+  journal version before the retarget (the stage is the same there), and the new
+  ticket's on the journal length, so no status key names two tickets. swamp
+  refuses a method's output that names one record twice, so `publish` reports
+  only the last handle of each name; every version is still stored.
 - Before anything reaches the new ticket, its ticket index record is pointed at
   the work item (`moveClaim` in `claim.ts`), so `claim` there finds it. The old
   ticket's record keeps the key, and `claim` there sees from the run's
@@ -2285,8 +2344,8 @@ from the cursor, doing steps 3 to 5 for each ticket in turn:
 
 **Why replay tolerates a reworded body.** The ledger refuses a key reused for a
 different request. `publish` derives its keys from the journal, so a different
-request under its own key can only mean a later stagecraft words the same
-event differently; a re-run after an upgrade counts it as delivered and logs the
+request under its own key can only mean a later stagecraft words the same event
+differently; a re-run after an upgrade counts it as delivered and logs the
 difference. `comment`, `set_status` and `set_type` keep the strict refusal.
 
 **Known gaps.** A crash between the tracker accepting a comment and the ledger
@@ -2300,24 +2359,23 @@ the driving reference asks for after each step.
 
 **Decision (swamp-club #2799).** The engine decides where a duplicate's work
 goes, and the tracker projects that decision; the tracker never reads engine
-state to decide an engine move. Marking a ticket a duplicate is a tracker
-write: relate it `duplicate_of` the primary, then close it through the `closed`
-status key, unless the adapter declares `closesDuplicates` (Linear moves a
-duplicate to its reserved Duplicate status itself). Moving its work item is the
-engine's: a driver retargets it onto the primary, or takes the definition's
-duplicate exit. Both paths share `deliveries().duplicate`.
+state to decide an engine move. Marking a ticket a duplicate is a tracker write:
+relate it `duplicate_of` the primary, then close it through the `closed` status
+key, unless the adapter declares `closesDuplicates` (Linear moves a duplicate to
+its reserved Duplicate status itself). Moving its work item is the engine's: a
+driver retargets it onto the primary, or takes the definition's duplicate exit.
+Both paths share `deliveries().duplicate`.
 
 - **A person:** the `mark_duplicate` tracker method relates and closes, and
   moves no work. With a work item at work on the duplicate, it says the work
   must be moved.
 - **An agent:** a stage's `tracker.duplicate` (`on: { approve: <gate> }`,
   `record`, `field`) names a human-approval gate on the stage and the product
-  whose field holds the primary's stable id. `publish` marks the ticket the
-  work item has at that approval (`duplicateMarks` in `ticket_view.ts` reads
-  the product recorded last before it, in the same era), keyed on the
-  approval's journal version. A declined approval marks nothing. Only the
-  tracker reads the field; the engine checks that the gate, product and field
-  are the stage's own.
+  whose field holds the primary's stable id. `publish` marks the ticket the work
+  item has at that approval (`duplicateMarks` in `ticket_view.ts` reads the
+  product recorded last before it, in the same era), keyed on the approval's
+  journal version. A declined approval marks nothing. Only the tracker reads the
+  field; the engine checks that the gate, product and field are the stage's own.
 - **A duplicate stays closed.** `publish` reads a ticket before it writes a
   status, and leaves the status of a ticket that is a duplicate alone, however
   it was marked, so neither the old ticket's status at a retarget nor a later
@@ -2326,38 +2384,40 @@ duplicate exit. Both paths share `deliveries().duplicate`.
   product with no primary in its field, a primary the tracker cannot find, or
   the ticket itself (an approval after the retarget onto it). The primary is
   fetched only when a mark is delivered.
-- **The close needs a `closed` status key.** Where the tracker does not close
-  a duplicate itself, marking checks the mapping before it writes anything, so
-  a ticket is never left related but open.
+- **The close needs a `closed` status key.** Where the tracker does not close a
+  duplicate itself, marking checks the mapping before it writes anything, so a
+  ticket is never left related but open.
 - **Marked outside the journal:** `publish` refuses a work item that is still
-  active on a duplicate ticket, naming the primary and both moves. A segment
-  a retarget ends, or a finished work item, still publishes, so the move
-  itself reaches the ticket. So does a work item whose own approval marked
-  the ticket: its product names the ticket's primary. `claim` refuses a duplicate, naming the primary.
-  That is the only inbound signal: reconciling a tracker-side change belongs
-  with inbound webhooks.
+  active on a duplicate ticket, naming the primary and both moves. A segment a
+  retarget ends, or a finished work item, still publishes, so the move itself
+  reaches the ticket. So does a work item whose own approval marked the ticket:
+  its product names the ticket's primary. `claim` refuses a duplicate, naming
+  the primary. That is the only inbound signal: reconciling a tracker-side
+  change belongs with inbound webhooks.
 
 The shipped examples put the agent path on `plan`, their first stage: a
 `duplicate-of` product, a `duplicate` exit behind `duplicate-confirmation` to a
-terminal `duplicate` stage, and a prompt that checks the primary with `claim
+terminal `duplicate` stage, and a prompt that checks the primary with
+`claim
 --input dryRun=true` first. When the primary has no work item the driver
 retargets instead of taking the exit, so one approval leads to either move. A
 `cel` gate on the exit compares the product's primary with
-`item.externalRefs["builtin"]`, so after a retarget the approved gate cannot
-end what is now the primary's work. A definition for another tracker kind
-names that kind's key there.
+`item.externalRefs["builtin"]`, so after a retarget the approved gate cannot end
+what is now the primary's work. A definition for another tracker kind names that
+kind's key there.
 
 **Why the engine decides.** A tracker-side `mark_duplicate` that also chose and
-printed the work-item move would read run records to decide an engine move,
-and the driver would carry the tracker's decision back across the seam.
-Keeping the move in the engine leaves every tracker write a projection of the
-journal, as status and comments already are.
+printed the work-item move would read run records to decide an engine move, and
+the driver would carry the tracker's decision back across the seam. Keeping the
+move in the engine leaves every tracker write a projection of the journal, as
+status and comments already are.
 
-**Known gaps.** A mark the tracker refuses under the relation rules (the
-primary is itself a duplicate, or the ticket has duplicates of its own) is
-skipped and logged, and the ticket is left open. A primary found while working on the primary itself, with a
-duplicate that has its own work item, moves nothing automatically: that work
-item is refused at its next `publish`, and a person or a later driver moves it.
+**Known gaps.** A mark the tracker refuses under the relation rules (the primary
+is itself a duplicate, or the ticket has duplicates of its own) is skipped and
+logged, and the ticket is left open. A primary found while working on the
+primary itself, with a duplicate that has its own work item, moves nothing
+automatically: that work item is refused at its next `publish`, and a person or
+a later driver moves it.
 
 ### The swamp-club Lab adapter
 
@@ -2365,8 +2425,7 @@ This adapter is the swamp-club team's own, for its own repositories: it needs a
 swamp-club team account, so it is not an option for anyone else, and the skill
 and README offer only the built-in tracker and Linear.
 
-`@swamp/stagecraft/swamp-club` is the Lab's adapter. What is particular
-to it:
+`@swamp/stagecraft/swamp-club` is the Lab's adapter. What is particular to it:
 
 - **Ids.** The stable id is the issue number as a string (`2631`); the display
   form is `#2631`. `fetch_issue` accepts either; writes take the number only, as
@@ -2405,23 +2464,22 @@ to it:
   `assign` records issue-lifecycle's `assigned` entry when it adds the user,
   best effort as there. The same assign is the adapter's assign capability,
   through which `publish` assigns the stored login's user when a work item
-  starts; the method stays for assigning someone else, or a work item
-  published before `publish` assigned. The history capability posts lifecycle
-  entries (the server's step, emoji and summary limits checked before the
-  call, a summary over 2000 characters cut as issue-lifecycle cuts it) and sets
-  the type. The pull request capability sets `githubPrUrl`, and
-  `githubPrNumber` when the url has a `/pulls/<n>`, as issue-lifecycle's
-  `link_pr` does: swamp-club does not derive them from a `pr_linked` entry, and
-  they put the link in the reporter's shipped notification.
-  `fetch_issue` records the body, type, author and ripples in `details`.
-  `post_attestation` posts a verification attestation that was built elsewhere
-  (`deno task build-attestation`); the adapter only checks that `subject.commit`
-  is a full lowercase SHA, and swamp-club validates the rest. swamp-club stores
-  every attestation POST, never deduplicating by commit, so the adapter keeps an
-  `attestation-<commit>` record of what it posted with a digest of the body. The
-  exact same body again posts nothing. A rebuilt attestation differs (its
-  timing, at least) and is posted, which is right: CI reads the latest
-  attestation for a commit.
+  starts; the method stays for assigning someone else, or a work item published
+  before `publish` assigned. The history capability posts lifecycle entries (the
+  server's step, emoji and summary limits checked before the call, a summary
+  over 2000 characters cut as issue-lifecycle cuts it) and sets the type. The
+  pull request capability sets `githubPrUrl`, and `githubPrNumber` when the url
+  has a `/pulls/<n>`, as issue-lifecycle's `link_pr` does: swamp-club does not
+  derive them from a `pr_linked` entry, and they put the link in the reporter's
+  shipped notification. `fetch_issue` records the body, type, author and ripples
+  in `details`. `post_attestation` posts a verification attestation that was
+  built elsewhere (`deno task build-attestation`); the adapter only checks that
+  `subject.commit` is a full lowercase SHA, and swamp-club validates the rest.
+  swamp-club stores every attestation POST, never deduplicating by commit, so
+  the adapter keeps an `attestation-<commit>` record of what it posted with a
+  digest of the body. The exact same body again posts nothing. A rebuilt
+  attestation differs (its timing, at least) and is posted, which is right: CI
+  reads the latest attestation for a commit.
 - **An admin key.** swamp-club lets any user read issues and ripple, but only an
   admin may move a status past `open` or `closed`, assign, look up assignees
   (and so check the team), post attestations or lifecycle entries, or set the
@@ -2459,48 +2517,48 @@ to it:
 
 ### The built-in tracker
 
-**Decision.** `@swamp/stagecraft/tracker` keeps tickets in swamp data on
-the tracker instance, for a project with no external tracker. It implements the
+**Decision.** `@swamp/stagecraft/tracker` keeps tickets in swamp data on the
+tracker instance, for a project with no external tracker. It implements the
 whole contract, `create` and the history capability included, and makes no
 network call. Its tracker name, the `externalRefs` key, is `builtin`.
 
-- **Ids.** A ticket's id is `<prefix>-<n>` (`blog-12`): the instance's
-  `prefix` (see "Keys are stagecraft's"), then a number from a counter kept in
-  the tracker's own data, one `counter-<prefix>` record per prefix. Lowercase,
-  because it is also a record name and an instance name: the ticket's first
-  work item takes it as its key. The display id is the id, and any case finds
-  it. `create` runs under the tracker instance's lock, so two creates never
-  take one number. A counter that does not exist yet (a new tracker, a
-  recreated one, a new prefix) starts above the highest `n` among the
-  repository's built-in tickets with that prefix (a data query over `issue`
-  records) and its model definitions named `<prefix>-<n>` or `<prefix>-<n>-...`
-  (the definition repository's `findAllGlobal`), so recreating a tracker never
-  reuses an id its work items carry. `create` also passes over a number one of
-  its own ticket records or any definition already has (a key started by hand,
-  another tracker's started work item, a crash between writing the ticket and
-  moving the counter), so the counter is a floor, and it is written after the
-  ticket. Once its counter exists, a tracker does not see another instance's
-  tickets, so two built-in trackers with one prefix can both file `blog-5`;
-  `claim` then qualifies the second work item's key (`blog-5-<instance>`).
+- **Ids.** A ticket's id is `<prefix>-<n>` (`blog-12`): the instance's `prefix`
+  (see "Keys are stagecraft's"), then a number from a counter kept in the
+  tracker's own data, one `counter-<prefix>` record per prefix. Lowercase,
+  because it is also a record name and an instance name: the ticket's first work
+  item takes it as its key. The display id is the id, and any case finds it.
+  `create` runs under the tracker instance's lock, so two creates never take one
+  number. A counter that does not exist yet (a new tracker, a recreated one, a
+  new prefix) starts above the highest `n` among the repository's built-in
+  tickets with that prefix (a data query over `issue` records) and its model
+  definitions named `<prefix>-<n>` or `<prefix>-<n>-...` (the definition
+  repository's `findAllGlobal`), so recreating a tracker never reuses an id its
+  work items carry. `create` also passes over a number one of its own ticket
+  records or any definition already has (a key started by hand, another
+  tracker's started work item, a crash between writing the ticket and moving the
+  counter), so the counter is a floor, and it is written after the ticket. Once
+  its counter exists, a tracker does not see another instance's tickets, so two
+  built-in trackers with one prefix can both file `blog-5`; `claim` then
+  qualifies the second work item's key (`blog-5-<instance>`).
 - **Records.** `issue-<id>` is the ticket (origin `builtin`), latest version
   read, five kept. A comment is a `comment-<id>-<uuid>` record and a lifecycle
   entry an `entry-<id>-<uuid>` record, each written once and kept by version
   count, never by age, so a ticket's history outlives any retention window.
 - **Statuses and types are the instance's own lists.** `statuses` defaults to
-  `open`, `in_progress`, `shipped`, `closed`; each key is also the status
-  name, so the `statuses` map every tracker has is the identity. A new ticket
-  starts in the first; a ticket may move between any two, since the factory
-  decides the order, not the tracker. An entry must name a declared status.
-  `types` defaults to `bug`, `feature`, `security`.
-- **Assignees.** A ticket keeps `assignees`, swamp usernames, so the tracker
-  has the assign capability; `publish` adds the stored login's username when a
-  work item starts. A record written before assignees has no field and reads
-  as no one assigned.
+  `open`, `in_progress`, `shipped`, `closed`; each key is also the status name,
+  so the `statuses` map every tracker has is the identity. A new ticket starts
+  in the first; a ticket may move between any two, since the factory decides the
+  order, not the tracker. An entry must name a declared status. `types` defaults
+  to `bug`, `feature`, `security`.
+- **Assignees.** A ticket keeps `assignees`, swamp usernames, so the tracker has
+  the assign capability; `publish` adds the stored login's username when a work
+  item starts. A record written before assignees has no field and reads as no
+  one assigned.
 - **Claim.** A ticket's work items take the ticket's id as their key: `blog-12`,
   then `blog-12-2` (see "Keys are stagecraft's").
 - **One method at a time.** `set_status`, `set_type` and `create` read a
-  ticket's record and write a whole new version, so, like the ledger, they
-  rely on swamp running one method at a time per tracker instance.
+  ticket's record and write a whole new version, so, like the ledger, they rely
+  on swamp running one method at a time per tracker instance.
 - **Settings on the instance.** `prefix`, `statuses` and `types` are the
   instance's global arguments, as are Linear's `teamId` and `types`. A factory
   definition names only the tracker's kind ("The factory's tracker").
@@ -2508,19 +2566,19 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
 **Why a counter.** #2966 replaced #2744's slug-and-suffix ids, which were too
 long to say, type or show
 (`blog-using-stagecraft-organizing-shipping-blog-posts-6r6t`); see the decision
-log. The counter is unique within one swamp repository's data:
-two clones with separate local data can each file `blog-5`, and since work-item
-definitions are committed files, the clash shows when they merge. Share one
-datastore, or file a tracker's tickets from one place.
+log. The counter is unique within one swamp repository's data: two clones with
+separate local data can each file `blog-5`, and since work-item definitions are
+committed files, the clash shows when they merge. Share one datastore, or file a
+tracker's tickets from one place.
 
 ### Start from a ticket
 
 **Decision.** Every adapter has a `claim` method (`_lib/tracker/core/claim.ts`,
 exposed by `trackerMethods`). It keeps a **ticket index** on the adapter
 instance: one `ticket-<stable id>` record per ticket, naming the ticket's
-current work-item key, the factory it starts under, and the keys of its
-earlier, finished work items. A ticket finds its work item without scanning
-every instance.
+current work-item key, the factory it starts under, and the keys of its earlier,
+finished work items. A ticket finds its work item without scanning every
+instance.
 
 `claim` fetches the ticket (by stable id or display identifier), reads its
 record, and reads the named work item's run through swamp's `readModelData`:
@@ -2533,14 +2591,14 @@ record, and reads the named work item's run through swamp's `readModelData`:
 - **A record whose key has no run:** a reservation whose start never ran. The
   same key and command are printed again, and the index is not written. A
   different factory is refused while the reserved one loads. Once the reserved
-  factory no longer loads (deleted, renamed or made invalid), so its start
-  can only fail, a different factory that loads takes the reservation over:
-  the record is rewritten with the new factory and the **same key**, and the
-  new start command is printed. The key stays because the failed start may
-  have left a definition under it, which a fresh key would orphan. A dry run
-  says the reservation would move and writes nothing.
-- **An active run:** reported with its stage and its factory; the index is
-  not written. A different factory passed is named as not used.
+  factory no longer loads (deleted, renamed or made invalid), so its start can
+  only fail, a different factory that loads takes the reservation over: the
+  record is rewritten with the new factory and the **same key**, and the new
+  start command is printed. The key stays because the failed start may have left
+  a definition under it, which a fresh key would orphan. A dry run says the
+  reservation would move and writes nothing.
+- **An active run:** reported with its stage and its factory; the index is not
+  written. A different factory passed is named as not used.
 - **A terminal run** (done or abandoned): the ticket may start a new work item.
   A new key is reserved, and the old one goes to the front of `previous`.
 - **A run a retarget moved to another ticket** (its journal has a `retargeted`
@@ -2562,9 +2620,8 @@ the first one's reservation.
 
 A claim that succeeds also refreshes the ticket's `issue-<id>` snapshot, as
 `fetch_issue` does, after the index is settled. A refused claim writes nothing.
-A failed snapshot write is logged as a warning and does not fail the claim:
-the index record is the claim's result, and the next read refreshes the
-snapshot.
+A failed snapshot write is logged as a warning and does not fail the claim: the
+index record is the claim's result, and the next read refreshes the snapshot.
 
 `factory` is only needed when a new key is reserved. `claim` never comments,
 moves or assigns the ticket; that is the publisher's (GW-17).
@@ -2582,8 +2639,8 @@ printed command is the whole hand-off.
 **Retention.** Index records are never collected by age: a ticket's record must
 outlive its work items. Only the latest version is read, so twenty versions are
 kept. A record's `previous` list is kept whole: it grows by one key for each
-finished work item of the ticket, which is accepted because a ticket rarely
-has many.
+finished work item of the ticket, which is accepted because a ticket rarely has
+many.
 
 **Only the run's own key counts.** swamp's `readModelData` labels every record
 it returns with the name asked for, including data it attributes to that name
@@ -2608,13 +2665,13 @@ printed `start` at once race as any first start does (see "The model types").
 stagecraft through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution, without `--log` as the skill does, and
-reads results back from swamp's storage with `swamp data query --single --json`. Code:
-`integration/harness.ts`, `integration/engine/cli_test.ts`;
+reads results back from swamp's storage with `swamp data query --single --json`.
+Code: `integration/harness.ts`, `integration/engine/cli_test.ts`;
 `integration/extension/skill_test.ts`, which checks every command the driving
 skill shows and runs its worked example as written; and
 `integration/tracker/tracker_test.ts`, which runs the Linear and swamp-club
-adapters with their credentials in a vault made inside the temp repo,
-against their local fakes.
+adapters with their credentials in a vault made inside the temp repo, against
+their local fakes.
 
 ### Why
 
@@ -2628,8 +2685,8 @@ back from swamp's storage still have the digest taken before they were written.
 ### How it runs in verification
 
 The suite needs to run the swamp binary, write a temp dir and read the
-environment, so it is its own command, `integration`, on the stagecraft
-target in `verification/checks.yaml`. The unit `test` command never reaches
+environment, so it is its own command, `integration`, on the stagecraft target
+in `verification/checks.yaml`. The unit `test` command never reaches
 `integration/`. A separate command was chosen over widening the unit tests'
 flags, so that tests of the pure runtime keep their guarantee: they read files
 and nothing else.
@@ -2665,8 +2722,8 @@ What the suite depends on:
 - **The swamp version on the host.** The suite logs `swamp --version` at the
   start of each run, and the path of each repo it creates. It last ran against
   swamp `20260929.002922.0`.
-- **Only stagecraft changes trigger it.** A swamp upgrade that breaks
-  stagecraft is caught by the next stagecraft change, or by running
+- **Only stagecraft changes trigger it.** A swamp upgrade that breaks stagecraft
+  is caught by the next stagecraft change, or by running
   `deno task test:integration` by hand.
 
 Each swamp call runs in the temp repo with telemetry off. The harness sets
@@ -2700,12 +2757,12 @@ GW-8. Dispatch and usage run through the CLI in the summary test.
 **Decision** (swamp-club #2805; inline since #2884). A factory can be tested
 before anyone runs work on it. Saved scenarios are the `scenarios` list in the
 factory's `globalArguments`, beside its `definition`, one engine call per step
-(the format is in REFERENCE.md, "Saved scenarios"). swamp checks their shape with
-the rest of the factory's arguments (`SavedScenariosSchema`, which also refuses
-two with one name). The factory's `validate` runs every one after the schema
-and graph checks, and fails listing each step that did not do what its scenario
-said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`. The runner
-is `_lib/engine/scenario.ts`.
+(the format is in REFERENCE.md, "Saved scenarios"). swamp checks their shape
+with the rest of the factory's arguments (`SavedScenariosSchema`, which also
+refuses two with one name). The factory's `validate` runs every one after the
+schema and graph checks, and fails listing each step that did not do what its
+scenario said, as `scenarios.<index> (<name>) step <n> (<label>): <message>`.
+The runner is `_lib/engine/scenario.ts`.
 
 **Why.** A factory definition is code people run work on, and its graph analysis
 says what can happen, not what does. A scenario pins a known path, including the
@@ -2735,43 +2792,93 @@ What it rests on:
   outcome.
 - **In the factory, not in files** (#2884). Scenarios were files at
   `scenarios/<factory>/<scenario>.yaml`, keyed by a `factory` field that had to
-  match the directory. In the factory's model definition they are
-  schema-checked by swamp, travel with the definition to a remote worker (where
-  `validate` could not read the files), and need no factory key, path rules or
-  symlink checks. The cost is one longer file: a definition with fifteen or so
-  scenarios runs to about 2,000 lines, which the studio parses whole on each
-  change.
+  match the directory. In the factory's model definition they are schema-checked
+  by swamp, travel with the definition to a remote worker (where `validate`
+  could not read the files), and need no factory key, path rules or symlink
+  checks. The cost is one longer file: a definition with fifteen or so scenarios
+  runs to about 2,000 lines, which the studio parses whole on each change.
 - **An agent writes them.** The studio views and simulates but never edits, so
   the skill says where scenarios go, the verbs, and to run `validate` after
   writing one (`references/scenarios.md`).
 
-Scenarios have no includes: variants of one late path each repeat the walk
-that reaches it. An include step would be its own change.
+Scenarios have no includes: variants of one late path each repeat the walk that
+reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-09: let and passAsInputs, and a call's target from run data (swamp-club #3190)
+
+**Decision.** See "Runtime values: `let`, `{{name}}` placeholders and
+`passAsInputs`". `work.bindings` became `work.let`; a `workflow` or `method`
+call sends the let values its `passAsInputs` lists, and no others;
+`workflow.name` and `method.modelIdOrName` may use `{{name}}`. A filled target
+must be made of non-empty strings and be a name swamp would create
+(`swamp_names.ts` mirrors swamp's rules, copied at swamp fbfa141c); a literal
+target that breaks the rule is a `validate` warning, not an error. The filled
+target is in the packet and recorded on the dispatch (`workflow`, `method`,
+optional, so every run record stored before still reads; `RUN_SCHEMA_VERSION`
+stays 1). The work-item key's 64-character limit now comes from the same module.
+This is the first upgrade step, schemaVersion 1 to 2: a stage's `bindings`
+become `let`, and a call's `passAsInputs` names every binding in order, which is
+exactly what v1 sent, and a call's target is escaped so it stays plain text (a
+`{{x}}` in a v1 target was literal; a reviewer caught that v2 would read it as
+an undeclared placeholder). Model versions: the factory and the work item are
+2026.10.09.1, each with a new `upgrades` entry (the work item's a no-op).
+
+**Why.** The issue asked for `{{binding}}` in a call's target, so a definition
+can call a model per work item, as software-factory's `${{ }}` allowed (#3141).
+Done that way, a binding used only to name the target would also have been sent
+as an input, and swamp refuses a model-method input the method does not declare
+(checked on built-in and extension types). Splitting named values from what a
+call sends removes that trap without a second kind of binding or a typing rule
+for templated inputs (Seth chose this over placeholders in explicit inputs,
+2026-10-08). The target rule follows swamp's own naming rules rather than a
+pattern of stagecraft's (Seth: one well-defined set of naming rules).
+
+**Not supported.** A downgrade: a stagecraft before this one refuses a v2
+definition ("needs a newer @swamp/stagecraft", #3194) and a run record whose
+dispatch carries the new target fields, since the run record schema is strict.
+Sending a let value under another input name is not supported either; name the
+let value after the input.
+
+**Proven.** The #3194 entry deferred a work item pinned at v1 that dispatches,
+records and advances after the change: `work_item_test.ts` swaps a work item's
+pinned copy for its v1 form and the digest its run records, then dispatches,
+records and advances on it, sending what v1 sent. On the real engine,
+`integration/engine/definition_upgrade_test.ts` has `validate` rewrite a v1
+factory file to its v2 form, and dispatches a templated target (recorded) and
+refuses null and a value with a space (nothing recorded). A pinned copy cannot
+be swapped through the harness, so the pinned-at-v1 proof is on the fake. It was
+also run once by hand on real swamp, as the upgrade gate's path test does (the
+gate does not see models under `engine/` yet, swamp-club #3201): on the
+published 2026.10.08.2, a factory with a v1 definition and a work item started
+on it; after switching to this source, both reached 2026.10.09.1, `validate`
+rewrote the factory file to v2, and the work item dispatched on its unchanged v1
+pin, sending what v1 sent. `work_item_test` asserts the work item's last
+`upgrades` entry is its version, as `factory_test` does for the factory.
 
 ### 2026-10-08: stored definitions are upgraded on read (swamp-club #3194)
 
 **Decision.** See "Format changes upgrade, they never break". Every stored
-definition is read through `readDefinition`. Pinned copies are checked
-against their digest as stored, then upgraded in memory, never rewritten. The
-factory type declares `upgrades` that run the same steps, and its schema
-upgrades before checking because swamp model validate does not run
-`upgrades` (swamp-club #3196). The chain is empty: #3190 adds the first step,
-v1 to v2. Model versions: the factory is 2026.10.08.1, with its first
-`upgrades` entry; the work item is 2026.10.08.1 with a no-op entry, since it
-has no `globalArguments` to change and swamp moves an instance's
-`typeVersion` only through an entry. (The repo's upgrade gate does not see
-models under `extensions/models/engine/` yet: swamp-club #3201.)
+definition is read through `readDefinition`. Pinned copies are checked against
+their digest as stored, then upgraded in memory, never rewritten. The factory
+type declares `upgrades` that run the same steps, and its schema upgrades before
+checking because swamp model validate does not run `upgrades` (swamp-club
+#3196). The chain is empty: #3190 adds the first step, v1 to v2. Model versions:
+the factory is 2026.10.08.1, with its first `upgrades` entry; the work item is
+2026.10.08.1 with a no-op entry, since it has no `globalArguments` to change and
+swamp moves an instance's `typeVersion` only through an entry. (The repo's
+upgrade gate does not see models under `extensions/models/engine/` yet:
+swamp-club #3201.)
 
-**Why.** `@swamp/stagecraft` is published, so the notes below that say there
-are no users and nothing to upgrade no longer hold. Before this, any format
-change would have failed every work item in progress with "the pinned
-definition is invalid", and left every factory to be edited by hand.
+**Why.** `@swamp/stagecraft` is published, so the notes below that say there are
+no users and nothing to upgrade no longer hold. Before this, any format change
+would have failed every work item in progress with "the pinned definition is
+invalid", and left every factory to be edited by hand.
 
 **Deferred.** The full method-level proof is a work item pinned at v1 that
-dispatches, records and advances after the change. It needs a real v2, so
-#3190 carries it. Here the same path is proven with a made-up version 0
+dispatches, records and advances after the change. It needs a real v2, so #3190
+carries it. Here the same path is proven with a made-up version 0
 (`definition_upgrade_test.ts`).
 
 ### 2026-10-02: the swamp-club Lab adapter is kept, not shipped (swamp-club #2820)
@@ -2780,19 +2887,18 @@ dispatches, records and advances after the change. It needs a real v2, so
 `tracker/swamp_club.ts` is not in the manifest's `models:`, and
 `manifest_test.ts` fails if the manifest names it, its backend, its fake or the
 auth test data. The built-in tracker read swamp's stored login through the Lab
-backend; that reader (`AuthFile`, `CredentialSources`, `readSwampAuthFile`,
-and `defaultSources` in place of `DEFAULT_SOURCES`) moved to
-`_lib/tracker/core/stored_login.ts`, and both trackers import it from there.
-It now takes the reading tracker's name, so a broken `auth.json` is a
+backend; that reader (`AuthFile`, `CredentialSources`, `readSwampAuthFile`, and
+`defaultSources` in place of `DEFAULT_SOURCES`) moved to
+`_lib/tracker/core/stored_login.ts`, and both trackers import it from there. It
+now takes the reading tracker's name, so a broken `auth.json` is a
 `builtin auth` error for the built-in tracker rather than a `swamp-club` one;
 the Lab backend keeps its `readSwampAuthFile` and `DEFAULT_SOURCES`, bound to
-swamp-club. Rule 7 of `boundary_test.ts` fails on
-any production module, other than the Lab's own two, that imports either of
-them. The Lab code stays in the repository with its tests, which run from
-source. This supersedes "The swamp-club adapter still ships" in the #2842
-entry. Other shipped modules name the Lab only in strings: `"swamp-club"` is
-still a tracker kind in `tracker_binding.ts`, and the studio's Ticket tab
-calls that tracker "the Lab".
+swamp-club. Rule 7 of `boundary_test.ts` fails on any production module, other
+than the Lab's own two, that imports either of them. The Lab code stays in the
+repository with its tests, which run from source. This supersedes "The
+swamp-club adapter still ships" in the #2842 entry. Other shipped modules name
+the Lab only in strings: `"swamp-club"` is still a tracker kind in
+`tracker_binding.ts`, and the studio's Ticket tab calls that tracker "the Lab".
 
 **Why.** Nobody outside the swamp-club team can use the Lab, so it should not
 arrive with a public install (Seth, 2026-10-02). Whether to delete the Lab code
@@ -2802,56 +2908,57 @@ or move it to a team-only extension is decided after launch.
 
 **Decision.** The work-item page's Tracker tab became **Ticket**: the bound
 ticket's title, status, labels or type, assignees, times, description and its
-comments and lifecycle entries, with stagecraft's marked, relations linking
-to their work items, and a link out to Linear or the Lab. It reads what the
-tracker instance stored (`GET /api/work-items/<key>/ticket`), never the
-tracker, and every adapter's `fetchIssue` reads the content it shows. The
-bar's view tabs became links with `aria-current`, the work-item page has a
-"Board › key" breadcrumb, and every route titles the browser tab.
+comments and lifecycle entries, with stagecraft's marked, relations linking to
+their work items, and a link out to Linear or the Lab. It reads what the tracker
+instance stored (`GET /api/work-items/<key>/ticket`), never the tracker, and
+every adapter's `fetchIssue` reads the content it shows. The bar's view tabs
+became links with `aria-current`, the work-item page has a "Board › key"
+breadcrumb, and every route titles the browser tab.
 
 **Why.** Seth, 2026-10-02: there was "no way to see the ticket's description"
 from the studio, and on `/w/<key>` no view was marked.
 
 - **Stored, not live.** The issue proposed the studio call the tracker's
-  `fetch_issue` with Linear's key from the vault. That would break "The
-  seam", the studio's rule that no route runs a method, and its no-network
-  stance, and the studio has no credential path. Seth chose (a): the tab
-  shows the stored copy, says when it was recorded, and a newer one comes
-  from `fetch_issue`. So there is no cache to tune, and a tracker that is
-  away cannot break the page.
+  `fetch_issue` with Linear's key from the vault. That would break "The seam",
+  the studio's rule that no route runs a method, and its no-network stance, and
+  the studio has no credential path. Seth chose (a): the tab shows the stored
+  copy, says when it was recorded, and a newer one comes from `fetch_issue`. So
+  there is no cache to tune, and a tracker that is away cannot break the page.
 - **One tab, not two.** The Ticket tab grew from the Tracker tab, rather than
   sitting beside it (Seth's call).
-- **Markdown as elements.** A tracker's markdown is parsed into Preact
-  elements (`studio/src/markdown.tsx`), never into an HTML string: raw HTML
-  stays text, links are http(s) only, and images are links. No sanitiser
-  library joins the bundle, and a test walks the element tree of a hostile
-  description to prove it inert.
+- **Markdown as elements.** A tracker's markdown is parsed into Preact elements
+  (`studio/src/markdown.tsx`), never into an HTML string: raw HTML stays text,
+  links are http(s) only, and images are links. No sanitiser library joins the
+  bundle, and a test walks the element tree of a hostile description to prove it
+  inert.
 - **Links, not tabs.** The views are addresses, so the bar is a nav of links;
-  arrow keys no longer move between them, Tab does (Seth agreed). Each
-  panel's own tabs stay ARIA tabs.
+  arrow keys no longer move between them, Tab does (Seth agreed). Each panel's
+  own tabs stay ARIA tabs.
 - **Stagecraft's comments by the ledger.** The delivery ledger records the id
-  each write returned, and the conformance suite now checks a read returns
-  the same id, so the mark works on every tracker; built-in comments have no
-  author to go by.
+  each write returned, and the conformance suite now checks a read returns the
+  same id, so the mark works on every tracker; built-in comments have no author
+  to go by.
 
 ### 2026-10-02: short work-item ids (swamp-club #2966)
 
-**Decision.** A work item's key is its ticket's id. The built-in tracker
-numbers its tickets, `<prefix>-<n>` (`blog-12`); a key claimed from an external
-ticket is that ticket's id as-is (`abc-12` for Linear's `ABC-12`), with the
-tracker instance's prefix before an id that is only a number (`lab-2711`). A
-later work item on the same ticket adds `-2`, `-3`. The factory's `new_key` is
-removed: work starts from a ticket (`create`, then `claim`), or under a name
-chosen by hand. Every tracker model has an optional `prefix` (at most 12
-characters, default the instance's name). `status` and the summary show the
-title beside the key. This replaces the key rules of #2744 and the built-in id
-rules of #2794; see "Keys are stagecraft's" and "The built-in tracker".
+**Decision.** A work item's key is its ticket's id. The built-in tracker numbers
+its tickets, `<prefix>-<n>` (`blog-12`); a key claimed from an external ticket
+is that ticket's id as-is (`abc-12` for Linear's `ABC-12`), with the tracker
+instance's prefix before an id that is only a number (`lab-2711`). A later work
+item on the same ticket adds `-2`, `-3`. The factory's `new_key` is removed:
+work starts from a ticket (`create`, then `claim`), or under a name chosen by
+hand. Every tracker model has an optional `prefix` (at most 12 characters,
+default the instance's name). `status` and the summary show the title beside the
+key. This replaces the key rules of #2744 and the built-in id rules of #2794;
+see "Keys are stagecraft's" and "The built-in tracker".
 
-**Why.** The old keys, `<factory or display id>-<title slug>-<4 random
-characters>` up to 64 characters, were too long to say, type or show, broke the
-studio's Board (#2963), and mostly repeated the title every view shows. Seth,
-2026-10-02: "I'm worried they are too long and bad ux." #2744 turned down
-sequences for three reasons, and none still holds:
+**Why.** The old keys,
+`<factory or display id>-<title slug>-<4 random
+characters>` up to 64
+characters, were too long to say, type or show, broke the studio's Board
+(#2963), and mostly repeated the title every view shows. Seth, 2026-10-02: "I'm
+worried they are too long and bad ux." #2744 turned down sequences for three
+reasons, and none still holds:
 
 - **"Needs one counter minted in one place."** The built-in tracker is that
   place, and its `create` runs under swamp's per-instance lock (why #2832 was
@@ -2873,20 +2980,19 @@ sequences for three reasons, and none still holds:
   team, or one built-in tracker.
 - **A collision is qualified, not refused**: the tracker instance's name goes
   after the id (`abc-12-linear`, and `abc-12-linear-2` for that ticket's next
-  work item). A real namespace would put the tracker in every key and bring
-  back long ids. Only when the qualified key is taken too does `claim` refuse.
-- **The getting-started flow asks for the prefix**, offering the tracker's
-  name.
+  work item). A real namespace would put the tracker in every key and bring back
+  long ids. Only when the qualified key is taken too does `claim` refuse.
+- **The getting-started flow asks for the prefix**, offering the tracker's name.
 
-**Limits, accepted.** The counter is unique within one swamp repository's
-data: two clones with separate local data can each file `blog-5`, and the
-committed work-item definitions clash at merge; share a datastore, or file from
-one place. Two tracker instances with one prefix can reserve the same key at
-the same moment, since each claim takes only its own instance's lock; the second
-`start` is refused, as the key has started. No migration: records under the old
-key style are read as before. A built-in tracker created with a prefix longer
-than 12 characters is refused until its `prefix` is shortened; there were no
-users before go-live (Seth, 2026-10-02).
+**Limits, accepted.** The counter is unique within one swamp repository's data:
+two clones with separate local data can each file `blog-5`, and the committed
+work-item definitions clash at merge; share a datastore, or file from one place.
+Two tracker instances with one prefix can reserve the same key at the same
+moment, since each claim takes only its own instance's lock; the second `start`
+is refused, as the key has started. No migration: records under the old key
+style are read as before. A built-in tracker created with a prefix longer than
+12 characters is refused until its `prefix` is shortened; there were no users
+before go-live (Seth, 2026-10-02).
 
 ### 2026-10-02: the studio's work-item page (swamp-club #2944)
 
@@ -2897,29 +3003,29 @@ ticket and relations, and **Copy as scenario** for the run. The route is
 `GET /api/work-items/<key>` (see "The studio server"); it shares the Board's
 read helper, poll and router (#2943).
 
-**Why.** Seth, 2026-10-02: "for any given issue, to visualize where it is
-(like we have on swamp-club/lab per issue)". It is the studio's equivalent of
-the Lab's per-issue lifecycle view, and with the Board it replaces the planned
+**Why.** Seth, 2026-10-02: "for any given issue, to visualize where it is (like
+we have on swamp-club/lab per issue)". It is the studio's equivalent of the
+Lab's per-issue lifecycle view, and with the Board it replaces the planned
 Operate mode (#2810), whose "copy this run as a scenario" it carries.
 
-- **Status as data, once.** The pure part of `status` moved to
-  `status_view.ts`; the method prints from it unchanged, and the route returns
-  it with the readiness it was built from. Evaluating gates in the page as
-  well could disagree with the server (a cooldown crossing between the two),
-  so the page uses the route's.
-- **Visit counts and the path are per era**, as the run's `entries` are, so
-  they agree after a reset; earlier eras stay on the timeline.
+- **Status as data, once.** The pure part of `status` moved to `status_view.ts`;
+  the method prints from it unchanged, and the route returns it with the
+  readiness it was built from. Evaluating gates in the page as well could
+  disagree with the server (a cooldown crossing between the two), so the page
+  uses the route's.
+- **Visit counts and the path are per era**, as the run's `entries` are, so they
+  agree after a reset; earlier eras stay on the timeline.
 - **The run as a scenario** is this era's journal as steps: records with the
-  payload stored at the version the journal names, approvals and declines,
-  moves (with a person's go for a manual exit), cycle overrides, and waits for
-  gaps of a minute or more, so cooldowns hold. What a scenario cannot carry is
-  a note on the copy, never dropped silently: dispatches, dispatch overrides
-  (so a replay past a dispatch cap may differ), retargets, a rejection whose
-  payload the run no longer holds, an earlier era. The page replays the copy
-  on the pinned definition and says whether it ends where the run is.
+  payload stored at the version the journal names, approvals and declines, moves
+  (with a person's go for a manual exit), cycle overrides, and waits for gaps of
+  a minute or more, so cooldowns hold. What a scenario cannot carry is a note on
+  the copy, never dropped silently: dispatches, dispatch overrides (so a replay
+  past a dispatch cap may differ), retargets, a rejection whose payload the run
+  no longer holds, an earlier era. The page replays the copy on the pinned
+  definition and says whether it ends where the run is.
 - **The older-definition notice** compares the run's pinned digest with the
-  digest the page computes from the factory's file; the integration test
-  checks both directions on real swamp.
+  digest the page computes from the factory's file; the integration test checks
+  both directions on real swamp.
 - **Search is a key box** for now (Seth's call); search over the Board's list
   can follow.
 
@@ -2932,43 +3038,43 @@ path. The run record keeps the work's title, given to `start`; `claim` and
 `new_key` print the start command with it.
 
 **Why.** Design and Simulate show a factory and its scenarios; nothing showed
-the real work running through it (Seth, 2026-10-02: "a listing of each work
-item and where it is in the factory organized by stage"). The Board replaces
-the planned Operate mode (#2810) together with the work-item page (#2944),
-which shares this branch's read helper and router.
+the real work running through it (Seth, 2026-10-02: "a listing of each work item
+and where it is in the factory organized by stage"). The Board replaces the
+planned Operate mode (#2810) together with the work-item page (#2944), which
+shares this branch's read helper and router.
 
-- **A poll, not a watch.** Run records can be in any datastore, so a watch
-  on `.swamp/data` would miss most of them; a version-only query every 3
-  seconds while a board is open costs little and works everywhere.
+- **A poll, not a watch.** Run records can be in any datastore, so a watch on
+  `.swamp/data` would miss most of them; a version-only query every 3 seconds
+  while a board is open costs little and works everywhere.
 - **Parked by a cycle limit** (Seth: option a) is an exit whose gates all pass
-  but whose target stage is at its cycle limit: only a cycle override moves
-  it. Neither the run record nor the journal records it, so the route works
-  it out with the pinned definition and the gate checks. An item can be
-  both waiting on a person (one exit) and parked (another).
-- **The title in the run record** (Seth: "a real omission"). It is optional,
-  so every record written before still reads, and `schemaVersion` stays 1.
-  The run record schema is strict, so a stagecraft older than this one
-  refuses a record that has a title; stagecraft is not published yet, so
-  nothing in use reads them.
+  but whose target stage is at its cycle limit: only a cycle override moves it.
+  Neither the run record nor the journal records it, so the route works it out
+  with the pinned definition and the gate checks. An item can be both waiting on
+  a person (one exit) and parked (another).
+- **The title in the run record** (Seth: "a real omission"). It is optional, so
+  every record written before still reads, and `schemaVersion` stays 1. The run
+  record schema is strict, so a stagecraft older than this one refuses a record
+  that has a title; stagecraft is not published yet, so nothing in use reads
+  them.
 - **No model versions bumped**: the extension has never been published.
 
 ### 2026-10-02: Linear assigns the issue to the API key's owner (swamp-club #2945)
 
 **Decided.** The Linear adapter has the `assign` capability, so `publish`
-assigns a Linear issue when it delivers the work item's start, as it does on
-the built-in tracker and the Lab. Whom: the API key's owner, Linear's `viewer`.
-A Linear issue has one assignee, so assign replaces whoever is there and
-reports them in `dropped`. An `Assignment` may carry a `display` name, which
-publish's log uses where the tracker's user is an opaque id. The Linear model
-has an `assign` method, and `fetch_issue` records the assignee.
+assigns a Linear issue when it delivers the work item's start, as it does on the
+built-in tracker and the Lab. Whom: the API key's owner, Linear's `viewer`. A
+Linear issue has one assignee, so assign replaces whoever is there and reports
+them in `dropped`. An `Assignment` may carry a `display` name, which publish's
+log uses where the tracker's user is an opaque id. The Linear model has an
+`assign` method, and `fetch_issue` records the assignee.
 
-**Why.** #2801 left Linear out until its users could be mapped, and a live
-test against a real Linear workspace showed issues reaching In Progress with
-no assignee and no warning. Every Linear write already acts as the key's owner
-and no swamp login maps to a Linear user, so the key's owner is the user the
-work is done as. Replacing, not refusing, keeps assigning on start useful on a
-team where someone triages and assigns before the work starts; the log names
-whom it replaced.
+**Why.** #2801 left Linear out until its users could be mapped, and a live test
+against a real Linear workspace showed issues reaching In Progress with no
+assignee and no warning. Every Linear write already acts as the key's owner and
+no swamp login maps to a Linear user, so the key's owner is the user the work is
+done as. Replacing, not refusing, keeps assigning on start useful on a team
+where someone triages and assigns before the work starts; the log names whom it
+replaced.
 
 ### 2026-10-02: the README is for people using stagecraft (swamp-club #2819)
 
@@ -2989,25 +3095,24 @@ new user had to read past the internals to find out what stagecraft is for.
 ### 2026-10-01: the extension is named stagecraft (swamp-club #2932)
 
 **Decision.** The extension's public name is stagecraft: its directory is
-`stagecraft/`, its types are `@swamp/stagecraft/<type>` (`factory`,
-`work-item`, `studio`, `tracker`, `swamp-club`, `linear` and the
-`work-item-summary` report), and its skill is `stagecraft`. The vocabulary
-inside it stays: factory, factory definition, work item, stage, gate, product,
-tracker. Stagecraft is what makes factories, so `@swamp/stagecraft/factory`
-reads correctly.
+`stagecraft/`, its types are `@swamp/stagecraft/<type>` (`factory`, `work-item`,
+`studio`, `tracker`, `swamp-club`, `linear` and the `work-item-summary` report),
+and its skill is `stagecraft`. The vocabulary inside it stays: factory, factory
+definition, work item, stage, gate, product, tracker. Stagecraft is what makes
+factories, so `@swamp/stagecraft/factory` reads correctly.
 
 **Why.** Seth, 2026-10-01: the product is a factory maker. You use it to build
 your own factories, where agents do the work or drive a process: software, web
 posts, incident reviews, swamp models or extensions, or anything else expressed
-as stages that produce artifacts and evidence, with gates that set the rules
-for moving between them. The development code name was never meant to ship.
-Names considered: meta-factory (taken by `@atalanta/meta-factory`), millwright,
+as stages that produce artifacts and evidence, with gates that set the rules for
+moving between them. The development code name was never meant to ship. Names
+considered: meta-factory (taken by `@atalanta/meta-factory`), millwright,
 lockkeeper, workshop, and plain factory, which reads too close to
 `@swamp/software-factory` and would make the type `@swamp/factory/factory`.
 
-**Not migrated.** Records written under the old type names are not migrated.
-The extension was never published and had no users, so factories made before
-the rename are made again.
+**Not migrated.** Records written under the old type names are not migrated. The
+extension was never published and had no users, so factories made before the
+rename are made again.
 
 **Branches.** `scripts/rename_to_stagecraft.ts` did the rename and can be
 re-run. A branch made before it runs main's copy on itself before rebasing:
@@ -3020,12 +3125,12 @@ work is done.
 ### 2026-10-01: the studio is the only visualization; the design page is removed (swamp-club #2911)
 
 **Decision.** The factory's static design page is gone: the `design_page`
-method, its `design-page` file, and the HTML and Mermaid renderer. The studio
-is the only way to look at a factory definition. `designView`, which the studio
-bundles, stays in `_lib/engine/design_view.ts`, without the fields only the
-page read (the diagram sources, the drawn edges and their node ids, the
-truncation flag, and evidence's `recordedBy`). "The design view" above replaces
-the section on the page, and older entries here were edited to drop it.
+method, its `design-page` file, and the HTML and Mermaid renderer. The studio is
+the only way to look at a factory definition. `designView`, which the studio
+bundles, stays in `_lib/engine/design_view.ts`, without the fields only the page
+read (the diagram sources, the drawn edges and their node ids, the truncation
+flag, and evidence's `recordedBy`). "The design view" above replaces the section
+on the page, and older entries here were edited to drop it.
 
 **Why.** Seth, 2026-10-01, on static exports: "we have the studio. leave it at
 that for now." #2811, a static export of the studio to replace this page, was
@@ -3045,16 +3150,16 @@ duplicate exit. `publish` and `claim` refuse a ticket marked outside the
 journal. `claim` gained `dryRun`, and `publish` moves the ticket index on every
 retarget.
 
-**Choices made with Seth in triage.** The first plan had `mark_duplicate`
-decide the work-item move and print the engine command for the driver to run,
-which ferried a tracker decision across the seam; the engine-decides design
-replaced it. The agent path lives on the examples' `plan` stage (neither has a
-triage stage), with one approval leading to either move, and a `cel` gate
-closing the exit after a retarget. The index moves on every retarget, not only a
+**Choices made with Seth in triage.** The first plan had `mark_duplicate` decide
+the work-item move and print the engine command for the driver to run, which
+ferried a tracker decision across the seam; the engine-decides design replaced
+it. The agent path lives on the examples' `plan` stage (neither has a triage
+stage), with one approval leading to either move, and a `cel` gate closing the
+exit after a retarget. The index moves on every retarget, not only a
 duplicate's. A duplicate is closed through the `closed` status key, except on
-Linear, which closes it itself. `claim` refuses a duplicate rather than
-claiming its primary. The issue's line about superseding a held linked-issues
-draft from #2765 was left out: no such draft was found.
+Linear, which closes it itself. `claim` refuses a duplicate rather than claiming
+its primary. The issue's line about superseding a held linked-issues draft from
+#2765 was left out: no such draft was found.
 
 **Found on the way.** A `publish` that crossed a retarget wrote the work item's
 cursor twice in one method run, and the real engine refuses that output (the
@@ -3065,21 +3170,21 @@ fake swamp did not); `publish` now reports one handle per record name.
 **Decision.** swamp's `findAllGlobal` skips a model definition file it cannot
 parse, so while an agent had a factory's file mid-edit, the studio's listing
 left the factory out, the page fell back to another factory (dropping an open
-walk unasked), and it stayed there once the file was fixed. `serve` now keeps
-a memory of the factories it has listed, by name and file, which
-`listFactories` is given. A factory swamp now skips stays listed while its file
-is there and no factory listed now claims the file. It keeps its route, so the
-page reads the text and shows the YAML problem with the last good graph marked
-STALE, and the watch keeps following the file, so the fix reloads in place. A
-factory whose file is gone is forgotten. The page says when the selected
-factory was removed. The memory is replaced in one step after a listing's last
-read; a slower listing may write it last, which the next one corrects.
+walk unasked), and it stayed there once the file was fixed. `serve` now keeps a
+memory of the factories it has listed, by name and file, which `listFactories`
+is given. A factory swamp now skips stays listed while its file is there and no
+factory listed now claims the file. It keeps its route, so the page reads the
+text and shows the YAML problem with the last good graph marked STALE, and the
+watch keeps following the file, so the fix reloads in place. A factory whose
+file is gone is forgotten. The page says when the selected factory was removed.
+The memory is replaced in one step after a listing's last read; a slower listing
+may write it last, which the next one corrects.
 
-**Left out.** A studio started while a file is already broken does not list
-that factory until it parses: finding it would mean walking swamp's `models/`
-layout. A file that is valid YAML but fails swamp's own definition check is
-kept the same way, and the page may draw it. swamp's warning for the skipped
-file is not shown.
+**Left out.** A studio started while a file is already broken does not list that
+factory until it parses: finding it would mean walking swamp's `models/` layout.
+A file that is valid YAML but fails swamp's own definition check is kept the
+same way, and the page may draw it. swamp's warning for the skipped file is not
+shown.
 
 ### 2026-10-01: small driving fixes from the #2711 dogfood (swamp-club #2875)
 
@@ -3090,17 +3195,17 @@ missing evidence fail with the same words, and `status`, `advance`'s refusal,
 saved scenarios and the studio now show that line once, while the exit still
 keeps one check per gate. The skill tells the driver to pass `onBehalfOf` on
 every decision it runs on a person's word (`approve`, `decline`,
-`grant_override`, a manual `advance`, `reset`, `retarget`), which the engine
-has accepted since #2793; an advance the driver takes on its own names no one.
-The swamp-club and work-item model versions are bumped; the factory's is not,
-as `validate` changes only where a repeated failure was shown.
+`grant_override`, a manual `advance`, `reset`, `retarget`), which the engine has
+accepted since #2793; an advance the driver takes on its own names no one. The
+swamp-club and work-item model versions are bumped; the factory's is not, as
+`validate` changes only where a repeated failure was shown.
 
-**Left out.** The issue also asked for a triage prompt that points at the
-issue text, which lived in a local dogfood factory that has since been
-discarded; empty report banners on `status`, which swamp itself no longer
-prints; Lab tracker docs, which #2842 decided against; and saved scenarios
-copied by `init`, which no longer exists since #2884 (a factory's scenarios are
-its model definition's `scenarios` block).
+**Left out.** The issue also asked for a triage prompt that points at the issue
+text, which lived in a local dogfood factory that has since been discarded;
+empty report banners on `status`, which swamp itself no longer prints; Lab
+tracker docs, which #2842 decided against; and saved scenarios copied by `init`,
+which no longer exists since #2884 (a factory's scenarios are its model
+definition's `scenarios` block).
 
 ### 2026-10-01: a manual exit waits on a person only once the agent has no way out (swamp-club #2874)
 
@@ -3109,12 +3214,12 @@ while the agent has no way out of its own (see "Why `awaiting` is journaled").
 The summary's wait time is the time covered by finished waits, so two exits
 waiting at once count once; each exit keeps its own row.
 
-**Why.** The dogfood run on #2711 counted `attest.complete` and
-`merge.complete` as waits from the moment their stages were entered, while the
-agent built the attestation and waited for CI, and summed a `revise` that
-overlapped a plan approval: 18m 57s of waits for 16m 09s a person was asked.
-Whether the agent still has work is read from the gates and the products
-recorded, not declared by the factory definition: the engine already has both.
+**Why.** The dogfood run on #2711 counted `attest.complete` and `merge.complete`
+as waits from the moment their stages were entered, while the agent built the
+attestation and waited for CI, and summed a `revise` that overlapped a plan
+approval: 18m 57s of waits for 16m 09s a person was asked. Whether the agent
+still has work is read from the gates and the products recorded, not declared by
+the factory definition: the engine already has both.
 
 ### 2026-10-01: publish links the pull request on the Lab issue, as issue-lifecycle's link_pr does (swamp-club #2872)
 
@@ -3122,8 +3227,8 @@ recorded, not declared by the factory definition: the engine already has both.
 pull request url. `publish` links it after the entry's type and before the
 entry, under its own ledger key (`link_pr`), through a new optional
 `pullRequests` capability. Only the swamp-club team's Lab adapter has it: it
-PATCHes `githubPrUrl`, and `githubPrNumber` when the url has a `/pulls/<n>`,
-and writes nothing when the issue already links that url. A later pull request
+PATCHes `githubPrUrl`, and `githubPrNumber` when the url has a `/pulls/<n>`, and
+writes nothing when the issue already links that url. A later pull request
 replaces the link.
 
 **Why.** The dogfood run on #2711 shipped with no pull request on the issue:
@@ -3131,11 +3236,11 @@ swamp-club does not derive the fields from the `pr_linked` entry, so the
 reporter's shipped notification had no link.
 
 **Choices made with Seth in triage.** A capability of its own, not part of
-history, so the built-in tracker and Linear need nothing. The field is
-`linkPr`, since an issue could one day link several pull requests. Issues
-already published past `pr_linked` are not backfilled. The team's factory
-declares `linkPr: url` on its `pr_linked` entry when it is rebuilt; nothing in
-this repository carries that definition since #2842.
+history, so the built-in tracker and Linear need nothing. The field is `linkPr`,
+since an issue could one day link several pull requests. Issues already
+published past `pr_linked` are not backfilled. The team's factory declares
+`linkPr: url` on its `pr_linked` entry when it is rebuilt; nothing in this
+repository carries that definition since #2842.
 
 ### 2026-10-01: the swamp-club Lab is the swamp-club team's own, and the shipped docs say so (swamp-club #2842)
 
@@ -3144,31 +3249,31 @@ tracker and Linear. The `swamp-club-swamp-extensions` example, its mapping and
 the tests that pinned its process are deleted: the team's definition lives in
 its own factory model (#2884), not in the skill. Tests that used it only as a
 large definition moved to `build-swamp-extension`, and the graph pruning test to
-seven inline self-loops. The examples' status keys are
-the built-in tracker's default statuses (`open`, `in_progress`, `shipped`,
-`closed`), not the Lab's `triaged`. The swamp-club adapter still ships,
-unchanged, and its README section and "The swamp-club Lab adapter" say it is
-for the swamp-club team. A guard in `integration/extension/skill_test.ts` fails
-on any paragraph of the skill or README that mentions swamp-club or the Lab
-without saying so.
+seven inline self-loops. The examples' status keys are the built-in tracker's
+default statuses (`open`, `in_progress`, `shipped`, `closed`), not the Lab's
+`triaged`. The swamp-club adapter still ships, unchanged, and its README section
+and "The swamp-club Lab adapter" say it is for the swamp-club team. A guard in
+`integration/extension/skill_test.ts` fails on any paragraph of the skill or
+README that mentions swamp-club or the Lab without saying so.
 
 **Why.** The first acceptance run of the authoring skill offered the Lab in its
-interview (#2818). swamp-club is not a secret, but nobody outside the
-swamp-club team can use its Lab, so it must never read as an option. Moving the
-adapter to a team-only extension was left for later.
+interview (#2818). swamp-club is not a secret, but nobody outside the swamp-club
+team can use its Lab, so it must never read as an option. Moving the adapter to
+a team-only extension was left for later.
 
 ### 2026-10-01: a factory has one name, its model's (swamp-club #2816)
 
-**Decision.** A factory definition has no `name` field. The factory model's
-name is the factory's only name: `new_key` leads keys with it, the run record
-and the `started` journal event carry it as `factory` (beside `definition: {
-digest, version }`), and `validate`, the summary, ticket comments and the
-studio show it. A definition that still has
-`name` is a schema error, from swamp's checks and from `validate`.
+**Decision.** A factory definition has no `name` field. The factory model's name
+is the factory's only name: `new_key` leads keys with it, the run record and the
+`started` journal event carry it as `factory` (beside
+`definition: {
+digest, version }`), and `validate`, the summary, ticket comments
+and the studio show it. A definition that still has `name` is a schema error,
+from swamp's checks and from `validate`.
 
-**Why.** Since #2884 the definition sits in the factory's model definition,
-next to the model's own `name`, so one factory had two names, and they differed
-in practice (the dogfood factory `swamp-extensions` held a definition named
+**Why.** Since #2884 the definition sits in the factory's model definition, next
+to the model's own `name`, so one factory had two names, and they differed in
+practice (the dogfood factory `swamp-extensions` held a definition named
 `swamp-club-swamp-extensions`). Requiring them to match would keep a field with
 nothing to say; keeping both would need a reason, and none survived #2884: the
 pinned copy already recorded the factory's model name.
@@ -3183,13 +3288,14 @@ memory under the factory name `scenario`, as their tracker instance is
 
 ### 2026-10-01: the factory definition lives in the factory model, with its schema (swamp-club #2884)
 
-**Decision.** A factory's `globalArguments` are `{ definition, tracker,
-scenarios }`: the definition inline, schema-checked by swamp as the factory
-type's own, beside its tracker and its saved scenarios. `factories/` files,
-`scenarios/` files, `init`, the embedded starters and `definition_file.ts` are
-gone. Every reader, the studio included, reads the factory's model definition.
-See "Where a factory definition lives", "What swamp checks, and what validate
-checks", and "Saved scenarios".
+**Decision.** A factory's `globalArguments` are
+`{ definition, tracker,
+scenarios }`: the definition inline, schema-checked by
+swamp as the factory type's own, beside its tracker and its saved scenarios.
+`factories/` files, `scenarios/` files, `init`, the embedded starters and
+`definition_file.ts` are gone. Every reader, the studio included, reads the
+factory's model definition. See "Where a factory definition lives", "What swamp
+checks, and what validate checks", and "Saved scenarios".
 
 **Why.** Adam's review (2026-10-01): "I don't understand why the definition is
 not itself a model. It will have to grow to have basically every feature models
@@ -3205,63 +3311,63 @@ collide, the definition keeps its kind for scenarios, starters and #2847 where
 no instance is known, and nesting keeps swamp's shallow `partial()` checking the
 whole definition. `init` was dropped rather than made to write its own model
 definition; the skill writes the example in. Saved scenarios moved inline too,
-so `validate` works on a remote worker. The dogfood factory was not migrated:
-it is reset after this lands. Work items as data inside the factory (Adam's
-other suggestion) stay out: one instance per work item ("The runtime: one run
-record per work item", #818).
+so `validate` works on a remote worker. The dogfood factory was not migrated: it
+is reset after this lands. Work items as data inside the factory (Adam's other
+suggestion) stay out: one instance per work item ("The runtime: one run record
+per work item", #818).
 
 ### 2026-10-01: publish assigns the ticket when work starts (swamp-club #2801)
 
 **Decided.** Assigning is an optional tracker capability, `assign`, which the
-built-in tracker and the Lab have and Linear lacks. `publish` assigns through
-it on the work item's `started` event, to the user swamp's stored login maps
-to (each tracker model's `assignee`: the login's username for the built-in
-tracker, and for the Lab when the login is for its server), keyed in the
-delivery ledger. There is no opt-in: a tracker that can assign does. A failure
-warns and is never retried. In entry mode issue-lifecycle's `assigned` entry
-follows the `started` event's entry. The Lab adapter's `assign` method stays.
+built-in tracker and the Lab have and Linear lacks. `publish` assigns through it
+on the work item's `started` event, to the user swamp's stored login maps to
+(each tracker model's `assignee`: the login's username for the built-in tracker,
+and for the Lab when the login is for its server), keyed in the delivery ledger.
+There is no opt-in: a tracker that can assign does. A failure warns and is never
+retried. In entry mode issue-lifecycle's `assigned` entry follows the `started`
+event's entry. The Lab adapter's `assign` method stays.
 
 **Why.** issue-lifecycle's `start` assigns, and a driver following stagecraft's
 skill never ran the separate `assign`, so its Lab issues stayed unassigned
 (#2771). The stored login, not the start event's actor: a local run records no
 principal, and a principal is a swamp identity, not a tracker's user. Never
-retried, because assigning is a convenience a person can do by hand, and a
-retry on every publish would warn forever for a login that cannot assign.
+retried, because assigning is a convenience a person can do by hand, and a retry
+on every publish would warn forever for a login that cannot assign.
 
 ### 2026-09-30: no `--log`, and every write prints the status that follows it (swamp-club #2780)
 
 **Decided.** The skill, the worked example, the hints the extension prints and
-the integration suite run methods without `--log`. Under current swamp it
-prints every method's text twice: once as the method's output and once through
-the console log sink, quoted and joined with `+`. Drivers filtered the doubled
-text with `grep` and `sed` and dropped dispatch prompts. The skill says to read
-a method's output whole, and its command check refuses `--log`. Every write
-ends its text with the full status block, built from the run it committed
-rather than read back, and rule 1 counts that as reading status. That keeps
-one rendering and one rule, where a shorter block (only `expect` and the exits)
-would be a second format. Writes still run one per command. A status that
-cannot be built after a committed write is reported, not thrown. The empty
-report box swamp draws after every method is swamp's to fix (swamp-club
-#2813). The work-item model version is bumped: its write output changed.
+the integration suite run methods without `--log`. Under current swamp it prints
+every method's text twice: once as the method's output and once through the
+console log sink, quoted and joined with `+`. Drivers filtered the doubled text
+with `grep` and `sed` and dropped dispatch prompts. The skill says to read a
+method's output whole, and its command check refuses `--log`. Every write ends
+its text with the full status block, built from the run it committed rather than
+read back, and rule 1 counts that as reading status. That keeps one rendering
+and one rule, where a shorter block (only `expect` and the exits) would be a
+second format. Writes still run one per command. A status that cannot be built
+after a committed write is reported, not thrown. The empty report box swamp
+draws after every method is swamp's to fix (swamp-club #2813). The work-item
+model version is bumped: its write output changed.
 
 ### 2026-09-30: Design mode, in the browser, read-only (swamp-club #2807)
 
 **Decision.** The studio's Design mode, built from the prototype: the engine
 runs in the page, a pure lane layout draws the definition, and an inspector,
-findings with trace walks, a read-only source and Copy reference explain it.
-See "Design mode".
+findings with trace walks, a read-only source and Copy reference explain it. See
+"Design mode".
 
 **Why.** The issue predates #2803, so its `lifecycles/`, `parseLifecycle` and
 `analyzeLifecycle` became `factories/`, `parseDefinition` and
-`analyzeDefinition`. Decided with Seth: an engine change the page bundles
-needs a studio rebuild in the same change; Preact, signals and the `yaml`
-package are added, pinned; changed marks last per browser until a stage is
-selected; the graph scrolls in its own pane at phone width. Found in the work:
-the bundle passes the single module's size budget, so the page is split into
-three generated modules; the `yaml` package reads two environment variables, so
-the unit tests allow exactly those; edges sharing an entry point overlapped in
-the prototype, so each now has its own; selection is held by identity, since
-paths shift; and, from Seth's first use, Enter on an exit follows it.
+`analyzeDefinition`. Decided with Seth: an engine change the page bundles needs
+a studio rebuild in the same change; Preact, signals and the `yaml` package are
+added, pinned; changed marks last per browser until a stage is selected; the
+graph scrolls in its own pane at phone width. Found in the work: the bundle
+passes the single module's size budget, so the page is split into three
+generated modules; the `yaml` package reads two environment variables, so the
+unit tests allow exactly those; edges sharing an entry point overlapped in the
+prototype, so each now has its own; selection is held by identity, since paths
+shift; and, from Seth's first use, Enter on an exit follows it.
 
 ### 2026-09-30: a factory chooses its tracker, and status shows the lag (swamp-club #2795)
 
@@ -3276,9 +3382,9 @@ projection publisher" is "the publisher", and `projection.ts` is
 **Decided with Seth.** The engine may know the bound instance and its kind and
 read its cursor as data, which relaxes "nothing in the engine knows a tracker
 exists". A binding is required. Tracker settings stay on the tracker instance
-rather than moving into the factory definition, as the entry for #2794
-expected: the instance is the tracker's definition. The check of status keys
-and entries against the bound tracker is a tracker-side method (#2847).
+rather than moving into the factory definition, as the entry for #2794 expected:
+the instance is the tracker's definition. The check of status keys and entries
+against the bound tracker is a tracker-side method (#2847).
 
 ### 2026-09-30: a person's plan feedback is kept and handed to the next plan (swamp-club #2770)
 
@@ -3288,16 +3394,16 @@ gate on it, `plan` injects the last plan, its review and the feedback, and the
 plan's optional `feedbackIncorporated` carries it to the ticket with
 `plan_revised`. All three examples with a plan loop take it. The round is the
 cycle the feedback was recorded in, not a field. `revise` is gated even after a
-declined approval, and there is no gate on `submit` checking the plan quotes
-the feedback: `plan_revised` is published when the plan is recorded, before any
+declined approval, and there is no gate on `submit` checking the plan quotes the
+feedback: `plan_revised` is published when the plan is recorded, before any
 `submit` gate could refuse it.
 
 **Hoists into the engine.** Declaring the evidence on `plan-review`, a dispatch
 stage, would have told every reviewer to write it, so evidence gains
-`recordedBy: person` (see "The dispatch contract"). Recording it after a
-decline is not rework ("Why `awaiting` is journaled"). Injecting products from
-the stage's own loop is not a graph warning ("Graph validation"): warnings
-about the first pass of a loop would teach authors to ignore warnings.
+`recordedBy: person` (see "The dispatch contract"). Recording it after a decline
+is not rework ("Why `awaiting` is journaled"). Injecting products from the
+stage's own loop is not a graph warning ("Graph validation"): warnings about the
+first pass of a loop would teach authors to ignore warnings.
 
 ### 2026-09-30: the studio server, read-only, with its page embedded (swamp-club #2806)
 
@@ -3317,12 +3423,13 @@ rebuilding and diffing, because the bundle depends on the Deno version.
 ### 2026-09-30: a built-in tracker core; Lab and Linear rebuilt on it (swamp-club #2794)
 
 **Decided.** Every project has a tracker: the built-in one
-(`@swamp/stagecraft/tracker`) when there is no external tracker. The
-adapter contract gains `create`, an explicit `capabilities` object (history is
-the first) and an `origin`; `issue-<id>` records carry `origin: builtin |
-snapshot`. The Lab and Linear implement `create`: an external tracker files the
-ticket and its id is used. A missing capability is refused as `invalid`. One
-conformance suite runs against all three backends.
+(`@swamp/stagecraft/tracker`) when there is no external tracker. The adapter
+contract gains `create`, an explicit `capabilities` object (history is the
+first) and an `origin`; `issue-<id>` records carry `origin: builtin |
+snapshot`.
+The Lab and Linear implement `create`: an external tracker files the ticket and
+its id is used. A missing capability is refused as `invalid`. One conformance
+suite runs against all three backends.
 
 **Keys changed.** A claimed key no longer leads with the factory definition
 name: an external ticket's key is `<display id>-<slug>-<suffix>`
@@ -3332,9 +3439,9 @@ ticket's id is there.
 
 **Decided with Seth.** Ids all lowercase; built-in statuses default to open,
 in_progress, shipped and closed, moving in any direction; the built-in tracker
-keeps history; `create` takes a required type; Linear files in a configured
-team and labels the type; a duplicate from a retried `create` is a known gap;
-the prefix is required. Where the configuration lives (the tracker instance's
+keeps history; `create` takes a required type; Linear files in a configured team
+and labels the type; a duplicate from a retried `create` is a known gap; the
+prefix is required. Where the configuration lives (the tracker instance's
 arguments for now) moves to the factory definition with #2795.
 
 ### 2026-09-30: saved scenarios, run by validate (swamp-club #2805)
@@ -3349,8 +3456,8 @@ they are `scenarios/<factory>/` and `factory`, matching the factory's name.
 
 ### 2026-09-30: a factory definition lives in a file the factory names (swamp-club #2803)
 
-**Decision.** The factory's `globalArguments` became `{ definition: <path> }`,
-a repo-relative YAML file (`factories/<factory>.yaml` by convention), and the
+**Decision.** The factory's `globalArguments` became `{ definition: <path> }`, a
+repo-relative YAML file (`factories/<factory>.yaml` by convention), and the
 inline definition was removed. A new `init` method copies a starter, one of the
 skill's examples embedded in the engine, to that path. See "Where a factory
 definition lives".
@@ -3365,12 +3472,12 @@ instead. No model version was bumped: the extension has never been published.
 
 ### 2026-09-30: stage templates and apply cut; examples in the skill instead (swamp-club #2767)
 
-**Cut.** The template model type (`@swamp/stagecraft/template`), the
-factory's `apply` method and its `applied-definition` record, the stage
-template format (a `contract` of inputs, outputs, exits and parameters, `exit:`
-transitions, `{ $param }` placeholders), the five starter stage templates under
-`templates/`, and the graph checks only stage templates used
-(`exit-unreachable`, contract inputs present from the start).
+**Cut.** The template model type (`@swamp/stagecraft/template`), the factory's
+`apply` method and its `applied-definition` record, the stage template format (a
+`contract` of inputs, outputs, exits and parameters, `exit:` transitions,
+`{ $param }` placeholders), the five starter stage templates under `templates/`,
+and the graph checks only stage templates used (`exit-unreachable`, contract
+inputs present from the start).
 
 **Why.** Once triage narrowed it to copy-and-own (#2663, renamed in #2717), the
 feature was one-time scaffolding, and an agent does the same by copying YAML and
@@ -3393,9 +3500,9 @@ skill is what reaches an agent: `swamp extension pull` installs a skill into the
 skill directory of every agent tool the repository uses, so a path relative to
 the skill works in all of them, whereas files at the extension root land under
 the pulled extension's `files/` directory, which the skill cannot name. Push
-refuses symlinks, so linking one place to the other is not an option.
-The top-level directory of examples is gone too: stagecraft ships no
-factory definition of its own.
+refuses symlinks, so linking one place to the other is not an option. The
+top-level directory of examples is gone too: stagecraft ships no factory
+definition of its own.
 
 **What was not kept.** One check only `apply` made: that a contract input read
 only by a CEL binding is produced on every path into the stage template

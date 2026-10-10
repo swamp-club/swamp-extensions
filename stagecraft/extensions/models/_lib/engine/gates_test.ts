@@ -22,6 +22,7 @@ import {
 } from "./gates.ts";
 import type { Actor } from "./journal.ts";
 import {
+  DEFINITION_SCHEMA_VERSION,
   type FactoryDefinition,
   parseDefinition,
 } from "./definition_schema.ts";
@@ -55,7 +56,7 @@ const BOB: Actor = { principal: "user:bob", source: "platform" };
 /** One transition per gate type, all from `draft`. */
 function gateDefinition(): FactoryDefinition {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "draft",
@@ -970,7 +971,7 @@ Deno.test("cooldown: an unreadable record time fails with a clear message", asyn
 Deno.test("evidence-recorded: a requireField path reads own fields only, never the prototype", async () => {
   const withField = (requireField: Record<string, unknown>) =>
     parseDefinition({
-      schemaVersion: 1,
+      schemaVersion: DEFINITION_SCHEMA_VERSION,
       stages: [
         {
           id: "s",

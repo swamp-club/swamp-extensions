@@ -30,6 +30,7 @@ import {
 import {
   checkChain,
   DEFINITION_CHAIN,
+  DEFINITION_UPGRADES,
   type JsonObject,
   readDefinition,
   type UpgradeChain,
@@ -47,9 +48,10 @@ import type { RunRecord } from "./run_record.ts";
 import { memoryStore } from "./run_store.ts";
 import { testEnv } from "./test_support.ts";
 
-// No format change has shipped yet, so these tests read a made-up version 0
-// that names its stages `phases` and its scenarios' expected stage `phase`:
-// a real restructuring, upgraded by a step as a real format change would be.
+// These tests read a made-up version 0 that names its stages `phases` and its
+// scenarios' expected stage `phase`: a restructuring a scenario sees, put in
+// front of the shipped chain so a v0 definition takes every real step too.
+// The real steps are tested on their own below.
 
 const RENAME_PHASES = {
   from: 0,
@@ -76,9 +78,12 @@ const RENAME_PHASES = {
   },
 };
 
-const V0: UpgradeChain = checkChain({ current: 1, steps: [RENAME_PHASES] });
+const V0: UpgradeChain = checkChain({
+  current: DEFINITION_SCHEMA_VERSION,
+  steps: [RENAME_PHASES, ...DEFINITION_UPGRADES],
+});
 
-/** content-review's definition and scenarios, at v1 and written at v0. */
+/** content-review's definition and scenarios, current and written at v0. */
 async function example() {
   const { definition, scenarios } = parseExample(
     await Deno.readTextFile(new URL("content-review.yaml", EXAMPLES)),
@@ -96,7 +101,7 @@ async function example() {
       };
     }),
   }));
-  return { v1: definition, scenarios, v0, v0Scenarios };
+  return { current: definition, scenarios, v0, v0Scenarios };
 }
 
 // --- the chain -----------------------------------------------------------------
@@ -115,25 +120,25 @@ Deno.test("upgrade: a chain with a gap is refused", () => {
 });
 
 Deno.test("upgrade: a current definition comes back as it is", async () => {
-  const { v1 } = await example();
-  const upgraded = upgradeDefinition(v1);
-  assertStrictEquals(upgraded.definition, v1);
-  assertEquals(upgraded.from, 1);
+  const { current } = await example();
+  const upgraded = upgradeDefinition(current);
+  assertStrictEquals(upgraded.definition, current);
+  assertEquals(upgraded.from, DEFINITION_SCHEMA_VERSION);
   assertEquals(upgraded.applied, []);
-  assert(readDefinition(v1).ok);
+  assert(readDefinition(current).ok);
 });
 
 Deno.test("upgrade: an older definition is upgraded step by step, and the stored form is not changed", async () => {
-  const { v0, v1 } = await example();
+  const { v0, current } = await example();
   const before = structuredClone(v0);
   const upgraded = upgradeDefinition(v0, V0);
   assertEquals(upgraded.from, 0);
-  assertEquals(upgraded.applied, [RENAME_PHASES]);
-  assertEquals(upgraded.definition, v1);
+  assertEquals(upgraded.applied, [RENAME_PHASES, ...DEFINITION_UPGRADES]);
+  assertEquals(upgraded.definition, current);
   assertEquals(v0, before);
   const read = readDefinition(v0, V0);
   assert(read.ok);
-  const direct = parseDefinition(v1);
+  const direct = parseDefinition(current);
   assert(direct.ok);
   assertEquals(read.value, direct.value);
 });
@@ -187,19 +192,19 @@ Deno.test("upgrade: a step that does not give the next schemaVersion is refused"
 // --- the factory's arguments, as swamp's upgrades run them ---------------------
 
 Deno.test("upgrade: a factory's arguments keep their identity when nothing applies", async () => {
-  const { v1, scenarios } = await example();
-  const current = { definition: v1, tracker: "board", scenarios };
-  assertStrictEquals(upgradeFactoryArguments(current), current);
+  const { current, scenarios } = await example();
+  const args = { definition: current, tracker: "board", scenarios };
+  assertStrictEquals(upgradeFactoryArguments(args), args);
   const empty = { tracker: "board" };
   assertStrictEquals(upgradeFactoryArguments(empty), empty);
 });
 
 Deno.test("upgrade: a factory's definition and saved scenarios are upgraded by the same steps, and still pass", async () => {
-  const { v0, v0Scenarios, v1, scenarios } = await example();
+  const { v0, v0Scenarios, current, scenarios } = await example();
   const args = { definition: v0, tracker: "board", scenarios: v0Scenarios };
   const before = structuredClone(args);
   const upgraded = upgradeFactoryArguments(args, V0);
-  assertEquals(upgraded, { definition: v1, tracker: "board", scenarios });
+  assertEquals(upgraded, { definition: current, tracker: "board", scenarios });
   assertEquals(args, before);
   // Running it again (swamp replays every entry past an instance's
   // typeVersion) changes nothing more.
@@ -293,12 +298,12 @@ async function pinnedRun(definition: unknown): Promise<RunRecord> {
 }
 
 Deno.test("pinned: a copy pinned at an older schemaVersion matches its digest as stored, and is read upgraded and never rewritten", async () => {
-  const { v0, v1 } = await example();
+  const { v0, current } = await example();
   const record = { factory: "team", digest: "x", definition: jsonSafe(v0) };
   const stored = JSON.stringify(record);
   const run = await pinnedRun(v0);
   const pinned = await checkPinned(record, run, V0);
-  const direct = parseDefinition(v1);
+  const direct = parseDefinition(current);
   assert(direct.ok);
   assertEquals(pinned.definition, direct.value);
   assertEquals(pinned.digest, run.definition.digest);
@@ -306,11 +311,11 @@ Deno.test("pinned: a copy pinned at an older schemaVersion matches its digest as
 });
 
 Deno.test("pinned: a copy that is not the one recorded fails on its digest before it is parsed", async () => {
-  const { v0, v1 } = await example();
+  const { v0, current } = await example();
   const run = await pinnedRun(v0);
   // Valid at the current version, but not what was pinned.
   await assertRejects(
-    () => checkPinned({ factory: "team", definition: v1 }, run, V0),
+    () => checkPinned({ factory: "team", definition: current }, run, V0),
     Error,
     "does not match the digest the run recorded",
   );
@@ -336,8 +341,8 @@ Deno.test("pinned: a copy at a version newer than the runtime is refused by name
 });
 
 Deno.test("studio: a card pinned at an older schemaVersion carries the digest of its current form", async () => {
-  const { v0, v1 } = await example();
-  const run = await startedRun(v1);
+  const { v0, current } = await example();
+  const run = await startedRun(current);
   const v0Run = {
     ...run,
     definition: { digest: await digestOf(v0), version: 1 },
@@ -351,9 +356,9 @@ Deno.test("studio: a card pinned at an older schemaVersion carries the digest of
     testEnv(),
   );
   // The factory file's digest, as the page computes it from its parse.
-  const current = parseDefinition(v1);
-  assert(current.ok);
-  assertEquals(card.pinnedDigest, await digestOf(current.value));
+  const parsed = parseDefinition(current);
+  assert(parsed.ok);
+  assertEquals(card.pinnedDigest, await digestOf(parsed.value));
   assert(card.pinnedDigest !== v0Run.definition.digest);
 });
 
@@ -367,3 +372,142 @@ async function startedRun(definition: unknown): Promise<RunRecord> {
   });
   return result.frames[0].run;
 }
+
+// --- the shipped steps -----------------------------------------------------------
+
+/** A v1 definition with one stage of each mode, three using bindings. */
+function v1Stages(): JsonObject {
+  return {
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "draft",
+        initial: true,
+        work: {
+          mode: "interactive",
+          systemPrompt: "Draft {{topic}}; \\{{literal}} stays.",
+          bindings: { topic: "item.key" },
+        },
+        transitions: [{ name: "next", to: "plan" }],
+      },
+      {
+        id: "plan",
+        work: {
+          mode: "method",
+          method: {
+            modelIdOrName: "@acme/planner",
+            methodName: "generate",
+            inputs: { mode: "strict" },
+          },
+          bindings: { workItem: "item.key", feedback: "null" },
+        },
+        transitions: [{ name: "next", to: "test" }],
+      },
+      {
+        id: "test",
+        work: {
+          mode: "workflow",
+          workflow: { name: "@acme/tests" },
+          bindings: { ref: "item.key" },
+        },
+        transitions: [{ name: "next", to: "review" }],
+      },
+      {
+        id: "review",
+        work: { mode: "dispatch", skills: ["review"] },
+        transitions: [{ name: "finish", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+}
+
+Deno.test("upgrade 1 to 2: bindings become let, and a call passes every one, in order", () => {
+  const v1 = v1Stages();
+  const before = structuredClone(v1);
+  const upgraded = upgradeDefinition(v1);
+  assertEquals(v1, before);
+  assertEquals(upgraded.from, 1);
+  const stages = (upgraded.definition as JsonObject).stages as JsonObject[];
+  assertEquals((upgraded.definition as JsonObject).schemaVersion, 2);
+  assertEquals(stages[0].work, {
+    mode: "interactive",
+    // Template text is moved, never evaluated.
+    systemPrompt: "Draft {{topic}}; \\{{literal}} stays.",
+    let: { topic: "item.key" },
+  });
+  assertEquals(stages[1].work, {
+    mode: "method",
+    method: {
+      modelIdOrName: "@acme/planner",
+      methodName: "generate",
+      inputs: { mode: "strict" },
+      passAsInputs: ["workItem", "feedback"],
+    },
+    let: { workItem: "item.key", feedback: "null" },
+  });
+  assertEquals(stages[2].work, {
+    mode: "workflow",
+    workflow: { name: "@acme/tests", passAsInputs: ["ref"] },
+    let: { ref: "item.key" },
+  });
+  // No bindings, nothing to move; a stage with no work is left alone.
+  assertEquals(stages[3], (before.stages as JsonObject[])[3]);
+  assertEquals(stages[4], { id: "done", terminal: true });
+  assert(readDefinition(v1).ok);
+});
+
+Deno.test("upgrade 1 to 2: an upgraded call sends exactly the inputs v1 sent", () => {
+  // v1 sent the literal inputs plus every binding.
+  const read = readDefinition(v1Stages());
+  assert(read.ok);
+  const plan = read.value.stages[1].work;
+  const call = plan?.method;
+  assertEquals(
+    new Set([
+      ...Object.keys(call?.inputs ?? {}),
+      ...(call?.passAsInputs ?? []),
+    ]),
+    new Set(["mode", "workItem", "feedback"]),
+  );
+});
+
+Deno.test("upgrade 1 to 2: a call's target, plain text in v1, stays plain text", () => {
+  // v1 never filled a target, so `{{deploy}}` in one was literal text; v2
+  // would read it as an undeclared placeholder and refuse the definition.
+  const v1 = {
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "go",
+        initial: true,
+        work: {
+          mode: "workflow",
+          workflow: { name: "{{deploy}}" },
+        },
+        transitions: [{ name: "next", to: "call" }],
+      },
+      {
+        id: "call",
+        work: {
+          mode: "method",
+          method: { modelIdOrName: "\\{{kept}}", methodName: "run" },
+        },
+        transitions: [{ name: "finish", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+  const upgraded = upgradeDefinition(v1).definition as JsonObject;
+  const stages = upgraded.stages as JsonObject[];
+  assertEquals(
+    (stages[0].work as JsonObject).workflow,
+    { name: "\\{{deploy}}" },
+  );
+  assertEquals(
+    (stages[1].work as JsonObject).method,
+    { modelIdOrName: "\\\\{{kept}}", methodName: "run" },
+  );
+  const read = readDefinition(v1);
+  assert(read.ok, read.ok ? "" : read.errors.join("\n"));
+});

@@ -1,0 +1,88 @@
+# Frozen at schemaVersion 1 (swamp-club #3190): a factory whose work calls a
+# model method and a workflow, written as v1 wrote them: every binding sent as
+# an input, beside literal inputs, checked by an inputsSchema, and named by a
+# tracker entry on dispatch. Never edit it; definition_versions_test checks it
+# still upgrades to call-stages.expected.json and its scenarios still pass.
+definition:
+  schemaVersion: 1
+  description: >-
+    A model method writes a plan, fed its earlier rejection on a retry; a
+    workflow then tests the plan's ref.
+  stages:
+    - id: plan
+      initial: true
+      tracker:
+        entries:
+          - on: dispatch
+            step: planning
+            emoji: "📝"
+            summary: "Planning {{$input.workItem}} at depth {{$input.depth}}"
+      description: A model method writes the plan.
+      work:
+        mode: method
+        method:
+          modelIdOrName: "@acme/planner"
+          methodName: generate
+          inputs: { depth: 2 }
+        bindings:
+          workItem: item.key
+          feedback: >-
+            "plan" in validations.artifacts ? validations.artifacts["plan"] :
+            null
+        inputsSchema:
+          type: object
+          required: [depth, workItem]
+          properties:
+            depth: { type: integer }
+            workItem: { type: string }
+        resultEvidence: plan-run
+      artifacts:
+        - name: plan
+          schema:
+            type: object
+            required: [ref]
+            additionalProperties: false
+            properties:
+              ref: { type: string, minLength: 1 }
+      transitions:
+        - name: submit
+          to: test
+          gates:
+            - type: artifact-exists
+              config: { artifact: plan }
+    - id: test
+      description: A workflow tests the plan's ref.
+      work:
+        mode: workflow
+        workflow:
+          name: "@acme/run-tests"
+        bindings:
+          ref: artifacts["plan"].payload.ref
+        resultEvidence: test-run
+      transitions:
+        - name: finish
+          to: done
+          gates:
+            - type: evidence-recorded
+              config: { name: test-run }
+    - id: done
+      terminal: true
+scenarios:
+  - scenario: plan-then-test
+    description: >-
+      A plan the schema refuses is kept as feedback; the next one passes, and
+      the tests' run finishes the item.
+    steps:
+      - record: { artifact: plan }
+        payload: { ref: "" }
+        expect: { refused: "" }
+      - record: { artifact: plan }
+        payload: { ref: main }
+      - move: submit
+      - expect: { stage: test }
+      - move: finish
+        expect: { refused: "" }
+      - record: { evidence: test-run }
+        payload: { status: succeeded, runId: run-1 }
+      - move: finish
+      - expect: { stage: done }

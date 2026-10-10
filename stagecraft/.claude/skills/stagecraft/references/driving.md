@@ -245,7 +245,7 @@ team-1 (Add a list method): active at stage 'plan-review' cycle 1
 | `a person records: <name>, ...`       | Evidence of this stage that a person gives, such as their feedback. Never record it yourself: record the person's words, on their behalf.                            |
 | `work: <mode>; dispatches this cycle` | The stage's work mode, and how many dispatches this stage and cycle has had of its cap; `interruptions I of M` once any was interrupted.                             |
 | `open dispatch <id> since ...`        | A dispatch of this stage and cycle with no outcome: work in flight, or work that died. See [Outcomes, restarts and checkpoints](#outcomes-restarts-and-checkpoints). |
-| `dispatch not ready: ...`             | The stage's packet cannot be built: a binding failed or a prompt placeholder has no value. Fix the run data it names.                                                |
+| `dispatch not ready: ...`             | The stage's packet cannot be built: a let value failed, a placeholder has no value, or a call's target is not a name swamp accepts. Fix the run data it names.       |
 | `rejected <kind> '<name>' (...): ...` | The latest rejection of that product, kept as retry feedback until the product is recorded.                                                                          |
 
 To read a recorded product itself (to show a person, or to check a value), get
@@ -332,11 +332,13 @@ Then, by `mode`:
   an approval note, never in a prompt. Each subagent writes its result to the
   files its prompt names. Record those files as they are (see
   [Record products](#record-products)).
-- **workflow** or **method**: run the workflow or model method the packet names,
-  with the packet's `inputs`. Then record the stage's result evidence with the
-  real run id and outcome: `{"status":"succeeded","runId":"<run id>"}`, or
-  `failed`. Never record a run you did not see finish. (The bundled factory
-  definition has no such stage.)
+- **workflow** or **method**: run the workflow or model method the packet names
+  (its `workflow`, or its `method`'s `modelIdOrName` and `methodName`), with the
+  packet's `inputs`. Call exactly that name: the engine filled any placeholders
+  in it, so never call the definition's template or build the name yourself.
+  Then record the stage's result evidence with the real run id and outcome:
+  `{"status":"succeeded","runId":"<run id>"}`, or `failed`. Never record a run
+  you did not see finish. (The bundled factory definition has no such stage.)
 
 A factory definition is in one stage at a time, so work that runs in parallel
 does so inside one stage. Such a stage names a wrapper workflow whose jobs run
@@ -478,7 +480,7 @@ finding ids with its own number, so the join repeats no id. Fields other than
 jq -s '.[0] + {findings: map(.findings) | add}' <result-path-1> <result-path-2> > <joined-path>
 ```
 
-Recording the same name again makes a new version; gates and bindings read the
+Recording the same name again makes a new version; gates and let values read the
 latest. A `findings` artifact (a review) holds
 `{"findings":[{"id":...,"severity":"critical|high|medium|low","description":...}]}`.
 To resolve a finding, record the artifact again with `"resolved":true` and a
@@ -768,7 +770,7 @@ A failed write exits non-zero with its reason. Nothing is ever half-written.
 | `runaway loop suspected: stage ... has had N dispatch(es)`             | The dispatch cap for this stage and cycle. The item is now parked, waiting on a dispatch override, and the journal says so.         | Run `publish` so the ticket shows the park. Stop. The work keeps failing: tell the person what went wrong. Only on their word, grant a dispatch override, then `publish` again. |
 | `restart loop suspected: stage ... has had N interrupted dispatch(es)` | The interruption cap for this stage and cycle. The dispatch you superseded is closed, and the item is parked like the dispatch cap. | Run `publish`. Stop. Something keeps killing the work: tell the person what. Only on their word, grant a dispatch override (it lifts this cap too), then `publish` again.       |
 | `stale: dispatch N was recorded after this packet was built`           | Another dispatch of this item was recorded while yours was being built. Nothing was written, and nothing parked.                    | Read `status`, check whether that dispatch is yours to wait on, then dispatch again if the work still needs doing.                                                              |
-| `stage '<stage>' is not ready to dispatch:`                            | A binding failed or a prompt placeholder has no value.                                                                              | Record the product the binding reads, then dispatch again.                                                                                                                      |
+| `stage '<stage>' is not ready to dispatch:`                            | A let value failed, a placeholder has no value, or a call's target is not a name swamp accepts.                                     | Record the product the let value reads, then dispatch again.                                                                                                                    |
 | `the work item finished at stage '<stage>'`                            | It has finished.                                                                                                                    | Nothing to do.                                                                                                                                                                  |
 
 Overrides, on the person's word:

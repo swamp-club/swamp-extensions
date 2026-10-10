@@ -17,7 +17,11 @@
 import { assert, assertEquals } from "@std/assert";
 import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch, buildSubagentPrompts } from "./dispatch.ts";
-import { findStage, parseDefinition } from "./definition_schema.ts";
+import {
+  DEFINITION_SCHEMA_VERSION,
+  findStage,
+  parseDefinition,
+} from "./definition_schema.ts";
 import { FINDINGS_SCHEMA, OUTCOME_SCHEMA } from "./payload_schema.ts";
 import {
   advance,
@@ -88,7 +92,7 @@ async function atReview(text: string) {
   return { run, context: await buildCelContext(run, store) };
 }
 
-Deno.test("dispatch: an interactive stage gets its prompt rendered from bindings", async () => {
+Deno.test("dispatch: an interactive stage gets its prompt rendered from let values", async () => {
   const store = memoryStore();
   const env = testEnv();
   await startRun(
@@ -117,7 +121,7 @@ Deno.test("dispatch: an interactive stage gets its prompt rendered from bindings
   assert(packet.ready);
 });
 
-Deno.test("dispatch: a workflow stage merges literal inputs with bindings and checks inputsSchema", async () => {
+Deno.test("dispatch: a workflow stage merges literal inputs with passed let values and checks inputsSchema", async () => {
   const { run, context } = await atReview("long enough");
   const packet = buildDispatch(DEFINITION, run, context);
   assertEquals(packet.workflow, "@acme/tests");
@@ -134,20 +138,20 @@ Deno.test("dispatch: a workflow stage merges literal inputs with bindings and ch
   );
 });
 
-Deno.test("dispatch: a failing binding and its unfilled placeholder are reported, not thrown", async () => {
+Deno.test("dispatch: a failing let value and its unfilled placeholder are reported, not thrown", async () => {
   const definition = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "review",
         initial: true,
         // Declared, so the definition is valid, but never recorded: the
-        // binding fails when the stage is dispatched.
+        // let value fails when the stage is dispatched.
         artifacts: [{ name: "plan", schema: { type: "object" } }],
         work: {
           mode: "dispatch",
           systemPrompt: "Review {{plan}}.",
-          bindings: { plan: 'artifacts["plan"].payload.summary' },
+          let: { plan: 'artifacts["plan"].payload.summary' },
         },
         transitions: [{ name: "done", to: "done" }],
       },
@@ -179,7 +183,7 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
   assert(!packet.ready);
   assertEquals(packet.prompt, undefined);
   assert(
-    packet.problems.some((p) => p.startsWith("binding 'plan'")),
+    packet.problems.some((p) => p.startsWith("let 'plan'")),
     packet.problems.join(),
   );
   assert(packet.problems.some((p) => p.includes("{{plan}} has no value")));
@@ -187,14 +191,14 @@ Deno.test("dispatch: a failing binding and its unfilled placeholder are reported
   assertEquals(packet.subagents, 1);
 });
 
-Deno.test("dispatch: a binding whose value has no JSON form is reported as a problem", async () => {
+Deno.test("dispatch: a let value whose value has no JSON form is reported as a problem", async () => {
   const definition = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",
         initial: true,
-        work: { mode: "interactive", bindings: { raw: "b'ab'" } },
+        work: { mode: "interactive", let: { raw: "b'ab'" } },
         transitions: [{ name: "done", to: "done" }],
       },
       { id: "done", terminal: true },
@@ -225,7 +229,7 @@ Deno.test("dispatch: a binding whose value has no JSON form is reported as a pro
   assert(!packet.ready);
   assert(
     packet.problems.some((p) =>
-      p.includes("binding 'raw'") && p.includes("no JSON form")
+      p.includes("let 'raw'") && p.includes("no JSON form")
     ),
     packet.problems.join(),
   );
@@ -246,7 +250,7 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
   } as const;
   for (const [mode, call] of Object.entries(calls)) {
     const definition = parseDefinition({
-      schemaVersion: 1,
+      schemaVersion: DEFINITION_SCHEMA_VERSION,
       description: marker("definition"),
       stages: [
         {
@@ -259,7 +263,7 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
             systemPrompt: "Do {{what}}.",
             command: "run {{what}}",
             constraints: "Stay small.",
-            bindings: { what: "item.key" },
+            let: { what: "item.key" },
             ...call,
           },
           artifacts: [{
@@ -331,7 +335,7 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
 
 const REVIEWING = (() => {
   const parsed = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "draft",
@@ -352,7 +356,7 @@ const REVIEWING = (() => {
           mode: "dispatch",
           skills: ["code-review", "security-review"],
           systemPrompt: "Review {{plan}}.\n",
-          bindings: { plan: 'artifacts["plan"].payload.summary' },
+          let: { plan: 'artifacts["plan"].payload.summary' },
           context: { inject: ["plan"] },
         },
         artifacts: [{ name: "plan-review", kind: "findings", reviews: "plan" }],
@@ -566,7 +570,7 @@ const STAGECRAFT_INPUTS_SCHEMA = {
 
 function methodStage(work: Record<string, unknown> = {}, mode = "method") {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",
@@ -754,4 +758,197 @@ Deno.test("dispatch: a subagent prompt carries the checkpoint read only when the
   });
   assert(prompt.prompt.includes(resumed.resume!.read), prompt.prompt);
   assert(prompt.prompt.startsWith("Do the work.\n\n---\n\n"));
+});
+
+// --- a call's target and its inputs (#3190) --------------------------------
+
+/** The packet for a one-stage definition whose work is `work`, dispatched
+ * on work item `key`. */
+async function packetForWork(work: Record<string, unknown>, key = "wi-7") {
+  const definition = parseDefinition({
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
+    stages: [
+      {
+        id: "work",
+        initial: true,
+        work,
+        transitions: [{ name: "done", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  if (!definition.ok) throw new Error(definition.errors.join("\n"));
+  const store = memoryStore();
+  await startRun(
+    store,
+    definition.value,
+    {
+      key,
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:t",
+    },
+    ALICE,
+    testEnv(),
+  );
+  const run = await loadRun(store);
+  if (run === null) throw new Error("not started");
+  return buildDispatch(
+    definition.value,
+    run,
+    await buildCelContext(run, store),
+  );
+}
+
+Deno.test("dispatch: a method stage's model is filled from let values", async () => {
+  const packet = await packetForWork({
+    mode: "method",
+    method: { modelIdOrName: "agent-{{workItem}}", methodName: "generate" },
+    let: { workItem: "item.key" },
+  });
+  assertEquals(packet.problems, []);
+  assertEquals(packet.method, {
+    modelIdOrName: "agent-wi-7",
+    methodName: "generate",
+  });
+  // Not passed, so not sent: swamp refuses an input a method does not declare.
+  assertEquals(packet.inputs, {});
+  assertEquals(packet.values, { workItem: "wi-7" });
+});
+
+Deno.test("dispatch: a workflow stage's name is filled from let values", async () => {
+  const packet = await packetForWork({
+    mode: "workflow",
+    workflow: { name: "@acme/{{suite}}" },
+    let: { suite: "'smoke'" },
+  });
+  assertEquals(packet.problems, []);
+  assertEquals(packet.workflow, "@acme/smoke");
+});
+
+Deno.test("dispatch: a target value that is not a non-empty string fails the dispatch", async () => {
+  for (
+    const [expr, words] of [
+      ["null", "null"],
+      ["''", "an empty string"],
+      ["7", "number 7"],
+      ["{'a': 1}", "an object"],
+      ["[1]", "a list"],
+    ]
+  ) {
+    const packet = await packetForWork({
+      mode: "method",
+      method: { modelIdOrName: "agent-{{who}}", methodName: "run" },
+      let: { who: expr },
+    });
+    assert(!packet.ready, expr);
+    assertEquals(packet.method, undefined, expr);
+    assertEquals(
+      packet.problems,
+      [
+        `method.modelIdOrName placeholder {{who}} needs a non-empty string, not ${words}`,
+      ],
+      expr,
+    );
+  }
+});
+
+Deno.test("dispatch: a let value that fails is reported once, not again for the target", async () => {
+  const packet = await packetForWork({
+    mode: "method",
+    method: { modelIdOrName: "agent-{{who}}", methodName: "run" },
+    let: { who: "item.nothing.deeper" },
+  });
+  assert(!packet.ready);
+  assertEquals(packet.problems.length, 1, packet.problems.join("\n"));
+  assert(packet.problems[0].startsWith("let 'who'"), packet.problems[0]);
+});
+
+Deno.test("dispatch: a filled target must be a name swamp would create", async () => {
+  for (
+    const [value, rule] of [
+      ["two words", "lowercase alphanumeric"],
+      ["line\nbreak", "lowercase alphanumeric"],
+      ["Upper", "lowercase alphanumeric"],
+      ["-flag", "lowercase alphanumeric"],
+      ["a/b", "path traversal"],
+    ]
+  ) {
+    const method = await packetForWork({
+      mode: "method",
+      method: { modelIdOrName: "{{who}}", methodName: "run" },
+      let: { who: JSON.stringify(value) },
+    });
+    assert(!method.ready, value);
+    assertEquals(method.method, undefined, value);
+    assertEquals(method.problems.length, 1, value);
+    assert(
+      method.problems[0].startsWith(
+        `method.modelIdOrName '{{who}}' gave ${JSON.stringify(value)}`,
+      ) && method.problems[0].includes(rule),
+      method.problems[0],
+    );
+  }
+  // A workflow name may not hold '_', which a model name may.
+  const workflow = await packetForWork({
+    mode: "workflow",
+    workflow: { name: "{{suite}}" },
+    let: { suite: "'snake_case'" },
+  });
+  assert(!workflow.ready);
+  assert(
+    workflow.problems[0].includes("Workflow name must be lowercase"),
+    workflow.problems[0],
+  );
+  const model = await packetForWork({
+    mode: "method",
+    method: { modelIdOrName: "{{who}}", methodName: "run" },
+    let: { who: "'snake_case'" },
+  });
+  assertEquals(model.problems, []);
+});
+
+Deno.test("dispatch: a literal target is left as written", async () => {
+  // It may name a model made before swamp's naming rule; validate warns.
+  const packet = await packetForWork({
+    mode: "method",
+    method: { modelIdOrName: "My Legacy Server", methodName: "run" },
+  });
+  assertEquals(packet.problems, []);
+  assertEquals(packet.method?.modelIdOrName, "My Legacy Server");
+});
+
+Deno.test("dispatch: passAsInputs sends let values with their types kept", async () => {
+  const packet = await packetForWork({
+    mode: "method",
+    method: {
+      modelIdOrName: "m",
+      methodName: "run",
+      inputs: { mode: "strict" },
+      passAsInputs: ["record", "none", "count"],
+    },
+    let: {
+      record: "{'a': [1, 2]}",
+      none: "null",
+      count: "3",
+      unsent: "'kept back'",
+    },
+  });
+  assertEquals(packet.problems, []);
+  assertEquals(packet.inputs, {
+    mode: "strict",
+    record: { a: [1, 2] },
+    none: null,
+    count: 3,
+  });
+  assertEquals(packet.values.unsent, "kept back");
+});
+
+Deno.test("dispatch: a literal target's escapes resolve, as an upgraded v1 target needs", async () => {
+  const packet = await packetForWork({
+    mode: "workflow",
+    workflow: { name: "\\{{deploy}}" },
+  });
+  assertEquals(packet.problems, []);
+  assertEquals(packet.workflow, "{{deploy}}");
 });

@@ -24,6 +24,8 @@ import {
   type StageSpec,
   type TransitionSpec,
 } from "./definition_schema.ts";
+import { modelNameViolation, workflowNameViolation } from "./swamp_names.ts";
+import { hasPlaceholders, renderTarget } from "./template.ts";
 
 // ---------------------------------------------------------------------------
 // Graph analysis of a parsed factory definition: the design problems a work
@@ -56,7 +58,8 @@ export type FindingCode =
   | "undescribed-way-back"
   | "product-missing-on-path"
   | "needs-cycle-override"
-  | "exploration-truncated";
+  | "exploration-truncated"
+  | "target-name";
 
 export interface GraphFinding {
   code: FindingCode;
@@ -1078,7 +1081,7 @@ export function analyzeDefinition(
   // person's feedback): absent on the first pass by design, so not reported.
   // A product CEL reads without testing for it is reported on any path that
   // lacks it, with neither exemption: the read fails at run time
-  // (gate-never-passes assumes cel gates can pass). Bindings are evaluated
+  // (gate-never-passes assumes cel gates can pass). Let values are evaluated
   // when the stage is entered, before it records anything, so the stage's own
   // products do not count for them.
   const fromOwnLoop = (id: string, kind: ProductKind, name: string) => {
@@ -1114,13 +1117,13 @@ export function analyzeDefinition(
         onEntry: false,
       });
     });
-    for (const [binding, expr] of Object.entries(stage.work?.bindings ?? {})) {
+    for (const [letName, expr] of Object.entries(stage.work?.let ?? {})) {
       for (const [kind, name] of celReads(expr)) {
         refs.push({
-          path: ["stages", index, "work", "bindings", binding],
+          path: ["stages", index, "work", "let", letName],
           kind,
           name,
-          what: `binding '${binding}' reads`,
+          what: `let '${letName}' reads`,
           source: "cel",
           onEntry: true,
         });
@@ -1232,6 +1235,50 @@ export function analyzeDefinition(
       `the structural pass stopped at ${maxStates} states; its findings are warnings, not errors`,
     );
   }
+
+  // A literal call target swamp would not create today. Only a warning: it
+  // may name a model or workflow made before swamp's naming rule. A target
+  // with placeholders is checked when it is dispatched (dispatch.ts).
+  doc.stages.forEach((stage, index) => {
+    const work = stage.work;
+    const targets = [
+      ...(work?.workflow !== undefined
+        ? [{
+          field: "workflow",
+          key: "name",
+          name: work.workflow.name,
+          violation: workflowNameViolation,
+        }]
+        : []),
+      ...(work?.method !== undefined
+        ? [{
+          field: "method",
+          key: "modelIdOrName",
+          name: work.method.modelIdOrName,
+          violation: modelNameViolation,
+        }]
+        : []),
+    ];
+    for (const { field, key, name, violation } of targets) {
+      if (hasPlaceholders(name)) continue;
+      // As dispatch calls it: its `\{{` escapes resolved.
+      const literal = renderTarget(name, {});
+      const called = literal.ok ? literal.text : name;
+      const broken = violation(called);
+      if (broken === undefined) continue;
+      report(
+        warnings,
+        "target-name",
+        ["stages", index, "work", field, key],
+        `stage '${stage.id}' calls '${called}', a name swamp would not create ` +
+          `today (${broken}); if it is an older ${
+            field === "workflow" ? "workflow" : "model"
+          }, ` +
+          "it still works, otherwise fix the name",
+        { stage: stage.id },
+      );
+    }
+  });
 
   const sort = (list: { finding: GraphFinding; path: Path }[]) =>
     list.sort((a, b) =>

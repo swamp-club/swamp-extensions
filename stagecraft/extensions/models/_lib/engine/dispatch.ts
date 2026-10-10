@@ -27,13 +27,15 @@ import {
 import type { RunRecord } from "./run_record.ts";
 import { nextDispatchId, resumeCheckpoint } from "./run_ops.ts";
 import { checkpointName, payloadName } from "./run_store.ts";
-import { renderTemplate } from "./template.ts";
+import { modelNameViolation, workflowNameViolation } from "./swamp_names.ts";
+import { hasPlaceholders, renderTarget, renderTemplate } from "./template.ts";
 
 // ---------------------------------------------------------------------------
-// The dispatch packet: what the current stage's work is, with its bindings
-// resolved, its inputs merged and checked, and its prompt rendered. Whoever
-// does the work (an agent following the skill, or later a driver) reads the
-// packet; recordDispatch stores its inputs and prompt for replay.
+// The dispatch packet: what the current stage's work is, with its let values
+// resolved, its inputs merged and checked, and its prompt and target
+// rendered. Whoever does the work (an agent following the skill, or later a
+// driver) reads the packet; recordDispatch stores its inputs, prompt and
+// target for replay.
 //
 // The packet names the products the stage's work must record, each with the
 // schema its payload is checked against; evidence a person records
@@ -43,9 +45,10 @@ import { renderTemplate } from "./template.ts";
 // each result. The driver sends them as they are and records the result files
 // unedited, so what is recorded is what was sent and what came back.
 //
-// Problems (a binding that fails, a placeholder with no value, inputs that
-// break inputsSchema) are reported in the packet, and ready is false, rather
-// than thrown: the caller can show them and fix the run data.
+// Problems (a let value that fails, a placeholder with no value, a target
+// that is not a name swamp would create, inputs that break inputsSchema) are
+// reported in the packet, and ready is false, rather than thrown: the caller
+// can show them and fix the run data.
 // ---------------------------------------------------------------------------
 
 /** A product the stage declares, with the contract its payload must meet. */
@@ -91,11 +94,14 @@ export interface DispatchPacket {
   /** How many subagents a dispatch stage runs: one per skill, or one
    * reviewer when no skills are listed. Zero for other modes. */
   subagents: number;
-  /** Resolved binding values. */
+  /** Resolved let values. */
   values: Record<string, Json>;
-  /** For workflow and method stages: literal inputs plus bindings. */
+  /** For workflow and method stages: literal inputs plus the let values the
+   * call passes. */
   inputs?: Record<string, Json>;
+  /** The workflow to run, its name rendered. */
   workflow?: string;
+  /** The model method to call, its model rendered. */
   method?: { modelIdOrName: string; methodName: string };
   prompt?: string;
   command?: string;
@@ -122,12 +128,16 @@ export function buildDispatch(
   const problems: string[] = [];
 
   const values: Record<string, Json> = {};
-  for (const [name, expression] of Object.entries(work.bindings ?? {})) {
+  // Let values that failed to resolve: already a problem, so a placeholder
+  // naming one is not reported again.
+  const failedLet = new Set<string>();
+  for (const [name, expression] of Object.entries(work.let ?? {})) {
     try {
       values[name] = evaluateCel(expression, context);
     } catch (error) {
+      failedLet.add(name);
       problems.push(
-        `binding '${name}' (${expression}) failed: ${
+        `let '${name}' (${expression}) failed: ${
           error instanceof Error ? error.message.split("\n")[0] : String(error)
         }`,
       );
@@ -156,6 +166,43 @@ export function buildDispatch(
       }" && version == ${found.checkpoint.version}' --select content ` +
       "--single --json",
   };
+
+  // A call's target with its placeholders filled. Filled from run data, it
+  // must be a name swamp would create (swamp_names.ts), so a stray space,
+  // newline or brace never reaches a swamp command line. A literal target is
+  // left as written: it may name a model made before swamp's rule, and the
+  // factory's validate warns about it (graph.ts).
+  const target = (
+    field: string,
+    template: string,
+    violation: (name: string) => string | undefined,
+  ): string | undefined => {
+    const rendered = renderTarget(template, values);
+    // Literal: only its `\{{` escapes resolve, as written.
+    if (!hasPlaceholders(template) && rendered.ok) return rendered.text;
+    if (!rendered.ok) {
+      for (const { name, value } of rendered.problems) {
+        if (failedLet.has(name)) continue;
+        problems.push(
+          `${field} placeholder {{${name}}} needs a non-empty string, not ${
+            describe(value)
+          }`,
+        );
+      }
+      return undefined;
+    }
+    const broken = violation(rendered.text);
+    if (broken !== undefined) {
+      problems.push(
+        `${field} '${template}' gave ${
+          JSON.stringify(rendered.text)
+        }, which swamp would not accept: ${broken}`,
+      );
+      return undefined;
+    }
+    return rendered.text;
+  };
+
   const packet: DispatchPacket = {
     stage: stage.id,
     cycle: context.stage.cycle,
@@ -180,10 +227,15 @@ export function buildDispatch(
   if (work.constraints !== undefined) packet.constraints = work.constraints;
 
   if (work.mode === "workflow" || work.mode === "method") {
-    const literal = jsonSafe(
-      work.workflow?.inputs ?? work.method?.inputs ?? {},
-    ) as Record<string, Json>;
-    const inputs: Record<string, Json> = { ...literal, ...values };
+    const call = work.workflow ?? work.method;
+    const literal = jsonSafe(call?.inputs ?? {}) as Record<string, Json>;
+    // Only the let values the call passes: swamp refuses a model-method
+    // input the method does not declare. A value that failed to resolve is
+    // already a problem.
+    const inputs: Record<string, Json> = { ...literal };
+    for (const name of call?.passAsInputs ?? []) {
+      if (Object.hasOwn(values, name)) inputs[name] = values[name];
+    }
     // Filled only when the stage declares it and nothing else supplies it:
     // swamp refuses an input a method does not declare, and gives a method
     // no way to read another's arguments, so the stage's inputsSchema is
@@ -200,12 +252,26 @@ export function buildDispatch(
       inputs[STAGECRAFT_INPUT] = supplied as unknown as Json;
     }
     packet.inputs = inputs;
-    if (work.workflow !== undefined) packet.workflow = work.workflow.name;
+    if (work.workflow !== undefined) {
+      const name = target(
+        "workflow.name",
+        work.workflow.name,
+        workflowNameViolation,
+      );
+      if (name !== undefined) packet.workflow = name;
+    }
     if (work.method !== undefined) {
-      packet.method = {
-        modelIdOrName: work.method.modelIdOrName,
-        methodName: work.method.methodName,
-      };
+      const model = target(
+        "method.modelIdOrName",
+        work.method.modelIdOrName,
+        modelNameViolation,
+      );
+      if (model !== undefined) {
+        packet.method = {
+          modelIdOrName: model,
+          methodName: work.method.methodName,
+        };
+      }
     }
     if (work.inputsSchema !== undefined) {
       for (const error of validatePayload(work.inputsSchema, inputs) ?? []) {
@@ -372,4 +438,16 @@ function kindOf(
 
 function indent(text: string): string {
   return text.split("\n").map((line) => `    ${line}`).join("\n");
+}
+
+/** A value that cannot fill a target, in words. */
+function describe(value: unknown): string {
+  if (value === undefined) return "no value";
+  if (value === null) return "null";
+  if (value === "") return "an empty string";
+  if (Array.isArray(value)) return "a list";
+  if (typeof value === "object") return "an object";
+  return `${typeof value === "bigint" ? "number" : typeof value} ${
+    String(value)
+  }`;
 }

@@ -63,9 +63,13 @@ export interface WorkView {
   mode: string;
   description?: string;
   skills: string[];
-  /** The workflow, or model.method, a workflow or method stage calls. */
+  /** The workflow, or model.method, a workflow or method stage calls, as
+   * written: placeholders are shown, never filled. */
   call?: string;
-  bindings: string[];
+  /** The stage's let names. */
+  let: string[];
+  /** The let values a workflow or method call sends as inputs. */
+  passAsInputs: string[];
   inject: string[];
   resultEvidence?: string;
   systemPrompt?: string;
@@ -283,7 +287,8 @@ export function designView(
       const work: WorkView = {
         mode: w.mode,
         skills: w.skills ?? [],
-        bindings: Object.keys(w.bindings ?? {}),
+        let: Object.keys(w.let ?? {}),
+        passAsInputs: (w.workflow ?? w.method)?.passAsInputs ?? [],
         inject: w.context?.inject ?? [],
       };
       if (w.workflow !== undefined) work.call = w.workflow.name;

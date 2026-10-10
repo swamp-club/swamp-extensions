@@ -17,7 +17,10 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "./fake_swamp.ts";
 import { computeMetrics, type Metrics } from "./metrics.ts";
-import { parseDefinition } from "./definition_schema.ts";
+import {
+  DEFINITION_SCHEMA_VERSION,
+  parseDefinition,
+} from "./definition_schema.ts";
 import { expectedOf, recordDispatch, recordOutcome, start } from "./run_ops.ts";
 import type { RunRecord } from "./run_record.ts";
 import { contextStore, loadRun } from "./run_store.ts";
@@ -580,7 +583,7 @@ Deno.test("metrics: a dispatch refused at the cap waits on a dispatch override u
 
 Deno.test("metrics: an interrupted dispatch is not a retry, and dispatches without an outcome are open only in the current entry", () => {
   const parsed = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",

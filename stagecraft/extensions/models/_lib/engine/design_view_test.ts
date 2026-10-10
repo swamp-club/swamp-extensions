@@ -20,6 +20,7 @@ import { describeGate, type DesignView, designView } from "./design_view.ts";
 import { parseExample } from "./fake_swamp.ts";
 import { analyzeDefinition } from "./graph.ts";
 import {
+  DEFINITION_SCHEMA_VERSION,
   type FactoryDefinition,
   parseDefinition,
 } from "./definition_schema.ts";
@@ -166,13 +167,44 @@ Deno.test("design view: the build-swamp-extension definition shows its handoffs"
     const shown = v.stages.find((x) => x.id === s.id)?.work;
     assertEquals(shown?.mode, s.work?.mode);
     assertEquals(shown?.inject, s.work?.context?.inject ?? []);
-    assertEquals(shown?.bindings, Object.keys(s.work?.bindings ?? {}));
+    assertEquals(shown?.let, Object.keys(s.work?.let ?? {}));
   }
+});
+
+Deno.test("design view: a call's target is shown as written, never filled", () => {
+  const v = view(definition(`
+schemaVersion: ${DEFINITION_SCHEMA_VERSION}
+stages:
+  - id: plan
+    initial: true
+    work:
+      mode: method
+      method:
+        modelIdOrName: "agent-{{agent}}"
+        methodName: generate
+        passAsInputs: [workItem]
+      let: { agent: item.key, workItem: item.key }
+    transitions: [{ name: next, to: test }]
+  - id: test
+    work:
+      mode: workflow
+      workflow: { name: "{{suite}}-tests" }
+      let: { suite: "'smoke'" }
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  const [plan, test] = v.stages;
+  assertEquals(plan.work?.call, "agent-{{agent}}.generate");
+  assertEquals(plan.work?.let, ["agent", "workItem"]);
+  assertEquals(plan.work?.passAsInputs, ["workItem"]);
+  assertEquals(test.work?.call, "{{suite}}-tests");
+  assertEquals(test.work?.passAsInputs, []);
 });
 
 Deno.test("design view: gate and work descriptions are carried", () => {
   const v = view(definition(`
-schemaVersion: 1
+schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
   - id: plan
     initial: true
@@ -204,7 +236,7 @@ stages:
 });
 
 const FLAWED = `
-schemaVersion: 1
+schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 description: A definition with design errors.
 stages:
   - id: plan

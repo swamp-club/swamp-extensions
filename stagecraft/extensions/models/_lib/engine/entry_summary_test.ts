@@ -92,7 +92,7 @@ Deno.test("entry summary: an unknown event value or a malformed count is an erro
     const [summary, message] of [
       ["{{$when}}", "{{$when}} is not a summary value"],
       ["{{$version.Plan}}", "'Plan' is not a product name"],
-      ["{{$input.a-b}}", "'a-b' is not a binding or input name"],
+      ["{{$input.a-b}}", "'a-b' is not a let or input name"],
       ["{{count a b}}", "a count is {{count <field>}}"],
       ["{{count a b=c d}}", "a count is {{count <field>}}"],
       ["{{count a-b}}", "a count is {{count <field>}}"],

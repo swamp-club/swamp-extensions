@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 1
+  schemaVersion: 2
   description: |-
     The smallest useful factory definition: one stage of work, then done.
 

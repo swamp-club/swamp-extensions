@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 1
+  schemaVersion: 2
   description: |-
     Build a swamp extension from plan to release: plan it, have the plan
     reviewed, implement it, check it, have the change reviewed, and release it.
@@ -30,7 +30,7 @@ definition:
     approved, how many findings each review had, and which check attempt
     passed.
 
-    The CEL vocabulary in bindings and cel gates is defined in
+    The CEL vocabulary in let values and cel gates is defined in
     extensions/models/_lib/engine/cel_context.ts. This factory definition relies
     on one rule of it: in CEL, evidence["x"] is the latest record of x in the era
     from any stage, unlike the evidence-recorded gate, which only accepts evidence
@@ -199,7 +199,7 @@ definition:
           machinery bigger than the change, and give the smallest adequate fix
           for each finding. Report findings with severities, and do not soften
           the severity of a real defect.
-        bindings:
+        let:
           planSummary: artifacts["plan"].payload.summary
         context:
           inject: [plan]
@@ -340,7 +340,7 @@ definition:
           adding the commit it scored.
           If the extension has no manifest yet, record checks and ask for the
           quality waiver instead.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
         - name: checks
@@ -474,7 +474,7 @@ definition:
           machinery bigger than the change, and give the smallest adequate fix
           for each finding. Report findings with severities, and do not soften
           the severity of a real defect.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
           changeSummary: artifacts["change-summary"].payload.summary
         context:
@@ -542,7 +542,7 @@ definition:
           the version it published, or open a pull request (after posting the
           verification attestation, where the repository requires one) and
           record the release with its merge commit once it merges.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
         - name: release

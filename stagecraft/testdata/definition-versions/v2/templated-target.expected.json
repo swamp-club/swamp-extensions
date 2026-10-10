@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "description": "Each work item has its own planning agent, named after the item; the tests run under a workflow named for the plan's suite.",
+  "stages": [
+    {
+      "id": "plan",
+      "initial": true,
+      "tracker": {
+        "entries": [
+          {
+            "on": "dispatch",
+            "step": "planning",
+            "emoji": "📝",
+            "summary": "Planning {{$input.workItem}}"
+          }
+        ]
+      },
+      "description": "The work item's own agent writes the plan.",
+      "work": {
+        "mode": "method",
+        "systemPrompt": "Plan {{workItem}} for the {{agent}} agent.",
+        "method": {
+          "modelIdOrName": "agent-{{agent}}",
+          "methodName": "generate",
+          "inputs": {
+            "depth": 2
+          },
+          "passAsInputs": [
+            "workItem",
+            "feedback"
+          ]
+        },
+        "let": {
+          "agent": "item.key",
+          "workItem": "item.key",
+          "feedback": "\"plan\" in validations.artifacts ? validations.artifacts[\"plan\"] : null"
+        },
+        "inputsSchema": {
+          "type": "object",
+          "required": [
+            "depth",
+            "workItem"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "depth": {
+              "type": "integer"
+            },
+            "workItem": {
+              "type": "string"
+            },
+            "feedback": {}
+          }
+        },
+        "resultEvidence": "plan-run"
+      },
+      "artifacts": [
+        {
+          "name": "plan",
+          "schema": {
+            "type": "object",
+            "required": [
+              "ref",
+              "suite"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "suite": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "name": "submit",
+          "to": "test",
+          "gates": [
+            {
+              "type": "artifact-exists",
+              "config": {
+                "artifact": "plan"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test",
+      "description": "The plan's suite runs against its ref.",
+      "work": {
+        "mode": "workflow",
+        "workflow": {
+          "name": "{{suite}}-tests",
+          "passAsInputs": [
+            "ref"
+          ]
+        },
+        "let": {
+          "suite": "artifacts[\"plan\"].payload.suite",
+          "ref": "artifacts[\"plan\"].payload.ref"
+        },
+        "resultEvidence": "test-run"
+      },
+      "transitions": [
+        {
+          "name": "finish",
+          "to": "done",
+          "gates": [
+            {
+              "type": "evidence-recorded",
+              "config": {
+                "name": "test-run"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "terminal": true
+    }
+  ]
+}

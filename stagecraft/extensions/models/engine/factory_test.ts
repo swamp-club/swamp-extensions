@@ -387,7 +387,7 @@ Deno.test("factory: validate fails when the graph analysis stops at the state ca
     { id: "done", terminal: true },
   );
   const swamp = fakeSwamp();
-  swamp.factory("team", { schemaVersion: 1, stages });
+  swamp.factory("team", { schemaVersion: DEFINITION_SCHEMA_VERSION, stages });
   const error = await assertRejects(
     () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,

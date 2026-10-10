@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 1
+  schemaVersion: 2
   description: |-
     A post-incident review, from timeline to published: write the timeline,
     analyse what contributed and what to do about it, have the analysis
@@ -181,7 +181,7 @@ definition:
           investigation bigger than the incident, and give the smallest
           adequate fix for each finding. Report findings with severities, and
           do not soften the severity of a real defect.
-        bindings:
+        let:
           incident: artifacts["timeline"].payload.incident
         context:
           inject: [timeline, analysis]

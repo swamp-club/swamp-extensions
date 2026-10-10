@@ -1,4 +1,4 @@
-schemaVersion: 1
+schemaVersion: 2
 description: >-
   An LLM method produces a plan; a rejected payload is fed back on retry.
 stages:
@@ -8,12 +8,13 @@ stages:
     work:
       mode: method
       description: >-
-        The feedback binding is the whole validation record, null-safe: null
+        The feedback let value is the whole validation record, null-safe: null
         on the first attempt, the recorded rejection on a retry.
       method:
         modelIdOrName: "@my/planner"
         methodName: generate
-      bindings:
+        passAsInputs: [workItem, feedback]
+      let:
         workItem: item.key
         feedback: >-
           "plan" in validations.artifacts ? validations.artifacts["plan"] : null

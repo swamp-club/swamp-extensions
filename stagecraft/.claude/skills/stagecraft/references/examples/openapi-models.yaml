@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 1
+  schemaVersion: 2
   description: |-
     Turn an API's OpenAPI spec into swamp models: scope the spec, map its
     resources to models, have the mapping reviewed and approved, implement
@@ -220,7 +220,7 @@ definition:
           slice, and give the smallest adequate fix for each finding. Report
           findings with severities, and do not soften the severity of a real
           defect.
-        bindings:
+        let:
           api: artifacts["spec-scope"].payload.api
           source: artifacts["spec-scope"].payload.source
           extension: artifacts["mapping"].payload.extension
@@ -347,7 +347,7 @@ definition:
           lint and tests, and record checks. Then run
           swamp extension quality --json and record quality from its output,
           adding the commit it scored.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
         - name: checks
@@ -471,7 +471,7 @@ definition:
           machinery bigger than the change, and give the smallest adequate fix
           for each finding. Report findings with severities, and do not soften
           the severity of a real defect.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
           changeSummary: artifacts["change-summary"].payload.summary
         context:
@@ -516,7 +516,7 @@ definition:
           and show them what came back. Record live-try on their word, with
           onBehalfOf naming them: passed or failed with the method and what
           happened, or skipped with their reason. Then ask whether to release.
-        bindings:
+        let:
           api: artifacts["spec-scope"].payload.api
       evidence:
         - name: live-try
@@ -574,7 +574,7 @@ definition:
           swamp extension push and record release with the version it
           published and its URL, or record release with via local when the
           extension stays in this repository.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
         - name: release

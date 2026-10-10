@@ -1,4 +1,4 @@
-schemaVersion: 1
+schemaVersion: 2
 description: >-
   plan → adversarial plan review → implement → tests → adversarial code
   review → done, with loop-backs and human approval at plan and ship.
@@ -43,7 +43,7 @@ stages:
         You are an adversarial reviewer. Try to refute this plan:
         {{planSummary}}
         Record findings with severities; do not soften them.
-      bindings:
+      let:
         planSummary: artifacts["plan"].payload.summary
       context:
         inject: [plan]
@@ -102,7 +102,8 @@ stages:
       mode: workflow
       workflow:
         name: "@acme/run-tests"
-      bindings:
+        passAsInputs: [ref]
+      let:
         ref: evidence["change-request"].payload.headSha
       resultEvidence: test-run
     transitions:
@@ -126,7 +127,7 @@ stages:
       systemPrompt: |
         You are an adversarial reviewer. Review the change at {{changeUrl}}
         against the plan. Record findings with severities.
-      bindings:
+      let:
         changeUrl: evidence["change-request"].payload.url
       context:
         inject: [plan, change-summary]

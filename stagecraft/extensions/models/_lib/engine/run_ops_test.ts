@@ -15,7 +15,10 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "@std/assert";
-import { parseDefinition } from "./definition_schema.ts";
+import {
+  DEFINITION_SCHEMA_VERSION,
+  parseDefinition,
+} from "./definition_schema.ts";
 import {
   acceptProduct,
   advance,
@@ -229,6 +232,48 @@ Deno.test("recordDispatch: subagent prompts are stored as sent and survive a rou
   assert(parseRun(JSON.parse(JSON.stringify(plain.run))).ok);
 });
 
+Deno.test("recordDispatch: the call's resolved target is stored and survives a round trip", () => {
+  const env = testEnv();
+  const run = fresh(env);
+  const method = { modelIdOrName: "agent-wi-7", methodName: "generate" };
+  const called = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {}, method },
+    ALICE,
+    env,
+  );
+  assert(called.ok);
+  assertEquals(called.run.dispatches[0].method, method);
+  const parsed = parseRun(JSON.parse(JSON.stringify(called.run)));
+  assert(parsed.ok);
+  assertEquals(parsed.value.dispatches[0].method, method);
+  const ran = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {}, workflow: "smoke-tests" },
+    ALICE,
+    env,
+  );
+  assert(ran.ok);
+  assertEquals(ran.run.dispatches[0].workflow, "smoke-tests");
+  // A dispatch recorded before the target was kept still loads.
+  const plain = recordDispatch(
+    run,
+    DEFINITION,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(plain.ok);
+  assert(!("method" in plain.run.dispatches[0]));
+  assert(!("workflow" in plain.run.dispatches[0]));
+  assert(parseRun(JSON.parse(JSON.stringify(plain.run))).ok);
+});
+
 Deno.test("recordUsage: attaches to a named dispatch after the run moved on, once", async () => {
   const env = testEnv();
   const run = fresh(env);
@@ -377,7 +422,7 @@ Deno.test("recordApproval: an unknown gate or a stale view is refused", async ()
 
 Deno.test("recordApproval: a conditional gate takes decisions while its when is false", () => {
   const parsed = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "review",
@@ -682,7 +727,7 @@ Deno.test("reset: a finished run can be started over", async () => {
 /** loop <-> back, loop entered at most twice, one dispatch per cycle. */
 function limited() {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "loop",
@@ -1019,7 +1064,7 @@ Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
 
 Deno.test("cycle limit: a global escape transition is never closed by it", async () => {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       { id: "work", initial: true, transitions: [{ name: "done", to: "end" }] },
       {
@@ -1182,7 +1227,7 @@ Deno.test("retarget: refused when finished, stale, naming no ticket, unchanged o
 
 function restartable(stage: Record<string, unknown> = {}) {
   const result = parseDefinition({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",

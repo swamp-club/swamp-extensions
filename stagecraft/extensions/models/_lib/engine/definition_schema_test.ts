@@ -19,6 +19,7 @@ import { parse as parseYaml } from "@std/yaml";
 import {
   celExpressions,
   DEFAULT_MAX_INTERRUPTIONS,
+  DEFINITION_SCHEMA_VERSION,
   type FactoryDefinition,
   maxInterruptionsFor,
   parseDefinition,
@@ -37,7 +38,7 @@ type Raw = Record<string, unknown>;
 /** A valid two-stage factory definition to mutate in each test. */
 function base(): Raw {
   return {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",
@@ -162,9 +163,9 @@ Deno.test("document: several problems are reported together, with paths", () => 
 
 // --- CEL -------------------------------------------------------------------
 
-Deno.test("cel: bindings and gate expressions are bare, valid CEL", () => {
+Deno.test("cel: let values and gate expressions are bare, valid CEL", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", { ticket: "${{ item.key }}" });
+  set(doc, "stages.0.work.let", { ticket: "${{ item.key }}" });
   push(doc, "stages.0.transitions.0.gates", {
     type: "cel",
     config: { expr: "size(artifacts[" },
@@ -172,7 +173,7 @@ Deno.test("cel: bindings and gate expressions are bare, valid CEL", () => {
   const errors = errorsOf(doc);
   assert(
     errors.some((e) =>
-      e.startsWith("stages.0.work.bindings.ticket: write bare CEL")
+      e.startsWith("stages.0.work.let.ticket: write bare CEL")
     ),
   );
   assert(
@@ -222,19 +223,19 @@ Deno.test("cel: a human-approval gate's when is bare, valid CEL", () => {
   assertEquals(errors.filter((e) => e.includes("contains ${{")).length, 0);
 });
 
-Deno.test("cel: ${{ in a literal input is caught, even under a key named bindings", () => {
+Deno.test("cel: ${{ in a literal input is caught, even under a key named let", () => {
   const doc = base();
   set(doc, "stages.0.work", {
     mode: "method",
     method: {
       modelIdOrName: "m",
       methodName: "run",
-      inputs: { bindings: { ref: "${{ item.key }}" } },
+      inputs: { let: { ref: "${{ item.key }}" } },
     },
   });
   assertRejects(
     doc,
-    "stages.0.work.method.inputs.bindings.ref: contains ${{ }}",
+    "stages.0.work.method.inputs.let.ref: contains ${{ }}",
   );
 });
 
@@ -246,7 +247,7 @@ Deno.test("cel: ${{ in user data shaped like a CEL position is caught", () => {
       modelIdOrName: "m",
       methodName: "run",
       inputs: {
-        work: { bindings: { x: "${{ a }}" } },
+        work: { let: { x: "${{ a }}" } },
         config: { expr: "${{ b }}" },
       },
     },
@@ -261,7 +262,7 @@ Deno.test("cel: ${{ in user data shaped like a CEL position is caught", () => {
   set(doc, "stages.0.evidence", [{ name: "out", schema: { type: "object" } }]);
   assertRejects(
     doc,
-    "stages.0.work.method.inputs.work.bindings.x: contains ${{ }}",
+    "stages.0.work.method.inputs.work.let.x: contains ${{ }}",
     "stages.0.work.method.inputs.config.expr: contains ${{ }}",
     "stages.0.artifacts.0.schema.default.config.expr: contains ${{ }}",
     "stages.0.transitions.0.gates.0.config.requireField.expr: contains ${{ }}",
@@ -274,31 +275,62 @@ Deno.test("cel: a malformed $ref is reported, not thrown", () => {
   assertRejects(doc, "'#/%E0' does not resolve");
 });
 
-Deno.test("cel: a binding may not shadow a literal input", () => {
+Deno.test("work: a passed let value may not shadow a literal input", () => {
   const doc = base();
   set(doc, "stages.0.work", {
     mode: "method",
-    method: { modelIdOrName: "m", methodName: "run", inputs: { ref: "main" } },
-    bindings: { ref: "item.key" },
+    method: {
+      modelIdOrName: "m",
+      methodName: "run",
+      inputs: { ref: "main" },
+      passAsInputs: ["ref"],
+    },
+    let: { ref: "item.key" },
   });
   assertRejects(
     doc,
-    "stages.0.work.bindings.ref: 'ref' is both a literal input and a binding",
+    "stages.0.work.method.passAsInputs.0: 'ref' is both a literal input and passed",
   );
+  // Not passed, it is never sent, so it shadows nothing.
+  set(doc, "stages.0.work.method.passAsInputs", []);
+  assertValid(doc);
 });
 
-Deno.test("cel: binding names are identifiers", () => {
+Deno.test("work: passAsInputs names declared let values, once each", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", { "change-url": "item.key" });
+  set(doc, "stages.0.work", {
+    mode: "workflow",
+    workflow: { name: "w", passAsInputs: ["ref", "missing"] },
+    let: { ref: "item.key" },
+  });
   assertRejects(
     doc,
-    "stages.0.work.bindings.change-url: a binding name is an identifier",
+    "stages.0.work.workflow.passAsInputs.1: 'missing' is not a declared let value",
+  );
+  set(doc, "stages.0.work.workflow.passAsInputs", ["ref", "ref"]);
+  assertRejects(doc, "each name may appear once");
+  set(doc, "stages.0.work.workflow.passAsInputs", ["ref"]);
+  assertValid(doc);
+});
+
+Deno.test("work: bindings at schemaVersion 2 point to let and passAsInputs", () => {
+  const doc = base();
+  set(doc, "stages.0.work.bindings", { ref: "item.key" });
+  assertRejects(doc, "bindings became let and passAsInputs in schemaVersion 2");
+});
+
+Deno.test("cel: let names are identifiers", () => {
+  const doc = base();
+  set(doc, "stages.0.work.let", { "change-url": "item.key" });
+  assertRejects(
+    doc,
+    "stages.0.work.let.change-url: a let name is an identifier",
   );
 });
 
 Deno.test("cel: a macro or cel.bind variable may not reuse a context name", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: "[1].exists(artifacts, artifacts > 0)",
     b: "cel.bind(stage, 1, stage + 1)",
     c: "evidence.all(k, v, v != null)",
@@ -310,20 +342,20 @@ Deno.test("cel: a macro or cel.bind variable may not reuse a context name", () =
   });
   assertRejects(
     doc,
-    "stages.0.work.bindings.a: 'artifacts' is a name the CEL context defines (item, stage, artifacts, evidence, validations)",
-    "stages.0.work.bindings.b: 'stage' is a name",
-    "stages.0.work.bindings.d: 'item' is a name",
+    "stages.0.work.let.a: 'artifacts' is a name the CEL context defines (item, stage, artifacts, evidence, validations)",
+    "stages.0.work.let.b: 'stage' is a name",
+    "stages.0.work.let.d: 'item' is a name",
     "stages.0.transitions.0.gates.1.config.expr: 'validations' is a name",
   );
   assert(
-    !errorsOf(doc).some((e) => e.includes("bindings.c")),
+    !errorsOf(doc).some((e) => e.includes("let.c")),
     "the map's own variables k and v are fine",
   );
 });
 
 Deno.test("cel: macro variables with other names, and reading the context in a macro, are fine", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: "artifacts.all(k, artifacts[k].version > 0) && [1].exists(x, x > 0)",
     b: "cel.bind(n, artifacts.summary.version, n + 1.0)",
     c: 'stage.id.startsWith("w")',
@@ -342,7 +374,7 @@ function withEvidence(): Raw {
 
 Deno.test("cel refs: declared products of the right kind are fine", () => {
   const doc = withEvidence();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: "artifacts.summary.payload.text",
     b: 'evidence["out"].payload',
     c: '"summary" in validations.artifacts ? validations["artifacts"]["summary"] : null',
@@ -354,7 +386,7 @@ Deno.test("cel refs: declared products of the right kind are fine", () => {
 
 Deno.test("cel refs: an undeclared name is an error at the expression's path", () => {
   const doc = withEvidence();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: "artifacts.sumary.payload.text",
     b: '"outt" in evidence',
     c: "has(artifacts.plan.payload)",
@@ -375,9 +407,9 @@ Deno.test("cel refs: an undeclared name is an error at the expression's path", (
   }]);
   assertRejects(
     doc,
-    "stages.0.work.bindings.a: reads 'sumary' in artifacts, which is not a declared artifact",
-    "stages.0.work.bindings.b: tests for 'outt' in evidence, which is not declared evidence",
-    "stages.0.work.bindings.c: tests for 'plan' in artifacts, which is not a declared artifact",
+    "stages.0.work.let.a: reads 'sumary' in artifacts, which is not a declared artifact",
+    "stages.0.work.let.b: tests for 'outt' in evidence, which is not declared evidence",
+    "stages.0.work.let.c: tests for 'plan' in artifacts, which is not a declared artifact",
     "globalTransitions.0.gates.0.config.expr: reads 'gone' in validations.evidence, which is not declared evidence",
     "globalTransitions.0.gates.1.config.when: reads 'missing' in validations.artifacts, which is not a declared artifact",
   );
@@ -385,14 +417,14 @@ Deno.test("cel refs: an undeclared name is an error at the expression's path", (
 
 Deno.test("cel refs: a name of the other kind is an error, in both directions", () => {
   const doc = withEvidence();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: "evidence.summary",
     b: '"out" in artifacts',
   });
   assertRejects(
     doc,
-    "stages.0.work.bindings.a: reads 'summary' in evidence, but 'summary' is an artifact, not evidence",
-    "stages.0.work.bindings.b: tests for 'out' in artifacts, but 'out' is evidence, not an artifact",
+    "stages.0.work.let.a: reads 'summary' in evidence, but 'summary' is an artifact, not evidence",
+    "stages.0.work.let.b: tests for 'out' in artifacts, but 'out' is evidence, not an artifact",
   );
 });
 
@@ -412,7 +444,7 @@ Deno.test("cel refs: a stage's resultEvidence is declared evidence", () => {
 
 Deno.test("cel refs: a name read and tested in one expression is reported once", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", {
+  set(doc, "stages.0.work.let", {
     a: '"plan" in artifacts && artifacts["plan"].payload.x && has(artifacts.plan.y)',
   });
   const errors = errorsOf(doc).filter((e) => e.includes("'plan'"));
@@ -421,7 +453,7 @@ Deno.test("cel refs: a name read and tested in one expression is reported once",
 
 Deno.test("cel refs: celExpressions lists every CEL position with its path", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", { a: "item.key", b: "stage.id" });
+  set(doc, "stages.0.work.let", { a: "item.key", b: "stage.id" });
   push(doc, "stages.0.transitions.0.gates", {
     type: "cel",
     config: { expr: "true" },
@@ -432,8 +464,8 @@ Deno.test("cel refs: celExpressions lists every CEL position with its path", () 
     gates: [{ type: "human-approval", config: { id: "sure", when: "false" } }],
   }]);
   assertEquals(celExpressions(doc), [
-    { path: ["stages", 0, "work", "bindings", "a"], expr: "item.key" },
-    { path: ["stages", 0, "work", "bindings", "b"], expr: "stage.id" },
+    { path: ["stages", 0, "work", "let", "a"], expr: "item.key" },
+    { path: ["stages", 0, "work", "let", "b"], expr: "stage.id" },
     {
       path: ["stages", 0, "transitions", 0, "gates", 1, "config", "expr"],
       expr: "true",
@@ -447,17 +479,40 @@ Deno.test("cel refs: celExpressions lists every CEL position with its path", () 
 
 // --- templates ---------------------------------------------------------------
 
-Deno.test("templates: placeholders must name declared bindings", () => {
+Deno.test("templates: placeholders must name declared let values", () => {
   const doc = base();
-  set(doc, "stages.0.work.bindings", { changeUrl: "item.key" });
+  set(doc, "stages.0.work.let", { changeUrl: "item.key" });
   set(doc, "stages.0.work.systemPrompt", "Review {{changeUrl}}.");
   set(doc, "stages.0.work.command", "/review {{changeURL}}");
   assertRejects(
     doc,
-    "stages.0.work.command: {{changeURL}} is not a declared binding",
+    "stages.0.work.command: {{changeURL}} is not a declared let value",
   );
   set(doc, "stages.0.work.command", "/review {{ changeUrl }}");
   assertValid(doc);
+});
+
+Deno.test("templates: a call's target may use declared let values", () => {
+  const doc = base();
+  set(doc, "stages.0.work", {
+    mode: "method",
+    method: { modelIdOrName: "agent-{{agnt}}", methodName: "run" },
+    let: { agent: "item.key" },
+  });
+  assertRejects(
+    doc,
+    "stages.0.work.method.modelIdOrName: {{agnt}} is not a declared let value",
+  );
+  set(doc, "stages.0.work.method.modelIdOrName", "agent-{{agent}}");
+  assertValid(doc);
+  set(doc, "stages.0.work", {
+    mode: "workflow",
+    workflow: { name: "{{suite}}-tests" },
+  });
+  assertRejects(
+    doc,
+    "stages.0.work.workflow.name: {{suite}} is not a declared let value",
+  );
 });
 
 Deno.test("templates: literal braces and escapes are allowed", () => {
@@ -960,7 +1015,7 @@ Deno.test("tracker entries: dispatch and transition triggers", () => {
     entry({ on: { transition: "finish" }, step: "finished" }),
     entry({ on: { transition: "abort" }, step: "aborted" }),
   ]);
-  set(doc, "stages.0.work.bindings", { branch: "'main'" });
+  set(doc, "stages.0.work.let", { branch: "'main'" });
   set(doc, "globalTransitions", [{ name: "abort", to: "done" }]);
   assertValid(doc);
   assertRejects(
@@ -999,7 +1054,7 @@ Deno.test("tracker entries: event values in a summary are the trigger's own", ()
   );
   assertRejects(
     withEntries([entry({ on: "dispatch", summary: "On {{$input.branch}}" })]),
-    "'branch' is not a binding or input of stage 'work'",
+    "'branch' is not an input the dispatch of stage 'work' records",
   );
   assertRejects(
     withEntries([entry({ on: "enter", summary: "At {{$when}}" })]),
@@ -1209,7 +1264,7 @@ Deno.test("evidence-recorded: a bad match fragment is refused at its path", () =
 
 Deno.test("definition: maxInterruptionsPerCycle is optional, defaults to 3, and must be a positive integer", () => {
   const stages = (extra: Record<string, unknown>) => ({
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",

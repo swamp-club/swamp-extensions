@@ -29,7 +29,8 @@ import { IDENTIFIER_PATTERN } from "./template.ts";
 // - `{{$version}}`: the recorded product's version.
 // - `{{$version.<product>}}`: a product's version as of the event; for an
 //   approval, the version the person approved.
-// - `{{$input.<name>}}`: a resolved binding or input of the dispatch.
+// - `{{$input.<name>}}`: an input the dispatch recorded (a call's literal
+//   inputs and passAsInputs, or an interactive or dispatch stage's let values).
 // - `{{count <field>}}`, `{{count <field> <key>=<value>}}`: how many items an
 //   array field of the payload holds, or how many of them have `key` equal to
 //   the value (`true`, `false` and numbers are read as such, anything else as
@@ -115,7 +116,7 @@ function readPlaceholder(inner: string): SummaryPart | string | null {
       const name = inner.slice("$input.".length);
       return IDENTIFIER_PATTERN.test(name)
         ? { kind: "input", name }
-        : `{{${inner}}}: '${name}' is not a binding or input name`;
+        : `{{${inner}}}: '${name}' is not a let or input name`;
     }
     return `{{${inner}}} is not a summary value; there is $cycle, ` +
       "$version, $version.<product> and $input.<name> " +
@@ -156,7 +157,7 @@ export interface SummaryMeta {
   version?: number;
   /** Each product's version as of the event. */
   versions: Record<string, number>;
-  /** The dispatch's resolved inputs and bindings. */
+  /** The inputs the dispatch recorded. */
   inputs?: Record<string, unknown>;
 }
 

@@ -25,6 +25,7 @@ import {
 } from "./layout.ts";
 import { loadDefinition } from "./model.ts";
 import { EXAMPLES, loadOk, modelFile, modelPath } from "./test_support.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
 type Segment = { a: Point; b: Point; edge: string };
 
@@ -138,7 +139,7 @@ for (const name of EXAMPLES) {
 }
 
 const tiny = (stages: string) =>
-  `schemaVersion: 1
+  `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
 ${stages}`;
 

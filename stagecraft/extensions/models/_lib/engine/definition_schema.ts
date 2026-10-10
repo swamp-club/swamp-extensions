@@ -40,11 +40,12 @@ import { parseSummary } from "./entry_summary.ts";
 //
 // - Payload schemas are standard JSON Schema 2020-12 (payload_schema.ts),
 //   not a home-grown dialect.
-// - Runtime values are bare CEL strings in `work.bindings`, cel gates and a
+// - Runtime values are bare CEL strings in `work.let`, cel gates and a
 //   human-approval gate's `when`, never `${{ }}`. A factory definition is
 //   stored in its factory's globalArguments, where swamp evaluates `${{ }}`
-//   before each method runs. Prose fields refer to bindings by
-//   name with `{{name}}` placeholders (template.ts).
+//   before each method runs. Text fields (prompts, command, a call's
+//   target) refer to let values by name with `{{name}}` placeholders
+//   (template.ts); a call's `passAsInputs` sends let values as inputs.
 // - Referential integrity is part of the schema, so a factory definition with a
 //   dangling reference fails when it is saved, not when a work item reaches
 //   the broken stage. Graph analysis (reachability, dead ends, ambiguous
@@ -55,7 +56,7 @@ import { parseSummary } from "./entry_summary.ts";
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
-export const DEFINITION_SCHEMA_VERSION = 1;
+export const DEFINITION_SCHEMA_VERSION = 2;
 
 /** Names for stages, transitions, artifacts, evidence, gates. Safe as path
  * segments and shell words on every platform (#2290). */
@@ -386,15 +387,29 @@ export type GateSpec = z.infer<typeof GateSchema>;
 // Work
 // ---------------------------------------------------------------------------
 
+/**
+ * Let values sent as call inputs, under their own names and with their types
+ * kept. A let value not listed is never sent: swamp refuses a model-method
+ * input the method does not declare.
+ */
+const PassAsInputsSchema = z.array(z.string().min(1)).refine(
+  (names) => new Set(names).size === names.length,
+  "each name may appear once",
+).optional();
+
 export const WorkflowCallSchema = z.strictObject({
+  /** The workflow to run; may use `{{name}}` placeholders. */
   name: z.string().min(1),
   inputs: z.record(z.string(), z.unknown()).optional(),
+  passAsInputs: PassAsInputsSchema,
 });
 
 export const MethodCallSchema = z.strictObject({
+  /** The model to call; may use `{{name}}` placeholders. */
   modelIdOrName: z.string().min(1),
   methodName: z.string().min(1),
   inputs: z.record(z.string(), z.unknown()).optional(),
+  passAsInputs: PassAsInputsSchema,
 });
 
 export const WorkContextSchema = z.strictObject({
@@ -418,9 +433,9 @@ export const WorkSchema = z.strictObject({
    */
   description: z.string().optional(),
   skills: z.array(z.string().min(1)).optional(),
-  /** Prose for whoever does the work; may use `{{binding}}` placeholders. */
+  /** Prose for whoever does the work; may use `{{name}}` placeholders. */
   systemPrompt: z.string().optional(),
-  /** Command for whoever does the work; may use `{{binding}}` placeholders. */
+  /** Command for whoever does the work; may use `{{name}}` placeholders. */
   command: z.string().optional(),
   constraints: z.string().optional(),
   context: WorkContextSchema.optional(),
@@ -428,20 +443,33 @@ export const WorkSchema = z.strictObject({
   method: MethodCallSchema.optional(),
   /**
    * Named values resolved from run data when the stage is dispatched, each a
-   * bare CEL expression. They fill `{{name}}` placeholders in systemPrompt
-   * and command. For `workflow` and `method` stages they are also merged into
-   * the call's inputs (a name may not also be a literal input); for
-   * `interactive` and `dispatch` stages they are also handed to the agent as
-   * data. The resolved values are recorded on the dispatch.
+   * bare CEL expression. They fill `{{name}}` placeholders in systemPrompt,
+   * command and a call's target (workflow.name, method.modelIdOrName). A
+   * `workflow` or `method` call sends the ones its `passAsInputs` lists, and
+   * no others; `interactive` and `dispatch` stages hand them all to the agent
+   * as data. The resolved values are recorded on the dispatch.
    */
-  bindings: z.record(z.string(), CelExpressionSchema).optional(),
+  let: z.record(z.string(), CelExpressionSchema).optional(),
   /** Schema the merged inputs of a workflow or method call must satisfy. */
   inputsSchema: ObjectPayloadSchemaSchema.optional(),
   /** Evidence that records the stage's run outcome. */
   resultEvidence: NameSchema.optional(),
+}, {
+  // schemaVersion 1's bindings are upgraded on read (definition_upgrade.ts),
+  // so one here was written at version 2.
+  error: (issue) =>
+    issue.code === "unrecognized_keys" && issue.keys.includes("bindings")
+      ? "bindings became let and passAsInputs in schemaVersion 2: name the " +
+        "values under let, and list the ones a workflow or method call sends " +
+        "under its passAsInputs"
+      : undefined,
 }).superRefine((work, ctx) => {
-  const issue = (path: string, message: string) =>
-    ctx.addIssue({ code: "custom", path: [path], message });
+  const issue = (path: string | (string | number)[], message: string) =>
+    ctx.addIssue({
+      code: "custom",
+      path: Array.isArray(path) ? path : [path],
+      message,
+    });
   const calls = work.mode === "workflow" || work.mode === "method";
   if (work.mode === "workflow" && work.workflow === undefined) {
     issue("workflow", "mode 'workflow' requires a workflow block");
@@ -466,43 +494,47 @@ export const WorkSchema = z.strictObject({
   }
   // Checked here rather than as a record key schema, whose own message zod
   // replaces with "Invalid key in record".
-  for (const name of Object.keys(work.bindings ?? {})) {
+  for (const name of Object.keys(work.let ?? {})) {
     if (!IDENTIFIER_PATTERN.test(name)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["bindings", name],
-        message: "a binding name is an identifier (letters, digits, '_'; " +
-          "not starting with a digit), so it can be used as {{name}}",
-      });
-    }
-  }
-  const names = Object.keys(work.bindings ?? {}).filter((name) =>
-    IDENTIFIER_PATTERN.test(name)
-  );
-  for (const field of ["systemPrompt", "command"] as const) {
-    const text = work[field];
-    if (text === undefined) continue;
-    for (const name of undeclaredPlaceholders(text, names)) {
       issue(
-        field,
-        `{{${name}}} is not a declared binding; declare it under bindings, ` +
-          "or write \\{{ for a literal {{",
+        ["let", name],
+        "a let name is an identifier (letters, digits, '_'; not starting " +
+          "with a digit), so it can be used as {{name}}",
       );
     }
   }
-  const literals = (work.mode === "workflow"
-    ? work.workflow?.inputs
-    : work.mode === "method"
-    ? work.method?.inputs
-    : undefined) ?? {};
-  for (const name of Object.keys(work.bindings ?? {})) {
-    if (Object.hasOwn(literals, name)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["bindings", name],
-        message: `'${name}' is both a literal input and a binding; keep one`,
-      });
+  const names = Object.keys(work.let ?? {}).filter((name) =>
+    IDENTIFIER_PATTERN.test(name)
+  );
+  const placeholders = (path: string[], text: string | undefined) => {
+    if (text === undefined) return;
+    for (const name of undeclaredPlaceholders(text, names)) {
+      issue(
+        path,
+        `{{${name}}} is not a declared let value; declare it under let, ` +
+          "or write \\{{ for a literal {{",
+      );
     }
+  };
+  placeholders(["systemPrompt"], work.systemPrompt);
+  placeholders(["command"], work.command);
+  placeholders(["workflow", "name"], work.workflow?.name);
+  placeholders(["method", "modelIdOrName"], work.method?.modelIdOrName);
+  for (const block of ["workflow", "method"] as const) {
+    const call = work[block];
+    if (call === undefined) continue;
+    const literals = call.inputs ?? {};
+    (call.passAsInputs ?? []).forEach((name, i) => {
+      const at = [block, "passAsInputs", i];
+      if (!names.includes(name)) {
+        issue(
+          at,
+          `'${name}' is not a declared let value; declare it under let`,
+        );
+      } else if (Object.hasOwn(literals, name)) {
+        issue(at, `'${name}' is both a literal input and passed; keep one`);
+      }
+    });
   }
 });
 
@@ -1054,7 +1086,7 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
     fail(
       path,
       "contains ${{ }}, which swamp evaluates before each method runs; " +
-        "declare runtime values in work.bindings as bare CEL and refer to " +
+        "declare runtime values in work.let as bare CEL and refer to " +
         "them as {{name}}",
     ));
 }
@@ -1155,11 +1187,15 @@ function checkEntries(
     ...(stage.transitions ?? []).map((t) => t.name),
     ...doc.globalTransitions,
   ]);
+  // What the dispatch records as inputs: a call's literal inputs and the
+  // let values it passes, or every let value for the other modes.
   const work = stage.work;
-  const inputs = new Set([
-    ...Object.keys(work?.bindings ?? {}),
-    ...Object.keys(work?.workflow?.inputs ?? work?.method?.inputs ?? {}),
-  ]);
+  const call = work?.workflow ?? work?.method;
+  const inputs = new Set(
+    call !== undefined
+      ? [...Object.keys(call.inputs ?? {}), ...(call.passAsInputs ?? [])]
+      : Object.keys(work?.let ?? {}),
+  );
   entries.forEach((entry, j) => {
     const at: Path = [...path, j];
     const on = entry.on;
@@ -1215,8 +1251,10 @@ function checkEntries(
           } else if (!inputs.has(part.name)) {
             fail(
               [...at, "summary"],
-              `{{$input.${part.name}}}: '${part.name}' is not a binding or ` +
-                `input of stage '${stage.id}'`,
+              `{{$input.${part.name}}}: '${part.name}' is not an input the ` +
+                `dispatch of stage '${stage.id}' records (a call's literal ` +
+                "inputs and passAsInputs, or an interactive or dispatch stage's let " +
+                "values)",
             );
           }
           break;
@@ -1370,13 +1408,13 @@ function checkEntries(
   });
 }
 
-/** The positions that hold CEL: a stage's `work.bindings`, a cel gate's
+/** The positions that hold CEL: a stage's `work.let`, a cel gate's
  * `config.expr` and a human-approval gate's `config.when`. Matched on the
  * whole path, never on key names alone, so user data shaped like these (a
- * literal input called `bindings`, a payload schema `default`) is still
+ * literal input called `let`, a payload schema `default`) is still
  * scanned. */
 const CEL_POSITIONS: (string | "#")[][] = [
-  ["stages", "#", "work", "bindings"],
+  ["stages", "#", "work", "let"],
   ["stages", "#", "transitions", "#", "gates", "#", "config", "expr"],
   ["globalTransitions", "#", "gates", "#", "config", "expr"],
   ["stages", "#", "transitions", "#", "gates", "#", "config", "when"],
@@ -1393,7 +1431,7 @@ function isCelPosition(path: Path): boolean {
 }
 
 /** Every CEL expression in a factory definition, with its path: each
- * `work.bindings` entry, cel gate `expr` and human-approval `when`. */
+ * `work.let` entry, cel gate `expr` and human-approval `when`. */
 export function celExpressions(
   doc: unknown,
 ): { path: Path; expr: string }[] {

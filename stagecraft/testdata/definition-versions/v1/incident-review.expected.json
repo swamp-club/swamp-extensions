@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "description": "A post-incident review, from timeline to published: write the timeline,\nanalyse what contributed and what to do about it, have the analysis\nreviewed, have a person sign off on the action items, and publish.\n\nFor: teams that write up incidents. Nothing in it is about code. A person\nsigns off on the action items before anything is published, and confirms\nabandoning the review. A review with a blocking finding sends the analysis\nback; a person can also send it back by hand with their feedback. Stages\nname tracker status keys, so a work item can drive a ticket; drop the\nstages' tracker blocks if it will not.\n\nChange first: the timeline and analysis schemas (what your write-ups hold),\nthe review prompt's idea of a blocking finding, and publish's description\n(where your reviews go).",
   "stages": [
     {
@@ -235,14 +235,14 @@
       "work": {
         "mode": "dispatch",
         "systemPrompt": "You are a second reader of this incident review. Try to refute the\nanalysis of {{incident}} against its timeline: a contributing factor\nthe timeline does not support, one it shows and the analysis missed,\nan action item that would not prevent or shorten a repeat, an action\nitem with no owner, or blame on a person.\nRate a finding critical or high only if the analysis gets the cause\nwrong, misses a factor that would let the incident happen again, or\nblames a person. Wording, ordering and formatting are medium at most.\nJudge the review against the size of the incident: do not ask for an\ninvestigation bigger than the incident, and give the smallest\nadequate fix for each finding. Report findings with severities, and\ndo not soften the severity of a real defect.\n",
-        "bindings": {
-          "incident": "artifacts[\"timeline\"].payload.incident"
-        },
         "context": {
           "inject": [
             "timeline",
             "analysis"
           ]
+        },
+        "let": {
+          "incident": "artifacts[\"timeline\"].payload.incident"
         }
       },
       "artifacts": [

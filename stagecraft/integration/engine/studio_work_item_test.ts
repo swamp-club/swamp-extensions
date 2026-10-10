@@ -26,6 +26,7 @@ import {
   waiting,
 } from "../../studio/src/work_item.ts";
 import { type SwampRepo, withRepo } from "../harness.ts";
+import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
 // ---------------------------------------------------------------------------
 // The work-item route through the installed swamp CLI: one work item read
@@ -37,7 +38,7 @@ import { type SwampRepo, withRepo } from "../harness.ts";
 // ---------------------------------------------------------------------------
 
 const DEFINITION = {
-  schemaVersion: 1,
+  schemaVersion: DEFINITION_SCHEMA_VERSION,
   stages: [
     {
       id: "write",

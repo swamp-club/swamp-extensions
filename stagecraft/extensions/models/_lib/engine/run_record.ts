@@ -133,10 +133,20 @@ export const DispatchSchema = z.strictObject({
   /** The stage's work mode when dispatched. Absent on dispatches recorded
    * before it was kept. */
   mode: z.enum(WORK_MODES).optional(),
-  /** The stage's resolved inputs and binding values, for replay. */
+  /** The inputs the stage's work was given (a call's, or an interactive or
+   * dispatch stage's let values), for replay. */
   inputs: z.record(z.string(), z.unknown()),
   prompt: z.string().optional(),
   command: z.string().optional(),
+  /** For a workflow stage: the workflow run, its name rendered. Absent on
+   * dispatches recorded before it was kept. */
+  workflow: z.string().min(1).optional(),
+  /** For a method stage: the model method called, its model rendered.
+   * Absent on dispatches recorded before it was kept. */
+  method: z.strictObject({
+    modelIdOrName: z.string().min(1),
+    methodName: z.string().min(1),
+  }).optional(),
   /** For a dispatch stage: exactly what each subagent was sent, and where
    * it was told to write each product. */
   subagentPrompts: z.array(z.strictObject({

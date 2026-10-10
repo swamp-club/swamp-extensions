@@ -21,7 +21,7 @@ import { currentCycle, type RunRecord } from "./run_record.ts";
 import type { RunStore } from "./run_store.ts";
 
 // ---------------------------------------------------------------------------
-// The CEL vocabulary: what bindings and cel gates can read.
+// The CEL vocabulary: what let values and cel gates can read.
 //
 //   item         { key, externalRefs }
 //   stage        { id, cycle }
@@ -33,7 +33,7 @@ import type { RunStore } from "./run_store.ts";
 // artifacts and evidence hold the latest record of each name in the current
 // era, from whichever stage recorded it. That differs on purpose from the
 // evidence-recorded gate, which only accepts evidence from the current stage
-// and cycle: a gate asks "did this stage produce it?", while a binding or
+// and cycle: a gate asks "did this stage produce it?", while a let value or
 // cel gate asks "what is the latest?". Factory definitions rely on this (see
 // build-swamp-extension's implement.submit). A reset starts a new era, so
 // nothing from before it is visible.

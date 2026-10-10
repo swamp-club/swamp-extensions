@@ -19,6 +19,7 @@ import { join } from "@std/path";
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import { digestOf } from "../../extensions/models/_lib/engine/canonical.ts";
 import { model as factory } from "../../extensions/models/engine/factory.ts";
+import { parseExample } from "../../extensions/models/_lib/engine/fake_swamp.ts";
 import { BUILD_DEFINITION, readExample, withRepo } from "../harness.ts";
 
 // ---------------------------------------------------------------------------
@@ -65,5 +66,85 @@ Deno.test("definition upgrade: a pinned copy as swamp stores it has the digest i
     assert(run.definition.version !== undefined);
     const stored = await repo.data(key, "definition", run.definition.version);
     assertEquals(await digestOf(stored.definition), run.definition.digest);
+  });
+});
+
+// --- schemaVersion 2: let, passAsInputs and a call's target (#3190) -------------
+
+const VERSIONS = new URL(
+  "../../testdata/definition-versions/",
+  import.meta.url,
+);
+
+async function fixture(path: string) {
+  return parseExample(await Deno.readTextFile(new URL(path, VERSIONS)));
+}
+
+Deno.test("definition upgrade: validate rewrites a v1 factory's bindings as let and passAsInputs", async () => {
+  await withRepo(async (repo) => {
+    const { definition, scenarios } = await fixture("v1/call-stages.yaml");
+    await repo.factory("team", definition, { scenarios });
+    const path = join(repo.dir, repo.factoryFile("team"));
+    const file = parseYaml(await Deno.readTextFile(path)) as {
+      typeVersion: string;
+      globalArguments: { definition: unknown };
+    };
+    await Deno.writeTextFile(
+      path,
+      stringifyYaml({ ...file, typeVersion: BEFORE_UPGRADES }),
+    );
+    await repo.factoryMethod("team", "validate");
+    const after = parseYaml(await Deno.readTextFile(path)) as typeof file;
+    const expected = JSON.parse(
+      await Deno.readTextFile(
+        new URL("v1/call-stages.expected.json", VERSIONS),
+      ),
+    );
+    assertEquals(after.globalArguments.definition, expected);
+  });
+});
+
+Deno.test("definition upgrade: a templated target is filled on dispatch and recorded; a value that is not a name is refused unrecorded", async () => {
+  await withRepo(async (repo) => {
+    const { definition } = await fixture("v2/templated-target.yaml");
+    await repo.factory("team", definition);
+    const key = await repo.newKey("team");
+    await repo.workItem(key, "start", { factory: "team" });
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+    const run = await repo.run(key);
+    assertEquals(run.dispatches[0].method, {
+      modelIdOrName: `agent-${key}`,
+      methodName: "generate",
+    });
+    // Only the passed let values are sent; agent filled the target alone.
+    assertEquals(run.dispatches[0].inputs, {
+      depth: 2,
+      workItem: key,
+      feedback: null,
+    });
+
+    for (
+      const [value, words] of [["null", "needs a non-empty string, not null"], [
+        "'two words'",
+        "which swamp would not accept",
+      ]]
+    ) {
+      const bad = structuredClone(definition) as {
+        stages: { work?: { let?: Record<string, string> } }[];
+      };
+      bad.stages[0].work!.let!.agent = value;
+      await repo.editFactory("team", bad);
+      const other = await repo.newKey("team");
+      await repo.workItem(other, "start", { factory: "team" });
+      const refused = await repo.workItem(
+        other,
+        "dispatch",
+        await repo.expected(other),
+        { allowFailure: true },
+      );
+      assertNotEquals(refused.code, 0, value);
+      assert(refused.output.includes(words), refused.output);
+      assertEquals((await repo.run(other)).dispatches, [], value);
+    }
   });
 });

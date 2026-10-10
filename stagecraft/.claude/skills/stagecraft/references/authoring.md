@@ -354,6 +354,13 @@ went through five rounds of plan review.
 
    Without the declaration nothing is added: swamp refuses an input a method
    does not declare. REFERENCE.md gives the input's full shape.
+7. **Name run data under `let`, and send only what a call takes.** Each value
+   from run data is a bare CEL expression under `work.let`, used in text as
+   `{{name}}`: the prompts, and a workflow or method call's target
+   (`modelIdOrName: "agent-{{workItem}}"`). A call sends only the let values its
+   `passAsInputs` lists, so list exactly the method's or workflow's arguments:
+   swamp refuses an input a method does not declare. A value from run data that
+   fills a target must be a name swamp accepts, or the dispatch is refused.
 
 ## Findings in plain words
 
@@ -374,6 +381,7 @@ the usual fix:
 | product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects, gates on or reads in CEL a product a route lacks.    | Record it on every route, gate where it exists, or guard with `has()`.     |
 | needs-cycle-override    | the transition, then why the cycle limits close it       | A transition opens only if a person grants an override.               | Raise `maxCycles`, or accept it: it is the loop limit working.             |
 | exploration-truncated   | "stopped at ... states"                                  | The graph was too big to check fully, so some checks were skipped.    | Simplify the loops, or accept the warning.                                 |
+| target-name             | "a name swamp would not create today"                    | A call names a model or workflow in a form swamp no longer creates.   | Fix the name, or keep it if it is an older model that still exists.        |
 
 The first three are errors and fail `validate`. The rest are warnings: fix them
 unless the person agrees to keep one, since each is a real way a work item can

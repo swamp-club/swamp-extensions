@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 // The inspector: select a stage, an exit or a gate to understand it. It
-// shows the stage's handoff (mode, call, skills, injects, bindings,
+// shows the stage's handoff (mode, call, skills, injects, let values,
 // prompts), its products, its exits with their gates and conditions, what
 // the ticket shows, and every description the file gives. With nothing
 // selected it shows the factory definition as a whole.
@@ -299,10 +299,16 @@ function Handoff({ s }: { s: StageView }) {
             <dd>{w.inject.map((k) => <code key={k}>{k}</code>)}</dd>
           </>
         )}
-        {w.bindings.length > 0 && (
+        {w.let.length > 0 && (
           <>
-            <dt>Bindings</dt>
-            <dd>{w.bindings.map((k) => <code key={k}>{`{{${k}}}`}</code>)}</dd>
+            <dt>Let</dt>
+            <dd>{w.let.map((k) => <code key={k}>{`{{${k}}}`}</code>)}</dd>
+          </>
+        )}
+        {w.passAsInputs.length > 0 && (
+          <>
+            <dt>Passed as inputs</dt>
+            <dd>{w.passAsInputs.map((k) => <code key={k}>{k}</code>)}</dd>
           </>
         )}
         {w.resultEvidence && (

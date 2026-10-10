@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 1
+  schemaVersion: 2
   description: |-
     A general software change, from plan to release: plan, review the plan,
     implement, verify, review the change, release.
@@ -148,7 +148,7 @@ definition:
           machinery bigger than the change, and give the smallest adequate fix
           for each finding. Report findings with severities, and do not soften
           the severity of a real defect.
-        bindings:
+        let:
           planSummary: artifacts["plan"].payload.summary
         context:
           inject: [plan]
@@ -246,7 +246,7 @@ definition:
         command: >-
           the project's format, lint, type and test checks (replace this with
           the real commands)
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
         - name: checks
@@ -316,7 +316,7 @@ definition:
           machinery bigger than the change, and give the smallest adequate fix
           for each finding. Report findings with severities, and do not soften
           the severity of a real defect.
-        bindings:
+        let:
           commit: artifacts["change-summary"].payload.commit
           changeSummary: artifacts["change-summary"].payload.summary
         context:

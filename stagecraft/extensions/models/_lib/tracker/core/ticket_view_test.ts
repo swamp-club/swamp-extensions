@@ -463,7 +463,7 @@ function metaDefinition(): FactoryDefinition {
     }[];
   };
   const [write, review] = doc.stages;
-  write.work = { mode: "interactive", bindings: { branch: "'fix-1'" } };
+  write.work = { mode: "interactive", let: { branch: "'fix-1'" } };
   write.tracker.entries[1].summary = "Noted (v{{$version}}): {{text}}";
   write.tracker.entries.push(
     {

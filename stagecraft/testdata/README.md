@@ -17,9 +17,9 @@ checks it against the expected form, and runs its saved scenarios. Never edit a
 frozen fixture: a format change adds fixtures at its new version and updates
 every `.expected.json` (DESIGN.md, "Format changes upgrade, they never break").
 
-Prompts refer to bindings as `{{name}}`. The CEL vocabulary in `bindings` and
-`cel` gates (`item`, `stage`, `artifacts`, `evidence`, `validations`) is defined
-in `extensions/models/_lib/cel_context.ts`.
+Prompts and call targets refer to let values as `{{name}}`. The CEL vocabulary
+in `let` and `cel` gates (`item`, `stage`, `artifacts`, `evidence`,
+`validations`) is defined in `extensions/models/_lib/cel_context.ts`.
 
 Every fixture is also analysed as a graph
 (`extensions/models/_lib/graph_test.ts`) and must have no errors. The warnings

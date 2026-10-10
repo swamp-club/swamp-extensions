@@ -52,8 +52,8 @@ steps:
 ```
 
 `scenario` is a lowercase name; `description` and `externalRefs` (the work
-item's ticket references, which some bindings read) are optional. The work item
-starts at the initial stage. Each step is one engine call, one verb:
+item's ticket references, which some let values read) are optional. The work
+item starts at the initial stage. Each step is one engine call, one verb:
 
 | Step                                          | What it does                                                |
 | --------------------------------------------- | ----------------------------------------------------------- |

@@ -18,6 +18,7 @@ import {
   advanceMethod,
   contextStore,
   decide,
+  DEFINITION_SCHEMA_VERSION,
   dispatch,
   expectNow,
   type FakeSwamp,
@@ -46,7 +47,7 @@ export const TRACKED_ITEM = "tracked-abcdefgh";
  */
 export function trackedDefinition(): Record<string, unknown> {
   return {
-    schemaVersion: 1,
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "write",
