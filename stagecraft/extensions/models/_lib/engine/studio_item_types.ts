@@ -82,6 +82,10 @@ export interface ItemStatus {
   dispatch: DispatchPacket | null;
   dispatchCap: Limit | null;
   awaitingDispatchOverride: boolean;
+  /** The cap a park is at, or null when not parked. */
+  parkedOn: "dispatches" | "interruptions" | null;
+  /** Open dispatches of the current stage and cycle. */
+  openDispatches: { id: number; at: string; driverId: string | null }[];
   exits: StatusExit[];
   personRecords: string[];
 }

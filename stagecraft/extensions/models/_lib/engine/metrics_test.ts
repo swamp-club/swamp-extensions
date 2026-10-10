@@ -17,6 +17,8 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "./fake_swamp.ts";
 import { computeMetrics, type Metrics } from "./metrics.ts";
+import { parseDefinition } from "./definition_schema.ts";
+import { expectedOf, recordDispatch, recordOutcome, start } from "./run_ops.ts";
 import type { RunRecord } from "./run_record.ts";
 import { contextStore, loadRun } from "./run_store.ts";
 import {
@@ -33,11 +35,14 @@ import {
   startWorkItem,
 } from "./work_item_ops.ts";
 import {
+  ALICE,
   handoffDefinition,
   handoffParsedDefinition,
   settableEnv,
   stopsDefinition,
   stopsParsedDefinition,
+  TEST_TRACKER,
+  testEnv,
 } from "./test_support.ts";
 
 const ITEM = "stops-abcdefgh";
@@ -207,6 +212,7 @@ Deno.test("metrics: stage times, waits, rework, dispatches, overrides and usage 
     cycle: 1,
     dispatches: 2,
     retries: 1,
+    outcomes: { succeeded: 0, failed: 0, interrupted: 0, open: 0, none: 2 },
   }]);
 
   const s = m.summary;
@@ -570,4 +576,60 @@ Deno.test("metrics: a dispatch refused at the cap waits on a dispatch override u
   );
   assertEquals(m.summary.waits, { count: 3, open: 1, timeMs: 20 * MINUTE });
   assertEquals(m.summary.overrides, { cycle: 0, dispatch: 1 });
+});
+
+Deno.test("metrics: an interrupted dispatch is not a retry, and dispatches without an outcome are open only in the current entry", () => {
+  const parsed = parseDefinition({
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "work",
+        initial: true,
+        transitions: [{ name: "done", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  });
+  assert(parsed.ok);
+  const definition = parsed.value;
+  const env = testEnv();
+  let run = start(
+    definition,
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:x",
+    },
+    ALICE,
+    env,
+  );
+  const next = (supersedes?: number) => {
+    const result = recordDispatch(
+      run,
+      definition,
+      expectedOf(run),
+      { inputs: {}, ...(supersedes !== undefined ? { supersedes } : {}) },
+      ALICE,
+      env,
+    );
+    assert(result.ok);
+    run = result.run;
+  };
+  next();
+  next(1);
+  const failed = recordOutcome(run, 2, "failed", undefined, ALICE, env);
+  assert(failed.ok);
+  run = failed.run;
+  next();
+  const m = computeMetrics(run, definition);
+  assertEquals(m.eras[0].dispatches, [{
+    stage: "work",
+    cycle: 1,
+    dispatches: 3,
+    retries: 1,
+    outcomes: { succeeded: 0, failed: 1, interrupted: 1, open: 1, none: 0 },
+  }]);
+  assertEquals(m.summary.dispatches, { count: 3, retries: 1 });
+  assertEquals(m.summary.dispatchOutcomes.interrupted, 1);
 });

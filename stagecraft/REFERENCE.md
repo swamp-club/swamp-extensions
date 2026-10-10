@@ -145,6 +145,12 @@ cycle of it. The controls:
   overrides, against a runaway loop within one pass. A dispatch refused at the
   cap parks the work item until a person grants an override; the park is
   journaled, measured as a wait and published to the ticket.
+- **The interruption cap** (`maxInterruptionsPerCycle`, default 3). A dispatch
+  closed as `interrupted` (a restart killed its work) does not count against
+  the dispatch cap, but past this many the next dispatch is refused as a
+  suspected restart loop and parks the same way. A dispatch override lifts both
+  caps by one, so an entry takes at most `maxDispatchesPerCycle +
+  maxInterruptionsPerCycle` dispatches before a person is asked.
 - **Routing on the loop count** with a `max-cycles` gate, such as escalating
   after a number of passes.
 - **Escape hatches.** Global transitions are exempt from cycle limits, and a
@@ -318,13 +324,52 @@ payload rejections. `dispatch` prints the whole dispatch packet, including the
 products the stage must record and each one's schema; for a dispatch stage it
 prints one ready-to-send prompt per subagent instead of the rendered prompt,
 with result files under `resultDir` (a new temporary directory when omitted). Writes are
-`record_artifact`, `record_evidence`, `dispatch`, `record_usage`, `approve`,
-`decline`, `grant_override`, `advance`, `reset` and `retarget`. A refused write
-fails with its reason and writes nothing. A payload that breaks its schema also
-fails, but is kept on the work item as retry feedback. A write that succeeds
-ends its output with the status that follows it, the same block `status`
-prints, so no separate `status` call is needed after one. Run methods without
-`--log`: swamp prints a method's output without it, and twice with it.
+`record_artifact`, `record_evidence`, `dispatch`, `record_usage`,
+`record_outcome`, `record_checkpoint`, `approve`, `decline`, `grant_override`,
+`advance`, `reset` and `retarget`. A refused write fails with its reason and
+writes nothing. A payload that breaks its schema also fails, but is kept on the
+work item as retry feedback. A write that succeeds ends its output with the
+status that follows it, the same block `status` prints, so no separate `status`
+call is needed after one. Run methods without `--log`: swamp prints a method's
+output without it, and twice with it.
+
+### Dispatches, outcomes and checkpoints
+
+A dispatch is open until it has an outcome, set once:
+
+| Method / input                                  | What it does                                                                                                                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dispatch` `driverId=<id>`                      | Records who is doing the work (the actor is empty on remote workers). Optional.                                                                                                      |
+| `dispatch` `supersedes=<dispatch id>`           | Replaces an open dispatch of this stage and cycle, closing it as `interrupted`. Closed even when this dispatch is then refused at a cap.                                             |
+| `record_outcome` `dispatchId` `outcome`         | `succeeded`, `failed` or `interrupted` (optional `reason`), named by id like `record_usage`. Interrupted ones count against `maxInterruptionsPerCycle`, not the dispatch cap.        |
+| `record_checkpoint` `dispatchId` `payload`      | Saves a JSON object for an open dispatch, as often as the work likes. Only the latest dispatch of its stage and cycle takes one. Keep it small: point at large state.                |
+| `open_dispatches` `driverId`                    | A read, no lock: the open dispatches of the current stage and cycle, optionally one driver's.                                                                                        |
+
+The dispatch packet carries `workItem`, `dispatchId` (the id this dispatch
+gets) and `resume`: the latest checkpoint an earlier dispatch of the same stage
+and cycle wrote, or null. A dispatch recorded between reading the run and
+dispatching makes the packet stale, and `dispatch` refuses it with
+`stale: dispatch N was recorded after this packet was built`.
+
+A workflow or method stage gets those three as one input, `_stagecraft`, when
+its `inputsSchema` declares that property and no literal input or binding
+supplies it. Its shape:
+
+```json
+{
+  "workItem": "<key>",
+  "dispatchId": 3,
+  "resume": {
+    "fromDispatch": 2,
+    "version": 1,
+    "digest": "sha256:...",
+    "read": "swamp data query 'modelName == \"<key>\" && name == \"checkpoint-d2\" && version == 1' --select content --single --json"
+  }
+}
+```
+
+`resume` is `null` when there is no checkpoint. Without the declaration nothing
+is added, because swamp refuses an input the method does not declare.
 
 ## The studio
 
@@ -447,7 +492,8 @@ swamp report get @swamp/stagecraft/work-item-summary --model <key>
 Every write also stores a `metrics` record on the work item: time in each stage
 and cycle, rework (re-entries, review rounds, declines, rejected payloads),
 waits at human stops (including a park at the dispatch cap, ended by a
-dispatch override), dispatches and retries, overrides, and token usage, marked
+dispatch override), dispatches and retries (an interrupted dispatch is not a
+retry) with how each ended, overrides, and token usage, marked
 attested. It is computed from the run record alone and names the journal version
 it was computed from. A dashboard reads every work item's metrics in one query:
 

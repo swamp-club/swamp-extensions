@@ -1312,3 +1312,120 @@ Deno.test("retarget: refused on a finished work item, and needs a reason and new
   );
   assertEquals((await runOf(swamp)).externalRefs, {});
 });
+
+// --- the dispatch lifecycle (swamp-club #3144) ---------------------------------
+
+Deno.test("dispatch lifecycle: a restarted driver finds its dead dispatch, supersedes it and resumes from its checkpoint", async () => {
+  const swamp = await started();
+  await call(swamp, "dispatch", { driverId: "w1", ...await expected(swamp) });
+  await call(swamp, "record_checkpoint", {
+    dispatchId: "1",
+    payload: JSON.stringify({ session: "s-1", step: 4 }),
+  });
+  const checkpoints = swamp.resources.get(ITEM)?.get("checkpoint-d1");
+  assertEquals(checkpoints?.length, 1);
+
+  // The scan: open dispatches under the driver's id.
+  await call(swamp, "open_dispatches", { driverId: "w1" });
+  const listed = swamp.logs.at(-1)?.props;
+  assertEquals(listed?.open, [
+    {
+      id: 1,
+      at: (await runOf(swamp)).dispatches[0].at,
+      driverId: "w1",
+      mode: "interactive",
+      checkpointVersion: 1,
+    },
+  ]);
+  const writes = swamp.versionsWritten(ITEM);
+  await call(swamp, "open_dispatches", { driverId: "w2" });
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).startsWith(
+      "no open dispatches for driver 'w2'",
+    ),
+  );
+  assertEquals(swamp.versionsWritten(ITEM), writes);
+
+  await call(swamp, "dispatch", {
+    driverId: "w1",
+    supersedes: "1",
+    ...await expected(swamp),
+  });
+  const packet = swamp.logs.at(-1)?.props?.packet as {
+    dispatchId: number;
+    resume: { fromDispatch: number; version: number } | null;
+  };
+  assertEquals(packet.dispatchId, 2);
+  assertEquals(packet.resume?.fromDispatch, 1);
+  assertEquals(packet.resume?.version, 1);
+  const run = await runOf(swamp);
+  assertEquals(run.dispatches[0].outcome?.value, "interrupted");
+  assertEquals(run.dispatches[0].outcome?.supersededBy, 2);
+
+  // A late checkpoint from the dead work is refused.
+  await assertRejects(
+    () =>
+      call(swamp, "record_checkpoint", {
+        dispatchId: "1",
+        payload: JSON.stringify({ step: 5 }),
+      }),
+    Error,
+    "dispatch 1 is closed (interrupted)",
+  );
+  await call(swamp, "record_outcome", {
+    dispatchId: "2",
+    outcome: "succeeded",
+  });
+  await assertRejects(
+    () => call(swamp, "record_outcome", { dispatchId: "2", outcome: "failed" }),
+    Error,
+    "already has an outcome (succeeded)",
+  );
+  await call(swamp, "status");
+  const status = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    status.includes("dispatches this cycle 1 of 2; interruptions 1 of 3"),
+    status,
+  );
+});
+
+Deno.test("dispatch lifecycle: past maxInterruptionsPerCycle a superseding dispatch closes its target and parks", async () => {
+  const swamp = await started();
+  await call(swamp, "dispatch", { driverId: "w1", ...await expected(swamp) });
+  for (const id of ["1", "2", "3"]) {
+    await call(swamp, "dispatch", {
+      driverId: "w1",
+      supersedes: id,
+      ...await expected(swamp),
+    });
+  }
+  await assertRejects(
+    async () =>
+      call(swamp, "dispatch", {
+        driverId: "w1",
+        supersedes: "4",
+        ...await expected(swamp),
+      }),
+    Error,
+    "restart loop suspected: stage 'plan' cycle 1 has had 4 interrupted",
+  );
+  const run = await runOf(swamp);
+  assertEquals(run.dispatches[3].outcome?.value, "interrupted");
+  const parked = run.journal.at(-1);
+  assert(parked?.type === "awaiting");
+  assertEquals(parked.dispatchOverride?.interruptions, { count: 4, limit: 3 });
+  // The scan no longer finds it, so a driver cannot loop on it.
+  await call(swamp, "open_dispatches", { driverId: "w1" });
+  assertEquals(swamp.logs.at(-1)?.props?.open, []);
+  await call(swamp, "status");
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).includes(
+      "parked at the interruption cap",
+    ),
+  );
+  await call(swamp, "grant_override", {
+    kind: "dispatch",
+    ...await expected(swamp),
+  });
+  await call(swamp, "dispatch", { driverId: "w1", ...await expected(swamp) });
+});

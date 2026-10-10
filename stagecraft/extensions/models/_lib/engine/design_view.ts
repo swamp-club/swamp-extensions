@@ -18,6 +18,7 @@ import type { GraphFinding, GraphReport } from "./graph.ts";
 import {
   DEFAULT_MAX_CYCLES,
   DEFAULT_MAX_DISPATCHES,
+  DEFAULT_MAX_INTERRUPTIONS,
   type FactoryDefinition,
   type GateSpec,
   type TransitionSpec,
@@ -88,6 +89,7 @@ export interface StageView {
   terminal: boolean;
   maxCycles: number;
   maxDispatchesPerCycle: number;
+  maxInterruptionsPerCycle: number;
   trackerStatus?: string;
   work?: WorkView;
   products: ProductView[];
@@ -250,6 +252,8 @@ export function designView(
       maxCycles: s.maxCycles ?? DEFAULT_MAX_CYCLES,
       maxDispatchesPerCycle: s.maxDispatchesPerCycle ??
         DEFAULT_MAX_DISPATCHES,
+      maxInterruptionsPerCycle: s.maxInterruptionsPerCycle ??
+        DEFAULT_MAX_INTERRUPTIONS,
       products: [
         ...(s.artifacts ?? []).map((a): ProductView => {
           const p: ProductView = { kind: "artifact", name: a.name };

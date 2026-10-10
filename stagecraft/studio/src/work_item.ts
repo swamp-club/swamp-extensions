@@ -213,6 +213,12 @@ export interface Waiting {
   dispatch: { mode: string; ready: boolean; problems: string[] } | null;
   /** Parked at the dispatch cap until a person grants an override. */
   parkedAtDispatchCap: boolean;
+  /** Parked because interrupted dispatches, not ordinary ones, reached
+   * their cap. */
+  parkedOnInterruptions: boolean;
+  /** Open dispatches of this stage entry: work in flight, or work that died
+   * and its driver has yet to supersede. */
+  open: { id: number; at: string; driverId: string | null }[];
   /** Exits that cannot be taken yet, with the engine's reasons. */
   blocked: { exit: string; to: string; failures: string[] }[];
   /** Exits ready to take. */
@@ -280,6 +286,8 @@ export function waiting(item: Item): Waiting {
       problems: status.dispatch.ready ? [] : status.dispatch.problems,
     },
     parkedAtDispatchCap: status.awaitingDispatchOverride,
+    parkedOnInterruptions: status.parkedOn === "interruptions",
+    open: status.openDispatches,
     blocked,
     ready,
     since,
@@ -482,8 +490,9 @@ export function runAsScenario(
         retargets++;
         break;
       default:
-        // started, reset, usage and awaiting: the scenario's own start, and
-        // records derived from other events.
+        // started, reset, usage, outcome, checkpoint and awaiting: the
+        // scenario's own start, and records of dispatches it leaves out or
+        // derived from other events.
         break;
     }
   }

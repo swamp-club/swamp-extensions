@@ -15,7 +15,11 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { z } from "npm:zod@4.3.6";
-import { ActorSchema, JournalEventSchema } from "./journal.ts";
+import {
+  ActorSchema,
+  DISPATCH_OUTCOMES,
+  JournalEventSchema,
+} from "./journal.ts";
 import {
   formatIssues,
   type ParseResult,
@@ -93,6 +97,32 @@ export const UsageSchema = z.strictObject({
 
 export type Usage = z.infer<typeof UsageSchema>;
 
+/**
+ * How a dispatch ended, set once: by a driver's record_outcome, or as
+ * `interrupted` by a later dispatch that supersedes it. A dispatch without
+ * one is open.
+ */
+export const DispatchOutcomeSchema = z.strictObject({
+  value: z.enum(DISPATCH_OUTCOMES),
+  at: z.string().min(1),
+  actor: ActorSchema,
+  reason: z.string().min(1).optional(),
+  /** The dispatch that superseded this one, when that is how it ended. */
+  supersededBy: z.number().int().positive().optional(),
+});
+
+export type DispatchOutcome = z.infer<typeof DispatchOutcomeSchema>;
+
+/** The latest checkpoint the dispatch's work wrote: a payload version in the
+ * checkpoint record for this dispatch, and its digest. */
+export const CheckpointRefSchema = z.strictObject({
+  version: z.number().int().positive(),
+  digest: z.string().min(1),
+  at: z.string().min(1),
+});
+
+export type CheckpointRef = z.infer<typeof CheckpointRefSchema>;
+
 export const DispatchSchema = z.strictObject({
   id: z.number().int().positive(),
   era: z.string().min(1),
@@ -115,6 +145,13 @@ export const DispatchSchema = z.strictObject({
     prompt: z.string(),
   })).optional(),
   usage: UsageSchema.optional(),
+  /** Who is doing the work, as the driver names itself. The actor is no
+   * help here: remote workers have none. */
+  driverId: z.string().min(1).optional(),
+  /** The open dispatch this one replaced, closing it as interrupted. */
+  supersedes: z.number().int().positive().optional(),
+  outcome: DispatchOutcomeSchema.optional(),
+  checkpoint: CheckpointRefSchema.optional(),
 });
 
 export type Dispatch = z.infer<typeof DispatchSchema>;

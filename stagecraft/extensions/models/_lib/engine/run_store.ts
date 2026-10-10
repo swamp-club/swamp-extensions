@@ -21,10 +21,12 @@ import type { FactoryDefinition } from "./definition_schema.ts";
 import {
   acceptProduct,
   checkExpected,
+  checkpointRefusal,
   checkProduct,
   type Env,
   type Expected,
   type OpResult,
+  recordCheckpoint,
   rejectProduct,
   start,
   type StartInput,
@@ -51,13 +53,24 @@ import { parseRun, type RunRecord } from "./run_record.ts";
 export const RUN_SPEC = "run";
 export const ARTIFACT_SPEC = "artifact";
 export const EVIDENCE_SPEC = "evidence";
+export const CHECKPOINT_SPEC = "checkpoint";
+
+/** What a payload record holds: a product, or a dispatch's checkpoint
+ * (named d<dispatchId>, see checkpointName). */
+export type PayloadKind = ProductKind | "checkpoint";
 
 /** The fixed name of the run record inside a work item's instance. */
 export const RUN_NAME = "run";
 
 /** The record name holding a product's payload versions. */
-export function payloadName(kind: ProductKind, name: string): string {
+export function payloadName(kind: PayloadKind, name: string): string {
   return `${kind}-${name}`;
+}
+
+/** The payload name of a dispatch's checkpoints: one record per dispatch,
+ * a new version per write. */
+export function checkpointName(dispatchId: number): string {
+  return `d${dispatchId}`;
 }
 
 /** What the runtime needs from storage. */
@@ -67,12 +80,12 @@ export interface RunStore {
   writeRun(run: RunRecord): Promise<RunRecord>;
   /** Write a new payload version; returns its version number. */
   writePayload(
-    kind: ProductKind,
+    kind: PayloadKind,
     name: string,
     payload: Record<string, unknown>,
   ): Promise<number>;
   readPayload(
-    kind: ProductKind,
+    kind: PayloadKind,
     name: string,
     version: number,
   ): Promise<unknown | null>;
@@ -118,7 +131,11 @@ export function contextStore(
       return run;
     },
     writePayload: async (kind, name, payload) => {
-      const spec = kind === "artifact" ? ARTIFACT_SPEC : EVIDENCE_SPEC;
+      const spec = kind === "artifact"
+        ? ARTIFACT_SPEC
+        : kind === "evidence"
+        ? EVIDENCE_SPEC
+        : CHECKPOINT_SPEC;
       const handle = await writeResource(
         spec,
         payloadName(kind, name),
@@ -319,6 +336,52 @@ export async function recordProduct(
     env,
   );
   return { ok: true, run: await store.writeRun(next), version, digest };
+}
+
+/**
+ * Record a checkpoint for a dispatch: the payload first, under its own record
+ * (checkpoint-d<dispatchId>), then the run record indexing its version and
+ * digest. Refused before anything is written when the dispatch cannot take
+ * one (run_ops.ts, checkpointRefusal).
+ */
+export async function writeCheckpoint(
+  store: RunStore,
+  dispatchId: number,
+  payload: Record<string, unknown>,
+  actor: Actor,
+  env: Env,
+): Promise<OpResult<number>> {
+  const run = await loadRun(store);
+  if (run === null) {
+    return { ok: false, reason: "the work item has not started" };
+  }
+  const refused = checkpointRefusal(run, dispatchId);
+  if (refused !== null) return { ok: false, reason: refused };
+  let digest: string;
+  try {
+    digest = await digestOf(payload);
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `the checkpoint cannot be stored: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+  const version = await store.writePayload(
+    "checkpoint",
+    checkpointName(dispatchId),
+    jsonSafe(payload) as Record<string, unknown>,
+  );
+  const next = recordCheckpoint(
+    run,
+    dispatchId,
+    { version, digest },
+    actor,
+    env,
+  );
+  if (!next.ok) return next;
+  return { ...next, run: await store.writeRun(next.run) };
 }
 
 /** For an artifact that reviews another, the subject's current version and

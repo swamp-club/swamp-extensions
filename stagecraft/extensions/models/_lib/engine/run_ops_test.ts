@@ -19,6 +19,7 @@ import { parseDefinition } from "./definition_schema.ts";
 import {
   acceptProduct,
   advance,
+  checkpointRefusal,
   checkProduct,
   cycleLimit,
   dispatchCap,
@@ -26,15 +27,21 @@ import {
   expectedOf,
   grantOverride,
   lastAwaitingEvent,
+  openDispatches,
   parkAtDispatchCap,
   recordApproval,
+  recordCheckpoint,
   recordDispatch,
+  recordOutcome,
   recordUsage,
   rejectProduct,
   reset,
+  resumeCheckpoint,
   retarget,
   start,
+  wouldRefuseAtCap,
 } from "./run_ops.ts";
+import { heldDispatchOverride } from "./awaiting.ts";
 import { currentCycle, parseRun, type RunRecord } from "./run_record.ts";
 import {
   ALICE,
@@ -950,6 +957,7 @@ Deno.test("parkAtDispatchCap: journals the park once, only when the cap refuses,
     limit: 1,
     granted: 0,
     allowed: false,
+    interruptions: { count: 0, limit: 3 },
   });
   const event = parked.run.journal.at(-1);
   assertEquals(event?.type, "awaiting");
@@ -1167,5 +1175,386 @@ Deno.test("retarget: refused when finished, stale, naming no ticket, unchanged o
       ALICE,
       env,
     ).ok,
+  );
+});
+
+// --- the dispatch lifecycle (swamp-club #3144) ---------------------------------
+
+function restartable(stage: Record<string, unknown> = {}) {
+  const result = parseDefinition({
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "work",
+        initial: true,
+        ...stage,
+        transitions: [{ name: "done", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  });
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}
+
+function begin(definition: ReturnType<typeof restartable>, env: Env) {
+  return start(
+    definition,
+    {
+      key: "wi-1",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:r",
+    },
+    ALICE,
+    env,
+  );
+}
+
+function mustDispatch(
+  definition: ReturnType<typeof restartable>,
+  run: RunRecord,
+  env: Env,
+  extra: { driverId?: string; supersedes?: number } = {},
+): RunRecord {
+  const result = recordDispatch(
+    run,
+    definition,
+    expectedOf(run),
+    { inputs: {}, ...extra },
+    NOBODY,
+    env,
+  );
+  if (!result.ok) throw new Error(result.reason);
+  return result.run;
+}
+
+Deno.test("dispatchCap: with nothing interrupted it is the plain dispatch cap", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  run = mustDispatch(definition, run, env);
+  assertEquals(dispatchCap(run, definition), {
+    count: 2,
+    limit: 2,
+    granted: 0,
+    allowed: false,
+    interruptions: { count: 0, limit: 3 },
+  });
+});
+
+Deno.test("dispatch: a superseding dispatch closes the open one as interrupted and it does not count", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env, { driverId: "w1" });
+  run = mustDispatch(definition, run, env, { driverId: "w1", supersedes: 1 });
+  const [first, second] = run.dispatches;
+  assertEquals(first.outcome?.value, "interrupted");
+  assertEquals(first.outcome?.supersededBy, 2);
+  assertEquals(second.supersedes, 1);
+  assertEquals(second.driverId, "w1");
+  const outcome = run.journal.find((e) => e.type === "outcome");
+  assertEquals(outcome?.type === "outcome" && outcome.dispatchId, 1);
+  const cap = dispatchCap(run, definition);
+  assertEquals(cap.count, 1);
+  assertEquals(cap.interruptions, { count: 1, limit: 3 });
+  assert(cap.allowed);
+  assertEquals(openDispatches(run).map((d) => d.id), [2]);
+  assertEquals(openDispatches(run, "w2"), []);
+});
+
+Deno.test("dispatch: supersedes must name an open dispatch of this stage entry", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  const missing = recordDispatch(
+    run,
+    definition,
+    expectedOf(run),
+    { inputs: {}, supersedes: 9 },
+    NOBODY,
+    env,
+  );
+  assert(!missing.ok && missing.reason === "no dispatch 9 to supersede");
+  const closed = recordOutcome(run, 1, "failed", undefined, NOBODY, env);
+  assert(closed.ok);
+  const again = recordDispatch(
+    closed.run,
+    definition,
+    expectedOf(closed.run),
+    { inputs: {}, supersedes: 1 },
+    NOBODY,
+    env,
+  );
+  assert(!again.ok && again.reason.includes("already closed (failed)"));
+});
+
+Deno.test("dispatch: past maxInterruptionsPerCycle the next dispatch is refused as a restart loop", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  // Three interruptions are within the default limit.
+  for (const id of [1, 2, 3]) {
+    run = mustDispatch(definition, run, env, { supersedes: id });
+  }
+  assertEquals(dispatchCap(run, definition).interruptions?.count, 3);
+  // The fourth supersede would make four: refused, and judged at the cap.
+  const input = { inputs: {}, supersedes: 4 };
+  assert(
+    wouldRefuseAtCap(run, definition, expectedOf(run), input, NOBODY, env),
+  );
+  const refused = recordDispatch(
+    run,
+    definition,
+    expectedOf(run),
+    input,
+    NOBODY,
+    env,
+  );
+  assert(!refused.ok);
+  assertEquals(
+    refused.reason,
+    "restart loop suspected: stage 'work' cycle 1 has had 4 interrupted " +
+      "dispatch(es), its limit is 3; a person must grant a dispatch override " +
+      "to dispatch again",
+  );
+});
+
+Deno.test("parkAtDispatchCap: a refused supersede commits the close with the park, so the park stands", () => {
+  const definition = restartable({ maxInterruptionsPerCycle: 1 });
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  run = mustDispatch(definition, run, env, { supersedes: 1 });
+  const parked = parkAtDispatchCap(
+    run,
+    definition,
+    expectedOf(run),
+    NOBODY,
+    env,
+    2,
+  );
+  assert(parked.ok);
+  const closed = parked.run.dispatches[1].outcome;
+  assertEquals(closed?.value, "interrupted");
+  assertEquals(closed?.supersededBy, undefined);
+  assertEquals(lastAwaitingEvent(parked.run)?.dispatchOverride, {
+    count: 0,
+    limit: 2,
+    granted: 0,
+    interruptions: { count: 2, limit: 1 },
+  });
+  // The stored run itself refuses, so a later commit keeps the hold, and
+  // the scan no longer finds the dispatch.
+  assert(!dispatchCap(parked.run, definition).allowed);
+  assert(heldDispatchOverride(parked.run, definition) !== undefined);
+  assertEquals(openDispatches(parked.run), []);
+});
+
+Deno.test("parkAtDispatchCap: parked already, a refused supersede writes only its close", () => {
+  const definition = restartable({
+    maxDispatchesPerCycle: 1,
+    maxInterruptionsPerCycle: 1,
+  });
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  // Superseding the only dispatch frees its slot: no park.
+  assert(
+    !parkAtDispatchCap(run, definition, expectedOf(run), NOBODY, env, 1).ok,
+  );
+  run = mustDispatch(definition, run, env, { supersedes: 1 });
+  const first = parkAtDispatchCap(
+    run,
+    definition,
+    expectedOf(run),
+    NOBODY,
+    env,
+  );
+  assert(first.ok);
+  const journalLength = first.run.journal.length;
+  const again = parkAtDispatchCap(
+    first.run,
+    definition,
+    expectedOf(first.run),
+    NOBODY,
+    env,
+    2,
+  );
+  assert(again.ok);
+  assertEquals(again.run.dispatches[1].outcome?.value, "interrupted");
+  assertEquals(again.run.journal.length, journalLength + 1);
+  assertEquals(again.run.journal.at(-1)?.type, "outcome");
+});
+
+Deno.test("dispatch override: one grant lifts the dispatch cap and the interruption cap", () => {
+  const definition = restartable({
+    maxDispatchesPerCycle: 1,
+    maxInterruptionsPerCycle: 1,
+  });
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  run = mustDispatch(definition, run, env, { supersedes: 1 });
+  const closed = recordOutcome(
+    run,
+    2,
+    "interrupted",
+    "worker evicted",
+    NOBODY,
+    env,
+  );
+  assert(closed.ok);
+  run = closed.run;
+  assertEquals(run.dispatches[1].outcome?.reason, "worker evicted");
+  assert(!dispatchCap(run, definition).allowed);
+  const granted = grantOverride(
+    run,
+    definition,
+    expectedOf(run),
+    { kind: "dispatch" },
+    ALICE,
+    env,
+  );
+  assert(granted.ok);
+  const cap = dispatchCap(granted.run, definition);
+  assertEquals(cap.granted, 1);
+  assert(cap.allowed);
+});
+
+Deno.test("recordOutcome: set once, named by id, refused for an unknown dispatch", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  assert(!recordOutcome(run, 5, "succeeded", undefined, NOBODY, env).ok);
+  const done = recordOutcome(run, 1, "succeeded", undefined, NOBODY, env);
+  assert(done.ok);
+  const twice = recordOutcome(done.run, 1, "failed", undefined, NOBODY, env);
+  assert(!twice.ok);
+  assertEquals(twice.reason, "dispatch 1 already has an outcome (succeeded)");
+  // A failure still counts against the dispatch cap; only interruptions do not.
+  assertEquals(dispatchCap(done.run, definition).count, 1);
+});
+
+Deno.test("dispatch: a packet built for an id another dispatch took is refused as stale, not parked", () => {
+  const definition = restartable({ maxDispatchesPerCycle: 1 });
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  const input = { inputs: {}, expectedId: 1 };
+  assert(
+    !wouldRefuseAtCap(run, definition, expectedOf(run), input, NOBODY, env),
+  );
+  const refused = recordDispatch(
+    run,
+    definition,
+    expectedOf(run),
+    input,
+    NOBODY,
+    env,
+  );
+  assert(!refused.ok);
+  assert(refused.reason.startsWith("stale: dispatch 1 was recorded after"));
+});
+
+Deno.test("checkpoints: only the open, latest dispatch of its entry takes one, and the next dispatch resumes from it", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  assertEquals(resumeCheckpoint(run), undefined);
+  const written = recordCheckpoint(
+    run,
+    1,
+    { version: 1, digest: "sha256:a" },
+    NOBODY,
+    env,
+  );
+  assert(written.ok);
+  run = written.run;
+  const later = recordCheckpoint(
+    run,
+    1,
+    { version: 2, digest: "sha256:b" },
+    NOBODY,
+    env,
+  );
+  assert(later.ok);
+  run = later.run;
+  assertEquals(run.journal.at(-1)?.type, "checkpoint");
+  assertEquals(resumeCheckpoint(run)?.checkpoint.version, 2);
+  run = mustDispatch(definition, run, env, { supersedes: 1 });
+  // The interrupted dispatch is closed and replaced: a late write is refused.
+  assertEquals(
+    checkpointRefusal(run, 1),
+    "dispatch 1 is closed (interrupted); only an open dispatch takes checkpoints",
+  );
+  assertEquals(resumeCheckpoint(run)?.dispatchId, 1);
+  assertEquals(checkpointRefusal(run, 2), null);
+  assertEquals(checkpointRefusal(run, 7), "no dispatch 7");
+});
+
+Deno.test("checkpoints: a replaced dispatch that never closed cannot overwrite the retry's", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  run = mustDispatch(definition, run, env);
+  assertEquals(
+    checkpointRefusal(run, 1),
+    "dispatch 2 has replaced dispatch 1 in stage 'work' cycle 1",
+  );
+});
+
+Deno.test("run record: dispatches written before the lifecycle still parse, and the new fields round-trip", () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  const before = parseRun(structuredClone(run));
+  assert(before.ok);
+  assertEquals(before.value.dispatches[0].outcome, undefined);
+  run = mustDispatch(definition, run, env, { driverId: "w1", supersedes: 1 });
+  const checkpointed = recordCheckpoint(
+    run,
+    2,
+    { version: 1, digest: "sha256:c" },
+    NOBODY,
+    env,
+  );
+  assert(checkpointed.ok);
+  const after = parseRun(structuredClone(checkpointed.run));
+  assert(after.ok);
+  assertEquals(after.value, checkpointed.run);
+});
+
+Deno.test("checkpoints: a dispatch of an entry the work item has left, or of a finished run, takes none", async () => {
+  const definition = restartable();
+  const env = testEnv();
+  let run = begin(definition, env);
+  run = mustDispatch(definition, run, env);
+  const moved = await advance(
+    run,
+    definition,
+    expectedOf(run),
+    { transition: "done" },
+    () => Promise.resolve({ pass: true, failures: [] }),
+    NOBODY,
+    env,
+  );
+  assert(moved.ok, moved.ok ? "" : moved.reason);
+  assertEquals(
+    checkpointRefusal(moved.run, 1),
+    "the work item finished at stage 'end'",
+  );
+  assertEquals(
+    checkpointRefusal({ ...moved.run, status: "active" }, 1),
+    "dispatch 1 is not in the current stage and cycle; nothing would " +
+      "resume from its checkpoint",
   );
 });

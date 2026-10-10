@@ -18,7 +18,9 @@ import { assert, assertEquals } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import {
   celExpressions,
+  DEFAULT_MAX_INTERRUPTIONS,
   type FactoryDefinition,
+  maxInterruptionsFor,
   parseDefinition,
   trackerKindOf,
   transitionsFrom,
@@ -1203,4 +1205,27 @@ Deno.test("evidence-recorded: a bad match fragment is refused at its path", () =
     evidenceGate({ match: { ["__proto__"]: { const: 1 } } }),
     "match cannot name '__proto__'",
   );
+});
+
+Deno.test("definition: maxInterruptionsPerCycle is optional, defaults to 3, and must be a positive integer", () => {
+  const stages = (extra: Record<string, unknown>) => ({
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "work",
+        initial: true,
+        ...extra,
+        transitions: [{ name: "done", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  });
+  const plain = parseDefinition(stages({}));
+  assert(plain.ok);
+  assertEquals(DEFAULT_MAX_INTERRUPTIONS, 3);
+  assertEquals(maxInterruptionsFor(plain.value.stages[0]), 3);
+  const set = parseDefinition(stages({ maxInterruptionsPerCycle: 1 }));
+  assert(set.ok);
+  assertEquals(maxInterruptionsFor(set.value.stages[0]), 1);
+  assert(!parseDefinition(stages({ maxInterruptionsPerCycle: 0 })).ok);
 });

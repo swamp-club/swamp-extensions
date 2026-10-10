@@ -25,6 +25,8 @@ import {
   withoutNotes,
 } from "./payload_schema.ts";
 import type { RunRecord } from "./run_record.ts";
+import { nextDispatchId, resumeCheckpoint } from "./run_ops.ts";
+import { checkpointName, payloadName } from "./run_store.ts";
 import { renderTemplate } from "./template.ts";
 
 // ---------------------------------------------------------------------------
@@ -55,9 +57,35 @@ export interface ProductContract {
   schema: PayloadSchema;
 }
 
+/** The checkpoint a dispatch resumes from: the latest one an earlier
+ * dispatch of the same stage entry wrote. */
+export interface ResumeCheckpoint {
+  fromDispatch: number;
+  version: number;
+  digest: string;
+  /** Prints the checkpoint's payload, the version the run indexes. */
+  read: string;
+}
+
+/** The reserved input a workflow or method stage gets when its inputsSchema
+ * declares it. The underscore marks it as the engine's, not the author's. */
+export const STAGECRAFT_INPUT = "_stagecraft";
+
+export interface StagecraftInput {
+  workItem: string;
+  dispatchId: number;
+  resume: ResumeCheckpoint | null;
+}
+
 export interface DispatchPacket {
   stage: string;
   cycle: number;
+  /** The work item's key. */
+  workItem: string;
+  /** The id this dispatch gets when it is recorded. */
+  dispatchId: number;
+  /** The checkpoint to resume from, or null. */
+  resume: ResumeCheckpoint | null;
   mode: "interactive" | "dispatch" | "workflow" | "method";
   skills: string[];
   /** How many subagents a dispatch stage runs: one per skill, or one
@@ -117,9 +145,23 @@ export function buildDispatch(
     return undefined;
   };
 
+  const found = resumeCheckpoint(run);
+  const resume: ResumeCheckpoint | null = found === undefined ? null : {
+    fromDispatch: found.dispatchId,
+    version: found.checkpoint.version,
+    digest: found.checkpoint.digest,
+    read:
+      `swamp data query 'modelName == "${run.key}" && name == "${
+        payloadName("checkpoint", checkpointName(found.dispatchId))
+      }" && version == ${found.checkpoint.version}' --select content ` +
+      "--single --json",
+  };
   const packet: DispatchPacket = {
     stage: stage.id,
     cycle: context.stage.cycle,
+    workItem: run.key,
+    dispatchId: nextDispatchId(run),
+    resume,
     mode: work.mode,
     skills: work.skills ?? [],
     subagents: work.mode === "dispatch"
@@ -141,7 +183,22 @@ export function buildDispatch(
     const literal = jsonSafe(
       work.workflow?.inputs ?? work.method?.inputs ?? {},
     ) as Record<string, Json>;
-    const inputs = { ...literal, ...values };
+    const inputs: Record<string, Json> = { ...literal, ...values };
+    // Filled only when the stage declares it and nothing else supplies it:
+    // swamp refuses an input a method does not declare, and gives a method
+    // no way to read another's arguments, so the stage's inputsSchema is
+    // the one place that says the call takes it.
+    if (
+      declaresInput(work.inputsSchema, STAGECRAFT_INPUT) &&
+      !(STAGECRAFT_INPUT in inputs)
+    ) {
+      const supplied: StagecraftInput = {
+        workItem: packet.workItem,
+        dispatchId: packet.dispatchId,
+        resume: packet.resume,
+      };
+      inputs[STAGECRAFT_INPUT] = supplied as unknown as Json;
+    }
     packet.inputs = inputs;
     if (work.workflow !== undefined) packet.workflow = work.workflow.name;
     if (work.method !== undefined) {
@@ -158,6 +215,15 @@ export function buildDispatch(
   }
   packet.ready = problems.length === 0;
   return packet;
+}
+
+function declaresInput(
+  schema: PayloadSchema | undefined,
+  name: string,
+): boolean {
+  const properties = schema?.properties;
+  return properties !== null && typeof properties === "object" &&
+    Object.hasOwn(properties, name);
 }
 
 function productsOf(
@@ -249,6 +315,13 @@ export function buildSubagentPrompts(
           "with an error (the record is missing or not alone), stop and\n" +
           "report that; never guess the product.\n" +
           reads.join("\n"),
+        ]
+        : []),
+      ...(packet.resume !== null
+        ? [
+          `An earlier attempt at this work (dispatch ${packet.resume.fromDispatch})\n` +
+          "left a checkpoint. Read it and resume from it rather than\n" +
+          `starting over:\n- ${packet.resume.read}`,
         ]
         : []),
       ...(writes.length > 0

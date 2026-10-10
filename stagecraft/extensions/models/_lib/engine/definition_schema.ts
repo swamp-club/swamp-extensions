@@ -75,6 +75,14 @@ export const DEFAULT_MAX_CYCLES = 5;
  */
 export const DEFAULT_MAX_DISPATCHES = 2;
 
+/**
+ * Default interrupted dispatches allowed per stage entry. They do not count
+ * against the dispatch cap, but past this many the next dispatch parks the
+ * work item for a human too, so calling every failure an interruption cannot
+ * get round the runaway-loop guard.
+ */
+export const DEFAULT_MAX_INTERRUPTIONS = 3;
+
 export const SeveritySchema = z.enum(SEVERITIES);
 
 // ---------------------------------------------------------------------------
@@ -648,6 +656,7 @@ export const StageSchema = z.strictObject({
   terminal: z.boolean().optional(),
   maxCycles: z.number().int().positive().optional(),
   maxDispatchesPerCycle: z.number().int().positive().optional(),
+  maxInterruptionsPerCycle: z.number().int().positive().optional(),
   work: WorkSchema.optional(),
   artifacts: z.array(ArtifactSpecSchema).optional(),
   evidence: z.array(EvidenceSpecSchema).optional(),
@@ -1480,6 +1489,10 @@ export function maxCyclesFor(stage: StageSpec): number {
 
 export function maxDispatchesFor(stage: StageSpec): number {
   return stage.maxDispatchesPerCycle ?? DEFAULT_MAX_DISPATCHES;
+}
+
+export function maxInterruptionsFor(stage: StageSpec): number {
+  return stage.maxInterruptionsPerCycle ?? DEFAULT_MAX_INTERRUPTIONS;
 }
 
 /** Transitions available from a stage, including global transitions. */

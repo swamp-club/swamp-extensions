@@ -138,7 +138,10 @@ export function ItemHead() {
             <span class="lchip gold">waiting on a person</span>
           )}
           {w.parkedAtDispatchCap && (
-            <span class="lchip pink">parked at the dispatch cap</span>
+            <span class="lchip pink">
+              parked at the{" "}
+              {w.parkedOnInterruptions ? "interruption cap" : "dispatch cap"}
+            </span>
           )}
         </div>
         <button
@@ -189,10 +192,17 @@ function NowTab() {
         ))}
         {w.parkedAtDispatchCap && (
           <li class="w-parked">
-            parked at the dispatch cap: waiting on a person to grant a dispatch
-            override
+            parked at the{" "}
+            {w.parkedOnInterruptions ? "interruption cap" : "dispatch cap"}:
+            waiting on a person to grant a dispatch override
           </li>
         )}
+        {w.open.map((d) => (
+          <li class="w-dispatch" key={`open-${d.id}`}>
+            open dispatch {d.id} since {when(d.at)}
+            {d.driverId !== null ? ` (driver ${d.driverId})` : ""}
+          </li>
+        ))}
         {w.personRecords.length > 0 && (
           <li class="w-person">
             a person records: {w.personRecords.join(", ")}

@@ -19,9 +19,11 @@ import { RunRecordSchema } from "../_lib/engine/run_record.ts";
 import { systemEnv } from "../_lib/engine/run_ops.ts";
 import {
   ARTIFACT_SPEC,
+  CHECKPOINT_SPEC,
   EVIDENCE_SPEC,
   RUN_SPEC,
 } from "../_lib/engine/run_store.ts";
+import { DISPATCH_OUTCOMES } from "../_lib/engine/journal.ts";
 import {
   ActorInputs,
   advanceMethod,
@@ -33,8 +35,11 @@ import {
   grantOverrideMethod,
   type MethodContextLike,
   METRICS_SPEC,
+  openDispatchesMethod,
   PayloadInput,
   rebuildMetrics,
+  recordCheckpointMethod,
+  recordOutcomeMethod,
   recordProductMethod,
   recordUsageMethod,
   resetMethod,
@@ -66,6 +71,14 @@ const dispatchArguments = z.object({
     "An existing directory for a dispatch stage's subagent result files; " +
       "a new temporary directory when omitted",
   ),
+  driverId: z.string().min(1).optional().describe(
+    "Who is doing the work, as the driver names itself; open_dispatches " +
+      "filters on it",
+  ),
+  supersedes: z.coerce.number().int().positive().optional().describe(
+    "An open dispatch of this stage and cycle that this one replaces, " +
+      "closing it as interrupted",
+  ),
   ...ExpectedInputs,
   ...ActorInputs,
 });
@@ -78,13 +91,20 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/stagecraft/work-item",
-  version: "2026.10.08.1",
-  // The work item has no globalArguments to upgrade; the entry moves an
+  version: "2026.10.08.2",
+  // The work item has no globalArguments to upgrade; each entry moves an
   // instance's typeVersion to the version it runs at.
   upgrades: [
     {
       toVersion: "2026.10.08.1",
       description: "Pinned definitions are read upgraded (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.2",
+      description:
+        "Add the dispatch lifecycle (record_outcome, record_checkpoint, " +
+        "open_dispatches) and the checkpoint resource (no argument change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -112,6 +132,15 @@ export const model = {
       description:
         "Evidence payloads. Kept by age, not count: the run and approvals " +
         "refer to specific versions.",
+      schema: payloadSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: "1y",
+    },
+    [CHECKPOINT_SPEC]: {
+      description:
+        "Checkpoints a dispatch's work wrote, one record per dispatch " +
+        "(checkpoint-d<id>), a version per write. Kept by age: the run " +
+        "refers to specific versions, and the next dispatch resumes from one.",
       schema: payloadSchema,
       lifetime: "infinite" as const,
       garbageCollection: "1y",
@@ -241,6 +270,56 @@ export const model = {
         context: MethodContextLike,
       ) => recordUsageMethod(context, args, systemEnv),
     },
+    record_outcome: {
+      description:
+        "Record how a dispatch ended, once: succeeded, failed, or interrupted " +
+        "(interrupted dispatches count against maxInterruptionsPerCycle, not " +
+        "the dispatch cap)",
+      arguments: z.object({
+        dispatchId: z.coerce.number().int().positive(),
+        outcome: z.enum(DISPATCH_OUTCOMES),
+        reason: z.string().min(1).optional(),
+        ...ActorInputs,
+      }),
+      execute: (
+        args: {
+          dispatchId: number;
+          outcome: typeof DISPATCH_OUTCOMES[number];
+          reason?: string;
+          onBehalfOf?: string;
+        },
+        context: MethodContextLike,
+      ) => recordOutcomeMethod(context, args, systemEnv),
+    },
+    record_checkpoint: {
+      description:
+        "Save a checkpoint for an open dispatch, as often as the work likes; " +
+        "the next dispatch of the same stage and cycle resumes from the latest",
+      arguments: z.object({
+        dispatchId: z.coerce.number().int().positive(),
+        payload: PayloadInput,
+        ...ActorInputs,
+      }),
+      execute: (
+        args: {
+          dispatchId: number;
+          payload: Record<string, unknown> | string;
+          onBehalfOf?: string;
+        },
+        context: MethodContextLike,
+      ) => recordCheckpointMethod(context, args, systemEnv),
+    },
+    open_dispatches: {
+      description:
+        "List the open dispatches of the current stage and cycle, optionally " +
+        "one driver's: a driver's scan for work that died",
+      kind: "read" as const,
+      arguments: z.object({
+        driverId: z.string().min(1).optional(),
+      }),
+      execute: (args: { driverId?: string }, context: MethodContextLike) =>
+        openDispatchesMethod(context, args, systemEnv),
+    },
     approve: {
       description:
         "Approve a human-approval gate on the ways out of this stage",
@@ -284,7 +363,9 @@ export const model = {
     },
     grant_override: {
       description:
-        "Grant one more entry into a stage (cycle) or one more dispatch in this stage and cycle (dispatch)",
+        "Grant one more entry into a stage (cycle) or one more dispatch in this " +
+        "stage and cycle (dispatch); a dispatch override lifts both the " +
+        "dispatch cap and the interruption cap by one",
       arguments: z.object({
         kind: z.enum(["cycle", "dispatch"]),
         stage: z.string().min(1).optional(),

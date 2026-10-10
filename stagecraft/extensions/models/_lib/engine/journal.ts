@@ -75,9 +75,23 @@ export const DispatchOverrideHoldSchema = z.strictObject({
   count: z.number().int().nonnegative(),
   limit: z.number().int().positive(),
   granted: z.number().int().nonnegative(),
+  /** Interrupted dispatches in this stage and cycle and their limit, when
+   * the interruption cap is what refused. */
+  interruptions: z.strictObject({
+    count: z.number().int().nonnegative(),
+    limit: z.number().int().positive(),
+  }).optional(),
 });
 
 export type DispatchOverrideHold = z.infer<typeof DispatchOverrideHoldSchema>;
+
+/** How a dispatch ended (run_record.ts keeps it on the dispatch). */
+export const DISPATCH_OUTCOMES = [
+  "succeeded",
+  "failed",
+  "interrupted",
+] as const;
+export type DispatchOutcomeValue = typeof DISPATCH_OUTCOMES[number];
 
 const EVENT_BASE = {
   at: z.string().min(1),
@@ -106,6 +120,20 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
     ...EVENT_BASE,
     type: z.literal("usage"),
     dispatchId: z.number().int().positive(),
+  }),
+  z.strictObject({
+    ...EVENT_BASE,
+    type: z.literal("outcome"),
+    dispatchId: z.number().int().positive(),
+    outcome: z.enum(DISPATCH_OUTCOMES),
+    /** Set when a later dispatch superseded this one. */
+    supersededBy: z.number().int().positive().optional(),
+  }),
+  z.strictObject({
+    ...EVENT_BASE,
+    type: z.literal("checkpoint"),
+    dispatchId: z.number().int().positive(),
+    version: z.number().int().positive(),
   }),
   z.strictObject({
     ...EVENT_BASE,

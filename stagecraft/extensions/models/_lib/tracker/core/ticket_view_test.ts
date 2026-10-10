@@ -766,3 +766,58 @@ Deno.test("duplicate marks: a decline marks nothing, and a product from an earli
     [],
   );
 });
+
+Deno.test("ticket view: an interrupted or failed dispatch is news; success and checkpoints are not", () => {
+  const doc = definition();
+  const outcome = (
+    value: "succeeded" | "failed" | "interrupted",
+    supersededBy?: number,
+  ): JournalEvent => ({
+    ...BASE,
+    stage: "write",
+    type: "outcome",
+    dispatchId: 1,
+    outcome: value,
+    ...(supersededBy !== undefined ? { supersededBy } : {}),
+  });
+  assertEquals(
+    commentFor(KEY, outcome("interrupted", 2), doc),
+    `**${KEY}**: dispatch 1 in **write** was interrupted; dispatch 2 ` +
+      "replaces it.",
+  );
+  assertEquals(
+    commentFor(KEY, outcome("interrupted"), doc),
+    `**${KEY}**: dispatch 1 in **write** was interrupted.`,
+  );
+  assertEquals(
+    commentFor(KEY, outcome("failed"), doc),
+    `**${KEY}**: dispatch 1 in **write** failed.`,
+  );
+  assertEquals(commentFor(KEY, outcome("succeeded"), doc), null);
+  assertEquals(
+    commentFor(KEY, {
+      ...BASE,
+      stage: "write",
+      type: "checkpoint",
+      dispatchId: 1,
+      version: 1,
+    }, doc),
+    null,
+  );
+  assertEquals(
+    commentFor(KEY, {
+      ...BASE,
+      stage: "write",
+      type: "awaiting",
+      exits: [],
+      dispatchOverride: {
+        count: 1,
+        limit: 2,
+        granted: 0,
+        interruptions: { count: 4, limit: 3 },
+      },
+    }, doc),
+    `**${KEY}** is waiting on a person in **write**: interruption limit ` +
+      "reached (4 of 3); a person must grant a dispatch override.",
+  );
+});

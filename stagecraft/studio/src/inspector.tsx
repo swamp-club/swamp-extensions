@@ -199,6 +199,9 @@ function StageDetails({ id }: { id: string }) {
           <>
             <span class="lchip">⟳ {s.maxCycles} cycles</span>
             <span class="lchip">⇉ {s.maxDispatchesPerCycle} dispatches</span>
+            <span class="lchip">
+              ↯ {s.maxInterruptionsPerCycle} interruptions
+            </span>
           </>
         )}
       </div>

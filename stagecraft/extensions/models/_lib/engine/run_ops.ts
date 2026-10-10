@@ -16,6 +16,7 @@
 
 import type {
   Actor,
+  DispatchOutcomeValue,
   DispatchOverrideHold,
   JournalEvent,
   ProductKind,
@@ -25,6 +26,7 @@ import {
   findStage,
   maxCyclesFor,
   maxDispatchesFor,
+  maxInterruptionsFor,
   type StageSpec,
   transitionsFrom,
   type TransitionSpec,
@@ -35,6 +37,7 @@ import {
   validatePayload,
 } from "./payload_schema.ts";
 import {
+  type CheckpointRef,
   currentCycle,
   RUN_SCHEMA_VERSION,
   type RunRecord,
@@ -453,12 +456,67 @@ export interface DispatchInput {
   prompt?: string;
   command?: string;
   subagentPrompts?: SubagentPrompt[];
+  /** Who is doing the work, as the driver names itself. */
+  driverId?: string;
+  /** An open dispatch of this stage and cycle that this one replaces: it is
+   * closed as interrupted. */
+  supersedes?: number;
+  /** The id the caller built its packet with (the next id when it read the
+   * run). Another dispatch recorded since makes the packet stale. */
+  expectedId?: number;
+}
+
+/** The id the next dispatch gets. Ids never repeat across eras. */
+export function nextDispatchId(run: RunRecord): number {
+  return run.dispatches.length + 1;
+}
+
+/** Refuse when a dispatch was recorded since the caller built its packet. */
+export function checkExpectedId(
+  run: RunRecord,
+  expectedId: number | undefined,
+): string | null {
+  if (expectedId === undefined || expectedId === nextDispatchId(run)) {
+    return null;
+  }
+  return `stale: dispatch ${
+    nextDispatchId(run) - 1
+  } was recorded after this packet was built (for dispatch ${expectedId}); ` +
+    "read the work item's status and dispatch again";
+}
+
+/**
+ * Whether a dispatch is refused at a cap, judged as recordDispatch would
+ * judge it: on an active run the caller's view matches, after closing the
+ * dispatch it supersedes. A stale or invalid request is refused for that
+ * reason instead, and does not park.
+ */
+export function wouldRefuseAtCap(
+  run: RunRecord,
+  definition: FactoryDefinition,
+  expected: Expected,
+  input: Pick<DispatchInput, "supersedes" | "expectedId">,
+  actor: Actor,
+  env: Env,
+): boolean {
+  if (requireActive(run) !== null || checkExpected(run, expected) !== null) {
+    return false;
+  }
+  if (checkExpectedId(run, input.expectedId) !== null) return false;
+  const base = input.supersedes === undefined
+    ? run
+    : interrupt(run, input.supersedes, undefined, actor, env);
+  if (!("dispatches" in base)) return false;
+  return !dispatchCap(base, definition).allowed;
 }
 
 /**
  * Record that the current stage's work is being done; returns its id.
- * Refused past the stage's dispatch cap as a suspected runaway loop, unless a
- * person has granted dispatch overrides for this stage and cycle.
+ * Refused past the stage's dispatch cap as a suspected runaway loop, or past
+ * its interruption cap as a suspected restart loop, unless a person has
+ * granted dispatch overrides for this stage and cycle. A dispatch that
+ * supersedes an open one closes it as interrupted first, and the caps are
+ * judged on the result.
  */
 export function recordDispatch(
   run: RunRecord,
@@ -472,9 +530,17 @@ export function recordDispatch(
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const cap = dispatchCap(run, definition);
-  if (!cap.allowed) return refuse(dispatchCapMessage(run, cap));
-  const id = run.dispatches.length + 1;
+  const staleId = checkExpectedId(run, input.expectedId);
+  if (staleId !== null) return refuse(staleId);
+  const id = nextDispatchId(run);
+  let base = run;
+  if (input.supersedes !== undefined) {
+    const closed = interrupt(run, input.supersedes, id, actor, env);
+    if (!("dispatches" in closed)) return refuse(closed.reason);
+    base = closed;
+  }
+  const cap = dispatchCap(base, definition);
+  if (!cap.allowed) return refuse(dispatchCapMessage(base, cap));
   const dispatch = {
     id,
     era: run.era,
@@ -489,19 +555,220 @@ export function recordDispatch(
     ...(input.subagentPrompts !== undefined
       ? { subagentPrompts: input.subagentPrompts }
       : {}),
+    ...(input.driverId !== undefined ? { driverId: input.driverId } : {}),
+    ...(input.supersedes !== undefined ? { supersedes: input.supersedes } : {}),
   };
   return {
     ok: true,
     value: id,
     run: {
-      ...run,
-      dispatches: [...run.dispatches, dispatch],
+      ...base,
+      dispatches: [...base.dispatches, dispatch],
       journal: [
-        ...run.journal,
+        ...base.journal,
         journal(run, actor, env, { type: "dispatched", dispatchId: id }),
       ],
     },
   };
+}
+
+/**
+ * Close an open dispatch of the current stage entry as interrupted, because
+ * a dispatch replaces it (`by`, absent when that dispatch was refused).
+ * Returns the run, or why it cannot be superseded.
+ */
+function interrupt(
+  run: RunRecord,
+  target: number,
+  by: number | undefined,
+  actor: Actor,
+  env: Env,
+): RunRecord | { reason: string } {
+  const index = run.dispatches.findIndex((d) => d.id === target);
+  if (index === -1) return { reason: `no dispatch ${target} to supersede` };
+  const dispatch = run.dispatches[index];
+  if (
+    dispatch.era !== run.era || dispatch.stage !== run.stage ||
+    dispatch.cycle !== currentCycle(run)
+  ) {
+    return {
+      reason: `dispatch ${target} is not in the current stage and cycle; ` +
+        "only an open dispatch of this stage entry can be superseded",
+    };
+  }
+  if (dispatch.outcome !== undefined) {
+    return {
+      reason: `dispatch ${target} is already closed ` +
+        `(${dispatch.outcome.value}); only an open dispatch can be superseded`,
+    };
+  }
+  return closeDispatch(run, index, "interrupted", undefined, by, actor, env);
+}
+
+function closeDispatch(
+  run: RunRecord,
+  index: number,
+  value: DispatchOutcomeValue,
+  reason: string | undefined,
+  supersededBy: number | undefined,
+  actor: Actor,
+  env: Env,
+): RunRecord {
+  const dispatches = [...run.dispatches];
+  const dispatchId = dispatches[index].id;
+  dispatches[index] = {
+    ...dispatches[index],
+    outcome: {
+      value,
+      at: env.now(),
+      actor,
+      ...(reason !== undefined ? { reason } : {}),
+      ...(supersededBy !== undefined ? { supersededBy } : {}),
+    },
+  };
+  return {
+    ...run,
+    dispatches,
+    journal: [
+      ...run.journal,
+      journal(run, actor, env, {
+        type: "outcome",
+        dispatchId,
+        outcome: value,
+        ...(supersededBy !== undefined ? { supersededBy } : {}),
+      }),
+    ],
+  };
+}
+
+/**
+ * Record how a dispatch ended. Like usage, the outcome is often known after
+ * the run has moved on, so the dispatch is named by id. A dispatch takes one
+ * outcome, once.
+ */
+export function recordOutcome(
+  run: RunRecord,
+  dispatchId: number,
+  value: DispatchOutcomeValue,
+  reason: string | undefined,
+  actor: Actor,
+  env: Env,
+): OpResult<number> {
+  const index = run.dispatches.findIndex((d) => d.id === dispatchId);
+  if (index === -1) return refuse(`no dispatch ${dispatchId}`);
+  const existing = run.dispatches[index].outcome;
+  if (existing !== undefined) {
+    return refuse(
+      `dispatch ${dispatchId} already has an outcome (${existing.value})`,
+    );
+  }
+  return {
+    ok: true,
+    value: dispatchId,
+    run: closeDispatch(run, index, value, reason, undefined, actor, env),
+  };
+}
+
+/**
+ * Why a checkpoint cannot be written for a dispatch, or null. Only the open,
+ * latest dispatch of the current stage entry takes checkpoints: work a later
+ * dispatch replaced cannot overwrite the retry's state, and nothing would ever
+ * resume one written for an entry the work item has left.
+ */
+export function checkpointRefusal(
+  run: RunRecord,
+  dispatchId: number,
+): string | null {
+  const inactive = requireActive(run);
+  if (inactive !== null) return inactive;
+  const dispatch = run.dispatches.find((d) => d.id === dispatchId);
+  if (dispatch === undefined) return `no dispatch ${dispatchId}`;
+  if (
+    dispatch.era !== run.era || dispatch.stage !== run.stage ||
+    dispatch.cycle !== currentCycle(run)
+  ) {
+    return `dispatch ${dispatchId} is not in the current stage and cycle; ` +
+      "nothing would resume from its checkpoint";
+  }
+  if (dispatch.outcome !== undefined) {
+    return `dispatch ${dispatchId} is closed (${dispatch.outcome.value}); ` +
+      "only an open dispatch takes checkpoints";
+  }
+  const later = run.dispatches.find((d) =>
+    d.id > dispatchId && d.era === dispatch.era &&
+    d.stage === dispatch.stage && d.cycle === dispatch.cycle
+  );
+  if (later !== undefined) {
+    return `dispatch ${later.id} has replaced dispatch ${dispatchId} in ` +
+      `stage '${dispatch.stage}' cycle ${dispatch.cycle}`;
+  }
+  return null;
+}
+
+/**
+ * Index a checkpoint payload already written for a dispatch. Refused as
+ * checkpointRefusal says; the payload then stays unreferenced, so ignored.
+ */
+export function recordCheckpoint(
+  run: RunRecord,
+  dispatchId: number,
+  ref: Omit<CheckpointRef, "at">,
+  actor: Actor,
+  env: Env,
+): OpResult<number> {
+  const refused = checkpointRefusal(run, dispatchId);
+  if (refused !== null) return refuse(refused);
+  const dispatches = run.dispatches.map((d) =>
+    d.id === dispatchId ? { ...d, checkpoint: { ...ref, at: env.now() } } : d
+  );
+  return {
+    ok: true,
+    value: ref.version,
+    run: {
+      ...run,
+      dispatches,
+      journal: [
+        ...run.journal,
+        journal(run, actor, env, {
+          type: "checkpoint",
+          dispatchId,
+          version: ref.version,
+        }),
+      ],
+    },
+  };
+}
+
+/** The latest checkpoint an earlier dispatch of the current stage entry
+ * wrote: what the next dispatch resumes from. */
+export function resumeCheckpoint(
+  run: RunRecord,
+): { dispatchId: number; checkpoint: CheckpointRef } | undefined {
+  const cycle = currentCycle(run);
+  for (let i = run.dispatches.length - 1; i >= 0; i--) {
+    const d = run.dispatches[i];
+    if (d.era !== run.era || d.stage !== run.stage || d.cycle !== cycle) {
+      continue;
+    }
+    if (d.checkpoint !== undefined) {
+      return { dispatchId: d.id, checkpoint: d.checkpoint };
+    }
+  }
+  return undefined;
+}
+
+/** The open dispatches of the current stage entry, optionally one driver's. */
+export function openDispatches(
+  run: RunRecord,
+  driverId?: string,
+): RunRecord["dispatches"] {
+  if (run.status !== "active") return [];
+  const cycle = currentCycle(run);
+  return run.dispatches.filter((d) =>
+    d.era === run.era && d.stage === run.stage && d.cycle === cycle &&
+    d.outcome === undefined &&
+    (driverId === undefined || d.driverId === driverId)
+  );
 }
 
 /**
@@ -642,6 +909,9 @@ export interface Limit {
   granted: number;
   /** Whether one more is allowed. */
   allowed: boolean;
+  /** For the dispatch cap: interrupted dispatches in this stage and cycle,
+   * which `count` leaves out, and the definition's limit on them. */
+  interruptions?: { count: number; limit: number };
 }
 
 /**
@@ -690,6 +960,14 @@ export function cycleLimitMessage(stage: string, limit: Limit): string {
 
 /** Why one more dispatch is refused, for the refusal. */
 export function dispatchCapMessage(run: RunRecord, cap: Limit): string {
+  if (cap.interruptions !== undefined && overInterruptions(cap)) {
+    return `restart loop suspected: stage '${run.stage}' cycle ${
+      currentCycle(run)
+    } has had ${cap.interruptions.count} interrupted dispatch(es), its ` +
+      `limit is ${cap.interruptions.limit}` +
+      (cap.granted > 0 ? ` plus ${cap.granted} granted` : "") +
+      "; a person must grant a dispatch override to dispatch again";
+  }
   return `runaway loop suspected: stage '${run.stage}' cycle ${
     currentCycle(run)
   } has had ${cap.count} dispatch(es), its limit is ${cap.limit}` +
@@ -697,23 +975,46 @@ export function dispatchCapMessage(run: RunRecord, cap: Limit): string {
     "; a person must grant a dispatch override to dispatch again";
 }
 
-/** Whether the current stage and cycle may take one more dispatch. */
+/** Whether the interruption cap is what refuses one more dispatch. */
+export function overInterruptions(cap: Limit): boolean {
+  return cap.interruptions !== undefined &&
+    cap.interruptions.count > cap.interruptions.limit + cap.granted;
+}
+
+/**
+ * Whether the current stage and cycle may take one more dispatch. Interrupted
+ * dispatches do not count against maxDispatchesPerCycle, but past
+ * maxInterruptionsPerCycle of them no dispatch is allowed either. A dispatch
+ * override adds one to both limits. With nothing interrupted this is the
+ * plain dispatch cap.
+ */
 export function dispatchCap(
   run: RunRecord,
   definition: FactoryDefinition,
 ): Limit {
   const cycle = currentCycle(run);
-  const count =
-    run.dispatches.filter((d) =>
-      d.era === run.era && d.stage === run.stage && d.cycle === cycle
-    ).length;
-  const limit = maxDispatchesFor(stageOf(definition, run));
+  const entry = run.dispatches.filter((d) =>
+    d.era === run.era && d.stage === run.stage && d.cycle === cycle
+  );
+  const interrupted =
+    entry.filter((d) => d.outcome?.value === "interrupted").length;
+  const count = entry.length - interrupted;
+  const stage = stageOf(definition, run);
+  const limit = maxDispatchesFor(stage);
+  const interruptionLimit = maxInterruptionsFor(stage);
   const granted =
     run.overrides.filter((o) =>
       o.era === run.era && o.kind === "dispatch" && o.stage === run.stage &&
       o.cycle === cycle
     ).length;
-  return { count, limit, granted, allowed: count + 1 <= limit + granted };
+  return {
+    count,
+    limit,
+    granted,
+    allowed: count + 1 <= limit + granted &&
+      interrupted <= interruptionLimit + granted,
+    interruptions: { count: interrupted, limit: interruptionLimit },
+  };
 }
 
 type AwaitingEvent = Extract<JournalEvent, { type: "awaiting" }>;
@@ -757,6 +1058,12 @@ export function currentPark(
  * check then carries the hold until a grant lets one more dispatch through.
  * Refused, so nothing is written, when the caller's view is stale, the cap
  * allows a dispatch, or the entry is parked already.
+ *
+ * A refused dispatch that superseded an open one still closes it as
+ * interrupted (`supersedes`): that is a fact the driver asserts, and the caps
+ * were judged with it closed. Committing it keeps the stored run refusing, so
+ * the park stands, and a driver's scan does not find the dispatch again.
+ * When the entry is parked already, only the close is written.
  */
 export function parkAtDispatchCap(
   run: RunRecord,
@@ -764,26 +1071,36 @@ export function parkAtDispatchCap(
   expected: Expected,
   actor: Actor,
   env: Env,
+  supersedes?: number,
 ): OpResult<Limit> {
   const inactive = requireActive(run);
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
-  const cap = dispatchCap(run, definition);
+  let base = run;
+  if (supersedes !== undefined) {
+    const closed = interrupt(run, supersedes, undefined, actor, env);
+    if (!("dispatches" in closed)) return refuse(closed.reason);
+    base = closed;
+  }
+  const cap = dispatchCap(base, definition);
   if (cap.allowed) {
     return refuse(`stage '${run.stage}' may take one more dispatch`);
   }
-  if (currentPark(run, cap) !== undefined) {
-    return refuse(`stage '${run.stage}' is already parked at its dispatch cap`);
+  if (currentPark(base, cap) !== undefined) {
+    return base === run
+      ? refuse(`stage '${run.stage}' is already parked at its dispatch cap`)
+      : { ok: true, value: cap, run: base };
   }
-  const last = lastAwaitingEvent(run);
+  const last = lastAwaitingEvent(base);
+  const interruptions = overInterruptions(cap) ? cap.interruptions : undefined;
   return {
     ok: true,
     value: cap,
     run: {
-      ...run,
+      ...base,
       journal: [
-        ...run.journal,
+        ...base.journal,
         journal(run, actor, env, {
           type: "awaiting",
           exits: last?.exits ?? [],
@@ -791,6 +1108,7 @@ export function parkAtDispatchCap(
             count: cap.count,
             limit: cap.limit,
             granted: cap.granted,
+            ...(interruptions !== undefined ? { interruptions } : {}),
           },
         }),
       ],

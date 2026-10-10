@@ -386,7 +386,13 @@ export function journalText(e: JournalEvent): string {
       return `${e.kind} override for ${e.for}`;
     case "awaiting": {
       const held = [
-        ...(e.dispatchOverride !== undefined ? ["dispatch override"] : []),
+        ...(e.dispatchOverride !== undefined
+          ? [
+            e.dispatchOverride.interruptions !== undefined
+              ? "dispatch override (interruption limit)"
+              : "dispatch override",
+          ]
+          : []),
         ...e.exits.map((x) =>
           x.gateIds.length > 0
             ? `${x.transition} (${x.gateIds.join(", ")})`
@@ -403,6 +409,13 @@ export function journalText(e: JournalEvent): string {
       return `dispatch ${e.dispatchId}`;
     case "usage":
       return `usage for dispatch ${e.dispatchId}`;
+    case "outcome":
+      return `dispatch ${e.dispatchId} ${e.outcome}` +
+        (e.supersededBy !== undefined
+          ? ` (superseded by ${e.supersededBy})`
+          : "");
+    case "checkpoint":
+      return `checkpoint for dispatch ${e.dispatchId} v${e.version}`;
     case "retargeted":
       return `retargeted: ${e.reason}`;
   }

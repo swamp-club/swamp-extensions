@@ -104,8 +104,12 @@ export function commentFor(
         return `${item} is waiting on a person in **${event.stage}**:\n\n` +
           event.exits.map(exitLine).join("\n");
       }
+      const reached = hold.interruptions !== undefined
+        ? `interruption limit reached (${hold.interruptions.count} of ` +
+          `${hold.interruptions.limit}`
+        : `dispatch limit reached (${hold.count} of ${hold.limit}`;
       return `${item} is waiting on a person in **${event.stage}**: ` +
-        `dispatch limit reached (${hold.count} of ${hold.limit}` +
+        reached +
         (hold.granted > 0 ? ` plus ${hold.granted} granted` : "") +
         "); a person must grant a dispatch override." +
         (event.exits.length === 0 ? "" : "\n\nAlso waiting on a person:\n\n" +
@@ -123,8 +127,21 @@ export function commentFor(
         (event.repinned === undefined
           ? "."
           : ", on a newly pinned definition.");
+    case "outcome": {
+      // A dispatch that did not succeed is news on the ticket; the reason
+      // is free text, so it is left out like an asserted actor.
+      if (event.outcome === "succeeded") return null;
+      return `${item}: dispatch ${event.dispatchId} in **${event.stage}** ` +
+        (event.outcome === "interrupted"
+          ? "was interrupted" +
+            (event.supersededBy !== undefined
+              ? `; dispatch ${event.supersededBy} replaces it.`
+              : ".")
+          : "failed.");
+    }
     case "dispatched":
     case "usage":
+    case "checkpoint":
     case "recorded":
     case "rejected":
     // Said by the notes of each ticket's segment (ticketSegments), since

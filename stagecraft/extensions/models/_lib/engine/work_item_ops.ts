@@ -38,7 +38,12 @@ import {
   DEFAULT_MAX_STATES,
   formatFinding,
 } from "./graph.ts";
-import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
+import {
+  type Actor,
+  actorFrom,
+  type DispatchOutcomeValue,
+  type ProductKind,
+} from "./journal.ts";
 import {
   type FactoryDefinition,
   formatIssues,
@@ -54,19 +59,20 @@ import {
 } from "./definition_upgrade.ts";
 import {
   advance,
-  checkExpected,
-  dispatchCap,
   type Env,
   type Expected,
   expectedOf,
   grantOverride,
+  openDispatches,
   type OpResult,
   parkAtDispatchCap,
   recordApproval,
   recordDispatch,
+  recordOutcome,
   recordUsage,
   reset,
   retarget,
+  wouldRefuseAtCap,
 } from "./run_ops.ts";
 import { computeMetrics } from "./metrics.ts";
 import { buildSummary } from "./summary.ts";
@@ -81,6 +87,7 @@ import {
   type RunStore,
   startRun,
   update,
+  writeCheckpoint,
 } from "./run_store.ts";
 
 export type { Pinned } from "./status_view.ts";
@@ -1043,16 +1050,33 @@ function statusLines(view: StatusView): string[] {
   }
   if (view.dispatch !== null && view.dispatchCap !== null) {
     const cap = view.dispatchCap;
+    // Interruptions are named once there are any, so a stage that has had
+    // none reads as it always has.
+    const interrupted = cap.interruptions !== undefined &&
+        cap.interruptions.count > 0
+      ? `; interruptions ${cap.interruptions.count} of ${
+        cap.interruptions.limit + cap.granted
+      }`
+      : "";
     lines.push(
       `  work: ${view.dispatch.mode}; dispatches this cycle ${cap.count} of ${
         cap.limit + cap.granted
-      }`,
+      }${interrupted}`,
+    );
+  }
+  for (const open of view.openDispatches) {
+    lines.push(
+      `  open dispatch ${open.id} since ${open.at}` +
+        (open.driverId !== null ? ` (driver '${open.driverId}')` : ""),
     );
   }
   if (view.awaitingDispatchOverride) {
     lines.push(
-      "  parked at the dispatch cap: waiting on a person to grant a " +
-        "dispatch override",
+      view.parkedOn === "interruptions"
+        ? "  parked at the interruption cap: waiting on a person to grant a " +
+          "dispatch override"
+        : "  parked at the dispatch cap: waiting on a person to grant a " +
+          "dispatch override",
     );
   }
   if (view.dispatch !== null && !view.dispatch.ready) {
@@ -1186,6 +1210,8 @@ export async function dispatch(
     expectedCycle: number;
     expectedEra: string;
     resultDir?: string;
+    driverId?: string;
+    supersedes?: number;
     onBehalfOf?: string;
   },
   env: Env,
@@ -1230,18 +1256,31 @@ export async function dispatch(
   // records nothing: a refusal (stale expectation, the dispatch cap) or a
   // store failure.
   let outcome: OpResult<number> | undefined;
-  // Whether the refusal was the dispatch cap, judged on the run it saw.
+  // Whether the refusal was a cap, judged on the run it saw.
   let refusedAtCap = false;
+  const actor = actorOf(ctx, args.onBehalfOf);
+  // The packet was built for the next id when the run was read; a dispatch
+  // recorded since makes it stale (its inputs name that id).
+  const lifecycle = {
+    expectedId: packet.dispatchId,
+    ...(args.driverId !== undefined ? { driverId: args.driverId } : {}),
+    ...(args.supersedes !== undefined ? { supersedes: args.supersedes } : {}),
+  };
   try {
     outcome = await update(store, (current) => {
-      refusedAtCap = current.status === "active" &&
-        checkExpected(current, expectedFrom(args)) === null &&
-        !dispatchCap(current, pinned.definition).allowed;
+      refusedAtCap = wouldRefuseAtCap(
+        current,
+        pinned.definition,
+        expectedFrom(args),
+        lifecycle,
+        actor,
+        env,
+      );
       subagentPrompts = resultDir === undefined
         ? []
         : buildSubagentPrompts(pinned.definition, packet, {
           key: current.key,
-          dispatchId: current.dispatches.length + 1,
+          dispatchId: packet.dispatchId,
           resultDir,
         });
       return recordDispatch(
@@ -1253,8 +1292,9 @@ export async function dispatch(
           ...(packet.prompt !== undefined ? { prompt: packet.prompt } : {}),
           ...(packet.command !== undefined ? { command: packet.command } : {}),
           ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
+          ...lifecycle,
         },
-        actorOf(ctx, args.onBehalfOf),
+        actor,
         env,
       );
     });
@@ -1276,8 +1316,9 @@ export async function dispatch(
             current,
             pinned.definition,
             expectedFrom(args),
-            actorOf(ctx, args.onBehalfOf),
+            actor,
             env,
+            args.supersedes,
           ),
       );
     } catch (error) {
@@ -1374,6 +1415,111 @@ export async function recordUsageMethod(
     env,
   );
   return { dataHandles: handles };
+}
+
+export async function recordOutcomeMethod(
+  ctx: MethodContextLike,
+  args: {
+    dispatchId: number;
+    outcome: DispatchOutcomeValue;
+    reason?: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, pinned } = await open(ctx, env);
+  const recorded = unwrap(
+    await update(store, (run) =>
+      recordOutcome(
+        run,
+        args.dispatchId,
+        args.outcome,
+        args.reason,
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  await logWrite(
+    ctx,
+    `dispatch ${args.dispatchId} ${args.outcome}`,
+    {},
+    { store, run: recorded.run, pinned },
+    env,
+  );
+  return { dataHandles: handles };
+}
+
+export async function recordCheckpointMethod(
+  ctx: MethodContextLike,
+  args: {
+    dispatchId: number;
+    payload: Record<string, unknown> | string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, pinned } = await open(ctx, env);
+  const recorded = unwrap(
+    await writeCheckpoint(
+      store,
+      args.dispatchId,
+      payloadFrom(args.payload),
+      actorOf(ctx, args.onBehalfOf),
+      env,
+    ),
+  );
+  await logWrite(
+    ctx,
+    `recorded checkpoint version ${recorded.value} for dispatch ${args.dispatchId}`,
+    { version: recorded.value },
+    { store, run: recorded.run, pinned },
+    env,
+  );
+  return { dataHandles: handles };
+}
+
+/**
+ * The open dispatches of the current stage entry, optionally one driver's: a
+ * read, for a driver's scan at startup and on an interval. An open dispatch
+ * under its own id that it is not running is dead; it dispatches again with
+ * supersedes.
+ */
+export async function openDispatchesMethod(
+  ctx: MethodContextLike,
+  args: { driverId?: string },
+  env: Env,
+): Promise<MethodOutput> {
+  const { run } = await open(ctx, env);
+  const listed = openDispatches(run, args.driverId).map((d) => ({
+    id: d.id,
+    at: d.at,
+    ...(d.driverId !== undefined ? { driverId: d.driverId } : {}),
+    ...(d.mode !== undefined ? { mode: d.mode } : {}),
+    ...(d.checkpoint !== undefined
+      ? { checkpointVersion: d.checkpoint.version }
+      : {}),
+  }));
+  const whose = args.driverId !== undefined
+    ? ` for driver '${args.driverId}'`
+    : "";
+  ctx.logger.info("{summary}", {
+    summary: listed.length === 0
+      ? `no open dispatches${whose} in stage '${run.stage}' cycle ${
+        currentCycle(run)
+      }`
+      : `open dispatches${whose} in stage '${run.stage}' cycle ${
+        currentCycle(run)
+      }:\n` +
+        listed.map((d) =>
+          `  dispatch ${d.id} at ${d.at}` +
+          (d.driverId !== undefined ? ` by '${d.driverId}'` : "") +
+          (d.checkpointVersion !== undefined
+            ? `, checkpoint version ${d.checkpointVersion}`
+            : "")
+        ).join("\n"),
+    open: listed,
+  });
+  return { dataHandles: [] };
 }
 
 export async function decide(

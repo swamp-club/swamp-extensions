@@ -16,7 +16,7 @@
 
 import type { AwaitingExit, JournalEvent } from "./journal.ts";
 import { type FactoryDefinition, findStage } from "./definition_schema.ts";
-import type { RunRecord } from "./run_record.ts";
+import { currentCycle, type RunRecord } from "./run_record.ts";
 
 // ---------------------------------------------------------------------------
 // Per-work-item metrics, computed from the run record and its journal alone.
@@ -111,6 +111,22 @@ export interface Usage {
   attested: true;
 }
 
+/**
+ * How dispatches ended. open: no outcome yet in the stage entry the work item
+ * is in now; none: no outcome in an entry it has left, which never will.
+ */
+export interface DispatchOutcomes {
+  succeeded: number;
+  failed: number;
+  interrupted: number;
+  open: number;
+  none: number;
+}
+
+function emptyOutcomes(): DispatchOutcomes {
+  return { succeeded: 0, failed: 0, interrupted: 0, open: 0, none: 0 };
+}
+
 /** Counts and times over an era, or over the whole work item. */
 export interface Summary {
   stages: Record<string, StageTotals>;
@@ -126,6 +142,8 @@ export interface Summary {
    * waits, so a person kept waiting on two exits at once counts once. */
   waits: { count: number; open: number; timeMs: number };
   dispatches: { count: number; retries: number };
+  /** How the dispatches ended. */
+  dispatchOutcomes: DispatchOutcomes;
   overrides: { cycle: number; dispatch: number };
   usage: Usage;
 }
@@ -138,12 +156,14 @@ export interface EraMetrics {
   durationMs: number | null;
   visits: StageVisit[];
   waits: Wait[];
-  /** Dispatches per stage entry; retries are those after the first. */
+  /** Dispatches per stage entry; retries are those after the first, not
+   * counting interrupted ones: an interruption is not the work failing. */
   dispatches: {
     stage: string;
     cycle: number;
     dispatches: number;
     retries: number;
+    outcomes: DispatchOutcomes;
   }[];
   overrides: { kind: "cycle" | "dispatch"; stage: string; at: string }[];
   summary: Summary;
@@ -182,6 +202,7 @@ function emptySummary(): Summary {
     rework: { reentries: 0, reviewRounds: {}, declines: 0, rejections: 0 },
     waits: { count: 0, open: 0, timeMs: 0 },
     dispatches: { count: 0, retries: 0 },
+    dispatchOutcomes: emptyOutcomes(),
     overrides: { cycle: 0, dispatch: 0 },
     usage: {
       totalTokens: 0,
@@ -542,11 +563,23 @@ function summarize(
         cycle: dispatch.cycle,
         dispatches: 0,
         retries: 0,
+        outcomes: emptyOutcomes(),
       };
       m.dispatches.push(entry);
     }
     entry.dispatches++;
-    entry.retries = entry.dispatches - 1;
+    const ended = dispatch.outcome?.value ??
+      (run.status === "active" && dispatch.era === run.era &&
+          dispatch.stage === run.stage &&
+          dispatch.cycle === currentCycle(run)
+        ? "open"
+        : "none");
+    entry.outcomes[ended]++;
+    s.dispatchOutcomes[ended]++;
+    entry.retries = Math.max(
+      0,
+      entry.dispatches - entry.outcomes.interrupted - 1,
+    );
     s.dispatches.count++;
     const usage = dispatch.usage;
     if (usage === undefined) {
@@ -606,6 +639,13 @@ function addSummary(into: Summary, from: Summary): void {
   into.waits.timeMs += from.waits.timeMs;
   into.dispatches.count += from.dispatches.count;
   into.dispatches.retries += from.dispatches.retries;
+  for (
+    const key of Object.keys(
+      into.dispatchOutcomes,
+    ) as (keyof DispatchOutcomes)[]
+  ) {
+    into.dispatchOutcomes[key] += from.dispatchOutcomes[key];
+  }
   into.overrides.cycle += from.overrides.cycle;
   into.overrides.dispatch += from.overrides.dispatch;
   const u = into.usage;

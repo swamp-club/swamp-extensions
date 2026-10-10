@@ -326,6 +326,34 @@ went through five rounds of plan review.
    `schema` accepts anything, so a wrong payload goes through. With one, a
    payload that does not fit is refused and kept as retry feedback. Findings
    products use `kind: findings`, which brings its own schema.
+6. **Let long work resume after a restart.** A stage whose work can be cut short
+   by a restart (a long agent session in a `method` stage on a remote worker)
+   keeps `maxInterruptionsPerCycle` (default 3) unless there is a reason to
+   change it: interrupted dispatches count against it, not against
+   `maxDispatchesPerCycle`. For the method to checkpoint and resume, it needs
+   the work item, its dispatch id and the checkpoint to resume from. Declare a
+   `_stagecraft` argument on the method, and declare the same property in the
+   stage's `inputsSchema`. Declare only that property, and leave the others open
+   (no `additionalProperties: false`), so opting in checks nothing else:
+
+   ```yaml
+   work:
+     mode: method
+     method: { modelIdOrName: agent, methodName: run }
+     inputsSchema:
+       type: object
+       properties:
+         _stagecraft:
+           type: object
+           required: [workItem, dispatchId, resume]
+           properties:
+             workItem: { type: string }
+             dispatchId: { type: integer }
+             resume: { type: [object, "null"] }
+   ```
+
+   Without the declaration nothing is added: swamp refuses an input a method
+   does not declare. REFERENCE.md gives the input's full shape.
 
 ## Findings in plain words
 

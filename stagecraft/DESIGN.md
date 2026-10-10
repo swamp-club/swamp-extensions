@@ -545,6 +545,16 @@ journals the park: an `awaiting` event waiting on a dispatch override (see "Why
 `awaiting` is journaled"), so the wait is measured and published. Neither
 bundled factory definition sets it.
 
+Interrupted dispatches (see "The dispatch lifecycle") do not count against
+`maxDispatchesPerCycle`: a restart that killed the work is not the work failing.
+They count against `maxInterruptionsPerCycle` instead, 3 by default. Past it,
+`dispatch` is refused as a suspected restart loop and parks the same way.
+Without that second cap a driver could get round the runaway-loop guard by
+calling every failure an interruption. One dispatch override lifts both caps by
+one; there is no separate interruption override. So a stage entry takes at most
+`maxDispatchesPerCycle + maxInterruptionsPerCycle + granted` dispatches before a
+person is asked (5 with the defaults), and the guard stays finite.
+
 ### Routing on the loop count
 
 A `max-cycles` gate reads how many times a stage has been entered in the era: it
@@ -694,6 +704,12 @@ the gate evaluator, so no caller can bypass them with a different one:
   (default 2) plus once per dispatch override for that stage and cycle; past
   that, dispatching is refused as a suspected runaway loop (#916, #899). The
   refusal writes nothing else, but journals the park once (#2703).
+- **Interruption cap.** Interrupted dispatches leave the dispatch cap and count
+  against `maxInterruptionsPerCycle` (default 3) plus once per dispatch override
+  for that stage and cycle; past that, dispatching is refused as a suspected
+  restart loop and parks like the dispatch cap (#3144). The park's
+  `dispatchOverride` hold names `interruptions` when this cap is the one that
+  refused.
 
 Overrides are records of their own (`grantOverride`), checked against the
 caller's expected view. Every grant counts and none resets a count
@@ -985,6 +1001,76 @@ The dispatch record held a prompt no subagent saw.
   mechanically with `jq`, not by the engine, since no bundled definition runs
   more than one. Each subagent's findings ids carry its number, so a join
   cannot repeat an id.
+
+## The dispatch lifecycle
+
+**Decision.** A dispatch is open until it has an outcome: `succeeded`, `failed`
+or `interrupted`, set once (swamp-club #3144). A driver records it with
+`record_outcome`, named by dispatch id like `record_usage`, since it often
+arrives after the run has moved on. Or a new dispatch names the open one it
+replaces (`supersedes`), which closes that one as `interrupted` in the same
+commit. Every new field (`driverId`, `supersedes`, `outcome`, `checkpoint` on
+the dispatch; `maxInterruptionsPerCycle` on the stage) is optional, so records
+and definitions written before stay valid and the schema versions stay at 1.
+That makes it no format change in the sense of "Format changes upgrade, they
+never break": every stored definition reads unchanged and means the same, so
+there is no step to add.
+Code: `recordDispatch`, `recordOutcome`, `recordCheckpoint`, `dispatchCap` in
+`_lib/engine/run_ops.ts`; `writeCheckpoint` in `_lib/engine/run_store.ts`.
+
+- **Why no elapsed-time inference.** A serve restart on k3s killed a long LLM
+  session in a `method` stage on a remote worker. The run record survived; the
+  work did not. After a restart the driver wants to dispatch again at once, not
+  after a lease lapses, and no timeout tells a long session from a dead one. So
+  interruption is always declared: by the driver that retries (`supersedes`), or
+  by `record_outcome`.
+- **Driver identity and the scan.** `actor` is empty on remote workers, so a
+  dispatch records the `driverId` the driver passes. `open_dispatches` lists the
+  open dispatches of the current stage and cycle, filtered by driver id; it is
+  a read and takes no lock. The driver's rule, at startup and on an interval: an
+  open dispatch under my id that is not in my in-flight set is dead, so dispatch
+  again with `supersedes`. A restart is the case where the in-flight set is
+  empty, so startup and polling are the same query. Only the current stage
+  entry has open dispatches; a dispatch of an entry the work item has left with
+  no outcome is counted as `none` in the metrics, never as in flight.
+- **What the scan cannot see.** A dispatch still in the driver's in-flight set
+  whose remote run died: the driver is waiting on the call. A call that fails is
+  superseded at once; one that hangs needs swamp to mark the run orphaned
+  (#3156).
+- **A refused supersede still closes its target.** When the caps refuse the new
+  dispatch, the superseded one is still closed as interrupted, committed with
+  the park. Otherwise the stored run, with the target still open, would allow a
+  dispatch: the commit's awaiting check would drop the park, and the scan would
+  find the same dispatch and loop.
+- **A packet names its dispatch id.** It is built from the run as read, for the
+  next id. A dispatch recorded in between makes it stale, and `dispatch` refuses
+  it as stale (no park), so the id in the packet, the inputs recorded and the id
+  returned always agree.
+- **Checkpoints.** `record_checkpoint` writes a payload for an open dispatch, as
+  often as the work likes, under its own record (`checkpoint-d<id>`, resource
+  spec `checkpoint`), payload first and the run record last, like products.
+  Only the latest dispatch of its stage entry takes one, so work a later
+  dispatch replaced cannot overwrite the retry's state. The next dispatch of the
+  same era, stage and cycle gets the latest checkpoint as `resume` in its
+  packet, with a read pinned to the version the run indexes: a version written
+  just before a crash is unreferenced and never handed out. A dispatch stage's
+  subagent prompt gains the read only when there is a checkpoint, so prompts are
+  otherwise byte for byte as before. stagecraft does not limit a checkpoint's
+  size; large state (an agent session) is better kept elsewhere, with the
+  checkpoint holding a pointer to it.
+- **The `_stagecraft` input.** Every packet carries `workItem`, `dispatchId`
+  and `resume`, so any driver can pass them on. A workflow or method stage also
+  gets them as one input, `_stagecraft`, when its `inputsSchema` declares that
+  property and no literal input or binding already supplies the name. It cannot
+  be filled unconditionally: swamp's CLI refuses an input the method does not
+  declare ("Unknown method input(s)", even for a plain `z.object`), and a
+  `z.strictObject` method refuses it inside a workflow step. Nor can stagecraft
+  ask: a method's context has no model registry, and `runModel` is a stub on
+  remote workers, so the stage's `inputsSchema` is the one place that says the
+  call takes it. No other channel reaches a remote worker either (run tags are
+  not in the remote dispatch envelope). The underscore marks the input as the
+  engine's, not the author's. Should swamp expose method schemas to a method,
+  the gate can widen to "the method declares it" without a format change.
 
 ## The model types: a factory and work items
 
@@ -1295,7 +1381,7 @@ Per era, and summed over every era:
 | Stage time   | Per stage, the time in finished visits, and whether a visit is still open.                                                                                                                                                                                                |
 | Rework       | Re-entries (entries into a stage after its first in the era), review rounds (versions recorded of each artifact the factory definition declares with `reviews`, using the currently pinned factory definition's links), declines, and rejected payloads.                                    |
 | Waits        | From the `awaiting` event that adds an exit (or its `readyAt`) until an event drops it (`approved` or `declined` when a decision on one of its gates caused that, otherwise `cleared`), the work item moves on (`advanced`), or a reset. A park at the dispatch cap is a wait of kind `dispatch-override` (every other is `exit`), with no transition: from the refused dispatch until the hold is dropped (`overridden` when a dispatch override caused that, otherwise `cleared`, as when the commit of the grant could not read the run data and a later readable one dropped it), the work item moves on, or a reset. A wait still running has no end. The summary's time is the time covered by finished waits: waits at once count once. |
-| Dispatches   | Per stage entry; retries are the dispatches after the first.                                                                                                                                                                                                              |
+| Dispatches   | Per stage entry; retries are the dispatches after the first, not counting interrupted ones. How they ended: succeeded, failed, interrupted, open (no outcome, in the entry the work item is in now) or none (no outcome, in an entry it has left).                       |
 | Overrides    | Cycle and dispatch overrides granted, with their stage.                                                                                                                                                                                                                   |
 | Usage        | Tokens in total and by model (a dispatch's `totalTokens` when reported, else its input plus output), the input/output split over the dispatches that reported one, tool uses and reported duration, and dispatches without usage, by stage mode. Always `attested: true`: the harness or whoever did the work reported it. |
 

@@ -16,7 +16,12 @@
 
 import type { Actor, JournalEvent } from "./journal.ts";
 import type { FactoryDefinition } from "./definition_schema.ts";
-import { computeMetrics, type Metrics, type Summary } from "./metrics.ts";
+import {
+  computeMetrics,
+  type DispatchOutcomes,
+  type Metrics,
+  type Summary,
+} from "./metrics.ts";
 import type { RunRecord, Usage } from "./run_record.ts";
 
 // ---------------------------------------------------------------------------
@@ -88,6 +93,13 @@ function detail(event: JournalEvent, run: RunRecord): string {
       return `usage for dispatch ${event.dispatchId}` +
         (usage !== undefined ? `: ${usageText(usage)}, attested` : "");
     }
+    case "outcome":
+      return `dispatch ${event.dispatchId} ${event.outcome}` +
+        (event.supersededBy !== undefined
+          ? ` (superseded by dispatch ${event.supersededBy})`
+          : "");
+    case "checkpoint":
+      return `checkpoint for dispatch ${event.dispatchId} version ${event.version}`;
     case "recorded":
       return `${event.kind} '${event.name}' version ${event.version} ` +
         `(${event.digest.slice(0, 19)})`;
@@ -108,9 +120,14 @@ function detail(event: JournalEvent, run: RunRecord): string {
       const held = [
         ...(event.dispatchOverride !== undefined
           ? [
-            `a dispatch override (${event.dispatchOverride.count} of ${
-              event.dispatchOverride.limit + event.dispatchOverride.granted
-            } dispatches)`,
+            event.dispatchOverride.interruptions !== undefined
+              ? `a dispatch override (${event.dispatchOverride.interruptions.count} of ${
+                event.dispatchOverride.interruptions.limit +
+                event.dispatchOverride.granted
+              } interruptions)`
+              : `a dispatch override (${event.dispatchOverride.count} of ${
+                event.dispatchOverride.limit + event.dispatchOverride.granted
+              } dispatches)`,
           ]
           : []),
         ...event.exits.map((e) =>
@@ -164,7 +181,8 @@ function summaryLines(summary: Summary): string[] {
       ? "; review rounds: " + Object.entries(summary.rework.reviewRounds)
         .map(([name, r]) => `${name} of ${r.reviews}: ${r.rounds}`).join(", ")
       : ""),
-    `- **Dispatches:** ${summary.dispatches.count} (${summary.dispatches.retries} retries)`,
+    `- **Dispatches:** ${summary.dispatches.count} (${summary.dispatches.retries} retries` +
+    outcomesText(summary.dispatchOutcomes) + ")",
     `- **Overrides:** ${summary.overrides.cycle} cycle, ${summary.overrides.dispatch} dispatch`,
     `- **Tokens (attested):** ${u.totalTokens} over ` +
     `${u.dispatchesWithUsage} dispatch(es)` +
@@ -186,6 +204,16 @@ function summaryLines(summary: Summary): string[] {
         ).join(", ")
       : ""),
   ];
+}
+
+/** The outcomes worth a reader's attention, once there are any. */
+function outcomesText(o: DispatchOutcomes): string {
+  const parts = [
+    ...(o.interrupted > 0 ? [`${o.interrupted} interrupted`] : []),
+    ...(o.failed > 0 ? [`${o.failed} failed`] : []),
+    ...(o.open > 0 ? [`${o.open} open`] : []),
+  ];
+  return parts.length > 0 ? `; ${parts.join(", ")}` : "";
 }
 
 /** One dispatch's reported usage, as reported. */

@@ -22,7 +22,7 @@ import {
   type TransitionReadiness,
 } from "./gates.ts";
 import { type FactoryDefinition, findStage } from "./definition_schema.ts";
-import { dispatchCap, type Env } from "./run_ops.ts";
+import { dispatchCap, type Env, openDispatches } from "./run_ops.ts";
 import { heldDispatchOverride } from "./awaiting.ts";
 import { currentCycle, type RunRecord } from "./run_record.ts";
 import type { RunStore } from "./run_store.ts";
@@ -86,6 +86,7 @@ export async function runStatus(
   const readiness: TransitionReadiness[] = active
     ? await evaluateTransitions(run, definition, store, env)
     : [];
+  const hold = heldDispatchOverride(run, definition);
   const view = {
     key: run.key,
     // A key no longer says what the work is, so the title goes beside it.
@@ -103,8 +104,21 @@ export async function runStatus(
     dispatchCap: active ? dispatchCap(run, definition) : null,
     /** Parked at the dispatch cap: a dispatch was refused, and the next one
      * waits on a person granting a dispatch override. */
-    awaitingDispatchOverride:
-      heldDispatchOverride(run, definition) !== undefined,
+    awaitingDispatchOverride: hold !== undefined,
+    /** Which cap the park is at: the interruption cap, when interrupted
+     * dispatches are what refused. */
+    parkedOn: hold === undefined
+      ? null
+      : hold.interruptions !== undefined
+      ? "interruptions" as const
+      : "dispatches" as const,
+    /** The open dispatches of this stage and cycle: work in flight, or work
+     * that died and a driver has yet to supersede. */
+    openDispatches: openDispatches(run).map((d) => ({
+      id: d.id,
+      at: d.at,
+      driverId: d.driverId ?? null,
+    })),
     exits: readiness.map((t) => ({
       name: t.name,
       to: t.to,

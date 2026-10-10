@@ -19,7 +19,14 @@ import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch, buildSubagentPrompts } from "./dispatch.ts";
 import { findStage, parseDefinition } from "./definition_schema.ts";
 import { FINDINGS_SCHEMA, OUTCOME_SCHEMA } from "./payload_schema.ts";
-import { advance, expectedOf } from "./run_ops.ts";
+import {
+  advance,
+  expectedOf,
+  recordCheckpoint,
+  recordDispatch,
+  start,
+} from "./run_ops.ts";
+import type { RunRecord } from "./run_record.ts";
 import {
   loadRun,
   memoryStore,
@@ -536,4 +543,215 @@ Deno.test("dispatch: only a dispatch stage gets subagent prompts", async () => {
     }),
     [],
   );
+});
+
+// --- the _stagecraft input and resuming (swamp-club #3144) ----------------------
+
+/** The minimal inputsSchema authoring.md shows: it declares only
+ * _stagecraft, so every other input stays unchecked. */
+const STAGECRAFT_INPUTS_SCHEMA = {
+  type: "object",
+  properties: {
+    _stagecraft: {
+      type: "object",
+      required: ["workItem", "dispatchId", "resume"],
+      properties: {
+        workItem: { type: "string" },
+        dispatchId: { type: "integer" },
+        resume: { type: ["object", "null"] },
+      },
+    },
+  },
+};
+
+function methodStage(work: Record<string, unknown> = {}, mode = "method") {
+  const result = parseDefinition({
+    schemaVersion: 1,
+    stages: [
+      {
+        id: "work",
+        initial: true,
+        work: mode === "method"
+          ? {
+            mode,
+            method: {
+              modelIdOrName: "agent",
+              methodName: "run",
+              inputs: { task: "build" },
+            },
+            ...work,
+          }
+          : { mode, systemPrompt: "Do the work.", ...work },
+        transitions: [{ name: "done", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  });
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}
+
+async function packetFor(
+  definition: ReturnType<typeof methodStage>,
+  prepare: (run: RunRecord) => RunRecord = (run) => run,
+) {
+  const env = testEnv();
+  const run = prepare(
+    start(
+      definition,
+      {
+        key: "wi-7",
+        tracker: TEST_TRACKER,
+        factory: "team",
+        definitionDigest: "sha256:m",
+      },
+      ALICE,
+      env,
+    ),
+  );
+  return buildDispatch(
+    definition,
+    run,
+    await buildCelContext(run, memoryStore()),
+  );
+}
+
+Deno.test("dispatch: the packet names the work item, the next dispatch id and the checkpoint to resume from", async () => {
+  const packet = await packetFor(methodStage());
+  assertEquals(packet.workItem, "wi-7");
+  assertEquals(packet.dispatchId, 1);
+  assertEquals(packet.resume, null);
+  // Without a declaration, no input is added.
+  assertEquals(packet.inputs, { task: "build" });
+  assert(packet.ready);
+});
+
+Deno.test("dispatch: a stage whose inputsSchema declares _stagecraft gets it filled", async () => {
+  const packet = await packetFor(
+    methodStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA }),
+  );
+  assertEquals(packet.inputs, {
+    task: "build",
+    _stagecraft: { workItem: "wi-7", dispatchId: 1, resume: null },
+  });
+  assertEquals(packet.problems, []);
+  assert(packet.ready);
+});
+
+Deno.test("dispatch: a strict inputsSchema that does not declare _stagecraft is left as it was", async () => {
+  const packet = await packetFor(methodStage({
+    inputsSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { task: { type: "string" } },
+    },
+  }));
+  assertEquals(packet.inputs, { task: "build" });
+  assert(packet.ready, packet.problems.join());
+});
+
+Deno.test("dispatch: a _stagecraft the definition supplies itself is not replaced", async () => {
+  const packet = await packetFor(methodStage({
+    inputsSchema: STAGECRAFT_INPUTS_SCHEMA,
+    method: {
+      modelIdOrName: "agent",
+      methodName: "run",
+      inputs: { _stagecraft: "mine" },
+    },
+  }));
+  assertEquals(packet.inputs?._stagecraft, "mine");
+  assert(!packet.ready);
+});
+
+Deno.test("dispatch: a declared _stagecraft shape the engine's value does not meet is a packet problem", async () => {
+  const packet = await packetFor(methodStage({
+    inputsSchema: {
+      type: "object",
+      properties: { _stagecraft: { type: "string" } },
+    },
+  }));
+  assert(!packet.ready);
+  assert(
+    packet.problems.some((p) => p.startsWith("inputs: _stagecraft")),
+    packet.problems.join(),
+  );
+});
+
+Deno.test("dispatch: the next dispatch resumes from the latest checkpoint, pinned to its version", async () => {
+  const definition = methodStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA });
+  const env = testEnv();
+  const packet = await packetFor(definition, (run) => {
+    const first = recordDispatch(
+      run,
+      definition,
+      expectedOf(run),
+      { inputs: {} },
+      ALICE,
+      env,
+    );
+    assert(first.ok);
+    const saved = recordCheckpoint(
+      first.run,
+      1,
+      { version: 3, digest: "sha256:cp" },
+      ALICE,
+      env,
+    );
+    assert(saved.ok);
+    return saved.run;
+  });
+  const resume = {
+    fromDispatch: 1,
+    version: 3,
+    digest: "sha256:cp",
+    read: `swamp data query 'modelName == "wi-7" && ` +
+      `name == "checkpoint-d1" && version == 3' --select content ` +
+      "--single --json",
+  };
+  assertEquals(packet.dispatchId, 2);
+  assertEquals(packet.resume, resume);
+  assertEquals(packet.inputs?._stagecraft, {
+    workItem: "wi-7",
+    dispatchId: 2,
+    resume,
+  });
+});
+
+Deno.test("dispatch: a subagent prompt carries the checkpoint read only when there is one", async () => {
+  const definition = methodStage({}, "dispatch");
+  const env = testEnv();
+  const fresh = await packetFor(definition);
+  const [plain] = buildSubagentPrompts(definition, fresh, {
+    key: "wi-7",
+    dispatchId: 1,
+    resultDir: "/tmp/r",
+  });
+  assert(!plain.prompt.includes("checkpoint"));
+  const resumed = await packetFor(definition, (run) => {
+    const first = recordDispatch(
+      run,
+      definition,
+      expectedOf(run),
+      { inputs: {} },
+      ALICE,
+      env,
+    );
+    assert(first.ok);
+    const saved = recordCheckpoint(
+      first.run,
+      1,
+      { version: 1, digest: "sha256:cp" },
+      ALICE,
+      env,
+    );
+    assert(saved.ok);
+    return saved.run;
+  });
+  const [prompt] = buildSubagentPrompts(definition, resumed, {
+    key: "wi-7",
+    dispatchId: 2,
+    resultDir: "/tmp/r",
+  });
+  assert(prompt.prompt.includes(resumed.resume!.read), prompt.prompt);
+  assert(prompt.prompt.startsWith("Do the work.\n\n---\n\n"));
 });
