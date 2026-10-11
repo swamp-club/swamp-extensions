@@ -81,6 +81,7 @@ const InventoryConfigurationSchema = z.object({
       "ObjectAccessControlList",
       "ObjectOwner",
       "LifecycleExpirationDate",
+      "IntelligentTieringReferenceDate",
     ]),
   ).describe(
     "Contains the optional fields that are included in the inventory results.",
@@ -195,8 +196,12 @@ const OwnershipControlsRuleSchema = z.object({
 });
 
 const DefaultEventHoldSchema = z.object({
-  Years: z.number().int().optional(),
-  Days: z.number().int().optional(),
+  Years: z.number().int().describe(
+    "The number of years that you want to specify for the default event hold duration. Valid values are 1 to 100 years. You must specify either Days or Years, but not both.",
+  ).optional(),
+  Days: z.number().int().describe(
+    "The number of days that you want to specify for the default event hold duration. Valid values are 1 to 36500 days. You must specify either Days or Years, but not both.",
+  ).optional(),
 });
 
 const DefaultRetentionSchema = z.object({
@@ -209,7 +214,9 @@ const DefaultRetentionSchema = z.object({
   Mode: z.enum(["COMPLIANCE", "GOVERNANCE"]).describe(
     "The default Object Lock retention mode you want to apply to new objects placed in the specified bucket. If Object Lock is turned on, you must specify Mode and specify either Days or Years.",
   ).optional(),
-  DefaultEventHold: DefaultEventHoldSchema.optional(),
+  DefaultEventHold: DefaultEventHoldSchema.describe(
+    "The default Object Lock event hold duration that you want to apply to new objects placed in the specified bucket. When the event hold is released, Amazon S3 retains the object version for this duration. If you specify both a default retention period ( Days or Years) and a DefaultEventHold, the event hold duration can't exceed the default retention period.",
+  ).optional(),
 });
 
 const ObjectLockRuleSchema = z.object({
@@ -1186,7 +1193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.09.11.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1260,6 +1267,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -69,12 +69,16 @@ const GlobalArgsSchema = z.object({
     "mcpserversplunk",
     "mcpservernewrelic",
     "gitlab",
+    "github",
     "servicenow",
     "pagerduty",
     "azureidentity",
     "mcpserversigv4",
     "mcpservergrafana",
   ]).describe("The type of service being registered"),
+  Name: z.string().min(1).max(255).regex(
+    new RegExp("^[\\p{L}\\p{N} _-]+$", "u"),
+  ).describe("The display name for the service registration.").optional(),
   ServiceDetails: z.record(z.string(), z.unknown()).describe(
     "Service-specific configuration details for create operation",
   ).optional(),
@@ -103,6 +107,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ServiceId: z.string(),
   ServiceType: z.string().optional(),
+  Name: z.string().optional(),
   ServiceDetails: z.record(z.string(), z.unknown()).optional(),
   AccessibleResources: z.array(z.record(z.string(), z.unknown())).optional(),
   AdditionalServiceDetails: z.record(z.string(), z.unknown()).optional(),
@@ -128,12 +133,16 @@ const InputsSchema = z.object({
     "mcpserversplunk",
     "mcpservernewrelic",
     "gitlab",
+    "github",
     "servicenow",
     "pagerduty",
     "azureidentity",
     "mcpserversigv4",
     "mcpservergrafana",
   ]).describe("The type of service being registered").optional(),
+  Name: z.string().min(1).max(255).regex(
+    new RegExp("^[\\p{L}\\p{N} _-]+$", "u"),
+  ).describe("The display name for the service registration.").optional(),
   ServiceDetails: z.record(z.string(), z.unknown()).describe(
     "Service-specific configuration details for create operation",
   ).optional(),
@@ -178,7 +187,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent Service. Registered at `@swamp/aws/devopsagent/service`. */
 export const model = {
   type: "@swamp/aws/devopsagent/service",
-  version: "2026.08.17.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -269,6 +278,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "Added: Name",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -381,6 +395,7 @@ export const model = {
           [
             "ServiceType",
             "Dynatrace",
+            "GitHub",
             "MCPServerSplunk",
             "ServiceNow",
             "PagerDuty",

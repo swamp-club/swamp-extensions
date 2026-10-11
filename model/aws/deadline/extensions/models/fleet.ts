@@ -132,6 +132,10 @@ const AcceleratorCapabilitiesSchema = z.object({
   Count: AcceleratorCountRangeSchema.optional(),
 });
 
+const FleetSoftwareAddOnSchema = z.object({
+  Name: z.enum(["docker"]),
+});
+
 const ServiceManagedEc2InstanceCapabilitiesSchema = z.object({
   VCpuCount: VCpuCountRangeSchema,
   MemoryMiB: MemoryMiBRangeSchema,
@@ -143,6 +147,7 @@ const ServiceManagedEc2InstanceCapabilitiesSchema = z.object({
   ExcludedInstanceTypes: z.array(z.string().min(1).max(100)).optional(),
   CustomAmounts: z.array(FleetAmountCapabilitySchema).optional(),
   CustomAttributes: z.array(FleetAttributeCapabilitySchema).optional(),
+  SoftwareAddOns: z.array(FleetSoftwareAddOnSchema).optional(),
 });
 
 const ServiceManagedEc2InstanceMarketOptionsSchema = z.object({
@@ -311,7 +316,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Fleet. Registered at `@swamp/aws/deadline/fleet`. */
 export const model = {
   type: "@swamp/aws/deadline/fleet",
-  version: "2026.08.17.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +380,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

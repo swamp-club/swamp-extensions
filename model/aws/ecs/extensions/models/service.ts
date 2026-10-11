@@ -372,9 +372,15 @@ const DeploymentLifecycleHookSchema = z.object({
 });
 
 const DeploymentEarlySuccessCriteriaSchema = z.object({
-  SourceServiceRevisionCleanup: z.enum(["BLOCKING", "DEFERRED"]).optional(),
-  HealthyPercent: z.number().int().min(0).max(100).optional(),
-  Enable: z.boolean().optional(),
+  SourceServiceRevisionCleanup: z.enum(["BLOCKING", "DEFERRED"]).describe(
+    "The time when Amazon ECS removes the source revisions' tasks relative to deployment completion. The valid values are: BLOCKING —Amazon ECS removes the previous tasks before it marks the deployment as successful. DEFERRED —Amazon ECS marks the deployment successful, and then removes the previous tasks in the background.",
+  ).optional(),
+  HealthyPercent: z.number().int().min(0).max(100).describe(
+    "The percentage of healthy tasks that the target service revision must reach before Amazon ECS considers the deployment successful. This percentage is relative to the service's desiredCount and must be an integer between 0 and 100. This value must be greater than or equal to the minimumHealthyPercent value. After this percentage of tasks is healthy and the bake time elapses, Amazon ECS completes the deployment. Amazon ECS continues to scale the target service revision to 100 percent in the background.",
+  ).optional(),
+  Enable: z.boolean().describe(
+    "Specifies whether to use the early success criteria for the service deployment. When set to false, the deployment uses the default behavior, where Amazon ECS considers the deployment successful when the target service revision fully stabilizes and the previous tasks are removed. The default value is false. When set to true, Amazon ECS monitors the deployment to meet early success criteria. You must also specify healthyPercent and sourceServiceRevisionCleanup.",
+  ).optional(),
 });
 
 const DeploymentAlarmsSchema = z.object({
@@ -560,7 +566,9 @@ const GlobalArgsSchema = z.object({
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
       "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
-    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.optional(),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.describe(
+      "The early success criteria configuration for a rolling deployment. With early success criteria, you can configure an Amazon ECS deployment to complete faster. Amazon ECS declares a deployment successful once a target percentage of tasks are healthy, instead of waiting for the service to fully stabilize.",
+    ).optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
     ).optional(),
@@ -773,7 +781,9 @@ const InputsSchema = z.object({
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
       "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
-    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.optional(),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.describe(
+      "The early success criteria configuration for a rolling deployment. With early success criteria, you can configure an Amazon ECS deployment to complete faster. Amazon ECS declares a deployment successful once a target percentage of tasks are healthy, instead of waiting for the service to fully stabilize.",
+    ).optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
     ).optional(),
@@ -816,7 +826,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.10.01.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -915,6 +925,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

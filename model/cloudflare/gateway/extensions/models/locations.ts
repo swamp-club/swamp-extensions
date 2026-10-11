@@ -46,6 +46,9 @@ const GlobalArgsSchema = z.object({
   client_default: z.boolean().describe(
     "Indicate whether this location is the default location.",
   ).optional(),
+  dns64_enabled: z.boolean().describe(
+    "Enable DNS64 synthesis for DNS queries matched to this location. When updating a location, omitting this field resets it to false.",
+  ).optional(),
   dns_destination_ips_id: z.string().describe(
     "Specify the identifier of the pair of IPv4 addresses assigned to this location. When creating a location, if this field is absent or set to null, the pair of shared IPv4 addresses (0e4a32c6-6fb8-4858-9296-98f51631e8e6) is auto-assigned. When updating a location, if this field is absent or set to null, the pre-assigned pair remains unchanged.",
   ).optional(),
@@ -103,6 +106,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   client_default: z.boolean().optional(),
   created_at: z.string().optional(),
+  dns64_enabled: z.boolean().optional(),
   dns_destination_ips_id: z.string().optional(),
   dns_destination_ipv6_block_id: z.string().optional(),
   doh_subdomain: z.string().optional(),
@@ -151,6 +155,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   client_default: z.boolean().optional(),
+  dns64_enabled: z.boolean().optional(),
   dns_destination_ips_id: z.string().optional(),
   ecs_support: z.boolean().optional(),
   endpoints: z.object({
@@ -193,7 +198,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Locations. Registered at `@swamp/cloudflare/gateway/locations`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/locations",
-  version: "2026.09.29.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -243,6 +248,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.11.1",
+      description: "Added: dns64_enabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -271,6 +281,7 @@ export const model = {
         if (g.client_default !== undefined) {
           body.client_default = g.client_default;
         }
+        if (g.dns64_enabled !== undefined) body.dns64_enabled = g.dns64_enabled;
         if (g.dns_destination_ips_id !== undefined) {
           body.dns_destination_ips_id = g.dns_destination_ips_id;
         }
@@ -331,6 +342,9 @@ export const model = {
         const filters: [string, string][] = [];
         if (g.client_default !== undefined) {
           filters.push(["client_default", String(g.client_default)]);
+        }
+        if (g.dns64_enabled !== undefined) {
+          filters.push(["dns64_enabled", String(g.dns64_enabled)]);
         }
         if (g.dns_destination_ips_id !== undefined) {
           filters.push([
@@ -443,6 +457,7 @@ export const model = {
         if (g.client_default !== undefined) {
           body.client_default = g.client_default;
         }
+        if (g.dns64_enabled !== undefined) body.dns64_enabled = g.dns64_enabled;
         if (g.dns_destination_ips_id !== undefined) {
           body.dns_destination_ips_id = g.dns_destination_ips_id;
         }
@@ -453,6 +468,7 @@ export const model = {
         if (g.networks !== undefined) body.networks = g.networks;
         const unset = [
           "client_default",
+          "dns64_enabled",
           "dns_destination_ips_id",
           "ecs_support",
           "endpoints",

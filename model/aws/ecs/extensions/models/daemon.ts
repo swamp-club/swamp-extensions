@@ -92,6 +92,7 @@ const GlobalArgsSchema = z.object({
   PropagateTags: z.enum(["DAEMON", "NONE"]).describe(
     "Specifies whether tags are propagated from the daemon to the daemon tasks.",
   ).optional(),
+  Critical: z.boolean().optional(),
   CapacityProviderArns: z.array(z.string()).describe(
     "The Amazon Resource Names (ARNs) of the capacity providers associated with the daemon.",
   ).optional(),
@@ -119,6 +120,7 @@ const StateSchema = z.object({
   EnableExecuteCommand: z.boolean().optional(),
   PropagateTags: z.string().optional(),
   CreatedAt: z.string().optional(),
+  Critical: z.boolean().optional(),
   UpdatedAt: z.string().optional(),
   DeploymentArn: z.string().optional(),
   CapacityProviderArns: z.array(z.string()).optional(),
@@ -155,6 +157,7 @@ const InputsSchema = z.object({
   PropagateTags: z.enum(["DAEMON", "NONE"]).describe(
     "Specifies whether tags are propagated from the daemon to the daemon tasks.",
   ).optional(),
+  Critical: z.boolean().optional(),
   CapacityProviderArns: z.array(z.string()).describe(
     "The Amazon Resource Names (ARNs) of the capacity providers associated with the daemon.",
   ).optional(),
@@ -192,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Daemon. Registered at `@swamp/aws/ecs/daemon`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon",
-  version: "2026.08.17.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -242,6 +245,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "Added: Critical",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

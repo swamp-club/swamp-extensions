@@ -43,8 +43,8 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const LifecycleConfigurationSchema = z.object({
-  IdleRuntimeSessionTimeout: z.number().int().min(60).max(28800).optional(),
-  MaxLifetime: z.number().int().min(60).max(28800).optional(),
+  IdleRuntimeSessionTimeout: z.number().int().min(60).max(1209600).optional(),
+  MaxLifetime: z.number().int().min(60).max(1209600).optional(),
 });
 
 const VpcConfigSchema = z.object({
@@ -186,6 +186,14 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
       new RegExp("^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"),
     ),
   ).optional(),
+  AdvertisedScopeMapping: z.record(
+    z.string(),
+    z.string().min(1).max(255).regex(
+      new RegExp("^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"),
+    ),
+  ).describe(
+    "A map that associates each scope in AllowedScopes with a corresponding advertised scope value. The advertised scope appears in OAuth protected resource metadata and WWW-Authenticate response headers.",
+  ).optional(),
   CustomClaims: z.array(CustomClaimValidationTypeSchema).optional(),
   PrivateEndpoint: PrivateEndpointSchema.describe(
     "Private endpoint configuration for connecting to the OpenID Connect discovery endpoint over a private network.",
@@ -212,6 +220,9 @@ const HarnessOpenAiModelConfigSchema = z.object({
       "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
     ),
   ),
+  ApiBase: z.string().min(1).max(16383).describe(
+    "Optional custom endpoint URL for an OpenAI-compatible endpoint.",
+  ).optional(),
   MaxTokens: z.number().int().min(1).optional(),
   Temperature: z.number().min(0).max(2).optional(),
   TopP: z.number().min(0).max(1).optional(),
@@ -232,6 +243,9 @@ const HarnessGeminiModelConfigSchema = z.object({
   Temperature: z.number().min(0).max(2).optional(),
   TopP: z.number().min(0).max(1).optional(),
   TopK: z.number().int().min(0).max(500).optional(),
+  AdditionalParams: z.record(z.string(), z.unknown()).describe(
+    "Provider-specific parameters passed through to the Gemini model provider unchanged.",
+  ).optional(),
 });
 
 const HarnessLiteLlmModelConfigSchema = z.object({
@@ -769,7 +783,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.10.09.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -823,6 +837,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

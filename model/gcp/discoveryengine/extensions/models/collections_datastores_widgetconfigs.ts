@@ -583,6 +583,9 @@ const GlobalArgsSchema = z.object({
       "SEARCH_WITH_FOLLOW_UPS",
     ]).describe("Describes widget (or web app) interaction type").optional(),
     modelConfigInfo: z.object({
+      autoModelId: z.string().describe(
+        'Output only. The `model_id` a client must send when the end-user picks the "Auto" entry (the empty `model_id`). Populated only for surfaces known to have no true "Auto" mode, where leaving the model unset would fall back to a platform default rather than a backend-chosen model. Empty on every other surface, where "Auto" is resolved server-side, and when none of the surface\'s ranked models is available. When set, it is always one of the non-empty `model_id`s present in `resolved_models`.',
+      ).optional(),
       defaultModelId: z.string().describe(
         "Output only. The `model_id` of the model that should be selected by default in the model selector when the end-user has not made an explicit choice. The value is always one of the `model_id`s present in `resolved_models`.",
       ).optional(),
@@ -861,6 +864,7 @@ const StateSchema = z.object({
     googleDrivePickerEnabled: z.boolean(),
     interactionType: z.string(),
     modelConfigInfo: z.object({
+      autoModelId: z.string(),
       defaultModelId: z.string(),
       resolvedModels: z.array(z.object({
         adminView: z.object({
@@ -1374,6 +1378,9 @@ const InputsSchema = z.object({
       "SEARCH_WITH_FOLLOW_UPS",
     ]).describe("Describes widget (or web app) interaction type").optional(),
     modelConfigInfo: z.object({
+      autoModelId: z.string().describe(
+        'Output only. The `model_id` a client must send when the end-user picks the "Auto" entry (the empty `model_id`). Populated only for surfaces known to have no true "Auto" mode, where leaving the model unset would fall back to a platform default rather than a backend-chosen model. Empty on every other surface, where "Auto" is resolved server-side, and when none of the surface\'s ranked models is available. When set, it is always one of the non-empty `model_id`s present in `resolved_models`.',
+      ).optional(),
       defaultModelId: z.string().describe(
         "Output only. The `model_id` of the model that should be selected by default in the model selector when the end-user has not made an explicit choice. The value is always one of the `model_id`s present in `resolved_models`.",
       ).optional(),
@@ -1490,7 +1497,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs",
-  version: "2026.10.06.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1749,6 +1756,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

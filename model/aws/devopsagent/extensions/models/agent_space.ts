@@ -51,6 +51,24 @@ const IdcAuthConfigurationSchema = z.object({
   IdcInstanceArn: z.string(),
 });
 
+const IdpAuthConfigurationSchema = z.object({
+  OperatorAppRoleArn: z.string().describe(
+    "The IAM role that Operator App users assume to access DevOps Agent APIs.",
+  ),
+  IssuerUrl: z.string().regex(
+    new RegExp("^https://[a-zA-Z0-9.-]+(?::[0-9]+)?(?:/.*)?$"),
+  ).describe("The OIDC issuer URL for the external identity provider."),
+  ClientId: z.string().min(1).max(512).describe(
+    "The OIDC client identifier for the external identity provider application.",
+  ),
+  ClientSecret: z.string().min(1).max(1024).describe(
+    "The OIDC client secret for the external identity provider application. Use a Secrets Manager dynamic reference to avoid storing the secret in the template.",
+  ),
+  Provider: z.enum(["okta", "entra"]).describe(
+    "The external identity provider type.",
+  ),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe("The key name of the tag."),
   Value: z.string().min(0).max(256).describe("The value for the tag."),
@@ -94,6 +112,9 @@ const GlobalArgsSchema = z.object({
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
+    Idp: IdpAuthConfigurationSchema.describe(
+      "External identity provider configuration for the Operator App.",
+    ).optional(),
   }).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -112,6 +133,7 @@ const StateSchema = z.object({
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema,
     Idc: IdcAuthConfigurationSchema,
+    Idp: IdpAuthConfigurationSchema,
   }).optional(),
   Tags: z.array(TagSchema).optional(),
   CreatedAt: z.string().optional(),
@@ -150,6 +172,9 @@ const InputsSchema = z.object({
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
+    Idp: IdpAuthConfigurationSchema.describe(
+      "External identity provider configuration for the Operator App.",
+    ).optional(),
   }).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -175,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent AgentSpace. Registered at `@swamp/aws/devopsagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/devopsagent/agent-space",
-  version: "2026.09.25.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -245,6 +270,11 @@ export const model = {
     {
       toVersion: "2026.09.25.1",
       description: "Added: Preferences",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

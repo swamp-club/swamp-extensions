@@ -178,6 +178,16 @@ const GlobalArgsSchema = z.object({
   metadata: z.record(z.string(), z.string()).describe(
     "Optional. The metadata for the agent.",
   ).optional(),
+  modelConfig: z.object({
+    model: z.string().describe(
+      'Optional. Publisher model resource name (an `aiplatform.googleapis.com/PublisherModel`) of the form "publishers/{publisher}/models/{model}", e.g. "publishers/anthropic/models/claude-opus-4-8" or "publishers/google/models/gemini-3-flash". Empty means the agent\'s default gemini model.',
+    ).optional(),
+    temperature: z.number().describe(
+      "Optional. Sampling temperature for the model's generation config (valid range (0.0, 2.0]); a value outside that range leaves the backend default standing.",
+    ).optional(),
+  }).describe(
+    "Optional. Model configuration for the agent. When set, tasks running under this agent default to this model configuration if they do not specify their own.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the agent. Format: `projects/{project}/locations/{location}/agents/{agent}`.",
   ).optional(),
@@ -219,6 +229,10 @@ const StateSchema = z.object({
   description: z.string().optional(),
   id: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  modelConfig: z.object({
+    model: z.string(),
+    temperature: z.number(),
+  }).optional(),
   name: z.string(),
   object: z.string().optional(),
   observabilityConfig: z.object({
@@ -257,6 +271,16 @@ const InputsSchema = z.object({
   ).optional(),
   metadata: z.record(z.string(), z.string()).describe(
     "Optional. The metadata for the agent.",
+  ).optional(),
+  modelConfig: z.object({
+    model: z.string().describe(
+      'Optional. Publisher model resource name (an `aiplatform.googleapis.com/PublisherModel`) of the form "publishers/{publisher}/models/{model}", e.g. "publishers/anthropic/models/claude-opus-4-8" or "publishers/google/models/gemini-3-flash". Empty means the agent\'s default gemini model.',
+    ).optional(),
+    temperature: z.number().describe(
+      "Optional. Sampling temperature for the model's generation config (valid range (0.0, 2.0]); a value outside that range leaves the backend default standing.",
+    ).optional(),
+  }).describe(
+    "Optional. Model configuration for the agent. When set, tasks running under this agent default to this model configuration if they do not specify their own.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the agent. Format: `projects/{project}/locations/{location}/agents/{agent}`.",
@@ -318,7 +342,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.10.03.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -383,6 +407,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.11.1",
+      description: "Added: modelConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -419,6 +448,9 @@ export const model = {
         }
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
+        if (g["modelConfig"] !== undefined) {
+          body["modelConfig"] = g["modelConfig"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["observabilityConfig"] !== undefined) {
           body["observabilityConfig"] = g["observabilityConfig"];
@@ -544,6 +576,9 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
+        if (g["modelConfig"] !== undefined) {
+          body["modelConfig"] = g["modelConfig"];
+        }
         if (g["observabilityConfig"] !== undefined) {
           body["observabilityConfig"] = g["observabilityConfig"];
         }

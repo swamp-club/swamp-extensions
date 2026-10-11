@@ -162,7 +162,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   agent: z.string().describe(
-    "Required. The name of the agent in Agent Registry that is affected by this policy.",
+    "Required. The name of the agent in Agent Registry that is affected by this policy. Format: `projects/{project}/locations/{location}/agents/{agent}`",
   ).optional(),
   agentResponseCustomization: z.object({
     denialMessage: z.string().describe(
@@ -185,7 +185,7 @@ const GlobalArgsSchema = z.object({
       "Required. The resource name of the McpServer in Agent Registry that is affected by this policy. Format: `projects/{project}/locations/{location}/mcpServers/{mcp_server}`",
     ).optional(),
     tools: z.array(z.string()).describe(
-      "Optional. The resource names of the McpTools used by the Agent that is affected by this policy. If not specified, the policy applies to all McpTools in the McpServer.",
+      "Required. The resource names of the tools used by the Agent that is affected by this policy. Currently, exactly one tool must be specified.",
     ).optional(),
   })).describe("Optional. The McpTools that are affected by this policy.")
     .optional(),
@@ -233,7 +233,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   agent: z.string().describe(
-    "Required. The name of the agent in Agent Registry that is affected by this policy.",
+    "Required. The name of the agent in Agent Registry that is affected by this policy. Format: `projects/{project}/locations/{location}/agents/{agent}`",
   ).optional(),
   agentResponseCustomization: z.object({
     denialMessage: z.string().describe(
@@ -256,7 +256,7 @@ const InputsSchema = z.object({
       "Required. The resource name of the McpServer in Agent Registry that is affected by this policy. Format: `projects/{project}/locations/{location}/mcpServers/{mcp_server}`",
     ).optional(),
     tools: z.array(z.string()).describe(
-      "Optional. The resource names of the McpTools used by the Agent that is affected by this policy. If not specified, the policy applies to all McpTools in the McpServer.",
+      "Required. The resource names of the tools used by the Agent that is affected by this policy. Currently, exactly one tool must be specified.",
     ).optional(),
   })).describe("Optional. The McpTools that are affected by this policy.")
     .optional(),
@@ -300,7 +300,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform SemanticGovernancePolicies. Registered at `@swamp/gcp/aiplatform/semanticgovernancepolicies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/semanticgovernancepolicies",
-  version: "2026.10.03.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -325,6 +325,11 @@ export const model = {
     {
       toVersion: "2026.10.03.1",
       description: "Added: dryRun",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -220,6 +220,13 @@ const GlobalArgsSchema = z.object({
   }).describe("DNSSEC configuration.").optional(),
   forwardingConfig: z.object({
     kind: z.string().optional(),
+    outboundEndpoints: z.array(z.object({
+      kind: z.string().optional(),
+      name: z.string().describe(
+        "Specified as a resource path including project and region. This should be formatted like projects/{project}/locations/{location}/outboundEndpoints/{endpoint}",
+      ).optional(),
+    })).describe("The list of outbound endpoints to use for queries.")
+      .optional(),
     targetNameServers: z.array(z.object({
       domainName: z.string().describe(
         "Fully qualified domain name for the forwarding target.",
@@ -329,6 +336,10 @@ const StateSchema = z.object({
   }).optional(),
   forwardingConfig: z.object({
     kind: z.string(),
+    outboundEndpoints: z.array(z.object({
+      kind: z.string(),
+      name: z.string(),
+    })),
     targetNameServers: z.array(z.object({
       domainName: z.string(),
       forwardingPath: z.string(),
@@ -428,6 +439,13 @@ const InputsSchema = z.object({
   }).describe("DNSSEC configuration.").optional(),
   forwardingConfig: z.object({
     kind: z.string().optional(),
+    outboundEndpoints: z.array(z.object({
+      kind: z.string().optional(),
+      name: z.string().describe(
+        "Specified as a resource path including project and region. This should be formatted like projects/{project}/locations/{location}/outboundEndpoints/{endpoint}",
+      ).optional(),
+    })).describe("The list of outbound endpoints to use for queries.")
+      .optional(),
     targetNameServers: z.array(z.object({
       domainName: z.string().describe(
         "Fully qualified domain name for the forwarding target.",
@@ -542,7 +560,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS ManagedZones. Registered at `@swamp/gcp/dns/managedzones`. */
 export const model = {
   type: "@swamp/gcp/dns/managedzones",
-  version: "2026.10.06.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -681,6 +699,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

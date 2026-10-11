@@ -68,14 +68,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   PeerRoleArn: z.string().describe(
-    "The Amazon Resource Name (ARN) of the VPC peer role for the peering connection in another AWS account.",
+    "The Amazon Resource Name (ARN) of the VPC peer role for the peering connection in another AWS account. You can update this property. To manage PeerVpcPeeringConnectionOptions on a peering connection with another AWS account, the role must allow ec2:DescribeVpcPeeringConnections and ec2:ModifyVpcPeeringConnectionOptions.",
   ).optional(),
   VpcId: z.string().describe("The ID of the VPC."),
   PeerVpcId: z.string().describe(
     "The ID of the VPC with which you are creating the VPC peering connection. You must specify this parameter in the request.",
   ),
   AssumeRoleRegion: z.string().describe(
-    "The Region code to use when calling Security Token Service (STS) to assume the PeerRoleArn, if provided.",
+    "The Region code to use when calling Security Token Service (STS) to assume the PeerRoleArn, if provided. You can update this property.",
   ).optional(),
   PeerRegion: z.string().describe(
     "The Region code for the accepter VPC, if the accepter VPC is located in a Region other than the Region in which you make the request.",
@@ -106,14 +106,14 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   PeerRoleArn: z.string().describe(
-    "The Amazon Resource Name (ARN) of the VPC peer role for the peering connection in another AWS account.",
+    "The Amazon Resource Name (ARN) of the VPC peer role for the peering connection in another AWS account. You can update this property. To manage PeerVpcPeeringConnectionOptions on a peering connection with another AWS account, the role must allow ec2:DescribeVpcPeeringConnections and ec2:ModifyVpcPeeringConnectionOptions.",
   ).optional(),
   VpcId: z.string().describe("The ID of the VPC.").optional(),
   PeerVpcId: z.string().describe(
     "The ID of the VPC with which you are creating the VPC peering connection. You must specify this parameter in the request.",
   ).optional(),
   AssumeRoleRegion: z.string().describe(
-    "The Region code to use when calling Security Token Service (STS) to assume the PeerRoleArn, if provided.",
+    "The Region code to use when calling Security Token Service (STS) to assume the PeerRoleArn, if provided. You can update this property.",
   ).optional(),
   PeerRegion: z.string().describe(
     "The Region code for the accepter VPC, if the accepter VPC is located in a Region other than the Region in which you make the request.",
@@ -143,7 +143,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPCPeeringConnection. Registered at `@swamp/aws/ec2/vpcpeering-connection`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcpeering-connection",
-  version: "2026.08.17.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -302,14 +307,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          [
-            "PeerRegion",
-            "PeerOwnerId",
-            "PeerVpcId",
-            "PeerRoleArn",
-            "AssumeRoleRegion",
-            "VpcId",
-          ],
+          ["PeerRegion", "PeerOwnerId", "PeerVpcId", "VpcId"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -143,7 +143,7 @@ const GlobalArgsSchema = z.object({
     "The list of resources that a security profile applies hierarchy restrictions to in Amazon Connect.",
   ).optional(),
   AllowedAccessControlHierarchyGroupId: z.string().min(0).max(127).regex(
-    new RegExp("^[a-zA-Z0-9-]+$"),
+    new RegExp("^[a-zA-Z0-9-]*$"),
   ).describe(
     "The identifier of the hierarchy group that a security profile uses to restrict access to resources in Amazon Connect.",
   ).optional(),
@@ -217,7 +217,7 @@ const InputsSchema = z.object({
     "The list of resources that a security profile applies hierarchy restrictions to in Amazon Connect.",
   ).optional(),
   AllowedAccessControlHierarchyGroupId: z.string().min(0).max(127).regex(
-    new RegExp("^[a-zA-Z0-9-]+$"),
+    new RegExp("^[a-zA-Z0-9-]*$"),
   ).describe(
     "The identifier of the hierarchy group that a security profile uses to restrict access to resources in Amazon Connect.",
   ).optional(),
@@ -257,7 +257,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect SecurityProfile. Registered at `@swamp/aws/connect/security-profile`. */
 export const model = {
   type: "@swamp/aws/connect/security-profile",
-  version: "2026.09.23.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +326,11 @@ export const model = {
         const { AllowedAIAgents: _AllowedAIAgents, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

@@ -41,14 +41,14 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const TagSchema = z.object({
-  Value: z.string(),
-  Key: z.string(),
-});
-
 const AccessEndpointSchema = z.object({
   EndpointType: z.string(),
   VpceId: z.string(),
+});
+
+const TagSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -64,25 +64,25 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Description: z.string().optional(),
-  VpcConfig: z.object({
-    SecurityGroupIds: z.array(z.string()).optional(),
-    SubnetIds: z.array(z.string()).optional(),
-  }).optional(),
-  EnableDefaultInternetAccess: z.boolean().optional(),
-  DomainJoinInfo: z.object({
-    OrganizationalUnitDistinguishedName: z.string().optional(),
-    DirectoryName: z.string().optional(),
-  }).optional(),
-  AppstreamAgentVersion: z.string().optional(),
   Name: z.string(),
-  ImageName: z.string().optional(),
-  DisplayName: z.string().optional(),
-  IamRoleArn: z.string().optional(),
   InstanceType: z.string(),
-  Tags: z.array(TagSchema).optional(),
+  Description: z.string().optional(),
+  DisplayName: z.string().optional(),
   ImageArn: z.string().optional(),
+  ImageName: z.string().optional(),
+  IamRoleArn: z.string().optional(),
+  EnableDefaultInternetAccess: z.boolean().optional(),
+  AppstreamAgentVersion: z.string().optional(),
+  VpcConfig: z.object({
+    SubnetIds: z.array(z.string()).optional(),
+    SecurityGroupIds: z.array(z.string()).optional(),
+  }).optional(),
+  DomainJoinInfo: z.object({
+    DirectoryName: z.string().optional(),
+    OrganizationalUnitDistinguishedName: z.string().optional(),
+  }).optional(),
   AccessEndpoints: z.array(AccessEndpointSchema).optional(),
+  Tags: z.array(TagSchema).optional(),
   SoftwaresToInstall: z.array(z.string()).optional(),
   SoftwaresToUninstall: z.array(z.string()).optional(),
   RootVolumeConfig: z.object({
@@ -92,26 +92,26 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Description: z.string().optional(),
-  VpcConfig: z.object({
-    SecurityGroupIds: z.array(z.string()),
-    SubnetIds: z.array(z.string()),
-  }).optional(),
-  EnableDefaultInternetAccess: z.boolean().optional(),
-  DomainJoinInfo: z.object({
-    OrganizationalUnitDistinguishedName: z.string(),
-    DirectoryName: z.string(),
-  }).optional(),
-  AppstreamAgentVersion: z.string().optional(),
   Name: z.string(),
-  ImageName: z.string().optional(),
-  DisplayName: z.string().optional(),
-  IamRoleArn: z.string().optional(),
   InstanceType: z.string().optional(),
+  Description: z.string().optional(),
+  DisplayName: z.string().optional(),
+  ImageArn: z.string().optional(),
+  ImageName: z.string().optional(),
+  IamRoleArn: z.string().optional(),
+  EnableDefaultInternetAccess: z.boolean().optional(),
+  AppstreamAgentVersion: z.string().optional(),
+  VpcConfig: z.object({
+    SubnetIds: z.array(z.string()),
+    SecurityGroupIds: z.array(z.string()),
+  }).optional(),
+  DomainJoinInfo: z.object({
+    DirectoryName: z.string(),
+    OrganizationalUnitDistinguishedName: z.string(),
+  }).optional(),
+  AccessEndpoints: z.array(AccessEndpointSchema).optional(),
   Tags: z.array(TagSchema).optional(),
   StreamingUrl: z.string().optional(),
-  ImageArn: z.string().optional(),
-  AccessEndpoints: z.array(AccessEndpointSchema).optional(),
   SoftwaresToInstall: z.array(z.string()).optional(),
   SoftwaresToUninstall: z.array(z.string()).optional(),
   RootVolumeConfig: z.object({
@@ -127,25 +127,25 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Description: z.string().optional(),
-  VpcConfig: z.object({
-    SecurityGroupIds: z.array(z.string()).optional(),
-    SubnetIds: z.array(z.string()).optional(),
-  }).optional(),
-  EnableDefaultInternetAccess: z.boolean().optional(),
-  DomainJoinInfo: z.object({
-    OrganizationalUnitDistinguishedName: z.string().optional(),
-    DirectoryName: z.string().optional(),
-  }).optional(),
-  AppstreamAgentVersion: z.string().optional(),
   Name: z.string().optional(),
-  ImageName: z.string().optional(),
-  DisplayName: z.string().optional(),
-  IamRoleArn: z.string().optional(),
   InstanceType: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Description: z.string().optional(),
+  DisplayName: z.string().optional(),
   ImageArn: z.string().optional(),
+  ImageName: z.string().optional(),
+  IamRoleArn: z.string().optional(),
+  EnableDefaultInternetAccess: z.boolean().optional(),
+  AppstreamAgentVersion: z.string().optional(),
+  VpcConfig: z.object({
+    SubnetIds: z.array(z.string()).optional(),
+    SecurityGroupIds: z.array(z.string()).optional(),
+  }).optional(),
+  DomainJoinInfo: z.object({
+    DirectoryName: z.string().optional(),
+    OrganizationalUnitDistinguishedName: z.string().optional(),
+  }).optional(),
   AccessEndpoints: z.array(AccessEndpointSchema).optional(),
+  Tags: z.array(TagSchema).optional(),
   SoftwaresToInstall: z.array(z.string()).optional(),
   SoftwaresToUninstall: z.array(z.string()).optional(),
   RootVolumeConfig: z.object({
@@ -173,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream ImageBuilder. Registered at `@swamp/aws/appstream/image-builder`. */
 export const model = {
   type: "@swamp/aws/appstream/image-builder",
-  version: "2026.09.16.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +228,11 @@ export const model = {
     {
       toVersion: "2026.09.16.1",
       description: "Added: DisableIMDSV1",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -79,6 +79,11 @@ const ArgoCdSchema = z.object({
   Namespace: z.string().describe(
     "The Kubernetes namespace where Argo CD resources will be created. If not specified, the default namespace is used.",
   ).optional(),
+  EndpointPrefix: z.string().min(1).max(50).regex(
+    new RegExp("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"),
+  ).describe(
+    "An optional prefix for the Argo CD server endpoint. When specified, EKS uses this prefix to generate the server endpoint; otherwise, the endpoint is generated automatically. This value cannot be changed after the capability is created.",
+  ).optional(),
   AwsIdc: AwsIdcSchema.describe(
     "Configuration for integrating Argo CD with IAM Identity Center. This allows you to use your organization's identity provider for authentication to Argo CD.",
   ),
@@ -233,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Capability. Registered at `@swamp/aws/eks/capability`. */
 export const model = {
   type: "@swamp/aws/eks/capability",
-  version: "2026.09.02.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -402,7 +412,14 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["ClusterName", "CapabilityName", "Type", "Namespace", "AwsIdc"],
+          [
+            "ClusterName",
+            "CapabilityName",
+            "Type",
+            "Namespace",
+            "EndpointPrefix",
+            "AwsIdc",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

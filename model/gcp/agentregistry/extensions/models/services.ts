@@ -175,7 +175,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The content of the Agent spec in the JSON format. This payload is validated against the schema for the specified type. The content size is limited to `10KB`.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC", "A2A_AGENT_CARD"]).describe(
-      "Required. The type of the agent spec content.",
+      "Required. Immutable. The type of the agent spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the Agent. When `agent_spec` is set, the type of the service is Agent.",
@@ -191,7 +191,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The content of the endpoint spec. Reserved for future use.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC"]).describe(
-      "Required. The type of the endpoint spec content.",
+      "Required. Immutable. The type of the endpoint spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the Endpoint. When `endpoint_spec` is set, the type of the service is Endpoint.",
@@ -210,7 +210,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The content of the MCP Server spec. This payload is validated against the schema for the specified type. The content size is limited to `10KB`.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC", "TOOL_SPEC"]).describe(
-      "Required. The type of the MCP Server spec content.",
+      "Required. Immutable. The type of the MCP Server spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the MCP Server. When `mcp_server_spec` is set, the type of the service is MCP Server.",
@@ -268,7 +268,7 @@ const InputsSchema = z.object({
       "Optional. The content of the Agent spec in the JSON format. This payload is validated against the schema for the specified type. The content size is limited to `10KB`.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC", "A2A_AGENT_CARD"]).describe(
-      "Required. The type of the agent spec content.",
+      "Required. Immutable. The type of the agent spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the Agent. When `agent_spec` is set, the type of the service is Agent.",
@@ -284,7 +284,7 @@ const InputsSchema = z.object({
       "Optional. The content of the endpoint spec. Reserved for future use.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC"]).describe(
-      "Required. The type of the endpoint spec content.",
+      "Required. Immutable. The type of the endpoint spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the Endpoint. When `endpoint_spec` is set, the type of the service is Endpoint.",
@@ -303,7 +303,7 @@ const InputsSchema = z.object({
       "Optional. The content of the MCP Server spec. This payload is validated against the schema for the specified type. The content size is limited to `10KB`.",
     ).optional(),
     type: z.enum(["TYPE_UNSPECIFIED", "NO_SPEC", "TOOL_SPEC"]).describe(
-      "Required. The type of the MCP Server spec content.",
+      "Required. Immutable. The type of the MCP Server spec content.",
     ).optional(),
   }).describe(
     "Optional. The spec of the MCP Server. When `mcp_server_spec` is set, the type of the service is MCP Server.",
@@ -348,7 +348,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Services. Registered at `@swamp/gcp/agentregistry/services`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/services",
-  version: "2026.08.12.2",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -492,6 +492,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

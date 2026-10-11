@@ -101,6 +101,8 @@ const StateSchema = z.object({
     networksPerManagedZone: z.number(),
     networksPerPolicy: z.number(),
     networksPerResponsePolicy: z.number(),
+    outboundEndpointsPerManagedZone: z.number(),
+    outboundEndpointsPerPolicy: z.number(),
     peeringZonesPerTargetNetwork: z.number(),
     policies: z.number(),
     resourceRecordsPerRrset: z.number(),
@@ -159,7 +161,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS Projects. Registered at `@swamp/gcp/dns/projects`. */
 export const model = {
   type: "@swamp/gcp/dns/projects",
-  version: "2026.09.18.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -273,6 +275,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -197,7 +197,7 @@ const GlobalArgsSchema = z.object({
     identifier: z.string().describe(
       "The identifier of the source Agent. Format: * `urn:agent:{publisher}:{namespace}:{name}`",
     ).optional(),
-  }).describe("Required. The target Agent of the Binding.").optional(),
+  }).describe("Optional. The source Agent of the Binding.").optional(),
   target: z.object({
     identifier: z.string().describe(
       "The identifier of the target Agent, MCP Server, or Endpoint. Format: * `urn:agent:{publisher}:{namespace}:{name}` * `urn:mcp:{publisher}:{namespace}:{name}` * `urn:endpoint:{publisher}:{namespace}:{name}`",
@@ -267,7 +267,7 @@ const InputsSchema = z.object({
     identifier: z.string().describe(
       "The identifier of the source Agent. Format: * `urn:agent:{publisher}:{namespace}:{name}`",
     ).optional(),
-  }).describe("Required. The target Agent of the Binding.").optional(),
+  }).describe("Optional. The source Agent of the Binding.").optional(),
   target: z.object({
     identifier: z.string().describe(
       "The identifier of the target Agent, MCP Server, or Endpoint. Format: * `urn:agent:{publisher}:{namespace}:{name}` * `urn:mcp:{publisher}:{namespace}:{name}` * `urn:endpoint:{publisher}:{namespace}:{name}`",
@@ -311,7 +311,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Bindings. Registered at `@swamp/gcp/agentregistry/bindings`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/bindings",
-  version: "2026.09.07.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -330,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

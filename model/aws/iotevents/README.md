@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/iotevents/alarm_model` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/iotevents/detector_model` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new alarm_model model
-swamp model create @swamp/aws/iotevents/alarm_model my-alarm_model
+# Create a new detector_model model
+swamp model create @swamp/aws/iotevents/detector_model my-detector_model
 
 # Edit the model to configure its properties
-swamp model edit my-alarm_model
+swamp model edit my-detector_model
 
 # Create the resource in AWS
-swamp model method run my-alarm_model create
+swamp model method run my-detector_model create
 
 # Sync current state from AWS
-swamp model method run my-alarm_model sync
+swamp model method run my-detector_model sync
 ```
 
 ## License

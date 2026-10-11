@@ -185,16 +185,16 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         computerUse: z.object({
           disabledSafetyPolicies: z.unknown().describe(
-            "Optional. Disabled safety policies for computer use.",
+            "Optional. A list of safety policies to disable for the computer use tool.",
           ).optional(),
           enablePromptInjectionDetection: z.unknown().describe(
-            "Optional. Enables the prompt injection detection check on computer-use request.",
+            "Optional. Whether to enable the prompt injection detection check on the computer use request.",
           ).optional(),
           environment: z.unknown().describe(
-            "Required. The environment being operated.",
+            "Required. The target environment where the computer use tool operates.",
           ).optional(),
           excludedPredefinedFunctions: z.unknown().describe(
-            "Optional. By default, [predefined functions](https://cloud.google.com/vertex-ai/generative-ai/docs/computer-use#supported-actions) are included in the final model call. Some of them can be explicitly excluded from being automatically included. This can serve two purposes: 1. Using a more restricted / different action space. 2. Improving the definitions / instructions of predefined functions.",
+            "Optional. A list of predefined functions to explicitly exclude from the model call. By default, [predefined functions](https://cloud.google.com/vertex-ai/generative-ai/docs/computer-use#supported-actions) are included. Excluding functions allows for a more restricted action space or custom definitions for predefined functions.",
           ).optional(),
         }).describe(
           "Optional. Tool to support the model interacting directly with the computer. If enabled, it automatically populates computer-use specific Function Declarations.",
@@ -361,16 +361,16 @@ const InputsSchema = z.object({
         ).optional(),
         computerUse: z.object({
           disabledSafetyPolicies: z.unknown().describe(
-            "Optional. Disabled safety policies for computer use.",
+            "Optional. A list of safety policies to disable for the computer use tool.",
           ).optional(),
           enablePromptInjectionDetection: z.unknown().describe(
-            "Optional. Enables the prompt injection detection check on computer-use request.",
+            "Optional. Whether to enable the prompt injection detection check on the computer use request.",
           ).optional(),
           environment: z.unknown().describe(
-            "Required. The environment being operated.",
+            "Required. The target environment where the computer use tool operates.",
           ).optional(),
           excludedPredefinedFunctions: z.unknown().describe(
-            "Optional. By default, [predefined functions](https://cloud.google.com/vertex-ai/generative-ai/docs/computer-use#supported-actions) are included in the final model call. Some of them can be explicitly excluded from being automatically included. This can serve two purposes: 1. Using a more restricted / different action space. 2. Improving the definitions / instructions of predefined functions.",
+            "Optional. A list of predefined functions to explicitly exclude from the model call. By default, [predefined functions](https://cloud.google.com/vertex-ai/generative-ai/docs/computer-use#supported-actions) are included. Excluding functions allows for a more restricted action space or custom definitions for predefined functions.",
           ).optional(),
         }).describe(
           "Optional. Tool to support the model interacting directly with the computer. If enabled, it automatically populates computer-use specific Function Declarations.",
@@ -517,7 +517,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationSets. Registered at `@swamp/gcp/aiplatform/evaluationsets`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationsets",
-  version: "2026.10.03.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -691,6 +691,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

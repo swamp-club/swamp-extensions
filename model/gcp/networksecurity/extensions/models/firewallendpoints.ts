@@ -598,14 +598,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.09.29.1",
-      description: "Removed: wildfireSettings",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { wildfireSettings: _wildfireSettings, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.10.09.1",
       description: "Added: wildfireSettings",
       upgradeAttributes: (old: Record<string, unknown>) => old,

@@ -71,8 +71,9 @@ const GlobalArgsSchema = z.object({
     "active-passive-failover",
     "regional-routing",
     "regional-routing-failover",
+    "magicroute",
   ]).describe(
-    'The [route selection](/docs/how-to/set-up-high-availability) algorithm used by the tailnet:\n* `active-passive-failover` - Active-passive failover (formerly known as "Failover")\n* `regional-routing` - Regional routing\n* `regional-routing-failover` - Regional routing with in-region failover\n\nA PATCH request must not specify both the `regionalRoutingOn` and `routeSelection` fields.',
+    'The [route selection](/docs/features/route-selection) algorithm used by the tailnet:\n* `active-passive-failover` - Active-passive failover (formerly known as "Failover")\n* `regional-routing` - Regional routing\n* `regional-routing-failover` - Regional routing with in-region failover\n* `magicroute` - MagicRoute\n\nA PATCH request must not specify both the `regionalRoutingOn` and `routeSelection` fields.',
   ).optional(),
   postureIdentityCollectionOn: z.boolean().nullable().describe(
     "Whether [identity collection](/docs/features/access-control/device-management/how-to/manage-identity) is enabled for [device posture](/docs/features/device-posture) integrations for the tailnet.",
@@ -129,6 +130,7 @@ const InputsSchema = z.object({
     "active-passive-failover",
     "regional-routing",
     "regional-routing-failover",
+    "magicroute",
   ]).optional(),
   postureIdentityCollectionOn: z.boolean().nullable().optional(),
   httpsEnabled: z.boolean().nullable().optional(),
@@ -137,7 +139,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale tailnet settings. Registered at `@swamp/tailscale/tailnet-settings`. */
 export const model = {
   type: "@swamp/tailscale/tailnet-settings",
-  version: "2026.10.09.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.10.08.1",
@@ -149,6 +151,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

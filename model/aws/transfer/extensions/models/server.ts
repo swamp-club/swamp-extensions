@@ -77,6 +77,9 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Certificate: z.string().min(0).max(1600).optional(),
+  CreateWithHostKey: z.boolean().describe(
+    "When this property is `true`, AWS Transfer Family will generate an initial host key for your server, making it immediately available to SFTP clients. When set to `false`, clients will not be able to establish an SFTP session until you import one or more host keys (see AWS::Transfer::HostKey). This property cannot be changed after resource creation. Default: `true`.",
+  ).optional(),
   Domain: z.enum(["S3", "EFS"]).optional(),
   EndpointDetails: z.object({
     AddressAllocationIds: z.array(z.string()).optional(),
@@ -155,6 +158,7 @@ const StateSchema = z.object({
   Arn: z.string(),
   As2ServiceManagedEgressIpAddresses: z.array(z.string()).optional(),
   Certificate: z.string().optional(),
+  CreateWithHostKey: z.boolean().optional(),
   Domain: z.string().optional(),
   EndpointDetails: z.object({
     AddressAllocationIds: z.array(z.string()),
@@ -207,6 +211,9 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   Certificate: z.string().min(0).max(1600).optional(),
+  CreateWithHostKey: z.boolean().describe(
+    "When this property is `true`, AWS Transfer Family will generate an initial host key for your server, making it immediately available to SFTP clients. When set to `false`, clients will not be able to establish an SFTP session until you import one or more host keys (see AWS::Transfer::HostKey). This property cannot be changed after resource creation. Default: `true`.",
+  ).optional(),
   Domain: z.enum(["S3", "EFS"]).optional(),
   EndpointDetails: z.object({
     AddressAllocationIds: z.array(z.string()).optional(),
@@ -300,7 +307,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Server. Registered at `@swamp/aws/transfer/server`. */
 export const model = {
   type: "@swamp/aws/transfer/server",
-  version: "2026.09.22.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -355,6 +362,11 @@ export const model = {
     {
       toVersion: "2026.09.22.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description: "Added: CreateWithHostKey",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

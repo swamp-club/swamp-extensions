@@ -183,6 +183,9 @@ const GlobalArgsSchema = z.object({
     "Optional. Customer-managed encryption key spec for this EvaluationRun. If set, this EvaluationRun will be secured by this key.",
   ).optional(),
   evaluationConfig: z.object({
+    allowCrossRegionModel: z.boolean().describe(
+      "Optional. Allows the evaluation run to use cross region models. When this flag is set, the service may route traffic to other regions if a model is unavailable in the current region (e.g., to a `global` endpoint). If a fully-qualified model endpoint resource name with a different region than the run location is provided elsewhere in the run config, this flag must be set to true or the request will fail.",
+    ).optional(),
     autoraterConfig: z.object({
       autoraterModel: z.string().describe(
         "Optional. The fully qualified name of the publisher model or tuned autorater endpoint to use. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Tuned model endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
@@ -1319,6 +1322,7 @@ const StateSchema = z.object({
     message: z.string(),
   }).optional(),
   evaluationConfig: z.object({
+    allowCrossRegionModel: z.boolean(),
     autoraterConfig: z.object({
       autoraterModel: z.string(),
       generationConfig: z.object({
@@ -1643,6 +1647,9 @@ const InputsSchema = z.object({
     "Optional. Customer-managed encryption key spec for this EvaluationRun. If set, this EvaluationRun will be secured by this key.",
   ).optional(),
   evaluationConfig: z.object({
+    allowCrossRegionModel: z.boolean().describe(
+      "Optional. Allows the evaluation run to use cross region models. When this flag is set, the service may route traffic to other regions if a model is unavailable in the current region (e.g., to a `global` endpoint). If a fully-qualified model endpoint resource name with a different region than the run location is provided elsewhere in the run config, this flag must be set to true or the request will fail.",
+    ).optional(),
     autoraterConfig: z.object({
       autoraterModel: z.string().describe(
         "Optional. The fully qualified name of the publisher model or tuned autorater endpoint to use. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Tuned model endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
@@ -2778,7 +2785,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.10.03.1",
+  version: "2026.10.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3014,6 +3021,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

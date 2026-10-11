@@ -1019,15 +1019,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.09.29.1",
-      description: "Removed: wildfireAnalysisProfile",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { wildfireAnalysisProfile: _wildfireAnalysisProfile, ...rest } =
-          old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.10.09.1",
       description: "Added: wildfireAnalysisProfile",
       upgradeAttributes: (old: Record<string, unknown>) => old,
