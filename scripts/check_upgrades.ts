@@ -22,8 +22,9 @@
  * its `upgrades` entries to reach a newer one, so the thing to check is the
  * model file, not the extension manifest — a manifest bump says nothing about
  * whether an instance can follow. This looks at every changed model
- * definition (`<extension>/extensions/models/*.ts`, generated or hand-written)
- * and, for each whose `version` changed:
+ * definition (a `.ts` file at any depth under `<extension>/extensions/models/`
+ * outside `_lib/`, generated or hand-written) and, for each whose `version`
+ * changed:
  *
  * - static: the last `upgrades[].toVersion` equals the new `version`, and the
  *   new version sorts after the old one.
@@ -132,11 +133,33 @@ export function extensionDirOf(path: string): string | null {
   return idx > 0 ? path.slice(0, idx) : null;
 }
 
-/** Model definition files, not tests or shared libraries. */
+/**
+ * Model definition files, not tests or shared libraries. Models may sit in
+ * subdirectories (stagecraft's `engine/` and `tracker/`); `_lib/` at any depth
+ * below `extensions/models/` holds libraries.
+ */
 export function isModelFile(path: string): boolean {
-  return /(^|\/)extensions\/models\/[^/]+\.ts$/.test(path) &&
-    !path.endsWith("_test.ts");
+  const below = path.match(/(?:^|\/)extensions\/models\/(.+\.ts)$/)?.[1];
+  return below !== undefined && !below.endsWith("_test.ts") &&
+    !/(?:^|\/)_lib\//.test(below);
 }
+
+/**
+ * The first method name in `swamp model type describe <type> --json` output,
+ * for a model whose methods `parseModel` cannot read (built by a function call
+ * rather than an object literal). `undefined` when the output names none.
+ */
+export function firstDescribedMethod(stdout: string): string | undefined {
+  try {
+    const name = JSON.parse(stdout)?.methods?.[0]?.name;
+    return typeof name === "string" && name !== "" ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** How long the path test lets the upgraded model's method run. */
+export const METHOD_TIMEOUT_MS = 60_000;
 
 export type PathTestTarget =
   | { kind: "skip"; reason: string }
@@ -220,15 +243,44 @@ export function registryTarget(
 
 // -- I/O ------------------------------------------------------------------------
 
+type Runner = (
+  cmd: string,
+  args: string[],
+  cwd?: string,
+  signal?: AbortSignal,
+) => Promise<{ code: number; out: string; stdout: string; stderr: string }>;
+
+/**
+ * Runs the path test's method on the `upgrade-test` instance. The method may
+ * never return (stagecraft's studio `serve`), so it is stopped after
+ * `timeoutMs`: the upgraded definition is saved before the method body starts.
+ */
+export async function runUpgradeMethod(
+  scratch: string,
+  method: string,
+  timeoutMs = METHOD_TIMEOUT_MS,
+  exec: Runner = run,
+): Promise<void> {
+  await exec(
+    "swamp",
+    ["model", "method", "run", "upgrade-test", method],
+    scratch,
+    AbortSignal.timeout(timeoutMs),
+  );
+}
+
+/** Runs a command to completion, or until `signal` aborts it. */
 async function run(
   cmd: string,
   args: string[],
   cwd?: string,
+  signal?: AbortSignal,
 ): Promise<{ code: number; out: string; stdout: string; stderr: string }> {
   try {
     const { code, stdout, stderr } = await new Deno.Command(cmd, {
       args,
       cwd,
+      signal,
       stdout: "piped",
       stderr: "piped",
     }).output();
@@ -308,12 +360,26 @@ async function pathTest(
     }
     // The upgrade chain runs before the method body; the method itself may
     // fail for unrelated reasons (no credentials, no cluster) and that is fine.
-    const method = change.head.firstMethod ?? "get";
-    await run(
-      "swamp",
-      ["model", "method", "run", "upgrade-test", method],
-      scratch,
-    );
+    // It must exist, though: an unknown method is refused before the upgrade.
+    let method = change.head.firstMethod;
+    if (method === undefined) {
+      const described = await run("swamp", [
+        "model",
+        "type",
+        "describe",
+        change.head.type,
+        "--json",
+      ], scratch);
+      method = firstDescribedMethod(described.stdout);
+      if (method === undefined) {
+        console.log(
+          `  ${extDir}: swamp model type describe named no method ` +
+            `(exit ${described.code}), trying get:\n${described.out}`,
+        );
+        method = "get";
+      }
+    }
+    await runUpgradeMethod(scratch, method);
     const { out } = await run("swamp", [
       "model",
       "get",

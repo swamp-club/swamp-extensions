@@ -19,11 +19,13 @@ import {
   checkChange,
   compareVersions,
   extensionDirOf,
+  firstDescribedMethod,
   isModelFile,
   type ModelDefinition,
   parseModel,
   pathTestTarget,
   registryTarget,
+  runUpgradeMethod,
 } from "./check_upgrades.ts";
 
 const SOURCE = `
@@ -133,6 +135,57 @@ Deno.test("isModelFile / extensionDirOf: generated and hand-written alike", () =
   assertEquals(extensionDirOf("extensions/models/issue_lifecycle.ts"), null);
 });
 
+Deno.test("isModelFile / extensionDirOf: models nested below extensions/models/", () => {
+  assertEquals(
+    isModelFile("stagecraft/extensions/models/engine/work_item.ts"),
+    true,
+  );
+  assertEquals(
+    isModelFile("stagecraft/extensions/models/tracker/linear.ts"),
+    true,
+  );
+  assertEquals(
+    isModelFile("stagecraft/extensions/models/engine/work_item_test.ts"),
+    false,
+  );
+  assertEquals(
+    isModelFile("stagecraft/extensions/models/_lib/engine/awaiting.ts"),
+    false,
+  );
+  assertEquals(
+    isModelFile("stagecraft/extensions/models/_lib/tracker/backends/linear.ts"),
+    false,
+  );
+  assertEquals(
+    extensionDirOf("stagecraft/extensions/models/engine/work_item.ts"),
+    "stagecraft",
+  );
+});
+
+Deno.test("firstDescribedMethod: the first method of a type describe payload", () => {
+  assertEquals(
+    firstDescribedMethod(
+      JSON.stringify({ methods: [{ name: "create" }, { name: "claim" }] }),
+    ),
+    "create",
+  );
+  assertEquals(firstDescribedMethod("not json"), undefined);
+  assertEquals(firstDescribedMethod("null"), undefined);
+  assertEquals(firstDescribedMethod(JSON.stringify({})), undefined);
+  assertEquals(
+    firstDescribedMethod(JSON.stringify({ methods: [] })),
+    undefined,
+  );
+  assertEquals(
+    firstDescribedMethod(JSON.stringify({ methods: [{ description: "x" }] })),
+    undefined,
+  );
+  assertEquals(
+    firstDescribedMethod(JSON.stringify({ methods: [{ name: "" }] })),
+    undefined,
+  );
+});
+
 const MANIFEST =
   `manifest_version: 1\nname: "@swamp/ssh"\nversion: 2026.09.25.1\n`;
 
@@ -226,4 +279,25 @@ Deno.test("registryTarget: any other registry failure is an error, not a skip", 
     const target = registryTarget("@swamp/ssh", code, stdout, stderr);
     assertEquals(target.kind, "error", `${code} ${stdout} ${stderr}`);
   }
+});
+
+Deno.test("runUpgradeMethod: stops a method that never returns", async () => {
+  // A fake swamp whose method blocks (as studio serve does) until the signal
+  // passed to it aborts.
+  let calledWith: string[] = [];
+  await runUpgradeMethod(
+    "/scratch",
+    "serve",
+    10,
+    (_cmd, args, _cwd, signal) => {
+      calledWith = args;
+      return new Promise((resolve) => {
+        signal?.addEventListener(
+          "abort",
+          () => resolve({ code: -1, out: "", stdout: "", stderr: "" }),
+        );
+      });
+    },
+  );
+  assertEquals(calledWith, ["model", "method", "run", "upgrade-test", "serve"]);
 });
