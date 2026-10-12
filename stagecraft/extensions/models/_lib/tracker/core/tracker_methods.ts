@@ -1046,7 +1046,8 @@ async function readRecordedPayload(
   );
 }
 
-const createArguments = z.object({
+/** create's inputs; a tracker may extend them. */
+export const createArguments = z.object({
   title: z.string().min(1).describe("The new ticket's title"),
   body: z.string().min(1).describe("The new ticket's description, as markdown"),
   type: z.string().min(1).describe(

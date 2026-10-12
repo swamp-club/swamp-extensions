@@ -78,25 +78,32 @@ export function isStale(card: BoardCard, currentDigest: string | null) {
 
 /**
  * What a card's head line shows: the key, and the ticket's ref only when it
- * differs from the key. The built-in tracker's ticket id is the key itself,
- * so it is never shown twice; a Linear ref (ABC-12) is. A card with no title
- * shows the key as its title instead, and none here.
+ * differs from the key. A ref that is the key in another case (a built-in
+ * ticket's SREMON-2131, a Linear ABC-12) is shown in the key's place, once;
+ * a built-in ticket numbered by its tracker has the key itself as its ref. A
+ * card with no title shows the key as its title instead, and none here.
  */
 export function cardHead(
   card: Pick<BoardCard, "key" | "title" | "trackerRef">,
 ): { key: string; ref: string | null } {
   return {
-    key: card.title === null ? "" : card.key,
+    key: card.title === null ? "" : keyAsShown(card.key, card.trackerRef),
     ref: refOtherThanKey(card.key, card.trackerRef),
   };
 }
 
-/** A tracker ref, unless it is the key itself. */
+/** A tracker ref, unless it is the key itself, in any case. */
 export function refOtherThanKey(
   key: string,
   ref: string | null,
 ): string | null {
-  return ref === null || ref === key ? null : ref;
+  return ref === null || ref.toLowerCase() === key ? null : ref;
+}
+
+/** The key as a person knows it: the ticket's ref when the key is that ref
+ * lowercased (SREMON-2131 for sremon-2131), else the key. */
+export function keyAsShown(key: string, ref: string | null): string {
+  return ref !== null && ref.toLowerCase() === key ? ref : key;
 }
 
 export function matches(

@@ -70,14 +70,16 @@ your agent makes the edits, and you watch them land.
   long the item has been in the stage, whether it is waiting on a person
   (highlighted, with how long), whether a limit has parked it, and whether
   it runs an older version of the factory than the current one. Filter by
-  any of those, or search by key or title.
+  any of those, or search by key or title. A work item started by hand, with
+  no ticket, is on the Board too.
 - **Work item** (open a Board card, or type a key in the bar) shows one work
   item on its factory's graph: the stages it has been through, how often, the
   path it took, where it is now and what it waits on, in the same words as
   `status`. Its timeline lists everything that happened, its **Ticket** tab
   shows the ticket's description, comments and relations as the tracker last
-  recorded them, and **copy as scenario** turns the run into a scenario your
-  agent can save.
+  recorded them (a work item with no ticket opens on **Now**, and its Ticket
+  tab says it has none), and **copy as scenario** turns the run into a
+  scenario your agent can save.
 
 Each view has its own address, such as `/f/team/board`, so you can bookmark
 it or share it with someone on the same machine.
@@ -134,6 +136,12 @@ it: `eng-1`, `eng-2`, and so on.
 swamp model create @swamp/stagecraft/tracker board \
   --global-arg prefix=eng --json
 ```
+
+If your tickets live somewhere stagecraft has no tracker for, such as Jira, a
+built-in ticket can take the same id, so its work item and the studio match:
+`create --input id=SREMON-2131` files `SREMON-2131`, whose work item is
+`sremon-2131`. It is a label only: nothing is synced with the other system. See
+[REFERENCE.md](REFERENCE.md#filing-a-ticket-under-an-id-you-choose).
 
 **Linear** connects a Linear workspace. Put your Linear API key in a vault,
 create the tracker, and fill in its settings in the model file `create`

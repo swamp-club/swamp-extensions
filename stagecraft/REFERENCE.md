@@ -331,7 +331,11 @@ swamp model @swamp/stagecraft/work-item method run status team-1
 
 `start` also takes any unused name chosen by hand, for work with no ticket.
 `title` is optional: a work item started without one shows its key where a title
-would be.
+would be. A work item with no ticket shows in the studio like any other: its
+card is on the Board, with no ticket id, and its work-item page opens on
+**Now**, with a **Ticket** tab that says it names no ticket. To have a ticket
+behind a key you choose, file a built-in ticket under that id instead (see
+"Built-in tracker").
 
 `status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
 `expectedEra` every write must pass back; each exit's readiness, with its
@@ -426,9 +430,12 @@ the page shows them as the agent saves.
   stages show a count, and **Show finished** lists their work items. Each card
   shows the title (else the key), then the key on one line (in full on hover and
   focus) and the ticket's display id when it is not the key itself (the built-in
-  tracker's ticket id is the key), time in the stage, the cycle when above 1,
-  and, in words and colour: **waiting on a person** (the exits a person holds,
-  as the run's `awaiting` events record them, and for how long), **parked** at
+  tracker's ticket id is the key). A display id that is the key in another case
+  (`SREMON-2131` for `sremon-2131`, Linear's `ABC-12` for `abc-12`) is shown in
+  the key's place, once. The card also shows the time in the stage, the cycle
+  when above 1, and, in words and colour: **waiting on a person** (the exits a
+  person holds, as the run's `awaiting` events record them, and for how long),
+  **parked** at
   the dispatch cap or by a cycle limit (an exit whose gates all pass but whose
   target stage is at its limit, so only a cycle override lets it through), and
   **stale pin** (pinned to another definition than the file's current one).
@@ -626,6 +633,34 @@ duplicate exit. A stage's `tracker.duplicate` (`on: { approve: <gate> }`,
 `record`, `field`) has `publish` do the same marking when that human-approval
 gate is approved, with the primary's stable id read from the recorded product's
 field. See [DESIGN.md](DESIGN.md), "Duplicates".
+
+### Filing a ticket under an id you choose
+
+`create` takes an optional `id`, for a ticket that matches one somewhere else,
+such as a Jira ticket:
+
+```bash
+swamp model method run board create --input id=SREMON-2131 \
+  --input title="Alert on queue depth" --input body="..." --input type=feature
+swamp model method run board claim --input issue=SREMON-2131 \
+  --input factory=team
+```
+
+The ticket shows the id as written (`SREMON-2131`) in `claim`, `fetch_issue`
+and the studio. Its stable id and its work item's key are the id lowercased
+(`sremon-2131`), and any case finds the ticket. The id is letters, digits, `-`
+and `_`, starts with a letter or digit, has a letter, and is at most 64
+characters. `create` refuses an id that a ticket on any tracker or a work item
+already has, and one in the tracker's own `<prefix>-<n>` form, which the counter
+numbers. The counter is neither read nor moved, so the tracker's next numbered
+ticket is unaffected.
+
+The id is a label, not a link. The built-in tracker never reads, updates or
+links to the other system's ticket, and nothing keeps their status, comments or
+title in step. If stagecraft later gets a tracker for that system, its `claim`
+of `SREMON-2131` finds the key `sremon-2131` taken by the built-in ticket's
+work item, so it qualifies the new key (`sremon-2131-<instance>`), and a work
+item never moves from one tracker to another.
 
 ## Linear
 

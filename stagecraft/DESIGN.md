@@ -2542,6 +2542,7 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
   tracker's own data, one `counter-<prefix>` record per prefix. Lowercase,
   because it is also a record name and an instance name: the ticket's first work
   item takes it as its key. The display id is the id, and any case finds it.
+  `create` may instead take an id the caller supplies (see "Supplied ids").
   `create` runs under the tracker instance's lock, so two creates never take one
   number. A counter that does not exist yet (a new tracker, a recreated one, a
   new prefix) starts above the highest `n` among the repository's built-in
@@ -2571,6 +2572,16 @@ network call. Its tracker name, the `externalRefs` key, is `builtin`.
   one assigned.
 - **Claim.** A ticket's work items take the ticket's id as their key: `blog-12`,
   then `blog-12-2` (see "Keys are stagecraft's").
+- **Supplied ids.** `create --input id=SREMON-2131` files a ticket whose display
+  id is the id as written and whose id, and so its work item's key, is the id
+  lowercased (`sremon-2131`). The id must be the key alphabet in either case,
+  have a letter, and fit swamp's 64 characters; it is refused when this
+  tracker's `issue-<id>` exists, when any tracker's ticket has that id (the same
+  data query `highestNumber` makes; without a data query, only this tracker and
+  the definitions are checked), when a definition has that name, and when it is
+  in the tracker's own `<prefix>-<n>` form, so the counter never meets one and a
+  recreated counter's start is never raised by one. The counter is neither read
+  nor written. The id is a label: nothing reads the other system's ticket.
 - **One method at a time.** `set_status`, `set_type` and `create` read a
   ticket's record and write a whole new version, so, like the ledger, they rely
   on swamp running one method at a time per tracker instance.
@@ -2820,6 +2831,32 @@ Scenarios have no includes: variants of one late path each repeat the walk that
 reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-12: built-in tickets under a supplied id (swamp-club #3216)
+
+**Decision.** The built-in tracker's `create` takes an optional `id`. The ticket
+keeps it as written in `display` (`SREMON-2131`); its stable id and work-item key
+are the id lowercased (`sremon-2131`). It is refused when a ticket on any
+tracker or a definition already has it, when it has no letter, and when it is in
+the tracker's own `<prefix>-<n>` form. The counter is untouched. Only the
+built-in model's `create` has the input; the adapter contract's `IssueDraft` and
+Linear's `create` are unchanged. The studio shows a ticket ref that is the key in
+another case in the key's place, once (`cardHead`, `ticketRefs`), which also
+changes Linear cards: `ABC-12` instead of `abc-12 ABC-12`.
+
+**Why.** A team whose tickets live in a system stagecraft has no tracker for
+(Jira) wants its work items and the studio to carry those ids. A mirror ticket
+numbered by the counter never matches, and a key chosen by hand has no ticket
+behind it. The schema already kept `id` and `display` apart, so no stored data
+changes. An `externalRef` on counted tickets was considered: it leaves no key
+behind for a later Jira tracker to collide with, but keys would still never
+match, which is the need.
+
+**Accepted cost.** If a tracker for that system arrives (swamp-club #3274), its
+`claim` of `SREMON-2131` finds `sremon-2131` taken by the mirrored ticket's work
+item and qualifies the new key (`sremon-2131-<instance>`), as for a key started
+by hand; a work item never moves between trackers. The docs say the id is a
+label, not a link.
 
 ### 2026-10-09: let and passAsInputs, and a call's target from run data (swamp-club #3190)
 

@@ -110,10 +110,14 @@ export function loadItem(data: WorkItemResponse): Item {
 
 /**
  * The ticket refs worth showing: every one the run records except those
- * that are its key (the built-in tracker's ticket id and display id are).
+ * that are its key in any case (a built-in ticket's id and display id are;
+ * a Linear display id like ABC-12 is, for key abc-12). The Ticket tab's
+ * heading shows the display id.
  */
 export function ticketRefs(run: RunRecord): [string, string][] {
-  return Object.entries(run.externalRefs).filter(([, v]) => v !== run.key);
+  return Object.entries(run.externalRefs).filter(([, v]) =>
+    v.toLowerCase() !== run.key
+  );
 }
 
 /** Whether the run names a ticket on the tracker it was started against. */

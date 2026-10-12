@@ -34,16 +34,22 @@ const NOW = new Date("2026-09-30T00:00:00Z");
 
 /**
  * The tracker instance's data in memory: every version, with its spec.
- * `definitions` are the model definition names in the repository, and
- * `highest` what the repository scan reports for any prefix.
+ * `definitions` are the model definition names in the repository,
+ * `highest` what the repository scan reports for any prefix, and
+ * `otherTickets` the stable ids other trackers' tickets have.
  */
-function memoryStore(definitions = new Set<string>(), highest = 0) {
+function memoryStore(
+  definitions = new Set<string>(),
+  highest = 0,
+  otherTickets = new Set<string>(),
+) {
   const records = new Map<
     string,
     { spec: string; versions: Record<string, unknown>[] }
   >();
   const store: BuiltinStore = {
     nameTaken: (name) => Promise.resolve(definitions.has(name)),
+    ticketIdTaken: (id) => Promise.resolve(otherTickets.has(id)),
     highestNumber: () => Promise.resolve(highest),
     read: (name) =>
       Promise.resolve(
@@ -238,6 +244,115 @@ Deno.test("builtin: create passes over a name a ticket or a definition already h
     prefix: "cue",
     next: 4,
   });
+});
+
+Deno.test("builtin: create files a ticket under a supplied id, displayed as written", async () => {
+  const { store, records } = memoryStore();
+  const issue = await adapterWith(store).create({
+    title: "Alert on queue depth",
+    body: "Mirrors the Jira ticket.",
+    type: "feature",
+    id: "SREMON-2131",
+  });
+  assertEquals(issue.id, "sremon-2131");
+  assertEquals(issue.display, "SREMON-2131");
+  assertEquals(records.get("issue-sremon-2131")?.versions[0], {
+    origin: "builtin",
+    tracker: BUILTIN,
+    id: "sremon-2131",
+    display: "SREMON-2131",
+    title: "Alert on queue depth",
+    body: "Mirrors the Jira ticket.",
+    type: "feature",
+    status: { id: "open", name: "open" },
+    relations: [],
+    createdAt: NOW.toISOString(),
+    updatedAt: NOW.toISOString(),
+  });
+  // The counter is neither read nor moved.
+  assertEquals(records.has("counter-cue"), false);
+  // Found by either case.
+  assertEquals(
+    (await adapterWith(store).fetchIssue("SREMON-2131")).id,
+    "sremon-2131",
+  );
+  assertEquals(
+    (await adapterWith(store).fetchIssue("sremon-2131")).display,
+    "SREMON-2131",
+  );
+  // A counted create after it is unaffected.
+  const counted = await adapterWith(store).create({
+    title: "x",
+    body: "y",
+    type: "bug",
+  });
+  assertEquals(counted.id, "cue-1");
+  assertEquals(counted.display, "cue-1");
+  assertEquals(records.get("counter-cue")?.versions, [{
+    prefix: "cue",
+    next: 2,
+  }]);
+});
+
+Deno.test("builtin: a supplied id is refused when it is taken, malformed, or the counter's own, and nothing is written", async () => {
+  const draft = { title: "x", body: "y", type: "bug" };
+  const refused: [string, string, string][] = [
+    ["SREMON 2131", "cannot be a ticket id", "a space"],
+    ["-abc", "cannot be a ticket id", "a leading '-'"],
+    ["abc.12", "cannot be a ticket id", "a '.'"],
+    // The Kelvin sign lowercases to an ASCII k.
+    ["\u212A-1", "cannot be a ticket id", "a letter outside ASCII"],
+    ["a".repeat(65), "longer than 64", "too long"],
+    ["2131", "has no letter", "a number alone"],
+    ["CUE-7", "own numbered ids", "the counter's form"],
+    ["cue-12", "own numbered ids", "the counter's form, lowercase"],
+  ];
+  for (const [id, includes, why] of refused) {
+    const { store, records } = memoryStore();
+    const error = await failsWith(
+      "invalid",
+      () => adapterWith(store).create({ ...draft, id }),
+      includes,
+    );
+    assertEquals(records.size, 0, `${why}: ${error.message}`);
+  }
+  // The counter's form under another prefix, or with more after the
+  // number, is no counted id.
+  const { store: other } = memoryStore();
+  assertEquals(
+    (await adapterWith(other).create({ ...draft, id: "OPS-7" })).id,
+    "ops-7",
+  );
+  assertEquals(
+    (await adapterWith(other).create({ ...draft, id: "cue-7-a" })).id,
+    "cue-7-a",
+  );
+
+  // Taken: this tracker's ticket in any case, another tracker's ticket, or a
+  // work item's name.
+  const { store, records } = memoryStore(
+    new Set(["abc-3"]),
+    0,
+    new Set(["abc-2"]),
+  );
+  await adapterWith(store).create({ ...draft, id: "ABC-1" });
+  await failsWith(
+    "invalid",
+    () => adapterWith(store).create({ ...draft, id: "abc-1" }),
+    "already a ticket 'abc-1'",
+  );
+  await failsWith(
+    "invalid",
+    () => adapterWith(store).create({ ...draft, id: "ABC-2" }),
+    "another tracker already has a ticket 'abc-2'",
+  );
+  await failsWith(
+    "invalid",
+    () => adapterWith(store).create({ ...draft, id: "Abc-3" }),
+    "already a work item's or a model's name",
+  );
+  assertEquals(records.get("issue-abc-1")?.versions.length, 1);
+  assertEquals(records.size, 1);
 });
 
 Deno.test("builtin: a new prefix starts its own counter", async () => {

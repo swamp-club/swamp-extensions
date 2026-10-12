@@ -23,6 +23,7 @@ import {
 } from "../_lib/engine/tracker.ts";
 import {
   BUILTIN,
+  type BuiltinAdapter,
   builtinAdapter,
   BuiltinCommentSchema,
   BuiltinCounterSchema,
@@ -39,6 +40,7 @@ import {
   defaultSources,
 } from "../_lib/tracker/core/stored_login.ts";
 import {
+  createArguments,
   deliveries,
   DeliveryInputs,
   deliveryKeyOf,
@@ -148,6 +150,17 @@ export async function ticketRecords(
   });
 }
 
+/** Whether any tracker's ticket in the repository has this stable id. */
+export async function ticketIdTaken(
+  ctx: TrackerContext,
+  id: string,
+): Promise<boolean> {
+  if (ctx.queryData === undefined) return false;
+  return (await ctx.queryData(`specName == "${ISSUE_SPEC}"`)).some((record) =>
+    recordObject(record)?.id === id
+  );
+}
+
 /**
  * The highest n of any `<prefix>-<n>` built-in ticket id or model definition
  * name (`<prefix>-<n>-...` too) in the repository, 0 for none.
@@ -183,6 +196,17 @@ export async function highestNumber(
   return highest;
 }
 
+const builtinCreateArguments = createArguments.extend({
+  id: z.string().min(1).optional().describe(
+    "An id of your choosing, such as one that matches a ticket elsewhere " +
+      "(SREMON-2131): shown as written, and lowercased for the ticket's " +
+      "work item key (sremon-2131). It is a label: the built-in tracker " +
+      "never reads or updates that other ticket. Refused when a ticket or " +
+      "work item already has it, or it is this tracker's own <prefix>-<n> " +
+      "form. Absent, the tracker numbers the ticket",
+  ),
+});
+
 const setTypeArguments = z.object({
   issue: z.string().min(1).describe("The ticket's id"),
   type: z.string().min(1).describe("One of the tracker's types"),
@@ -201,34 +225,34 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
   const now = options.now ?? (() => new Date());
   const sources = options.sources ?? defaultSources(BUILTIN);
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+  const adapterOf = (ctx: TrackerContext): BuiltinAdapter => {
+    if (ctx.readResource === undefined || ctx.writeResource === undefined) {
+      throw new Error(
+        "this method context has no writeResource/readResource",
+      );
+    }
+    const args = argumentsOf(argsOf(ctx));
+    return builtinAdapter({
+      prefix: prefixOf(ctx),
+      statuses: listFrom("statuses", args.statuses, DEFAULT_STATUSES),
+      types: listFrom("types", args.types, DEFAULT_TYPES),
+      store: {
+        read: (name) => ctx.readResource!(name),
+        write: (spec, name, data) => ctx.writeResource!(spec, name, data),
+        nameTaken: async (name) => !await keyIsFree(ctx, name),
+        ticketIdTaken: (id) => ticketIdTaken(ctx, id),
+        highestNumber: (prefix) => highestNumber(ctx, prefix),
+        ...(ctx.queryData === undefined || ctx.definition === undefined ? {} : {
+          records: (spec, issueId) =>
+            ticketRecords(ctx, ctx.definition!.name, spec, issueId),
+        }),
+      },
+      now,
+    });
+  };
   const trackerOptions: TrackerModelOptions = {
     tracker: BUILTIN,
-    adapter: (ctx) => {
-      if (ctx.readResource === undefined || ctx.writeResource === undefined) {
-        throw new Error(
-          "this method context has no writeResource/readResource",
-        );
-      }
-      const args = argumentsOf(argsOf(ctx));
-      return builtinAdapter({
-        prefix: prefixOf(ctx),
-        statuses: listFrom("statuses", args.statuses, DEFAULT_STATUSES),
-        types: listFrom("types", args.types, DEFAULT_TYPES),
-        store: {
-          read: (name) => ctx.readResource!(name),
-          write: (spec, name, data) => ctx.writeResource!(spec, name, data),
-          nameTaken: async (name) => !await keyIsFree(ctx, name),
-          highestNumber: (prefix) => highestNumber(ctx, prefix),
-          ...(ctx.queryData === undefined || ctx.definition === undefined
-            ? {}
-            : {
-              records: (spec, issueId) =>
-                ticketRecords(ctx, ctx.definition!.name, spec, issueId),
-            }),
-        },
-        now,
-      });
-    },
+    adapter: adapterOf,
     // A status key is its own name.
     statuses: (globalArgs) =>
       Object.fromEntries(
@@ -254,6 +278,33 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
 
   return {
     ...trackerMethods(trackerOptions),
+    // The shared create, plus a supplied id. A built-in ticket's record is the
+    // ticket, so there is no snapshot to write.
+    create: {
+      description:
+        "File a new ticket, numbered by the tracker or under an id you choose",
+      arguments: builtinCreateArguments,
+      execute: async (
+        args: z.infer<typeof builtinCreateArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const issue = await adapterOf(ctx).create({
+          title: args.title,
+          body: args.body,
+          type: args.type,
+          ...(args.id === undefined ? {} : { id: args.id }),
+        });
+        ctx.logger.info("{summary}", {
+          summary: `created ${issue.display} (${issue.id}): ${issue.title} ` +
+            `[${issue.status.name}]`,
+          externalRefs: JSON.stringify({
+            [BUILTIN]: issue.id,
+            [`${BUILTIN}.display`]: issue.display,
+          }),
+        });
+        return { dataHandles: [] };
+      },
+    },
     set_type: {
       description:
         "Set a ticket's type (publish is the single writer of a work item's type); already that type writes nothing",
@@ -282,7 +333,15 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/stagecraft/tracker",
-  version: "2026.10.02.2",
+  version: "2026.10.12.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.12.1",
+      description:
+        "create takes an optional supplied id (#3216) (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: BuiltinArgumentsSchema,
   resources: {
     ...trackerResources,

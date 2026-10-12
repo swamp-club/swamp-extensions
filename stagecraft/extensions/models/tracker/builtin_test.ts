@@ -87,6 +87,66 @@ Deno.test("builtin model: create files <prefix>-1, then <prefix>-2, and logs its
   });
 });
 
+Deno.test("builtin model: create files under a supplied id, logs it as written, and leaves the counter alone", async () => {
+  const swamp = withArgs({ prefix: "cue" });
+  await call(swamp, "create", {
+    title: "Alert on queue depth",
+    body: "Mirrors the Jira ticket.",
+    type: "feature",
+    id: "SREMON-2131",
+  });
+  const refs = JSON.parse(String(swamp.logs.at(-1)?.props?.externalRefs));
+  assertEquals(refs, {
+    builtin: "sremon-2131",
+    "builtin.display": "SREMON-2131",
+  });
+  assert(
+    String(swamp.logs.at(-1)?.props?.summary).startsWith(
+      "created SREMON-2131 (sremon-2131): ",
+    ),
+  );
+  assertEquals(record(swamp, "issue-sremon-2131")?.[0].display, "SREMON-2131");
+  assertEquals(record(swamp, "counter-cue"), undefined);
+  await call(swamp, "create", { title: "x", body: "y", type: "bug" });
+  assertEquals(createdId(swamp), "cue-1");
+  // An empty id is no id.
+  assert(
+    !model.methods.create.arguments.safeParse({
+      title: "x",
+      body: "y",
+      type: "bug",
+      id: "",
+    }).success,
+  );
+});
+
+Deno.test("builtin model: a supplied id another tracker's ticket or a work item has is refused", async () => {
+  const swamp = withArgs({ prefix: "cue" });
+  await swamp.context("other").writeResource?.("issue", "issue-ops-12", {
+    origin: "builtin",
+    id: "ops-12",
+  });
+  swamp.definitions.set("sremon-7", {
+    globalArguments: {},
+    type: "@swamp/stagecraft/work-item",
+  });
+  for (
+    const [id, says] of [
+      ["OPS-12", "another tracker already has a ticket 'ops-12'"],
+      ["SREMON-7", "already a work item's or a model's name"],
+      ["CUE-3", "own numbered ids"],
+    ]
+  ) {
+    const error = await assertRejects(
+      () => call(swamp, "create", { title: "x", body: "y", type: "bug", id }),
+      TrackerError,
+    );
+    assert(error.message.includes(says), error.message);
+  }
+  assertEquals(record(swamp, "issue-ops-12"), undefined);
+  assertEquals(record(swamp, "issue-sremon-7"), undefined);
+});
+
 Deno.test("builtin model: a recreated tracker continues above the highest number in the repository", async () => {
   const swamp = withArgs({ prefix: "blog" });
   // Work items from before, by definition name, and a ticket another

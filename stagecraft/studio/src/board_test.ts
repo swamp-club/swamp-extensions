@@ -30,6 +30,7 @@ import {
   COLUMN_PAGE,
   durationText,
   isStale,
+  keyAsShown,
   NO_FILTER,
   refOtherThanKey,
   stageOrder,
@@ -233,12 +234,16 @@ Deno.test("board: a work item started on the definition the page shows is not st
 const LONG_KEY =
   "board-using-stagecraft-organizing-shipping-blog-posts-every-vwd4";
 
-Deno.test("board: a tracker ref that is the key is not shown again; another is", () => {
+Deno.test("board: a tracker ref that is the key, in any case, is not shown again; another is", () => {
   assertEquals(LONG_KEY.length, 64);
   assertEquals(refOtherThanKey(LONG_KEY, LONG_KEY), null);
   assertEquals(refOtherThanKey("blog-12", "blog-12"), null);
-  assertEquals(refOtherThanKey("abc-12", "ABC-12"), "ABC-12");
+  assertEquals(refOtherThanKey("abc-12", "ABC-12"), null);
+  assertEquals(refOtherThanKey("abc-12-2", "ABC-12"), "ABC-12");
   assertEquals(refOtherThanKey("abc-12", null), null);
+  assertEquals(keyAsShown("abc-12", "ABC-12"), "ABC-12");
+  assertEquals(keyAsShown("abc-12-2", "ABC-12"), "abc-12-2");
+  assertEquals(keyAsShown("blog-12", null), "blog-12");
   assertEquals(
     cardHead(card(LONG_KEY, "plan", {
       title: "Using stagecraft for organizing and shipping blog posts",
@@ -251,8 +256,26 @@ Deno.test("board: a tracker ref that is the key is not shown again; another is",
 Deno.test("board: two work items on one Linear issue are told apart by their keys", () => {
   const on = (key: string) =>
     cardHead(card(key, "plan", { title: "Add a list", trackerRef: "ABC-12" }));
-  assertEquals(on("abc-12"), { key: "abc-12", ref: "ABC-12" });
+  assertEquals(on("abc-12"), { key: "ABC-12", ref: null });
   assertEquals(on("abc-12-2"), { key: "abc-12-2", ref: "ABC-12" });
+});
+
+Deno.test("board: a built-in ticket under a supplied id shows that id, as written, in the key's place", () => {
+  assertEquals(
+    cardHead(card("sremon-2131", "plan", {
+      title: "Alert on queue depth",
+      trackerRef: "SREMON-2131",
+    })),
+    { key: "SREMON-2131", ref: null },
+  );
+  // Its later work item keeps its own key, and names the ticket.
+  assertEquals(
+    cardHead(card("sremon-2131-2", "plan", {
+      title: "Alert on queue depth",
+      trackerRef: "SREMON-2131",
+    })),
+    { key: "sremon-2131-2", ref: "SREMON-2131" },
+  );
 });
 
 Deno.test("board: an untitled card shows its key as the title, not in its head", () => {

@@ -33,6 +33,7 @@ import {
   COLUMN_PAGE,
   durationText,
   isStale,
+  keyAsShown,
   since,
   stageOrder,
 } from "./board.ts";
@@ -102,7 +103,7 @@ function Card(props: {
         onFocus={() => active.set(stage, row)}
       >
         <span class={`card-title${card.title === null ? " untitled" : ""}`}>
-          {card.title ?? card.key}
+          {card.title ?? keyAsShown(card.key, card.trackerRef)}
         </span>
         {
           /* The key is one line, cut off; its full text stays in the card,

@@ -114,7 +114,7 @@ Deno.test("work item page: the title is the run's own, else its key", async () =
   assertEquals(titleOf({ ...it.data.run, title: "Add list" }), "Add list");
 });
 
-Deno.test("work item page: the tracker refs leave out the key, which the built-in tracker uses as the ticket's id", async () => {
+Deno.test("work item page: the tracker refs leave out the key, in any case, which the built-in tracker uses as the ticket's id", async () => {
   const it = await item(LOOPED_REVIEW);
   const run = it.data.run;
   assertEquals(
@@ -130,6 +130,26 @@ Deno.test("work item page: the tracker refs leave out the key, which the built-i
       externalRefs: { linear: "a1b2c3", "linear.display": "ABC-12" },
     }),
     [["linear", "a1b2c3"], ["linear.display", "ABC-12"]],
+  );
+  // A display id that is the key in another case is the key too.
+  assertEquals(
+    ticketRefs({
+      ...run,
+      key: "sremon-2131",
+      externalRefs: {
+        builtin: "sremon-2131",
+        "builtin.display": "SREMON-2131",
+      },
+    }),
+    [],
+  );
+  assertEquals(
+    ticketRefs({
+      ...run,
+      key: "abc-12",
+      externalRefs: { linear: "a1b2c3", "linear.display": "ABC-12" },
+    }),
+    [["linear", "a1b2c3"]],
   );
 });
 

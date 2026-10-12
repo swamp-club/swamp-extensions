@@ -207,8 +207,13 @@ swamp model method run <tracker> create --input 'title=<title>' \
 ```
 
 The type must be one the tracker has (the built-in tracker: its `types`; Linear:
-a type its `types` argument maps to a label). Never re-run a `create` that may
-have gone through: check the tracker first, since a retry files a second ticket.
+a type its `types` argument maps to a label). When the person wants the ticket
+to carry an id from a system with no stagecraft tracker (a Jira ticket such as
+`SREMON-2131`), the built-in tracker's `create` takes `--input id=<id>`: the
+ticket shows it as written and its work item's key is it lowercased. It is a
+label only; say that nothing syncs with the other system. Never re-run a
+`create` that may have gone through: check the tracker first, since a retry
+files a second ticket.
 
 ## Read status
 

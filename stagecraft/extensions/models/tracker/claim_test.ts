@@ -674,6 +674,34 @@ Deno.test("claim: an old 64-character ticket id still claims, and its next work 
   assertEquals(index(swamp).at(-1)?.key, `${old.slice(0, 62)}-2`);
 });
 
+Deno.test("claim, built-in: a ticket under a supplied id claims its lowercase key and keeps the id as written", async () => {
+  const swamp = await withFactories();
+  const { run } = await builtinTicket(swamp);
+  await run("create", {
+    title: "Alert on queue depth",
+    body: "b",
+    type: "feature",
+    id: "SREMON-2131",
+  });
+  const claimed = () =>
+    (swamp.resources.get(TRACKER)?.get(ticketName("sremon-2131")) ??
+      []) as TicketClaim[];
+  // By the id as written, or lowercase.
+  await run("claim", { issue: "SREMON-2131", factory: "team" });
+  assertEquals(claimed()[0].key, "sremon-2131");
+  assertEquals(claimed()[0].display, "SREMON-2131");
+  const summary = lastSummary(swamp);
+  assert(summary.includes("SREMON-2131 (sremon-2131)"), summary);
+  assert(summary.includes("is claimed as 'sremon-2131'"), summary);
+  assert(summary.includes('"builtin.display":"SREMON-2131"'), summary);
+
+  const refs = { builtin: "sremon-2131", "builtin.display": "SREMON-2131" };
+  await start(swamp, "sremon-2131", "team", refs);
+  await finish(swamp, "sremon-2131");
+  await run("claim", { issue: "sremon-2131", factory: "team" });
+  assertEquals(claimed().at(-1)?.key, "sremon-2131-2");
+});
+
 Deno.test("claim, built-in: a ticket id some definition already has is qualified", async () => {
   const swamp = await withFactories();
   const { id, claimed, run } = await builtinTicket(swamp);

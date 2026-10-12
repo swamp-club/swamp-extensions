@@ -46,8 +46,10 @@ import {
 // for a project with no external tracker (DESIGN.md, "The built-in
 // tracker"). Its issue-<id> records are the tickets themselves (origin
 // builtin), so nothing reads them back from anywhere. Ids are <prefix>-<n>,
-// from a counter per prefix in the tracker's own data; create runs under the
-// tracker instance's lock, so two creates never take one number. Statuses
+// from a counter per prefix in the tracker's own data, or an id the caller
+// supplies (a label such as another system's ticket id: nothing reads or
+// updates that ticket); create runs under the tracker instance's lock, so
+// two creates never take one id. Statuses
 // and types are the instance's own lists, and a status may move in any
 // direction. It keeps lifecycle entries and the ticket type,
 // so it has the history capability, and assignees (swamp usernames), so it
@@ -116,6 +118,12 @@ export interface BuiltinStore {
   /** Whether a model definition already has this name: a work item's key. */
   nameTaken(name: string): Promise<boolean>;
   /**
+   * Whether any tracker's ticket in the repository already has this stable
+   * id: another built-in instance's, before a supplied id takes it. False
+   * when the repository's data cannot be queried.
+   */
+  ticketIdTaken(id: string): Promise<boolean>;
+  /**
    * The highest n of any `<prefix>-<n>` ticket id or model definition name
    * (`<prefix>-<n>-...` too) already in the repository, 0 for none: where a
    * new counter starts, so a recreated tracker never reuses an id.
@@ -142,12 +150,31 @@ export interface BuiltinOptions {
 // A built-in id: lowercase, and the shape of a swamp instance name.
 const ID = /^[a-z0-9][a-z0-9_-]*$/;
 
+// A supplied id is its first work item's key, so it fits swamp's 64-character
+// name.
+const SUPPLIED_ID_MAX_LENGTH = 64;
+
+/** A new built-in ticket: the contract's draft, and optionally its id. */
+export interface BuiltinDraft extends IssueDraft {
+  /**
+   * The ticket's id as the caller writes it (`SREMON-2131`): its display id
+   * exactly, and, lowercased, its stable id and its work item's key. Absent,
+   * the counter numbers the ticket.
+   */
+  id?: string;
+}
+
+/** The built-in tracker's adapter: create also takes a supplied id. */
+export interface BuiltinAdapter extends TrackerAdapter {
+  create(draft: BuiltinDraft): Promise<TrackerIssue>;
+}
+
 function fail(kind: TrackerErrorKind, detail: string): never {
   throw new TrackerError(kind, BUILTIN, detail);
 }
 
 /** A built-in tracker that speaks the tracker adapter contract. */
-export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
+export function builtinAdapter(options: BuiltinOptions): BuiltinAdapter {
   const { store, statuses, types } = options;
   const now = () => (options.now ?? (() => new Date()))().toISOString();
   if (statuses.length === 0) fail("invalid", "statuses is empty");
@@ -344,42 +371,110 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
     },
   };
 
+  /** The counter's next id, and the number the counter moves on to. */
+  async function counted(): Promise<
+    { id: string; display: string; next: number }
+  > {
+    const { prefix } = options;
+    const counter = BuiltinCounterSchema.safeParse(
+      await store.read(counterName(prefix)),
+    );
+    // No counter yet (a new tracker, a recreated one, or a new prefix):
+    // start above every number this prefix already has.
+    let n = counter.success
+      ? counter.data.next
+      : await store.highestNumber(prefix) + 1;
+    // Pass over a name this tracker's tickets or any definition already
+    // has: a key started by hand, another tracker's started work item, a
+    // supplied id. An unstarted ticket on another tracker with this prefix
+    // is not seen; claim qualifies the key if the two meet.
+    while (
+      await store.read(issueName(`${prefix}-${n}`)) !== null ||
+      await store.nameTaken(`${prefix}-${n}`)
+    ) {
+      n++;
+    }
+    const id = `${prefix}-${n}`;
+    return { id, display: id, next: n + 1 };
+  }
+
+  /**
+   * A supplied id, refused unless it can be a key no ticket or work item
+   * has: `SREMON-2131` is displayed as given and is `sremon-2131` otherwise.
+   * The counter's own ids (`<prefix>-<n>`) are refused, so the counter never
+   * meets one.
+   */
+  async function supplied(
+    given: string,
+  ): Promise<{ id: string; display: string; next?: undefined }> {
+    // Tested before lowercasing: some letters outside ASCII lowercase into it.
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(given)) {
+      return fail(
+        "invalid",
+        `'${given}' cannot be a ticket id: use letters, digits, '-' and ` +
+          "'_', starting with a letter or digit",
+      );
+    }
+    const id = given.toLowerCase();
+    if (id.length > SUPPLIED_ID_MAX_LENGTH) {
+      return fail(
+        "invalid",
+        `'${given}' is longer than ${SUPPLIED_ID_MAX_LENGTH} characters`,
+      );
+    }
+    if (!/[a-z]/.test(id)) {
+      return fail(
+        "invalid",
+        `'${given}' has no letter; a ticket id needs one, as in ABC-12`,
+      );
+    }
+    // The prefix has passed the prefix rules, so it is safe in a pattern.
+    if (new RegExp(`^${options.prefix}-[0-9]+$`).test(id)) {
+      return fail(
+        "invalid",
+        `'${given}' is one of this tracker's own numbered ids ` +
+          `(${options.prefix}-<n>); create numbers those itself, so leave ` +
+          "out id, or choose one in another form",
+      );
+    }
+    if (await store.read(issueName(id)) !== null) {
+      return fail("invalid", `there is already a ticket '${id}'`);
+    }
+    if (await store.ticketIdTaken(id)) {
+      return fail(
+        "invalid",
+        `another tracker already has a ticket '${id}'`,
+      );
+    }
+    if (await store.nameTaken(id)) {
+      return fail(
+        "invalid",
+        `'${id}' is already a work item's or a model's name, so the ticket's ` +
+          "work item could not take it",
+      );
+    }
+    return { id, display: given };
+  }
+
   return {
     tracker: BUILTIN,
     origin: "builtin",
     capabilities: { history, assign },
 
-    async create(draft: IssueDraft): Promise<TrackerIssue> {
+    async create(draft: BuiltinDraft): Promise<TrackerIssue> {
       checkType(draft.type);
       if (draft.title.trim() === "") {
         return fail("invalid", "a ticket needs a title");
       }
-      const { prefix } = options;
-      const counter = BuiltinCounterSchema.safeParse(
-        await store.read(counterName(prefix)),
-      );
-      // No counter yet (a new tracker, a recreated one, or a new prefix):
-      // start above every number this prefix already has.
-      let n = counter.success
-        ? counter.data.next
-        : await store.highestNumber(prefix) + 1;
-      // Pass over a name this tracker's tickets or any definition already
-      // has: a key started by hand, another tracker's started work item. An
-      // unstarted ticket on another tracker with this prefix is not seen;
-      // claim qualifies the key if the two meet.
-      while (
-        await store.read(issueName(`${prefix}-${n}`)) !== null ||
-        await store.nameTaken(`${prefix}-${n}`)
-      ) {
-        n++;
-      }
-      const id = `${prefix}-${n}`;
+      const { id, display, next } = draft.id === undefined
+        ? await counted()
+        : await supplied(draft.id);
       const at = now();
       const issue: BuiltinIssue = {
         origin: "builtin",
         tracker: BUILTIN,
         id,
-        display: id,
+        display,
         title: draft.title,
         body: draft.body,
         type: draft.type,
@@ -389,13 +484,18 @@ export function builtinAdapter(options: BuiltinOptions): TrackerAdapter {
         updatedAt: at,
       };
       // The ticket first: a crash before the counter moves leaves a name the
-      // next create passes over.
+      // next create passes over. A supplied id leaves the counter alone.
       await write(issue);
-      await store.write(
-        COUNTER_SPEC,
-        counterName(prefix),
-        { prefix, next: n + 1 } satisfies z.infer<typeof BuiltinCounterSchema>,
-      );
+      if (next !== undefined) {
+        await store.write(
+          COUNTER_SPEC,
+          counterName(options.prefix),
+          {
+            prefix: options.prefix,
+            next,
+          } satisfies z.infer<typeof BuiltinCounterSchema>,
+        );
+      }
       return toIssue(issue);
     },
 
