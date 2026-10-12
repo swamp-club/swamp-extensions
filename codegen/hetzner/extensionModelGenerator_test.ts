@@ -1,5 +1,11 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assert, assertFalse, assertStringIncludes } from "@std/assert";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
+import {
+  assert,
+  assertEquals,
+  assertFalse,
+  assertStringIncludes,
+} from "@std/assert";
 import { generateHetznerExtensionModel } from "./extensionModelGenerator.ts";
 import type { HetznerProperty, HetznerResource } from "./pipeline.ts";
 
@@ -69,7 +75,7 @@ Deno.test("generateHetznerExtensionModel - all handlers, natural name", async (t
     createRequiredProperties: ["name", "server_type", "image"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -108,7 +114,7 @@ Deno.test("generateHetznerExtensionModel - read-only (no update, no delete)", as
     createRequiredProperties: ["name"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -156,7 +162,7 @@ Deno.test("generateHetznerExtensionModel - synthetic name", async (t) => {
     },
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -404,7 +410,7 @@ Deno.test("generateHetznerExtensionModel - label-based naming", async (t) => {
     createRequiredProperties: ["label", "type"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -439,7 +445,7 @@ Deno.test("generateHetznerExtensionModel - with upgrades block", async (t) => {
     createRequiredProperties: ["name", "public_key"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -499,7 +505,7 @@ Deno.test("generateHetznerExtensionModel - GET-only resource (list + get)", asyn
     identifyingField: "name",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -534,7 +540,7 @@ Deno.test("generateHetznerExtensionModel - list-only resource (no single GET)", 
     identifyingField: "id",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -1044,7 +1050,7 @@ Deno.test("generateHetznerExtensionModel - properties with enums and constraints
     createRequiredProperties: ["name"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateHetznerExtensionModel({
       resource,
@@ -1208,3 +1214,13 @@ Deno.test("unique names and global-arg naming keep today's list/get/update shape
   assertStringIncludes(update, "getContent");
   assertFalse(methodBlock(out, "delete").includes("tryRead"));
 });
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}

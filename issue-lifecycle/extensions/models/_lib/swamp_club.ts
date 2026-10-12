@@ -18,7 +18,7 @@
 // Swamp Club Lifecycle API Client
 // ---------------------------------------------------------------------------
 
-import { join } from "@std/path";
+import { join } from "jsr:@std/path@1";
 import type { IssueType } from "./schemas.ts";
 
 export interface LifecycleEntryParams {

@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
   generateTailscaleExtensionModel,
@@ -36,7 +37,7 @@ for (
   ]
 ) {
   Deno.test(`generateTailscaleExtensionModel - ${name}`, async (t) => {
-    await assertSnapshot(t, withoutHeader(generate(name)));
+    await assertGenerated(t, withoutHeader(generate(name)));
   });
 }
 
@@ -46,6 +47,7 @@ Deno.test("generateTailscaleLibFile - copies the runtime module", () => {
   assertStringIncludes(lib, "export async function apiRequest(");
   // The runtime module's own header is replaced, not duplicated.
   assertStringIncludes(lib.split("export")[0], "Auto-generated");
+  assertEquals(findBareSpecifiers(lib), []);
 });
 
 Deno.test("zodFull - numeric enum values are emitted as JSON literals", () => {
@@ -59,3 +61,13 @@ Deno.test("zodFull - numeric enum values are emitted as JSON literals", () => {
     'z.union([z.literal(1), z.literal("auto")])',
   );
 });
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}

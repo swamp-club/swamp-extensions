@@ -1,5 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { generateVercelExtensionModel } from "./extensionModelGenerator.ts";
+import { generateVercelLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import {
   globalArgsFieldNames,
   type VercelProperty,
@@ -430,4 +432,9 @@ Deno.test("generateVercelExtensionModel - sensitive fields carry sensitive meta 
     globalArgsBlock(code).includes("project: z.string().meta"),
     false,
   );
+});
+
+Deno.test("generated model and lib import only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generate(makeResource())), []);
+  assertEquals(findBareSpecifiers(generateVercelLibFile()), []);
 });

@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { generateAwsLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 
 // The generated `_lib/aws.ts` is a string template. To test resolveRegion()
 // (which is module-private), we write a modified copy that exports it, then
@@ -210,4 +211,8 @@ Deno.test("resolveRegion: falls back to us-east-1 when HOME is unset and no AWS_
   } finally {
     await cleanup();
   }
+});
+
+Deno.test("generateAwsLibFile - imports only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generateAwsLibFile()), []);
 });

@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { generateGcpLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 
 // The generated `_lib/gcp.ts` is a string template. To test the auth
 // functions (which are module-private), we write a modified copy that
@@ -551,4 +552,8 @@ Deno.test({
     }
   },
   sanitizeResources: false,
+});
+
+Deno.test("generateGcpLibFile - imports only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generateGcpLibFile()), []);
 });

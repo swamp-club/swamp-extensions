@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
@@ -75,7 +76,7 @@ Deno.test("generateCloudflareExtensionModel - account-scoped, all handlers", asy
     handlers: { create: true, read: true, update: false, delete: true },
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateCloudflareExtensionModel({
       resource,
@@ -134,7 +135,7 @@ Deno.test("generateCloudflareExtensionModel - zone-scoped, PATCH update", async 
     updateMethod: "PATCH",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateCloudflareExtensionModel({
       resource,
@@ -182,7 +183,7 @@ Deno.test("generateCloudflareExtensionModel - dual-scoped resource", async (t) =
     updateMethod: "PUT",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateCloudflareExtensionModel({
       resource,
@@ -229,7 +230,7 @@ Deno.test("generateCloudflareExtensionModel - synthetic name", async (t) => {
     syntheticName: true,
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateCloudflareExtensionModel({
       resource,
@@ -269,7 +270,7 @@ Deno.test("generateCloudflareExtensionModel - with upgrades block", async (t) =>
     handlers: { create: true, read: true, update: false, delete: true },
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateCloudflareExtensionModel({
       resource,
@@ -776,3 +777,13 @@ Deno.test("generateCloudflareExtensionModel - PATCH update does not fill or guar
   assertEquals(code.includes("missingForUpdate"), false);
   assertEquals(code.includes("const live = await read("), false);
 });
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}

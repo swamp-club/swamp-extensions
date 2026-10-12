@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { generateDigitalOceanLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 
 // The generated `_lib/digitalocean.ts` is a string template. To exercise its
 // runtime behavior we write it to a temp file and dynamic-import it with a
@@ -390,4 +391,8 @@ Deno.test("createEnveloped: falls back to unwrap when the key holds no object", 
   } finally {
     await cleanup();
   }
+});
+
+Deno.test("generateDigitalOceanLibFile - imports only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generateDigitalOceanLibFile()), []);
 });

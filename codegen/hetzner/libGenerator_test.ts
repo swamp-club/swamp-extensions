@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { generateHetznerLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 
 // The generated `_lib/hetzner.ts` is a string template. To exercise its runtime
 // behavior we write it to a temp file and dynamic-import it with a cache-busting
@@ -808,4 +809,8 @@ Deno.test("waitForStatus: keeps polling through a 502 and throws on 404", async 
     await cleanup();
     restoreToken();
   }
+});
+
+Deno.test("generateHetznerLibFile - imports only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generateHetznerLibFile()), []);
 });

@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import {
   type AwsExtensionModelInput,
   generateAwsExtensionModel,
@@ -126,7 +127,7 @@ Deno.test("generateAwsExtensionModel - all handlers, natural name", async (t) =>
     domainPropertyNames: ["BucketName"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -172,7 +173,7 @@ Deno.test("generateAwsExtensionModel - synthetic name", async (t) => {
     domainPropertyNames: ["RoleName", "AssumeRolePolicyDocument"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -217,7 +218,7 @@ Deno.test("generateAwsExtensionModel - composite primary identifier", async (t) 
     domainPropertyNames: ["SubnetId", "RouteTableId"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -262,7 +263,7 @@ Deno.test("generateAwsExtensionModel - createOnly properties filtered in update"
     domainPropertyNames: ["InstanceType", "ImageId"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -306,7 +307,7 @@ Deno.test("generateAwsExtensionModel - read-only resource (no update, no delete)
     domainPropertyNames: ["StackSetName"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -355,7 +356,7 @@ Deno.test("generateAwsExtensionModel - extracted schemas and StateSchema collisi
     domainPropertyNames: ["Family"],
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -401,7 +402,7 @@ Deno.test("generateAwsExtensionModel - with upgrades block", async (t) => {
       `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Added: NewField",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    },\n  ],`,
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -466,7 +467,7 @@ Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
     enrichment: mockEnrichment,
   };
 
-  await assertSnapshot(t, generateAwsExtensionModel(input));
+  await assertGenerated(t, generateAwsExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -573,7 +574,7 @@ function buildModelMethodsInput(): AwsExtensionModelInput {
 }
 
 Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
-  await assertSnapshot(t, generateAwsExtensionModel(buildModelMethodsInput()));
+  await assertGenerated(t, generateAwsExtensionModel(buildModelMethodsInput()));
 });
 
 Deno.test("generateAwsExtensionModel - modelMethods write to their declared output resources", () => {
@@ -715,4 +716,32 @@ Deno.test("generateAwsExtensionModel - modelMethods output validation", () => {
     Error,
     "empty output instanceKey",
   );
+});
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}
+
+Deno.test("enrichment sources spliced into models import only explicit or relative specifiers", async () => {
+  const root = new URL("./enrichments/", import.meta.url);
+  const scanned: string[] = [];
+  for await (const dir of Deno.readDir(root)) {
+    if (!dir.isDirectory) continue;
+    for await (const file of Deno.readDir(new URL(`${dir.name}/`, root))) {
+      if (!file.name.endsWith(".ts") || file.name.endsWith("_test.ts")) {
+        continue;
+      }
+      const path = `${dir.name}/${file.name}`;
+      const source = await Deno.readTextFile(new URL(path, root));
+      assertEquals(findBareSpecifiers(source), [], path);
+      scanned.push(path);
+    }
+  }
+  assert(scanned.length > 0, "no enrichment sources found");
 });

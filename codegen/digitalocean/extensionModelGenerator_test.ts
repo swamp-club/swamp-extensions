@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { generateDigitalOceanExtensionModel } from "./extensionModelGenerator.ts";
 import type { DigitalOceanProperty, DigitalOceanResource } from "./pipeline.ts";
@@ -74,7 +75,7 @@ Deno.test("generateDigitalOceanExtensionModel - all handlers, natural name", asy
     updateMethod: "PATCH",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -129,7 +130,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with actions", async (t
     ],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -196,7 +197,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with sub-resource metho
     ],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -243,7 +244,7 @@ Deno.test("generateDigitalOceanExtensionModel - synthetic name", async (t) => {
     createRequiredProperties: [],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -293,7 +294,7 @@ Deno.test("generateDigitalOceanExtensionModel - resource with readiness polling"
     },
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -329,7 +330,7 @@ Deno.test("generateDigitalOceanExtensionModel - checkExists direct lookup", asyn
     createRequiredProperties: ["name"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -382,7 +383,7 @@ Deno.test("generateDigitalOceanExtensionModel - checkExists list filter", async 
     createRequiredProperties: ["name"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -428,7 +429,7 @@ Deno.test("generateDigitalOceanExtensionModel - discovery endpoint", async (t) =
     discoveryEndpoint: "/v2/kubernetes/options",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -468,7 +469,7 @@ Deno.test("generateDigitalOceanExtensionModel - no update, no delete", async (t)
     createRequiredProperties: ["resource_id", "name"],
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -513,7 +514,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with forceSynthet
     updateMethod: "PATCH",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -557,7 +558,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with natural name
     updateMethod: "PUT",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -608,7 +609,7 @@ Deno.test("generateDigitalOceanExtensionModel - with upgrades block", async (t) 
     updateMethod: "PATCH",
   });
 
-  await assertSnapshot(
+  await assertGenerated(
     t,
     generateDigitalOceanExtensionModel({
       resource,
@@ -1376,3 +1377,13 @@ Deno.test("create-required - PATCH update has no update check", () => {
   const code = generate(poolResource("PATCH"));
   assertEquals(code.includes("update requires global arguments"), false);
 });
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}

@@ -33,7 +33,7 @@ import {
   SecretClient,
   type SecretClientOptions,
 } from "npm:@azure/keyvault-secrets@4.11.2";
-import type { TokenCredential } from "@azure/core-auth";
+import type { TokenCredential } from "npm:@azure/core-auth@1.9.0";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { Attr, getTracer } from "./_lib/tracing.ts";
 import { AzureKvOperationError, wrapAzureKvError } from "./azure_kv_errors.ts";

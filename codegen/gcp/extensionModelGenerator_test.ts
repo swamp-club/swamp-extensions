@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   detectSegmentIdField,
@@ -426,7 +427,7 @@ Deno.test("generateGcpExtensionModel - all handlers, natural naming", async (t) 
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -516,7 +517,7 @@ Deno.test("generateGcpExtensionModel - readiness polling", async (t) => {
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -575,7 +576,7 @@ Deno.test("generateGcpExtensionModel - listOnly resource", async (t) => {
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -649,7 +650,7 @@ Deno.test("generateGcpExtensionModel - full resource name pattern", async (t) =>
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -757,7 +758,7 @@ Deno.test("generateGcpExtensionModel - action methods", async (t) => {
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -873,7 +874,7 @@ Deno.test("generateGcpExtensionModel - GET action method uses undefined body", a
     "POST action method with no request properties should still pass {} as body",
   );
 
-  await assertSnapshot(t, output);
+  await assertGenerated(t, output);
 });
 
 // ---------------------------------------------------------------------------
@@ -935,7 +936,7 @@ Deno.test("generateGcpExtensionModel - no update or delete handlers", async (t) 
     },
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -1019,7 +1020,7 @@ Deno.test("generateGcpExtensionModel - with upgrades block", async (t) => {
       `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Added: priority",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    },\n  ],`,
   });
 
-  await assertSnapshot(t, generateGcpExtensionModel(input));
+  await assertGenerated(t, generateGcpExtensionModel(input));
 });
 
 // ---------------------------------------------------------------------------
@@ -1618,3 +1619,13 @@ Deno.test("generateGcpExtensionModel - update with an id-keyed resource throws a
     false,
   );
 });
+
+// Generated models must import with explicit npm:/jsr: or relative
+// specifiers: the registry scorer cannot resolve bare names.
+async function assertGenerated(
+  t: Deno.TestContext,
+  source: string,
+): Promise<void> {
+  assertEquals(findBareSpecifiers(source), []);
+  await assertSnapshot(t, source);
+}

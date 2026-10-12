@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { generateCloudflareLibFile } from "./libGenerator.ts";
+import { findBareSpecifiers } from "../shared/importSpecifiers.ts";
 
 interface AuthOverrides {
   apiToken?: string;
@@ -560,3 +561,7 @@ Deno.test(
     }
   },
 );
+
+Deno.test("generateCloudflareLibFile - imports only explicit or relative specifiers", () => {
+  assertEquals(findBareSpecifiers(generateCloudflareLibFile()), []);
+});

@@ -1,14 +1,11 @@
 // Generates deno.json for output extension packages.
-// Provides import mappings so bare specifiers resolve correctly
-// both for swamp's bundler and for local type-checking.
-
-// The publish pipeline enforces `no-import-prefix`, so bare specifiers in
-// generated source files need to be resolved through an import map. Our
-// generated source uses full `npm:` specifiers directly (so
-// `deno doc --lint` can resolve zod standalone, which the swamp.club scorer
-// requires). To keep both checks happy, we also exclude `no-import-prefix`
-// from the generated deno.json — matching the pattern the hand-written
-// datastore / vault extensions already use.
+//
+// Generated source imports with explicit `npm:` specifiers, never bare
+// names: the swamp.club scorer cannot resolve a bare name through an import
+// map (generator tests enforce this with findBareSpecifiers). The import map
+// mirrors those specifiers for local tooling, and `no-import-prefix` is
+// excluded so `deno lint` accepts the explicit specifiers — matching the
+// hand-written datastore / vault extensions.
 const LINT_CONFIG = {
   rules: {
     exclude: ["no-import-prefix"],
