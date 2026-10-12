@@ -19,6 +19,7 @@ import {
   type FactoryLister,
   handleStudioRequest,
   listFactories,
+  parsePublicOrigin,
   type StudioAsset,
   type StudioDeps,
   type StudioEvent,
@@ -54,7 +55,11 @@ export async function serveStudio(
   ctx: StudioContext,
   port: number,
   assets: Readonly<Record<string, StudioAsset>>,
+  publicOrigin?: string,
 ): Promise<MethodOutput> {
+  // Checked here as well as in the argument schema, so a bad value stops
+  // serve before it binds rather than failing each request.
+  if (publicOrigin !== undefined) parsePublicOrigin(publicOrigin);
   const repoDir = ctx.repoDir;
   if (repoDir === undefined) {
     throw new Error("this method context has no repo directory");
@@ -129,6 +134,7 @@ export async function serveStudio(
       repoDir,
       // Set once the server has bound, before any request can arrive.
       port: 0,
+      publicOrigin,
       files: denoRepoFiles,
       factories,
       remembered,
@@ -145,8 +151,16 @@ export async function serveStudio(
       hostname: "127.0.0.1",
       port,
       signal: ctx.signal,
-      onListen: ({ port }) =>
-        ctx.logger.info(`studio: http://127.0.0.1:${port}/`),
+      onListen: ({ port }) => {
+        ctx.logger.info(`studio: http://127.0.0.1:${port}/`);
+        if (publicOrigin === undefined) return;
+        ctx.logger.info(
+          `studio: also answering at ${publicOrigin}/ through a proxy. ` +
+            "The studio has no authentication: anyone who can reach that " +
+            "address reads every factory definition and work item, so put " +
+            "access control in the proxy.",
+        );
+      },
     }, (req) => handleStudioRequest(req, deps));
     deps.port = server.addr.port;
     await server.finished;

@@ -44,8 +44,10 @@ import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
 // factory views, /w/<key> for a work item.
 //
 // A request is refused before routing when:
-// - its Host is not 127.0.0.1:<port> or localhost:<port> (DNS rebinding);
-// - it carries an Origin other than the server's own;
+// - its Host is not 127.0.0.1:<port> or localhost:<port>, nor the host of
+//   the public origin serve was given (DNS rebinding);
+// - it carries an Origin other than the server's own: http://<Host> for a
+//   loopback Host, or exactly the public origin;
 // - it carries a Sec-Fetch-Site other than same-origin or none, which is
 //   how a hostile page's no-cors load (script, img, link) shows itself,
 //   unless it is a person opening the page itself from a link;
@@ -108,6 +110,13 @@ export interface StudioDeps {
   repoDir: string;
   /** The port the server listens on, for the Host and Origin checks. */
   port: number;
+  /**
+   * The origin a reverse proxy or tunnel publishes the studio at, such as
+   * https://studio.example.com, as parsePublicOrigin gives it. Its host is
+   * also accepted as Host, and it alone as a public Origin. Without it, only
+   * loopback is.
+   */
+  publicOrigin?: string;
   files: RepoFiles;
   factories: FactoryLister;
   /** The page's files by served name; "index.html" is served at /. */
@@ -196,17 +205,63 @@ function pageNavigation(req: Request): boolean {
     req.headers.get("sec-fetch-dest") === "document";
 }
 
+/**
+ * The public origin a reverse proxy or tunnel publishes the studio at, as
+ * given: a bare http or https origin, scheme and host and any port, with no
+ * path, query, fragment, credentials or trailing slash, and the host in
+ * lower case. Throws on anything else, saying what is wanted, and the
+ * origin the text stands for when it has one (the punycode form of an
+ * internationalized host, say).
+ */
+export function parsePublicOrigin(text: string): string {
+  let url: URL | null = null;
+  try {
+    url = new URL(text);
+  } catch {
+    // Reported below.
+  }
+  if (
+    url === null || (url.protocol !== "https:" && url.protocol !== "http:") ||
+    url.origin !== text
+  ) {
+    const meant = url !== null &&
+        (url.protocol === "https:" || url.protocol === "http:")
+      ? `; did you mean '${url.origin}'?`
+      : "";
+    throw new Error(
+      `publicOrigin must be an origin such as https://studio.example.com ` +
+        `(scheme and host, any port, nothing after it), not '${text}'${meant}`,
+    );
+  }
+  return text;
+}
+
 /** Why a request is refused before routing, or null. */
-function refusal(req: Request, port: number): Response | null {
+function refusal(req: Request, deps: StudioDeps): Response | null {
+  const { port, publicOrigin } = deps;
   const host = req.headers.get("host");
-  const hosts = [`127.0.0.1:${port}`, `localhost:${port}`];
+  const loopback = [`127.0.0.1:${port}`, `localhost:${port}`];
   // A browser leaves the default port out of Host and Origin.
-  if (port === 80) hosts.push("127.0.0.1", "localhost");
-  if (host === null || !hosts.includes(host)) {
+  if (port === 80) loopback.push("127.0.0.1", "localhost");
+  // Only a host serve was given is answered besides loopback: a hostile
+  // domain that resolves to 127.0.0.1 names itself in Host, so it is still
+  // refused.
+  const publicHost = publicOrigin === undefined
+    ? null
+    : new URL(publicOrigin).host;
+  if (
+    host === null || (!loopback.includes(host) && host !== publicHost)
+  ) {
     return error(403, "the Host header must name this studio server");
   }
+  // A browser sets Origin itself, so a page elsewhere cannot claim the public
+  // origin. A public Host does not vouch for http://<Host>: only the origin
+  // serve was given, scheme and all, is the page's own there.
   const origin = req.headers.get("origin");
-  if (origin !== null && origin !== `http://${host}`) {
+  if (
+    origin !== null && origin !== publicOrigin &&
+    !(loopback.includes(host) && origin === `http://${host}`)
+  ) {
     return error(403, "requests from another origin are refused");
   }
   const site = req.headers.get("sec-fetch-site");
@@ -497,7 +552,7 @@ export async function handleStudioRequest(
   req: Request,
   deps: StudioDeps,
 ): Promise<Response> {
-  const refused = refusal(req, deps.port);
+  const refused = refusal(req, deps);
   if (refused !== null) return refused;
   const url = new URL(req.url);
   const parts = segments(url.pathname);

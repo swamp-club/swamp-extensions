@@ -18,6 +18,7 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 import { memoryRepo } from "./fake_swamp.ts";
 import {
   handleStudioRequest,
+  parsePublicOrigin,
   type StudioDeps,
   type StudioEvent,
 } from "./studio_server.ts";
@@ -846,4 +847,209 @@ Deno.test("studio: opening the page from a link in another site is allowed, and 
     assertEquals(res.status, 403, `${path} ${JSON.stringify(headers)}`);
     await res.body?.cancel();
   }
+});
+
+// --- behind a reverse proxy or tunnel (swamp-club #3226) ------------------------
+
+const PUBLIC = "https://studio.example.com";
+
+/** setup() with the page's module script, optionally published at PUBLIC. */
+function proxied(publicOrigin?: string) {
+  const { deps } = setup();
+  deps.assets = {
+    ...deps.assets,
+    "app.js": { type: "text/javascript; charset=utf-8", text: "export {};" },
+  };
+  deps.publicOrigin = publicOrigin;
+  return deps;
+}
+
+/** A request with exactly these headers, Host included. */
+function raw(path: string, headers: Record<string, string>, method = "GET") {
+  return new Request(`http://${HOST}${path}`, { method, headers });
+}
+
+/** The browser's fetch of the page's module script, from the public page. */
+const MODULE_FETCH = {
+  origin: PUBLIC,
+  "sec-fetch-site": "same-origin",
+  "sec-fetch-mode": "cors",
+  "sec-fetch-dest": "script",
+};
+
+Deno.test("studio: parsePublicOrigin takes a bare http or https origin and nothing else", () => {
+  for (
+    const text of [
+      PUBLIC,
+      "http://studio.example.com",
+      "https://studio.example.com:8443",
+      "https://10.0.0.5",
+    ]
+  ) {
+    assertEquals(parsePublicOrigin(text), text);
+  }
+  for (
+    const text of [
+      "",
+      "studio.example.com",
+      `${PUBLIC}/`,
+      `${PUBLIC}/studio`,
+      `${PUBLIC}?a=1`,
+      `${PUBLIC}#x`,
+      "https://user:pw@studio.example.com",
+      "https://Studio.example.com",
+      "https://studio.example.com:443",
+      "ftp://studio.example.com",
+      "null",
+    ]
+  ) {
+    let threw = false;
+    try {
+      parsePublicOrigin(text);
+    } catch (e) {
+      threw = true;
+      assertMatch((e as Error).message, /publicOrigin must be an origin/);
+    }
+    assert(threw, text);
+  }
+  // A value that parses is answered with the origin it stands for: the
+  // punycode form of an internationalized host, the host in lower case.
+  for (
+    const [text, meant] of [
+      ["https://bücher.example", "https://xn--bcher-kva.example"],
+      ["https://Studio.example.com/", PUBLIC],
+    ]
+  ) {
+    let message = "";
+    try {
+      parsePublicOrigin(text);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    assertMatch(message, new RegExp(`did you mean '${meant}'\\?$`), text);
+  }
+  assertEquals(
+    parsePublicOrigin("https://xn--bcher-kva.example"),
+    "https://xn--bcher-kva.example",
+  );
+});
+
+Deno.test("studio: with a public origin, a proxied page and a tunnel are answered", async () => {
+  const deps = proxied(PUBLIC);
+  const allowed: [string, string, Record<string, string>][] = [
+    // A proxy that rewrites Host to loopback (Traefik passHostHeader false):
+    // the module script's Origin names the public site.
+    ["proxied module fetch", "/assets/app.js", {
+      host: HOST,
+      "x-forwarded-host": "studio.example.com",
+      "x-forwarded-proto": "https",
+      ...MODULE_FETCH,
+    }],
+    // A tunnel that forwards the public Host (Cloudflare Tunnel).
+    ["tunnel page", "/", {
+      host: "studio.example.com",
+      "sec-fetch-site": "none",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-dest": "document",
+    }],
+    ["tunnel module fetch", "/assets/app.js", {
+      host: "studio.example.com",
+      ...MODULE_FETCH,
+    }],
+    ["tunnel api read", "/api/factories", {
+      host: "studio.example.com",
+      "sec-fetch-site": "same-origin",
+    }],
+    ["direct local", "/assets/app.js", { host: HOST }],
+    ["local page", "/", { host: HOST, origin: `http://${HOST}` }],
+  ];
+  for (const [what, path, headers] of allowed) {
+    const res = await handleStudioRequest(raw(path, headers), deps);
+    assertEquals(res.status, 200, what);
+    assertSecurityHeaders(res);
+    await res.body?.cancel();
+  }
+});
+
+Deno.test("studio: a public origin lets nothing else through", async () => {
+  const configured = proxied(PUBLIC);
+  const unconfigured = proxied();
+  const refused: [string, StudioDeps, string, Record<string, string>][] = [
+    ["cross-site module fetch", configured, "/assets/app.js", {
+      host: "studio.example.com",
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-dest": "script",
+    }],
+    ["cross-site no-cors script", configured, "/assets/app.js", {
+      host: "studio.example.com",
+      "sec-fetch-site": "cross-site",
+      "sec-fetch-mode": "no-cors",
+      "sec-fetch-dest": "script",
+    }],
+    // X-Forwarded-Host is never trusted: without a configured origin, a
+    // public Origin is refused whatever the forwarding headers say.
+    [
+      "forged forwarding header, no Fetch Metadata",
+      unconfigured,
+      "/assets/app.js",
+      {
+        host: HOST,
+        origin: PUBLIC,
+        "x-forwarded-host": "studio.example.com",
+      },
+    ],
+    ["forwarded host, no configured origin", unconfigured, "/assets/app.js", {
+      host: HOST,
+      "x-forwarded-host": "studio.example.com",
+      ...MODULE_FETCH,
+    }],
+    ["public Host, no configured origin", unconfigured, "/", {
+      host: "studio.example.com",
+    }],
+    ["another public Host", configured, "/", { host: "other.example.com" }],
+    ["the public host on another port", configured, "/", {
+      host: "studio.example.com:8443",
+    }],
+    // DNS rebinding: a hostile domain resolved to 127.0.0.1 names itself in
+    // Host and Origin alike.
+    ["rebinding-shaped", configured, "/api/factories", {
+      host: `evil.example:${PORT}`,
+      origin: `http://evil.example:${PORT}`,
+      "sec-fetch-site": "same-origin",
+    }],
+    ["rebinding-shaped, unconfigured", unconfigured, "/", {
+      host: "studio.example.com",
+      origin: "https://studio.example.com",
+      "sec-fetch-site": "same-origin",
+    }],
+    // Only the configured origin, scheme and all, is the page's own.
+    ["http Origin, public Host", configured, "/assets/app.js", {
+      host: "studio.example.com",
+      ...MODULE_FETCH,
+      origin: "http://studio.example.com",
+    }],
+    ["http Origin, loopback Host", configured, "/assets/app.js", {
+      host: HOST,
+      ...MODULE_FETCH,
+      origin: "http://studio.example.com",
+    }],
+    ["loopback Origin, public Host", configured, "/api/factories", {
+      host: "studio.example.com",
+      origin: `http://${HOST}`,
+    }],
+  ];
+  for (const [what, deps, path, headers] of refused) {
+    const res = await handleStudioRequest(raw(path, headers), deps);
+    assertEquals(res.status, 403, what);
+    assertSecurityHeaders(res);
+    await res.body?.cancel();
+  }
+  const post = await handleStudioRequest(
+    raw("/", { host: "studio.example.com", origin: PUBLIC }, "POST"),
+    configured,
+  );
+  assertEquals(post.status, 405);
+  await post.body?.cancel();
 });

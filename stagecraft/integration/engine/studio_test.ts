@@ -80,12 +80,17 @@ async function rawGet(
   port: number,
   path: string,
   host: string,
+  headers: Record<string, string> = {},
 ): Promise<string> {
   const conn = await Deno.connect({ hostname: "127.0.0.1", port });
   try {
+    const extra = Object.entries(headers).map(([name, value]) =>
+      `${name}: ${value}\r\n`
+    ).join("");
     await conn.write(
       new TextEncoder().encode(
-        `GET ${path} HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\n\r\n`,
+        `GET ${path} HTTP/1.1\r\nHost: ${host}\r\n${extra}` +
+          `Connection: close\r\n\r\n`,
       ),
     );
     let out = "";
@@ -101,7 +106,7 @@ async function rawGet(
   }
 }
 
-async function serve(repo: SwampRepo) {
+async function serve(repo: SwampRepo, inputs: string[] = []) {
   await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
     "model",
@@ -111,6 +116,7 @@ async function serve(repo: SwampRepo) {
     "serve",
     "--input",
     "port=0",
+    ...inputs.flatMap((input) => ["--input", input]),
   ]);
   const stdout = watchOutput(child.stdout);
   const stderr = watchOutput(child.stderr);
@@ -274,6 +280,81 @@ Deno.test("studio: a factory created while the studio runs is listed without a r
       assertEquals(await (await fetch(`${base}/api/factories`)).json(), {
         factories: [{ name: "team", path: repo.factoryFile("team") }],
       });
+    } finally {
+      child.kill("SIGINT");
+      await within(30_000, "serve to exit", child.status);
+      await Promise.all([stdout.done, stderr.done]);
+    }
+  });
+});
+
+Deno.test("studio: with publicOrigin, serve answers a tunnel and a proxied page, and still refuses a foreign Host", async () => {
+  await withRepo(async (repo) => {
+    const publicOrigin = "https://studio.example.com";
+    const { child, stdout, stderr, output } = await serve(repo, [
+      `publicOrigin=${publicOrigin}`,
+    ]);
+    try {
+      const [, portText] = await within(
+        120_000,
+        "the logged studio URL",
+        Promise.race([
+          stdout.match(/studio: http:\/\/127\.0\.0\.1:(\d+)\//),
+          child.status.then((s) => {
+            throw new Error(
+              `serve exited ${s.code} before listening:\n${output()}`,
+            );
+          }),
+        ]),
+      );
+      const port = Number(portText);
+      await within(
+        10_000,
+        "the public-origin warning",
+        stdout.match(
+          /also answering at https:\/\/studio\.example\.com\/.*no authentication/,
+        ),
+      );
+      const moduleFetch = {
+        Origin: publicOrigin,
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "script",
+      };
+      // A tunnel forwards the public Host: the page and its module script.
+      assertMatch(
+        await rawGet(port, "/", "studio.example.com", {
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Dest": "document",
+        }),
+        /^HTTP\/1\.1 200/,
+      );
+      assertMatch(
+        await rawGet(port, "/assets/app.js", "studio.example.com", moduleFetch),
+        /^HTTP\/1\.1 200/,
+      );
+      // A proxy rewrites Host to loopback; the Origin names the public site.
+      assertMatch(
+        await rawGet(port, "/assets/app.js", `127.0.0.1:${port}`, {
+          ...moduleFetch,
+          "X-Forwarded-Host": "studio.example.com",
+        }),
+        /^HTTP\/1\.1 200/,
+      );
+      // Any other host, or another site's page, is still refused.
+      assertMatch(
+        await rawGet(port, "/api/factories", "other.example.com"),
+        /^HTTP\/1\.1 403/,
+      );
+      assertMatch(
+        await rawGet(port, "/assets/app.js", "studio.example.com", {
+          ...moduleFetch,
+          Origin: "https://evil.example",
+          "Sec-Fetch-Site": "cross-site",
+        }),
+        /^HTTP\/1\.1 403/,
+      );
     } finally {
       child.kill("SIGINT");
       await within(30_000, "serve to exit", child.status);

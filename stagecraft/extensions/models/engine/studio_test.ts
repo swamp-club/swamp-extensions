@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertFalse } from "@std/assert";
+import { assert, assertEquals, assertFalse, assertMatch } from "@std/assert";
 import { model as studio } from "./studio.ts";
 import { STUDIO_TYPE } from "../_lib/engine/studio_server.ts";
 
@@ -33,4 +33,28 @@ Deno.test("studio: serve's port defaults to 0 and takes CLI strings in range", (
 
 Deno.test("studio: the globalArguments schema survives swamp's .partial()", () => {
   assert(studio.globalArguments.partial().safeParse({}).success);
+});
+
+Deno.test("studio: serve's publicOrigin is optional and must be a bare origin", () => {
+  const args = studio.methods.serve.arguments;
+  assertEquals(args.parse({ publicOrigin: "https://studio.example.com" }), {
+    port: 0,
+    publicOrigin: "https://studio.example.com",
+  });
+  for (
+    const publicOrigin of [
+      "studio.example.com",
+      "https://studio.example.com/",
+      "https://studio.example.com/studio",
+      "ftp://studio.example.com",
+    ]
+  ) {
+    assertFalse(args.safeParse({ publicOrigin }).success, publicOrigin);
+  }
+  const idn = args.safeParse({ publicOrigin: "https://bücher.example" });
+  assertFalse(idn.success);
+  assertMatch(
+    idn.error.issues[0].message,
+    /did you mean 'https:\/\/xn--bcher-kva\.example'\?/,
+  );
 });

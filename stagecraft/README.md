@@ -90,7 +90,9 @@ swamp model method run studio serve
 ```
 
 `serve` logs the page's address, such as `http://127.0.0.1:38813/`, and runs
-until you stop it with Ctrl-C. It listens on your machine only.
+until you stop it with Ctrl-C. It listens on your machine only; to open it from
+elsewhere through a reverse proxy or tunnel, see `publicOrigin` in
+[REFERENCE.md](REFERENCE.md), "Serving the studio through a reverse proxy".
 
 ## Concepts
 

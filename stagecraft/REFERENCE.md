@@ -495,6 +495,34 @@ datastore holds them. `serve` holds the studio's lock while it runs, so a second
 `serve` of the same studio waits; it never takes a factory's lock. See
 [DESIGN.md](DESIGN.md), "The studio server".
 
+### Serving the studio through a reverse proxy
+
+To open the studio from another machine, put a reverse proxy or tunnel in front
+of it and tell `serve` the origin it is published at:
+
+```bash
+swamp model method run studio serve --input port=8123 \
+  --input publicOrigin=https://studio.example.com
+```
+
+`publicOrigin` is a bare origin: scheme and host, any port, lower case, nothing
+after it. An internationalized host is given in its punycode form
+(`https://xn--bcher-kva.example`, not `https://bücher.example`); `serve` names
+the form it wants when it refuses a value. With it, the studio also answers requests whose `Host` is that host
+(a tunnel or proxy that forwards the public `Host`, such as a Cloudflare Tunnel
+public hostname pointed at `http://127.0.0.1:8123`, or Traefik with
+`passHostHeader: true`), and requests whose `Origin` is exactly that origin (a
+proxy that rewrites `Host` to `127.0.0.1:8123`, such as Traefik with
+`passHostHeader: false`). The forwarded `Host` must match the origin's host
+exactly. `X-Forwarded-Host` is not read. Every other host and origin is still
+refused, so a hostile name for 127.0.0.1 (DNS rebinding) and other sites' pages
+are kept out as before.
+
+The studio has no authentication. It changes nothing, but anyone who can reach
+the public origin can read every factory definition and work item, so `serve`
+logs a warning when `publicOrigin` is set. Put access control in the proxy
+(Cloudflare Access, or Traefik basic or forward auth).
+
 ## Summary and metrics
 
 `summary` is a read that prints the work item's timeline, per era, and its
