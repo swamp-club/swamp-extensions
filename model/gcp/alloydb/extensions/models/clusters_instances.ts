@@ -423,6 +423,46 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("Configuration for query insights.").optional(),
   readPoolConfig: z.object({
+    autoScalingConfig: z.object({
+      policy: z.object({
+        coolDownPeriodSec: z.string().describe(
+          "The period of time in seconds after a new node is created before the autoscaler will incorporate its resource usage (e.g. CPU utilization) into the autoscaling recommendation algorithm.",
+        ).optional(),
+        cpuUtilization: z.object({
+          utilizationTarget: z.number().describe(
+            "Target CPU utilization as a float between 0 and 1.",
+          ).optional(),
+        }).describe("CPU utilization policy for the autoscaler.").optional(),
+        enabled: z.boolean().describe(
+          "If true, autoscaling is enabled for the instance. If not set, the default value is false.",
+        ).optional(),
+        maxNodeCount: z.string().describe(
+          "Maximum number of nodes for the autoscaler.",
+        ).optional(),
+      }).describe("Policy for the MIG autoscaler.").optional(),
+      schedules: z.array(z.object({
+        cronExpression: z.string().describe(
+          "Cron expression for the triggering the schedule. See https://cloud.google.com/compute/docs/autoscaler/scaling-schedules#cron_expressions for the syntax.",
+        ).optional(),
+        description: z.string().describe("Description of the schedule.")
+          .optional(),
+        disabled: z.boolean().describe("If true, the schedule is disabled.")
+          .optional(),
+        durationSec: z.string().describe("Duration of the schedule.")
+          .optional(),
+        minNodeCount: z.string().describe(
+          "Minimum number of nodes in while the schedule is active.",
+        ).optional(),
+        name: z.string().describe("Name of the schedule.").optional(),
+        timeZone: z.string().describe(
+          "The location-based IANA time zone for interpreting the schedule's start time. If no time zone is provided, UTC is used by default.",
+        ).optional(),
+      })).describe(
+        "Optional list of schedules for the MIG autoscaler. If not set, no schedules are created.",
+      ).optional(),
+    }).describe(
+      "Optional. Autoscaling configuration for the read pool instance. If not set, the read pool instance will not be autoscaled.",
+    ).optional(),
     nodeCount: z.number().int().describe(
       "Read capacity, i.e. number of nodes in a read pool instance.",
     ).optional(),
@@ -561,6 +601,25 @@ const StateSchema = z.object({
     recordClientAddress: z.boolean(),
   }).optional(),
   readPoolConfig: z.object({
+    autoScalingConfig: z.object({
+      policy: z.object({
+        coolDownPeriodSec: z.string(),
+        cpuUtilization: z.object({
+          utilizationTarget: z.number(),
+        }),
+        enabled: z.boolean(),
+        maxNodeCount: z.string(),
+      }),
+      schedules: z.array(z.object({
+        cronExpression: z.string(),
+        description: z.string(),
+        disabled: z.boolean(),
+        durationSec: z.string(),
+        minNodeCount: z.string(),
+        name: z.string(),
+        timeZone: z.string(),
+      })),
+    }),
     nodeCount: z.number(),
   }).optional(),
   reconciling: z.boolean().optional(),
@@ -816,6 +875,46 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("Configuration for query insights.").optional(),
   readPoolConfig: z.object({
+    autoScalingConfig: z.object({
+      policy: z.object({
+        coolDownPeriodSec: z.string().describe(
+          "The period of time in seconds after a new node is created before the autoscaler will incorporate its resource usage (e.g. CPU utilization) into the autoscaling recommendation algorithm.",
+        ).optional(),
+        cpuUtilization: z.object({
+          utilizationTarget: z.number().describe(
+            "Target CPU utilization as a float between 0 and 1.",
+          ).optional(),
+        }).describe("CPU utilization policy for the autoscaler.").optional(),
+        enabled: z.boolean().describe(
+          "If true, autoscaling is enabled for the instance. If not set, the default value is false.",
+        ).optional(),
+        maxNodeCount: z.string().describe(
+          "Maximum number of nodes for the autoscaler.",
+        ).optional(),
+      }).describe("Policy for the MIG autoscaler.").optional(),
+      schedules: z.array(z.object({
+        cronExpression: z.string().describe(
+          "Cron expression for the triggering the schedule. See https://cloud.google.com/compute/docs/autoscaler/scaling-schedules#cron_expressions for the syntax.",
+        ).optional(),
+        description: z.string().describe("Description of the schedule.")
+          .optional(),
+        disabled: z.boolean().describe("If true, the schedule is disabled.")
+          .optional(),
+        durationSec: z.string().describe("Duration of the schedule.")
+          .optional(),
+        minNodeCount: z.string().describe(
+          "Minimum number of nodes in while the schedule is active.",
+        ).optional(),
+        name: z.string().describe("Name of the schedule.").optional(),
+        timeZone: z.string().describe(
+          "The location-based IANA time zone for interpreting the schedule's start time. If no time zone is provided, UTC is used by default.",
+        ).optional(),
+      })).describe(
+        "Optional list of schedules for the MIG autoscaler. If not set, no schedules are created.",
+      ).optional(),
+    }).describe(
+      "Optional. Autoscaling configuration for the read pool instance. If not set, the read pool instance will not be autoscaled.",
+    ).optional(),
     nodeCount: z.number().int().describe(
       "Read capacity, i.e. number of nodes in a read pool instance.",
     ).optional(),
@@ -864,7 +963,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.10.02.1",
+  version: "2026.10.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1051,6 +1150,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
