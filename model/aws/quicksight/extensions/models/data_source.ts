@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/quicksight/data-source
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -255,12 +251,15 @@ const DatabricksParametersSchema = z.object({
   Port: z.number().min(1).max(65535).describe(
     "The port for the Databricks data source.",
   ),
+  OAuthParameters: OAuthParametersSchema.optional(),
   Host: z.string().min(1).max(256).describe(
     "The host name of the Databricks data source.",
   ),
   SqlEndpointPath: z.string().min(1).max(4096).describe(
     "The HTTP path of the Databricks data source.",
   ),
+  AuthenticationType: z.enum(["PASSWORD", "TOKEN", "X509", "KEYPAIR"])
+    .optional(),
 });
 
 const DataSourceParametersSchema = z.object({
@@ -349,6 +348,12 @@ const KeyPairCredentialsSchema = z.object({
     ),
   ),
   PrivateKeyPassphrase: z.string().min(0).max(256).optional(),
+});
+
+const OAuthClientCredentialsSchema = z.object({
+  Username: z.string().min(1).max(64).optional(),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientId: z.string().min(1).max(256).optional(),
 });
 
 const TagSchema = z.object({
@@ -546,6 +551,7 @@ const GlobalArgsSchema = z.object({
       "The combination of user name and password that are used as credentials.",
     ).optional(),
     KeyPairCredentials: KeyPairCredentialsSchema.optional(),
+    OAuthClientCredentials: OAuthClientCredentialsSchema.optional(),
   }).describe(
     "Data source credentials. This is a variant type structure. For this structure to be valid, only one of the attributes can be non-null.",
   ).optional(),
@@ -578,6 +584,7 @@ const StateSchema = z.object({
     CopySourceArn: z.string(),
     CredentialPair: CredentialPairSchema,
     KeyPairCredentials: KeyPairCredentialsSchema,
+    OAuthClientCredentials: OAuthClientCredentialsSchema,
   }).optional(),
   DataSourceId: z.string(),
   Tags: z.array(TagSchema).optional(),
@@ -765,6 +772,7 @@ const InputsSchema = z.object({
       "The combination of user name and password that are used as credentials.",
     ).optional(),
     KeyPairCredentials: KeyPairCredentialsSchema.optional(),
+    OAuthClientCredentials: OAuthClientCredentialsSchema.optional(),
   }).describe(
     "Data source credentials. This is a variant type structure. For this structure to be valid, only one of the attributes can be non-null.",
   ).optional(),
@@ -791,7 +799,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSource. Registered at `@swamp/aws/quicksight/data-source`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-source",
-  version: "2026.09.25.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -860,6 +868,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

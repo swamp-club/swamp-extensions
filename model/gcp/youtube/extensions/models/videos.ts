@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/gcp/youtube/videos
 // Do not edit manually. Re-generate with: deno task generate:gcp
@@ -1482,14 +1478,14 @@ const GlobalArgsSchema = z.object({
       "codec",
       "uploadAborted",
     ]).describe(
-      "This value explains why a video failed to upload. This property is only present if the uploadStatus property indicates that the upload failed.",
+      "This value explains why a video failed to upload. This property is only present if the `uploadStatus` property indicates that the upload failed.",
     ).optional(),
     license: z.enum(["youtube", "creativeCommon"]).describe(
       "The video's license. @mutable youtube.videos.insert youtube.videos.update",
     ).optional(),
     madeForKids: z.boolean().optional(),
     privacyStatus: z.enum(["public", "unlisted", "private"]).describe(
-      "The video's privacy status.",
+      "The video's privacy status. In a `videos.insert` request, if you don't specify a value for this property, the uploaded video's privacy status defaults to `public`. Certain uploads might default to `private` based on creator account settings, as explained in the [YouTube Help Center](https://support.google.com/youtube/answer/157177). Videos uploaded from unverified API projects are not restricted to private viewing mode.",
     ).optional(),
     publicStatsViewable: z.boolean().describe(
       "This value indicates if the extended video statistics on the watch page can be viewed by everyone. Note that the view count, likes, etc will still be visible if this is disabled. @mutable youtube.videos.insert youtube.videos.update",
@@ -1509,7 +1505,7 @@ const GlobalArgsSchema = z.object({
       "trademark",
       "legal",
     ]).describe(
-      "This value explains why YouTube rejected an uploaded video. This property is only present if the uploadStatus property indicates that the upload was rejected.",
+      "This value explains why YouTube rejected an uploaded video. This property is only present if the `uploadStatus` property indicates that the upload was rejected.",
     ).optional(),
     selfDeclaredMadeForKids: z.boolean().optional(),
     uploadStatus: z.enum([
@@ -3186,14 +3182,14 @@ const InputsSchema = z.object({
       "codec",
       "uploadAborted",
     ]).describe(
-      "This value explains why a video failed to upload. This property is only present if the uploadStatus property indicates that the upload failed.",
+      "This value explains why a video failed to upload. This property is only present if the `uploadStatus` property indicates that the upload failed.",
     ).optional(),
     license: z.enum(["youtube", "creativeCommon"]).describe(
       "The video's license. @mutable youtube.videos.insert youtube.videos.update",
     ).optional(),
     madeForKids: z.boolean().optional(),
     privacyStatus: z.enum(["public", "unlisted", "private"]).describe(
-      "The video's privacy status.",
+      "The video's privacy status. In a `videos.insert` request, if you don't specify a value for this property, the uploaded video's privacy status defaults to `public`. Certain uploads might default to `private` based on creator account settings, as explained in the [YouTube Help Center](https://support.google.com/youtube/answer/157177). Videos uploaded from unverified API projects are not restricted to private viewing mode.",
     ).optional(),
     publicStatsViewable: z.boolean().describe(
       "This value indicates if the extended video statistics on the watch page can be viewed by everyone. Note that the view count, likes, etc will still be visible if this is disabled. @mutable youtube.videos.insert youtube.videos.update",
@@ -3213,7 +3209,7 @@ const InputsSchema = z.object({
       "trademark",
       "legal",
     ]).describe(
-      "This value explains why YouTube rejected an uploaded video. This property is only present if the uploadStatus property indicates that the upload was rejected.",
+      "This value explains why YouTube rejected an uploaded video. This property is only present if the `uploadStatus` property indicates that the upload was rejected.",
     ).optional(),
     selfDeclaredMadeForKids: z.boolean().optional(),
     uploadStatus: z.enum([
@@ -3350,7 +3346,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Videos. Registered at `@swamp/gcp/youtube/videos`. */
 export const model = {
   type: "@swamp/gcp/youtube/videos",
-  version: "2026.10.06.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3504,6 +3500,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

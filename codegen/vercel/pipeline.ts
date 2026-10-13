@@ -10,7 +10,10 @@ import {
 } from "./extensionModelGenerator.ts";
 import { generateVercelLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateVercelDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateVercelReadme } from "../shared/readmeGenerator.ts";
 import {
@@ -496,6 +499,7 @@ export async function generateVercelModels(options: {
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Vercel ${serviceName} infrastructure models`,
       labels: ["vercel", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,
@@ -517,6 +521,7 @@ export async function generateVercelModels(options: {
     const manifest = generateManifest({
       name: extensionName,
       version: manifestVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Vercel ${serviceName} infrastructure models`,
       labels: ["vercel", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,

@@ -7,6 +7,7 @@ Deno.test("generateManifest - full manifest with release notes and additional fi
     generateManifest({
       name: "@swamp/hetzner-cloud",
       version: "2026.04.03.1",
+      license: "AGPL-3.0-or-later",
       description: "Hetzner Cloud infrastructure models",
       labels: ["hetzner", "cloud", "infrastructure"],
       modelFiles: ["servers.ts", "ssh_keys.ts", "volumes.ts"],
@@ -24,6 +25,7 @@ Deno.test("generateManifest - no release notes, no additional files", async (t) 
     generateManifest({
       name: "@swamp/aws/ec2",
       version: "2026.01.01.1",
+      license: "AGPL-3.0-or-later",
       description: "AWS EC2 infrastructure models",
       labels: ["aws", "ec2", "cloud"],
       modelFiles: ["instance.ts", "vpc.ts"],
@@ -37,6 +39,7 @@ Deno.test("generateManifest - model files are sorted", async (t) => {
     generateManifest({
       name: "@swamp/test",
       version: "1.0.0",
+      license: "AGPL-3.0-or-later",
       description: "Test",
       labels: ["test"],
       modelFiles: ["z_last.ts", "a_first.ts", "m_middle.ts"],
@@ -50,6 +53,7 @@ Deno.test("generateManifest - additional files are sorted", async (t) => {
     generateManifest({
       name: "@swamp/test",
       version: "1.0.0",
+      license: "AGPL-3.0-or-later",
       description: "Test",
       labels: ["test"],
       modelFiles: ["model.ts"],
@@ -64,6 +68,7 @@ Deno.test("generateManifest - multiline release notes", async (t) => {
     generateManifest({
       name: "@swamp/test",
       version: "2.0.0",
+      license: "AGPL-3.0-or-later",
       description: "Test extension",
       labels: ["test"],
       modelFiles: ["a.ts"],
@@ -79,6 +84,7 @@ Deno.test("generateManifest - explicit platforms list", async (t) => {
     generateManifest({
       name: "@swamp/test",
       version: "2026.01.01.1",
+      license: "AGPL-3.0-or-later",
       description: "Platform-specific test",
       labels: ["test"],
       modelFiles: ["model.ts"],

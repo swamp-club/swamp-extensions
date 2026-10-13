@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/panorama"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS PANORAMA infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - panorama
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: application_instance, package, package_version
 models:
   - application_instance.ts
   - package.ts

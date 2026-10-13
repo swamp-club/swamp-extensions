@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudidentity"
-version: "2026.10.06.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Google Cloud cloudidentity infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: groups, inboundoidcssoprofiles, inboundsamlssoprofiles, inboundssoassignments, policies
+  - Updated: allowlisteddomains, customers_userinvitations, devices, devices_deviceusers, devices_deviceusers_clientstates, groups, groups_memberships, inboundoidcssoprofiles, inboundsamlssoprofiles, inboundsamlssoprofiles_idpcredentials, inboundssoassignments, policies
 models:
   - allowlisteddomains.ts
   - customers_userinvitations.ts

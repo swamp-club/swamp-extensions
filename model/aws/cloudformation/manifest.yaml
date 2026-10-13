@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/cloudformation"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS CLOUDFORMATION infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: stack_set
+  - Updated: change_set, generated_template, guard_hook, hook_default_version, hook_type_config, hook_version, lambda_hook, module_default_version, module_version, public_type_version, publisher, resource_default_version, resource_version, stack, stack_set, type_activation
 models:
   - change_set.ts
   - generated_template.ts

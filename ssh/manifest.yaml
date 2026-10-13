@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.09.28.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset

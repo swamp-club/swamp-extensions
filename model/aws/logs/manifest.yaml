@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/logs"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS LOGS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - logs
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: account_policy, delivery, delivery_destination, delivery_source, destination, integration, log_anomaly_detector, log_group, log_stream, metric_filter, query_definition, resource_policy, scheduled_query, storage_tier_policy, subscription_filter, transformer
 models:
   - account_policy.ts
   - delivery.ts

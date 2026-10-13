@@ -7,7 +7,10 @@ import { dirname } from "@std/path";
 import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
 import { generateCloudflareLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateCloudflareDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateCloudflareReadme } from "../shared/readmeGenerator.ts";
 import {
@@ -503,6 +506,7 @@ export async function generateCloudflareModels(options: {
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Cloudflare ${serviceName} infrastructure models`,
       labels: ["cloudflare", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,
@@ -524,6 +528,7 @@ export async function generateCloudflareModels(options: {
     const manifest = generateManifest({
       name: extensionName,
       version: manifestVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Cloudflare ${serviceName} infrastructure models`,
       labels: ["cloudflare", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,
@@ -670,6 +675,7 @@ export async function generateCloudflareModels(options: {
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
+      license: FIRST_PARTY_LICENSE,
       description: standalone.description,
       labels: standalone.labels,
       modelFiles: modelFileNames,
@@ -691,6 +697,7 @@ export async function generateCloudflareModels(options: {
     const manifest = generateManifest({
       name: extensionName,
       version: manifestVersion,
+      license: FIRST_PARTY_LICENSE,
       description: standalone.description,
       labels: standalone.labels,
       modelFiles: modelFileNames,

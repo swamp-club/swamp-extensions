@@ -5,6 +5,7 @@ snapshot[`generateManifest - full manifest with release notes and additional fil
 manifestVersion: 1
 name: "@swamp/hetzner-cloud"
 version: "2026.04.03.1"
+license: "AGPL-3.0-or-later"
 description: "Hetzner Cloud infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -30,6 +31,7 @@ snapshot[`generateManifest - no release notes, no additional files 1`] = `
 manifestVersion: 1
 name: "@swamp/aws/ec2"
 version: "2026.01.01.1"
+license: "AGPL-3.0-or-later"
 description: "AWS EC2 infrastructure models"
 labels:
   - aws
@@ -46,6 +48,7 @@ snapshot[`generateManifest - model files are sorted 1`] = `
 manifestVersion: 1
 name: "@swamp/test"
 version: "1.0.0"
+license: "AGPL-3.0-or-later"
 description: "Test"
 labels:
   - test
@@ -61,6 +64,7 @@ snapshot[`generateManifest - additional files are sorted 1`] = `
 manifestVersion: 1
 name: "@swamp/test"
 version: "1.0.0"
+license: "AGPL-3.0-or-later"
 description: "Test"
 labels:
   - test
@@ -78,6 +82,7 @@ snapshot[`generateManifest - multiline release notes 1`] = `
 manifestVersion: 1
 name: "@swamp/test"
 version: "2.0.0"
+license: "AGPL-3.0-or-later"
 description: "Test extension"
 labels:
   - test
@@ -95,6 +100,7 @@ snapshot[`generateManifest - explicit platforms list 1`] = `
 manifestVersion: 1
 name: "@swamp/test"
 version: "2026.01.01.1"
+license: "AGPL-3.0-or-later"
 description: "Platform-specific test"
 labels:
   - test

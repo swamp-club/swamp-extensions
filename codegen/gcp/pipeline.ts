@@ -14,7 +14,10 @@ import {
 } from "./extensionModelGenerator.ts";
 import { generateGcpLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateGcpDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateGcpReadme } from "../shared/readmeGenerator.ts";
 import {
@@ -1015,6 +1018,7 @@ export async function generateGcpModels(options: {
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Google Cloud ${serviceName} infrastructure models`,
       labels: [
         "gcp",
@@ -1045,6 +1049,7 @@ export async function generateGcpModels(options: {
     const manifestSource = generateManifest({
       name: extensionName,
       version: manifestVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `Google Cloud ${serviceName} infrastructure models`,
       labels: [
         "gcp",

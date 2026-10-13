@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/mediatailor/playback-configuration
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -41,6 +37,16 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+
+const ClientSideBeaconingConfigurationSchema = z.object({
+  ReportingMode: z.enum(["DISABLED", "INSIGHTS"]).describe(
+    "Specifies whether MediaTailor includes its beacons in the ad tracking response. INSIGHTS includes MediaTailor beacons; DISABLED does not. Values are case-sensitive. This setting is required when ClientSide is present. If BeaconingConfiguration or ClientSide is omitted, MediaTailor uses INSIGHTS. To keep beaconing off, retain DISABLED in subsequent updates.",
+  ),
+  AdditionalEventTypes: z.array(z.enum(["MUTE", "UNMUTE", "PAUSE", "SKIP"]))
+    .describe(
+      "The player operation events to report on, in addition to the ad progress events that MediaTailor always reports on. Valid values are MUTE, UNMUTE, PAUSE, and SKIP. The default is an empty list. This parameter is valid only when ReportingMode is INSIGHTS. MediaTailor rejects the request if you specify a value while ReportingMode is DISABLED, or if you specify duplicate values.",
+    ).optional(),
+});
 
 const PreRollVastResponseSchema = z.object({
   AdSequencingMode: z.enum(["FOLLOW_AD_SEQUENCE", "IGNORE_AD_SEQUENCE"])
@@ -140,6 +146,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The configuration for avail suppression, also known as ad suppression. For more information about ad suppression, see Ad Suppression (https://docs.aws.amazon.com/mediatailor/latest/ug/ad-behavior.html).",
+  ).optional(),
+  BeaconingConfiguration: z.object({
+    ClientSide: ClientSideBeaconingConfigurationSchema.describe(
+      "The beaconing settings for client-side reporting sessions. If you omit this object, MediaTailor uses INSIGHTS reporting mode.",
+    ).optional(),
+  }).describe(
+    "The beaconing configuration for this playback configuration, which controls whether AWS Elemental MediaTailor includes beacons of its own in the ad tracking response. If you omit this setting, MediaTailor uses INSIGHTS.",
   ).optional(),
   Bumper: z.object({
     StartUrl: z.string().describe("The URL for the start bumper asset.")
@@ -276,6 +289,9 @@ const StateSchema = z.object({
     Value: z.string(),
     FillPolicy: z.string(),
   }).optional(),
+  BeaconingConfiguration: z.object({
+    ClientSide: ClientSideBeaconingConfigurationSchema,
+  }).optional(),
   Bumper: z.object({
     StartUrl: z.string(),
     EndUrl: z.string(),
@@ -361,6 +377,13 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "The configuration for avail suppression, also known as ad suppression. For more information about ad suppression, see Ad Suppression (https://docs.aws.amazon.com/mediatailor/latest/ug/ad-behavior.html).",
+  ).optional(),
+  BeaconingConfiguration: z.object({
+    ClientSide: ClientSideBeaconingConfigurationSchema.describe(
+      "The beaconing settings for client-side reporting sessions. If you omit this object, MediaTailor uses INSIGHTS reporting mode.",
+    ).optional(),
+  }).describe(
+    "The beaconing configuration for this playback configuration, which controls whether AWS Elemental MediaTailor includes beacons of its own in the ad tracking response. If you omit this setting, MediaTailor uses INSIGHTS.",
   ).optional(),
   Bumper: z.object({
     StartUrl: z.string().describe("The URL for the start bumper asset.")
@@ -506,7 +529,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.09.29.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -572,6 +595,11 @@ export const model = {
     {
       toVersion: "2026.09.29.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description: "Added: BeaconingConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

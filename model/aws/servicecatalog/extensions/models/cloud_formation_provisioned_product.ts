@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/servicecatalog/cloud-formation-provisioned-product
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -36,6 +32,7 @@ import {
   createResource,
   deleteResource,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/aws.ts";
@@ -72,7 +69,13 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AcceptLanguage: z.enum(["en", "jp", "zh"]).optional(),
-  NotificationArns: z.array(z.string()).optional(),
+  NotificationArns: z.array(
+    z.string().regex(
+      new RegExp(
+        "^arn:aws[a-z\\-]*:sns:[a-z0-9\\-]+:[0-9]{12}:[a-zA-Z0-9\\-_]+$",
+      ),
+    ),
+  ).optional(),
   PathId: z.string().min(1).max(100).optional(),
   PathName: z.string().min(1).max(100).optional(),
   ProductId: z.string().min(1).max(100).optional(),
@@ -134,7 +137,13 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   AcceptLanguage: z.enum(["en", "jp", "zh"]).optional(),
-  NotificationArns: z.array(z.string()).optional(),
+  NotificationArns: z.array(
+    z.string().regex(
+      new RegExp(
+        "^arn:aws[a-z\\-]*:sns:[a-z0-9\\-]+:[0-9]{12}:[a-zA-Z0-9\\-_]+$",
+      ),
+    ),
+  ).optional(),
   PathId: z.string().min(1).max(100).optional(),
   PathName: z.string().min(1).max(100).optional(),
   ProductId: z.string().min(1).max(100).optional(),
@@ -179,7 +188,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceCatalog CloudFormationProvisionedProduct. Registered at `@swamp/aws/servicecatalog/cloud-formation-provisioned-product`. */
 export const model = {
   type: "@swamp/aws/servicecatalog/cloud-formation-provisioned-product",
-  version: "2026.08.17.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -223,6 +232,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -420,6 +434,49 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description:
+        "List ServiceCatalog CloudFormationProvisionedProduct resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+        resourceModel: z.string().describe(
+          "JSON resource model for parent-scoped listing (e.g. parent identifier)",
+        ).optional(),
+      }),
+      execute: async (
+        args: { maxPages?: number; resourceModel?: string },
+        context: any,
+      ) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const { items, nextToken } = await listResources(
+          "AWS::ServiceCatalog::CloudFormationProvisionedProduct",
+          {
+            resourceModel: args.resourceModel,
+            maxPages: args.maxPages,
+            credentials,
+          },
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const instanceName =
+            (item.properties?.ProvisionedProductId?.toString() ??
+              item.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+              .replace(/\0/g, "");
+          const handle = await context.writeResource("state", instanceName, {
+            ...item.properties,
+            _identifier: item.identifier,
+          });
+          dataHandles.push(handle);
+        }
+        return {
+          dataHandles,
+          result: { count: items.length, nextPageToken: nextToken },
+        };
       },
     },
   },

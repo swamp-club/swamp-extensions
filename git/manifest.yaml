@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/git"
-version: "2026.09.28.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Git repository operations for swamp workflows. Wraps the git CLI
   and returns structured data (file lists, commit objects, status

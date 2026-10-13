@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ecr"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS ECR infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - ecr
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: public_repository, pull_through_cache_rule, pull_time_update_exclusion, registry_policy, registry_scanning_configuration, replication_configuration, repository, repository_creation_template, signing_configuration
 models:
   - public_repository.ts
   - pull_through_cache_rule.ts

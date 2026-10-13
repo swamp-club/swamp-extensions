@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/lambda/network-connector
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -52,13 +48,14 @@ const VpcEgressConfigurationSchema = z.object({
     z.string().min(0).max(1024).regex(new RegExp("^sg-[0-9a-zA-Z]*$")),
   ).describe(
     "The IDs of the VPC security groups to attach to the ENIs. Specify 0 to 5 security groups. All security groups must be in the same VPC as the subnets.",
-  ).optional(),
+  ),
   NetworkProtocol: z.enum(["IPv4", "DualStack"]).describe(
     "The network protocol for the connector. Specify IPv4 for IPv4-only networking, or DualStack for both IPv4 and IPv6.",
-  ).optional(),
-  AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm"])).describe(
-    "The types of Lambda compute resources that can use this connector. Currently, only MicroVm is supported.",
   ),
+  AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm", "WebFunction"]))
+    .describe(
+      "The types of Lambda compute resources that can use this connector. Supported values are MicroVm and WebFunction.",
+    ),
 });
 
 const TagSchema = z.object({
@@ -85,7 +82,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(140).regex(
     new RegExp(
-      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9]|[1-9][0-9]+)?)|[a-zA-Z0-9_-]{1,64}$",
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
     ),
   ).describe(
     "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
@@ -117,6 +114,8 @@ const StateSchema = z.object({
   }).optional(),
   OperatorRole: z.string().optional(),
   State: z.string().optional(),
+  LatestVersionArn: z.string().optional(),
+  LatestVersion: z.number().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -130,7 +129,7 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   Name: z.string().min(1).max(140).regex(
     new RegExp(
-      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9]|[1-9][0-9]+)?)|[a-zA-Z0-9_-]{1,64}$",
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
     ),
   ).describe(
     "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
@@ -173,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
   type: "@swamp/aws/lambda/network-connector",
-  version: "2026.08.17.2",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -182,6 +181,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

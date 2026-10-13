@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/gcp/youtube/livechatmessages
 // Do not edit manually. Re-generate with: deno task generate:gcp
@@ -182,7 +178,7 @@ const GlobalArgsSchema = z.object({
         "The comment added by the user to this fan funding event.",
       ).optional(),
     }).describe(
-      "Details about the funding event, this is only set if the type is 'fanFundingEvent'.",
+      "Details about the funding event, this is only set if the type is `fanFundingEvent`.",
     ).optional(),
     giftDetails: z.object({
       altText: z.string().describe(
@@ -203,11 +199,11 @@ const GlobalArgsSchema = z.object({
       language: z.string().describe("The BCP-47 language code of the gift.")
         .optional(),
     }).describe(
-      "Details about the gift event, this is only set if the type is 'giftEvent'.",
+      "Details about the gift event, this is only set if the type is `giftEvent`.",
     ).optional(),
     giftMembershipReceivedDetails: z.object({
       associatedMembershipGiftingMessageId: z.string().describe(
-        "The ID of the membership gifting message that is related to this gift membership. This ID will always refer to a message whose type is 'membershipGiftingEvent'.",
+        "The ID of the membership gifting message that is related to this gift membership. This ID will always refer to a message whose type is `membershipGiftingEvent`.",
       ).optional(),
       gifterChannelId: z.string().describe(
         "The ID of the user that made the membership gifting purchase. This matches the `snippet.authorChannelId` of the associated membership gifting message.",
@@ -216,7 +212,7 @@ const GlobalArgsSchema = z.object({
         "The name of the Level at which the viewer is a member. This matches the `snippet.membershipGiftingDetails.giftMembershipsLevelName` of the associated membership gifting message. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      "Details about the Gift Membership Received event, this is only set if the type is 'giftMembershipReceivedEvent'.",
+      "Details about the Gift Membership Received event, this is only set if the type is `giftMembershipReceivedEvent`.",
     ).optional(),
     hasDisplayContent: z.boolean().describe(
       "Whether the message has display content that should be displayed to users.",
@@ -233,7 +229,7 @@ const GlobalArgsSchema = z.object({
         "The comment added by the member to this Member Milestone Chat. This field is empty for messages without a comment from the member.",
       ).optional(),
     }).describe(
-      "Details about the Member Milestone Chat event, this is only set if the type is 'memberMilestoneChatEvent'.",
+      "Details about the Member Milestone Chat event, this is only set if the type is `memberMilestoneChatEvent`.",
     ).optional(),
     membershipGiftingDetails: z.object({
       giftMembershipsCount: z.number().int().describe(
@@ -243,7 +239,7 @@ const GlobalArgsSchema = z.object({
         "The name of the level of the gift memberships purchased by the user. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      "Details about the Membership Gifting event, this is only set if the type is 'membershipGiftingEvent'.",
+      "Details about the Membership Gifting event, this is only set if the type is `membershipGiftingEvent`.",
     ).optional(),
     messageDeletedDetails: z.object({
       deletedMessageId: z.string().optional(),
@@ -259,7 +255,7 @@ const GlobalArgsSchema = z.object({
         "The name of the Level that the viewer just had joined. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      'Details about the New Member Announcement event, this is only set if the type is \'newSponsorEvent\'. Please note that "member" is the new term for "sponsor".',
+      'Details about the New Member Announcement event, this is only set if the type is `newSponsorEvent`. The term "member" replaces "sponsor".',
     ).optional(),
     pollDetails: z.object({
       metadata: z.object({
@@ -273,7 +269,7 @@ const GlobalArgsSchema = z.object({
       }).optional(),
       status: z.enum(["unknown", "active", "closed"]).optional(),
     }).describe(
-      "Details about the poll event, this is only set if the type is 'pollEvent'.",
+      "Details about the poll event, this is only set if the type is `pollEvent`.",
     ).optional(),
     publishedAt: z.string().describe(
       "The date and time when the message was orignally published.",
@@ -289,13 +285,13 @@ const GlobalArgsSchema = z.object({
         "The currency in which the purchase was made.",
       ).optional(),
       tier: z.number().int().describe(
-        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is 1.",
+        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is `1`.",
       ).optional(),
       userComment: z.string().describe(
         "The comment added by the user to this Super Chat event.",
       ).optional(),
     }).describe(
-      "Details about the Super Chat event, this is only set if the type is 'superChatEvent'.",
+      "Details about the Super Chat event, this is only set if the type is `superChatEvent`.",
     ).optional(),
     superStickerDetails: z.object({
       amountDisplayString: z.string().describe(
@@ -319,15 +315,15 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Information about the Super Sticker.").optional(),
       tier: z.number().int().describe(
-        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is 1.",
+        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is `1`.",
       ).optional(),
     }).describe(
-      "Details about the Super Sticker event, this is only set if the type is 'superStickerEvent'.",
+      "Details about the Super Sticker event, this is only set if the type is `superStickerEvent`.",
     ).optional(),
     textMessageDetails: z.object({
       messageText: z.string().describe("The user's message.").optional(),
     }).describe(
-      "Details about the text message, this is only set if the type is 'textMessageEvent'.",
+      "Details about the text message, this is only set if the type is `textMessageEvent`.",
     ).optional(),
     type: z.enum([
       "invalidType",
@@ -353,7 +349,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     userBannedDetails: z.object({
       banDurationSeconds: z.string().describe(
-        "The duration of the ban. This property is only present if the banType is temporary.",
+        "The duration of the ban. This property is only present if the `banType` is `temporary`.",
       ).optional(),
       banType: z.enum(["permanent", "temporary"]).describe("The type of ban.")
         .optional(),
@@ -369,10 +365,10 @@ const GlobalArgsSchema = z.object({
   }).describe("The snippet object contains basic details about the message.")
     .optional(),
   part: z.string().describe(
-    "The *part* parameter serves two purposes. It identifies the properties that the write operation will set as well as the properties that the API response will include. Set the parameter value to snippet.",
+    "The `part` parameter serves two purposes. It identifies the properties that the write operation sets as well as the properties that the API response includes. Set the parameter value to `snippet`.",
   ),
   liveChatId: z.string().describe(
-    "The id of the live chat for which comments should be returned.",
+    "The ID of the live chat for which messages should be returned.",
   ),
 });
 
@@ -533,7 +529,7 @@ const InputsSchema = z.object({
         "The comment added by the user to this fan funding event.",
       ).optional(),
     }).describe(
-      "Details about the funding event, this is only set if the type is 'fanFundingEvent'.",
+      "Details about the funding event, this is only set if the type is `fanFundingEvent`.",
     ).optional(),
     giftDetails: z.object({
       altText: z.string().describe(
@@ -554,11 +550,11 @@ const InputsSchema = z.object({
       language: z.string().describe("The BCP-47 language code of the gift.")
         .optional(),
     }).describe(
-      "Details about the gift event, this is only set if the type is 'giftEvent'.",
+      "Details about the gift event, this is only set if the type is `giftEvent`.",
     ).optional(),
     giftMembershipReceivedDetails: z.object({
       associatedMembershipGiftingMessageId: z.string().describe(
-        "The ID of the membership gifting message that is related to this gift membership. This ID will always refer to a message whose type is 'membershipGiftingEvent'.",
+        "The ID of the membership gifting message that is related to this gift membership. This ID will always refer to a message whose type is `membershipGiftingEvent`.",
       ).optional(),
       gifterChannelId: z.string().describe(
         "The ID of the user that made the membership gifting purchase. This matches the `snippet.authorChannelId` of the associated membership gifting message.",
@@ -567,7 +563,7 @@ const InputsSchema = z.object({
         "The name of the Level at which the viewer is a member. This matches the `snippet.membershipGiftingDetails.giftMembershipsLevelName` of the associated membership gifting message. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      "Details about the Gift Membership Received event, this is only set if the type is 'giftMembershipReceivedEvent'.",
+      "Details about the Gift Membership Received event, this is only set if the type is `giftMembershipReceivedEvent`.",
     ).optional(),
     hasDisplayContent: z.boolean().describe(
       "Whether the message has display content that should be displayed to users.",
@@ -584,7 +580,7 @@ const InputsSchema = z.object({
         "The comment added by the member to this Member Milestone Chat. This field is empty for messages without a comment from the member.",
       ).optional(),
     }).describe(
-      "Details about the Member Milestone Chat event, this is only set if the type is 'memberMilestoneChatEvent'.",
+      "Details about the Member Milestone Chat event, this is only set if the type is `memberMilestoneChatEvent`.",
     ).optional(),
     membershipGiftingDetails: z.object({
       giftMembershipsCount: z.number().int().describe(
@@ -594,7 +590,7 @@ const InputsSchema = z.object({
         "The name of the level of the gift memberships purchased by the user. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      "Details about the Membership Gifting event, this is only set if the type is 'membershipGiftingEvent'.",
+      "Details about the Membership Gifting event, this is only set if the type is `membershipGiftingEvent`.",
     ).optional(),
     messageDeletedDetails: z.object({
       deletedMessageId: z.string().optional(),
@@ -610,7 +606,7 @@ const InputsSchema = z.object({
         "The name of the Level that the viewer just had joined. The Level names are defined by the YouTube channel offering the Membership. In some situations this field isn't filled.",
       ).optional(),
     }).describe(
-      'Details about the New Member Announcement event, this is only set if the type is \'newSponsorEvent\'. Please note that "member" is the new term for "sponsor".',
+      'Details about the New Member Announcement event, this is only set if the type is `newSponsorEvent`. The term "member" replaces "sponsor".',
     ).optional(),
     pollDetails: z.object({
       metadata: z.object({
@@ -624,7 +620,7 @@ const InputsSchema = z.object({
       }).optional(),
       status: z.enum(["unknown", "active", "closed"]).optional(),
     }).describe(
-      "Details about the poll event, this is only set if the type is 'pollEvent'.",
+      "Details about the poll event, this is only set if the type is `pollEvent`.",
     ).optional(),
     publishedAt: z.string().describe(
       "The date and time when the message was orignally published.",
@@ -640,13 +636,13 @@ const InputsSchema = z.object({
         "The currency in which the purchase was made.",
       ).optional(),
       tier: z.number().int().describe(
-        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is 1.",
+        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is `1`.",
       ).optional(),
       userComment: z.string().describe(
         "The comment added by the user to this Super Chat event.",
       ).optional(),
     }).describe(
-      "Details about the Super Chat event, this is only set if the type is 'superChatEvent'.",
+      "Details about the Super Chat event, this is only set if the type is `superChatEvent`.",
     ).optional(),
     superStickerDetails: z.object({
       amountDisplayString: z.string().describe(
@@ -670,15 +666,15 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Information about the Super Sticker.").optional(),
       tier: z.number().int().describe(
-        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is 1.",
+        "The tier in which the amount belongs. Lower amounts belong to lower tiers. The lowest tier is `1`.",
       ).optional(),
     }).describe(
-      "Details about the Super Sticker event, this is only set if the type is 'superStickerEvent'.",
+      "Details about the Super Sticker event, this is only set if the type is `superStickerEvent`.",
     ).optional(),
     textMessageDetails: z.object({
       messageText: z.string().describe("The user's message.").optional(),
     }).describe(
-      "Details about the text message, this is only set if the type is 'textMessageEvent'.",
+      "Details about the text message, this is only set if the type is `textMessageEvent`.",
     ).optional(),
     type: z.enum([
       "invalidType",
@@ -704,7 +700,7 @@ const InputsSchema = z.object({
     ).optional(),
     userBannedDetails: z.object({
       banDurationSeconds: z.string().describe(
-        "The duration of the ban. This property is only present if the banType is temporary.",
+        "The duration of the ban. This property is only present if the `banType` is `temporary`.",
       ).optional(),
       banType: z.enum(["permanent", "temporary"]).describe("The type of ban.")
         .optional(),
@@ -720,10 +716,10 @@ const InputsSchema = z.object({
   }).describe("The snippet object contains basic details about the message.")
     .optional(),
   part: z.string().describe(
-    "The *part* parameter serves two purposes. It identifies the properties that the write operation will set as well as the properties that the API response will include. Set the parameter value to snippet.",
+    "The `part` parameter serves two purposes. It identifies the properties that the write operation sets as well as the properties that the API response includes. Set the parameter value to `snippet`.",
   ).optional(),
   liveChatId: z.string().describe(
-    "The id of the live chat for which comments should be returned.",
+    "The ID of the live chat for which messages should be returned.",
   ).optional(),
 });
 
@@ -753,7 +749,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data LiveChatMessages. Registered at `@swamp/gcp/youtube/livechatmessages`. */
 export const model = {
   type: "@swamp/gcp/youtube/livechatmessages",
-  version: "2026.09.07.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -892,6 +888,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1092,13 +1093,13 @@ export const model = {
           "Specifies the localization language in which the system messages should be returned.",
         ).optional(),
         liveChatId: z.string().describe(
-          "The id of the live chat for which comments should be returned.",
+          "The ID of the live chat for which messages should be returned.",
         ).optional(),
         maxResults: z.number().describe(
-          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set. Not used in the streaming RPC.",
+          "The `maxResults` parameter specifies the maximum number of items that should be returned in the result set. Not used in the streaming RPC.",
         ).optional(),
         part: z.string().describe(
-          "The *part* parameter specifies the liveChatComment resource parts that the API response will include. Supported values are id, snippet, and authorDetails.",
+          "The `part` parameter specifies the `liveChatMessage` resource parts that the API response includes. Supported values are `id`, `snippet`, and `authorDetails`.",
         ).optional(),
         profileImageSize: z.number().describe(
           "Specifies the size of the profile image that should be returned for each user.",

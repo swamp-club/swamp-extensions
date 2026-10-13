@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.09.28.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
   integration. Manages agent CLI binaries, resolves API tokens from

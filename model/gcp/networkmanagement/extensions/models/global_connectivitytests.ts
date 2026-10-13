@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/gcp/networkmanagement/global-connectivitytests
 // Do not edit manually. Re-generate with: deno task generate:gcp
@@ -195,9 +191,6 @@ const GlobalArgsSchema = z.object({
       uri: z.string().describe(
         "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) URI. The format is: projects/{project}/locations/{location}/revisions/{revision}",
       ).optional(),
-      workerPoolUri: z.string().describe(
-        "Output only. The URI of the worker pool that the revision belongs to. The format is: projects/{project}/locations/{location}/workerPools/{workerPool}. Mutually exclusive with service_uri.",
-      ).optional(),
     }).describe(
       "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) Applicable only to source endpoint.",
     ).optional(),
@@ -316,9 +309,6 @@ const GlobalArgsSchema = z.object({
       uri: z.string().describe(
         "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) URI. The format is: projects/{project}/locations/{location}/revisions/{revision}",
       ).optional(),
-      workerPoolUri: z.string().describe(
-        "Output only. The URI of the worker pool that the revision belongs to. The format is: projects/{project}/locations/{location}/workerPools/{workerPool}. Mutually exclusive with service_uri.",
-      ).optional(),
     }).describe(
       "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) Applicable only to source endpoint.",
     ).optional(),
@@ -423,7 +413,6 @@ const StateSchema = z.object({
     cloudRunRevision: z.object({
       serviceUri: z.string(),
       uri: z.string(),
-      workerPoolUri: z.string(),
     }),
     cloudSqlInstance: z.string(),
     dmsPrivateConnection: z.string(),
@@ -640,7 +629,6 @@ const StateSchema = z.object({
     cloudRunRevision: z.object({
       serviceUri: z.string(),
       uri: z.string(),
-      workerPoolUri: z.string(),
     }),
     cloudSqlInstance: z.string(),
     dmsPrivateConnection: z.string(),
@@ -702,9 +690,6 @@ const InputsSchema = z.object({
       ).optional(),
       uri: z.string().describe(
         "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) URI. The format is: projects/{project}/locations/{location}/revisions/{revision}",
-      ).optional(),
-      workerPoolUri: z.string().describe(
-        "Output only. The URI of the worker pool that the revision belongs to. The format is: projects/{project}/locations/{location}/workerPools/{workerPool}. Mutually exclusive with service_uri.",
       ).optional(),
     }).describe(
       "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) Applicable only to source endpoint.",
@@ -824,9 +809,6 @@ const InputsSchema = z.object({
       uri: z.string().describe(
         "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) URI. The format is: projects/{project}/locations/{location}/revisions/{revision}",
       ).optional(),
-      workerPoolUri: z.string().describe(
-        "Output only. The URI of the worker pool that the revision belongs to. The format is: projects/{project}/locations/{location}/workerPools/{workerPool}. Mutually exclusive with service_uri.",
-      ).optional(),
     }).describe(
       "A [Cloud Run](https://cloud.google.com/run) [revision](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions/get) Applicable only to source endpoint.",
     ).optional(),
@@ -942,7 +924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.09.29.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1190,6 +1172,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

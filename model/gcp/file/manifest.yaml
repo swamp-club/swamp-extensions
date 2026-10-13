@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/file"
-version: "2026.08.27.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Google Cloud file infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: instances
+  - Updated: locations, backups, instances, instances_snapshots
 models:
   - backups.ts
   - instances.ts

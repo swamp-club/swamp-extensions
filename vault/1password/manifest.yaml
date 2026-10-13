@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/1password"
-version: "2026.10.06.0"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Read, write, delete, and annotate secrets stored in 1Password using the `op` CLI.
   Supports `swamp vault delete` for removing secrets and `swamp vault annotate`

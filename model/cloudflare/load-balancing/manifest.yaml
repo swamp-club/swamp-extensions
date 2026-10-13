@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/load-balancing"
-version: "2026.09.29.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Cloudflare load-balancing infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -14,6 +15,7 @@ releaseNotes: |
   - Updated: preview
   - Updated: load_balancers
   - Updated: monitor_groups
+  - Updated: monitors
   - Updated: pools
 models:
   - healthchecks.ts

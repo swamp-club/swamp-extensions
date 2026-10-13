@@ -17,7 +17,10 @@ import {
   SKIPPED_OPERATIONS,
 } from "./resources.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateTailscaleDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateTailscaleReadme } from "../shared/readmeGenerator.ts";
 import { serializeWithCycleDetection } from "../shared/serialize.ts";
@@ -356,6 +359,7 @@ export async function generateTailscaleModels(options: {
   const manifestInput = (version: string) => ({
     name: EXTENSION_NAME,
     version,
+    license: FIRST_PARTY_LICENSE,
     description: "Tailscale tailnet management models",
     labels: ["tailscale", "networking", "vpn"],
     modelFiles: [

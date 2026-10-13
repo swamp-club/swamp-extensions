@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/networkmanager"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS NETWORKMANAGER infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - networkmanager
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: connect_attachment, connect_peer, core_network, core_network_prefix_list_association, customer_gateway_association, device, direct_connect_gateway_attachment, global_network, link, link_association, site, site_to_site_vpn_attachment, transit_gateway_peering, transit_gateway_registration, transit_gateway_route_table_attachment, vpc_attachment
 models:
   - connect_attachment.ts
   - connect_peer.ts

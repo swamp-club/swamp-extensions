@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/fms"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS FMS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - fms
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: applications_list, notification_channel, policy, protocols_list, resource_set
 models:
   - applications_list.ts
   - notification_channel.ts

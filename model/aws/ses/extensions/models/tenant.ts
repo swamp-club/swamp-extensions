@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/ses/tenant
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -53,6 +49,14 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe("The value of the key-value tag."),
 });
 
+const ReputationPolicySchema = z.object({
+  ReputationEntityPolicy: z.string().regex(
+    new RegExp(
+      "^arn:[a-z0-9-]+:ses:[a-z0-9-]+:aws:reputation-policy/(none|standard|strict)$",
+    ),
+  ).describe("The ARN of an SES-managed reputation policy."),
+});
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -74,6 +78,21 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The tags (keys and values) associated with the tenant.",
   ).optional(),
+  SuppressionAttributes: z.object({
+    SuppressionScope: z.enum(["ACCOUNT", "TENANT"]).describe(
+      "The scope of the suppression list for the tenant.",
+    ),
+    SuppressedReasons: z.array(z.enum(["BOUNCE", "COMPLAINT"])).describe(
+      "The reasons that cause messages to be added to the suppression list.",
+    ),
+  }).describe("The suppression attributes for the tenant.").optional(),
+  ReputationEntity: z.object({
+    Policy: ReputationPolicySchema.describe(
+      "The reputation policy for the tenant.",
+    ),
+  }).describe(
+    "The reputation configuration for the tenant. Sending status remains managed by SES.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -81,6 +100,13 @@ const StateSchema = z.object({
   TenantName: z.string(),
   ResourceAssociations: z.array(ResourceAssociationSchema).optional(),
   Tags: z.array(TagSchema).optional(),
+  SuppressionAttributes: z.object({
+    SuppressionScope: z.string(),
+    SuppressedReasons: z.array(z.string()),
+  }).optional(),
+  ReputationEntity: z.object({
+    Policy: ReputationPolicySchema,
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -97,6 +123,21 @@ const InputsSchema = z.object({
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags (keys and values) associated with the tenant.",
+  ).optional(),
+  SuppressionAttributes: z.object({
+    SuppressionScope: z.enum(["ACCOUNT", "TENANT"]).describe(
+      "The scope of the suppression list for the tenant.",
+    ).optional(),
+    SuppressedReasons: z.array(z.enum(["BOUNCE", "COMPLAINT"])).describe(
+      "The reasons that cause messages to be added to the suppression list.",
+    ).optional(),
+  }).describe("The suppression attributes for the tenant.").optional(),
+  ReputationEntity: z.object({
+    Policy: ReputationPolicySchema.describe(
+      "The reputation policy for the tenant.",
+    ).optional(),
+  }).describe(
+    "The reputation configuration for the tenant. Sending status remains managed by SES.",
   ).optional(),
 });
 
@@ -119,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES Tenant. Registered at `@swamp/aws/ses/tenant`. */
 export const model = {
   type: "@swamp/aws/ses/tenant",
-  version: "2026.08.17.2",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +210,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description: "Added: SuppressionAttributes, ReputationEntity",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

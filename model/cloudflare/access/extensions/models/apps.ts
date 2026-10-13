@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/cloudflare/access/apps
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
@@ -211,7 +207,7 @@ const GlobalArgsSchema = z.object({
     "Returns a 401 status code when the request is blocked by a Service Auth policy.",
   ).optional(),
   session_duration: z.string().describe(
-    "The amount of time that tokens issued for this application will be valid. Must be in the format `300ms` or `2h45m`. Valid time units are: ns, us (or µs), ms, s, m, h. Note: unsupported for infrastructure type applications.",
+    "The amount of time that tokens issued for this application will be valid. Must be in the format `300ms` or `2h45m`. Valid time units are: ns, us (or µs), ms, s, m, h.",
   ).optional(),
   skip_interstitial: z.boolean().describe(
     "Enables automatic authentication through cloudflared.",
@@ -1598,7 +1594,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.10.02.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1673,6 +1669,11 @@ export const model = {
     {
       toVersion: "2026.10.02.1",
       description: "Added: user_populations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

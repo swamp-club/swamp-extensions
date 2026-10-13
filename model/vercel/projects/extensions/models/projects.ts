@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/vercel/projects/projects
 // Do not edit manually. Re-generate with: deno task generate:vercel
@@ -900,7 +896,9 @@ const ResourceSchema = z.object({
     connectorId: z.string().optional(),
     deploymentType: z.string().optional(),
   }).nullable().optional(),
-  passwordProtection: z.record(z.string(), z.unknown()).nullable().optional(),
+  passwordProtection: z.object({
+    deploymentType: z.string().optional(),
+  }).nullable().optional(),
   paused: z.boolean().nullable().optional(),
   permissions: z.object({
     accessGroup: z.array(z.string()).optional(),
@@ -1715,7 +1713,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.08.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1904,6 +1902,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/bedrockagentcore"
-version: "2026.10.11.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS BEDROCKAGENTCORE infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,8 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: consent_portal
-  - Updated: dataset, harness
+  - Updated: api_key_credential_provider, browser_custom, browser_profile, capacity_provider, code_interpreter_custom, configuration_bundle, consent_portal, dataset, evaluator, gateway, gateway_rate_limit, gateway_rule, gateway_target, harness, harness_endpoint, memory, oauth2credential_provider, online_evaluation_config, payment_connector, payment_credential_provider, payment_manager, policy, policy_engine, resource_policy, runtime, runtime_endpoint, workload_identity
 models:
   - api_key_credential_provider.ts
   - browser_custom.ts

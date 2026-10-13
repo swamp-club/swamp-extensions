@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudkms"
-version: "2026.09.07.2"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Google Cloud cloudkms infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: ekmconnections, keyrings, keyrings_cryptokeys, keyrings_importjobs
+  - Updated: locations, ekmconnections, keyhandles, keyrings, keyrings_cryptokeys, keyrings_cryptokeys_cryptokeyversions, keyrings_importjobs, retiredresources, singletenanthsminstances, singletenanthsminstances_proposals
 models:
   - ekmconnections.ts
   - keyhandles.ts

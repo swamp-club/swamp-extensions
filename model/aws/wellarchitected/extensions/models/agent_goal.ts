@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/wellarchitected/agent-goal
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -147,7 +143,32 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected AgentGoal. Registered at `@swamp/aws/wellarchitected/agent-goal`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/agent-goal",
-  version: "2026.09.22.1",
+  version: "2026.10.13.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.13.1",
+      description:
+        "Removed: Arn, Id, CreatedBy, CreatedAt, LastModifiedBy, LastModifiedAt, type, version, globalArguments, inputsSchema, resources, methods",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          Arn: _Arn,
+          Id: _Id,
+          CreatedBy: _CreatedBy,
+          CreatedAt: _CreatedAt,
+          LastModifiedBy: _LastModifiedBy,
+          LastModifiedAt: _LastModifiedAt,
+          type: _type,
+          version: _version,
+          globalArguments: _globalArguments,
+          inputsSchema: _inputsSchema,
+          resources: _resources,
+          methods: _methods,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/azure-kv"
-version: "2026.10.07.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Read, write, and delete secrets stored in Azure Key Vault. Supports secret
   annotations via `swamp vault annotate` and `swamp vault inspect`. Emits

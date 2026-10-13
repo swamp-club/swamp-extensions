@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/cloudflare/cloudforce-one/priority-intelligence
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
@@ -46,9 +42,74 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  confirm_query: z.boolean().describe(
+    "Write-only. `true` confirms the query still fits the requirement, clearing `query_stale` without changing the query or its version. Requires a query.",
+  ).optional(),
+  dataset_scope: z.object({
+    type: z.enum(["default", "datasets"]),
+    dataset_ids: z.array(z.string()).optional(),
+  }).optional(),
+  intent: z.object({
+    clauses: z.array(z.object({
+      actors: z.array(z.string().min(1).max(200)),
+      attacker_countries: z.array(z.string().min(1).max(200)),
+      categories: z.array(z.string().min(1).max(200)),
+      cves: z.array(z.string().min(1).max(200)),
+      keywords: z.array(z.string().min(1).max(200)),
+      target_countries: z.array(z.string().min(1).max(200)),
+      target_industries: z.array(z.string().min(1).max(200)),
+      techniques: z.array(z.string().min(1).max(200)),
+    })),
+    indicators: z.array(z.string().min(1).max(200)),
+    unsupported_terms: z.array(z.string().min(1).max(200)),
+  }).optional(),
   labels: z.array(z.string().max(100)).optional(),
+  model: z.string().min(1).max(200).optional(),
+  notification_mode: z.enum(["none", "immediate", "digest"]).optional(),
   priority: z.number().int().min(0).optional(),
+  query: z.object({
+    branches: z.array(z.array(z.object({
+      field: z.enum([
+        "attacker",
+        "attackerCountry",
+        "category",
+        "createdAt",
+        "date",
+        "event",
+        "indicator",
+        "indicatorType",
+        "mitreAttack",
+        "mitreCapec",
+        "tags",
+        "targetCountry",
+        "targetIndustry",
+        "tlp",
+        "uuid",
+        "killChain",
+        "hasChildren",
+      ]),
+      op: z.enum([
+        "equals",
+        "not",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "contains",
+        "startsWith",
+        "endsWith",
+        "find",
+        "in",
+      ]),
+      value: z.string().min(1).max(512),
+    }))),
+    version: z.number().int().optional(),
+  }).optional(),
+  query_source: z.enum(["generated", "edited"]).optional(),
   requirement: z.string().min(1).max(4000).optional(),
+  status: z.enum(["draft", "active", "paused"]).optional(),
+  title: z.string().min(1).max(200).optional(),
   tlp: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -70,9 +131,72 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
+  confirm_query: z.boolean().optional(),
+  dataset_scope: z.object({
+    type: z.enum(["default", "datasets"]),
+    dataset_ids: z.array(z.string()).optional(),
+  }).optional(),
+  intent: z.object({
+    clauses: z.array(z.object({
+      actors: z.array(z.string().min(1).max(200)),
+      attacker_countries: z.array(z.string().min(1).max(200)),
+      categories: z.array(z.string().min(1).max(200)),
+      cves: z.array(z.string().min(1).max(200)),
+      keywords: z.array(z.string().min(1).max(200)),
+      target_countries: z.array(z.string().min(1).max(200)),
+      target_industries: z.array(z.string().min(1).max(200)),
+      techniques: z.array(z.string().min(1).max(200)),
+    })),
+    indicators: z.array(z.string().min(1).max(200)),
+    unsupported_terms: z.array(z.string().min(1).max(200)),
+  }).optional(),
   labels: z.array(z.string().max(100)).optional(),
+  model: z.string().min(1).max(200).optional(),
+  notification_mode: z.enum(["none", "immediate", "digest"]).optional(),
   priority: z.number().int().min(0).optional(),
+  query: z.object({
+    branches: z.array(z.array(z.object({
+      field: z.enum([
+        "attacker",
+        "attackerCountry",
+        "category",
+        "createdAt",
+        "date",
+        "event",
+        "indicator",
+        "indicatorType",
+        "mitreAttack",
+        "mitreCapec",
+        "tags",
+        "targetCountry",
+        "targetIndustry",
+        "tlp",
+        "uuid",
+        "killChain",
+        "hasChildren",
+      ]),
+      op: z.enum([
+        "equals",
+        "not",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "contains",
+        "startsWith",
+        "endsWith",
+        "find",
+        "in",
+      ]),
+      value: z.string().min(1).max(512),
+    }))),
+    version: z.number().int().optional(),
+  }).optional(),
+  query_source: z.enum(["generated", "edited"]).optional(),
   requirement: z.string().min(1).max(4000).optional(),
+  status: z.enum(["draft", "active", "paused"]).optional(),
+  title: z.string().min(1).max(200).optional(),
   tlp: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -82,7 +206,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Priority-intelligence. Registered at `@swamp/cloudflare/cloudforce-one/priority-intelligence`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/priority-intelligence",
-  version: "2026.09.29.2",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -92,6 +216,12 @@ export const model = {
     {
       toVersion: "2026.09.29.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description:
+        "Added: confirm_query, dataset_scope, intent, model, notification_mode, query, query_source, status, title",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -120,9 +250,19 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/priority-intelligence";
         const body: Record<string, unknown> = {};
+        if (g.dataset_scope !== undefined) body.dataset_scope = g.dataset_scope;
+        if (g.intent !== undefined) body.intent = g.intent;
         if (g.labels !== undefined) body.labels = g.labels;
+        if (g.model !== undefined) body.model = g.model;
+        if (g.notification_mode !== undefined) {
+          body.notification_mode = g.notification_mode;
+        }
         if (g.priority !== undefined) body.priority = g.priority;
+        if (g.query !== undefined) body.query = g.query;
+        if (g.query_source !== undefined) body.query_source = g.query_source;
         if (g.requirement !== undefined) body.requirement = g.requirement;
+        if (g.status !== undefined) body.status = g.status;
+        if (g.title !== undefined) body.title = g.title;
         if (g.tlp !== undefined) body.tlp = g.tlp;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -176,12 +316,24 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/priority-intelligence";
         const filters: [string, string][] = [];
+        if (g.confirm_query !== undefined) {
+          filters.push(["confirm_query", String(g.confirm_query)]);
+        }
+        if (g.model !== undefined) filters.push(["model", String(g.model)]);
+        if (g.notification_mode !== undefined) {
+          filters.push(["notification_mode", String(g.notification_mode)]);
+        }
         if (g.priority !== undefined) {
           filters.push(["priority", String(g.priority)]);
+        }
+        if (g.query_source !== undefined) {
+          filters.push(["query_source", String(g.query_source)]);
         }
         if (g.requirement !== undefined) {
           filters.push(["requirement", String(g.requirement)]);
         }
+        if (g.status !== undefined) filters.push(["status", String(g.status)]);
+        if (g.title !== undefined) filters.push(["title", String(g.title)]);
         if (g.tlp !== undefined) filters.push(["tlp", String(g.tlp)]);
         if (filters.length === 0) {
           throw new Error(
@@ -287,9 +439,20 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
+        if (g.confirm_query !== undefined) body.confirm_query = g.confirm_query;
+        if (g.dataset_scope !== undefined) body.dataset_scope = g.dataset_scope;
+        if (g.intent !== undefined) body.intent = g.intent;
         if (g.labels !== undefined) body.labels = g.labels;
+        if (g.model !== undefined) body.model = g.model;
+        if (g.notification_mode !== undefined) {
+          body.notification_mode = g.notification_mode;
+        }
         if (g.priority !== undefined) body.priority = g.priority;
+        if (g.query !== undefined) body.query = g.query;
+        if (g.query_source !== undefined) body.query_source = g.query_source;
         if (g.requirement !== undefined) body.requirement = g.requirement;
+        if (g.status !== undefined) body.status = g.status;
+        if (g.title !== undefined) body.title = g.title;
         if (g.tlp !== undefined) body.tlp = g.tlp;
         const unset = ["requirement"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {

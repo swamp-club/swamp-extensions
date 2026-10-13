@@ -5,6 +5,8 @@ export interface ManifestInput {
   name: string;
   /** CalVer version string */
   version: string;
+  /** SPDX license expression, e.g. FIRST_PARTY_LICENSE */
+  license: string;
   /** Human-readable description */
   description: string;
   /** Labels for discovery */
@@ -37,6 +39,7 @@ export function generateManifest(input: ManifestInput): string {
     `manifestVersion: 1`,
     `name: "${input.name}"`,
     `version: "${input.version}"`,
+    `license: "${input.license}"`,
     `description: "${input.description}"`,
   ];
 

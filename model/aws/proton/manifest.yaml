@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/proton"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS PROTON infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - proton
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: environment_account_connection, environment_template, service_template
 models:
   - environment_account_connection.ts
   - environment_template.ts

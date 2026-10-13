@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/cloudflare/access/service-tokens
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
@@ -49,17 +45,17 @@ const GlobalArgsSchema = z.object({
     "Cloudflare zone ID (provide account_id or zone_id)",
   ),
   client_secret_version: z.number().describe(
-    "A version number identifying the current `client_secret` associated with the service token. Incrementing it triggers a rotation; the previous secret will still be accepted until the time indicated by `previous_client_secret_expires_at`.",
+    "A version number identifying the current `client_secret` associated with the service token. Incrementing it triggers a rotation; the previous secret will still be accepted until the time indicated by `previous_client_secret_expires_at`. If the service token was reported as leaked, `previous_client_secret_expires_at` is not required, may not be in the future, and the previous secret is discarded immediately.",
   ).optional(),
   duration: z.string().describe(
     "The duration for how long the service token will be valid. Must be in the format `300ms` or `2h45m`, or the special value `forever` for non-expiring tokens. Valid time units are: ns, us (or µs), ms, s, m, h. The default is 1 year in hours (8760h).",
   ).optional(),
   enabled: z.boolean().describe(
-    "Whether the service token is enabled. A disabled service token cannot be used to authenticate; both its current and previous `client_secret` stop being accepted, but the token itself is preserved and can be re-enabled at any time. Defaults to enabled when omitted on create.",
+    "Whether the service token is enabled. A disabled service token cannot be used to authenticate; both its current and previous `client_secret` stop being accepted, but the token itself is preserved and can be re-enabled. A service token reported as leaked is disabled automatically and cannot be re-enabled until its secret is rotated; attempting to do so returns a 409. Defaults to enabled when omitted on create.",
   ).optional(),
   name: z.string().describe("The name of the service token.").optional(),
   previous_client_secret_expires_at: z.string().describe(
-    "The expiration of the previous `client_secret`. This can be modified at any point after a rotation. For example, you may extend it further into the future if you need more time to update services with the new secret; or move it into the past to immediately invalidate the previous token in case of compromise.",
+    "The expiration of the previous `client_secret`. This can be modified at any point after a rotation. For example, you may extend it further into the future if you need more time to update services with the new secret; or move it into the past to immediately invalidate the previous token in case of compromise. Rotating a service token that was reported as leaked discards the previous secret entirely, so no grace period can be set.",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -80,6 +76,9 @@ const ResourceSchema = z.object({
   expires_at: z.string().optional(),
   id: z.string(),
   last_seen_at: z.string().optional(),
+  leak_report_url: z.string().optional(),
+  leak_reported_at: z.string().optional(),
+  leak_reporter: z.string().optional(),
   name: z.string().optional(),
   updated_at: z.string().optional(),
 }).passthrough();
@@ -102,7 +101,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Service Tokens. Registered at `@swamp/cloudflare/access/service-tokens`. */
 export const model = {
   type: "@swamp/cloudflare/access/service-tokens",
-  version: "2026.09.29.2",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -146,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.29.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

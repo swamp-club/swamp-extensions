@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/deno-runner"
-version: "2026.08.23.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Install and run Deno commands. Manages Deno binary downloads with
   checksum verification and provides generic command execution for CI

@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dfareporting"
-version: "2026.10.06.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Google Cloud dfareporting infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accountuserprofiles, accounts, ads, advertisergroups, advertiserlandingpages, advertisers, billingprofiles, campaigns, contentcategories, countries, creativefieldvalues, creativefields, creativegroups, creatives, dynamicfeeds, dynamicprofiles, eventtags, files, floodlightactivities, floodlightactivitygroups, floodlightconfigurations, operatingsystems, placementgroups, placementstrategies, placements, postalcodes, remarketinglistshares, remarketinglists, reports, reports_files, sites, studiocreatives, subaccounts, targetingtemplates, userprofiles, userroles
+  - Updated: accountactiveadsummaries, accountpermissiongroups, accountpermissions, accountuserprofiles, accounts, ads, advertisergroups, advertiserinvoices, advertiserlandingpages, advertisers, billingassignments, billingprofiles, billingrates, browsers, campaigncreativeassociations, campaigns, changelogs, cities, connectiontypes, contentcategories, countries, creativefieldvalues, creativefields, creativegroups, creatives, directorysites, dynamicfeeds, dynamicprofiles, dynamictargetingkeys, eventtags, files, floodlightactivities, floodlightactivitygroups, floodlightconfigurations, languages, metros, mobileapps, mobilecarriers, operatingsystemversions, operatingsystems, placementgroups, placementstrategies, placements, platformtypes, postalcodes, regions, remarketinglistshares, remarketinglists, reports, reports_files, sites, sizes, studiocreatives, subaccounts, targetableremarketinglists, targetingtemplates, tvcampaigndetails, tvcampaignsummaries, userprofiles, userrolepermissiongroups, userrolepermissions, userroles, videoformats
 models:
   - accountactiveadsummaries.ts
   - accountpermissiongroups.ts

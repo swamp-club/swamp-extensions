@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/aiplatform"
-version: "2026.10.11.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "Google Cloud aiplatform infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: agents, cachedcontents, evaluationruns, evaluationsets, semanticgovernancepolicies
+  - Updated: batchpredictionjobs, datasets, datasets_datasetversions, locations, agents, cachedcontents, customjobs, datalabelingjobs, datasets_annotationspecs, datasets_dataitems, datasets_dataitems_annotations, datasets_savedqueries, deploymentresourcepools, endpoints, endpoints_responses, evaluationitems, evaluationmetrics, evaluationruns, evaluationsets, featuregroups, featuregroups_features, featureonlinestores, featureonlinestores_featureviews, featureonlinestores_featureviews_featureviewsyncs, featurestores, featurestores_entitytypes, featurestores_entitytypes_features, hyperparametertuningjobs, indexendpoints, indexes, memorybanks_memories, memorybanks_memories_revisions, metadatastores, metadatastores_artifacts, metadatastores_contexts, metadatastores_executions, metadatastores_metadataschemas, modeldeploymentmonitoringjobs, models, models_evaluations, models_evaluations_slices, nasjobs, nasjobs_nastrialdetails, notebookexecutionjobs, notebookruntimetemplates, notebookruntimes, onlineevaluators, persistentresources, pipelinejobs, publishers_v1_responses, ragcorpora, ragcorpora_ragfiles, reasoningengines, reasoningengines_memories, reasoningengines_memories_revisions, reasoningengines_sandboxenvironmentsnapshots, reasoningengines_sandboxenvironmenttemplates, reasoningengines_sandboxenvironments, reasoningengines_sessions, reasoningengines_sessions_events, schedules, semanticgovernancepolicies, servingprofiles, specialistpools, studies, studies_trials, tensorboards, tensorboards_experiments, tensorboards_experiments_runs, tensorboards_experiments_runs_timeseries, trainingpipelines, tuningjobs, publishers_models
 models:
   - agents.ts
   - batchpredictionjobs.ts

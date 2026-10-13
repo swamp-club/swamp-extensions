@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/ec2/network-insights-analysis
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -117,6 +113,21 @@ const StateSchema = z.object({
       Protocol: z.string(),
       Direction: z.string(),
     }),
+    TransitGatewayPolicyTableEntry: z.object({
+      DestinationPortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourcePortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourceCidr: z.string(),
+      RuleNumber: z.number(),
+      TargetRouteTableId: z.string(),
+      Protocol: z.string(),
+      DestinationCidr: z.string(),
+    }),
     TransitGateway: z.object({
       Id: z.string(),
       Arn: z.string(),
@@ -150,6 +161,21 @@ const StateSchema = z.object({
       }),
       Address: z.string(),
       Port: z.number(),
+      TransitGatewayPolicyTableEntry: z.object({
+        DestinationPortRange: z.object({
+          From: z.number(),
+          To: z.number(),
+        }),
+        SourcePortRange: z.object({
+          From: z.number(),
+          To: z.number(),
+        }),
+        SourceCidr: z.string(),
+        RuleNumber: z.number(),
+        TargetRouteTableId: z.string(),
+        Protocol: z.string(),
+        DestinationCidr: z.string(),
+      }),
       Addresses: z.array(z.string()),
       ElasticLoadBalancerListener: z.object({
         Id: z.string(),
@@ -256,6 +282,10 @@ const StateSchema = z.object({
         }),
         Port: z.number(),
         AvailabilityZone: z.string(),
+      }),
+      TransitGatewayPolicyTable: z.object({
+        Id: z.string(),
+        Arn: z.string(),
       }),
       LoadBalancerTargetGroups: z.array(z.object({
         Id: z.string(),
@@ -415,6 +445,21 @@ const StateSchema = z.object({
     }),
     Address: z.string(),
     Port: z.number(),
+    TransitGatewayPolicyTableEntry: z.object({
+      DestinationPortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourcePortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourceCidr: z.string(),
+      RuleNumber: z.number(),
+      TargetRouteTableId: z.string(),
+      Protocol: z.string(),
+      DestinationCidr: z.string(),
+    }),
     Addresses: z.array(z.string()),
     ElasticLoadBalancerListener: z.object({
       Id: z.string(),
@@ -522,6 +567,10 @@ const StateSchema = z.object({
       Port: z.number(),
       AvailabilityZone: z.string(),
     }),
+    TransitGatewayPolicyTable: z.object({
+      Id: z.string(),
+      Arn: z.string(),
+    }),
     LoadBalancerTargetGroups: z.array(z.object({
       Id: z.string(),
       Arn: z.string(),
@@ -626,6 +675,21 @@ const StateSchema = z.object({
       Protocol: z.string(),
       Direction: z.string(),
     }),
+    TransitGatewayPolicyTableEntry: z.object({
+      DestinationPortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourcePortRange: z.object({
+        From: z.number(),
+        To: z.number(),
+      }),
+      SourceCidr: z.string(),
+      RuleNumber: z.number(),
+      TargetRouteTableId: z.string(),
+      Protocol: z.string(),
+      DestinationCidr: z.string(),
+    }),
     TransitGateway: z.object({
       Id: z.string(),
       Arn: z.string(),
@@ -659,6 +723,21 @@ const StateSchema = z.object({
       }),
       Address: z.string(),
       Port: z.number(),
+      TransitGatewayPolicyTableEntry: z.object({
+        DestinationPortRange: z.object({
+          From: z.number(),
+          To: z.number(),
+        }),
+        SourcePortRange: z.object({
+          From: z.number(),
+          To: z.number(),
+        }),
+        SourceCidr: z.string(),
+        RuleNumber: z.number(),
+        TargetRouteTableId: z.string(),
+        Protocol: z.string(),
+        DestinationCidr: z.string(),
+      }),
       Addresses: z.array(z.string()),
       ElasticLoadBalancerListener: z.object({
         Id: z.string(),
@@ -765,6 +844,10 @@ const StateSchema = z.object({
         }),
         Port: z.number(),
         AvailabilityZone: z.string(),
+      }),
+      TransitGatewayPolicyTable: z.object({
+        Id: z.string(),
+        Arn: z.string(),
       }),
       LoadBalancerTargetGroups: z.array(z.object({
         Id: z.string(),
@@ -924,7 +1007,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 NetworkInsightsAnalysis. Registered at `@swamp/aws/ec2/network-insights-analysis`. */
 export const model = {
   type: "@swamp/aws/ec2/network-insights-analysis",
-  version: "2026.08.17.2",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -973,6 +1056,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

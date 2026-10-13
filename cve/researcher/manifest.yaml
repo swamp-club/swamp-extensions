@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/cve/researcher"
-version: "2026.08.13.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Daily CVE research pipeline — queries NVD, GitHub Advisory DB, and CISA
   KEV for HIGH/CRITICAL vulnerabilities, classifies them by real-world

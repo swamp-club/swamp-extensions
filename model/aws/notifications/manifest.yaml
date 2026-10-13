@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/notifications"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS NOTIFICATIONS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - notifications
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: channel_association, event_rule, managed_notification_account_contact_association, managed_notification_additional_channel_association, notification_configuration, notification_hub, organizational_unit_association
 models:
   - channel_association.ts
   - event_rule.ts

@@ -6,7 +6,10 @@ import { dirname } from "@std/path";
 import { generateHetznerExtensionModel } from "./extensionModelGenerator.ts";
 import { generateHetznerLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateHetznerDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateHetznerReadme } from "../shared/readmeGenerator.ts";
 import {
@@ -302,6 +305,7 @@ export async function generateHetznerModels(options: {
   const candidateManifest = generateManifest({
     name: extensionName,
     version: placeholderVersion,
+    license: FIRST_PARTY_LICENSE,
     description: "Hetzner Cloud infrastructure models",
     labels: ["hetzner", "cloud", "infrastructure"],
     modelFiles: modelFileNames,
@@ -325,6 +329,7 @@ export async function generateHetznerModels(options: {
   const manifestSource = generateManifest({
     name: extensionName,
     version: manifestVersion,
+    license: FIRST_PARTY_LICENSE,
     description: "Hetzner Cloud infrastructure models",
     labels: ["hetzner", "cloud", "infrastructure"],
     modelFiles: modelFileNames,

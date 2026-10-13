@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/typesafe-ai"
-version: "2026.09.15.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Ask TypeSafe's System One models (Jev) typed questions from swamp and
   branch workflows on the calibrated answers. Jev does not generate text: it

@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ssm"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS SSM infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - ssm
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: association, cloud_connector, document, maintenance_window, maintenance_window_target, maintenance_window_task, ops_item, parameter, patch_baseline, resource_data_sync, resource_policy, service_setting
 models:
   - association.ts
   - cloud_connector.ts

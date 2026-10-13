@@ -8,7 +8,10 @@ import pluralize from "pluralize";
 import { generateDigitalOceanExtensionModel } from "./extensionModelGenerator.ts";
 import { generateDigitalOceanLibFile } from "./libGenerator.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateDigitalOceanDenoConfig } from "../shared/denoConfigGenerator.ts";
 import { generateDigitalOceanReadme } from "../shared/readmeGenerator.ts";
 import {
@@ -565,6 +568,7 @@ export async function generateDigitalOceanModels(options: {
   const candidateManifest = generateManifest({
     name: extensionName,
     version: placeholderVersion,
+    license: FIRST_PARTY_LICENSE,
     description: "DigitalOcean infrastructure models",
     labels: ["digitalocean", "cloud", "infrastructure"],
     modelFiles: modelFileNames,
@@ -588,6 +592,7 @@ export async function generateDigitalOceanModels(options: {
   const manifestSource = generateManifest({
     name: extensionName,
     version: manifestVersion,
+    license: FIRST_PARTY_LICENSE,
     description: "DigitalOcean infrastructure models",
     labels: ["digitalocean", "cloud", "infrastructure"],
     modelFiles: modelFileNames,

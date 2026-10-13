@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/servicecatalog"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS SERVICECATALOG infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - servicecatalog
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: accepted_portfolio_share, cloud_formation_product, cloud_formation_provisioned_product, launch_notification_constraint, launch_role_constraint, launch_template_constraint, portfolio, portfolio_principal_association, portfolio_product_association, portfolio_share, resource_update_constraint, service_action, service_action_association, stack_set_constraint, tag_option, tag_option_association
 models:
   - accepted_portfolio_share.ts
   - cloud_formation_product.ts

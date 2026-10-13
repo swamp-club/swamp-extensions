@@ -1,6 +1,7 @@
 manifestVersion: 1
 name: "@swamp/container-image"
-version: "2026.08.25.2"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: |
   Build, run, and push container images via Docker, Podman, or Apple
   Containers. Select your runtime once via `globalArguments.binary` and

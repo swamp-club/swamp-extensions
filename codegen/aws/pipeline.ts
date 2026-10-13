@@ -26,7 +26,10 @@ import {
 import { parseListMethodSource } from "./enrichments/parser.ts";
 import { parseSourceFile } from "../shared/sourceParser.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
-import { generateLicense } from "../shared/licenseGenerator.ts";
+import {
+  FIRST_PARTY_LICENSE,
+  generateLicense,
+} from "../shared/licenseGenerator.ts";
 import { generateAwsDenoConfig } from "../shared/denoConfigGenerator.ts";
 import {
   generateAwsReadme,
@@ -545,6 +548,7 @@ export async function generateAwsModels(options: {
     const candidateManifest = generateManifest({
       name: extensionName,
       version: placeholderVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `AWS ${serviceName.toUpperCase()} infrastructure models`,
       labels: ["aws", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,
@@ -569,6 +573,7 @@ export async function generateAwsModels(options: {
     const manifestSource = generateManifest({
       name: extensionName,
       version: manifestVersion,
+      license: FIRST_PARTY_LICENSE,
       description: `AWS ${serviceName.toUpperCase()} infrastructure models`,
       labels: ["aws", serviceName, "cloud", "infrastructure"],
       modelFiles: modelFileNames,

@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/s3vectors"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS S3VECTORS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - s3vectors
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: index, vector_bucket, vector_bucket_policy
 models:
   - index.ts
   - vector_bucket.ts

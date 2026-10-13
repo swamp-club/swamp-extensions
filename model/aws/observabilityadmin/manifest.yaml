@@ -1,7 +1,8 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/observabilityadmin"
-version: "2026.10.08.1"
+version: "2026.10.13.1"
+license: "AGPL-3.0-or-later"
 description: "AWS OBSERVABILITYADMIN infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +10,8 @@ labels:
   - observabilityadmin
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: dataset_integration, organization_centralization_rule, organization_telemetry_rule, s3table_integration, telemetry_enrichment, telemetry_pipelines, telemetry_rule
 models:
   - dataset_integration.ts
   - organization_centralization_rule.ts

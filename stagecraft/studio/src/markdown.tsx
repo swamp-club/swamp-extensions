@@ -1,19 +1,18 @@
 /// <reference lib="dom" />
-// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+// Copyright (C) 2026 System Initiative, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify it under the terms
-// of the GNU Affero General Public License version 3 as published by the Free
-// Software Foundation, with the Swamp Extension and Definition Exception (found in
-// the "COPYING-EXCEPTION" file).
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
 //
-// Swamp is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-// PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License along
-// with Swamp. If not, see <https://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Markdown from a tracker (a ticket's description, its comments), drawn
 // safely: the text is parsed into Preact elements, never into an HTML
 // string, so no markup in it is ever markup on the page. Raw HTML stays

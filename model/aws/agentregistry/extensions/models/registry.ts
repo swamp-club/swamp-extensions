@@ -1,21 +1,17 @@
-// Swamp, an Automation Framework
 // Copyright (C) 2026 Elder Swamp Club, Inc.
 //
-// This file is part of Swamp.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
-// Swamp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License version 3
-// as published by the Free Software Foundation, with the Swamp
-// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
-// file).
-//
-// Swamp is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
 //
 // You should have received a copy of the GNU Affero General Public License
-// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Auto-generated extension model for @swamp/aws/agentregistry/registry
 // Do not edit manually. Re-generate with: deno task generate:aws
@@ -41,6 +37,15 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+
+const RecordTypeSchemaOverrideSchema = z.object({
+  RecordType: z.enum(["MCP", "AGENT", "SKILL", "GATEWAY", "CUSTOM"]).describe(
+    "The record type that this schema override applies to.",
+  ),
+  Schema: z.string().min(1).max(10240).describe(
+    "The JSON Schema for the specified record type. Must follow the same structural rules as the default schema.",
+  ),
+});
 
 const ClaimMatchValueTypeSchema = z.object({
   MatchValueString: z.string().min(1).max(255).regex(
@@ -143,6 +148,16 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The server-side encryption configuration for a registry. Specifies a customer managed key used to encrypt the registry's content. When omitted, the registry's content is encrypted with an AWS owned key. You cannot change the encryption configuration after registry creation. Specifying a different KMS key, adding this property to an existing registry, or removing it replaces the registry: CloudFormation creates a new registry with a new Amazon Resource Name (ARN) and then deletes the original, including all registry records it contains. Registry records that are not managed by the stack are not re-created in the new registry, and if any remain in the original registry its deletion fails and it is left behind.",
   ).optional(),
+  CustomMetadataSchemaConfiguration: z.object({
+    RecordTypeSchemaOverrides: z.array(RecordTypeSchemaOverrideSchema).describe(
+      "A list of per-record-type schema overrides. When a record's type matches an override, that override's schema is used instead of the default schema for validation.",
+    ).optional(),
+    DefaultSchema: z.string().min(1).max(10240).describe(
+      "The default JSON Schema that applies to record types without a specific override. Supported property types are string, string with an enum constraint, string with a uri format, and boolean.",
+    ).optional(),
+  }).describe(
+    "Configuration that defines a typed metadata schema for a registry. A default schema and per-record-type schema overrides are both optional. Schema evolution is additive only: you can add fields and enum values, but you cannot remove fields, change types, or remove enum values.",
+  ).optional(),
   DiscoveryConfiguration: z.object({
     AuthorizerConfiguration: AuthorizerConfigurationSchema.describe(
       "The authorizer configuration for the registry. This is a union - specify exactly one member.",
@@ -174,6 +189,10 @@ const StateSchema = z.object({
     KmsKeyArn: z.string(),
   }).optional(),
   CreatedAt: z.string().optional(),
+  CustomMetadataSchemaConfiguration: z.object({
+    RecordTypeSchemaOverrides: z.array(RecordTypeSchemaOverrideSchema),
+    DefaultSchema: z.string(),
+  }).optional(),
   DiscoveryConfiguration: z.object({
     AuthorizerConfiguration: AuthorizerConfigurationSchema,
   }).optional(),
@@ -218,6 +237,16 @@ const InputsSchema = z.object({
   }).describe(
     "The server-side encryption configuration for a registry. Specifies a customer managed key used to encrypt the registry's content. When omitted, the registry's content is encrypted with an AWS owned key. You cannot change the encryption configuration after registry creation. Specifying a different KMS key, adding this property to an existing registry, or removing it replaces the registry: CloudFormation creates a new registry with a new Amazon Resource Name (ARN) and then deletes the original, including all registry records it contains. Registry records that are not managed by the stack are not re-created in the new registry, and if any remain in the original registry its deletion fails and it is left behind.",
   ).optional(),
+  CustomMetadataSchemaConfiguration: z.object({
+    RecordTypeSchemaOverrides: z.array(RecordTypeSchemaOverrideSchema).describe(
+      "A list of per-record-type schema overrides. When a record's type matches an override, that override's schema is used instead of the default schema for validation.",
+    ).optional(),
+    DefaultSchema: z.string().min(1).max(10240).describe(
+      "The default JSON Schema that applies to record types without a specific override. Supported property types are string, string with an enum constraint, string with a uri format, and boolean.",
+    ).optional(),
+  }).describe(
+    "Configuration that defines a typed metadata schema for a registry. A default schema and per-record-type schema overrides are both optional. Schema evolution is additive only: you can add fields and enum values, but you cannot remove fields, change types, or remove enum values.",
+  ).optional(),
   DiscoveryConfiguration: z.object({
     AuthorizerConfiguration: AuthorizerConfigurationSchema.describe(
       "The authorizer configuration for the registry. This is a union - specify exactly one member.",
@@ -257,12 +286,17 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry Registry. Registered at `@swamp/aws/agentregistry/registry`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry",
-  version: "2026.10.03.1",
+  version: "2026.10.13.1",
   upgrades: [
     {
       toVersion: "2026.10.03.1",
       description:
         "Added: EncryptionConfiguration, AutoDetectionEnabled, AutoDetectionScope",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description: "Added: CustomMetadataSchemaConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
