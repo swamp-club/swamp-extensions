@@ -28,7 +28,18 @@ import {
 } from "./builtin.ts";
 import { TrackerError, type TrackerErrorKind } from "../core/adapter.ts";
 import { assertTrackerConformance } from "../core/tracker_conformance.ts";
-import { ISSUE_SPEC } from "../core/tracker_methods.ts";
+import {
+  type Answer,
+  ISSUE_SPEC,
+  performOperation,
+} from "../core/tracker_methods.ts";
+import {
+  conformancePass,
+  type ConformanceState,
+  freshConformance,
+} from "../core/conformance_round.ts";
+import { describeAdapter, errorOf, failureOf } from "../core/operations.ts";
+import type { TrackerAdapter } from "../core/adapter.ts";
 
 const NOW = new Date("2026-09-30T00:00:00Z");
 
@@ -485,4 +496,85 @@ Deno.test("builtin: finishing a half-written relation checks the rules again", a
     issue: p1.id,
     display: p1.id,
   }]);
+});
+
+/**
+ * The conformance workflow's passes, made in-process: each call the pass
+ * plans is made on the adapter, and its answer fed to the next pass.
+ */
+async function conformanceByPasses(
+  adapter: TrackerAdapter,
+  inputs: Parameters<typeof conformancePass>[1],
+): Promise<{ state: ConformanceState; calls: number }> {
+  const tracker = describeAdapter(adapter);
+  let state = freshConformance();
+  let answer: Answer | undefined;
+  for (let n = 0; n < 500; n++) {
+    const pass = await conformancePass(
+      tracker,
+      inputs,
+      state,
+      answer,
+      (f) => errorOf(adapter.tracker, { ok: false, ...f } as never),
+      (error) => {
+        const { ok: _ok, ...f } = failureOf(
+          error instanceof TrackerError
+            ? error
+            : new TrackerError("upstream", adapter.tracker, String(error)),
+        );
+        return f;
+      },
+    );
+    state = pass.state;
+    if (pass.next === undefined) break;
+    try {
+      answer = { result: await performOperation(adapter, pass.next) };
+    } catch (error) {
+      answer = { error };
+    }
+  }
+  return { state, calls: state.calls.length };
+}
+
+Deno.test("conformance passes: the built-in tracker passes the contract's checks replayed one call at a time", async () => {
+  const { store } = memoryStore();
+  const { state, calls } = await conformanceByPasses(adapterWith(store), {
+    statusNames: ["in_progress", "shipped"],
+    createType: "bug",
+    missing: "cue-missing-aaaa",
+    entryStatus: "open",
+    types: ["feature", "security"],
+    user: "seth",
+  });
+  assertEquals([state.done, state.passed, state.failure], [
+    true,
+    true,
+    undefined,
+  ]);
+  // The workflow's bound on rounds must cover this, with room.
+  assert(calls > 50 && calls < 150, `${calls} calls`);
+});
+
+Deno.test("conformance passes: a tracker that breaks the contract fails, naming the check", async () => {
+  const { store } = memoryStore();
+  const real = adapterWith(store);
+  // Moving a ticket to the status it already has reports a change.
+  const broken: TrackerAdapter = {
+    ...real,
+    capabilities: real.capabilities,
+    setStatus: async (id, name) => ({
+      ...await real.setStatus(id, name),
+      changed: true,
+    }),
+  };
+  const { state } = await conformanceByPasses(broken, {
+    statusNames: ["in_progress", "shipped"],
+    createType: "bug",
+    missing: "cue-missing-aaaa",
+    entryStatus: "open",
+    types: ["feature", "security"],
+    user: "seth",
+  });
+  assertEquals([state.done, state.passed], [true, false]);
+  assert(state.failure?.includes("expected"), state.failure);
 });

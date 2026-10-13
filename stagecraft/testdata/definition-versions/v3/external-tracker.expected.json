@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 3,
+  "description": "Work a ticket filed on the acme tracker, then ship it.",
+  "tracker": {
+    "kind": "acme"
+  },
+  "stages": [
+    {
+      "id": "write",
+      "initial": true,
+      "description": "Write the change.",
+      "tracker": {
+        "status": "in_progress"
+      },
+      "transitions": [
+        {
+          "name": "submit",
+          "to": "review"
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "description": "A person reviews the change.",
+      "tracker": {
+        "status": "in_review"
+      },
+      "transitions": [
+        {
+          "name": "ship",
+          "to": "done",
+          "gates": [
+            {
+              "type": "human-approval",
+              "config": {
+                "id": "ship-approval"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "terminal": true,
+      "tracker": {
+        "status": "shipped"
+      }
+    }
+  ]
+}

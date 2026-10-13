@@ -865,10 +865,17 @@ Deno.test("tracker kind: a definition names the kind of tracker it is written fo
   }
 });
 
-Deno.test("tracker kind: only a known kind, and nothing else, since the tracker instance holds its settings", () => {
+Deno.test("tracker kind: any tracker's name, and nothing else, since the tracker instance holds its settings", () => {
   const doc = base();
+  // A tracker written as a separate extension (swamp-club #3274).
   set(doc, "tracker", { kind: "jira" });
-  assertRejects(doc, "tracker.kind:");
+  const named = parseDefinition(doc);
+  assert(named.ok);
+  assertEquals(trackerKindOf(named.value), "jira");
+  for (const kind of ["Jira", "2jira", "ji ra", "", "jira_cloud"]) {
+    set(doc, "tracker", { kind });
+    assertRejects(doc, "tracker.kind:");
+  }
   set(doc, "tracker", { kind: "builtin", prefix: "cue" });
   assertRejects(doc, "prefix");
 });

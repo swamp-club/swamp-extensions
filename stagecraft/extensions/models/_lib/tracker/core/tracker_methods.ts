@@ -22,6 +22,8 @@ import {
   CursorSchema,
   DEFINITION_NAME,
   DEFINITION_SPEC,
+  DESCRIPTION_NAME,
+  DESCRIPTION_SPEC,
   digestOf,
   type FactoryDefinition,
   type MethodOutput,
@@ -40,6 +42,7 @@ import {
 } from "../../engine/tracker.ts";
 import {
   type ClaimContext,
+  type ClaimMove,
   claimTicket,
   moveClaim,
   readClaimedRun,
@@ -60,18 +63,31 @@ import {
   ticketView,
 } from "./ticket_view.ts";
 import {
-  type Assigner,
   type DeliveryKey,
+  type IssueDraft,
+  type IssueOrigin,
   type LifecycleEntry,
   RELATION_TYPES,
   type RelationType,
   requireCapability,
+  type StatusChange,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
 } from "./adapter.ts";
 import { DUPLICATE_STATUS, duplicateRefusal, primaryOf } from "./duplicates.ts";
 import { findRelation, TrackerRelationSchema } from "./relations.ts";
+import {
+  ANSWER_NAME_PATTERN,
+  AnswerSchema,
+  describeAdapter,
+  failureOf,
+  type OperationName,
+  OPERATIONS,
+  TicketActivitySchema,
+  TrackerDescriptionSchema,
+  TrackerStatusSchema,
+} from "./operations.ts";
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
@@ -118,18 +134,6 @@ export const DeliverySchema = z.object({
   at: z.string(),
 });
 export type Delivery = z.infer<typeof DeliverySchema>;
-
-const TrackerStatusSchema = z.object({ id: z.string(), name: z.string() });
-
-/** A comment or lifecycle entry, as a snapshot keeps it (TicketActivity). */
-export const TicketActivitySchema = z.object({
-  kind: z.enum(["comment", "entry"]),
-  id: z.string().optional(),
-  author: z.string().optional(),
-  body: z.string(),
-  step: z.string().optional(),
-  at: z.string(),
-});
 
 /**
  * An external tracker's ticket as swamp last read it (fetch_issue, claim and
@@ -413,26 +417,142 @@ export interface Delivered {
   wrote: boolean;
 }
 
+/** A write deliveries can perform, as publish_rounds.ts plans it. */
+export type DueWrite =
+  | { op: "comment"; write: Write & { body: string } }
+  | {
+    op: "set_status";
+    write: Write & { status: string; skipUnreachable: boolean };
+  }
+  | { op: "set_type"; write: Write & { type: string } }
+  | { op: "link_pr"; write: Write & { url: string } }
+  | { op: "lifecycle_entry"; write: Write & { entry: LifecycleEntry } }
+  | {
+    op: "relation";
+    write: Write & { type: RelationType; to: string; remove: boolean };
+  }
+  | { op: "assign"; write: { issue: string; key: DeliveryKey } };
+
+/** What a due write asks of the tracker: one operation and its request. */
+export interface Asked {
+  operation: OperationName;
+  request: Record<string, unknown>;
+}
+
+/** What the tracker answered: its result, or the failure. */
+export type Answer =
+  | { result: Record<string, unknown> }
+  | { error: unknown };
+
+/**
+ * How deliveries reach the tracker. By default each write the ledger does
+ * not hold yet is made at once. publish_rounds.ts plans instead: `due`
+ * returns what to report for a write it will make later (`asked` is the
+ * operation that makes it, or null when there is nothing to ask), `fetch`
+ * reads the tickets it has read ahead, and `closesDuplicates` says what the
+ * tracker described, where there is no adapter to ask.
+ */
+export interface DeliveryHooks {
+  due?(
+    due: DueWrite,
+    asked: Asked | null,
+    /** The write's ledger record, or null for an unkeyed write. */
+    name: string | null,
+  ): Delivered & { result?: Record<string, unknown> };
+  fetch?(ctx: TrackerContext, id: string): Promise<TrackerIssue>;
+  closesDuplicates?: boolean;
+}
+
+/** A due write, ready to ask the tracker and record what it answers. */
+interface Prepared {
+  /** The write's ledger record, or null for an unkeyed write. */
+  name: string | null;
+  /** Already in the ledger: report this and write nothing. */
+  prior?: Delivered & { result?: Record<string, unknown> };
+  /** What to ask; null when the answer is already known (an assign with
+   * no user to assign fails before the tracker is asked). */
+  asked: Asked | null;
+  /** Record the tracker's answer in the ledger, as the write's outcome. */
+  finish(
+    answer: Answer,
+  ): Promise<Delivered & { result?: Record<string, unknown> }>;
+}
+
+/** Ask the adapter one operation: the tracker call the operation names. */
+export async function performOperation(
+  adapter: TrackerAdapter,
+  asked: Asked,
+): Promise<Record<string, unknown>> {
+  const r = asked.request as Record<string, never>;
+  switch (asked.operation) {
+    case "fetch_issue":
+      return { ...await adapter.fetchIssue(r.issue) };
+    case "create":
+      return {
+        ...await adapter.create({ title: r.title, body: r.body, type: r.type }),
+      };
+    case "comment":
+      return { ...await adapter.comment(r.issue, r.body) };
+    case "set_status":
+      return { ...await adapter.setStatus(r.issue, r.status) };
+    case "relate":
+      return { ...await adapter.relate(r.issue, r.type, r.to) };
+    case "unrelate":
+      return { ...await adapter.unrelate(r.issue, r.type, r.to) };
+    case "post_entry":
+      return {
+        ...await requireCapability(adapter, "history").postEntry(
+          r.issue,
+          r.entry,
+        ),
+      };
+    case "set_type":
+      return {
+        ...await requireCapability(adapter, "history").setType(r.issue, r.type),
+      };
+    case "assign":
+      return {
+        ...await requireCapability(adapter, "assign").assign(r.issue, r.user),
+      };
+    case "link_pr":
+      return {
+        ...await requireCapability(adapter, "pullRequests").linkPr(
+          r.issue,
+          r.url,
+        ),
+      };
+  }
+}
+
 /**
  * The ledger-guarded writes, shared by comment, set_status, set_type,
- * publish and a tracker's own methods.
+ * publish and a tracker's own methods. Each write checks the ledger, asks
+ * the tracker one operation, and records what it answered; `record` does the
+ * last for an answer that arrived another way (a workflow's step).
  */
-export function deliveries(options: TrackerModelOptions, now: () => Date) {
+export function deliveries(
+  options: TrackerModelOptions,
+  now: () => Date,
+  hooks: DeliveryHooks = {},
+) {
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+  const asError = (answer: Answer): unknown =>
+    "error" in answer ? answer.error : undefined;
 
   /**
-   * One keyed write, or an unkeyed one: the ledger first, then the tracker,
-   * then the ledger record. The same shape as comment and set_status.
+   * One keyed write, or an unkeyed one, of the kinds a replay may skip when
+   * the tracker refuses it outright: the ledger first, then the tracker,
+   * then the ledger record.
    */
   const guarded = async (
     ctx: TrackerContext,
     write: Write,
     action: "set_type" | "link_pr" | "lifecycle_entry" | "relate" | "unrelate",
     request: Record<string, unknown>,
-    perform: () => Promise<Record<string, unknown>>,
+    asked: Asked,
     done: (result: Record<string, unknown>) => string,
-    suffix?: string,
-  ): Promise<Delivered> => {
+    suffix: string | undefined,
+  ): Promise<Prepared> => {
     const { key } = write;
     const name = key === null ? null : deliveryName(
       action,
@@ -454,117 +574,66 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
           summary: `already delivered (${name}); wrote nothing`,
           ...prior.result,
         });
-        return { handles: [], wrote: false };
+        return {
+          name,
+          prior: { handles: [], wrote: false },
+          asked,
+          finish: never,
+        };
       }
     }
-    let result: Record<string, unknown>;
-    let skipped = false;
-    try {
-      result = await perform();
-    } catch (error) {
-      // publish only: a write the tracker refuses outright can never land
-      // (its request comes from a digest-pinned payload), so it is recorded
-      // as skipped and the replay moves past it rather than stalling there
-      // for good. Anything else (auth, upstream, rate limits) is retried.
-      if (
-        !write.replay || key === null || name === null ||
-        !(error instanceof TrackerError) || error.kind !== "invalid"
-      ) throw error;
-      result = { skipped: "invalid", detail: error.detail };
-      skipped = true;
-    }
-    const handles: unknown[] = [];
-    if (key !== null && name !== null) {
-      handles.push(
-        await recordDelivery(ctx, name, {
-          action,
-          issue: write.issue,
-          ...key,
-          request: digest,
-          result,
-          at: now().toISOString(),
-        }),
-      );
-    }
-    if (skipped) {
-      ctx.logger.info("{warning}", {
-        warning: `skipped ${action} on ${write.issue}, which the tracker ` +
-          `refused: ${String(result.detail)}`,
-      });
-      return { handles, wrote: false };
-    }
-    ctx.logger.info("{summary}", { summary: done(result) });
-    return { handles, wrote: true };
+    return {
+      name,
+      asked,
+      finish: async (answer) => {
+        let result: Record<string, unknown>;
+        let skipped = false;
+        const error = asError(answer);
+        if (error === undefined) {
+          result = (answer as { result: Record<string, unknown> }).result;
+        } else {
+          // publish only: a write the tracker refuses outright can never
+          // land (its request comes from a digest-pinned payload), so it is
+          // recorded as skipped and the replay moves past it rather than
+          // stalling there for good. Anything else (auth, upstream, rate
+          // limits) is retried.
+          if (
+            !write.replay || key === null || name === null ||
+            !(error instanceof TrackerError) || error.kind !== "invalid"
+          ) throw error;
+          result = { skipped: "invalid", detail: error.detail };
+          skipped = true;
+        }
+        const handles: unknown[] = [];
+        if (key !== null && name !== null) {
+          handles.push(
+            await recordDelivery(ctx, name, {
+              action,
+              issue: write.issue,
+              ...key,
+              request: digest,
+              result,
+              at: now().toISOString(),
+            }),
+          );
+        }
+        if (skipped) {
+          ctx.logger.info("{warning}", {
+            warning: `skipped ${action} on ${write.issue}, which the tracker ` +
+              `refused: ${String(result.detail)}`,
+          });
+          return { handles, wrote: false };
+        }
+        ctx.logger.info("{summary}", { summary: done(result) });
+        return { handles, wrote: true };
+      },
+    };
   };
 
-  const setType = (
-    ctx: TrackerContext,
-    write: Write & { type: string },
-  ): Promise<Delivered> =>
-    guarded(
-      ctx,
-      write,
-      "set_type",
-      { type: write.type },
-      async () => ({
-        ...await requireCapability(options.adapter(ctx), "history").setType(
-          write.issue,
-          write.type,
-        ),
-      }),
-      (r) =>
-        r.changed === true
-          ? `set ${write.issue}'s type to '${write.type}'`
-          : `${write.issue} is already '${write.type}'; wrote nothing`,
-    );
-
-  const linkPr = (
-    ctx: TrackerContext,
-    write: Write & { url: string },
-  ): Promise<Delivered> =>
-    guarded(
-      ctx,
-      write,
-      "link_pr",
-      { url: write.url },
-      async () => ({
-        ...await requireCapability(options.adapter(ctx), "pullRequests").linkPr(
-          write.issue,
-          write.url,
-        ),
-      }),
-      (r) =>
-        r.changed === true
-          ? `linked ${write.url} on ${write.issue}`
-          : `${write.issue} already links ${write.url}; wrote nothing`,
-    );
-
-  const entry = (
-    ctx: TrackerContext,
-    write: Write & { entry: LifecycleEntry },
-  ): Promise<Delivered> =>
-    guarded(
-      ctx,
-      write,
-      "lifecycle_entry",
-      { ...write.entry },
-      async () => ({
-        ...await requireCapability(options.adapter(ctx), "history").postEntry(
-          write.issue,
-          write.entry,
-        ),
-      }),
-      (r) =>
-        `recorded '${write.entry.step}' on ${write.issue} (entry ${
-          String(r.id)
-        })`,
-      write.suffix,
-    );
-
-  const comment = async (
+  const prepareComment = async (
     ctx: TrackerContext,
     write: Write & { body: string },
-  ): Promise<Delivered> => {
+  ): Promise<Prepared> => {
     const { key } = write;
     const name = key === null ? null : deliveryName(
       "comment",
@@ -573,6 +642,10 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       write.suffix,
     );
     const request = await digestOf({ body: write.body });
+    const asked: Asked = {
+      operation: "comment",
+      request: { issue: write.issue, body: write.body },
+    };
     if (name !== null) {
       const prior = await priorDelivery(
         ctx,
@@ -586,40 +659,52 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
           summary: `already delivered (${name}); posted nothing`,
           ...prior.result,
         });
-        return { handles: [], wrote: false };
+        return {
+          name,
+          prior: { handles: [], wrote: false },
+          asked,
+          finish: never,
+        };
       }
     }
-    const adapter = options.adapter(ctx);
-    const posted = await adapter.comment(write.issue, write.body);
-    const handles: unknown[] = [];
-    if (key !== null && name !== null) {
-      handles.push(
-        await recordDelivery(ctx, name, {
-          action: "comment",
-          issue: write.issue,
-          ...key,
-          request,
-          result: { ...posted },
-          at: now().toISOString(),
-        }),
-      );
-    }
-    ctx.logger.info("{summary}", {
-      summary: `commented on ${write.issue}`,
-      id: posted.id,
-      url: posted.url,
-    });
-    return { handles, wrote: true };
+    return {
+      name,
+      asked,
+      finish: async (answer) => {
+        const error = asError(answer);
+        if (error !== undefined) throw error;
+        const posted = (answer as { result: Record<string, unknown> }).result;
+        const handles: unknown[] = [];
+        if (key !== null && name !== null) {
+          handles.push(
+            await recordDelivery(ctx, name, {
+              action: "comment",
+              issue: write.issue,
+              ...key,
+              request,
+              result: { ...posted },
+              at: now().toISOString(),
+            }),
+          );
+        }
+        ctx.logger.info("{summary}", {
+          summary: `commented on ${write.issue}`,
+          id: posted.id,
+          url: posted.url,
+        });
+        return { handles, wrote: true };
+      },
+    };
   };
 
-  const setStatus = async (
+  const prepareSetStatus = async (
     ctx: TrackerContext,
     write: Write & {
       status: string;
       /** Record an unreachable status as a skip instead of failing. */
       skipUnreachable: boolean;
     },
-  ): Promise<Delivered> => {
+  ): Promise<Prepared> => {
     // The ledger first: a delivered key is a no-op even if the statuses
     // mapping has changed since.
     const { key } = write;
@@ -643,7 +728,12 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
           summary: `already delivered (${name}); wrote nothing`,
           ...prior.result,
         });
-        return { handles: [], wrote: false };
+        return {
+          name,
+          prior: { handles: [], wrote: false },
+          asked: null,
+          finish: never,
+        };
       }
     }
     const statuses = options.statuses(argsOf(ctx));
@@ -660,74 +750,50 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
         }); add it there`,
       );
     }
-    const adapter = options.adapter(ctx);
-    let result: Record<string, unknown>;
-    let summary: string;
-    try {
-      const change = await adapter.setStatus(write.issue, statusName);
-      result = { ...change };
-      summary = change.changed
-        ? `moved ${write.issue} to '${change.status.name}'`
-        : `${write.issue} is already '${change.status.name}'; wrote nothing`;
-    } catch (error) {
-      if (
-        !write.skipUnreachable || key === null || name === null ||
-        !(error instanceof TrackerError) || error.reason !== "unreachable"
-      ) throw error;
-      // Recorded, so a retry of the key does not try again.
-      result = { skipped: "unreachable", detail: error.detail };
-      summary = `skipped moving ${write.issue} to '${statusName}': ` +
-        error.detail;
-    }
-    const handles: unknown[] = [];
-    if (key !== null && name !== null) {
-      handles.push(
-        await recordDelivery(ctx, name, {
-          action: "set_status",
-          issue: write.issue,
-          ...key,
-          request,
-          result,
-          at: now().toISOString(),
-        }),
-      );
-    }
-    ctx.logger.info("{summary}", { summary });
-    return { handles, wrote: true };
-  };
-
-  /**
-   * Relate or unrelate two tickets. One journal version may write several
-   * relations (a breakdown relates each child), so the ledger record is
-   * named for the relation too: its source, type and target.
-   */
-  const relation = (
-    ctx: TrackerContext,
-    write: Write & { type: RelationType; to: string; remove: boolean },
-  ): Promise<Delivered> => {
-    const action = write.remove ? "unrelate" : "relate";
-    const phrase = `${write.issue} ${write.type} ${write.to}`;
-    return guarded(
-      ctx,
-      write,
-      action,
-      { type: write.type, to: write.to },
-      async () => {
-        const adapter = options.adapter(ctx);
-        return {
-          ...await (write.remove
-            ? adapter.unrelate(write.issue, write.type, write.to)
-            : adapter.relate(write.issue, write.type, write.to)),
-        };
+    return {
+      name,
+      asked: {
+        operation: "set_status",
+        request: { issue: write.issue, status: statusName },
       },
-      (r) =>
-        r.changed === true
-          ? `${write.remove ? "removed" : "recorded"} ${phrase}`
-          : `${phrase} is already ${
-            write.remove ? "absent" : "recorded"
-          }; wrote nothing`,
-      `${write.issue}-${write.type}-${write.to}`,
-    );
+      finish: async (answer) => {
+        let result: Record<string, unknown>;
+        let summary: string;
+        const error = asError(answer);
+        if (error === undefined) {
+          const change = (answer as { result: Record<string, unknown> })
+            .result as unknown as StatusChange;
+          result = { ...change };
+          summary = change.changed
+            ? `moved ${write.issue} to '${change.status.name}'`
+            : `${write.issue} is already '${change.status.name}'; wrote nothing`;
+        } else {
+          if (
+            !write.skipUnreachable || key === null || name === null ||
+            !(error instanceof TrackerError) || error.reason !== "unreachable"
+          ) throw error;
+          // Recorded, so a retry of the key does not try again.
+          result = { skipped: "unreachable", detail: error.detail };
+          summary = `skipped moving ${write.issue} to '${statusName}': ` +
+            error.detail;
+        }
+        const handles: unknown[] = [];
+        if (key !== null && name !== null) {
+          handles.push(
+            await recordDelivery(ctx, name, {
+              action: "set_status",
+              issue: write.issue,
+              ...key,
+              request,
+              result,
+              at: now().toISOString(),
+            }),
+          );
+        }
+        ctx.logger.info("{summary}", { summary });
+        return { handles, wrote: true };
+      },
+    };
   };
 
   /**
@@ -737,12 +803,11 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
    * skipped, so a re-run tries nothing. A ledger record already there is
    * returned as it is, so the caller can still act on what it says.
    */
-  const assign = async (
+  const prepareAssign = async (
     ctx: TrackerContext,
     write: { issue: string; key: DeliveryKey },
-    assigner: Assigner,
     userOf: () => Promise<string>,
-  ): Promise<Delivered & { result: Record<string, unknown> }> => {
+  ): Promise<Prepared> => {
     const name = deliveryName("assign", write.key, "publish");
     const raw = await resources(ctx).read(name);
     if (raw !== null) {
@@ -756,52 +821,200 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       ctx.logger.info("{summary}", {
         summary: `already delivered (${name}); wrote nothing`,
       });
-      return { handles: [], wrote: false, result: prior.result };
+      return {
+        name,
+        prior: { handles: [], wrote: false, result: prior.result },
+        asked: null,
+        finish: never,
+      };
     }
     let user: string | null = null;
-    let result: Record<string, unknown>;
+    let userError: unknown = undefined;
     try {
       user = await userOf();
-      result = { ...await assigner.assign(write.issue, user) };
     } catch (error) {
-      const detail = error instanceof TrackerError
-        ? error.detail
-        : error instanceof Error
-        ? error.message
-        : String(error);
-      result = {
-        skipped: error instanceof TrackerError ? error.kind : "error",
-        detail,
+      userError = error;
+    }
+    return {
+      name,
+      asked: user === null
+        ? null
+        : { operation: "assign", request: { issue: write.issue, user } },
+      finish: async (answer) => {
+        const error = userError ?? asError(answer);
+        let result: Record<string, unknown>;
+        if (error === undefined) {
+          result = {
+            ...(answer as { result: Record<string, unknown> }).result,
+          };
+        } else {
+          const detail = error instanceof TrackerError
+            ? error.detail
+            : error instanceof Error
+            ? error.message
+            : String(error);
+          result = {
+            skipped: error instanceof TrackerError ? error.kind : "error",
+            detail,
+          };
+          ctx.logger.info("{warning}", {
+            warning: `did not assign ${write.issue}` +
+              (user === null ? "" : ` to ${user}`) +
+              `, and publish will not try again: ${detail}; assign it by hand`,
+          });
+        }
+        const handle = await recordDelivery(ctx, name, {
+          action: "assign",
+          issue: write.issue,
+          ...write.key,
+          request: await digestOf({ user }),
+          result,
+          at: now().toISOString(),
+        });
+        if (result.skipped === undefined) {
+          // Say who the tracker took off (the Lab drops those no longer on
+          // its team), as the Lab's own assign method does.
+          const dropped = Array.isArray(result.dropped) ? result.dropped : [];
+          const who = typeof result.display === "string"
+            ? result.display
+            : user;
+          ctx.logger.info("{summary}", {
+            summary: (result.changed === true
+              ? `assigned ${write.issue} to ${who}`
+              : `${write.issue} is already assigned to ${who}; wrote nothing`) +
+              (dropped.length === 0
+                ? ""
+                : `; the tracker dropped ${dropped.join(", ")}`),
+          });
+        }
+        return {
+          handles: [handle],
+          wrote: result.changed === true,
+          result,
+        };
+      },
+    };
+  };
+
+  /** A due write, prepared: the ledger checked and the operation known. */
+  const prepare = (
+    ctx: TrackerContext,
+    due: DueWrite,
+    userOf?: () => Promise<string>,
+  ): Promise<Prepared> => {
+    switch (due.op) {
+      case "comment":
+        return prepareComment(ctx, due.write);
+      case "set_status":
+        return prepareSetStatus(ctx, due.write);
+      case "set_type": {
+        const { write } = due;
+        return guarded(
+          ctx,
+          write,
+          "set_type",
+          { type: write.type },
+          {
+            operation: "set_type",
+            request: { issue: write.issue, type: write.type },
+          },
+          (r) =>
+            r.changed === true
+              ? `set ${write.issue}'s type to '${write.type}'`
+              : `${write.issue} is already '${write.type}'; wrote nothing`,
+          undefined,
+        );
+      }
+      case "link_pr": {
+        const { write } = due;
+        return guarded(
+          ctx,
+          write,
+          "link_pr",
+          { url: write.url },
+          {
+            operation: "link_pr",
+            request: { issue: write.issue, url: write.url },
+          },
+          (r) =>
+            r.changed === true
+              ? `linked ${write.url} on ${write.issue}`
+              : `${write.issue} already links ${write.url}; wrote nothing`,
+          undefined,
+        );
+      }
+      case "lifecycle_entry": {
+        const { write } = due;
+        return guarded(
+          ctx,
+          write,
+          "lifecycle_entry",
+          { ...write.entry },
+          {
+            operation: "post_entry",
+            request: { issue: write.issue, entry: { ...write.entry } },
+          },
+          (r) =>
+            `recorded '${write.entry.step}' on ${write.issue} (entry ${
+              String(r.id)
+            })`,
+          write.suffix,
+        );
+      }
+      case "relation": {
+        // One journal version may write several relations (a breakdown
+        // relates each child), so the ledger record is named for the
+        // relation too: its source, type and target.
+        const { write } = due;
+        const action = write.remove ? "unrelate" : "relate";
+        const phrase = `${write.issue} ${write.type} ${write.to}`;
+        return guarded(
+          ctx,
+          write,
+          action,
+          { type: write.type, to: write.to },
+          {
+            operation: action,
+            request: { issue: write.issue, type: write.type, to: write.to },
+          },
+          (r) =>
+            r.changed === true
+              ? `${write.remove ? "removed" : "recorded"} ${phrase}`
+              : `${phrase} is already ${
+                write.remove ? "absent" : "recorded"
+              }; wrote nothing`,
+          `${write.issue}-${write.type}-${write.to}`,
+        );
+      }
+      case "assign":
+        if (userOf === undefined) {
+          throw new Error("an assign needs the user to assign");
+        }
+        return prepareAssign(ctx, due.write, userOf);
+    }
+  };
+
+  /** Check the ledger, then make the write (or plan it), then record it. */
+  const deliver = async (
+    ctx: TrackerContext,
+    due: DueWrite,
+    userOf?: () => Promise<string>,
+  ): Promise<Delivered & { result?: Record<string, unknown> }> => {
+    const prepared = await prepare(ctx, due, userOf);
+    if (prepared.prior !== undefined) return prepared.prior;
+    if (hooks.due !== undefined) {
+      return hooks.due(due, prepared.asked, prepared.name);
+    }
+    if (prepared.asked === null) return await prepared.finish({ result: {} });
+    let answer: Answer;
+    try {
+      answer = {
+        result: await performOperation(options.adapter(ctx), prepared.asked),
       };
-      ctx.logger.info("{warning}", {
-        warning: `did not assign ${write.issue}` +
-          (user === null ? "" : ` to ${user}`) +
-          `, and publish will not try again: ${detail}; assign it by hand`,
-      });
+    } catch (error) {
+      answer = { error };
     }
-    const handle = await recordDelivery(ctx, name, {
-      action: "assign",
-      issue: write.issue,
-      ...write.key,
-      request: await digestOf({ user }),
-      result,
-      at: now().toISOString(),
-    });
-    if (result.skipped === undefined) {
-      // Say who the tracker took off (the Lab drops those no longer on its
-      // team), as the Lab's own assign method does.
-      const dropped = Array.isArray(result.dropped) ? result.dropped : [];
-      const who = typeof result.display === "string" ? result.display : user;
-      ctx.logger.info("{summary}", {
-        summary: (result.changed === true
-          ? `assigned ${write.issue} to ${who}`
-          : `${write.issue} is already assigned to ${who}; wrote nothing`) +
-          (dropped.length === 0
-            ? ""
-            : `; the tracker dropped ${dropped.join(", ")}`),
-      });
-    }
-    return { handles: [handle], wrote: result.changed === true, result };
+    return await prepared.finish(answer);
   };
 
   /**
@@ -816,11 +1029,12 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
     ctx: TrackerContext,
     write: Write & { primary: string },
   ): Promise<Delivered> => {
-    const adapter = options.adapter(ctx);
+    const closesDuplicates = hooks.closesDuplicates ??
+      options.adapter(ctx).closesDuplicates === true;
     // Checked before anything is written, so a ticket is never left
     // related but open for want of a status to close it with.
     if (
-      adapter.closesDuplicates !== true &&
+      !closesDuplicates &&
       options.statuses(argsOf(ctx))[DUPLICATE_STATUS] === undefined
     ) {
       throw new TrackerError(
@@ -830,14 +1044,19 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
           "argument, so a duplicate cannot be closed; map it, then mark again",
       );
     }
-    const related = await relation(ctx, {
-      ...write,
-      type: "duplicate_of",
-      to: write.primary,
-      remove: false,
+    const related = await deliver(ctx, {
+      op: "relation",
+      write: {
+        ...write,
+        type: "duplicate_of",
+        to: write.primary,
+        remove: false,
+      },
     });
-    if (adapter.closesDuplicates === true) return related;
-    const issue = await adapter.fetchIssue(write.issue);
+    if (closesDuplicates) return related;
+    const issue = hooks.fetch === undefined
+      ? await options.adapter(ctx).fetchIssue(write.issue)
+      : await hooks.fetch(ctx, write.issue);
     if (findRelation(issue, "duplicate_of", write.primary) === undefined) {
       ctx.logger.info("{warning}", {
         warning: `${issue.display} is not a duplicate of ${write.primary}, ` +
@@ -845,13 +1064,16 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
       });
       return related;
     }
-    const closed = await setStatus(ctx, {
-      issue: write.issue,
-      key: write.key,
-      replay: write.replay,
-      suffix: "duplicate",
-      status: DUPLICATE_STATUS,
-      skipUnreachable: write.replay,
+    const closed = await deliver(ctx, {
+      op: "set_status",
+      write: {
+        issue: write.issue,
+        key: write.key,
+        replay: write.replay,
+        suffix: "duplicate",
+        status: DUPLICATE_STATUS,
+        skipUnreachable: write.replay,
+      },
     });
     return {
       handles: [...related.handles, ...closed.handles],
@@ -860,15 +1082,53 @@ export function deliveries(options: TrackerModelOptions, now: () => Date) {
   };
 
   return {
-    comment,
-    setStatus,
-    setType,
-    linkPr,
-    entry,
-    relation,
-    assign,
+    comment: (ctx: TrackerContext, write: Write & { body: string }) =>
+      deliver(ctx, { op: "comment", write }),
+    setStatus: (
+      ctx: TrackerContext,
+      write: Write & { status: string; skipUnreachable: boolean },
+    ) => deliver(ctx, { op: "set_status", write }),
+    setType: (ctx: TrackerContext, write: Write & { type: string }) =>
+      deliver(ctx, { op: "set_type", write }),
+    linkPr: (ctx: TrackerContext, write: Write & { url: string }) =>
+      deliver(ctx, { op: "link_pr", write }),
+    entry: (ctx: TrackerContext, write: Write & { entry: LifecycleEntry }) =>
+      deliver(ctx, { op: "lifecycle_entry", write }),
+    relation: (
+      ctx: TrackerContext,
+      write: Write & { type: RelationType; to: string; remove: boolean },
+    ) => deliver(ctx, { op: "relation", write }),
+    assign: async (
+      ctx: TrackerContext,
+      write: { issue: string; key: DeliveryKey },
+      userOf: () => Promise<string>,
+    ): Promise<Delivered & { result: Record<string, unknown> }> => {
+      const done = await deliver(ctx, { op: "assign", write }, userOf);
+      return { ...done, result: done.result ?? {} };
+    },
     duplicate,
+    /**
+     * Record a due write's answer that arrived another way (a workflow's
+     * step on the tracker): the ledger record and outcome the write would
+     * have had, made at once. A write the ledger already holds records
+     * nothing.
+     */
+    record: async (
+      ctx: TrackerContext,
+      due: DueWrite,
+      answer: Answer,
+      userOf?: () => Promise<string>,
+    ): Promise<Delivered & { result?: Record<string, unknown> }> => {
+      const prepared = await prepare(ctx, due, userOf);
+      if (prepared.prior !== undefined) return prepared.prior;
+      return await prepared.finish(answer);
+    },
   };
+}
+
+/** A Prepared's finish when the ledger already held the write. */
+function never(): never {
+  throw new Error("the ledger already holds this write");
 }
 
 const publishArguments = z.object({
@@ -1103,6 +1363,21 @@ export function ticketName(issueId: string): string {
   return `ticket-${safePart("issue id", issueId)}`;
 }
 
+const operateArguments = z.object({
+  operation: z.enum(
+    Object.keys(OPERATIONS) as [OperationName, ...OperationName[]],
+  ).describe("The operation: fetch_issue, create, comment, set_status, ..."),
+  request: z.union([z.record(z.string(), z.unknown()), z.string()]).describe(
+    "The operation's request: an object, or a JSON object as a string",
+  ),
+  answer: z.string().regex(ANSWER_NAME_PATTERN).describe(
+    "The record to write the answer under (answer-...)",
+  ),
+  run: z.string().optional().describe(
+    "The run asking, recorded with the answer",
+  ),
+});
+
 const claimArguments = z.object({
   issue: z.string().min(1).describe(
     "The ticket: its stable id, or its display identifier",
@@ -1116,8 +1391,28 @@ const claimArguments = z.object({
   ),
 });
 
+export const ANSWER_SPEC = "answer";
+/** The record a tracker's describe writes, as the engine reads it. */
+export { DESCRIPTION_NAME, DESCRIPTION_SPEC };
+
 /** The resource specs every tracker model declares. */
 export const trackerResources = {
+  [ANSWER_SPEC]: {
+    description:
+      "operate's answers: each operation's result or failure, under the name the caller gave",
+    schema: AnswerSchema,
+    lifetime: "infinite" as const,
+    // Read by the next round of the run that asked; a keyed answer also
+    // stops a restarted run from making the write again until then.
+    garbageCollection: "30d",
+  },
+  [DESCRIPTION_SPEC]: {
+    description:
+      "What the tracker says of itself (describe): its name, contract version and capabilities",
+    schema: TrackerDescriptionSchema,
+    lifetime: "infinite" as const,
+    garbageCollection: 5,
+  },
   [ISSUE_SPEC]: {
     description:
       "Each ticket: an external tracker's last snapshot (origin snapshot), or a built-in ticket itself (origin builtin); one record per ticket",
@@ -1152,37 +1447,855 @@ export const trackerResources = {
   },
 };
 
+/**
+ * What the shared methods that write to a ticket need beyond the work
+ * item's own records: the tracker, reached only through its operations, and
+ * the records publish keeps on the tracker instance (its cursor and the
+ * ticket index). trackerMethods' port makes each call as it comes;
+ * publish_rounds.ts plans them in rounds over the same bodies.
+ */
+export interface TrackerPort {
+  /** What the tracker offers that changes what publish writes. The first
+   * call may build the adapter, so it is made where publish first needs it. */
+  capabilities(): {
+    history: boolean;
+    /** The assign capability and a user to assign: both, or no assigning. */
+    assign: boolean;
+    pullRequests: boolean;
+    /** Who owns a ticket's facts: a snapshot is recorded only of another's. */
+    origin: IssueOrigin;
+  };
+  fetch(id: string): Promise<TrackerIssue>;
+  /** File a new ticket. Not idempotent (DESIGN.md, "Create"). */
+  create(draft: IssueDraft): Promise<TrackerIssue>;
+  /** A tracker's own reason to refuse a claim (TrackerModelOptions). */
+  beforeClaim?(issue: TrackerIssue): Promise<void>;
+  comment(write: Write & { body: string }): Promise<Delivered>;
+  setStatus(
+    write: Write & { status: string; skipUnreachable: boolean },
+  ): Promise<Delivered>;
+  setType(write: Write & { type: string }): Promise<Delivered>;
+  linkPr(write: Write & { url: string }): Promise<Delivered>;
+  entry(write: Write & { entry: LifecycleEntry }): Promise<Delivered>;
+  assign(
+    write: { issue: string; key: DeliveryKey },
+  ): Promise<Delivered & { result: Record<string, unknown> }>;
+  duplicate(write: Write & { primary: string }): Promise<Delivered>;
+  writeCursor(
+    name: string,
+    cursor: z.infer<typeof CursorSchema>,
+  ): Promise<unknown>;
+  moveClaim(move: ClaimMove): Promise<unknown[]>;
+}
+
+/**
+ * Replay one work item's journal to its ticket through `port` (DESIGN.md,
+ * "The publisher"): the publish method's body.
+ */
+export async function publishWith(
+  ctx: TrackerContext,
+  args: { workItem: string },
+  port: TrackerPort,
+  options: Pick<TrackerModelOptions, "tracker" | "statuses">,
+  now: () => Date,
+): Promise<MethodOutput> {
+  const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+  const workItem = safePart("workItem", args.workItem);
+  const { run, definition } = await readWorkItem(ctx, workItem);
+  // Only the tracker pinned at start: its cursor is the one the work
+  // item's status reads.
+  const self = ctx.definition?.name;
+  if (self !== undefined && run.tracker.instance !== self) {
+    throw new Error(
+      `work item '${workItem}' was started against tracker ` +
+        `'${run.tracker.instance}', not '${self}': publish it there`,
+    );
+  }
+  // One segment per ticket: a retarget moves the rest of the journal
+  // to another ticket (DESIGN.md, "The publisher").
+  const segments = ticketSegments(run, definition, options.tracker);
+  if (segments.every((s) => s.issue === null)) {
+    throw new Error(
+      `work item '${workItem}' has no externalRefs.${options.tracker}; ` +
+        "start it with the ticket's stable id to publish it",
+    );
+  }
+  const recordName = cursorName(workItem);
+  const rawCursor = await resources(ctx).read(recordName);
+  const cursor = rawCursor === null ? null : CursorSchema.parse(rawCursor);
+  const journalVersion = run.journal.length;
+  const since = cursor?.journalVersion ?? 0;
+  if (since > journalVersion) {
+    throw new Error(
+      `the cursor for '${workItem}' is at journal version ${since}, ` +
+        `past the run's ${journalVersion}; the journal only grows`,
+    );
+  }
+  // The cursor's ticket must be the one its journal version belongs
+  // to: another ticket is only reached through a retarget.
+  const resume = cursor === null
+    ? 0
+    : segments.findIndex((s) =>
+      s.issue === cursor.issue && s.after <= since && since <= s.through
+    );
+  if (cursor !== null && resume === -1) {
+    throw new Error(
+      `work item '${workItem}' was published to ${cursor.issue}, and ` +
+        `now names ${segments.at(-1)?.issue ?? "no ticket"} with no ` +
+        "retarget between; one work item projects to one ticket at a time",
+    );
+  }
+  // Segments after the last ticket (a retarget removed this tracker's
+  // ref) have nowhere to go, so they are never pending.
+  const lastTicket = segments.findLastIndex((s) => s.issue !== null);
+  const capabilities = port.capabilities();
+  // The duplicate marks in the journal (DESIGN.md, "Duplicates"), and
+  // the primary each names, read from its recorded product: no network.
+  const marks = duplicateMarks(run, definition);
+  const marksIn = (segment: TicketSegment) =>
+    marks.filter((m) =>
+      m.journalVersion > segment.after &&
+      m.journalVersion <= segment.through
+    );
+  const refOf = async (
+    mark: DuplicateMark,
+  ): Promise<{ ref: string } | { why: string }> => {
+    if (mark.product === null) {
+      return {
+        why: `'${mark.gateId}' was approved with no '${mark.record}' ` +
+          "recorded before it",
+      };
+    }
+    const payload = await readRecordedPayload(
+      ctx,
+      workItem,
+      mark.product,
+    );
+    const ref = payload[mark.field];
+    return typeof ref === "string" && ref !== "" ? { ref } : {
+      why: `'${mark.record}' has no ${mark.field} naming the primary`,
+    };
+  };
+  const moveOf = (segment: TicketSegment, lastStatus: string | null) =>
+    segment.status !== null && segment.status !== lastStatus
+      ? segment.status
+      : null;
+  const resumed = segments[resume];
+  // The cursor is written after the status, so a lost cursor write
+  // leaves it behind the ledger: the key last written is the ledger's,
+  // from the cursor's own version on (a failed move's retry is keyed
+  // there), so a person's move since is not undone.
+  const resumedIssue = cursor?.issue ?? resumed.issue;
+  const written = resumedIssue === null ? undefined : await statusWritten(
+    ctx,
+    definition,
+    workItem,
+    resumedIssue,
+    since,
+    resumed.through,
+  );
+  const resumedStatus = written === undefined
+    ? cursor?.status ?? null
+    : written;
+  if (
+    resume === lastTicket && since === resumed.through &&
+    moveOf(resumed, resumedStatus) === null
+  ) {
+    // Nothing to deliver, but a cursor behind the ledger is brought
+    // level, and a failed move that has since landed is cleared.
+    if (
+      cursor !== null && written !== undefined &&
+      written !== cursor.status
+    ) {
+      const { statusFailed } = cursor;
+      await port.writeCursor(recordName, {
+        workItem,
+        issue: cursor.issue,
+        journalVersion: since,
+        status: written,
+        ...(statusFailed === undefined || statusFailed.status === written
+          ? {}
+          : { statusFailed }),
+        at: now().toISOString(),
+      });
+    }
+    ctx.logger.info("{summary}", {
+      summary: `${workItem} is up to date on ${resumed.issue}` +
+        (lastTicket < segments.length - 1
+          ? `; later events name no ${options.tracker} ticket`
+          : ""),
+    });
+    return { dataHandles: [] };
+  }
+
+  // Entry mode: the factory definition says which events become which
+  // entries, and the tracker keeps them. They replace the comments.
+  const entryMode = capabilities.history &&
+    declaresEntries(definition);
+  const handles: unknown[] = [];
+  // Assigning when the work item starts: where the tracker can, and a
+  // login maps to its user. Once, on the started event's version.
+  const assigns = capabilities.assign;
+  const linksPrs = capabilities.pullRequests;
+  const startedVersion = run.journal.findIndex((e) => e.type === "started") + 1;
+  const ticketStatus = new Map<string, string>();
+  const statusNameOf = async (
+    issue: string,
+    key: string | null,
+    journalVersion: number,
+  ): Promise<string> => {
+    const name = key === null ? undefined : options.statuses(argsOf(ctx))[key];
+    if (name !== undefined) return name;
+    // A label only, so an unmapped key does not hold back the entry
+    // or any later one: it falls back as an entry without a key does.
+    if (key !== null) {
+      ctx.logger.info("{warning}", {
+        warning: `status key '${key}' labels the entry for journal ` +
+          `version ${journalVersion} but is not in ${
+            statusesArgument(ctx, options.tracker)
+          }; labelled with the ticket's status instead`,
+      });
+    }
+    // Nothing names a label yet (a first stage without a key): the
+    // status the ticket has, which is what the entry happened in.
+    let current = ticketStatus.get(issue);
+    if (current === undefined) {
+      current = (await port.fetch(issue)).status.name;
+      ticketStatus.set(issue, current);
+    }
+    return current;
+  };
+
+  for (let k = resume; k <= lastTicket; k++) {
+    const segment = segments[k];
+    const issue = segment.issue;
+    const first = k === resume;
+    // The resumed segment's opening note went out with its cursor.
+    const from = first ? since : segment.after;
+    const lastStatus = first ? resumedStatus : null;
+    if (issue === null) {
+      ctx.logger.info("{summary}", {
+        summary: `journal versions ${from + 1} to ${segment.through} ` +
+          `of ${workItem} name no ${options.tracker} ticket; skipped`,
+      });
+      continue;
+    }
+    const moveTo = moveOf(segment, lastStatus);
+    if (first && from === segment.through && moveTo === null) continue;
+    // The ticket as last read; null once a write may have changed it.
+    let ticketNow: TrackerIssue | null = null;
+    // A work item still at work on a ticket marked a duplicate outside
+    // its own journal is not projected there: a driver moves it first.
+    // A segment a retarget ends, or a finished work item, still reaches
+    // the ticket, so the move itself can be published.
+    if (k === lastTicket && run.status === "active") {
+      ticketNow = await port.fetch(issue);
+      ticketStatus.set(issue, ticketNow.status.name);
+      const primary = primaryOf(ticketNow);
+      let own = false;
+      for (const mark of primary === undefined ? [] : marksIn(segment)) {
+        const named = await refOf(mark);
+        own ||= "ref" in named &&
+          (named.ref === primary?.issue ||
+            named.ref === primary?.display);
+      }
+      if (primary !== undefined && !own) {
+        throw new Error(
+          duplicateRefusal(ticketNow, primary, workItem) +
+            "; nothing was published",
+        );
+      }
+    }
+    // A retarget moved the work item here: the ticket index follows.
+    if (!first && segment.opening !== undefined) {
+      const opened = run.journal[segment.after - 1];
+      const refs = opened?.type === "retargeted" ? opened.to : {};
+      handles.push(
+        ...await port.moveClaim({
+          tracker: options.tracker,
+          issue: {
+            id: issue,
+            display: refs[`${options.tracker}.display`] || issue,
+          },
+          recordName: ticketName(issue),
+          key: workItem,
+          factory: run.factory,
+          now: now(),
+        }),
+      );
+    }
+    let posted = 0;
+    // Only the publish that delivers the started event assigns: a
+    // work item first published before there was assigning never is.
+    let assignPending = startedVersion > from &&
+      startedVersion <= segment.through;
+    // After the started event's own write, whether or not it had one,
+    // and before any later event's: issue-lifecycle's order.
+    const assignBefore = async (journalVersion: number) => {
+      if (
+        !assignPending || journalVersion <= startedVersion ||
+        !assigns
+      ) return;
+      assignPending = false;
+      const key = { workItem, journalVersion: startedVersion };
+      const done = await port.assign({ issue, key });
+      handles.push(...done.handles);
+      // From the ledger, so a re-run after this entry failed still
+      // writes it; its own key keeps it to once.
+      const { result } = done;
+      if (!entryMode || result.changed !== true) return;
+      const user = String(result.user);
+      const entry = await port.entry({
+        issue,
+        key,
+        replay: true,
+        suffix: "assigned",
+        entry: {
+          step: "assigned",
+          targetStatus: String(result.status),
+          summary: `Assigned to ${user}`,
+          emoji: "\u{1F464}",
+          payload: {
+            username: user,
+            ...(result.details as Record<string, unknown> | undefined),
+          },
+          isVerbose: false,
+        },
+      });
+      handles.push(...entry.handles);
+      if (entry.wrote) posted++;
+    };
+    const note = async (planned: PlannedComment, suffix?: string) => {
+      const done = await port.comment({
+        issue,
+        body: planned.body,
+        key: { workItem, journalVersion: planned.journalVersion },
+        replay: true,
+        ...(suffix === undefined ? {} : { suffix }),
+      });
+      handles.push(...done.handles);
+      if (done.wrote) posted++;
+    };
+    if (!first && segment.opening !== undefined) {
+      await note(segment.opening, "opening");
+    }
+    const inSegment = (e: { journalVersion: number }) =>
+      e.journalVersion <= segment.through;
+    for (
+      const event of entryMode
+        ? projectEntries(run, definition, from).filter(inSegment)
+        : []
+    ) {
+      await assignBefore(event.journalVersion);
+      const payload = event.product === undefined
+        ? {}
+        : await readRecordedPayload(ctx, workItem, event.product);
+      const chosen = chooseEntry(event.candidates, payload);
+      if (chosen === null) continue;
+      const entry = renderEntry(chosen, event, payload);
+      const key = { workItem, journalVersion: event.journalVersion };
+      // issue-lifecycle's order: the type, then the entry saying so.
+      if (entry.type !== undefined) {
+        const done = await port.setType({
+          issue,
+          type: entry.type,
+          key,
+          replay: true,
+        });
+        handles.push(...done.handles);
+      }
+      // Then the pull request the entry reads, where the tracker
+      // links one; a tracker without links has nothing to write.
+      if (entry.pr !== undefined && linksPrs) {
+        const done = await port.linkPr({
+          issue,
+          url: entry.pr,
+          key,
+          replay: true,
+        });
+        handles.push(...done.handles);
+      }
+      const done = await port.entry({
+        issue,
+        key,
+        replay: true,
+        ...(event.suffix === undefined ? {} : { suffix: event.suffix }),
+        entry: {
+          step: entry.step,
+          targetStatus: await statusNameOf(
+            issue,
+            entry.status,
+            event.journalVersion,
+          ),
+          summary: entry.summary,
+          emoji: entry.emoji,
+          payload: entry.payload,
+          isVerbose: entry.isVerbose,
+        },
+      });
+      handles.push(...done.handles);
+      if (done.wrote) posted++;
+    }
+    for (
+      const planned of entryMode
+        ? []
+        : ticketView(run, definition, from).comments.filter(inSegment)
+    ) {
+      await assignBefore(planned.journalVersion);
+      await note(planned);
+    }
+    await assignBefore(Number.POSITIVE_INFINITY);
+    // A mark that names no other ticket the tracker has marks nothing,
+    // with a warning: an approval with no product before it, no
+    // primary in its field, a primary the tracker cannot find, or this
+    // ticket itself (an approval after the retarget onto it).
+    for (const mark of marksIn(segment)) {
+      if (mark.journalVersion <= from) continue;
+      const named = await refOf(mark);
+      const unmarked = `, so ${issue} was not marked a duplicate`;
+      if ("why" in named) {
+        ctx.logger.info("{warning}", { warning: named.why + unmarked });
+        continue;
+      }
+      let primary: TrackerIssue;
+      try {
+        primary = await port.fetch(named.ref);
+      } catch (error) {
+        if (
+          !(error instanceof TrackerError) || error.kind !== "not_found"
+        ) {
+          throw error;
+        }
+        ctx.logger.info("{warning}", {
+          warning: `'${mark.record}' names ${named.ref}, which the ` +
+            `tracker cannot find${unmarked}`,
+        });
+        continue;
+      }
+      if (primary.id === issue) {
+        ctx.logger.info("{warning}", {
+          warning: `'${mark.record}' names ${issue} as its own ` +
+            `primary${unmarked}`,
+        });
+        continue;
+      }
+      ticketNow = null;
+      const done = await port.duplicate({
+        issue,
+        primary: primary.id,
+        key: { workItem, journalVersion: mark.journalVersion },
+        replay: true,
+      });
+      handles.push(...done.handles);
+    }
+    // The retarget is the segment's last event. Its notes are comments
+    // in entry mode too: no entry answers a retarget.
+    if (
+      segment.closing !== undefined &&
+      segment.closing.journalVersion > from
+    ) {
+      await note(segment.closing);
+    }
+    const cursorAt = (
+      status: string | null,
+      statusFailed?: { status: string; detail: string },
+    ) =>
+      port.writeCursor(recordName, {
+        workItem,
+        issue,
+        journalVersion: segment.through,
+        status,
+        ...(statusFailed === undefined ? {} : { statusFailed }),
+        at: now().toISOString(),
+      });
+    // A duplicate keeps its closed status, however it was marked: no
+    // status write reopens it.
+    if (moveTo !== null) {
+      ticketNow ??= await port.fetch(issue);
+      const primary = primaryOf(ticketNow);
+      if (primary !== undefined) {
+        ctx.logger.info("{summary}", {
+          summary: `${issue} is a duplicate of ${primary.display}, so ` +
+            `its status was left alone, not moved to '${moveTo}'`,
+        });
+      } else {
+        try {
+          const done = await port.setStatus({
+            issue,
+            status: moveTo,
+            key: { workItem, journalVersion: segment.statusVersion },
+            replay: true,
+            skipUnreachable: true,
+          });
+          handles.push(...done.handles);
+        } catch (error) {
+          // Everything before the move was delivered, so the cursor
+          // moves past it; it keeps the key last written, so the next
+          // publish sees the move still wanted and retries only that.
+          const detail = error instanceof TrackerError
+            ? error.detail
+            : error instanceof Error
+            ? error.message
+            : String(error);
+          await cursorAt(lastStatus, { status: moveTo, detail });
+          const message = `could not move ${issue} to status key ` +
+            `'${moveTo}': ${detail}. The events through journal version ` +
+            `${segment.through} were delivered; the next publish ` +
+            "retries only this move";
+          throw error instanceof TrackerError
+            ? new TrackerError(
+              error.kind,
+              error.tracker,
+              message,
+              error.reason,
+            )
+            : new Error(message);
+        }
+      }
+    }
+    // Last for each ticket: a failure above leaves the cursor where it
+    // was, and the re-run's replay finds each landed write in the
+    // ledger.
+    handles.push(await cursorAt(moveTo ?? lastStatus));
+    ctx.logger.info("{summary}", {
+      summary: `published ${workItem} to ${issue} through journal ` +
+        `version ${segment.through}: ${posted} ` +
+        (entryMode ? "entry(ies) or note(s)" : "comment(s)") +
+        (moveTo === null ? "" : `, status '${moveTo}'`),
+    });
+  }
+  return { dataHandles: lastPerName(handles) };
+}
+
+/**
+ * Mark a ticket a duplicate of a primary through `port`: the mark_duplicate
+ * method's body. It moves no work item; a work item at work on the
+ * duplicate is the driver's to move, and this says so.
+ */
+export async function markDuplicateWith(
+  ctx: TrackerContext,
+  args: {
+    issue: string;
+    primary: string;
+    workItem?: string;
+    journalVersion?: number;
+  },
+  port: TrackerPort,
+  options: Pick<TrackerModelOptions, "tracker">,
+): Promise<MethodOutput> {
+  const issue = await port.fetch(args.issue);
+  const primary = await port.fetch(args.primary);
+  const { handles } = await port.duplicate({
+    issue: issue.id,
+    primary: primary.id,
+    key: deliveryKeyOf(args),
+    replay: false,
+  });
+  // The work item on the duplicate, if any, is the driver's to move.
+  const raw = await resources(ctx).read(ticketName(issue.id));
+  if (raw !== null) {
+    const claimed = TicketClaimSchema.parse(raw);
+    const run = await readClaimedRun(ctx, claimed.key);
+    if (
+      run !== null && run.status === "active" &&
+      run.externalRefs[options.tracker] === issue.id
+    ) {
+      ctx.logger.info("{warning}", {
+        warning: duplicateRefusal(
+          issue,
+          {
+            type: "duplicate_of",
+            direction: "outgoing",
+            issue: primary.id,
+            display: primary.display,
+          },
+          claimed.key,
+        ),
+      });
+    }
+  }
+  return { dataHandles: handles };
+}
+
+/**
+ * A snapshot only of an external tracker's ticket: a built-in ticket's
+ * record is the ticket, and a read never overwrites it.
+ */
+async function recordSnapshot(
+  ctx: TrackerContext,
+  port: TrackerPort,
+  tracker: string,
+  issue: TrackerIssue,
+  now: () => Date,
+): Promise<unknown[]> {
+  if (port.capabilities().origin !== "snapshot") return [];
+  return [
+    await resources(ctx).write(ISSUE_SPEC, issueName(issue.id), {
+      origin: "snapshot",
+      tracker,
+      ...issue,
+      fetchedAt: now().toISOString(),
+    }),
+  ];
+}
+
+/** The externalRefs to start a work item from a ticket, as JSON. */
+function refsOf(tracker: string, issue: TrackerIssue): string {
+  return JSON.stringify({
+    [tracker]: issue.id,
+    [`${tracker}.display`]: issue.display,
+  });
+}
+
+/** create's body: file the ticket, and record its snapshot. */
+export async function createWith(
+  ctx: TrackerContext,
+  args: { title: string; body: string; type: string },
+  port: TrackerPort,
+  options: Pick<TrackerModelOptions, "tracker">,
+  now: () => Date,
+): Promise<MethodOutput> {
+  const issue = await port.create({
+    title: args.title,
+    body: args.body,
+    type: args.type,
+  });
+  const handles = await recordSnapshot(ctx, port, options.tracker, issue, now);
+  ctx.logger.info("{summary}", {
+    summary: `created ${issue.display} (${issue.id}): ${issue.title} ` +
+      `[${issue.status.name}]`,
+    ...(issue.url === undefined ? {} : { url: issue.url }),
+    externalRefs: refsOf(options.tracker, issue),
+  });
+  return { dataHandles: handles };
+}
+
+/** fetch_issue's body: read the ticket, and record its snapshot. */
+export async function fetchWith(
+  ctx: TrackerContext,
+  args: { issue: string },
+  port: TrackerPort,
+  options: Pick<TrackerModelOptions, "tracker">,
+  now: () => Date,
+): Promise<MethodOutput> {
+  const issue = await port.fetch(args.issue);
+  const handles = await recordSnapshot(ctx, port, options.tracker, issue, now);
+  ctx.logger.info("{summary}", {
+    summary: `${issue.display} (${issue.id}): ${issue.title} ` +
+      `[${issue.status.name}]`,
+    ...(issue.url === undefined ? {} : { url: issue.url }),
+    externalRefs: refsOf(options.tracker, issue),
+  });
+  return { dataHandles: handles };
+}
+
+/**
+ * claim's body: read the ticket, then report its work item or reserve a key
+ * for a new one (claim.ts), and record the snapshot.
+ */
+export async function claimWith(
+  ctx: TrackerContext,
+  args: { issue: string; factory?: string; dryRun?: boolean },
+  port: TrackerPort,
+  options: Pick<TrackerModelOptions, "tracker" | "claimBase">,
+  now: () => Date,
+): Promise<MethodOutput> {
+  const issue = await port.fetch(args.issue);
+  await port.beforeClaim?.(issue);
+  const prefix = prefixOf(ctx);
+  const base = options.claimBase?.(issue, prefix) ??
+    ticketKeyBase(issue.display, prefix);
+  const written = await claimTicket(ctx, {
+    tracker: options.tracker,
+    issue,
+    recordName: ticketName(issue.id),
+    factory: args.factory,
+    base,
+    qualifier: instanceName(ctx),
+    dryRun: args.dryRun,
+    now: now(),
+  });
+  // The snapshot only once the claim has succeeded: a refused claim, or a
+  // dry run, writes nothing. The index record is the claim's result, so a
+  // failed snapshot is a warning, refreshed by the next read.
+  let handles: unknown[] = [];
+  if (args.dryRun !== true) {
+    try {
+      handles = await recordSnapshot(ctx, port, options.tracker, issue, now);
+    } catch (error) {
+      ctx.logger.info("{warning}", {
+        warning: `did not refresh the snapshot of ${issue.display}: ` +
+          (error instanceof Error ? error.message : String(error)),
+        issue: issue.id,
+      });
+    }
+  }
+  return { dataHandles: [...written, ...handles] };
+}
+
 /** The create, fetch_issue, claim, comment, set_status, relate, unrelate and
  * publish methods, over one adapter. */
 export function trackerMethods(options: TrackerModelOptions) {
   const now = options.now ?? (() => new Date());
-  const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
   const deliver = deliveries(options, now);
 
-  // A snapshot only of an external tracker's ticket: a built-in ticket's
-  // record is the ticket, and a read never overwrites it.
-  const recordSnapshot = async (
-    ctx: TrackerContext,
-    adapter: TrackerAdapter,
-    issue: TrackerIssue,
-  ): Promise<unknown[]> => {
-    if (adapter.origin !== "snapshot") return [];
-    return [
-      await resources(ctx).write(ISSUE_SPEC, issueName(issue.id), {
-        origin: "snapshot",
-        tracker: options.tracker,
-        ...issue,
-        fetchedAt: now().toISOString(),
+  // publish's port as the method runs it: each call made as it comes.
+  const immediatePort = (ctx: TrackerContext): TrackerPort => {
+    let adapter: TrackerAdapter | undefined;
+    const tracker = () => adapter ??= options.adapter(ctx);
+    return {
+      capabilities: () => {
+        const { capabilities, origin } = tracker();
+        return {
+          history: capabilities.history !== undefined,
+          assign: capabilities.assign !== undefined &&
+            options.assignee !== undefined,
+          pullRequests: capabilities.pullRequests !== undefined,
+          origin,
+        };
+      },
+      fetch: (id) => tracker().fetchIssue(id),
+      create: (draft) => tracker().create(draft),
+      ...(options.beforeClaim === undefined ? {} : {
+        beforeClaim: (issue: TrackerIssue) =>
+          options.beforeClaim?.(ctx, issue) ?? Promise.resolve(),
       }),
-    ];
+      comment: (write) => deliver.comment(ctx, write),
+      setStatus: (write) => deliver.setStatus(ctx, write),
+      setType: (write) => deliver.setType(ctx, write),
+      linkPr: (write) => deliver.linkPr(ctx, write),
+      entry: (write) => deliver.entry(ctx, write),
+      assign: (write) => {
+        const { assignee } = options;
+        const assigner = tracker().capabilities.assign;
+        if (assigner === undefined || assignee === undefined) {
+          throw new Error("this tracker does not assign");
+        }
+        return deliver.assign(ctx, write, () => assignee(ctx));
+      },
+      duplicate: (write) => deliver.duplicate(ctx, write),
+      writeCursor: (name, cursor) =>
+        resources(ctx).write(CURSOR_SPEC, name, cursor),
+      moveClaim: (move) => moveClaim(ctx, move),
+    };
   };
-  const refsOf = (issue: TrackerIssue) =>
-    JSON.stringify({
-      [options.tracker]: issue.id,
-      [`${options.tracker}.display`]: issue.display,
-    });
 
   return {
+    describe: {
+      description:
+        "Record what this tracker says of itself (its name, contract version, capabilities and the user publish assigns), so a factory can bind to it",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const adapter = options.adapter(ctx);
+        let assignee: string | undefined;
+        if (
+          options.assignee !== undefined &&
+          adapter.capabilities.assign !== undefined
+        ) {
+          try {
+            assignee = await options.assignee(ctx);
+          } catch (error) {
+            ctx.logger.info("{warning}", {
+              warning: "no user for publish to assign: " +
+                (error instanceof Error ? error.message : String(error)),
+            });
+          }
+        }
+        const description = TrackerDescriptionSchema.parse({
+          ...describeAdapter(adapter),
+          ...(assignee === undefined ? {} : { assignee }),
+        });
+        const handle = await resources(ctx).write(
+          DESCRIPTION_SPEC,
+          DESCRIPTION_NAME,
+          description,
+        );
+        ctx.logger.info("{summary}", {
+          summary: `${description.tracker} tracker, contract ` +
+            `${description.contract}`,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    operate: {
+      description:
+        "Make one tracker operation and write its answer (the result, or the failure) as a record under the given name; an answer already there that succeeded is kept and nothing is made again",
+      arguments: operateArguments,
+      execute: async (
+        args: z.infer<typeof operateArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const prior = await resources(ctx).read(args.answer);
+        if (prior !== null && AnswerSchema.parse(prior).ok) {
+          ctx.logger.info("{summary}", {
+            summary: `${args.answer} already answered; made nothing`,
+          });
+          return { dataHandles: [] };
+        }
+        let answer: Record<string, unknown>;
+        try {
+          // A request that does not parse is a failure too, written as one.
+          let raw: unknown;
+          try {
+            raw = typeof args.request === "string"
+              ? JSON.parse(args.request)
+              : args.request;
+          } catch {
+            throw new TrackerError(
+              "invalid",
+              options.tracker,
+              "the request is not a JSON object",
+            );
+          }
+          const parsed = OPERATIONS[args.operation].request.safeParse(raw);
+          if (!parsed.success) {
+            throw new TrackerError(
+              "invalid",
+              options.tracker,
+              `a ${args.operation} request does not take this: ` +
+                z.prettifyError(parsed.error),
+            );
+          }
+          const request = parsed.data;
+          const result = await performOperation(options.adapter(ctx), {
+            operation: args.operation,
+            request,
+          });
+          answer = {
+            operation: args.operation,
+            ...(args.run === undefined ? {} : { run: args.run }),
+            ok: true,
+            result,
+          };
+        } catch (error) {
+          // Every failure is an answer, so the step after this one sees it.
+          const failure = failureOf(
+            error instanceof TrackerError ? error : new TrackerError(
+              "upstream",
+              options.tracker,
+              error instanceof Error ? error.message : String(error),
+            ),
+          );
+          answer = {
+            operation: args.operation,
+            ...(args.run === undefined ? {} : { run: args.run }),
+            ...failure,
+          };
+          ctx.logger.info("{warning}", {
+            warning: `${args.operation} failed: ${failure.detail}`,
+          });
+        }
+        const handle = await resources(ctx).write(
+          ANSWER_SPEC,
+          args.answer,
+          answer,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     create: {
       description:
         "File a new ticket (an external tracker files it and its id is used); a retry after the tracker accepted it files another",
@@ -1190,22 +2303,8 @@ export function trackerMethods(options: TrackerModelOptions) {
       execute: async (
         args: z.infer<typeof createArguments>,
         ctx: TrackerContext,
-      ): Promise<MethodOutput> => {
-        const adapter = options.adapter(ctx);
-        const issue = await adapter.create({
-          title: args.title,
-          body: args.body,
-          type: args.type,
-        });
-        const handles = await recordSnapshot(ctx, adapter, issue);
-        ctx.logger.info("{summary}", {
-          summary: `created ${issue.display} (${issue.id}): ${issue.title} ` +
-            `[${issue.status.name}]`,
-          ...(issue.url === undefined ? {} : { url: issue.url }),
-          externalRefs: refsOf(issue),
-        });
-        return { dataHandles: handles };
-      },
+      ): Promise<MethodOutput> =>
+        await createWith(ctx, args, immediatePort(ctx), options, now),
     },
     fetch_issue: {
       description:
@@ -1214,18 +2313,8 @@ export function trackerMethods(options: TrackerModelOptions) {
       execute: async (
         args: z.infer<typeof fetchIssueArguments>,
         ctx: TrackerContext,
-      ): Promise<MethodOutput> => {
-        const adapter = options.adapter(ctx);
-        const issue = await adapter.fetchIssue(args.issue);
-        const handles = await recordSnapshot(ctx, adapter, issue);
-        ctx.logger.info("{summary}", {
-          summary: `${issue.display} (${issue.id}): ${issue.title} ` +
-            `[${issue.status.name}]`,
-          ...(issue.url === undefined ? {} : { url: issue.url }),
-          externalRefs: refsOf(issue),
-        });
-        return { dataHandles: handles };
-      },
+      ): Promise<MethodOutput> =>
+        await fetchWith(ctx, args, immediatePort(ctx), options, now),
     },
     claim: {
       description:
@@ -1234,41 +2323,8 @@ export function trackerMethods(options: TrackerModelOptions) {
       execute: async (
         args: z.infer<typeof claimArguments>,
         ctx: TrackerContext,
-      ): Promise<MethodOutput> => {
-        const adapter = options.adapter(ctx);
-        const issue = await adapter.fetchIssue(args.issue);
-        await options.beforeClaim?.(ctx, issue);
-        const prefix = prefixOf(ctx);
-        const base = options.claimBase?.(issue, prefix) ??
-          ticketKeyBase(issue.display, prefix);
-        const written = await claimTicket(ctx, {
-          tracker: options.tracker,
-          issue,
-          recordName: ticketName(issue.id),
-          factory: args.factory,
-          base,
-          qualifier: instanceName(ctx),
-          dryRun: args.dryRun,
-          now: now(),
-        });
-        // The snapshot only once the claim has succeeded: a refused claim,
-        // or a dry run, writes nothing. The index record is the claim's
-        // result, so a failed snapshot is a warning, refreshed by the next
-        // read.
-        let handles: unknown[] = [];
-        if (args.dryRun !== true) {
-          try {
-            handles = await recordSnapshot(ctx, adapter, issue);
-          } catch (error) {
-            ctx.logger.info("{warning}", {
-              warning: `did not refresh the snapshot of ${issue.display}: ` +
-                (error instanceof Error ? error.message : String(error)),
-              issue: issue.id,
-            });
-          }
-        }
-        return { dataHandles: [...written, ...handles] };
-      },
+      ): Promise<MethodOutput> =>
+        await claimWith(ctx, args, immediatePort(ctx), options, now),
     },
     comment: {
       description:
@@ -1331,41 +2387,8 @@ export function trackerMethods(options: TrackerModelOptions) {
       execute: async (
         args: z.infer<typeof markDuplicateArguments>,
         ctx: TrackerContext,
-      ): Promise<MethodOutput> => {
-        const adapter = options.adapter(ctx);
-        const issue = await adapter.fetchIssue(args.issue);
-        const primary = await adapter.fetchIssue(args.primary);
-        const { handles } = await deliver.duplicate(ctx, {
-          issue: issue.id,
-          primary: primary.id,
-          key: deliveryKeyOf(args),
-          replay: false,
-        });
-        // The work item on the duplicate, if any, is the driver's to move.
-        const raw = await resources(ctx).read(ticketName(issue.id));
-        if (raw !== null) {
-          const claimed = TicketClaimSchema.parse(raw);
-          const run = await readClaimedRun(ctx, claimed.key);
-          if (
-            run !== null && run.status === "active" &&
-            run.externalRefs[options.tracker] === issue.id
-          ) {
-            ctx.logger.info("{warning}", {
-              warning: duplicateRefusal(
-                issue,
-                {
-                  type: "duplicate_of",
-                  direction: "outgoing",
-                  issue: primary.id,
-                  display: primary.display,
-                },
-                claimed.key,
-              ),
-            });
-          }
-        }
-        return { dataHandles: handles };
-      },
+      ): Promise<MethodOutput> =>
+        await markDuplicateWith(ctx, args, immediatePort(ctx), options),
     },
     unrelate: {
       description:
@@ -1393,484 +2416,8 @@ export function trackerMethods(options: TrackerModelOptions) {
       execute: async (
         args: z.infer<typeof publishArguments>,
         ctx: TrackerContext,
-      ): Promise<MethodOutput> => {
-        const workItem = safePart("workItem", args.workItem);
-        const { run, definition } = await readWorkItem(ctx, workItem);
-        // Only the tracker pinned at start: its cursor is the one the work
-        // item's status reads.
-        const self = ctx.definition?.name;
-        if (self !== undefined && run.tracker.instance !== self) {
-          throw new Error(
-            `work item '${workItem}' was started against tracker ` +
-              `'${run.tracker.instance}', not '${self}': publish it there`,
-          );
-        }
-        // One segment per ticket: a retarget moves the rest of the journal
-        // to another ticket (DESIGN.md, "The publisher").
-        const segments = ticketSegments(run, definition, options.tracker);
-        if (segments.every((s) => s.issue === null)) {
-          throw new Error(
-            `work item '${workItem}' has no externalRefs.${options.tracker}; ` +
-              "start it with the ticket's stable id to publish it",
-          );
-        }
-        const recordName = cursorName(workItem);
-        const rawCursor = await resources(ctx).read(recordName);
-        const cursor = rawCursor === null
-          ? null
-          : CursorSchema.parse(rawCursor);
-        const journalVersion = run.journal.length;
-        const since = cursor?.journalVersion ?? 0;
-        if (since > journalVersion) {
-          throw new Error(
-            `the cursor for '${workItem}' is at journal version ${since}, ` +
-              `past the run's ${journalVersion}; the journal only grows`,
-          );
-        }
-        // The cursor's ticket must be the one its journal version belongs
-        // to: another ticket is only reached through a retarget.
-        const resume = cursor === null
-          ? 0
-          : segments.findIndex((s) =>
-            s.issue === cursor.issue && s.after <= since && since <= s.through
-          );
-        if (cursor !== null && resume === -1) {
-          throw new Error(
-            `work item '${workItem}' was published to ${cursor.issue}, and ` +
-              `now names ${segments.at(-1)?.issue ?? "no ticket"} with no ` +
-              "retarget between; one work item projects to one ticket at a time",
-          );
-        }
-        // Segments after the last ticket (a retarget removed this tracker's
-        // ref) have nowhere to go, so they are never pending.
-        const lastTicket = segments.findLastIndex((s) => s.issue !== null);
-        const adapter = options.adapter(ctx);
-        // The duplicate marks in the journal (DESIGN.md, "Duplicates"), and
-        // the primary each names, read from its recorded product: no network.
-        const marks = duplicateMarks(run, definition);
-        const marksIn = (segment: TicketSegment) =>
-          marks.filter((m) =>
-            m.journalVersion > segment.after &&
-            m.journalVersion <= segment.through
-          );
-        const refOf = async (
-          mark: DuplicateMark,
-        ): Promise<{ ref: string } | { why: string }> => {
-          if (mark.product === null) {
-            return {
-              why: `'${mark.gateId}' was approved with no '${mark.record}' ` +
-                "recorded before it",
-            };
-          }
-          const payload = await readRecordedPayload(
-            ctx,
-            workItem,
-            mark.product,
-          );
-          const ref = payload[mark.field];
-          return typeof ref === "string" && ref !== "" ? { ref } : {
-            why: `'${mark.record}' has no ${mark.field} naming the primary`,
-          };
-        };
-        const moveOf = (segment: TicketSegment, lastStatus: string | null) =>
-          segment.status !== null && segment.status !== lastStatus
-            ? segment.status
-            : null;
-        const resumed = segments[resume];
-        // The cursor is written after the status, so a lost cursor write
-        // leaves it behind the ledger: the key last written is the ledger's,
-        // from the cursor's own version on (a failed move's retry is keyed
-        // there), so a person's move since is not undone.
-        const resumedIssue = cursor?.issue ?? resumed.issue;
-        const written = resumedIssue === null ? undefined : await statusWritten(
-          ctx,
-          definition,
-          workItem,
-          resumedIssue,
-          since,
-          resumed.through,
-        );
-        const resumedStatus = written === undefined
-          ? cursor?.status ?? null
-          : written;
-        if (
-          resume === lastTicket && since === resumed.through &&
-          moveOf(resumed, resumedStatus) === null
-        ) {
-          // Nothing to deliver, but a cursor behind the ledger is brought
-          // level, and a failed move that has since landed is cleared.
-          if (
-            cursor !== null && written !== undefined &&
-            written !== cursor.status
-          ) {
-            const { statusFailed } = cursor;
-            await resources(ctx).write(CURSOR_SPEC, recordName, {
-              workItem,
-              issue: cursor.issue,
-              journalVersion: since,
-              status: written,
-              ...(statusFailed === undefined || statusFailed.status === written
-                ? {}
-                : { statusFailed }),
-              at: now().toISOString(),
-            });
-          }
-          ctx.logger.info("{summary}", {
-            summary: `${workItem} is up to date on ${resumed.issue}` +
-              (lastTicket < segments.length - 1
-                ? `; later events name no ${options.tracker} ticket`
-                : ""),
-          });
-          return { dataHandles: [] };
-        }
-
-        // Entry mode: the factory definition says which events become which
-        // entries, and the tracker keeps them. They replace the comments.
-        const entryMode = adapter.capabilities.history !== undefined &&
-          declaresEntries(definition);
-        const handles: unknown[] = [];
-        // Assigning when the work item starts: where the tracker can, and a
-        // login maps to its user. Once, on the started event's version.
-        const assigner = adapter.capabilities.assign;
-        const linksPrs = adapter.capabilities.pullRequests !== undefined;
-        const assignee = options.assignee;
-        const startedVersion =
-          run.journal.findIndex((e) => e.type === "started") + 1;
-        const ticketStatus = new Map<string, string>();
-        const statusNameOf = async (
-          issue: string,
-          key: string | null,
-          journalVersion: number,
-        ): Promise<string> => {
-          const name = key === null
-            ? undefined
-            : options.statuses(argsOf(ctx))[key];
-          if (name !== undefined) return name;
-          // A label only, so an unmapped key does not hold back the entry
-          // or any later one: it falls back as an entry without a key does.
-          if (key !== null) {
-            ctx.logger.info("{warning}", {
-              warning: `status key '${key}' labels the entry for journal ` +
-                `version ${journalVersion} but is not in ${
-                  statusesArgument(ctx, options.tracker)
-                }; labelled with the ticket's status instead`,
-            });
-          }
-          // Nothing names a label yet (a first stage without a key): the
-          // status the ticket has, which is what the entry happened in.
-          let current = ticketStatus.get(issue);
-          if (current === undefined) {
-            current = (await adapter.fetchIssue(issue)).status.name;
-            ticketStatus.set(issue, current);
-          }
-          return current;
-        };
-
-        for (let k = resume; k <= lastTicket; k++) {
-          const segment = segments[k];
-          const issue = segment.issue;
-          const first = k === resume;
-          // The resumed segment's opening note went out with its cursor.
-          const from = first ? since : segment.after;
-          const lastStatus = first ? resumedStatus : null;
-          if (issue === null) {
-            ctx.logger.info("{summary}", {
-              summary: `journal versions ${from + 1} to ${segment.through} ` +
-                `of ${workItem} name no ${options.tracker} ticket; skipped`,
-            });
-            continue;
-          }
-          const moveTo = moveOf(segment, lastStatus);
-          if (first && from === segment.through && moveTo === null) continue;
-          // The ticket as last read; null once a write may have changed it.
-          let ticketNow: TrackerIssue | null = null;
-          // A work item still at work on a ticket marked a duplicate outside
-          // its own journal is not projected there: a driver moves it first.
-          // A segment a retarget ends, or a finished work item, still reaches
-          // the ticket, so the move itself can be published.
-          if (k === lastTicket && run.status === "active") {
-            ticketNow = await adapter.fetchIssue(issue);
-            ticketStatus.set(issue, ticketNow.status.name);
-            const primary = primaryOf(ticketNow);
-            let own = false;
-            for (const mark of primary === undefined ? [] : marksIn(segment)) {
-              const named = await refOf(mark);
-              own ||= "ref" in named &&
-                (named.ref === primary?.issue ||
-                  named.ref === primary?.display);
-            }
-            if (primary !== undefined && !own) {
-              throw new Error(
-                duplicateRefusal(ticketNow, primary, workItem) +
-                  "; nothing was published",
-              );
-            }
-          }
-          // A retarget moved the work item here: the ticket index follows.
-          if (!first && segment.opening !== undefined) {
-            const opened = run.journal[segment.after - 1];
-            const refs = opened?.type === "retargeted" ? opened.to : {};
-            handles.push(
-              ...await moveClaim(ctx, {
-                tracker: options.tracker,
-                issue: {
-                  id: issue,
-                  display: refs[`${options.tracker}.display`] || issue,
-                },
-                recordName: ticketName(issue),
-                key: workItem,
-                factory: run.factory,
-                now: now(),
-              }),
-            );
-          }
-          let posted = 0;
-          // Only the publish that delivers the started event assigns: a
-          // work item first published before there was assigning never is.
-          let assignPending = startedVersion > from &&
-            startedVersion <= segment.through;
-          // After the started event's own write, whether or not it had one,
-          // and before any later event's: issue-lifecycle's order.
-          const assignBefore = async (journalVersion: number) => {
-            if (
-              !assignPending || journalVersion <= startedVersion ||
-              assigner === undefined || assignee === undefined
-            ) return;
-            assignPending = false;
-            const key = { workItem, journalVersion: startedVersion };
-            const done = await deliver.assign(
-              ctx,
-              { issue, key },
-              assigner,
-              () => assignee(ctx),
-            );
-            handles.push(...done.handles);
-            // From the ledger, so a re-run after this entry failed still
-            // writes it; its own key keeps it to once.
-            const { result } = done;
-            if (!entryMode || result.changed !== true) return;
-            const user = String(result.user);
-            const entry = await deliver.entry(ctx, {
-              issue,
-              key,
-              replay: true,
-              suffix: "assigned",
-              entry: {
-                step: "assigned",
-                targetStatus: String(result.status),
-                summary: `Assigned to ${user}`,
-                emoji: "\u{1F464}",
-                payload: {
-                  username: user,
-                  ...(result.details as Record<string, unknown> | undefined),
-                },
-                isVerbose: false,
-              },
-            });
-            handles.push(...entry.handles);
-            if (entry.wrote) posted++;
-          };
-          const note = async (planned: PlannedComment, suffix?: string) => {
-            const done = await deliver.comment(ctx, {
-              issue,
-              body: planned.body,
-              key: { workItem, journalVersion: planned.journalVersion },
-              replay: true,
-              ...(suffix === undefined ? {} : { suffix }),
-            });
-            handles.push(...done.handles);
-            if (done.wrote) posted++;
-          };
-          if (!first && segment.opening !== undefined) {
-            await note(segment.opening, "opening");
-          }
-          const inSegment = (e: { journalVersion: number }) =>
-            e.journalVersion <= segment.through;
-          for (
-            const event of entryMode
-              ? projectEntries(run, definition, from).filter(inSegment)
-              : []
-          ) {
-            await assignBefore(event.journalVersion);
-            const payload = event.product === undefined
-              ? {}
-              : await readRecordedPayload(ctx, workItem, event.product);
-            const chosen = chooseEntry(event.candidates, payload);
-            if (chosen === null) continue;
-            const entry = renderEntry(chosen, event, payload);
-            const key = { workItem, journalVersion: event.journalVersion };
-            // issue-lifecycle's order: the type, then the entry saying so.
-            if (entry.type !== undefined) {
-              const done = await deliver.setType(ctx, {
-                issue,
-                type: entry.type,
-                key,
-                replay: true,
-              });
-              handles.push(...done.handles);
-            }
-            // Then the pull request the entry reads, where the tracker
-            // links one; a tracker without links has nothing to write.
-            if (entry.pr !== undefined && linksPrs) {
-              const done = await deliver.linkPr(ctx, {
-                issue,
-                url: entry.pr,
-                key,
-                replay: true,
-              });
-              handles.push(...done.handles);
-            }
-            const done = await deliver.entry(ctx, {
-              issue,
-              key,
-              replay: true,
-              ...(event.suffix === undefined ? {} : { suffix: event.suffix }),
-              entry: {
-                step: entry.step,
-                targetStatus: await statusNameOf(
-                  issue,
-                  entry.status,
-                  event.journalVersion,
-                ),
-                summary: entry.summary,
-                emoji: entry.emoji,
-                payload: entry.payload,
-                isVerbose: entry.isVerbose,
-              },
-            });
-            handles.push(...done.handles);
-            if (done.wrote) posted++;
-          }
-          for (
-            const planned of entryMode
-              ? []
-              : ticketView(run, definition, from).comments.filter(inSegment)
-          ) {
-            await assignBefore(planned.journalVersion);
-            await note(planned);
-          }
-          await assignBefore(Number.POSITIVE_INFINITY);
-          // A mark that names no other ticket the tracker has marks nothing,
-          // with a warning: an approval with no product before it, no
-          // primary in its field, a primary the tracker cannot find, or this
-          // ticket itself (an approval after the retarget onto it).
-          for (const mark of marksIn(segment)) {
-            if (mark.journalVersion <= from) continue;
-            const named = await refOf(mark);
-            const unmarked = `, so ${issue} was not marked a duplicate`;
-            if ("why" in named) {
-              ctx.logger.info("{warning}", { warning: named.why + unmarked });
-              continue;
-            }
-            let primary: TrackerIssue;
-            try {
-              primary = await adapter.fetchIssue(named.ref);
-            } catch (error) {
-              if (
-                !(error instanceof TrackerError) || error.kind !== "not_found"
-              ) {
-                throw error;
-              }
-              ctx.logger.info("{warning}", {
-                warning: `'${mark.record}' names ${named.ref}, which the ` +
-                  `tracker cannot find${unmarked}`,
-              });
-              continue;
-            }
-            if (primary.id === issue) {
-              ctx.logger.info("{warning}", {
-                warning: `'${mark.record}' names ${issue} as its own ` +
-                  `primary${unmarked}`,
-              });
-              continue;
-            }
-            ticketNow = null;
-            const done = await deliver.duplicate(ctx, {
-              issue,
-              primary: primary.id,
-              key: { workItem, journalVersion: mark.journalVersion },
-              replay: true,
-            });
-            handles.push(...done.handles);
-          }
-          // The retarget is the segment's last event. Its notes are comments
-          // in entry mode too: no entry answers a retarget.
-          if (
-            segment.closing !== undefined &&
-            segment.closing.journalVersion > from
-          ) {
-            await note(segment.closing);
-          }
-          const cursorAt = (
-            status: string | null,
-            statusFailed?: { status: string; detail: string },
-          ) =>
-            resources(ctx).write(CURSOR_SPEC, recordName, {
-              workItem,
-              issue,
-              journalVersion: segment.through,
-              status,
-              ...(statusFailed === undefined ? {} : { statusFailed }),
-              at: now().toISOString(),
-            });
-          // A duplicate keeps its closed status, however it was marked: no
-          // status write reopens it.
-          if (moveTo !== null) {
-            ticketNow ??= await adapter.fetchIssue(issue);
-            const primary = primaryOf(ticketNow);
-            if (primary !== undefined) {
-              ctx.logger.info("{summary}", {
-                summary: `${issue} is a duplicate of ${primary.display}, so ` +
-                  `its status was left alone, not moved to '${moveTo}'`,
-              });
-            } else {
-              try {
-                const done = await deliver.setStatus(ctx, {
-                  issue,
-                  status: moveTo,
-                  key: { workItem, journalVersion: segment.statusVersion },
-                  replay: true,
-                  skipUnreachable: true,
-                });
-                handles.push(...done.handles);
-              } catch (error) {
-                // Everything before the move was delivered, so the cursor
-                // moves past it; it keeps the key last written, so the next
-                // publish sees the move still wanted and retries only that.
-                const detail = error instanceof TrackerError
-                  ? error.detail
-                  : error instanceof Error
-                  ? error.message
-                  : String(error);
-                await cursorAt(lastStatus, { status: moveTo, detail });
-                const message = `could not move ${issue} to status key ` +
-                  `'${moveTo}': ${detail}. The events through journal version ` +
-                  `${segment.through} were delivered; the next publish ` +
-                  "retries only this move";
-                throw error instanceof TrackerError
-                  ? new TrackerError(
-                    error.kind,
-                    error.tracker,
-                    message,
-                    error.reason,
-                  )
-                  : new Error(message);
-              }
-            }
-          }
-          // Last for each ticket: a failure above leaves the cursor where it
-          // was, and the re-run's replay finds each landed write in the
-          // ledger.
-          handles.push(await cursorAt(moveTo ?? lastStatus));
-          ctx.logger.info("{summary}", {
-            summary: `published ${workItem} to ${issue} through journal ` +
-              `version ${segment.through}: ${posted} ` +
-              (entryMode ? "entry(ies) or note(s)" : "comment(s)") +
-              (moveTo === null ? "" : `, status '${moveTo}'`),
-          });
-        }
-        return { dataHandles: lastPerName(handles) };
-      },
+      ): Promise<MethodOutput> =>
+        await publishWith(ctx, args, immediatePort(ctx), options, now),
     },
   };
 }

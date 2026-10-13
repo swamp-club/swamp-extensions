@@ -23,9 +23,11 @@ import {
 import {
   prefixArgument,
   type TrackerContext,
-  trackerMethods,
-  trackerResources,
 } from "../_lib/tracker/core/tracker_methods.ts";
+import {
+  trackerModelMethods,
+  trackerModelResources,
+} from "../_lib/tracker/core/tracker_model.ts";
 import { type MethodOutput, stringMapFrom } from "../_lib/engine/tracker.ts";
 
 // ---------------------------------------------------------------------------
@@ -119,11 +121,19 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. linear_test checks it equals LINEAR_TYPE.
   type: "@swamp/stagecraft/linear",
-  version: "2026.10.02.3",
+  version: "2026.10.12.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.12.1",
+      description: "Add describe, operate and round, the methods the " +
+        "shipped tracker workflows call (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: LinearArgumentsSchema,
-  resources: trackerResources,
+  resources: trackerModelResources,
   methods: {
-    ...trackerMethods({
+    ...trackerModelMethods({
       tracker: LINEAR,
       adapter: adapterOf,
       statuses: (globalArgs) =>

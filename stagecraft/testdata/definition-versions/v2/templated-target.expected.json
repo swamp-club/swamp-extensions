@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "description": "Each work item has its own planning agent, named after the item; the tests run under a workflow named for the plan's suite.",
   "stages": [
     {

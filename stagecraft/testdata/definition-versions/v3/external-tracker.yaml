@@ -1,0 +1,44 @@
+# Frozen at schemaVersion 3 (swamp-club #3274): a factory written for a
+# tracker that is a separate extension, here one named acme. Its status keys
+# are the publisher's to map. Never edit it; definition_versions_test checks
+# it still upgrades to external-tracker.expected.json and its scenarios
+# still pass.
+definition:
+  schemaVersion: 3
+  description: Work a ticket filed on the acme tracker, then ship it.
+  tracker:
+    kind: acme
+  stages:
+    - id: write
+      initial: true
+      description: Write the change.
+      tracker:
+        status: in_progress
+      transitions:
+        - name: submit
+          to: review
+    - id: review
+      description: A person reviews the change.
+      tracker:
+        status: in_review
+      transitions:
+        - name: ship
+          to: done
+          gates:
+            - type: human-approval
+              config:
+                id: ship-approval
+    - id: done
+      terminal: true
+      tracker:
+        status: shipped
+scenarios:
+  - scenario: write-review-ship
+    description: >-
+      The change is written, reviewed and shipped once a person approves.
+    steps:
+      - move: submit
+      - expect: { stage: review }
+      - approve: ship-approval
+      - move: ship
+      - expect: { stage: done }

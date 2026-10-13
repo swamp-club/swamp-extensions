@@ -21,17 +21,52 @@ import { z } from "npm:zod@4.3.6";
 // seam"). A factory definition names the kind of tracker it is written for,
 // the factory names the tracker instance, and a work item pins both at
 // start. The engine never calls a tracker: it checks the instance's model
-// type against the kind, and status reads the instance's publish cursor as
-// data. Tracker code gets the cursor's shape from here, through tracker.ts,
-// so the two sides read and write one schema.
+// type against the kind (for a tracker written as a separate extension, the
+// publisher, and what the tracker described of itself, read as data), and
+// status reads the instance's publish cursor as data. Tracker code gets the
+// cursor's shape from here, through tracker.ts, so the two sides read and
+// write one schema.
 // ---------------------------------------------------------------------------
 
+/** The trackers stagecraft ships. Their names are reserved: a tracker
+ * written as a separate extension cannot take one. */
 export const TRACKER_KINDS = ["builtin", "swamp-club", "linear"] as const;
 
 export type TrackerKind = typeof TRACKER_KINDS[number];
 
+/** A tracker's name: its externalRefs key, and a definition's kind. */
+export const TRACKER_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+export const TrackerNameSchema = z.string().regex(
+  TRACKER_NAME_PATTERN,
+  "a tracker's name is lowercase letters, digits and '-', starting with a " +
+    "letter",
+);
+
+/** Whether a tracker name is one stagecraft ships. */
+export function isShippedKind(kind: string): kind is TrackerKind {
+  return (TRACKER_KINDS as readonly string[]).includes(kind);
+}
+
 /** A factory definition that names no tracker kind is for the built-in one. */
 export const DEFAULT_TRACKER_KIND: TrackerKind = "builtin";
+
+/** The model type that publishes to a tracker written as a separate
+ * extension; a factory for such a tracker binds to one. */
+export const PUBLISHER_TYPE = "@swamp/stagecraft/publisher";
+
+/** The tracker contract this stagecraft speaks: the version a tracker's
+ * describe must report (DESIGN.md, "Trackers as separate extensions"). */
+export const TRACKER_CONTRACT_VERSION = 1;
+
+/** The record a tracker's describe writes, and what the engine reads of
+ * it: the tracker's name and its contract version. */
+export const DESCRIPTION_SPEC = "description";
+export const DESCRIPTION_NAME = "description";
+export const DescriptionHeadSchema = z.object({
+  tracker: z.string(),
+  contract: z.number().int(),
+});
 
 /** The model type a tracker instance of each kind has. A tracker test checks
  * each adapter model's type against it. */
@@ -45,7 +80,7 @@ export const TRACKER_TYPES: Readonly<Record<TrackerKind, string>> = {
 export const TrackerBindingSchema = z.strictObject({
   /** The tracker instance's name. */
   instance: z.string().min(1),
-  kind: z.enum(TRACKER_KINDS),
+  kind: TrackerNameSchema,
 });
 
 export type TrackerBinding = z.infer<typeof TrackerBindingSchema>;

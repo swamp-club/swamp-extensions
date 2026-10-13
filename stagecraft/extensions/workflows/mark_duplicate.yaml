@@ -1,0 +1,779 @@
+# Written by scripts/build_workflows.ts: change it there, then
+# run deno task build:workflows.
+id: 8b3681c8-1322-4637-9266-66a81dc5e9ed
+name: "@swamp/stagecraft/mark-duplicate"
+description: "Mark a ticket a duplicate of a primary: relate it duplicate_of and close it where the tracker does not. It moves no work item."
+version: 1
+inputs:
+  properties:
+    tracker:
+      type: string
+      description: "The tracker instance the factory is bound to: a tracker stagecraft ships, or a publisher for a tracker written as a separate extension"
+    issue:
+      type: string
+      description: The duplicate ticket
+    primary:
+      type: string
+      description: The ticket it duplicates
+  required:
+    - tracker
+    - issue
+    - primary
+jobs:
+  - name: round-1
+    description: Plan the first round
+    steps:
+      - name: round
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-1
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-1
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-1
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-1
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-2
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-1
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-2
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-2
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-2
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-2
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-3
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-2
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-3
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-3
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-3
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-3
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-4
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-3
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-4
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-4
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-4
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-4
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-5
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-4
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-5
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-5
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-5
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-5
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-6
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-5
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-6
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-6
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-6
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-6
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-7
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-6
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-7
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-7
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-7
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-7
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-8
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-7
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-8
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-8
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-8
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-8
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-9
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-8
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-9
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-9
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-9
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-9
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-10
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-9
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-10
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-10
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-10
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-10
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-11
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-10
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-11
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-11
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-11
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-11
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-12
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-11
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+  - name: write-12
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-12
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-12
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-12
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-mark_duplicate-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: check
+    description: Fail the run if it stopped or did not finish
+    dependsOn:
+      - job: read-12
+        condition:
+          type: completed
+    steps:
+      - name: check
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: mark_duplicate
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            primary: ${{ inputs.primary }}
+            check: true

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "description": "A model method writes a plan, fed its earlier rejection on a retry; a workflow then tests the plan's ref.",
   "stages": [
     {

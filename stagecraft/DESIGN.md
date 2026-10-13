@@ -37,6 +37,8 @@ extensions/models/
     linear.ts             the Linear tracker adapter model type
     swamp_club.ts         the swamp-club Lab tracker adapter model type
                           (swamp-club team only; not shipped)
+    publisher.ts          the publisher, in front of a tracker written as a
+                          separate extension
   boundary_test.ts        the seam: engine and tracker code keep apart
   manifest_test.ts        the manifest lists every shipped entry point
   _lib/
@@ -88,6 +90,13 @@ extensions/models/
       core/
         adapter.ts            the tracker adapter contract
         tracker_methods.ts    the methods every tracker model has, and its ledger
+        operations.ts         the tracker operations as data: requests, results,
+                              failures and what a tracker says of itself
+        publish_rounds.ts     publish and mark_duplicate in planned rounds
+        round_method.ts       one round of a run, as the shipped workflows call it
+        tracker_model.ts      what every tracker model stagecraft ships has
+        contract_checks.ts    the tracker contract's checks, shipped
+        conformance_round.ts  those checks, replayed through a tracker's operate
         tracker_conformance.ts  the contract, checked the same way per adapter
         claim.ts              start from a ticket: the ticket index and claim
         stored_login.ts       swamp's stored login (auth.json), read for the
@@ -104,6 +113,11 @@ extensions/models/
                               team only)
 extensions/reports/
   work_item_summary_report.ts  the summary report, run after `summary`
+extensions/workflows/     the tracker workflows, written by
+                          scripts/build_workflows.ts (deno task build:workflows)
+examples/
+  notes-tracker/          a tracker written as a separate extension, which the
+                          real-engine suite runs; never published
 integration/              the real-engine suite, through the swamp CLI
   harness.ts              a throwaway swamp repo per test
   engine/                 the factory and work item
@@ -137,6 +151,7 @@ testdata/
 docs/
   studio.png             the README's studio screenshot
 README.md                using stagecraft: the registry page
+TRACKERS.md              writing a tracker as a separate extension: the guide
 REFERENCE.md             every method, format and adapter in detail
 DESIGN.md                why it works this way, and this section
 ```
@@ -2083,8 +2098,10 @@ the rules:
 
 - Engine code imports no tracker code. The engine knows only the tracker a
   factory is bound to: the instance's name, its kind and the model type each
-  kind needs, and the shape of that instance's publish cursor, which `status`
-  reads as data ("The factory's tracker", below). All of it is in
+  kind needs (for a tracker written as a separate extension, the publisher, and
+  the name and contract version its tracker's description record holds), and
+  the shape of that instance's publish cursor, which `status` reads as data
+  ("The factory's tracker", below). All of it is in
   `_lib/engine/tracker_binding.ts`, and the engine never calls a tracker.
 - Tracker code imports the engine only through `_lib/engine/tracker.ts`, which
   re-exports exactly what tracker code uses: the run record, the journal types,
@@ -2110,8 +2127,9 @@ what the tracker depends on.
 ### The factory's tracker
 
 **Decision.** A factory definition names the kind of tracker it is written for,
-`tracker: { kind: builtin | swamp-club | linear }`, and the built-in tracker
-when it names none. The kind belongs to the definition because what the
+`tracker: { kind: <name> }` (`builtin`, `swamp-club`, `linear`, or a tracker
+written as a separate extension: "Trackers as separate extensions"), and the
+built-in tracker when it names none. The kind belongs to the definition because what the
 definition says depends on it: its stage entries need a tracker that keeps
 history, and its status keys and type fields must be ones that tracker has. The
 factory names the tracker instance, its required `tracker` global argument,
@@ -2370,6 +2388,100 @@ does not block the work item, unlike issue-lifecycle, whose methods fail when
 their entry is refused; the ticket falls behind until `publish` is re-run, which
 the driving reference asks for after each step.
 
+### Planned rounds
+
+**Decision** (swamp-club #3274). The bodies of `publish` and `mark_duplicate`
+reach the tracker only through a port (`TrackerPort` in `tracker_methods.ts`):
+its reads, its ledger-guarded writes, the cursor and the ticket index. The
+methods' port makes each call as it comes. `publishInRounds` and
+`markDuplicateInRounds` (`publish_rounds.ts`) run the same bodies against a port
+that plans instead: a write the ledger does not hold yet becomes a planned step,
+and a pass stops where the body needs what it cannot know yet. That is a ticket
+not read yet, a ticket a planned write may have changed, or the result of an
+assign. The steps are made in order, and the body plans again from the top,
+finding each one in the ledger, or, for a write with no delivery key, in what
+the run has made. A set_status the tracker refuses is planned again knowing it,
+so publish records the failed move on the cursor as it does at once; any other
+failure ends the run.
+
+**Why.** A tracker written as a separate extension shares no code with
+stagecraft, and swamp runs no method of one extension from another's (no
+`runModel` on remote workers, and only to declared dependencies). A shipped
+workflow can call the bound tracker's methods by name, but it cannot loop, so
+the logic has to stop at each point where it needs an answer. Planning over the
+unchanged bodies keeps one copy of the logic.
+
+**Proven.** `publish_trace_test.ts` recorded, before the port existed, every
+tracker write and record publish makes across comments, entries with assign and
+pull requests, retargets, a duplicate mark, and failed, unreachable and refused
+writes. Both the method and the rounds reproduce it exactly, and
+`mark_duplicate` writes the same both ways. `publish_rounds_test.ts` checks that
+the rounds are rounds.
+
+### Trackers as separate extensions
+
+**Decision** (swamp-club #3274). A tracker stagecraft does not ship is written
+as a separate extension and treated like the ones it does. It shares no code
+with stagecraft: it is a model with two methods. `describe` writes a
+`description` record (the tracker's name, the contract version it meets, its
+origin, its capabilities, whether it closes duplicates itself, and the user
+publish assigns), and `operate` makes one operation from its request and writes
+the answer, the result or the failure as data, under the name it is given
+(`operations.ts` states each operation's request and result). Everything with
+state or logic stays stagecraft's, on a publisher
+(`@swamp/stagecraft/publisher`) in front of the tracker: the delivery ledger,
+the publish cursor, the ticket index and the snapshots. The writing-a-tracker
+guide is `TRACKERS.md`, shipped with the extension, and `examples/notes-tracker`
+is a working example.
+
+- **The binding.** A definition names the tracker by the name it described
+  itself by (`tracker: { kind: notes }`); `builtin`, `linear` and `swamp-club`
+  are reserved. The factory binds to a publisher, and `validate` and `start`
+  read the publisher's tracker's description as data and refuse a tracker that
+  has not described itself, that calls itself another name or a reserved one, or
+  that speaks another contract version. The engine still calls no tracker.
+- **One driving path.** The shipped workflows (`publish`, `claim`, `create`,
+  `fetch-issue`, `mark-duplicate`, `conformance`) drive every tracker, the
+  shipped ones included: each tracker model has `describe`, `operate` and
+  `round`, and plays both parts itself. A run is rounds ("Planned rounds"):
+  `round` records the answers to the last round's calls and plans the next, then
+  the tracker's `operate` makes each write, in order, each only after the one
+  before succeeded, and the round's read. `scripts/build_workflows.ts` writes
+  the workflows out to a bound, since a workflow cannot loop; a check at the end
+  fails a run that stopped or did not finish. The skill uses the workflows for
+  every tracker; the methods stay for anyone who calls them.
+- **Answers are idempotent.** A keyed write's answer is named after its ledger
+  record, and `operate` never makes again an answer that succeeded, so a run
+  restarted after a crash cannot repeat the write. A failure is an answer that
+  counts only for the run that asked; nothing is retried within a run.
+- **Conformance.** The contract's checks (`contract_checks.ts`) are shipped code
+  with their own assertions and probes that read the ticket back, so they run
+  against a tracker reached only through `operate`: the conformance workflow
+  replays them one call per round (`conformance_round.ts`), each pass consuming
+  the answers so far. stagecraft's own adapters run the same checks in their
+  tests, then the checks of stagecraft's shared methods over them
+  (`tracker_conformance.ts`, test-only).
+- **Versions.** The contract is version 1 (`TRACKER_CONTRACT_VERSION` in
+  `tracker_binding.ts`). A change a version-1 tracker would not meet moves it; a
+  new optional capability or field does not.
+
+**Why.** A JSR package of the contract was ruled out (Seth). Swamp has no
+runtime import between extensions and no library-only extension, and a method
+cannot run another extension's method on a remote worker (`runModel` is refused
+there, and elsewhere allowed only to declared dependencies). A shipped workflow
+can call any instance's method by name on a worker; that was tested under
+`swamp serve` with an enrolled worker, with the steps of two extensions in
+different collectives. Keeping the state on a stagecraft model leaves a tracker
+author two stateless methods to write.
+
+**Known gaps.** A run's rounds are bounded: publish writes out 12, and a long
+catch-up or several duplicate marks in one segment may need a second run. A
+round's writes reach the tracker before the next round records them in the
+ledger, so a crash between leaves the answer for the next run to record. A
+tracker written as a separate extension has no `relate` or `unrelate` workflow;
+those are made with its `operate`. The built-in tracker's `create` with a
+supplied id (#3216) is its own method only. A work item does not move between
+trackers (swamp-club #3292).
 ### Duplicates
 
 **Decision (swamp-club #2799).** The engine decides where a duplicate's work
@@ -2832,6 +2944,30 @@ reaches it. An include step would be its own change.
 
 ## Decision log
 
+### 2026-10-12: trackers written as separate extensions (swamp-club #3274)
+
+**Decision.** See "Trackers as separate extensions" and "Planned rounds". A
+tracker is a model with `describe` and `operate` (Seth chose these two over one
+method per operation), reached through a publisher and the shipped workflows,
+which drive every tracker (Seth chose one driving path). `tracker.kind` takes
+any tracker's name: schemaVersion 3, with an identity step from 2 so an older
+stagecraft refuses a v3 definition as needing a newer one; the pinned binding
+widens the same way and `RUN_SCHEMA_VERSION` stays 1. The conformance workflow
+replays the suite stagecraft's own trackers pass (Seth chose one suite over a
+shorter second copy). The relation rules stay in each adapter ("The tracker owns
+relations"): the built-in tracker checks them over its own records so it can
+finish a half-written relation. Model versions: factory, work item, Linear and
+the Lab 2026.10.12.1, the built-in tracker 2026.10.12.2, the publisher
+2026.10.12.1; the extension 2026.10.12.2.
+
+**Proven.** `publish_trace_test.ts` recorded publish's tracker writes and
+records before any of this, and they are reproduced three ways: the method,
+rounds in-process, and the workflow's method calls. On the real engine the
+built-in tracker files, claims and publishes through the workflows alone and
+passes conformance (84 calls, about 20 seconds); the example notes tracker
+binds, validates, is claimed and published to through a publisher, and passes
+conformance; and a factory for a tracker its publisher does not reach is
+refused.
 ### 2026-10-12: built-in tickets under a supplied id (swamp-club #3216)
 
 **Decision.** The built-in tracker's `create` takes an optional `id`. The ticket

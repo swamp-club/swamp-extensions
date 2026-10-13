@@ -48,10 +48,12 @@ import {
   prefixArgument,
   prefixOf,
   type TrackerContext,
-  trackerMethods,
   type TrackerModelOptions,
-  trackerResources,
 } from "../_lib/tracker/core/tracker_methods.ts";
+import {
+  trackerModelMethods,
+  trackerModelResources,
+} from "../_lib/tracker/core/tracker_model.ts";
 
 // ---------------------------------------------------------------------------
 // The built-in tracker: one instance per project, keeping its tickets in
@@ -277,7 +279,7 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
   const deliver = deliveries(trackerOptions, now);
 
   return {
-    ...trackerMethods(trackerOptions),
+    ...trackerModelMethods(trackerOptions),
     // The shared create, plus a supplied id. A built-in ticket's record is the
     // ticket, so there is no snapshot to write.
     create: {
@@ -333,7 +335,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/stagecraft/tracker",
-  version: "2026.10.12.1",
+  version: "2026.10.12.2",
   upgrades: [
     {
       toVersion: "2026.10.12.1",
@@ -341,10 +343,16 @@ export const model = {
         "create takes an optional supplied id (#3216) (no argument change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.12.2",
+      description: "Add describe, operate and round, the methods the " +
+        "shipped tracker workflows call (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: BuiltinArgumentsSchema,
   resources: {
-    ...trackerResources,
+    ...trackerModelResources,
     [COMMENT_SPEC]: {
       description: "A comment on a ticket, one record per comment",
       schema: BuiltinCommentSchema,

@@ -1,0 +1,15 @@
+# The manifest of a tracker extension. In your own extension, name this file
+# manifest.yaml and put your collective in the name (@your-collective/...).
+# Here it is manifest.example.yaml so this repository's CI, which publishes
+# every changed manifest.yaml, never publishes the example.
+manifestVersion: 1
+name: "@acme/notes-tracker"
+version: "2026.10.12.1"
+description: |
+  An example tracker for stagecraft, written as a separate extension: it
+  keeps its tickets in its own swamp data. It is stagecraft's worked
+  example of a tracker, never pushed to the registry; see the
+  writing-a-tracker guide in stagecraft.
+
+models:
+  - notes_tracker.ts

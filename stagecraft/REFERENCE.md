@@ -19,6 +19,8 @@ it works this way is in [DESIGN.md](DESIGN.md).
 - [Built-in tracker](#built-in-tracker)
 - [Linear](#linear)
 - [Start from a ticket](#start-from-a-ticket)
+- [Tracker workflows](#tracker-workflows)
+- [A tracker written as a separate extension](#a-tracker-written-as-a-separate-extension)
 - [swamp-club Lab (swamp-club team only)](#swamp-club-lab-swamp-club-team-only)
 
 ## The model types
@@ -36,6 +38,9 @@ it works this way is in [DESIGN.md](DESIGN.md).
 - **work item**: one piece of work moving through a factory, a model of type
   `@swamp/stagecraft/work-item` named by a key: its ticket's id (`team-1`,
   `abc-12`), which the tracker's `claim` gives, or a name chosen by hand.
+- **publisher**: a model of type `@swamp/stagecraft/publisher`, in front of a
+  tracker written as a separate extension; a factory for that tracker binds to
+  it ([A tracker written as a separate extension](#a-tracker-written-as-a-separate-extension)).
 
 ## The factory definition format
 
@@ -759,6 +764,73 @@ claim writes nothing. A repeat claim refreshes only the ticket's snapshot, not
 the index record, so read the key with
 `swamp data query 'modelName == "board" && name == "ticket-ext-12"' --select content --single --json`.
 See [DESIGN.md](DESIGN.md), "Start from a ticket".
+
+## Tracker workflows
+
+stagecraft ships workflows that drive any tracker the same way, the trackers it
+ships and one written as a separate extension alike. Each takes the instance a
+factory is bound to as `tracker` (a tracker stagecraft ships, or a publisher):
+
+| Workflow                         | Inputs                                                    | Does what                    |
+| -------------------------------- | --------------------------------------------------------- | ---------------------------- |
+| `@swamp/stagecraft/publish`      | `workItem`                                                | the tracker's `publish`      |
+| `@swamp/stagecraft/claim`        | `issue`, `factory` (optional), `dryRun` (optional)        | `claim`                      |
+| `@swamp/stagecraft/create`       | `title`, `body` (optional), `type`                        | `create`                     |
+| `@swamp/stagecraft/fetch-issue`  | `issue`                                                   | `fetch_issue`                |
+| `@swamp/stagecraft/mark-duplicate` | `issue`, `primary`                                      | `mark_duplicate`             |
+| `@swamp/stagecraft/conformance`  | `statusNames`, `createType`, `missing`, and per capability `entryStatus`, `entryTypes`, `user` | checks the tracker contract |
+
+```bash
+swamp workflow run @swamp/stagecraft/publish --input tracker=board \
+  --input workItem=cue-1
+```
+
+A run is rounds. In each, the instance's `round` method records the answers to
+the last round's tracker calls and plans the next; the tracker's `operate` then
+makes each write, in order and each only after the one before succeeded, and
+the read the round needs. A workflow cannot loop, so its rounds are written out
+to a bound (12 for publish, 100 for conformance), and a last step fails the run
+with the reason if it stopped (a tracker error, a refused work item) or did not
+finish; run it again and it carries on from what was delivered. Its writes are
+those of the method it stands for, in the same order. Every tracker model, and
+the publisher, has `round`; every tracker model has `describe` and `operate`.
+See [DESIGN.md](DESIGN.md), "Planned rounds".
+
+## A tracker written as a separate extension
+
+A tracker for a system stagecraft does not ship (Jira, GitHub Issues, an
+in-house system) can be its own extension, sharing no code with stagecraft: a
+model with two methods, `describe` (what the tracker is: its name, the contract
+version it meets, its capabilities) and `operate` (one operation, its answer
+written as a record). [TRACKERS.md](TRACKERS.md), shipped with stagecraft, is
+the guide, with every operation's request and result; `examples/notes-tracker`
+in stagecraft's repository is a working example.
+
+stagecraft reaches it through `@swamp/stagecraft/publisher`, which keeps the
+delivery ledger, the publish cursor, the ticket index and ticket snapshots:
+
+```bash
+swamp model create @acme/notes-tracker notes --json
+swamp model method run notes describe
+swamp model create @swamp/stagecraft/publisher notes-pub \
+  --global-arg tracker=notes --json
+# In the printed definition file, set globalArguments:
+#   statuses: { in_progress: doing, shipped: done }   # status keys to the tracker's names
+#   prefix: n                  # leads a number-only ticket id in a key; default: the instance's name
+```
+
+A factory definition for it names the tracker by the name it described itself
+by, `tracker: { kind: notes }` (any lowercase name not taken by a tracker stagecraft
+ships), and the factory binds to the publisher:
+`--global-arg tracker=notes-pub`. `validate` and `start` refuse the binding
+unless the instance is a publisher whose tracker described itself under that
+name and the contract version this stagecraft speaks (1). Then every tracker
+workflow takes `--input tracker=notes-pub`.
+
+`@swamp/stagecraft/conformance` checks a tracker against the contract through
+its `operate`: the same checks stagecraft's own trackers pass, one call at a
+time. It files and changes tickets, so run it against a tracker kept for
+testing.
 
 ## swamp-club Lab (swamp-club team only)
 

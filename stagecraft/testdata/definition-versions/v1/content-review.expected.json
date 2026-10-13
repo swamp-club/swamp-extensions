@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "description": "A piece of content, from draft to published: write the draft, have an\neditor review it, have a person approve it, and publish it.\n\nFor: web posts, announcements, newsletters, documentation pages, anything\nwritten that goes out under your name. A person approves every piece before\nit is published, and confirms abandoning one. An editorial review with a\nblocking finding sends the draft back; a person can also send it back by\nhand with their feedback. Stages name tracker status keys, so a work item\ncan drive a ticket; drop the stages' tracker blocks if it will not.\n\nChange first: the editorial review prompt (your voice and what you never\npublish), the draft schema (what a piece records), and publish's\ndescription (where your content goes).",
   "stages": [
     {

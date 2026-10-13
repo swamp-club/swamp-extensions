@@ -22,6 +22,7 @@ import { model as builtinTrackerModel } from "../../extensions/models/tracker/bu
 import { model as workItemModel } from "../../extensions/models/engine/work_item.ts";
 import { model as studioModel } from "../../extensions/models/engine/studio.ts";
 import {
+  PUBLISHER_TYPE,
   TRACKER_KINDS,
   type TrackerKind,
 } from "../../extensions/models/_lib/engine/tracker_binding.ts";
@@ -31,6 +32,7 @@ import {
 } from "../../extensions/models/_lib/engine/work_item_ops.ts";
 
 import { parseExample } from "../../extensions/models/_lib/engine/fake_swamp.ts";
+import { KINDS, workflowName } from "../../scripts/build_workflows.ts";
 import { splitWords } from "../harness.ts";
 
 const BUILTIN_TRACKER_TYPE = builtinTrackerModel.type;
@@ -369,6 +371,13 @@ export function checkCommand(
     }
     return null;
   }
+  // A tracker written as a separate extension has two methods of its own.
+  if (is("model", "method", "run", "<their-tracker>")) {
+    const name = args[4];
+    return name === "describe" || name === "operate"
+      ? null
+      : `a tracker written as a separate extension has no method '${name}'`;
+  }
   // Studio methods, by its placeholder.
   if (is("model", "method", "run", "<studio>")) {
     const [name, ...rest] = args.slice(4);
@@ -402,6 +411,15 @@ export function checkCommand(
         : `model create must be: model create ${BUILTIN_TRACKER_TYPE} ` +
           "<name> --global-arg prefix=<prefix> --json";
     }
+    // A publisher is created with only the tracker it publishes to; its
+    // statuses are set in the model file afterwards.
+    if (args[2] === PUBLISHER_TYPE) {
+      return args.length === 7 && args[4] === "--global-arg" &&
+          /^tracker=\S+$/.test(args[5]) && args[6] === "--json"
+        ? null
+        : `model create must be: model create ${PUBLISHER_TYPE} <name> ` +
+          "--global-arg tracker=<their-tracker> --json";
+    }
     // The studio has no arguments.
     if (args[2] === linearModel.type || args[2] === studioModel.type) {
       return args.length === 5 && args[4] === "--json"
@@ -409,6 +427,29 @@ export function checkCommand(
         : `model create must be: model create ${args[2]} <name> --json`;
     }
     return `no model type the skill creates: ${args[2]}`;
+  }
+  // A shipped tracker workflow: its name, and inputs it declares, with every
+  // input it requires.
+  if (is("workflow", "run")) {
+    const kind = KINDS.find((k) => workflowName(k.kind) === args[2]);
+    if (kind === undefined) return `no shipped workflow '${args[2]}'`;
+    const given: string[] = [];
+    const rest = args.slice(3);
+    for (let i = 0; i < rest.length; i++) {
+      if (rest[i] !== "--input") return `unexpected '${rest[i]}'`;
+      const name = rest[++i]?.split("=")[0];
+      if (name === undefined || name === "") return "an --input needs a value";
+      if (!kind.inputs.some((input) => input.name === name)) {
+        return `${args[2]} takes no input '${name}'`;
+      }
+      given.push(name);
+    }
+    const missing = kind.inputs.filter((input) =>
+      input.default === undefined && !given.includes(input.name)
+    ).map((input) => input.name);
+    return missing.length === 0
+      ? null
+      : `${args[2]} needs ${missing.join(", ")}`;
   }
   if (is("model", "search")) {
     return args.length === 4 && args[3] === "--json"
@@ -477,6 +518,39 @@ interface RepoLike {
     definition: unknown,
     scenarios?: unknown[],
   ): Promise<void>;
+}
+
+/**
+ * A tracker command as run: the instance, the method or shipped workflow's
+ * kind (create, claim, ...), and its inputs. Either form: swamp model method
+ * run <tracker> <method> ..., or swamp workflow run @swamp/stagecraft/<kind>
+ * --input tracker=<tracker> ...
+ */
+function trackerCall(
+  ran: string[],
+):
+  | { instance: string; method: string; inputs: Record<string, string> }
+  | undefined {
+  const inputsFrom = (words: string[]) =>
+    Object.fromEntries(
+      words.flatMap((w, i) =>
+        words[i - 1] === "--input" ? [w.split(/=(.*)/s).slice(0, 2)] : []
+      ),
+    ) as Record<string, string>;
+  if (ran[0] === "model" && ran[1] === "method" && ran[2] === "run") {
+    return {
+      instance: ran[3],
+      method: ran[4],
+      inputs: inputsFrom(ran.slice(5)),
+    };
+  }
+  if (ran[0] === "workflow" && ran[1] === "run") {
+    const kind = KINDS.find((k) => workflowName(k.kind) === ran[2]);
+    const inputs = inputsFrom(ran.slice(3));
+    if (kind === undefined || inputs.tracker === undefined) return undefined;
+    return { instance: inputs.tracker, method: kind.kind, inputs };
+  }
+  return undefined;
 }
 
 /**
@@ -653,10 +727,10 @@ async function runCommands(
     const addsSource = ran[0] === "extension" && ran[1] === "source" &&
       ran[2] === "add";
     // A tracker's tickets before its create, to find the one it files.
-    const files = ran[0] === "model" && ran[1] === "method" &&
-      ran[4] === "create";
-    const before = files
-      ? new Set(Object.keys(await repo.versions(ran[3])))
+    const call = trackerCall(ran);
+    const files = call?.method === "create";
+    const before = files && call !== undefined
+      ? new Set(Object.keys(await repo.versions(call.instance)))
       : new Set<string>();
     const result = await repo.swamp(ran, {
       allowFailure: command.fails !== undefined || addsSource,
@@ -679,8 +753,8 @@ async function runCommands(
     // The ticket a tracker's create filed (`model method run <tracker>
     // create`): the issue record that was not there before, rather than its
     // log line, whose format is swamp's to change.
-    if (files && result.code === 0) {
-      const records = Object.keys(await repo.versions(ran[3]))
+    if (files && call !== undefined && result.code === 0) {
+      const records = Object.keys(await repo.versions(call.instance))
         .filter((n) => n.startsWith("issue-") && !before.has(n));
       if (records.length !== 1) {
         throw new Error(
@@ -692,15 +766,11 @@ async function runCommands(
     }
     // The key a tracker's claim reserved, and the ticket's ids, from its
     // ticket index record.
-    if (
-      result.code === 0 && ran[0] === "model" && ran[1] === "method" &&
-      ran[4] === "claim"
-    ) {
-      const issue = ran[ran.indexOf("--input", 5) + 1]?.match(/^issue=(.+)$/)
-        ?.[1];
+    if (result.code === 0 && call?.method === "claim") {
+      const issue = call.inputs.issue;
       const index = issue === undefined
         ? null
-        : await repo.data(ran[3], `ticket-${issue}`);
+        : await repo.data(call.instance, `ticket-${issue}`);
       if (typeof index?.key !== "string") {
         throw new Error(
           `${command.file}:${command.line}: claim recorded no key for ` +

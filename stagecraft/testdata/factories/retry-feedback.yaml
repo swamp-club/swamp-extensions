@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 3
 description: >-
   An LLM method produces a plan; a rejected payload is fed back on retry.
 stages:

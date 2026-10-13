@@ -34,7 +34,15 @@ export {
   renderSummary,
   type SummaryMeta,
 } from "./entry_summary.ts";
-export { CURSOR_SPEC, cursorName, CursorSchema } from "./tracker_binding.ts";
+export {
+  CURSOR_SPEC,
+  cursorName,
+  CursorSchema,
+  DESCRIPTION_NAME,
+  DESCRIPTION_SPEC,
+  isShippedKind,
+  TRACKER_CONTRACT_VERSION,
+} from "./tracker_binding.ts";
 export {
   checkPinned,
   type DataReadingContext,

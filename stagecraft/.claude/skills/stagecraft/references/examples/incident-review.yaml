@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 2
+  schemaVersion: 3
   description: |-
     A post-incident review, from timeline to published: write the timeline,
     analyse what contributed and what to do about it, have the analysis

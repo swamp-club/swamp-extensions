@@ -28,7 +28,12 @@ import {
   CURSOR_SPEC,
   cursorName,
   CursorSchema,
-  TRACKER_KINDS,
+  DESCRIPTION_NAME,
+  DESCRIPTION_SPEC,
+  DescriptionHeadSchema,
+  isShippedKind,
+  PUBLISHER_TYPE,
+  TRACKER_CONTRACT_VERSION,
   TRACKER_TYPES,
   type TrackerBinding,
 } from "./tracker_binding.ts";
@@ -342,9 +347,13 @@ async function findFactoryModel(
 
 /**
  * The tracker a factory is bound to: the instance its tracker argument names,
- * checked to have the model type its definition's tracker kind needs. Throws
- * when the factory names no instance, the instance does not exist, or it is
- * another kind of model. validate reports it and start pins it.
+ * checked to have the model type its definition's tracker kind needs. A kind
+ * stagecraft ships needs that tracker's own model type. Any other kind is a
+ * tracker written as a separate extension: the instance must be a publisher,
+ * and the tracker it publishes to must have described itself under that
+ * name and this contract version (read as data; the engine calls no
+ * tracker). Throws when any of that does not hold. validate reports it and
+ * start pins it.
  */
 export async function resolveTrackerBinding(
   ctx: MethodContextLike,
@@ -352,7 +361,7 @@ export async function resolveTrackerBinding(
   definition: FactoryDefinition,
 ): Promise<TrackerBinding> {
   const kind = trackerKindOf(definition);
-  const expected = TRACKER_TYPES[kind];
+  const expected = isShippedKind(kind) ? TRACKER_TYPES[kind] : PUBLISHER_TYPE;
   const found = await findFactoryModel(ctx, factory);
   const instance = factoryArgument(found.definition, "tracker");
   if (instance === undefined) {
@@ -373,19 +382,88 @@ export async function resolveTrackerBinding(
   const type = typeNameOf(tracker.type);
   if (type !== expected) {
     throw new Error(
-      `factory '${factory}' has a definition for a ${kind} tracker, which ` +
-        `is a ${expected}, but its tracker '${instance}' is a ${type}`,
+      isShippedKind(kind)
+        ? `factory '${factory}' has a definition for a ${kind} tracker, ` +
+          `which is a ${expected}, but its tracker '${instance}' is a ${type}`
+        : `factory '${factory}' has a definition for the ${kind} tracker, ` +
+          `which stagecraft reaches through a ${expected}, but its tracker ` +
+          `'${instance}' is a ${type}`,
     );
+  }
+  if (!isShippedKind(kind)) {
+    await checkDescribed(ctx, factory, kind, instance, tracker.definition);
   }
   return { instance, kind };
 }
 
 /**
+ * A publisher's tracker has described itself as the kind the definition
+ * names, under the contract this stagecraft speaks.
+ */
+async function checkDescribed(
+  ctx: MethodContextLike,
+  factory: string,
+  kind: string,
+  publisher: string,
+  definition: unknown,
+): Promise<void> {
+  const target = factoryArgument(definition, "tracker");
+  if (target === undefined) {
+    throw new Error(
+      `publisher '${publisher}' names no tracker: set its tracker argument ` +
+        "to the tracker instance it publishes to",
+    );
+  }
+  const reader = ctx as DataReadingContext;
+  if (reader.readModelData === undefined) {
+    throw new Error("this method context cannot read the tracker's data");
+  }
+  const record = (await reader.readModelData(target, DESCRIPTION_SPEC))
+    .filter((r) => r.name === DESCRIPTION_NAME)
+    .sort((a, b) => b.version - a.version)[0];
+  if (record === undefined) {
+    throw new Error(
+      `factory '${factory}' is bound to publisher '${publisher}', whose ` +
+        `tracker '${target}' has not described itself: run swamp model ` +
+        `method run ${target} describe`,
+    );
+  }
+  const parsed = DescriptionHeadSchema.safeParse(recordObject(record));
+  if (!parsed.success) {
+    throw new Error(
+      `tracker '${target}' described itself in a form this stagecraft does ` +
+        `not read: run swamp model method run ${target} describe again`,
+    );
+  }
+  const head = parsed.data;
+  if (isShippedKind(head.tracker)) {
+    throw new Error(
+      `tracker '${target}' calls itself '${head.tracker}', a name only the ` +
+        "tracker stagecraft ships may have",
+    );
+  }
+  if (head.tracker !== kind) {
+    throw new Error(
+      `factory '${factory}' has a definition for the ${kind} tracker, but ` +
+        `publisher '${publisher}' publishes to '${target}', which is the ` +
+        `${head.tracker} tracker`,
+    );
+  }
+  if (head.contract !== TRACKER_CONTRACT_VERSION) {
+    throw new Error(
+      `tracker '${target}' implements tracker contract ${head.contract}, ` +
+        `and this stagecraft speaks ${TRACKER_CONTRACT_VERSION}`,
+    );
+  }
+}
+
+/**
  * Refuse externalRefs whose tickets are all on another kind of tracker than
  * the one the factory is bound to: no tracker could publish such a work item,
- * and status would report it as never behind. Keys that are not a tracker
- * kind, and `<kind>.display` keys, are left alone; no refs at all is a work
- * item with no ticket.
+ * and status would report it as never behind. Only the names of the
+ * trackers stagecraft ships count: any other key may be a tracker's or a
+ * caller's own, so it is left alone, as are `<kind>.display` keys; no refs
+ * at all is a work item with no ticket.
  */
 function checkRefsFitTracker(
   key: string,
@@ -394,9 +472,7 @@ function checkRefsFitTracker(
   tracker: TrackerBinding,
 ): void {
   const kinds = Object.entries(externalRefs)
-    .filter(([k, v]) =>
-      v !== "" && (TRACKER_KINDS as readonly string[]).includes(k)
-    )
+    .filter(([k, v]) => v !== "" && isShippedKind(k))
     .map(([k]) => k);
   if (kinds.length === 0 || kinds.includes(tracker.kind)) return;
   throw new Error(

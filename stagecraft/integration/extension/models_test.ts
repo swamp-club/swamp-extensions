@@ -20,6 +20,7 @@ import { LINEAR_TYPE } from "../../extensions/models/_lib/tracker/backends/linea
 import { SWAMP_CLUB_TYPE } from "../../extensions/models/_lib/tracker/backends/swamp_club.ts";
 import { STUDIO_TYPE } from "../../extensions/models/_lib/engine/studio_server.ts";
 import { FACTORY_TYPE, withRepo, WORK_ITEM_TYPE } from "../harness.ts";
+import { PUBLISHER_TYPE } from "../../extensions/models/_lib/engine/tracker_binding.ts";
 
 // ---------------------------------------------------------------------------
 // The whole extension through the installed swamp CLI: every model type,
@@ -44,6 +45,7 @@ Deno.test("cli: every model type registers from the extension source", async () 
         BUILTIN_TYPE,
         FACTORY_TYPE,
         LINEAR_TYPE,
+        PUBLISHER_TYPE,
         STUDIO_TYPE,
         SWAMP_CLUB_TYPE,
         WORK_ITEM_TYPE,

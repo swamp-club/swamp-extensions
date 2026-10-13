@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "description": "A post-incident review, from timeline to published: write the timeline,\nanalyse what contributed and what to do about it, have the analysis\nreviewed, have a person sign off on the action items, and publish.\n\nFor: teams that write up incidents. Nothing in it is about code. A person\nsigns off on the action items before anything is published, and confirms\nabandoning the review. A review with a blocking finding sends the analysis\nback; a person can also send it back by hand with their feedback. Stages\nname tracker status keys, so a work item can drive a ticket; drop the\nstages' tracker blocks if it will not.\n\nChange first: the timeline and analysis schemas (what your write-ups hold),\nthe review prompt's idea of a blocking finding, and publish's description\n(where your reviews go).",
   "stages": [
     {

@@ -21,41 +21,30 @@ import {
   TRACKED_ITEM,
   trackedItem,
 } from "./test_support.ts";
+import { type IssueDraft, type TrackerIssue } from "./adapter.ts";
 import {
-  type IssueDraft,
-  RELATION_TYPES,
-  type RelationType,
-  requireCapability,
-  type TrackerAdapter,
-  TrackerError,
-  type TrackerErrorKind,
-  type TrackerIssue,
-} from "./adapter.ts";
-import {
-  deliveries,
   ticketName,
   type TrackerContext,
   trackerMethods,
   type TrackerModelOptions,
 } from "./tracker_methods.ts";
+import { checkedAdapter } from "./operations.ts";
+import {
+  checkTrackerContract,
+  type ContractFixture,
+} from "./contract_checks.ts";
 
 // ---------------------------------------------------------------------------
-// What every tracker adapter must do, checked the same way for each: an
-// adapter's own tests call assertTrackerConformance against their local fake
-// of the tracker. It covers the contract in DESIGN.md, "Trackers", not a
-// tracker's own quirks, which its tests cover beside this. Test-only.
+// What every tracker adapter stagecraft ships must do, checked the same way
+// for each: an adapter's own tests call assertTrackerConformance against
+// their local fake of the tracker. It runs the contract's checks
+// (contract_checks.ts, which a tracker written as a separate extension also
+// passes), then stagecraft's shared methods over the adapter. It covers the
+// contract in DESIGN.md, "Trackers", not a tracker's own quirks, which its
+// tests cover beside this. Test-only.
 // ---------------------------------------------------------------------------
 
-export interface ConformanceFixture {
-  /** An adapter with a credential the fake accepts. */
-  adapter: TrackerAdapter;
-  /**
-   * The same tracker with a credential the fake refuses; absent for a
-   * tracker that has no credential (the built-in one).
-   */
-  badAuth?: TrackerAdapter;
-  /** An existing ticket, which starts in neither of `statusNames`. */
-  issue: { id: string; display: string };
+export interface ConformanceFixture extends ContractFixture {
   /** The key the ticket's first claim takes, written out by hand. */
   firstKey: string;
   /** The tracker instance's prefix argument; absent, its name is used. */
@@ -63,281 +52,32 @@ export interface ConformanceFixture {
   /** How the tracker's model bases a claimed key; absent for the default,
    * the display id as a key. */
   claimBase?: TrackerModelOptions["claimBase"];
-  /** A type create accepts. */
-  createType: string;
-  /** A well-formed stable id of no ticket. */
-  missing: string;
-  /** Two status names the ticket's team has. */
-  statusNames: [string, string];
   /**
    * The status name a marked duplicate ends in: the one the `closed` key
    * maps to, or the tracker's own for one that closes a duplicate itself.
    */
   closedStatus: string;
-  /** How many comments the fake has accepted so far. */
-  commentsPosted(): number;
-  /**
-   * For an adapter with the optional history capability: how many lifecycle
-   * entries the fake has accepted, and a status name and two ticket types it
-   * knows, the ticket starting in neither type.
-   */
-  history?: {
-    entriesPosted(): number;
-    statusName: string;
-    types: [string, string];
-  };
-  /**
-   * For an adapter with the optional assign capability: a user the tracker
-   * accepts, and the ticket's assignees as the fake holds them.
-   */
-  assign?: {
-    user: string;
-    assignees(): string[];
-  };
-  /**
-   * For an adapter with the optional pullRequests capability: the url the
-   * ticket links, as the fake holds it.
-   */
-  pullRequests?: {
-    linked(): string | undefined;
-  };
-}
-
-async function rejectsWith(
-  kind: TrackerErrorKind,
-  call: () => Promise<unknown>,
-): Promise<TrackerError> {
-  const error = await assertRejects(call, TrackerError);
-  assertEquals(error.kind, kind, error.message);
-  return error;
-}
-
-/** A read's activity: present, each item timed, oldest first. */
-function assertActivity(issue: TrackerIssue): void {
-  const { activity } = issue;
-  assert(activity !== undefined, `${issue.display}: the read has activity`);
-  const times = activity.map((a) => Date.parse(a.at));
-  assert(times.every((t) => !isNaN(t)), "every activity item has a time");
-  assert(
-    times.every((t, i) => i === 0 || times[i - 1] <= t),
-    "activity is oldest first",
-  );
 }
 
 export async function assertTrackerConformance(
-  f: ConformanceFixture,
+  fixture: ConformanceFixture,
 ): Promise<void> {
+  // The contract, through the tracker's operations alone (contract_checks.ts).
+  await checkTrackerContract(fixture);
+  // Then stagecraft's shared methods over the tracker, against the fake
+  // swamp: the delivery ledger, claim, publish, a keyed relate and
+  // duplicates.
+  const f: ConformanceFixture = {
+    ...fixture,
+    adapter: checkedAdapter(fixture.adapter),
+  };
   const { adapter } = f;
-
-  // Fetch: the stable id and the display identifier find the same ticket.
-  const byId = await adapter.fetchIssue(f.issue.id);
-  const byDisplay = await adapter.fetchIssue(f.issue.display);
-  assertEquals(byId.id, f.issue.id);
-  assertEquals(byDisplay.id, f.issue.id);
-  assertEquals(byId.display, f.issue.display);
-  assert(!f.statusNames.includes(byId.status.name), "fixture: bad start");
-
-  // Comment: the tracker's id for it comes back.
-  const before = f.commentsPosted();
-  const posted = await adapter.comment(f.issue.id, "conformance");
-  assert(posted.id !== "", "a comment returns its id");
-  assertEquals(f.commentsPosted(), before + 1);
-
-  // Read back: the comment is in the ticket's activity, under the id the
-  // tracker returned for it, so a delivery record names what a read shows.
-  const commented = await adapter.fetchIssue(f.issue.id);
-  assertActivity(commented);
-  const seen = commented.activity!.find((a) => a.id === posted.id);
-  assert(seen !== undefined, "the comment is read back by its id");
-  assertEquals([seen.kind, seen.body], ["comment", "conformance"]);
-
-  // Status: a move reports changed; the same move again writes nothing.
-  const [first, second] = f.statusNames;
-  assertEquals((await adapter.setStatus(f.issue.id, first)).changed, true);
-  const again = await adapter.setStatus(f.issue.id, first);
-  assertEquals(again, { changed: false, status: again.status });
-  assertEquals(again.status.name, first);
-
-  // Failures, by kind.
-  const unknown = await rejectsWith(
-    "invalid",
-    () => adapter.setStatus(f.issue.id, "No Such Status"),
-  );
-  assert(unknown.message.includes(second), "lists the valid status names");
-  // A write, not a read: some trackers (the swamp-club Lab) serve reads to
-  // anyone, so a bad credential only shows once the adapter writes.
-  const { badAuth } = f;
-  if (badAuth !== undefined) {
-    await rejectsWith("auth", () => badAuth.comment(f.issue.id, "x"));
-  }
-  await rejectsWith("not_found", () => adapter.fetchIssue(f.missing));
-  await rejectsWith("not_found", () => adapter.comment(f.missing, "x"));
-
-  // Create: the new ticket is found by its stable id and its display
-  // identifier; a type the tracker does not have is refused.
+  const [, second] = f.statusNames;
   const draft = {
     title: "Conformance create",
     body: "Filed by the tracker conformance suite.",
     type: f.createType,
   };
-  const created = await adapter.create(draft);
-  assert(created.id !== "", "create returns the stable id");
-  assertEquals(created.title, draft.title);
-  const createdRead = await adapter.fetchIssue(created.id);
-  assertEquals(createdRead.id, created.id);
-  assertEquals((await adapter.fetchIssue(created.display)).id, created.id);
-  // Its content: the body is the description, and it has its times.
-  assertEquals(createdRead.description, draft.body);
-  for (const at of [createdRead.createdAt, createdRead.updatedAt]) {
-    assert(at !== undefined && !isNaN(Date.parse(at)), `a time: ${at}`);
-  }
-  assertActivity(createdRead);
-  await rejectsWith(
-    "invalid",
-    () => adapter.create({ ...draft, type: "No Such Type" }),
-  );
-
-  // History, where the adapter has it: an entry returns its id, and a type
-  // move reports changed, then writes nothing the second time. Where it has
-  // not, asking for it is refused as invalid, naming the capability.
-  const history = adapter.capabilities.history;
-  if ((history === undefined) !== (f.history === undefined)) {
-    throw new Error("fixture: history needs both the capability and counts");
-  }
-  if (history === undefined) {
-    const refused = await rejectsWith(
-      "invalid",
-      () =>
-        deliveries({
-          tracker: adapter.tracker,
-          adapter: () => adapter,
-          statuses: () => ({}),
-        }, () => new Date()).setType(fakeSwamp().context("tracker"), {
-          issue: f.issue.id,
-          type: f.createType,
-          key: null,
-          replay: false,
-        }),
-    );
-    assert(refused.message.includes("history"), refused.message);
-    await rejectsWith(
-      "invalid",
-      // deno-lint-ignore require-await
-      async () => requireCapability(adapter, "history"),
-    );
-  }
-  if (history !== undefined && f.history !== undefined) {
-    const entry = {
-      step: "conformance",
-      targetStatus: f.history.statusName,
-      summary: "conformance",
-      emoji: "\u{1F50D}",
-      payload: { checked: true },
-      isVerbose: false,
-    };
-    const entries = f.history.entriesPosted();
-    const written = await history.postEntry(f.issue.id, entry);
-    assert(written.id !== "", "an entry returns its id");
-    assertEquals(f.history.entriesPosted(), entries + 1);
-    const withEntry = await adapter.fetchIssue(f.issue.id);
-    assertActivity(withEntry);
-    const read = withEntry.activity!.find((a) => a.id === written.id);
-    assert(read !== undefined, "the entry is read back by its id");
-    assertEquals([read.kind, read.step], ["entry", entry.step]);
-    const [type, other] = f.history.types;
-    assertEquals(await history.setType(f.issue.id, type), {
-      changed: true,
-      type,
-    });
-    assertEquals(await history.setType(f.issue.id, type), {
-      changed: false,
-      type,
-    });
-    assertEquals((await history.setType(f.issue.id, other)).changed, true);
-    await rejectsWith(
-      "invalid",
-      () => history.setType(f.issue.id, "No Such Type"),
-    );
-    const badHistory = badAuth?.capabilities.history;
-    if (badHistory !== undefined) {
-      await rejectsWith("auth", () => badHistory.postEntry(f.issue.id, entry));
-    }
-    await rejectsWith(
-      "not_found",
-      () => history.postEntry(f.missing, entry),
-    );
-  }
-
-  // Assign, where the adapter has it: the user is added once, and the same
-  // assign again writes nothing. Where it has not, asking is refused.
-  const assigner = adapter.capabilities.assign;
-  if ((assigner === undefined) !== (f.assign === undefined)) {
-    throw new Error("fixture: assign needs both the capability and a user");
-  }
-  if (assigner === undefined) {
-    const refused = await rejectsWith(
-      "invalid",
-      // deno-lint-ignore require-await
-      async () => requireCapability(adapter, "assign"),
-    );
-    assert(refused.message.includes("assign"), refused.message);
-  }
-  if (assigner !== undefined && f.assign !== undefined) {
-    const { user } = f.assign;
-    const added = await assigner.assign(f.issue.id, user);
-    assertEquals([added.changed, added.user], [true, user]);
-    const again = await assigner.assign(f.issue.id, user);
-    assertEquals([again.changed, again.dropped], [false, []]);
-    assertEquals(
-      f.assign.assignees().filter((a) => a === user),
-      [user],
-      "assigned once",
-    );
-    const badAssign = badAuth?.capabilities.assign;
-    if (badAssign !== undefined) {
-      await rejectsWith("auth", () => badAssign.assign(f.issue.id, user));
-    }
-    await rejectsWith("not_found", () => assigner.assign(f.missing, user));
-  }
-
-  // Pull request links, where the adapter has them: linked once, the same
-  // url again writes nothing, and another replaces it. Where it has not,
-  // asking is refused.
-  const linker = adapter.capabilities.pullRequests;
-  if ((linker === undefined) !== (f.pullRequests === undefined)) {
-    throw new Error(
-      "fixture: pullRequests needs both the capability and a probe",
-    );
-  }
-  if (linker === undefined) {
-    const refused = await rejectsWith(
-      "invalid",
-      // deno-lint-ignore require-await
-      async () => requireCapability(adapter, "pullRequests"),
-    );
-    assert(refused.message.includes("pullRequests"), refused.message);
-  }
-  if (linker !== undefined && f.pullRequests !== undefined) {
-    const [one, two] = [
-      "https://git.example.com/o/r/pulls/1",
-      "https://git.example.com/o/r/pulls/2",
-    ];
-    assertEquals(await linker.linkPr(f.issue.id, one), {
-      changed: true,
-      url: one,
-    });
-    assertEquals(await linker.linkPr(f.issue.id, one), {
-      changed: false,
-      url: one,
-    });
-    assertEquals((await linker.linkPr(f.issue.id, two)).changed, true);
-    assertEquals(f.pullRequests.linked(), two);
-    const badLinker = badAuth?.capabilities.pullRequests;
-    if (badLinker !== undefined) {
-      await rejectsWith("auth", () => badLinker.linkPr(f.issue.id, one));
-    }
-    await rejectsWith("not_found", () => linker.linkPr(f.missing, one));
-  }
 
   // The ledger, through the shared methods: one delivery key, one write.
   const methods = trackerMethods({
@@ -352,10 +92,14 @@ export async function assertTrackerConformance(
     body: "delivered once",
     ...key,
   });
-  const posts = f.commentsPosted();
+  const posts = await f.commentsPosted();
   await methods.comment.execute(commentArgs, ctx);
   await methods.comment.execute(commentArgs, ctx);
-  assertEquals(f.commentsPosted(), posts + 1, "a repeated key posts nothing");
+  assertEquals(
+    await f.commentsPosted(),
+    posts + 1,
+    "a repeated key posts nothing",
+  );
 
   const statusArgs = methods.set_status.arguments.parse({
     issue: f.issue.id,
@@ -417,11 +161,11 @@ export async function assertTrackerConformance(
   const publishArgs = publisher.publish.arguments.parse({
     workItem: TRACKED_ITEM,
   });
-  const beforePublish = f.commentsPosted();
+  const beforePublish = await f.commentsPosted();
   await publisher.publish.execute(publishArgs, published.context("tracker"));
   await publisher.publish.execute(publishArgs, published.context("tracker"));
   assertEquals(
-    f.commentsPosted(),
+    await f.commentsPosted(),
     beforePublish + 1,
     "publish posts the started event once",
   );
@@ -592,75 +336,23 @@ async function assertDuplicateConformance(
 }
 
 /**
- * Relations, on four new tickets: each kind is written, read back on both
- * ends with its direction, and removed, and a repeat of either writes
- * nothing; every shared rule refuses as invalid, whether or not the tracker
- * keeps it itself; a missing ticket is not_found; and a keyed relate
- * through the methods writes once.
+ * A keyed relate through the methods writes once, even once the relation
+ * has been removed by hand. (The relations themselves, and their rules, are
+ * the contract's: contract_checks.ts.)
  */
 async function assertRelationConformance(
   f: ConformanceFixture,
   draft: IssueDraft,
 ): Promise<void> {
   const { adapter } = f;
-  const [a, b, c, d] = [
+  const [a, b] = [
     await adapter.create({ ...draft, title: "Relation A" }),
     await adapter.create({ ...draft, title: "Relation B" }),
-    await adapter.create({ ...draft, title: "Relation C" }),
-    await adapter.create({ ...draft, title: "Relation D" }),
   ];
   const relationsOf = async (issue: TrackerIssue) =>
     (await adapter.fetchIssue(issue.id)).relations.map((r) =>
       `${r.direction} ${r.type} ${r.issue}`
     ).sort();
-  const relate = (x: TrackerIssue, type: RelationType, y: TrackerIssue) =>
-    adapter.relate(x.id, type, y.id);
-  const unrelate = (x: TrackerIssue, type: RelationType, y: TrackerIssue) =>
-    adapter.unrelate(x.id, type, y.id);
-
-  // Each kind: written once, read on both ends, removed once.
-  for (const type of RELATION_TYPES) {
-    assertEquals(await relate(a, type, b), { changed: true }, type);
-    assertEquals(await relate(a, type, b), { changed: false }, type);
-    assertEquals(await relationsOf(a), [`outgoing ${type} ${b.id}`], type);
-    assertEquals(await relationsOf(b), [`incoming ${type} ${a.id}`], type);
-    assertEquals(await unrelate(a, type, b), { changed: true }, type);
-    assertEquals(await unrelate(a, type, b), { changed: false }, type);
-    assertEquals(await relationsOf(a), [], type);
-    assertEquals(await relationsOf(b), [], type);
-  }
-
-  // The rules.
-  await rejectsWith("invalid", () => relate(a, "related_to", a));
-  await relate(a, "parent_of", b);
-  await relate(b, "parent_of", c);
-  await rejectsWith("invalid", () => relate(d, "parent_of", b)); // 2nd parent
-  await rejectsWith("invalid", () => relate(c, "parent_of", a)); // a cycle
-  await unrelate(b, "parent_of", c);
-  await unrelate(a, "parent_of", b);
-  await relate(d, "duplicate_of", a);
-  await rejectsWith("invalid", () => relate(d, "duplicate_of", b)); // 2nd
-  await rejectsWith("invalid", () => relate(c, "duplicate_of", d)); // chain
-  await rejectsWith("invalid", () => relate(a, "duplicate_of", b)); // has dups
-  await unrelate(d, "duplicate_of", a);
-  for (const issue of [a, b, c, d]) {
-    assertEquals(await relationsOf(issue), [], "every refusal wrote nothing");
-  }
-
-  // Missing tickets, either end.
-  await rejectsWith(
-    "not_found",
-    () => adapter.relate(a.id, "related_to", f.missing),
-  );
-  await rejectsWith(
-    "not_found",
-    () => adapter.relate(f.missing, "related_to", a.id),
-  );
-  await rejectsWith(
-    "not_found",
-    () => adapter.unrelate(a.id, "related_to", f.missing),
-  );
-
   // The ledger: a repeat of the key writes nothing, even once the relation
   // has been removed by hand.
   const methods = trackerMethods({
@@ -677,7 +369,7 @@ async function assertRelationConformance(
     journalVersion: "4",
   });
   await methods.relate.execute(args, ctx);
-  await unrelate(a, "blocked_by", b);
+  await adapter.unrelate(a.id, "blocked_by", b.id);
   await methods.relate.execute(args, ctx);
   assertEquals(await relationsOf(a), [], "a repeated key relates nothing");
 }

@@ -125,9 +125,25 @@ const LET_AND_PASS_AS_INPUTS: UpgradeStep = {
   },
 };
 
+/**
+ * 2 to 3 (#3274): a tracker kind may name any tracker, not only those
+ * stagecraft ships, so a definition can be written for a tracker that is a
+ * separate extension. Nothing a v2 definition says changes; the version
+ * moves so a stagecraft before this one refuses a v3 definition as needing
+ * a newer stagecraft, rather than as an unknown kind.
+ */
+const OPEN_TRACKER_KINDS: UpgradeStep = {
+  from: 2,
+  description: "a tracker kind may name any tracker",
+  upgrade(definition) {
+    return { ...definition, schemaVersion: 3 };
+  },
+};
+
 /** Every format change since schemaVersion 1, oldest first. */
 export const DEFINITION_UPGRADES: readonly UpgradeStep[] = [
   LET_AND_PASS_AS_INPUTS,
+  OPEN_TRACKER_KINDS,
 ];
 
 /** The chain this runtime reads factory definitions with. */

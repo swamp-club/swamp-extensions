@@ -42,10 +42,12 @@ import {
   deliveryKeyOf,
   prefixArgument,
   type TrackerContext,
-  trackerMethods,
   type TrackerModelOptions,
-  trackerResources,
 } from "../_lib/tracker/core/tracker_methods.ts";
+import {
+  trackerModelMethods,
+  trackerModelResources,
+} from "../_lib/tracker/core/tracker_model.ts";
 
 // ---------------------------------------------------------------------------
 // The swamp-club Lab adapter: one instance per swamp-club server. Its key
@@ -330,7 +332,7 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
   const deliver = deliveries(trackerOptions, now);
 
   return {
-    ...trackerMethods(trackerOptions),
+    ...trackerModelMethods(trackerOptions),
     set_type: {
       description:
         "Set a Lab issue's type (publish is the single writer of a work item's type); already that type writes nothing",
@@ -547,10 +549,18 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. swamp_club_test checks it equals SWAMP_CLUB_TYPE.
   type: "@swamp/stagecraft/swamp-club",
-  version: "2026.10.02.2",
+  version: "2026.10.12.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.12.1",
+      description: "Add describe, operate and round, the methods the " +
+        "shipped tracker workflows call (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: SwampClubArgumentsSchema,
   resources: {
-    ...trackerResources,
+    ...trackerModelResources,
     [ATTESTATION_SPEC]: {
       description:
         "What swamp-club returned for each attestation posted, by commit",

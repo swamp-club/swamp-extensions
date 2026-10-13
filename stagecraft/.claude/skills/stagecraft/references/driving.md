@@ -156,17 +156,19 @@ object mapping tracker to id, which the command `claim` prints sets.
 
 ## Start from a ticket
 
-When the work comes from a tracker ticket (a Linear issue or a built-in
-tracker's ticket), start it through the tracker's adapter instance, so the same
+When the work comes from a tracker ticket (a Linear issue, a built-in tracker's
+ticket, or one on a tracker written as a separate extension), start it through
+the shipped claim workflow, on the instance the factory is bound to, so the same
 ticket never starts twice:
 
 ```sh
-swamp model method run <tracker> claim --input issue=<ticket> \
-  --input factory=<factory>
+swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> \
+  --input issue=<ticket> --input factory=<factory>
 ```
 
 `issue` is the ticket's id or its display identifier (`ABC-12`, `docs-12`).
-`claim` answers in one of these ways:
+`claim` answers in the workflow's output, on a line from one of its rounds
+(`round-2 │ ...`), in one of these ways:
 
 - **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
   item, so `claim` reserved a key and recorded it in the adapter's ticket index.
@@ -197,23 +199,25 @@ ticket, claiming it again reserves a new one. To only look, add
 has none, and writes nothing. `claim` never comments on or moves the ticket.
 Never choose a key by hand for a ticket's work item; `claim` names it.
 
-To file a new ticket, for new work or when the person asks for one, run `create`
-on the tracker's instance, then claim the id it prints (the built-in tracker
-numbers them: `docs-1`, `docs-2`):
+To file a new ticket, for new work or when the person asks for one, run the
+create workflow on the tracker's instance, then claim the id it prints (the
+built-in tracker numbers them: `docs-1`, `docs-2`):
 
 ```sh
-swamp model method run <tracker> create --input 'title=<title>' \
-  --input 'body=<body>' --input 'type=<type>'
+swamp workflow run @swamp/stagecraft/create --input tracker=<tracker> \
+  --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'
 ```
 
 The type must be one the tracker has (the built-in tracker: its `types`; Linear:
 a type its `types` argument maps to a label). When the person wants the ticket
 to carry an id from a system with no stagecraft tracker (a Jira ticket such as
-`SREMON-2131`), the built-in tracker's `create` takes `--input id=<id>`: the
-ticket shows it as written and its work item's key is it lowercased. It is a
-label only; say that nothing syncs with the other system. Never re-run a
-`create` that may have gone through: check the tracker first, since a retry
-files a second ticket.
+`SREMON-2131`), the built-in tracker's own `create` method takes
+`--input id=<id>`
+(`swamp model method run <tracker> create --input id=<id> ...`, with the same
+title, body and type): the ticket shows it as written and its work item's key is
+it lowercased. It is a label only; say that nothing syncs with the other system.
+Never re-run a `create` that may have gone through: check the tracker first,
+since a retry files a second ticket.
 
 ## Read status
 
@@ -660,12 +664,18 @@ must decide again.
 ## Keep the ticket in step
 
 When the work item was started with `externalRefs` for its tracker, publish it
-after each write, on the tracker instance its factory was bound to when it
-started (`<tracker>`; publish refuses any other instance):
+after each write, through the shipped publish workflow on the tracker instance
+its factory was bound to when it started (`<tracker>`; publish refuses any other
+instance):
 
 ```sh
-swamp model method run <tracker> publish --input workItem=<key>
+swamp workflow run @swamp/stagecraft/publish --input tracker=<tracker> \
+  --input workItem=<key>
 ```
+
+A run that stopped, or did not finish in its rounds, fails its last step with
+the reason; run it again once the reason is fixed, and it carries on from what
+was delivered.
 
 `status` says when the ticket is behind. It reads the tracker's publish cursor,
 with no network call, and while events are waiting it prints a line such as:
@@ -728,11 +738,11 @@ ticket that already has one.
 A duplicate ticket's work belongs to its primary, the ticket it duplicates.
 There are two ways to mark one.
 
-**A person marks it** on the tracker's instance (or in the tracker itself):
+**A person marks it** through the tracker workflows (or in the tracker itself):
 
 ```sh
-swamp model method run <tracker> mark_duplicate --input issue=<duplicate> \
-  --input primary=<primary>
+swamp workflow run @swamp/stagecraft/mark-duplicate --input tracker=<tracker> \
+  --input issue=<duplicate> --input primary=<primary>
 ```
 
 `mark_duplicate` relates the ticket `duplicate_of` the primary and closes it

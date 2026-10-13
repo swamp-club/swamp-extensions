@@ -1,0 +1,229 @@
+# Written by scripts/build_workflows.ts: change it there, then
+# run deno task build:workflows.
+id: 77b36c9c-f784-47a9-ab6d-39ea84599f09
+name: "@swamp/stagecraft/claim"
+description: "Start from a ticket: report its work item, or reserve a key for a new one and print the start command."
+version: 1
+inputs:
+  properties:
+    tracker:
+      type: string
+      description: "The tracker instance the factory is bound to: a tracker stagecraft ships, or a publisher for a tracker written as a separate extension"
+    issue:
+      type: string
+      description: "The ticket: its stable id, or its display identifier"
+    factory:
+      type: string
+      description: The factory to start a new work item under; needed only when the ticket has no work item, or its last one has finished
+      default: ""
+    dryRun:
+      type: boolean
+      description: Report the ticket's work item, and write nothing
+      default: false
+  required:
+    - tracker
+    - issue
+jobs:
+  - name: round-1
+    description: Plan the first round
+    steps:
+      - name: round
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: claim
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            factory: ${{ inputs.factory }}
+            dryRun: ${{ inputs.dryRun }}
+  - name: write-1
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-1
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-1
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-1
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-2
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-1
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: claim
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            factory: ${{ inputs.factory }}
+            dryRun: ${{ inputs.dryRun }}
+  - name: write-2
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-2
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-2
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-2
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: round-3
+    description: Record the last round's answers and plan the next
+    dependsOn:
+      - job: read-2
+        condition:
+          type: completed
+    steps:
+      - name: round
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.done }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: claim
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            factory: ${{ inputs.factory }}
+            dryRun: ${{ inputs.dryRun }}
+  - name: write-3
+    description: Make the round's writes on the tracker, in order
+    dependsOn:
+      - job: round-3
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.opIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: read-3
+    description: Read the ticket the round needs
+    dependsOn:
+      - job: write-3
+        condition:
+          type: completed
+    steps:
+      - name: operate
+        forEach:
+          item: op
+          in: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.readIds }}
+        concurrency: 1
+        guard: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev != "" && (data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev) == null || data.latest(data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker, data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].prev).attributes.ok != true) }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].tracker }}
+          methodName: operate
+          inputs:
+            operation: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].operation }}
+            request: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].request }}
+            answer: ${{ data.latest(inputs.tracker, "round-claim-" + run.id).attributes.byId[self.op].answer }}
+            run: ${{ run.id }}
+  - name: check
+    description: Fail the run if it stopped or did not finish
+    dependsOn:
+      - job: read-3
+        condition:
+          type: completed
+    steps:
+      - name: check
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.tracker }}
+          methodName: round
+          inputs:
+            kind: claim
+            run: ${{ run.id }}
+            issue: ${{ inputs.issue }}
+            factory: ${{ inputs.factory }}
+            dryRun: ${{ inputs.dryRun }}
+            check: true

@@ -25,11 +25,7 @@ import {
 } from "./payload_schema.ts";
 import type { CelContext } from "./cel_context.ts";
 import { isCelNode, productKind, productRefs } from "./cel_refs.ts";
-import {
-  DEFAULT_TRACKER_KIND,
-  TRACKER_KINDS,
-  type TrackerKind,
-} from "./tracker_binding.ts";
+import { DEFAULT_TRACKER_KIND, TrackerNameSchema } from "./tracker_binding.ts";
 import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 import { parseSummary } from "./entry_summary.ts";
 
@@ -56,7 +52,7 @@ import { parseSummary } from "./entry_summary.ts";
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
-export const DEFINITION_SCHEMA_VERSION = 2;
+export const DEFINITION_SCHEMA_VERSION = 3;
 
 /** Names for stages, transitions, artifacts, evidence, gates. Safe as path
  * segments and shell words on every platform (#2290). */
@@ -734,9 +730,12 @@ export const DefinitionSchema = z.strictObject({
           `(up to ${DEFINITION_SCHEMA_VERSION})`,
   }),
   description: z.string().optional(),
-  /** The kind of tracker the factory definition is written for; the factory
-   * names the instance. Absent: the built-in tracker. */
-  tracker: z.strictObject({ kind: z.enum(TRACKER_KINDS) }).optional(),
+  /** The kind of tracker the factory definition is written for: its name,
+   * which is also its externalRefs key. builtin, linear and swamp-club are
+   * the trackers stagecraft ships; any other is a tracker written as a
+   * separate extension, reached through a publisher. The factory names the
+   * instance. Absent: the built-in tracker. */
+  tracker: z.strictObject({ kind: TrackerNameSchema }).optional(),
   stages: z.array(StageSchema).min(1),
   /** Escape hatches (abort, escalate) available from any non-terminal stage. */
   globalTransitions: z.array(TransitionSchema).optional(),
@@ -745,7 +744,7 @@ export const DefinitionSchema = z.strictObject({
 export type FactoryDefinition = z.infer<typeof DefinitionSchema>;
 
 /** The tracker kind a factory definition is written for. */
-export function trackerKindOf(definition: FactoryDefinition): TrackerKind {
+export function trackerKindOf(definition: FactoryDefinition): string {
   return definition.tracker?.kind ?? DEFAULT_TRACKER_KIND;
 }
 

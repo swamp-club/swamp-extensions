@@ -137,24 +137,27 @@ Factory methods run by instance name:
 `swamp model method run <factory> validate` checks a factory definition in full
 and runs its saved scenarios.
 
-Work starts from a tracker ticket, through the tracker's adapter instance:
-`swamp model method run <tracker> claim --input issue=<ticket> --input factory=<factory>`
+Work starts from a tracker ticket, through the shipped tracker workflows, which
+drive every tracker the same way; `<tracker>` is the instance the factory is
+bound to:
+`swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> --input issue=<ticket> --input factory=<factory>`
 reserves a key for the ticket, its id (`docs-12`, `abc-12`), and prints the
 `start` command to run, or names the work item the ticket already has. Re-run it
 after any failure. A project with no external tracker has the built-in one
 (`@swamp/stagecraft/tracker`). For new work, or when the person asks for a new
 ticket, file it with
-`swamp model method run <tracker> create --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'`,
+`swamp workflow run @swamp/stagecraft/create --input tracker=<tracker> --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'`,
 then claim it. `start` also takes any unused name chosen by hand, for work with
 no ticket. See
 [references/driving.md](references/driving.md#start-from-a-ticket). To link two
-tickets (a parent and its child, a blocker), use
+tickets (a parent and its child, a blocker) on a tracker stagecraft ships, use
 `swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
 with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
 second parent, a parent cycle and a duplicate chain the same way. Relations
-belong to the tracker: read them with `fetch_issue`, not from memory. When a
-person says a ticket duplicates another, mark it with
-`swamp model method run <tracker> mark_duplicate --input issue=<duplicate> --input primary=<primary>`,
+belong to the tracker: read them with
+`swamp workflow run @swamp/stagecraft/fetch-issue --input tracker=<tracker> --input issue=<id>`,
+not from memory. When a person says a ticket duplicates another, mark it with
+`swamp workflow run @swamp/stagecraft/mark-duplicate --input tracker=<tracker> --input issue=<duplicate> --input primary=<primary>`,
 which also closes it; its work moves to the primary by a retarget or the
 definition's duplicate exit. See
 [references/driving.md](references/driving.md#duplicates).

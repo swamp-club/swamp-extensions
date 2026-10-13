@@ -173,6 +173,14 @@ Check the connection by fetching an issue:
 swamp model method run linear fetch_issue --input issue=ABC-1
 ```
 
+**Your own tracker**: if your tickets live in a system stagecraft has no
+tracker for, you can write one as a separate extension, a model with two
+methods, `describe` and `operate`, and put a `@swamp/stagecraft/publisher` in
+front of it. [TRACKERS.md](TRACKERS.md) is the guide, and the
+`@swamp/stagecraft/conformance` workflow checks your tracker against the
+contract the trackers stagecraft ships meet. See
+[REFERENCE.md](REFERENCE.md#a-tracker-written-as-a-separate-extension).
+
 Then ask your agent to use Linear for your factory. See
 [REFERENCE.md](REFERENCE.md#linear) for every Linear method.
 

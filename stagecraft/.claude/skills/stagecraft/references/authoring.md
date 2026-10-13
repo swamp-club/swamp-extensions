@@ -228,10 +228,10 @@ command `claim` prints ([driving.md](driving.md#start-from-a-ticket)). On the
 built-in tracker:
 
 ```sh
-swamp model method run <tracker> create --input 'title=<title>' \
-  --input 'body=<body>' --input 'type=<type>'
-swamp model method run <tracker> claim --input issue=<ticket> \
-  --input factory=<factory>
+swamp workflow run @swamp/stagecraft/create --input tracker=<tracker> \
+  --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'
+swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> \
+  --input issue=<ticket> --input factory=<factory>
 swamp model @swamp/stagecraft/work-item method run start <key> \
   --input factory=<factory> --input 'title=<title>' \
   --input 'externalRefs=<external-refs>'
@@ -253,10 +253,11 @@ to start the next one.
 
 ## The tracker
 
-Offer only the built-in tracker and Linear. Never offer or set up the swamp-club
-Lab tracker (`@swamp/stagecraft/swamp-club`): it is for the swamp-club team's
-own repositories and needs a swamp-club team account, so it is not an option for
-anyone else.
+Offer the built-in tracker and Linear, and a tracker written as a separate
+extension when the person has one (see "Another tracker" below). Never offer or
+set up the swamp-club Lab tracker (`@swamp/stagecraft/swamp-club`): it is for
+the swamp-club team's own repositories and needs a swamp-club team account, so
+it is not an option for anyone else.
 
 Create the tracker's adapter instance once per project, next to the factory. The
 factory names it (its `tracker` argument), and `validate` refuses the factory
@@ -294,6 +295,35 @@ rename it:
 ```sh
 swamp model create @swamp/stagecraft/linear <tracker> --json
 ```
+
+**Another tracker**: a tracker written as a separate extension (the person's
+own, for Jira, GitHub Issues or an in-house system) is reached through a
+publisher. Install the tracker's extension, create its instance and set it up as
+its README says, then have it describe itself once:
+
+```sh
+swamp model method run <their-tracker> describe
+```
+
+Create a publisher in front of it, naming the tracker instance, and set its
+`statuses` (each status key the definition uses, mapped to the tracker's status
+name) in the model file `model create` prints:
+
+```sh
+swamp model create @swamp/stagecraft/publisher <tracker> \
+  --global-arg tracker=<their-tracker> --json
+```
+
+Add `tracker: { kind: <name> }` at the top of the definition, where `<name>` is
+the name the tracker described itself by
+(`swamp data get <their-tracker>
+description` shows it), and bind the factory to
+the publisher, `<tracker>`. `validate` refuses the factory until the tracker has
+described itself under that name. Every tracker workflow then takes
+`--input tracker=<tracker>`, as for the trackers stagecraft ships. To check a
+tracker the person is writing, run `@swamp/stagecraft/conformance` on a
+publisher in front of a test instance of it (the writing-a-tracker guide,
+`TRACKERS.md` in the stagecraft extension, says what it checks).
 
 ## Authoring rules
 

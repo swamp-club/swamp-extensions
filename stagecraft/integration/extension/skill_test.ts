@@ -466,6 +466,7 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
   const label = (c: (typeof commands)[number]) => {
     if (c.write !== undefined) return "agent write";
     const w = c.words;
+    if (w[1] === "workflow") return w[3].split("/").at(-1);
     return w[2] === "method"
       ? w[5]
       : w[3] === "method"
@@ -724,4 +725,44 @@ Deno.test("skill and REFERENCE.md: the swamp-club Lab is named only as the swamp
   );
   assertEquals(unlabelled, []);
   assertEquals(skillFiles.filter((f) => mentions.test(f)), []);
+});
+
+Deno.test("skill: a shipped workflow command names a workflow, its inputs and every one it needs", () => {
+  const check = (line: string) => checkCommand(splitWords(line));
+  assertEquals(
+    check(
+      "swamp workflow run @swamp/stagecraft/publish --input tracker=<tracker> --input workItem=<key>",
+    ),
+    null,
+  );
+  assertEquals(
+    check(
+      "swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> --input issue=<ticket>",
+    ),
+    null,
+    "factory and dryRun have defaults",
+  );
+  assertEquals(
+    check(
+      "swamp workflow run @swamp/stagecraft/publish --input tracker=<tracker>",
+    ),
+    "@swamp/stagecraft/publish needs workItem",
+  );
+  assertEquals(
+    check(
+      "swamp workflow run @swamp/stagecraft/publish --input tracker=<tracker> --input workItem=<key> --input key=<key>",
+    ),
+    "@swamp/stagecraft/publish takes no input 'key'",
+  );
+  assertEquals(
+    check(
+      "swamp workflow run @swamp/stagecraft/nope --input tracker=<tracker>",
+    ),
+    "no shipped workflow '@swamp/stagecraft/nope'",
+  );
+  assertEquals(check("swamp model method run <their-tracker> describe"), null);
+  assert(
+    check("swamp model method run <their-tracker> publish") !== null,
+    "a tracker written as a separate extension has only describe and operate",
+  );
 });

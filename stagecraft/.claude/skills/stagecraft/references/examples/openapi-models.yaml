@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 2
+  schemaVersion: 3
   description: |-
     Turn an API's OpenAPI spec into swamp models: scope the spec, map its
     resources to models, have the mapping reviewed and approved, implement

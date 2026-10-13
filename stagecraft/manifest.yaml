@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/stagecraft"
-version: "2026.10.12.2"
+version: "2026.10.12.3"
 description: |
   stagecraft builds factories. A factory describes your process as a set of
   stages: in each one, work makes an artifact or records evidence, and gates
@@ -38,6 +38,23 @@ description: |
     work items
   - `@swamp/stagecraft/tracker`: the built-in tracker, kept in swamp data
   - `@swamp/stagecraft/linear`: publishes work items as Linear issues
+  - `@swamp/stagecraft/publisher`: publishes work items to a tracker
+    written as a separate extension
+
+  ## Workflows
+
+  Every tracker is driven through the same shipped workflows:
+  `@swamp/stagecraft/publish`, `claim`, `create`, `fetch-issue` and
+  `mark-duplicate`, each with `--input tracker=<instance>`, and
+  `@swamp/stagecraft/conformance`, which checks a tracker against the tracker
+  contract.
+
+  ## Your own tracker
+
+  A team that tracks work elsewhere (Jira, GitHub Issues, an in-house system)
+  can write its tracker as a separate extension: a model with `describe` and
+  `operate`, behind a publisher. TRACKERS.md, shipped with this extension, is
+  the guide.
 
 repository: "https://github.com/swamp-club/swamp-extensions"
 
@@ -50,13 +67,23 @@ models:
   - engine/studio.ts
   - tracker/builtin.ts
   - tracker/linear.ts
+  - tracker/publisher.ts
 
 reports:
   - work_item_summary_report.ts
 
+workflows:
+  - publish.yaml
+  - mark_duplicate.yaml
+  - claim.yaml
+  - create.yaml
+  - fetch_issue.yaml
+  - conformance.yaml
+
 additionalFiles:
   - LICENSE.txt
   - README.md
+  - TRACKERS.md
 
 platforms: []
 

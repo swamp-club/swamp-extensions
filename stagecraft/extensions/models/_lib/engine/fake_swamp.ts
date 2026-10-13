@@ -301,12 +301,20 @@ export function fakeSwamp(): FakeSwamp {
           for (const [resource, versions] of map) {
             const specName = specs.get(modelName)?.get(resource) ?? "";
             versions.forEach((data, i) => {
-              const hit = evaluate(predicate, {
-                modelName,
-                specName,
-                name: resource,
-                version: i + 1,
-              });
+              // swamp's model("<name>") resolves a model in this
+              // repository; the fake has one namespace, so it is the name.
+              const hit = evaluate(
+                predicate.replace(
+                  /model\(("(?:[^"\\]|\\.)*")\)/g,
+                  "modelName == $1",
+                ),
+                {
+                  modelName,
+                  specName,
+                  name: resource,
+                  version: i + 1,
+                },
+              );
               if (hit !== true) return;
               records.push({
                 name: resource,
