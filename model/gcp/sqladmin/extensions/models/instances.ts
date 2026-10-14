@@ -196,6 +196,13 @@ const GlobalArgsSchema = z.object({
   connectionName: z.string().describe(
     "Connection name of the Cloud SQL instance used in connection strings.",
   ).optional(),
+  databaseCenterIntegration: z.enum([
+    "DATABASE_CENTER_INTEGRATION_UNSPECIFIED",
+    "ENABLED",
+    "DISABLED",
+  ]).describe(
+    "Optional. State of the Database Center integration for this instance. When unspecified, Database Center integration is enabled by default.",
+  ).optional(),
   databaseCenterIntegrationEnabled: z.boolean().describe(
     "Optional. If true, instance metadata is sent to the Database Center. If false, instance metadata is not sent to the Database Center.",
   ).optional(),
@@ -1078,6 +1085,9 @@ const GlobalArgsSchema = z.object({
       "User-provided labels, represented as a dictionary where each label is a single key value pair.",
     ).optional(),
   }).describe("The user settings.").optional(),
+  skipPrecheck: z.boolean().describe(
+    "Optional. Input only. Determines whether the precheck step is skipped during a major version upgrade.",
+  ).optional(),
   sqlNetworkArchitecture: z.enum([
     "SQL_NETWORK_ARCHITECTURE_UNSPECIFIED",
     "NEW_NETWORK_ARCHITECTURE",
@@ -1129,6 +1139,7 @@ const StateSchema = z.object({
   connectionName: z.string().optional(),
   createTime: z.string().optional(),
   currentDiskSize: z.string().optional(),
+  databaseCenterIntegration: z.string().optional(),
   databaseCenterIntegrationEnabled: z.boolean().optional(),
   databaseInstalledVersion: z.string().optional(),
   databaseVersion: z.string().optional(),
@@ -1486,6 +1497,7 @@ const StateSchema = z.object({
     timeZone: z.string(),
     userLabels: z.record(z.string(), z.unknown()),
   }).optional(),
+  skipPrecheck: z.boolean().optional(),
   sqlNetworkArchitecture: z.string().optional(),
   state: z.string().optional(),
   suspensionReason: z.array(z.string()).optional(),
@@ -1517,6 +1529,13 @@ const InputsSchema = z.object({
   ).optional(),
   connectionName: z.string().describe(
     "Connection name of the Cloud SQL instance used in connection strings.",
+  ).optional(),
+  databaseCenterIntegration: z.enum([
+    "DATABASE_CENTER_INTEGRATION_UNSPECIFIED",
+    "ENABLED",
+    "DISABLED",
+  ]).describe(
+    "Optional. State of the Database Center integration for this instance. When unspecified, Database Center integration is enabled by default.",
   ).optional(),
   databaseCenterIntegrationEnabled: z.boolean().describe(
     "Optional. If true, instance metadata is sent to the Database Center. If false, instance metadata is not sent to the Database Center.",
@@ -2400,6 +2419,9 @@ const InputsSchema = z.object({
       "User-provided labels, represented as a dictionary where each label is a single key value pair.",
     ).optional(),
   }).describe("The user settings.").optional(),
+  skipPrecheck: z.boolean().describe(
+    "Optional. Input only. Determines whether the precheck step is skipped during a major version upgrade.",
+  ).optional(),
   sqlNetworkArchitecture: z.enum([
     "SQL_NETWORK_ARCHITECTURE_UNSPECIFIED",
     "NEW_NETWORK_ARCHITECTURE",
@@ -2470,7 +2492,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2727,6 +2749,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: databaseCenterIntegration, skipPrecheck",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2759,6 +2786,9 @@ export const model = {
         }
         if (g["connectionName"] !== undefined) {
           body["connectionName"] = g["connectionName"];
+        }
+        if (g["databaseCenterIntegration"] !== undefined) {
+          body["databaseCenterIntegration"] = g["databaseCenterIntegration"];
         }
         if (g["databaseCenterIntegrationEnabled"] !== undefined) {
           body["databaseCenterIntegrationEnabled"] =
@@ -2834,6 +2864,9 @@ export const model = {
           body["serviceAccountEmailAddress"] = g["serviceAccountEmailAddress"];
         }
         if (g["settings"] !== undefined) body["settings"] = g["settings"];
+        if (g["skipPrecheck"] !== undefined) {
+          body["skipPrecheck"] = g["skipPrecheck"];
+        }
         if (g["sqlNetworkArchitecture"] !== undefined) {
           body["sqlNetworkArchitecture"] = g["sqlNetworkArchitecture"];
         }
@@ -2964,6 +2997,9 @@ export const model = {
         if (g["connectionName"] !== undefined) {
           body["connectionName"] = g["connectionName"];
         }
+        if (g["databaseCenterIntegration"] !== undefined) {
+          body["databaseCenterIntegration"] = g["databaseCenterIntegration"];
+        }
         if (g["databaseCenterIntegrationEnabled"] !== undefined) {
           body["databaseCenterIntegrationEnabled"] =
             g["databaseCenterIntegrationEnabled"];
@@ -3035,6 +3071,9 @@ export const model = {
           body["serviceAccountEmailAddress"] = g["serviceAccountEmailAddress"];
         }
         if (g["settings"] !== undefined) body["settings"] = g["settings"];
+        if (g["skipPrecheck"] !== undefined) {
+          body["skipPrecheck"] = g["skipPrecheck"];
+        }
         if (g["sqlNetworkArchitecture"] !== undefined) {
           body["sqlNetworkArchitecture"] = g["sqlNetworkArchitecture"];
         }
@@ -3056,6 +3095,7 @@ export const model = {
         let live: Record<string, unknown> | undefined;
         const unset = [
           "connectionName",
+          "databaseCenterIntegration",
           "databaseCenterIntegrationEnabled",
           "diskEncryptionConfiguration",
           "diskEncryptionStatus",
@@ -3080,6 +3120,7 @@ export const model = {
           "secondaryGceZone",
           "serverCaCert",
           "settings",
+          "skipPrecheck",
           "sqlNetworkArchitecture",
           "state",
           "suspensionReason",

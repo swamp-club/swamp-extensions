@@ -368,6 +368,14 @@ const EncryptionContractConfigurationSchema = z.object({
   ]),
 });
 
+const ContentKeyPeriodConfigurationSchema = z.object({
+  ContentKeyPeriodTiming: z.enum([
+    "INDEX_ONLY",
+    "START_END_ONLY",
+    "INDEX_WITH_START_END",
+  ]).optional(),
+});
+
 const SpekeKeyProviderSchema = z.object({
   EncryptionContractConfiguration: EncryptionContractConfigurationSchema
     .describe(
@@ -397,6 +405,10 @@ const SpekeKeyProviderSchema = z.object({
     ),
   ).describe(
     "The ARN for the certificate that you imported to Amazon Web Services Certificate Manager to add content key encryption to this endpoint. For this feature to work, your DRM key provider must support content key encryption.",
+  ).optional(),
+  SpekeVersion: z.enum(["V2_0", "V2_1"]).optional(),
+  ContentKeyPeriodConfiguration: ContentKeyPeriodConfigurationSchema.describe(
+    "The configuration that controls the content key period timing information that MediaPackage signals to your DRM key provider.",
   ).optional(),
 });
 
@@ -642,7 +654,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -716,6 +728,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

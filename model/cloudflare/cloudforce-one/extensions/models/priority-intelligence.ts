@@ -49,6 +49,10 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["default", "datasets"]),
     dataset_ids: z.array(z.string()).optional(),
   }).optional(),
+  digest_interval_hours: z.union([z.literal(6), z.literal(12), z.literal(24)])
+    .describe(
+      "Hours between digests: 6, 12, or 24. Used only when `notification_mode` is `digest`.",
+    ).optional(),
   intent: z.object({
     clauses: z.array(z.object({
       actors: z.array(z.string().min(1).max(200)),
@@ -65,7 +69,9 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   labels: z.array(z.string().max(100)).optional(),
   model: z.string().min(1).max(200).optional(),
-  notification_mode: z.enum(["none", "immediate", "digest"]).optional(),
+  notification_mode: z.enum(["none", "immediate", "digest"]).describe(
+    "`none` or `digest`. Notifications are opt-in. `immediate` is reserved and currently rejected.",
+  ).optional(),
   priority: z.number().int().min(0).optional(),
   query: z.object({
     branches: z.array(z.array(z.object({
@@ -136,6 +142,8 @@ const InputsSchema = z.object({
     type: z.enum(["default", "datasets"]),
     dataset_ids: z.array(z.string()).optional(),
   }).optional(),
+  digest_interval_hours: z.union([z.literal(6), z.literal(12), z.literal(24)])
+    .optional(),
   intent: z.object({
     clauses: z.array(z.object({
       actors: z.array(z.string().min(1).max(200)),
@@ -206,7 +214,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Priority-intelligence. Registered at `@swamp/cloudflare/cloudforce-one/priority-intelligence`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/priority-intelligence",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -222,6 +230,11 @@ export const model = {
       toVersion: "2026.10.13.1",
       description:
         "Added: confirm_query, dataset_scope, intent, model, notification_mode, query, query_source, status, title",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: digest_interval_hours",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -251,6 +264,9 @@ export const model = {
           "/cloudforce-one/v2/priority-intelligence";
         const body: Record<string, unknown> = {};
         if (g.dataset_scope !== undefined) body.dataset_scope = g.dataset_scope;
+        if (g.digest_interval_hours !== undefined) {
+          body.digest_interval_hours = g.digest_interval_hours;
+        }
         if (g.intent !== undefined) body.intent = g.intent;
         if (g.labels !== undefined) body.labels = g.labels;
         if (g.model !== undefined) body.model = g.model;
@@ -318,6 +334,12 @@ export const model = {
         const filters: [string, string][] = [];
         if (g.confirm_query !== undefined) {
           filters.push(["confirm_query", String(g.confirm_query)]);
+        }
+        if (g.digest_interval_hours !== undefined) {
+          filters.push([
+            "digest_interval_hours",
+            String(g.digest_interval_hours),
+          ]);
         }
         if (g.model !== undefined) filters.push(["model", String(g.model)]);
         if (g.notification_mode !== undefined) {
@@ -441,6 +463,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.confirm_query !== undefined) body.confirm_query = g.confirm_query;
         if (g.dataset_scope !== undefined) body.dataset_scope = g.dataset_scope;
+        if (g.digest_interval_hours !== undefined) {
+          body.digest_interval_hours = g.digest_interval_hours;
+        }
         if (g.intent !== undefined) body.intent = g.intent;
         if (g.labels !== undefined) body.labels = g.labels;
         if (g.model !== undefined) body.model = g.model;

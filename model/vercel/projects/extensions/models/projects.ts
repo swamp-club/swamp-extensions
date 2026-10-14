@@ -359,7 +359,6 @@ const GlobalArgsSchema = z.object({
       value: z.string(),
       note: z.string().max(20).optional(),
     })),
-    protectionMode: z.enum(["exclusive", "additional"]),
   }).describe(
     "Restricts access to deployments based on the incoming request IP address",
   ).optional(),
@@ -1646,7 +1645,6 @@ const InputsSchema = z.object({
       value: z.string(),
       note: z.string().max(20).optional(),
     })),
-    protectionMode: z.enum(["exclusive", "additional"]),
   }).optional(),
   trustedSources: z.object({
     enableVercelCiSameRepository: z.boolean().optional(),
@@ -1713,7 +1711,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1907,6 +1905,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -281,7 +281,7 @@ const GlobalArgsSchema = z.object({
       "ENFORCED",
       "AWAITING_NEXT_PERIOD",
     ]).describe(
-      "Required. The desired state specified by the user. Valid values for mutation: - `CONFIGURED`: Must be set when creating a spend cap (`CreateBudget`). Also valid when updating (`UpdateBudget`) to activate the spend cap. - `AWAITING_NEXT_PERIOD`: Valid only when updating (`UpdateBudget`) to explicitly lift an enforced cap. Supplying any other value will result in an INVALID_ARGUMENT error.",
+      "Required. The desired state specified by the user. Valid values for mutation: - `CONFIGURED`: Must be set when creating a spend cap (`CreateBudget`). Also valid when updating (`UpdateBudget`) to activate the spend cap. If the spend cap is in state `AWAITING_NEXT_PERIOD`, `input_state` must be set to `CONFIGURED`. - `AWAITING_NEXT_PERIOD`: Valid only when updating (`UpdateBudget`) to explicitly lift an enforced cap. Not allowed if the spend cap is in state `AWAITING_NEXT_PERIOD`. Supplying any other value will result in an INVALID_ARGUMENT error.",
     ).optional(),
     outputState: z.enum([
       "STATE_UNSPECIFIED",
@@ -294,7 +294,7 @@ const GlobalArgsSchema = z.object({
       "Output only. Indicates whether the server is actively processing a state transition or async workflow.",
     ).optional(),
   }).describe(
-    "Optional. The spend cap configured for this budget. When `spend_cap` is set, strict field restrictions apply to the budget (see field-level comments on `ownership_scope`, `budget_filter`, `amount`, `threshold_rules`, and `notifications_rule`). When `spend_cap.output_state` is `ENFORCED`, only `spend_cap.input_state` can be modified in an `UpdateBudget` request (e.g., setting `input_state` to `AWAITING_NEXT_PERIOD` to lift the cap); modifying any other budget field while enforced will fail with `FAILED_PRECONDITION`.",
+    "Optional. The spend cap configured for this budget. When `spend_cap` is set, strict field restrictions apply to the budget (see field-level comments on `ownership_scope`, `budget_filter`, `amount`, `threshold_rules`, and `notifications_rule`). When `spend_cap.output_state` is `ENFORCED`, only `spend_cap.input_state` can be modified in an `UpdateBudget` request (e.g., setting `input_state` to `AWAITING_NEXT_PERIOD` to lift the cap); modifying any other budget field while enforced will fail with `FAILED_PRECONDITION`. If the existing resource is a spend cap and an `update_mask` is supplied in an `UpdateBudget` request, `spend_cap` or `spend_cap.input_state` must be specified in the update mask. To convert a spend cap budget to a regular budget, specify `spend_cap` in the `update_mask` and omit `spend_cap` from the budget in the request.",
   ).optional(),
   thresholdRules: z.array(z.object({
     spendBasis: z.enum([
@@ -737,7 +737,7 @@ const InputsSchema = z.object({
       "ENFORCED",
       "AWAITING_NEXT_PERIOD",
     ]).describe(
-      "Required. The desired state specified by the user. Valid values for mutation: - `CONFIGURED`: Must be set when creating a spend cap (`CreateBudget`). Also valid when updating (`UpdateBudget`) to activate the spend cap. - `AWAITING_NEXT_PERIOD`: Valid only when updating (`UpdateBudget`) to explicitly lift an enforced cap. Supplying any other value will result in an INVALID_ARGUMENT error.",
+      "Required. The desired state specified by the user. Valid values for mutation: - `CONFIGURED`: Must be set when creating a spend cap (`CreateBudget`). Also valid when updating (`UpdateBudget`) to activate the spend cap. If the spend cap is in state `AWAITING_NEXT_PERIOD`, `input_state` must be set to `CONFIGURED`. - `AWAITING_NEXT_PERIOD`: Valid only when updating (`UpdateBudget`) to explicitly lift an enforced cap. Not allowed if the spend cap is in state `AWAITING_NEXT_PERIOD`. Supplying any other value will result in an INVALID_ARGUMENT error.",
     ).optional(),
     outputState: z.enum([
       "STATE_UNSPECIFIED",
@@ -750,7 +750,7 @@ const InputsSchema = z.object({
       "Output only. Indicates whether the server is actively processing a state transition or async workflow.",
     ).optional(),
   }).describe(
-    "Optional. The spend cap configured for this budget. When `spend_cap` is set, strict field restrictions apply to the budget (see field-level comments on `ownership_scope`, `budget_filter`, `amount`, `threshold_rules`, and `notifications_rule`). When `spend_cap.output_state` is `ENFORCED`, only `spend_cap.input_state` can be modified in an `UpdateBudget` request (e.g., setting `input_state` to `AWAITING_NEXT_PERIOD` to lift the cap); modifying any other budget field while enforced will fail with `FAILED_PRECONDITION`.",
+    "Optional. The spend cap configured for this budget. When `spend_cap` is set, strict field restrictions apply to the budget (see field-level comments on `ownership_scope`, `budget_filter`, `amount`, `threshold_rules`, and `notifications_rule`). When `spend_cap.output_state` is `ENFORCED`, only `spend_cap.input_state` can be modified in an `UpdateBudget` request (e.g., setting `input_state` to `AWAITING_NEXT_PERIOD` to lift the cap); modifying any other budget field while enforced will fail with `FAILED_PRECONDITION`. If the existing resource is a spend cap and an `update_mask` is supplied in an `UpdateBudget` request, `spend_cap` or `spend_cap.input_state` must be specified in the update mask. To convert a spend cap budget to a regular budget, specify `spend_cap` in the `update_mask` and omit `spend_cap` from the budget in the request.",
   ).optional(),
   thresholdRules: z.array(z.object({
     spendBasis: z.enum([
@@ -797,7 +797,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Billing Budget Budgets. Registered at `@swamp/gcp/billingbudgets/budgets`. */
 export const model = {
   type: "@swamp/gcp/billingbudgets/budgets",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -941,6 +941,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -167,7 +167,43 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Configuration specific to newsletter signup CTAs. Only populated if type is `NEWSLETTER_SIGNUP`.",
   ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP"]).describe(
+  surveyConfig: z.object({
+    customMessage: z.string().describe(
+      "Optional. Header prompt shown to readers. If omitted, the server populates the default prompt localized to the parent publication's configured primary language.",
+    ).optional(),
+    questions: z.array(z.object({
+      customQuestion: z.object({
+        answerChoices: z.array(z.unknown()).describe(
+          "Required. Ordered list of answer choices for the custom question (2-5 items).",
+        ).optional(),
+        categoryLabel: z.string().describe(
+          "Optional. Reporting category label sent to Google Analytics (up to 100 characters).",
+        ).optional(),
+        displayText: z.string().describe(
+          "Required. The question prompt displayed to readers.",
+        ).optional(),
+        id: z.string().describe(
+          "Output only. Server-assigned unique identifier for the custom question.",
+        ).optional(),
+      }).describe("Optional. A custom question defined by the publisher.")
+        .optional(),
+      presetQuestion: z.object({
+        answerIds: z.array(z.unknown()).describe(
+          "Optional. Selected answer choice IDs from the question template. Required (2-5 unique IDs) when the catalog question is `CONFIGURABLE_CHOICES`, and must be omitted for `FIXED_CHOICES`.",
+        ).optional(),
+        questionId: z.number().int().describe(
+          "Required. ID of the question template from `SurveyQuestionCatalog`.",
+        ).optional(),
+      }).describe(
+        "Optional. A question selected from the preset question catalog.",
+      ).optional(),
+    })).describe(
+      "Optional. Ordered list of questions presented in the survey (1-3 items when `ACTIVE`; 0-3 when `DRAFT`).",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration specific to survey CTAs. Only populated if type is `SURVEY`.",
+  ).optional(),
+  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP", "SURVEY"]).describe(
     "Required. The type of this CTA.",
   ).optional(),
   ctaId: z.string().describe(
@@ -189,6 +225,21 @@ const StateSchema = z.object({
     title: z.string(),
   }).optional(),
   state: z.string().optional(),
+  surveyConfig: z.object({
+    customMessage: z.string(),
+    questions: z.array(z.object({
+      customQuestion: z.object({
+        answerChoices: z.array(z.unknown()),
+        categoryLabel: z.string(),
+        displayText: z.string(),
+        id: z.string(),
+      }),
+      presetQuestion: z.object({
+        answerIds: z.array(z.unknown()),
+        questionId: z.number(),
+      }),
+    })),
+  }).optional(),
   type: z.string().optional(),
 }).passthrough();
 
@@ -226,7 +277,43 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. Configuration specific to newsletter signup CTAs. Only populated if type is `NEWSLETTER_SIGNUP`.",
   ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP"]).describe(
+  surveyConfig: z.object({
+    customMessage: z.string().describe(
+      "Optional. Header prompt shown to readers. If omitted, the server populates the default prompt localized to the parent publication's configured primary language.",
+    ).optional(),
+    questions: z.array(z.object({
+      customQuestion: z.object({
+        answerChoices: z.array(z.unknown()).describe(
+          "Required. Ordered list of answer choices for the custom question (2-5 items).",
+        ).optional(),
+        categoryLabel: z.string().describe(
+          "Optional. Reporting category label sent to Google Analytics (up to 100 characters).",
+        ).optional(),
+        displayText: z.string().describe(
+          "Required. The question prompt displayed to readers.",
+        ).optional(),
+        id: z.string().describe(
+          "Output only. Server-assigned unique identifier for the custom question.",
+        ).optional(),
+      }).describe("Optional. A custom question defined by the publisher.")
+        .optional(),
+      presetQuestion: z.object({
+        answerIds: z.array(z.unknown()).describe(
+          "Optional. Selected answer choice IDs from the question template. Required (2-5 unique IDs) when the catalog question is `CONFIGURABLE_CHOICES`, and must be omitted for `FIXED_CHOICES`.",
+        ).optional(),
+        questionId: z.number().int().describe(
+          "Required. ID of the question template from `SurveyQuestionCatalog`.",
+        ).optional(),
+      }).describe(
+        "Optional. A question selected from the preset question catalog.",
+      ).optional(),
+    })).describe(
+      "Optional. Ordered list of questions presented in the survey (1-3 items when `ACTIVE`; 0-3 when `DRAFT`).",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration specific to survey CTAs. Only populated if type is `SURVEY`.",
+  ).optional(),
+  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP", "SURVEY"]).describe(
     "Required. The type of this CTA.",
   ).optional(),
   ctaId: z.string().describe(
@@ -263,7 +350,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Content Publisher Publications.Ctas. Registered at `@swamp/gcp/webcontentpublisher/publications-ctas`. */
 export const model = {
   type: "@swamp/gcp/webcontentpublisher/publications-ctas",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -325,6 +412,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: surveyConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -360,6 +452,9 @@ export const model = {
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["newsletterConfig"] !== undefined) {
           body["newsletterConfig"] = g["newsletterConfig"];
+        }
+        if (g["surveyConfig"] !== undefined) {
+          body["surveyConfig"] = g["surveyConfig"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
         if (g["ctaId"] !== undefined) params["ctaId"] = String(g["ctaId"]);
@@ -488,6 +583,9 @@ export const model = {
         }
         if (g["newsletterConfig"] !== undefined) {
           body["newsletterConfig"] = g["newsletterConfig"];
+        }
+        if (g["surveyConfig"] !== undefined) {
+          body["surveyConfig"] = g["surveyConfig"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
         const updateMaskKeys = Object.keys(body);

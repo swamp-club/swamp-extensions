@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -78,6 +79,27 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "oracledatabase.projects.locations.cloudVmClusters.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -148,22 +170,22 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   backupOdbSubnet: z.string().describe(
-    "Optional. The name of the backup OdbSubnet associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the backup OdbSubnet associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   backupSubnetCidr: z.string().describe(
-    "Optional. CIDR range of the backup subnet.",
+    "Optional. Immutable. CIDR range of the backup subnet.",
   ).optional(),
   cidr: z.string().describe(
-    "Optional. Network settings. CIDR to use for cluster IP allocation.",
+    "Optional. Immutable. Network settings. CIDR to use for cluster IP allocation.",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. User friendly name for this resource.",
+    "Optional. Immutable. User friendly name for this resource.",
   ).optional(),
   exadataInfrastructure: z.string().describe(
-    "Required. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+    "Required. Immutable. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
   exascaleDbStorageVault: z.string().describe(
-    "Optional. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
+    "Optional. Immutable. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the VM Cluster.",
@@ -172,13 +194,13 @@ const GlobalArgsSchema = z.object({
     "Identifier. The name of the VM Cluster resource with the format: projects/{project}/locations/{region}/cloudVmClusters/{cloud_vm_cluster}",
   ).optional(),
   network: z.string().describe(
-    "Optional. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
+    "Optional. Immutable. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Optional. The name of the OdbSubnet associated with the VM Cluster for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the OdbSubnet associated with the VM Cluster for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     clusterName: z.string().describe("Optional. OCI Cluster name.").optional(),
@@ -318,7 +340,8 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Optional. Specifies whether VM file system storage / VM images are stored on local DB server storage or Exascale storage.",
     ).optional(),
-  }).describe("Optional. Various properties of the VM Cluster.").optional(),
+  }).describe("Optional. Immutable. Various properties of the VM Cluster.")
+    .optional(),
   cloudVmClusterId: z.string().describe(
     "Required. The ID of the VM Cluster to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -405,22 +428,22 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   backupOdbSubnet: z.string().describe(
-    "Optional. The name of the backup OdbSubnet associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the backup OdbSubnet associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   backupSubnetCidr: z.string().describe(
-    "Optional. CIDR range of the backup subnet.",
+    "Optional. Immutable. CIDR range of the backup subnet.",
   ).optional(),
   cidr: z.string().describe(
-    "Optional. Network settings. CIDR to use for cluster IP allocation.",
+    "Optional. Immutable. Network settings. CIDR to use for cluster IP allocation.",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. User friendly name for this resource.",
+    "Optional. Immutable. User friendly name for this resource.",
   ).optional(),
   exadataInfrastructure: z.string().describe(
-    "Required. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+    "Required. Immutable. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
   exascaleDbStorageVault: z.string().describe(
-    "Optional. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
+    "Optional. Immutable. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the VM Cluster.",
@@ -429,13 +452,13 @@ const InputsSchema = z.object({
     "Identifier. The name of the VM Cluster resource with the format: projects/{project}/locations/{region}/cloudVmClusters/{cloud_vm_cluster}",
   ).optional(),
   network: z.string().describe(
-    "Optional. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
+    "Optional. Immutable. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Optional. The name of the OdbSubnet associated with the VM Cluster for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the OdbSubnet associated with the VM Cluster for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     clusterName: z.string().describe("Optional. OCI Cluster name.").optional(),
@@ -575,7 +598,8 @@ const InputsSchema = z.object({
     ]).describe(
       "Optional. Specifies whether VM file system storage / VM images are stored on local DB server storage or Exascale storage.",
     ).optional(),
-  }).describe("Optional. Various properties of the VM Cluster.").optional(),
+  }).describe("Optional. Immutable. Various properties of the VM Cluster.")
+    .optional(),
   cloudVmClusterId: z.string().describe(
     "Required. The ID of the VM Cluster to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -613,7 +637,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudVmClusters. Registered at `@swamp/gcp/oracledatabase/cloudvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudvmclusters",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -763,6 +787,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -880,6 +909,76 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update cloudVmClusters attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific cloudVmClusters by name (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

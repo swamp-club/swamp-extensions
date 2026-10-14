@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -78,6 +79,27 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "oracledatabase.projects.locations.exascaleDbStorageVaults.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -148,13 +170,13 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
+    "Required. Immutable. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
   ).optional(),
   exadataInfrastructure: z.string().describe(
-    "Optional. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+    "Optional. Immutable. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the ExascaleDbStorageVault.",
@@ -219,8 +241,9 @@ const GlobalArgsSchema = z.object({
     vmClusterIds: z.array(z.string()).describe(
       "Output only. The list of VM cluster OCIDs associated with the ExascaleDbStorageVault.",
     ).optional(),
-  }).describe("Required. The properties of the ExascaleDbStorageVault.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the ExascaleDbStorageVault.",
+  ).optional(),
   exascaleDbStorageVaultId: z.string().describe(
     "Required. The ID of the ExascaleDbStorageVault to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -271,13 +294,13 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   displayName: z.string().describe(
-    "Required. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
+    "Required. Immutable. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
   ).optional(),
   exadataInfrastructure: z.string().describe(
-    "Optional. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+    "Optional. Immutable. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the ExascaleDbStorageVault.",
@@ -342,8 +365,9 @@ const InputsSchema = z.object({
     vmClusterIds: z.array(z.string()).describe(
       "Output only. The list of VM cluster OCIDs associated with the ExascaleDbStorageVault.",
     ).optional(),
-  }).describe("Required. The properties of the ExascaleDbStorageVault.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the ExascaleDbStorageVault.",
+  ).optional(),
   exascaleDbStorageVaultId: z.string().describe(
     "Required. The ID of the ExascaleDbStorageVault to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -381,7 +405,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud ExascaleDbStorageVaults. Registered at `@swamp/gcp/oracledatabase/exascaledbstoragevaults`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/exascaledbstoragevaults",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -523,6 +547,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -634,6 +663,76 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update exascaleDbStorageVaults attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific exascaleDbStorageVaults by name (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

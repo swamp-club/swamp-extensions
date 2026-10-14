@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -79,6 +80,28 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id":
+    "oracledatabase.projects.locations.goldengateConnectionAssignments.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -151,7 +174,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. The display name for the GoldengateConnectionAssignment.",
+    "Optional. Immutable. The display name for the GoldengateConnectionAssignment.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the GoldengateConnectionAssignment.",
@@ -181,8 +204,9 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Output only. The lifecycle state of the connection assignment.",
     ).optional(),
-  }).describe("Required. The properties of the GoldengateConnectionAssignment.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the GoldengateConnectionAssignment.",
+  ).optional(),
   goldengateConnectionAssignmentId: z.string().describe(
     "Required. The ID of the GoldengateConnectionAssignment to create.",
   ).optional(),
@@ -219,7 +243,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   displayName: z.string().describe(
-    "Optional. The display name for the GoldengateConnectionAssignment.",
+    "Optional. Immutable. The display name for the GoldengateConnectionAssignment.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the GoldengateConnectionAssignment.",
@@ -249,8 +273,9 @@ const InputsSchema = z.object({
     ]).describe(
       "Output only. The lifecycle state of the connection assignment.",
     ).optional(),
-  }).describe("Required. The properties of the GoldengateConnectionAssignment.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the GoldengateConnectionAssignment.",
+  ).optional(),
   goldengateConnectionAssignmentId: z.string().describe(
     "Required. The ID of the GoldengateConnectionAssignment to create.",
   ).optional(),
@@ -288,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateConnectionAssignments. Registered at `@swamp/gcp/oracledatabase/goldengateconnectionassignments`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengateconnectionassignments",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -302,6 +327,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -410,6 +440,76 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update goldengateConnectionAssignments attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific goldengateConnectionAssignments by name (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

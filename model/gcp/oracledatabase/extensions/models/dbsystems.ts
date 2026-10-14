@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -78,6 +79,27 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "oracledatabase.projects.locations.dbSystems.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -148,10 +170,10 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. The display name for the System db. The name does not have to be unique within your project.",
+    "Required. Immutable. The display name for the System db. The name does not have to be unique within your project.",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle DbSystem is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle DbSystem is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the DbSystem.",
@@ -160,10 +182,10 @@ const GlobalArgsSchema = z.object({
     "Identifier. The name of the DbSystem resource in the following format: projects/{project}/locations/{region}/dbSystems/{db_system}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the DbSystem. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the DbSystem. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Required. The name of the OdbSubnet associated with the DbSystem for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Required. Immutable. The name of the OdbSubnet associated with the DbSystem for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     computeCount: z.number().int().describe(
@@ -192,10 +214,10 @@ const GlobalArgsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. Input only. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
         ).optional(),
         adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. Input only. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -295,10 +317,10 @@ const GlobalArgsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("Optional. The properties of the Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. Input only. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
         ).optional(),
         tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. Input only. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
         ).optional(),
       }).describe("Required. The Database resource.").optional(),
       dbVersion: z.string().describe(
@@ -372,7 +394,8 @@ const GlobalArgsSchema = z.object({
         'Optional. IANA Time Zone Database version number. For example "2019a".',
       ).optional(),
     }).describe("Optional. Time zone of the DbSystem.").optional(),
-  }).describe("Optional. The properties of the DbSystem.").optional(),
+  }).describe("Optional. Immutable. The properties of the DbSystem.")
+    .optional(),
   dbSystemId: z.string().describe(
     "Required. The ID of the DbSystem to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -477,10 +500,10 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   displayName: z.string().describe(
-    "Required. The display name for the System db. The name does not have to be unique within your project.",
+    "Required. Immutable. The display name for the System db. The name does not have to be unique within your project.",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle DbSystem is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle DbSystem is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the DbSystem.",
@@ -489,10 +512,10 @@ const InputsSchema = z.object({
     "Identifier. The name of the DbSystem resource in the following format: projects/{project}/locations/{region}/dbSystems/{db_system}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the DbSystem. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the DbSystem. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Required. The name of the OdbSubnet associated with the DbSystem for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Required. Immutable. The name of the OdbSubnet associated with the DbSystem for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     computeCount: z.number().int().describe(
@@ -521,10 +544,10 @@ const InputsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. Input only. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
         ).optional(),
         adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. Input only. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -624,10 +647,10 @@ const InputsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("Optional. The properties of the Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. Input only. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
         ).optional(),
         tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. Input only. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
         ).optional(),
       }).describe("Required. The Database resource.").optional(),
       dbVersion: z.string().describe(
@@ -701,7 +724,8 @@ const InputsSchema = z.object({
         'Optional. IANA Time Zone Database version number. For example "2019a".',
       ).optional(),
     }).describe("Optional. Time zone of the DbSystem.").optional(),
-  }).describe("Optional. The properties of the DbSystem.").optional(),
+  }).describe("Optional. Immutable. The properties of the DbSystem.")
+    .optional(),
   dbSystemId: z.string().describe(
     "Required. The ID of the DbSystem to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -739,7 +763,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystems. Registered at `@swamp/gcp/oracledatabase/dbsystems`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsystems",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -906,6 +930,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1012,6 +1041,76 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update dbSystems attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific dbSystems by name (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

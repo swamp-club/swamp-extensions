@@ -300,6 +300,9 @@ const GlobalArgsSchema = z.object({
     state: z.enum(["STATE_UNSPECIFIED", "CREATING", "READY"]).describe(
       "Output only. The current instance state. For CreateInstance, the state must be either omitted or set to `CREATING`. For UpdateInstance, the state must be either omitted or set to `READY`.",
     ).optional(),
+    tags: z.record(z.string(), z.string()).describe(
+      'Optional. Tag keys/values directly bound to this resource. For example: "123/environment": "prod", "123/costCenter": "marketing"',
+    ).optional(),
     updateTime: z.string().describe(
       "Output only. The time at which the instance was most recently updated.",
     ).optional(),
@@ -372,6 +375,7 @@ const StateSchema = z.object({
     }),
   })).optional(),
   state: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -525,6 +529,9 @@ const InputsSchema = z.object({
     state: z.enum(["STATE_UNSPECIFIED", "CREATING", "READY"]).describe(
       "Output only. The current instance state. For CreateInstance, the state must be either omitted or set to `CREATING`. For UpdateInstance, the state must be either omitted or set to `READY`.",
     ).optional(),
+    tags: z.record(z.string(), z.string()).describe(
+      'Optional. Tag keys/values directly bound to this resource. For example: "123/environment": "prod", "123/costCenter": "marketing"',
+    ).optional(),
     updateTime: z.string().describe(
       "Output only. The time at which the instance was most recently updated.",
     ).optional(),
@@ -568,7 +575,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Spanner Instances. Registered at `@swamp/gcp/spanner/instances`. */
 export const model = {
   type: "@swamp/gcp/spanner/instances",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -707,6 +714,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

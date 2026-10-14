@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds.
  *
- * LINT: LEGACY_NAMES A single ad associated with an ad group.
+ * A single ad associated with an ad group.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -186,7 +186,7 @@ const GlobalArgsSchema = z.object({
   bumperAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -217,7 +217,7 @@ const GlobalArgsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -247,7 +247,7 @@ const GlobalArgsSchema = z.object({
     trackingAdId: z.string().describe("Required. The DCM tracking ad id.")
       .optional(),
   }).describe(
-    "Optional. The DCM tracking ad info. Only valid for Demand Gen ads. To remove the DCM tracking ad info, please leave this field empty.",
+    "Optional. The DCM tracking ad info. To remove the DCM tracking ad info, please leave this field empty.",
   ).optional(),
   demandGenCarouselAd: z.object({
     businessName: z.string().describe(
@@ -670,7 +670,7 @@ const GlobalArgsSchema = z.object({
   inStreamAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -701,7 +701,7 @@ const GlobalArgsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -729,7 +729,7 @@ const GlobalArgsSchema = z.object({
   nonSkippableAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -760,7 +760,7 @@ const GlobalArgsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -787,7 +787,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()).describe(
-      "Optional. The list of text assets shown on the call-to-action button.",
+      "Optional. The list of text assets shown on the call-to-action button. Must be set if headlines is set.",
     ).optional(),
     companionBanners: z.array(z.object({
       assetId: z.string().describe("Required. The unique ID of the asset.")
@@ -811,13 +811,13 @@ const GlobalArgsSchema = z.object({
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
     ).optional(),
     descriptions: z.array(z.string()).describe(
-      "Optional. The list of descriptions shown on the call-to-action banner.",
+      "Optional. The list of descriptions shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     displayUrlBreadcrumb1: z.string().describe(
       "Optional. The first piece after the domain in the display URL.",
     ).optional(),
     displayUrlBreadcrumb2: z.string().describe(
-      "Optional. The second piece after the domain in the display URL.",
+      "Optional. The second piece after the domain in the display URL. Can only be set if displayUrlBreadcrumb1 is also set.",
     ).optional(),
     domain: z.string().describe("Output only. The domain of the display URL.")
       .optional(),
@@ -828,10 +828,10 @@ const GlobalArgsSchema = z.object({
       "Optional. The list of headlines shown on the call-to-action banner.",
     ).optional(),
     longHeadlines: z.array(z.string()).describe(
-      "Optional. The list of long headlines shown on the call-to-action banner.",
+      "Optional. The list of long headlines shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     trackingUrl: z.string().describe(
-      "Output only. The URL address loaded in the background for tracking purposes.",
+      "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
     ).optional(),
     videos: z.array(z.object({
       id: z.string().describe(
@@ -1232,7 +1232,7 @@ const InputsSchema = z.object({
   bumperAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -1263,7 +1263,7 @@ const InputsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -1293,7 +1293,7 @@ const InputsSchema = z.object({
     trackingAdId: z.string().describe("Required. The DCM tracking ad id.")
       .optional(),
   }).describe(
-    "Optional. The DCM tracking ad info. Only valid for Demand Gen ads. To remove the DCM tracking ad info, please leave this field empty.",
+    "Optional. The DCM tracking ad info. To remove the DCM tracking ad info, please leave this field empty.",
   ).optional(),
   demandGenCarouselAd: z.object({
     businessName: z.string().describe(
@@ -1716,7 +1716,7 @@ const InputsSchema = z.object({
   inStreamAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -1747,7 +1747,7 @@ const InputsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -1775,7 +1775,7 @@ const InputsSchema = z.object({
   nonSkippableAd: z.object({
     commonInStreamAttribute: z.object({
       actionButtonLabel: z.string().describe(
-        "Optional. The text on the call-to-action button.",
+        "Optional. The text on the call-to-action button. Must be set if actionHeadline is set.",
       ).optional(),
       actionHeadline: z.string().describe(
         "Optional. The headline of the call-to-action banner.",
@@ -1806,7 +1806,7 @@ const InputsSchema = z.object({
         "Required. The URL address of the webpage that people reach after they click the ad.",
       ).optional(),
       trackingUrl: z.string().describe(
-        "Output only. The URL address loaded in the background for tracking purposes.",
+        "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
       video: z.object({
         id: z.string().describe(
@@ -1833,7 +1833,7 @@ const InputsSchema = z.object({
   ).optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()).describe(
-      "Optional. The list of text assets shown on the call-to-action button.",
+      "Optional. The list of text assets shown on the call-to-action button. Must be set if headlines is set.",
     ).optional(),
     companionBanners: z.array(z.object({
       assetId: z.string().describe("Required. The unique ID of the asset.")
@@ -1857,13 +1857,13 @@ const InputsSchema = z.object({
       "Optional. The custom parameters and accompanying values to add to the tracking URL.",
     ).optional(),
     descriptions: z.array(z.string()).describe(
-      "Optional. The list of descriptions shown on the call-to-action banner.",
+      "Optional. The list of descriptions shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     displayUrlBreadcrumb1: z.string().describe(
       "Optional. The first piece after the domain in the display URL.",
     ).optional(),
     displayUrlBreadcrumb2: z.string().describe(
-      "Optional. The second piece after the domain in the display URL.",
+      "Optional. The second piece after the domain in the display URL. Can only be set if displayUrlBreadcrumb1 is also set.",
     ).optional(),
     domain: z.string().describe("Output only. The domain of the display URL.")
       .optional(),
@@ -1874,10 +1874,10 @@ const InputsSchema = z.object({
       "Optional. The list of headlines shown on the call-to-action banner.",
     ).optional(),
     longHeadlines: z.array(z.string()).describe(
-      "Optional. The list of long headlines shown on the call-to-action banner.",
+      "Optional. The list of long headlines shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     trackingUrl: z.string().describe(
-      "Output only. The URL address loaded in the background for tracking purposes.",
+      "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
     ).optional(),
     videos: z.array(z.object({
       id: z.string().describe(
@@ -1926,7 +1926,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2115,13 +2115,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description:
-        "LINT: LEGACY_NAMES A single ad associated with an ad group.",
+      description: "A single ad associated with an ad group.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

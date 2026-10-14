@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -78,6 +79,27 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "oracledatabase.projects.locations.goldengateConnections.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -148,7 +170,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle GoldengateConnection is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle GoldengateConnection is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the GoldengateConnection.",
@@ -157,10 +179,10 @@ const GlobalArgsSchema = z.object({
     "Identifier. The name of the GoldengateConnection resource in the following format: projects/{project}/locations/{region}/goldengateConnections/{goldengate_connection}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the GoldengateConnection. The format is projects/{project}/locations/{location}/odbNetworks/{odb_network}. It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the GoldengateConnection. The format is projects/{project}/locations/{location}/odbNetworks/{odb_network}. It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Optional. The name of the OdbSubnet associated with the GoldengateConnection for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the OdbSubnet associated with the GoldengateConnection for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     amazonKinesisConnectionProperties: z.object({
@@ -1187,8 +1209,9 @@ const GlobalArgsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. The time the resource was last updated.",
     ).optional(),
-  }).describe("Required. The properties of the GoldengateConnection.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the GoldengateConnection.",
+  ).optional(),
   goldengateConnectionId: z.string().describe(
     "Required. The ID of the GoldengateConnection to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -1593,7 +1616,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where Oracle GoldengateConnection is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where Oracle GoldengateConnection is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the GoldengateConnection.",
@@ -1602,10 +1625,10 @@ const InputsSchema = z.object({
     "Identifier. The name of the GoldengateConnection resource in the following format: projects/{project}/locations/{region}/goldengateConnections/{goldengate_connection}",
   ).optional(),
   odbNetwork: z.string().describe(
-    "Optional. The name of the OdbNetwork associated with the GoldengateConnection. The format is projects/{project}/locations/{location}/odbNetworks/{odb_network}. It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
+    "Optional. Immutable. The name of the OdbNetwork associated with the GoldengateConnection. The format is projects/{project}/locations/{location}/odbNetworks/{odb_network}. It is optional but if specified, this should match the parent ODBNetwork of the OdbSubnet.",
   ).optional(),
   odbSubnet: z.string().describe(
-    "Optional. The name of the OdbSubnet associated with the GoldengateConnection for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
+    "Optional. Immutable. The name of the OdbSubnet associated with the GoldengateConnection for IP allocation. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbSubnets/{odb_subnet}",
   ).optional(),
   properties: z.object({
     amazonKinesisConnectionProperties: z.object({
@@ -2632,8 +2655,9 @@ const InputsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. The time the resource was last updated.",
     ).optional(),
-  }).describe("Required. The properties of the GoldengateConnection.")
-    .optional(),
+  }).describe(
+    "Required. Immutable. The properties of the GoldengateConnection.",
+  ).optional(),
   goldengateConnectionId: z.string().describe(
     "Required. The ID of the GoldengateConnection to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -2671,7 +2695,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateConnections. Registered at `@swamp/gcp/oracledatabase/goldengateconnections`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengateconnections",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2685,6 +2709,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2794,6 +2823,76 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update goldengateConnections attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific goldengateConnections by name (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

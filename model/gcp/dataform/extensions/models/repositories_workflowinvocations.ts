@@ -156,7 +156,7 @@ const GlobalArgsSchema = z.object({
         "Output only. Email address of the user to run workflow invocations under.",
       ).optional(),
     }).describe(
-      "Optional. Configuration for end user authentication. Note that this should not be set when `service_account` is used.",
+      "Optional. Configuration for end user authentication. Do not set if `service_account` is used.",
     ).optional(),
     executionMode: z.enum([
       "EXECUTION_MODE_UNSPECIFIED",
@@ -282,7 +282,7 @@ const InputsSchema = z.object({
         "Output only. Email address of the user to run workflow invocations under.",
       ).optional(),
     }).describe(
-      "Optional. Configuration for end user authentication. Note that this should not be set when `service_account` is used.",
+      "Optional. Configuration for end user authentication. Do not set if `service_account` is used.",
     ).optional(),
     executionMode: z.enum([
       "EXECUTION_MODE_UNSPECIFIED",
@@ -366,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.WorkflowInvocations. Registered at `@swamp/gcp/dataform/repositories-workflowinvocations`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workflowinvocations",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +514,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

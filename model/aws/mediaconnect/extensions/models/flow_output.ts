@@ -207,6 +207,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NdiOutputTimecodeSource: z.enum(["EMBEDDED_TIMECODE", "UTC_SYSTEM_TIME"])
     .describe("The timecode source for the NDI output.").optional(),
+  NdiAudioReferenceLevel: z.number().int().min(-40).max(0).describe(
+    "The audio reference level of the NDI receiver, in dBFS.",
+  ).optional(),
   RouterIntegrationState: z.enum(["ENABLED", "DISABLED"]).optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
@@ -255,6 +258,7 @@ const StateSchema = z.object({
   NdiProgramName: z.string().optional(),
   NdiSpeedHqQuality: z.number().optional(),
   NdiOutputTimecodeSource: z.string().optional(),
+  NdiAudioReferenceLevel: z.number().optional(),
   RouterIntegrationState: z.string().optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.string(),
@@ -365,6 +369,9 @@ const InputsSchema = z.object({
   ).optional(),
   NdiOutputTimecodeSource: z.enum(["EMBEDDED_TIMECODE", "UTC_SYSTEM_TIME"])
     .describe("The timecode source for the NDI output.").optional(),
+  NdiAudioReferenceLevel: z.number().int().min(-40).max(0).describe(
+    "The audio reference level of the NDI receiver, in dBFS.",
+  ).optional(),
   RouterIntegrationState: z.enum(["ENABLED", "DISABLED"]).optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
@@ -404,7 +411,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect FlowOutput. Registered at `@swamp/aws/mediaconnect/flow-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-output",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -469,6 +476,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: NdiAudioReferenceLevel",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

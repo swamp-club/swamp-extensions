@@ -196,12 +196,95 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Optional. Mutable human-readable name. 63 character limit.",
   ).optional(),
+  graphqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string().describe("Required. The file's textual content.")
+        .optional(),
+      path: z.string().describe(
+        "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+      ).optional(),
+    })).describe("Required. The files that comprise the source set.")
+      .optional(),
+  }).describe(
+    "Optional. Input only. The GraphQL source files like `dataconnect.yaml` and `*.gql`.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
+  schemas: z.array(z.object({
+    annotations: z.record(z.string(), z.string()).describe(
+      "Optional. Stores small amounts of arbitrary data.",
+    ).optional(),
+    createTime: z.string().describe(
+      "Output only. [Output only] Create time stamp.",
+    ).optional(),
+    datasources: z.array(z.object({
+      httpGraphql: z.object({
+        timeout: z.unknown().describe(
+          "Optional. Timeout duration for the HTTP request.",
+        ).optional(),
+        uri: z.unknown().describe(
+          "Required. The endpoint of the HTTP GraphQL server.",
+        ).optional(),
+      }).describe("HTTP GraphQL server webhook configurations.").optional(),
+      postgresql: z.object({
+        cloudSql: z.unknown().describe("Cloud SQL configurations.").optional(),
+        database: z.unknown().describe(
+          "Required. Name of the PostgreSQL database.",
+        ).optional(),
+        ephemeral: z.unknown().describe(
+          "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        ).optional(),
+        schema: z.unknown().describe(
+          'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
+        ).optional(),
+        schemaMigration: z.unknown().describe(
+          "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        ).optional(),
+        schemaValidation: z.unknown().describe(
+          "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        ).optional(),
+        unlinked: z.unknown().describe(
+          "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
+        ).optional(),
+      }).describe("PostgreSQL configurations.").optional(),
+    })).describe("Required. The data sources linked in the schema.").optional(),
+    displayName: z.string().describe(
+      "Optional. Mutable human-readable name. 63 character limit.",
+    ).optional(),
+    etag: z.string().describe(
+      "Output only. This checksum is computed by the server based on the value of other fields, and may be sent on update and delete requests to ensure the client has an up-to-date value before proceeding. [AIP-154](https://google.aip.dev/154)",
+    ).optional(),
+    labels: z.record(z.string(), z.string()).describe(
+      "Optional. Labels as key value pairs.",
+    ).optional(),
+    name: z.string().describe(
+      'Identifier. The relative resource name of the schema, in the format: ` projects/{project}/locations/{location}/services/{service}/schemas/{schema} ` Right now, the only supported schema is "main".',
+    ).optional(),
+    reconciling: z.boolean().describe(
+      "Output only. A field that if true, indicates that the system is working to compile and deploy the schema.",
+    ).optional(),
+    source: z.object({
+      files: z.array(z.object({
+        content: z.unknown().describe("Required. The file's textual content.")
+          .optional(),
+        path: z.unknown().describe(
+          "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+        ).optional(),
+      })).describe("Required. The files that comprise the source set.")
+        .optional(),
+    }).describe(
+      "Required. The source files that comprise the application schema.",
+    ).optional(),
+    uid: z.string().describe("Output only. System-assigned, unique identifier.")
+      .optional(),
+    updateTime: z.string().describe(
+      "Output only. [Output only] Update time stamp.",
+    ).optional(),
+  })).describe("Optional. The list of schemas in this service.").optional(),
   source: z.object({
     files: z.array(z.object({
       content: z.string().describe("Required. The file's textual content.")
@@ -212,7 +295,19 @@ const GlobalArgsSchema = z.object({
     })).describe("Required. The files that comprise the source set.")
       .optional(),
   }).describe(
-    "Optional. Input only. The source files for service, schemas, and connectors.",
+    "Optional. Input only. Deprecated: Use `sql_source` or `graphql_source` instead. The source files for service, schemas, and connectors.",
+  ).optional(),
+  sqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string().describe("Required. The file's textual content.")
+        .optional(),
+      path: z.string().describe(
+        "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+      ).optional(),
+    })).describe("Required. The files that comprise the source set.")
+      .optional(),
+  }).describe(
+    "Optional. Input only. The SQL source files like `*.sql` for deploying a PostgREST service.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -254,6 +349,12 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
+  graphqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string(),
+      path: z.string(),
+    })),
+  }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   reconciling: z.boolean().optional(),
@@ -295,6 +396,12 @@ const StateSchema = z.object({
       path: z.string(),
     })),
   }).optional(),
+  sqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string(),
+      path: z.string(),
+    })),
+  }).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -314,12 +421,95 @@ const InputsSchema = z.object({
   displayName: z.string().describe(
     "Optional. Mutable human-readable name. 63 character limit.",
   ).optional(),
+  graphqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string().describe("Required. The file's textual content.")
+        .optional(),
+      path: z.string().describe(
+        "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+      ).optional(),
+    })).describe("Required. The files that comprise the source set.")
+      .optional(),
+  }).describe(
+    "Optional. Input only. The GraphQL source files like `dataconnect.yaml` and `*.gql`.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
+  schemas: z.array(z.object({
+    annotations: z.record(z.string(), z.string()).describe(
+      "Optional. Stores small amounts of arbitrary data.",
+    ).optional(),
+    createTime: z.string().describe(
+      "Output only. [Output only] Create time stamp.",
+    ).optional(),
+    datasources: z.array(z.object({
+      httpGraphql: z.object({
+        timeout: z.unknown().describe(
+          "Optional. Timeout duration for the HTTP request.",
+        ).optional(),
+        uri: z.unknown().describe(
+          "Required. The endpoint of the HTTP GraphQL server.",
+        ).optional(),
+      }).describe("HTTP GraphQL server webhook configurations.").optional(),
+      postgresql: z.object({
+        cloudSql: z.unknown().describe("Cloud SQL configurations.").optional(),
+        database: z.unknown().describe(
+          "Required. Name of the PostgreSQL database.",
+        ).optional(),
+        ephemeral: z.unknown().describe(
+          "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        ).optional(),
+        schema: z.unknown().describe(
+          'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
+        ).optional(),
+        schemaMigration: z.unknown().describe(
+          "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        ).optional(),
+        schemaValidation: z.unknown().describe(
+          "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        ).optional(),
+        unlinked: z.unknown().describe(
+          "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
+        ).optional(),
+      }).describe("PostgreSQL configurations.").optional(),
+    })).describe("Required. The data sources linked in the schema.").optional(),
+    displayName: z.string().describe(
+      "Optional. Mutable human-readable name. 63 character limit.",
+    ).optional(),
+    etag: z.string().describe(
+      "Output only. This checksum is computed by the server based on the value of other fields, and may be sent on update and delete requests to ensure the client has an up-to-date value before proceeding. [AIP-154](https://google.aip.dev/154)",
+    ).optional(),
+    labels: z.record(z.string(), z.string()).describe(
+      "Optional. Labels as key value pairs.",
+    ).optional(),
+    name: z.string().describe(
+      'Identifier. The relative resource name of the schema, in the format: ` projects/{project}/locations/{location}/services/{service}/schemas/{schema} ` Right now, the only supported schema is "main".',
+    ).optional(),
+    reconciling: z.boolean().describe(
+      "Output only. A field that if true, indicates that the system is working to compile and deploy the schema.",
+    ).optional(),
+    source: z.object({
+      files: z.array(z.object({
+        content: z.unknown().describe("Required. The file's textual content.")
+          .optional(),
+        path: z.unknown().describe(
+          "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+        ).optional(),
+      })).describe("Required. The files that comprise the source set.")
+        .optional(),
+    }).describe(
+      "Required. The source files that comprise the application schema.",
+    ).optional(),
+    uid: z.string().describe("Output only. System-assigned, unique identifier.")
+      .optional(),
+    updateTime: z.string().describe(
+      "Output only. [Output only] Update time stamp.",
+    ).optional(),
+  })).describe("Optional. The list of schemas in this service.").optional(),
   source: z.object({
     files: z.array(z.object({
       content: z.string().describe("Required. The file's textual content.")
@@ -330,7 +520,19 @@ const InputsSchema = z.object({
     })).describe("Required. The files that comprise the source set.")
       .optional(),
   }).describe(
-    "Optional. Input only. The source files for service, schemas, and connectors.",
+    "Optional. Input only. Deprecated: Use `sql_source` or `graphql_source` instead. The source files for service, schemas, and connectors.",
+  ).optional(),
+  sqlSource: z.object({
+    files: z.array(z.object({
+      content: z.string().describe("Required. The file's textual content.")
+        .optional(),
+      path: z.string().describe(
+        "Required. The file name including folder path, if applicable. The path should be relative to a local workspace (e.g. dataconnect/(schema|connector)/*.gql) and not an absolute path (e.g. /absolute/path/(schema|connector)/*.gql).",
+      ).optional(),
+    })).describe("Required. The files that comprise the source set.")
+      .optional(),
+  }).describe(
+    "Optional. Input only. The SQL source files like `*.sql` for deploying a PostgREST service.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -372,7 +574,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase SQL Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -549,6 +751,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: graphqlSource, schemas, sqlSource",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -581,9 +788,14 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
+        if (g["graphqlSource"] !== undefined) {
+          body["graphqlSource"] = g["graphqlSource"];
+        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["schemas"] !== undefined) body["schemas"] = g["schemas"];
         if (g["source"] !== undefined) body["source"] = g["source"];
+        if (g["sqlSource"] !== undefined) body["sqlSource"] = g["sqlSource"];
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
         }
@@ -706,8 +918,13 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
+        if (g["graphqlSource"] !== undefined) {
+          body["graphqlSource"] = g["graphqlSource"];
+        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["schemas"] !== undefined) body["schemas"] = g["schemas"];
         if (g["source"] !== undefined) body["source"] = g["source"];
+        if (g["sqlSource"] !== undefined) body["sqlSource"] = g["sqlSource"];
         if (g["allowMissing"] !== undefined) {
           params["allowMissing"] = String(g["allowMissing"]);
         } else if (existing["allowMissing"] !== undefined) {

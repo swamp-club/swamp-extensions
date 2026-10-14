@@ -72,6 +72,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  DelegationSetId: z.string().optional(),
   HostedZoneTags: z.array(HostedZoneTagSchema).describe(
     "Adds, edits, or deletes tags for a health check or a hosted zone. For information about using tags for cost allocation, see [Using Cost Allocation Tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html) in the *User Guide*.",
   ).optional(),
@@ -103,6 +104,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  DelegationSetId: z.string().optional(),
   HostedZoneTags: z.array(HostedZoneTagSchema).optional(),
   VPCs: z.array(VPCSchema).optional(),
   HostedZoneFeatures: z.object({
@@ -127,6 +129,7 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  DelegationSetId: z.string().optional(),
   HostedZoneTags: z.array(HostedZoneTagSchema).describe(
     "Adds, edits, or deletes tags for a health check or a hosted zone. For information about using tags for cost allocation, see [Using Cost Allocation Tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html) in the *User Guide*.",
   ).optional(),
@@ -176,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53 HostedZone. Registered at `@swamp/aws/route53/hosted-zone`. */
 export const model = {
   type: "@swamp/aws/route53/hosted-zone",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -231,6 +234,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: DelegationSetId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -340,7 +348,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name"],
+          ["Name", "DelegationSetId"],
           credentials,
         );
         const handle = await context.writeResource(

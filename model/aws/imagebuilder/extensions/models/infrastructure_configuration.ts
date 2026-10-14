@@ -39,8 +39,8 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const S3LogsSchema = z.object({
-  S3BucketName: z.string().describe("S3BucketName").optional(),
   S3KeyPrefix: z.string().describe("S3KeyPrefix").optional(),
+  S3BucketName: z.string().describe("S3BucketName").optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -59,33 +59,43 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The name of the infrastructure configuration."),
-  Description: z.string().describe(
-    "The description of the infrastructure configuration.",
-  ).optional(),
-  InstanceTypes: z.array(z.string()).describe(
-    "The instance types of the infrastructure configuration.",
-  ).optional(),
-  SecurityGroupIds: z.array(z.string()).describe(
-    "The security group IDs of the infrastructure configuration.",
-  ).optional(),
   Logging: z.object({
     S3Logs: S3LogsSchema.describe("The S3 path in which to store the logs.")
       .optional(),
   }).describe("The logging configuration of the infrastructure configuration.")
     .optional(),
-  SubnetId: z.string().describe(
-    "The subnet ID of the infrastructure configuration.",
-  ).optional(),
   KeyPair: z.string().describe(
     "The EC2 key pair of the infrastructure configuration..",
   ).optional(),
-  TerminateInstanceOnFailure: z.boolean().describe(
-    "The terminate instance on failure configuration of the infrastructure configuration.",
+  Description: z.string().describe(
+    "The description of the infrastructure configuration.",
   ).optional(),
   InstanceProfileName: z.string().describe(
     "The instance profile of the infrastructure configuration.",
   ),
+  ResourceTags: z.record(z.string(), z.string()).describe(
+    "The tags attached to the resource created by Image Builder.",
+  ).optional(),
+  TerminateInstanceOnFailure: z.boolean().describe(
+    "The terminate instance on failure configuration of the infrastructure configuration.",
+  ).optional(),
+  SubnetId: z.string().describe(
+    "The subnet ID of the infrastructure configuration.",
+  ).optional(),
+  SecurityGroupIds: z.array(z.string()).describe(
+    "The security group IDs of the infrastructure configuration.",
+  ).optional(),
+  Name: z.string().describe("The name of the infrastructure configuration."),
+  Placement: z.object({
+    Tenancy: z.enum(["default", "dedicated", "host"]).describe("Tenancy")
+      .optional(),
+    AvailabilityZone: z.string().describe("AvailabilityZone").optional(),
+    HostId: z.string().describe("HostId").optional(),
+    HostResourceGroupArn: z.string().describe("HostResourceGroupArn")
+      .optional(),
+  }).describe(
+    "The placement option settings for the infrastructure configuration.",
+  ).optional(),
   InstanceMetadataOptions: z.object({
     HttpPutResponseHopLimit: z.number().int().describe(
       "Limit the number of hops that an instance metadata request can traverse to reach its destination.",
@@ -96,53 +106,43 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The instance metadata option settings for the infrastructure configuration.",
   ).optional(),
+  InstanceTypes: z.array(z.string()).describe(
+    "The instance types of the infrastructure configuration.",
+  ).optional(),
   SnsTopicArn: z.string().describe(
     "The SNS Topic Amazon Resource Name (ARN) of the infrastructure configuration.",
-  ).optional(),
-  ResourceTags: z.record(z.string(), z.string()).describe(
-    "The tags attached to the resource created by Image Builder.",
   ).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The tags associated with the component.",
   ).optional(),
-  Placement: z.object({
-    AvailabilityZone: z.string().describe("AvailabilityZone").optional(),
-    Tenancy: z.enum(["default", "dedicated", "host"]).describe("Tenancy")
-      .optional(),
-    HostId: z.string().describe("HostId").optional(),
-    HostResourceGroupArn: z.string().describe("HostResourceGroupArn")
-      .optional(),
-  }).describe(
-    "The placement option settings for the infrastructure configuration.",
-  ).optional(),
 });
 
 const StateSchema = z.object({
-  Arn: z.string(),
-  Name: z.string().optional(),
-  Description: z.string().optional(),
-  InstanceTypes: z.array(z.string()).optional(),
-  SecurityGroupIds: z.array(z.string()).optional(),
   Logging: z.object({
     S3Logs: S3LogsSchema,
   }).optional(),
-  SubnetId: z.string().optional(),
   KeyPair: z.string().optional(),
-  TerminateInstanceOnFailure: z.boolean().optional(),
+  Description: z.string().optional(),
   InstanceProfileName: z.string().optional(),
+  ResourceTags: z.record(z.string(), z.unknown()).optional(),
+  TerminateInstanceOnFailure: z.boolean().optional(),
+  SubnetId: z.string().optional(),
+  SecurityGroupIds: z.array(z.string()).optional(),
+  Name: z.string().optional(),
+  Placement: z.object({
+    Tenancy: z.string(),
+    AvailabilityZone: z.string(),
+    HostId: z.string(),
+    HostResourceGroupArn: z.string(),
+  }).optional(),
   InstanceMetadataOptions: z.object({
     HttpPutResponseHopLimit: z.number(),
     HttpTokens: z.string(),
   }).optional(),
+  InstanceTypes: z.array(z.string()).optional(),
   SnsTopicArn: z.string().optional(),
-  ResourceTags: z.record(z.string(), z.unknown()).optional(),
+  Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  Placement: z.object({
-    AvailabilityZone: z.string(),
-    Tenancy: z.string(),
-    HostId: z.string(),
-    HostResourceGroupArn: z.string(),
-  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -153,33 +153,43 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Name: z.string().describe("The name of the infrastructure configuration.")
-    .optional(),
-  Description: z.string().describe(
-    "The description of the infrastructure configuration.",
-  ).optional(),
-  InstanceTypes: z.array(z.string()).describe(
-    "The instance types of the infrastructure configuration.",
-  ).optional(),
-  SecurityGroupIds: z.array(z.string()).describe(
-    "The security group IDs of the infrastructure configuration.",
-  ).optional(),
   Logging: z.object({
     S3Logs: S3LogsSchema.describe("The S3 path in which to store the logs.")
       .optional(),
   }).describe("The logging configuration of the infrastructure configuration.")
     .optional(),
-  SubnetId: z.string().describe(
-    "The subnet ID of the infrastructure configuration.",
-  ).optional(),
   KeyPair: z.string().describe(
     "The EC2 key pair of the infrastructure configuration..",
+  ).optional(),
+  Description: z.string().describe(
+    "The description of the infrastructure configuration.",
+  ).optional(),
+  InstanceProfileName: z.string().describe(
+    "The instance profile of the infrastructure configuration.",
+  ).optional(),
+  ResourceTags: z.record(z.string(), z.string()).describe(
+    "The tags attached to the resource created by Image Builder.",
   ).optional(),
   TerminateInstanceOnFailure: z.boolean().describe(
     "The terminate instance on failure configuration of the infrastructure configuration.",
   ).optional(),
-  InstanceProfileName: z.string().describe(
-    "The instance profile of the infrastructure configuration.",
+  SubnetId: z.string().describe(
+    "The subnet ID of the infrastructure configuration.",
+  ).optional(),
+  SecurityGroupIds: z.array(z.string()).describe(
+    "The security group IDs of the infrastructure configuration.",
+  ).optional(),
+  Name: z.string().describe("The name of the infrastructure configuration.")
+    .optional(),
+  Placement: z.object({
+    Tenancy: z.enum(["default", "dedicated", "host"]).describe("Tenancy")
+      .optional(),
+    AvailabilityZone: z.string().describe("AvailabilityZone").optional(),
+    HostId: z.string().describe("HostId").optional(),
+    HostResourceGroupArn: z.string().describe("HostResourceGroupArn")
+      .optional(),
+  }).describe(
+    "The placement option settings for the infrastructure configuration.",
   ).optional(),
   InstanceMetadataOptions: z.object({
     HttpPutResponseHopLimit: z.number().int().describe(
@@ -191,24 +201,14 @@ const InputsSchema = z.object({
   }).describe(
     "The instance metadata option settings for the infrastructure configuration.",
   ).optional(),
+  InstanceTypes: z.array(z.string()).describe(
+    "The instance types of the infrastructure configuration.",
+  ).optional(),
   SnsTopicArn: z.string().describe(
     "The SNS Topic Amazon Resource Name (ARN) of the infrastructure configuration.",
   ).optional(),
-  ResourceTags: z.record(z.string(), z.string()).describe(
-    "The tags attached to the resource created by Image Builder.",
-  ).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The tags associated with the component.",
-  ).optional(),
-  Placement: z.object({
-    AvailabilityZone: z.string().describe("AvailabilityZone").optional(),
-    Tenancy: z.enum(["default", "dedicated", "host"]).describe("Tenancy")
-      .optional(),
-    HostId: z.string().describe("HostId").optional(),
-    HostResourceGroupArn: z.string().describe("HostResourceGroupArn")
-      .optional(),
-  }).describe(
-    "The placement option settings for the infrastructure configuration.",
   ).optional(),
 });
 
@@ -231,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder InfrastructureConfiguration. Registered at `@swamp/aws/imagebuilder/infrastructure-configuration`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/infrastructure-configuration",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

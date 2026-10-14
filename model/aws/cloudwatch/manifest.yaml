@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/cloudwatch"
-version: "2026.10.13.1"
+version: "2026.10.14.1"
 license: "AGPL-3.0-or-later"
 description: "AWS CLOUDWATCH infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,12 +10,9 @@ labels:
   - cloudwatch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: alarm, alarm_mute_rule, anomaly_detector, composite_alarm, dashboard, insight_rule, integration, log_alarm, metric_stream, otel_enrichment, resource_metrics_configuration, view
 models:
   - alarm.ts
   - alarm_mute_rule.ts
-  - anomaly_detector.ts
   - composite_alarm.ts
   - dashboard.ts
   - insight_rule.ts

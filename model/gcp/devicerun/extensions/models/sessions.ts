@@ -270,6 +270,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  createTime: z.string().optional(),
   name: z.string(),
   sessionConfig: z.object({
     displayName: z.string(),
@@ -360,6 +361,7 @@ const StateSchema = z.object({
       cause: z.object({
         summary: z.object({
           message: z.string(),
+          metadata: z.record(z.string(), z.unknown()),
           reason: z.string(),
           type: z.string(),
         }),
@@ -525,7 +527,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run Sessions. Registered at `@swamp/gcp/devicerun/sessions`. */
 export const model = {
   type: "@swamp/gcp/devicerun/sessions",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
@@ -539,6 +541,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -763,7 +770,7 @@ export const model = {
           "Optional. The maximum number of sessions to return. The server may return fewer items than this value. If unspecified, at most 500 sessions will be returned. The maximum value is 1000, values above will be coerced to 1000.",
         ).optional(),
         view: z.string().describe(
-          "Optional. The view of the sessions to return. If not set, the `BASIC` view will be returned.",
+          "Optional. The view of the sessions to return. If not set, the `FULL` view will be returned.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

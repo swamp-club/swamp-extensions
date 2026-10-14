@@ -270,6 +270,9 @@ const GlobalArgsSchema = z.object({
   ).describe("The version of the registry record.").optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the registry record.")
     .optional(),
+  CustomMetadata: z.record(z.string(), z.unknown()).describe(
+    "The custom metadata to attach to the registry record. Each key must match a property defined in the registry's custom metadata schema. Values can be strings (maximum 128 characters) or native JSON booleans (true or false).",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -295,6 +298,7 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   CreatedBy: z.string().optional(),
+  CustomMetadata: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -351,6 +355,9 @@ const InputsSchema = z.object({
   ).describe("The version of the registry record.").optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the registry record.")
     .optional(),
+  CustomMetadata: z.record(z.string(), z.unknown()).describe(
+    "The custom metadata to attach to the registry record. Each key must match a property defined in the registry's custom metadata schema. Values can be strings (maximum 128 characters) or native JSON booleans (true or false).",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -372,7 +379,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry RegistryRecord. Registered at `@swamp/aws/agentregistry/registry-record`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry-record",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -397,6 +404,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: CustomMetadata",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

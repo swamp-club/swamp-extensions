@@ -13,13 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/cloudwatch/anomaly-detector
+// Auto-generated extension model for @swamp/aws/fsx/storage-virtual-machine
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for CloudWatch AnomalyDetector (AWS::CloudWatch::AnomalyDetector).
+ * Swamp extension model for FSx StorageVirtualMachine (AWS::FSx::StorageVirtualMachine).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -38,53 +38,37 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const RangeSchema = z.object({
-  EndTime: z.string().regex(
+const SelfManagedActiveDirectoryConfigurationSchema = z.object({
+  DnsIps: z.array(z.string()).describe(
+    "A list of IP addresses of DNS servers or domain controllers in the self-managed AD directory. Minimum: 1. Maximum: 3.",
+  ).optional(),
+  DomainJoinServiceAccountSecret: z.string().regex(
     new RegExp(
-      "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])T([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$",
+      "^arn:[^:]{1,63}:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[a-zA-Z0-9/_+=.@-]+-[a-zA-Z0-9]{6}$",
     ),
-  ),
-  StartTime: z.string().regex(
-    new RegExp(
-      "^([0-9]{4})-([0-1][0-9])-([0-3][0-9])T([0-1][0-9]|[2][0-3]):([0-5][0-9]):([0-5][0-9])$",
-    ),
-  ),
-});
-
-const DimensionSchema = z.object({
-  Value: z.string().min(1).max(1024),
-  Name: z.string().min(1).max(255),
-});
-
-const MetricSchema = z.object({
-  MetricName: z.string().min(1).max(255),
-  Dimensions: z.array(DimensionSchema).optional(),
-  Namespace: z.string().min(1).max(255).regex(new RegExp("[^:].*")),
-});
-
-const MetricStatSchema = z.object({
-  Period: z.number().int().min(1),
-  Metric: MetricSchema,
-  Stat: z.string().regex(
-    new RegExp(
-      "^(Minimum|Maximum|Sum|Average|SampleCount|(p|tm)[0-9]{1,2}|(p|tm)[0-9]{1,2}\\.[0-9]{1,2}|(p|tm)100)$",
-    ),
-  ),
-  Unit: z.string().regex(
-    new RegExp(
-      "^(Seconds|Microseconds|Milliseconds|Bytes|Kilobytes|Megabytes|Gigabytes|Terabytes|Bits|Kilobits|Megabits|Gigabits|Terabits|Percent|Count|Bytes/Second|Kilobytes/Second|Megabytes/Second|Gigabytes/Second|Terabytes/Second|Bits/Second|Kilobits/Second|Megabits/Second|Gigabits/Second|Terabits/Second|Count/Second|None)$",
-    ),
+  ).describe(
+    "The Amazon Resource Name (ARN) of the AWS Secrets Manager secret containing the self-managed Active Directory domain join service account credentials. Minimum: 64. Maximum: 1024.",
+  ).optional(),
+  DomainName: z.string().describe(
+    "The fully qualified domain name of the self-managed AD directory, such as corp.example.com. Minimum: 1. Maximum: 255. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,255}$`",
+  ).optional(),
+  FileSystemAdministratorsGroup: z.string().describe(
+    "The name of the domain group whose members are granted administrative privileges for the file system. Minimum: 1. Maximum: 256. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,256}$`",
+  ).optional(),
+  OrganizationalUnitDistinguishedName: z.string().describe(
+    "The fully qualified distinguished name of the organizational unit within your self-managed AD directory. Minimum: 1. Maximum: 2000. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,2000}$`",
+  ).optional(),
+  Password: z.string().describe(
+    "The password for the service account on your self-managed AD domain that Amazon FSx will use to join to your AD domain. Minimum: 1. Maximum: 256. Pattern: `^.{1,256}$`",
+  ).optional(),
+  UserName: z.string().describe(
+    "The user name for the service account on your self-managed AD domain that Amazon FSx will use to join to your AD domain. Minimum: 1. Maximum: 256. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,256}$`",
   ).optional(),
 });
 
-const MetricDataQuerySchema = z.object({
-  AccountId: z.string().min(1).max(255).optional(),
-  ReturnData: z.boolean().optional(),
-  Expression: z.string().min(1).max(1024).optional(),
-  MetricStat: MetricStatSchema.optional(),
-  Label: z.string().optional(),
-  Period: z.number().int().min(1).optional(),
-  Id: z.string().min(1).max(255),
+const TagSchema = z.object({
+  Value: z.string(),
+  Key: z.string(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -103,61 +87,48 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  MetricCharacteristics: z.object({
-    PeriodicSpikes: z.boolean().optional(),
-  }).optional(),
-  MetricName: z.string().min(1).max(255).optional(),
-  Stat: z.string().regex(
-    new RegExp(
-      "^(Minimum|Maximum|Sum|Average|SampleCount|(p|tm)[0-9]{1,2}|(p|tm)[0-9]{1,2}\\.[0-9]{1,2}|(p|tm)100)$",
-    ),
-  ).optional(),
-  Configuration: z.object({
-    MetricTimeZone: z.string().optional(),
-    ExcludedTimeRanges: z.array(RangeSchema).optional(),
-  }).optional(),
-  MetricMathAnomalyDetector: z.object({
-    MetricDataQueries: z.array(MetricDataQuerySchema).optional(),
-  }).optional(),
-  Dimensions: z.array(DimensionSchema).optional(),
-  Namespace: z.string().min(1).max(255).regex(new RegExp("[^:].*")).optional(),
-  SingleMetricAnomalyDetector: z.object({
-    MetricName: z.string().min(1).max(255).optional(),
-    Dimensions: z.array(DimensionSchema).optional(),
-    AccountId: z.string().min(1).max(255).optional(),
-    Stat: z.string().regex(
-      new RegExp(
-        "^(Minimum|Maximum|Sum|Average|SampleCount|(p|tm)[0-9]{1,2}|(p|tm)[0-9]{1,2}\\.[0-9]{1,2}|(p|tm)100)$",
-      ),
+  ActiveDirectoryConfiguration: z.object({
+    NetBiosName: z.string().describe(
+      "The NetBIOS name of the Active Directory computer object that will be created for your SVM. Minimum values: 1. Maximum values: 15. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,255}$`",
     ).optional(),
-    Namespace: z.string().min(1).max(255).regex(new RegExp("[^:].*"))
-      .optional(),
-  }).optional(),
+    SelfManagedActiveDirectoryConfiguration:
+      SelfManagedActiveDirectoryConfigurationSchema.describe(
+        "The configuration that Amazon FSx uses to join the ONTAP storage virtual machine (SVM) to your self-managed (including on-premises) Microsoft Active Directory directory.",
+      ).optional(),
+  }).describe(
+    "Describes the Microsoft Active Directory configuration to which the SVM is joined, if applicable.",
+  ).optional(),
+  FileSystemId: z.string().describe(
+    "Specifies the FSx for ONTAP file system on which to create the SVM.",
+  ),
+  Name: z.string().describe(
+    "The name of the SVM. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,47}$`",
+  ),
+  RootVolumeSecurityStyle: z.string().describe(
+    "The security style of the root volume of the SVM. Allowed values: UNIX | NTFS | MIXED.",
+  ).optional(),
+  SvmAdminPassword: z.string().describe(
+    "Specifies the password to use when logging on to the SVM using a secure shell (SSH) connection to the SVM's management endpoint.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A list of Tag values, with a maximum of 50 elements.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  MetricCharacteristics: z.object({
-    PeriodicSpikes: z.boolean(),
+  StorageVirtualMachineId: z.string(),
+  ActiveDirectoryConfiguration: z.object({
+    NetBiosName: z.string(),
+    SelfManagedActiveDirectoryConfiguration:
+      SelfManagedActiveDirectoryConfigurationSchema,
   }).optional(),
-  AnomalyDetectorId: z.string(),
-  MetricName: z.string().optional(),
-  Stat: z.string().optional(),
-  Configuration: z.object({
-    MetricTimeZone: z.string(),
-    ExcludedTimeRanges: z.array(RangeSchema),
-  }).optional(),
-  MetricMathAnomalyDetector: z.object({
-    MetricDataQueries: z.array(MetricDataQuerySchema),
-  }).optional(),
-  Dimensions: z.array(DimensionSchema).optional(),
-  Namespace: z.string().optional(),
-  SingleMetricAnomalyDetector: z.object({
-    MetricName: z.string(),
-    Dimensions: z.array(DimensionSchema),
-    AccountId: z.string(),
-    Stat: z.string(),
-    Namespace: z.string(),
-  }).optional(),
+  FileSystemId: z.string().optional(),
+  Name: z.string().optional(),
+  RootVolumeSecurityStyle: z.string().optional(),
+  SvmAdminPassword: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
+  ResourceARN: z.string().optional(),
+  UUID: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -168,36 +139,32 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  MetricCharacteristics: z.object({
-    PeriodicSpikes: z.boolean().optional(),
-  }).optional(),
-  MetricName: z.string().min(1).max(255).optional(),
-  Stat: z.string().regex(
-    new RegExp(
-      "^(Minimum|Maximum|Sum|Average|SampleCount|(p|tm)[0-9]{1,2}|(p|tm)[0-9]{1,2}\\.[0-9]{1,2}|(p|tm)100)$",
-    ),
-  ).optional(),
-  Configuration: z.object({
-    MetricTimeZone: z.string().optional(),
-    ExcludedTimeRanges: z.array(RangeSchema).optional(),
-  }).optional(),
-  MetricMathAnomalyDetector: z.object({
-    MetricDataQueries: z.array(MetricDataQuerySchema).optional(),
-  }).optional(),
-  Dimensions: z.array(DimensionSchema).optional(),
-  Namespace: z.string().min(1).max(255).regex(new RegExp("[^:].*")).optional(),
-  SingleMetricAnomalyDetector: z.object({
-    MetricName: z.string().min(1).max(255).optional(),
-    Dimensions: z.array(DimensionSchema).optional(),
-    AccountId: z.string().min(1).max(255).optional(),
-    Stat: z.string().regex(
-      new RegExp(
-        "^(Minimum|Maximum|Sum|Average|SampleCount|(p|tm)[0-9]{1,2}|(p|tm)[0-9]{1,2}\\.[0-9]{1,2}|(p|tm)100)$",
-      ),
+  ActiveDirectoryConfiguration: z.object({
+    NetBiosName: z.string().describe(
+      "The NetBIOS name of the Active Directory computer object that will be created for your SVM. Minimum values: 1. Maximum values: 15. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,255}$`",
     ).optional(),
-    Namespace: z.string().min(1).max(255).regex(new RegExp("[^:].*"))
-      .optional(),
-  }).optional(),
+    SelfManagedActiveDirectoryConfiguration:
+      SelfManagedActiveDirectoryConfigurationSchema.describe(
+        "The configuration that Amazon FSx uses to join the ONTAP storage virtual machine (SVM) to your self-managed (including on-premises) Microsoft Active Directory directory.",
+      ).optional(),
+  }).describe(
+    "Describes the Microsoft Active Directory configuration to which the SVM is joined, if applicable.",
+  ).optional(),
+  FileSystemId: z.string().describe(
+    "Specifies the FSx for ONTAP file system on which to create the SVM.",
+  ).optional(),
+  Name: z.string().describe(
+    "The name of the SVM. Pattern: `^[^\\u0000\\u0085\\u2028\\u2029\\r\\n]{1,47}$`",
+  ).optional(),
+  RootVolumeSecurityStyle: z.string().describe(
+    "The security style of the root volume of the SVM. Allowed values: UNIX | NTFS | MIXED.",
+  ).optional(),
+  SvmAdminPassword: z.string().describe(
+    "Specifies the password to use when logging on to the SVM using a secure shell (SSH) connection to the SVM's management endpoint.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A list of Tag values, with a maximum of 50 elements.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -216,22 +183,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for CloudWatch AnomalyDetector. Registered at `@swamp/aws/cloudwatch/anomaly-detector`. */
+/** Swamp extension model for FSx StorageVirtualMachine. Registered at `@swamp/aws/fsx/storage-virtual-machine`. */
 export const model = {
-  type: "@swamp/aws/cloudwatch/anomaly-detector",
-  version: "2026.10.13.1",
-  upgrades: [
-    {
-      toVersion: "2026.10.13.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
+  type: "@swamp/aws/fsx/storage-virtual-machine",
+  version: "2026.10.14.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "CloudWatch AnomalyDetector resource state",
+      description: "FSx StorageVirtualMachine resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -239,7 +199,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a CloudWatch AnomalyDetector",
+      description: "Create a FSx StorageVirtualMachine",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -251,7 +211,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           desiredState,
           credentials,
         ) as StateData;
@@ -268,16 +228,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a CloudWatch AnomalyDetector",
+      description: "Get a FSx StorageVirtualMachine",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the CloudWatch AnomalyDetector",
+          "The primary identifier of the FSx StorageVirtualMachine",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           args.identifier,
           credentials,
         ) as StateData;
@@ -295,7 +255,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a CloudWatch AnomalyDetector",
+      description: "Update a FSx StorageVirtualMachine",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -313,12 +273,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.AnomalyDetectorId?.toString();
+        const identifier = existing.StorageVirtualMachineId?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           identifier,
           credentials,
         ) as StateData;
@@ -329,19 +289,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           identifier,
           currentState,
           desiredState,
-          [
-            "Dimensions",
-            "MetricCharacteristics",
-            "MetricName",
-            "Namespace",
-            "SingleMetricAnomalyDetector",
-            "MetricMathAnomalyDetector",
-            "Stat",
-          ],
+          ["FileSystemId", "Name", "RootVolumeSecurityStyle"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -353,16 +305,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a CloudWatch AnomalyDetector",
+      description: "Delete a FSx StorageVirtualMachine",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the CloudWatch AnomalyDetector",
+          "The primary identifier of the FSx StorageVirtualMachine",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           args.identifier,
           credentials,
         );
@@ -381,7 +333,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync CloudWatch AnomalyDetector state from AWS",
+      description: "Sync FSx StorageVirtualMachine state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -399,13 +351,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.AnomalyDetectorId?.toString();
+        const identifier = existing.StorageVirtualMachineId?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::CloudWatch::AnomalyDetector",
+            "AWS::FSx::StorageVirtualMachine",
             identifier,
             credentials,
           ) as StateData;
@@ -429,7 +381,7 @@ export const model = {
       },
     },
     list: {
-      description: "List CloudWatch AnomalyDetector resources",
+      description: "List FSx StorageVirtualMachine resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -444,7 +396,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::CloudWatch::AnomalyDetector",
+          "AWS::FSx::StorageVirtualMachine",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -455,8 +407,9 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.AnomalyDetectorId?.toString() ?? item.identifier)
-              .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+            (item.properties?.StorageVirtualMachineId?.toString() ??
+              item.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+              .replace(/\0/g, "");
           const handle = await context.writeResource("state", instanceName, {
             ...item.properties,
             _identifier: item.identifier,

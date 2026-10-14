@@ -89,6 +89,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  backupId: z.string().optional(),
   endTime: z.string().optional(),
   replayInstance: z.string().optional(),
   retentionDays: z.number().optional(),
@@ -139,7 +140,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin WorkloadCaptures. Registered at `@swamp/gcp/sqladmin/workloadcaptures`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/workloadcaptures",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.10.06.1",
@@ -148,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -170,7 +170,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 CapacityReservation. Registered at `@swamp/aws/ec2/capacity-reservation`. */
 export const model = {
   type: "@swamp/aws/ec2/capacity-reservation",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -339,7 +344,6 @@ export const model = {
             "InstancePlatform",
             "InstanceType",
             "AvailabilityZone",
-            "TagSpecifications",
             "OutPostArn",
             "EphemeralStorage",
             "EbsOptimized",

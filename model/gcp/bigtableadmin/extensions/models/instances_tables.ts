@@ -168,8 +168,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   table: z.object({
     automatedBackupPolicy: z.object({
+      disabled: z.boolean().describe(
+        "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+      ).optional(),
       frequency: z.string().describe(
         "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+      ).optional(),
+      keepHotDuration: z.string().describe(
+        "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
       ).optional(),
       locations: z.array(z.string()).describe(
         "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
@@ -353,6 +359,25 @@ const GlobalArgsSchema = z.object({
     deletionProtection: z.boolean().describe(
       "Set to true to make the table protected against data loss. i.e. deleting the following resources through Admin APIs are prohibited: * The table. * The column families in the table. * The instance containing the table. Note one can still delete the data stored in the table through Data APIs.",
     ).optional(),
+    effectiveAutomatedBackupPolicy: z.object({
+      disabled: z.boolean().describe(
+        "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+      ).optional(),
+      frequency: z.string().describe(
+        "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+      ).optional(),
+      keepHotDuration: z.string().describe(
+        "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
+      ).optional(),
+      locations: z.array(z.string()).describe(
+        "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
+      ).optional(),
+      retentionPeriod: z.string().describe(
+        "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
+      ).optional(),
+    }).describe(
+      "Output only. The effective automated backup policy applied to the table. This represents the policy actually in effect, which may be a system-default policy if the user has not explicitly configured one. Views: `SCHEMA_VIEW`, `FULL`.",
+    ).optional(),
     granularity: z.enum([
       "TIMESTAMP_GRANULARITY_UNSPECIFIED",
       "MILLIS",
@@ -462,8 +487,14 @@ const GlobalArgsSchema = z.object({
     "Required. The name by which the new table should be referred to within the parent instance, e.g., `foobar` rather than `{parent}/tables/foobar`. Maximum 50 characters.",
   ).optional(),
   automatedBackupPolicy: z.object({
+    disabled: z.boolean().describe(
+      "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+    ).optional(),
     frequency: z.string().describe(
       "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+    ).optional(),
+    keepHotDuration: z.string().describe(
+      "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
     ).optional(),
     locations: z.array(z.string()).describe(
       "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
@@ -699,6 +730,25 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   deletionProtection: z.boolean().describe(
     "Set to true to make the table protected against data loss. i.e. deleting the following resources through Admin APIs are prohibited: * The table. * The column families in the table. * The instance containing the table. Note one can still delete the data stored in the table through Data APIs.",
+  ).optional(),
+  effectiveAutomatedBackupPolicy: z.object({
+    disabled: z.boolean().describe(
+      "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+    ).optional(),
+    frequency: z.string().describe(
+      "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+    ).optional(),
+    keepHotDuration: z.string().describe(
+      "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
+    ).optional(),
+    locations: z.array(z.string()).describe(
+      "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
+    ).optional(),
+    retentionPeriod: z.string().describe(
+      "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
+    ).optional(),
+  }).describe(
+    "Output only. The effective automated backup policy applied to the table. This represents the policy actually in effect, which may be a system-default policy if the user has not explicitly configured one. Views: `SCHEMA_VIEW`, `FULL`.",
   ).optional(),
   granularity: z.enum(["TIMESTAMP_GRANULARITY_UNSPECIFIED", "MILLIS", "MICROS"])
     .describe(
@@ -870,7 +920,9 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   automatedBackupPolicy: z.object({
+    disabled: z.boolean(),
     frequency: z.string(),
+    keepHotDuration: z.string(),
     locations: z.array(z.string()),
     retentionPeriod: z.string(),
   }).optional(),
@@ -880,6 +932,13 @@ const StateSchema = z.object({
   clusterStates: z.record(z.string(), z.unknown()).optional(),
   columnFamilies: z.record(z.string(), z.unknown()).optional(),
   deletionProtection: z.boolean().optional(),
+  effectiveAutomatedBackupPolicy: z.object({
+    disabled: z.boolean(),
+    frequency: z.string(),
+    keepHotDuration: z.string(),
+    locations: z.array(z.string()),
+    retentionPeriod: z.string(),
+  }).optional(),
   granularity: z.string().optional(),
   name: z.string(),
   restoreInfo: z.object({
@@ -982,8 +1041,14 @@ const InputsSchema = z.object({
   ).optional(),
   table: z.object({
     automatedBackupPolicy: z.object({
+      disabled: z.boolean().describe(
+        "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+      ).optional(),
       frequency: z.string().describe(
         "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+      ).optional(),
+      keepHotDuration: z.string().describe(
+        "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
       ).optional(),
       locations: z.array(z.string()).describe(
         "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
@@ -1167,6 +1232,25 @@ const InputsSchema = z.object({
     deletionProtection: z.boolean().describe(
       "Set to true to make the table protected against data loss. i.e. deleting the following resources through Admin APIs are prohibited: * The table. * The column families in the table. * The instance containing the table. Note one can still delete the data stored in the table through Data APIs.",
     ).optional(),
+    effectiveAutomatedBackupPolicy: z.object({
+      disabled: z.boolean().describe(
+        "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+      ).optional(),
+      frequency: z.string().describe(
+        "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+      ).optional(),
+      keepHotDuration: z.string().describe(
+        "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
+      ).optional(),
+      locations: z.array(z.string()).describe(
+        "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
+      ).optional(),
+      retentionPeriod: z.string().describe(
+        "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
+      ).optional(),
+    }).describe(
+      "Output only. The effective automated backup policy applied to the table. This represents the policy actually in effect, which may be a system-default policy if the user has not explicitly configured one. Views: `SCHEMA_VIEW`, `FULL`.",
+    ).optional(),
     granularity: z.enum([
       "TIMESTAMP_GRANULARITY_UNSPECIFIED",
       "MILLIS",
@@ -1276,8 +1360,14 @@ const InputsSchema = z.object({
     "Required. The name by which the new table should be referred to within the parent instance, e.g., `foobar` rather than `{parent}/tables/foobar`. Maximum 50 characters.",
   ).optional(),
   automatedBackupPolicy: z.object({
+    disabled: z.boolean().describe(
+      "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+    ).optional(),
     frequency: z.string().describe(
       "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+    ).optional(),
+    keepHotDuration: z.string().describe(
+      "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
     ).optional(),
     locations: z.array(z.string()).describe(
       "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
@@ -1513,6 +1603,25 @@ const InputsSchema = z.object({
   ).optional(),
   deletionProtection: z.boolean().describe(
     "Set to true to make the table protected against data loss. i.e. deleting the following resources through Admin APIs are prohibited: * The table. * The column families in the table. * The instance containing the table. Note one can still delete the data stored in the table through Data APIs.",
+  ).optional(),
+  effectiveAutomatedBackupPolicy: z.object({
+    disabled: z.boolean().describe(
+      "Optional. If `true`, automated backups are explicitly disabled on this table. This allows users to opt out of default enablement.",
+    ).optional(),
+    frequency: z.string().describe(
+      "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
+    ).optional(),
+    keepHotDuration: z.string().describe(
+      "Optional. The amount of time that the automated backups remain hot. If specified, the backups created by this policy are `HOT` backups. If not specified, the backups are `STANDARD` backups. The value must be at least 24 hours and at most 10 days, and can't exceed the policy's `retention_period`. Only SSD instances support `HOT` automated backups.",
+    ).optional(),
+    locations: z.array(z.string()).describe(
+      "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. You can set this field only for tables in Enterprise Plus instances.",
+    ).optional(),
+    retentionPeriod: z.string().describe(
+      "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
+    ).optional(),
+  }).describe(
+    "Output only. The effective automated backup policy applied to the table. This represents the policy actually in effect, which may be a system-default policy if the user has not explicitly configured one. Views: `SCHEMA_VIEW`, `FULL`.",
   ).optional(),
   granularity: z.enum(["TIMESTAMP_GRANULARITY_UNSPECIFIED", "MILLIS", "MICROS"])
     .describe(
@@ -1708,7 +1817,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables. Registered at `@swamp/gcp/bigtableadmin/instances-tables`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1905,6 +2014,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "Added: effectiveAutomatedBackupPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2061,6 +2175,10 @@ export const model = {
         }
         if (g["deletionProtection"] !== undefined) {
           body["deletionProtection"] = g["deletionProtection"];
+        }
+        if (g["effectiveAutomatedBackupPolicy"] !== undefined) {
+          body["effectiveAutomatedBackupPolicy"] =
+            g["effectiveAutomatedBackupPolicy"];
         }
         if (g["granularity"] !== undefined) {
           body["granularity"] = g["granularity"];
@@ -2489,7 +2607,9 @@ export const model = {
       description: "restore",
       arguments: z.object({
         backup: z.any().optional(),
+        table: z.any().optional(),
         tableId: z.any().optional(),
+        updateMask: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -2501,7 +2621,11 @@ export const model = {
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
         if (args["backup"] !== undefined) body["backup"] = args["backup"];
+        if (args["table"] !== undefined) body["table"] = args["table"];
         if (args["tableId"] !== undefined) body["tableId"] = args["tableId"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
         const result = await createResource(
           baseUrl,
           {

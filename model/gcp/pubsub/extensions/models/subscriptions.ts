@@ -189,7 +189,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
         ).optional(),
         keyFields: z.array(z.string()).describe(
-          "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+          "Required. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
         ).optional(),
       }).describe(
         "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
@@ -471,7 +471,7 @@ const GlobalArgsSchema = z.object({
             "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
           ).optional(),
           keyFields: z.array(z.unknown()).describe(
-            "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+            "Required. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
           ).optional(),
         }).describe(
           "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
@@ -864,7 +864,7 @@ const InputsSchema = z.object({
           "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
         ).optional(),
         keyFields: z.array(z.string()).describe(
-          "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+          "Required. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
         ).optional(),
       }).describe(
         "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
@@ -1146,7 +1146,7 @@ const InputsSchema = z.object({
             "Optional. Byte sequence used to delimit concatenated fields. Must be specified if multiple key fields are used. The delimiter must contain at least 1 character and at most 50 characters.",
           ).optional(),
           keyFields: z.array(z.unknown()).describe(
-            "Optional. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
+            "Required. The key fields to construct from the row key. The fields must be present in the message as a top-level field, i.e. JSON path expressions will not traverse into nested objects.",
           ).optional(),
         }).describe(
           "Optional. If set, the row key is constructed from the given key fields and delimiter. All key fields must be present in the message; otherwise, the message remains in the subscription backlog.",
@@ -1409,7 +1409,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Subscriptions. Registered at `@swamp/gcp/pubsub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/pubsub/subscriptions",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1678,6 +1678,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

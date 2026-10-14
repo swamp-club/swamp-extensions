@@ -51,7 +51,7 @@ const GlobalArgsSchema = z.object({
     "List of permission scopes (uses policy defaults if empty).",
   ).optional(),
   use_cases: z.array(z.enum(["casb", "ces", "auto_remediation"])).describe(
-    "List of use case or feature slugs to enroll (e.g., ['casb', 'ces', 'auto_remediation']).",
+    "List of use case or feature slugs to enroll. At least one use case (casb, ces) is required; auto_remediation may be added alongside casb (e.g., ['casb', 'ces', 'auto_remediation']).",
   ).optional(),
   application: z.enum([
     "ANTHROPIC",
@@ -69,8 +69,9 @@ const GlobalArgsSchema = z.object({
     "SALESFORCE",
     "SERVICENOW",
     "SLACK",
+    "ZOOM",
   ]).describe(
-    "Vendor/application slug (e.g., GOOGLE_WORKSPACE).\n\n* `ANTHROPIC` - ANTHROPIC\n* `AWS` - AWS\n* `BITBUCKET` - BITBUCKET\n* `BOX` - BOX\n* `CONFLUENCE` - CONFLUENCE\n* `DROPBOX` - DROPBOX\n* `GITHUB` - GITHUB\n* `GOOGLE_CLOUD_PLATFORM` - GOOGLE_CLOUD_PLATFORM\n* `GOOGLE_WORKSPACE` - GOOGLE_WORKSPACE\n* `JIRA` - JIRA\n* `MICROSOFT_INTERNAL` - MICROSOFT_INTERNAL\n* `OPENAI` - OPENAI\n* `SALESFORCE` - SALESFORCE\n* `SERVICENOW` - SERVICENOW\n* `SLACK` - SLACK",
+    "Vendor/application slug (e.g., GOOGLE_WORKSPACE).\n\n* `ANTHROPIC` - ANTHROPIC\n* `AWS` - AWS\n* `BITBUCKET` - BITBUCKET\n* `BOX` - BOX\n* `CONFLUENCE` - CONFLUENCE\n* `DROPBOX` - DROPBOX\n* `GITHUB` - GITHUB\n* `GOOGLE_CLOUD_PLATFORM` - GOOGLE_CLOUD_PLATFORM\n* `GOOGLE_WORKSPACE` - GOOGLE_WORKSPACE\n* `JIRA` - JIRA\n* `MICROSOFT_INTERNAL` - MICROSOFT_INTERNAL\n* `OPENAI` - OPENAI\n* `SALESFORCE` - SALESFORCE\n* `SERVICENOW` - SERVICENOW\n* `SLACK` - SLACK\n* `ZOOM` - ZOOM",
   ).optional(),
   auth_method: z.string().min(1).describe(
     "Authentication method slug (uses default if omitted).",
@@ -131,6 +132,7 @@ const InputsSchema = z.object({
     "SALESFORCE",
     "SERVICENOW",
     "SLACK",
+    "ZOOM",
   ]).optional(),
   auth_method: z.string().min(1).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -141,7 +143,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Integrations. Registered at `@swamp/cloudflare/one/integrations`. */
 export const model = {
   type: "@swamp/cloudflare/one/integrations",
-  version: "2026.10.13.1",
+  version: "2026.10.14.1",
   upgrades: [
     {
       toVersion: "2026.07.16.1",
@@ -188,6 +190,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,9 +212,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["application", "credentials", "name"].filter((k) =>
-          g[k] === undefined
-        );
+        const missing = ["application", "credentials", "name", "use_cases"]
+          .filter((k) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
