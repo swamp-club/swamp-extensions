@@ -196,6 +196,50 @@ Deno.test("harness: every review is decided by its submitted record", async () =
   }
 });
 
+Deno.test("harness: the adversarial guard is derived from checks.yaml", async () => {
+  // A hand-kept directory list misses new extensions, and the review then
+  // skips with nothing to tell it from a legitimate skip (swamp-club #2583).
+  // The guard lists the targets of every build group but the harness, whose
+  // verification/ and scripts/ triggers are the CI security review's, and
+  // matches changes under their top-level directories.
+  const reviews = await readYaml<Workflow>(
+    "verification/workflow-verify-reviews.yaml",
+  );
+  const step = reviews.jobs.find((j) => j.name === "detect-changes")?.steps
+    .find((s) => s.name === "changed-files");
+  assert(step, "verify-reviews has no detect-changes/changed-files step");
+  // Line continuations and indentation are layout, not behavior.
+  const run = (step.task?.inputs?.run ?? "").replace(/\\\n/g, " ")
+    .replace(/\s+/g, " ");
+  const groups = run.match(/for GROUP in ([\w ]+); do/)?.[1].split(" ");
+  assert(groups, "changed-files lists no checks.yaml groups");
+  assertEquals(
+    groups.sort(),
+    Object.keys(checks.groups).filter((g) => g !== "harness").sort(),
+  );
+  assert(
+    run.includes(
+      'scripts/run_checks.ts --group "$GROUP" --all --dry-run || exit 1 done',
+    ),
+    "changed-files does not list each group's targets with run_checks.ts",
+  );
+  assert(
+    run.includes(
+      `TOPS=$(echo "$PLANNED" | sed -n 's#^CHECK: \\([^/ ]*\\).*#\\1#p'`,
+    ) &&
+      run.includes(
+        'grep -qE "^(${TOPS}extensions)/"; then echo "REVIEW_ADVERSARIAL: true"',
+      ),
+    "REVIEW_ADVERSARIAL does not follow the listed targets",
+  );
+  for (const group of groups) {
+    for (const target of checks.groups[group].targets) {
+      const top = target.dir.split("/")[0];
+      assert(!run.includes(`${top}/`), `changed-files names ${top}/ by hand`);
+    }
+  }
+});
+
 Deno.test("harness: the harness checks cover every pinned script", () => {
   const [harness] = planChecks(checks, "harness", [], {
     all: true,

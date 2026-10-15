@@ -100,13 +100,20 @@ submit/decide wiring for every review step.
 | Review             | Runs when these paths change                                               | Model           |
 | ------------------ | -------------------------------------------------------------------------- | --------------- |
 | code-review        | always                                                                     | claude-opus-5-5 |
-| adversarial-review | any extension, `model/`, `codegen/`, `vault/`, `datastore/`, `extensions/` | claude-opus-5-5 |
+| adversarial-review | any top-level directory holding a `checks.yaml` target, `extensions/`      | claude-opus-5-5 |
 | ci-security-review | `.forgejo/`, `.github/`, `scripts/`, `verification/`                       | claude-opus-5-5 |
 
 Change detection is a plain `command/shell` step (`review-detect-<run-id>`) that
 runs `git diff --name-only origin/main...HEAD` in the verified worktree — the
 same merge-base diff the reviewers read — and prints a `REVIEW_<KIND>: true`
-marker for each guarded review whose paths changed. A guard skips its step when
+marker for each guarded review whose paths changed. The adversarial marker is
+not a hand-kept list: the step lists every target of each `checks.yaml` group
+but `harness` with `scripts/run_checks.ts --all --dry-run` and matches changes
+under those targets' top-level directories, so a new extension gets the review
+as soon as it has a target. `scripts/verification_harness_test.ts` fails if
+the step stops covering a group or names a directory by hand. A change that
+deletes a whole top-level extension directory leaves no target to find, so it
+gets the code review alone. A guard skips its step when
 it evaluates **true**, so each guard is written as "the marker is absent". The
 diff must run in the worktree, never the caller's checkout: there it comes back
 empty and every guarded review silently skips. No step uses a registry

@@ -24,10 +24,8 @@ the project's requirements and conventions.
 Then read the diff file provided at the path given below.
 
 IMPORTANT: Files under `model/` are auto-generated — do NOT review their content.
-Skip model/ changes in the diff. Focus your review on `vault/`, `datastore/`,
-`issue-lifecycle/`, `kubernetes/`, `workflows/`, `cve/`, `codegen/`, `agent-runner/`,
-`software-factory/`, `stagecraft/`, `container-image/`, `git/`, `ssh/`, and
-`scripts/`.
+Skip model/ changes in the diff. Focus your review on the hand-written code
+everywhere else in the diff.
 
 Your review MUST systematically attempt to break the code across these dimensions:
 

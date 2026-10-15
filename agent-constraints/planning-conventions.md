@@ -47,16 +47,15 @@ must be updated, or the change will be silently uncovered:
 
 - `verification/checks.yaml` — a target with the directory's check
   targets, lint/fmt paths, and `deno test` permissions.
-  `scripts/verification_harness_test.ts` fails until it exists.
+  `scripts/verification_harness_test.ts` fails until it exists. The target
+  also turns on the adversarial review for the directory: verify-reviews
+  derives its guard from these targets.
 - `scripts/audit_deps.ts` — `SCAN_ROOTS`, if the new directory is outside
   the roots it already walks.
 - `.forgejo/workflows/publish.yml` — add the push step for the new
   extension.
 - `.forgejo/workflows/regenerate-models.yml` — only for new codegen
   providers.
-- The adversarial-review guard in
-  `verification/workflow-verify-reviews.yaml` — only for a new top-level
-  directory.
 
 Plans that add new extensions must enumerate these updates as explicit
 steps, not implicit cleanup.

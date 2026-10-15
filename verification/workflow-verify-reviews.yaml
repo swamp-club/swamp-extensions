@@ -65,9 +65,10 @@ jobs:
         condition:
           type: succeeded
     steps:
-      # Plain git, no extension: the guards below read the markers this
-      # prints, the same way verify-build's codegen guard does. It runs in the
-      # verified worktree against the merge base, the diff the reviews read.
+      # Plain git and scripts/run_checks.ts, no extension: the guards below
+      # read the markers this prints, the same way verify-build's codegen guard
+      # does. It runs in the verified worktree against the merge base, the
+      # diff the reviews read.
       - name: changed-files
         task:
           type: model_method
@@ -79,7 +80,21 @@ jobs:
               set -e
               CHANGED=$(git -c core.quotePath=false diff --name-only --no-renames origin/main...HEAD)
               echo "$CHANGED" | sed 's/^/CHANGED: /'
-              if echo "$CHANGED" | grep -qE '^(agent-runner/|deno-runner/|vault/|datastore/|codegen/|model/|issue-lifecycle/|ssh/|kubernetes/|workflows/|cve/|software-factory/|stagecraft/|container-image/|git/|typesafe-ai/|extensions/)'; then
+              # The adversarial review covers every top-level directory holding
+              # a verification/checks.yaml target, so a new extension gets it
+              # as soon as it has a check target. Any path under such a
+              # directory counts, built or not (a README beside the extension
+              # directories too). The harness group is left out: its triggers
+              # are scripts/ and verification/, which the CI security review
+              # covers, and extensions/, added directly. A change that deletes
+              # a whole top-level extension directory leaves no target to
+              # find, so it gets the code review alone.
+              PLANNED=$(for GROUP in extensions vaults datastores models codegen; do
+                deno run --allow-read scripts/run_checks.ts \
+                  --group "$GROUP" --all --dry-run || exit 1
+              done)
+              TOPS=$(echo "$PLANNED" | sed -n 's#^CHECK: \([^/ ]*\).*#\1#p' | sort -u | tr '\n' '|')
+              if echo "$CHANGED" | grep -qE "^(${TOPS}extensions)/"; then
                 echo "REVIEW_ADVERSARIAL: true"
               fi
               if echo "$CHANGED" | grep -qE '^(\.forgejo/|\.github/|scripts/|verification/)'; then
@@ -138,7 +153,9 @@ jobs:
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: adversarial-review
-        # Skips unless extension, model, codegen or harness model code changed.
+        # Skips unless the change touches a top-level directory holding a
+        # checks.yaml target in the extensions, vaults, datastores, models or
+        # codegen group, or harness model code.
         guard: "${{ !data.latest('review-detect-' + run.id, 'result').attributes.stdout.contains('REVIEW_ADVERSARIAL: true') }}"
         task:
           type: model_method
