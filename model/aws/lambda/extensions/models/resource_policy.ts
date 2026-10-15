@@ -50,17 +50,15 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ResourceArn: z.string().min(12).max(1024).describe(
-    "The Amazon Resource Name (ARN) of the LAM resource you want to add the policy to. For a function, you can use a qualified or an unqualified ARN. The value must be a complete ARN, and the operation does not accept wildcard characters.",
-  ),
   PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The policy document you want to add to your LAM resource. This is formatted as a JSON string. For more information, see [Working with resource-based policies in](https://docs.aws.amazon.com/lambda/latest/dg/access-control-resource-based.html) in the *Developer Guide*.",
   ),
+  ResourceArn: z.string().min(12).max(1024),
 });
 
 const StateSchema = z.object({
-  ResourceArn: z.string(),
   PolicyDocument: z.record(z.string(), z.unknown()).optional(),
+  ResourceArn: z.string(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -70,12 +68,10 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  ResourceArn: z.string().min(12).max(1024).describe(
-    "The Amazon Resource Name (ARN) of the LAM resource you want to add the policy to. For a function, you can use a qualified or an unqualified ARN. The value must be a complete ARN, and the operation does not accept wildcard characters.",
-  ).optional(),
   PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The policy document you want to add to your LAM resource. This is formatted as a JSON string. For more information, see [Working with resource-based policies in](https://docs.aws.amazon.com/lambda/latest/dg/access-control-resource-based.html) in the *Developer Guide*.",
   ).optional(),
+  ResourceArn: z.string().min(12).max(1024).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -97,7 +93,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda ResourcePolicy. Registered at `@swamp/aws/lambda/resource-policy`. */
 export const model = {
   type: "@swamp/aws/lambda/resource-policy",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -111,6 +107,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

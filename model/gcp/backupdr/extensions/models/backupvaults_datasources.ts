@@ -333,6 +333,16 @@ const GlobalArgsSchema = z.object({
     location: z.string().describe(
       'Location of the resource: //"global"/"unspecified".',
     ).optional(),
+    netappVolumeDatasourceProperties: z.object({
+      sourceResource: z.string().describe(
+        "Output only. The source volume represented by this DataSource.",
+      ).optional(),
+      sourceResourceCreateTime: z.string().describe(
+        "Output only. The volume creation timestamp.",
+      ).optional(),
+    }).describe(
+      "Output only. NetAppVolumeDataSourceProperties has a subset of NetApp Volume properties that are useful at the Datasource level.",
+    ).optional(),
     type: z.string().describe(
       "The type of the Google Cloud resource. Use the Unified Resource Type, eg. compute.googleapis.com/Instance.",
     ).optional(),
@@ -449,6 +459,10 @@ const StateSchema = z.object({
     }),
     gcpResourcename: z.string(),
     location: z.string(),
+    netappVolumeDatasourceProperties: z.object({
+      sourceResource: z.string(),
+      sourceResourceCreateTime: z.string(),
+    }),
     type: z.string(),
   }).optional(),
   etag: z.string().optional(),
@@ -653,6 +667,16 @@ const InputsSchema = z.object({
     location: z.string().describe(
       'Location of the resource: //"global"/"unspecified".',
     ).optional(),
+    netappVolumeDatasourceProperties: z.object({
+      sourceResource: z.string().describe(
+        "Output only. The source volume represented by this DataSource.",
+      ).optional(),
+      sourceResourceCreateTime: z.string().describe(
+        "Output only. The volume creation timestamp.",
+      ).optional(),
+    }).describe(
+      "Output only. NetAppVolumeDataSourceProperties has a subset of NetApp Volume properties that are useful at the Datasource level.",
+    ).optional(),
     type: z.string().describe(
       "The type of the Google Cloud resource. Use the Unified Resource Type, eg. compute.googleapis.com/Instance.",
     ).optional(),
@@ -720,7 +744,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources. Registered at `@swamp/gcp/backupdr/backupvaults-datasources`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -864,6 +888,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

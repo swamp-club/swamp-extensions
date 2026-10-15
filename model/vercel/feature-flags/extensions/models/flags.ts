@@ -92,6 +92,7 @@ const ResourceSchema = z.object({
   projectId: z.string().nullable().optional(),
   revision: z.number().nullable().optional(),
   seed: z.number().nullable().optional(),
+  seenInProduction: z.boolean().nullable().optional(),
   slug: z.string().nullable().optional(),
   state: z.string().nullable().optional(),
   tags: z.array(z.string()).nullable().optional(),
@@ -142,7 +143,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -216,6 +217,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -333,6 +339,9 @@ export const model = {
         }
         if (g.revision !== undefined) {
           filters.push(["revision", String(g.revision)]);
+        }
+        if (g.seenInProduction !== undefined) {
+          filters.push(["seenInProduction", String(g.seenInProduction)]);
         }
         if (g.typeName !== undefined) {
           filters.push(["typeName", String(g.typeName)]);

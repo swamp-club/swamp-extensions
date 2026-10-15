@@ -46,7 +46,9 @@ const GlobalArgsSchema = z.object({
         url: z.string(),
       })).optional(),
     }).optional(),
-  }).optional(),
+  }).describe(
+    "Relay configuration. All sub-objects use whole-object replacement when\npresent; omitted sub-objects preserve the existing value.\n",
+  ).optional(),
   name: z.string().min(1).describe("Human-readable name for the relay.")
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -98,7 +100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Relays. Registered at `@swamp/cloudflare/moq/relays`. */
 export const model = {
   type: "@swamp/cloudflare/moq/relays",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -157,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

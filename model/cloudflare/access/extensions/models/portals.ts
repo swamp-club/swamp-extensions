@@ -152,6 +152,7 @@ const ResourceSchema = z.object({
     name: z.string().optional(),
     on_behalf: z.boolean().optional(),
     prompts: z.array(z.record(z.string(), z.unknown())).optional(),
+    registered_at: z.string().optional(),
     secure_web_gateway: z.boolean().optional(),
     server_id: z.string().optional(),
     status: z.string().optional(),
@@ -223,7 +224,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Portals. Registered at `@swamp/cloudflare/access/portals`. */
 export const model = {
   type: "@swamp/cloudflare/access/portals",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -297,6 +298,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

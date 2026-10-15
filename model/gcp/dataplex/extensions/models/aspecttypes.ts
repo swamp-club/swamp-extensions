@@ -202,7 +202,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Display order for a field. You can use this to reorder where a field is rendered.",
       ).optional(),
       stringType: z.string().describe(
-        "Optional. You can use String Type annotations to specify special meaning to string fields. The following values are supported: richText: The field must be interpreted as a rich text field. url: A fully qualified URL link. resource: A service qualified resource reference.",
+        "Optional. You can use String Type annotations to specify special meaning to string fields. The following values are supported: richText: The field must be interpreted as a rich text field. markdown: The field must be interpreted as a markdown field. url: A fully qualified URL link. resource: A service qualified resource reference.",
       ).optional(),
       stringValues: z.array(z.string()).describe(
         "Optional. Suggested hints for string fields. You can use them to suggest values to users through console.",
@@ -339,7 +339,7 @@ const InputsSchema = z.object({
         "Optional. Display order for a field. You can use this to reorder where a field is rendered.",
       ).optional(),
       stringType: z.string().describe(
-        "Optional. You can use String Type annotations to specify special meaning to string fields. The following values are supported: richText: The field must be interpreted as a rich text field. url: A fully qualified URL link. resource: A service qualified resource reference.",
+        "Optional. You can use String Type annotations to specify special meaning to string fields. The following values are supported: richText: The field must be interpreted as a rich text field. markdown: The field must be interpreted as a markdown field. url: A fully qualified URL link. resource: A service qualified resource reference.",
       ).optional(),
       stringValues: z.array(z.string()).describe(
         "Optional. Suggested hints for string fields. You can use them to suggest values to users through console.",
@@ -420,7 +420,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex AspectTypes. Registered at `@swamp/gcp/dataplex/aspecttypes`. */
 export const model = {
   type: "@swamp/gcp/dataplex/aspecttypes",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -591,6 +591,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

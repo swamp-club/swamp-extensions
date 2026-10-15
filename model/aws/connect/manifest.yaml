@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/connect"
-version: "2026.10.13.1"
+version: "2026.10.15.1"
 license: "AGPL-3.0-or-later"
 description: "AWS CONNECT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: agent_status, approved_origin, contact_flow, contact_flow_module, contact_flow_module_alias, contact_flow_module_version, contact_flow_version, data_lake_association, data_table, data_table_attribute, data_table_record, email_address, evaluation_form, hours_of_operation, instance, instance_storage_config, integration_association, metric, notification, phone_number, predefined_attribute, prompt, queue, quick_connect, routing_profile, rule, security_key, security_profile, task_template, test_case, traffic_distribution_group, use_case, user, user_hierarchy_group, user_hierarchy_structure, view, view_version, vocabulary, workspace
+  - Updated: rule
 models:
   - agent_status.ts
   - approved_origin.ts

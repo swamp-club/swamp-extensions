@@ -103,6 +103,53 @@ const SendNotificationActionSchema = z.object({
   Exclusion: NotificationRecipientTypeSchema.optional(),
 });
 
+const NotificationContentSchema = z.object({
+  EnUS: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  DeDE: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  EsES: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  FrFR: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  IdID: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  ItIT: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  JaJP: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  KoKR: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  PtBR: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  ZhCN: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+  ZhTW: z.string().min(0).max(3000).describe("Localized notification content.")
+    .optional(),
+});
+
+const InAppNotificationRecipientTypeSchema = z.object({
+  UserTags: z.record(z.string(), z.string()).describe(
+    "The collection of recipients who are identified by user tags",
+  ).optional(),
+  UserArns: z.array(
+    z.string().regex(
+      new RegExp(
+        "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/agent/[-a-zA-Z0-9]*$|^\\$\\..+$",
+      ),
+    ),
+  ).describe("The list of recipients by user arns.").optional(),
+});
+
+const SendInAppNotificationActionSchema = z.object({
+  Content: NotificationContentSchema,
+  Recipient: InAppNotificationRecipientTypeSchema,
+  Exclusion: InAppNotificationRecipientTypeSchema.optional(),
+  Priority: z.enum(["HIGH", "LOW"]).describe(
+    "The priority of the notification.",
+  ).optional(),
+});
+
 const FieldValueSchema = z.object({
   StringValue: z.string().optional(),
   BooleanValue: z.boolean().optional(),
@@ -228,6 +275,8 @@ const GlobalArgsSchema = z.object({
     SendNotificationActions: z.array(SendNotificationActionSchema).describe(
       "Information about the send notification action.",
     ).optional(),
+    SendInAppNotificationActions: z.array(SendInAppNotificationActionSchema)
+      .optional(),
     CreateCaseActions: z.array(CreateCaseActionSchema).optional(),
     UpdateCaseActions: z.array(UpdateCaseActionSchema).optional(),
     EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown()))
@@ -258,6 +307,7 @@ const StateSchema = z.object({
     EventBridgeActions: z.array(EventBridgeActionSchema),
     TaskActions: z.array(TaskActionSchema),
     SendNotificationActions: z.array(SendNotificationActionSchema),
+    SendInAppNotificationActions: z.array(SendInAppNotificationActionSchema),
     CreateCaseActions: z.array(CreateCaseActionSchema),
     UpdateCaseActions: z.array(UpdateCaseActionSchema),
     EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown())),
@@ -326,6 +376,8 @@ const InputsSchema = z.object({
     SendNotificationActions: z.array(SendNotificationActionSchema).describe(
       "Information about the send notification action.",
     ).optional(),
+    SendInAppNotificationActions: z.array(SendInAppNotificationActionSchema)
+      .optional(),
     CreateCaseActions: z.array(CreateCaseActionSchema).optional(),
     UpdateCaseActions: z.array(UpdateCaseActionSchema).optional(),
     EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown()))
@@ -362,7 +414,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Rule. Registered at `@swamp/aws/connect/rule`. */
 export const model = {
   type: "@swamp/aws/connect/rule",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -436,6 +488,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

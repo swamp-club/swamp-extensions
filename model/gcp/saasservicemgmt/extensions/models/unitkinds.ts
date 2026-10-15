@@ -184,8 +184,40 @@ const GlobalArgsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
-  defaultFlagRevisions: z.array(z.string()).describe(
-    "Optional. Default revisions of flags for this UnitKind. Newly created units will use the flag default_flag_revisions present at the time of creation.",
+  appParams: z.object({
+    group: z.string().describe(
+      "Optional. Grouping used to construct the name of the AppHub Application. Multiple UnitKinds can specify the same group to use the same Application across their respective units. Corresponds to the app_boundary_id in the ADC composite ApplicationTemplate. Defaults to UnitKind.name",
+    ).optional(),
+    scope: z.object({
+      type: z.enum(["TYPE_UNSPECIFIED", "TYPE_REGIONAL", "TYPE_GLOBAL"])
+        .describe("Required. Scope Type.").optional(),
+    }).describe(
+      "Optional. Corresponds to the scope in the ADC composite ApplicationTemplate. Defaults to TYPE_REGIONAL.",
+    ).optional(),
+  }).describe(
+    "Optional. AppParams contains the parameters for creating an AppHub Application.",
+  ).optional(),
+  applicationTemplateComponent: z.object({
+    component: z.string().describe(
+      "Optional. Name of the component in composite.Components",
+    ).optional(),
+    compositeRef: z.object({
+      applicationTemplate: z.string().describe(
+        "Required. Reference to the ApplicationTemplate resource.",
+      ).optional(),
+      revision: z.string().describe(
+        "Optional. Revision of the ApplicationTemplate to use. Changes to revision will trigger manual resynchronization. If empty, ApplicationTemplate will be ignored.",
+      ).optional(),
+      syncOperation: z.string().describe(
+        "Output only. Reference to on-going AppTemplate import and replication operation (i.e. the operation_id for the long-running operation). This field is opaque for external usage.",
+      ).optional(),
+    }).describe("Optional. Reference to the Composite ApplicationTemplate.")
+      .optional(),
+    revision: z.string().describe(
+      "Optional. Revision of the component. If the component does not have a revision, this field will be explicitly set to the revision of the composite ApplicationTemplate.",
+    ).optional(),
+  }).describe(
+    "Optional. Reference to component and revision in a composite ApplicationTemplate.",
   ).optional(),
   defaultRelease: z.string().describe(
     "Optional. A reference to the Release object to use as default for creating new units of this UnitKind (optional). If not specified, a new unit must explicitly reference which release to use for its creation.",
@@ -278,9 +310,23 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
+  appParams: z.object({
+    group: z.string(),
+    scope: z.object({
+      type: z.string(),
+    }),
+  }).optional(),
+  applicationTemplateComponent: z.object({
+    component: z.string(),
+    compositeRef: z.object({
+      applicationTemplate: z.string(),
+      revision: z.string(),
+      syncOperation: z.string(),
+    }),
+    revision: z.string(),
+  }).optional(),
   boundaryType: z.string().optional(),
   createTime: z.string().optional(),
-  defaultFlagRevisions: z.array(z.string()).optional(),
   defaultRelease: z.string().optional(),
   deleteTime: z.string().optional(),
   dependencies: z.array(z.object({
@@ -331,8 +377,40 @@ const InputsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
-  defaultFlagRevisions: z.array(z.string()).describe(
-    "Optional. Default revisions of flags for this UnitKind. Newly created units will use the flag default_flag_revisions present at the time of creation.",
+  appParams: z.object({
+    group: z.string().describe(
+      "Optional. Grouping used to construct the name of the AppHub Application. Multiple UnitKinds can specify the same group to use the same Application across their respective units. Corresponds to the app_boundary_id in the ADC composite ApplicationTemplate. Defaults to UnitKind.name",
+    ).optional(),
+    scope: z.object({
+      type: z.enum(["TYPE_UNSPECIFIED", "TYPE_REGIONAL", "TYPE_GLOBAL"])
+        .describe("Required. Scope Type.").optional(),
+    }).describe(
+      "Optional. Corresponds to the scope in the ADC composite ApplicationTemplate. Defaults to TYPE_REGIONAL.",
+    ).optional(),
+  }).describe(
+    "Optional. AppParams contains the parameters for creating an AppHub Application.",
+  ).optional(),
+  applicationTemplateComponent: z.object({
+    component: z.string().describe(
+      "Optional. Name of the component in composite.Components",
+    ).optional(),
+    compositeRef: z.object({
+      applicationTemplate: z.string().describe(
+        "Required. Reference to the ApplicationTemplate resource.",
+      ).optional(),
+      revision: z.string().describe(
+        "Optional. Revision of the ApplicationTemplate to use. Changes to revision will trigger manual resynchronization. If empty, ApplicationTemplate will be ignored.",
+      ).optional(),
+      syncOperation: z.string().describe(
+        "Output only. Reference to on-going AppTemplate import and replication operation (i.e. the operation_id for the long-running operation). This field is opaque for external usage.",
+      ).optional(),
+    }).describe("Optional. Reference to the Composite ApplicationTemplate.")
+      .optional(),
+    revision: z.string().describe(
+      "Optional. Revision of the component. If the component does not have a revision, this field will be explicitly set to the revision of the composite ApplicationTemplate.",
+    ).optional(),
+  }).describe(
+    "Optional. Reference to component and revision in a composite ApplicationTemplate.",
   ).optional(),
   defaultRelease: z.string().describe(
     "Optional. A reference to the Release object to use as default for creating new units of this UnitKind (optional). If not specified, a new unit must explicitly reference which release to use for its creation.",
@@ -449,7 +527,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -606,6 +684,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description:
+        "Added: appParams, applicationTemplateComponent. Removed: defaultFlagRevisions",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { defaultFlagRevisions: _defaultFlagRevisions, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -636,8 +723,10 @@ export const model = {
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
         }
-        if (g["defaultFlagRevisions"] !== undefined) {
-          body["defaultFlagRevisions"] = g["defaultFlagRevisions"];
+        if (g["appParams"] !== undefined) body["appParams"] = g["appParams"];
+        if (g["applicationTemplateComponent"] !== undefined) {
+          body["applicationTemplateComponent"] =
+            g["applicationTemplateComponent"];
         }
         if (g["defaultRelease"] !== undefined) {
           body["defaultRelease"] = g["defaultRelease"];
@@ -773,8 +862,10 @@ export const model = {
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
         }
-        if (g["defaultFlagRevisions"] !== undefined) {
-          body["defaultFlagRevisions"] = g["defaultFlagRevisions"];
+        if (g["appParams"] !== undefined) body["appParams"] = g["appParams"];
+        if (g["applicationTemplateComponent"] !== undefined) {
+          body["applicationTemplateComponent"] =
+            g["applicationTemplateComponent"];
         }
         if (g["defaultRelease"] !== undefined) {
           body["defaultRelease"] = g["defaultRelease"];

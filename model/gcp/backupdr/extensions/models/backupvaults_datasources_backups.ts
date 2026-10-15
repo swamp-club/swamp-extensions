@@ -703,6 +703,12 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     'Output only. Identifier. Name of the backup to create. It must have the format`"projects//locations//backupVaults//dataSources/{datasource}/backups/{backup}"`. `{backup}` cannot be changed after creation. It must be between 3-63 characters long and must be unique within the datasource.',
   ).optional(),
+  netappVolumeBackupProperties: z.object({
+    sourceResource: z.string().describe(
+      "Output only. The source volume of the Backup.",
+    ).optional(),
+  }).describe("Output only. NetApp Volume specific backup properties.")
+    .optional(),
   resourceSizeBytes: z.string().describe(
     "Output only. source resource size in bytes at the time of the backup.",
   ).optional(),
@@ -964,6 +970,9 @@ const StateSchema = z.object({
   kmsKeyVersions: z.array(z.string()).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
+  netappVolumeBackupProperties: z.object({
+    sourceResource: z.string(),
+  }).optional(),
   resourceSizeBytes: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -1543,6 +1552,12 @@ const InputsSchema = z.object({
   name: z.string().describe(
     'Output only. Identifier. Name of the backup to create. It must have the format`"projects//locations//backupVaults//dataSources/{datasource}/backups/{backup}"`. `{backup}` cannot be changed after creation. It must be between 3-63 characters long and must be unique within the datasource.',
   ).optional(),
+  netappVolumeBackupProperties: z.object({
+    sourceResource: z.string().describe(
+      "Output only. The source volume of the Backup.",
+    ).optional(),
+  }).describe("Output only. NetApp Volume specific backup properties.")
+    .optional(),
   resourceSizeBytes: z.string().describe(
     "Output only. source resource size in bytes at the time of the backup.",
   ).optional(),
@@ -1636,7 +1651,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources.Backups. Registered at `@swamp/gcp/backupdr/backupvaults-datasources-backups`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources-backups",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1793,6 +1808,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Added: netappVolumeBackupProperties",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1937,6 +1957,10 @@ export const model = {
           body["kmsKeyVersions"] = g["kmsKeyVersions"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["netappVolumeBackupProperties"] !== undefined) {
+          body["netappVolumeBackupProperties"] =
+            g["netappVolumeBackupProperties"];
+        }
         if (g["resourceSizeBytes"] !== undefined) {
           body["resourceSizeBytes"] = g["resourceSizeBytes"];
         }

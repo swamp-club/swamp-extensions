@@ -44,6 +44,9 @@ const GlobalArgsSchema = z.object({
   aclsExternalLink: z.string().describe(
     "Link to the external tailnet policy definition or management solution for this tailnet.",
   ).optional(),
+  adminConsoleSessionTimeoutMinutes: z.number().int().describe(
+    "The [admin console session timeout](/docs/account/admin-console-session-timeout) for members of this tailnet.\nSetting it to 0 disables the timeout.",
+  ).optional(),
   devicesApprovalOn: z.boolean().nullable().describe(
     "Whether [device approval](/docs/features/access-control/device-management/device-approval) is enabled for the tailnet.",
   ).optional(),
@@ -100,6 +103,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   aclsExternallyManagedOn: z.boolean().nullable().optional(),
   aclsExternalLink: z.string().optional(),
+  adminConsoleSessionTimeoutMinutes: z.number().optional(),
   devicesApprovalOn: z.boolean().nullable().optional(),
   devicesAutoUpdatesOn: z.boolean().nullable().optional(),
   devicesKeyDurationDays: z.number().optional(),
@@ -115,6 +119,7 @@ const ResourceSchema = z.object({
 const InputsSchema = z.object({
   aclsExternallyManagedOn: z.boolean().nullable().optional(),
   aclsExternalLink: z.string().optional(),
+  adminConsoleSessionTimeoutMinutes: z.number().int().optional(),
   devicesApprovalOn: z.boolean().nullable().optional(),
   devicesAutoUpdatesOn: z.boolean().nullable().optional(),
   devicesKeyDurationDays: z.number().int().optional(),
@@ -135,7 +140,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale tailnet settings. Registered at `@swamp/tailscale/tailnet-settings`. */
 export const model = {
   type: "@swamp/tailscale/tailnet-settings",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.10.08.1",
@@ -160,6 +165,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Added: adminConsoleSessionTimeoutMinutes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -180,6 +190,7 @@ export const model = {
         const body: Record<string, unknown> = pickDefined(g, [
           "aclsExternallyManagedOn",
           "aclsExternalLink",
+          "adminConsoleSessionTimeoutMinutes",
           "devicesApprovalOn",
           "devicesAutoUpdatesOn",
           "devicesKeyDurationDays",
@@ -225,6 +236,7 @@ export const model = {
         const body: Record<string, unknown> = pickDefined(g, [
           "aclsExternallyManagedOn",
           "aclsExternalLink",
+          "adminConsoleSessionTimeoutMinutes",
           "devicesApprovalOn",
           "devicesAutoUpdatesOn",
           "devicesKeyDurationDays",

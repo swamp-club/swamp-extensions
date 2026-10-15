@@ -61,7 +61,9 @@ const EvaluatorReferenceSchema = z.object({
     new RegExp(
       "^(Builtin\\.[a-zA-Z0-9._-]+|ThirdParty\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+|[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10})$",
     ),
-  ).describe("The unique identifier of the evaluator."),
+  ).describe(
+    "The ID of the evaluator: a built-in evaluator ID (Builtin.*), a managed third-party evaluator ID (ThirdParty..), or a custom evaluator ID. For a custom evaluator in the same template, use Fn::GetAtt with EvaluatorId. Ref returns the evaluator ARN, which this property does not accept.",
+  ),
 });
 
 const SamplingConfigSchema = z.object({
@@ -329,7 +331,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -408,6 +410,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

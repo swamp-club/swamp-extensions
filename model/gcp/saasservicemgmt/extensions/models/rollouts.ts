@@ -203,9 +203,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Requested change to the execution of this rollout. Default RolloutControl.action is ROLLOUT_ACTION_RUN meaning the rollout will be executed to completion while progressing through all natural Rollout States (such as RUNNING -> SUCCEEDED or RUNNING -> FAILED). Requests can only be made when the Rollout is in a non-terminal state.",
   ).optional(),
-  flagRelease: z.string().describe(
-    'Optional. Immutable. Name of the FlagRelease to be rolled out to the target Units. Release and FlagRelease are mutually exclusive. Note: `release` comment needs to be adjusted to mention that "Release and FlagRelease are mutually exclusive" when visibility restriction will be lifted.',
-  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
   ).optional(),
@@ -247,7 +244,6 @@ const StateSchema = z.object({
   effectiveUnitFilter: z.string().optional(),
   endTime: z.string().optional(),
   etag: z.string().optional(),
-  flagRelease: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   parentRollout: z.string().optional(),
@@ -301,9 +297,6 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. Requested change to the execution of this rollout. Default RolloutControl.action is ROLLOUT_ACTION_RUN meaning the rollout will be executed to completion while progressing through all natural Rollout States (such as RUNNING -> SUCCEEDED or RUNNING -> FAILED). Requests can only be made when the Rollout is in a non-terminal state.",
-  ).optional(),
-  flagRelease: z.string().describe(
-    'Optional. Immutable. Name of the FlagRelease to be rolled out to the target Units. Release and FlagRelease are mutually exclusive. Note: `release` comment needs to be adjusted to mention that "Release and FlagRelease are mutually exclusive" when visibility restriction will be lifted.',
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -359,7 +352,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Rollouts. Registered at `@swamp/gcp/saasservicemgmt/rollouts`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rollouts",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +497,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Removed: flagRelease",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { flagRelease: _flagRelease, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -534,9 +535,6 @@ export const model = {
           body["annotations"] = g["annotations"];
         }
         if (g["control"] !== undefined) body["control"] = g["control"];
-        if (g["flagRelease"] !== undefined) {
-          body["flagRelease"] = g["flagRelease"];
-        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["release"] !== undefined) body["release"] = g["release"];

@@ -205,6 +205,9 @@ const StateSchema = z.object({
     instanceCreateTime: z.string(),
   }).optional(),
   name: z.string(),
+  netappVolumeBackupPlanAssociationProperties: z.object({
+    sourceResourceCreateTime: z.string(),
+  }).optional(),
   resource: z.string().optional(),
   resourceType: z.string().optional(),
   rulesConfigInfo: z.array(z.object({
@@ -277,7 +280,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlanAssociations. Registered at `@swamp/gcp/backupdr/backupplanassociations`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplanassociations",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -428,6 +431,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

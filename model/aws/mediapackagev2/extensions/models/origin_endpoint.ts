@@ -38,6 +38,24 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const MultiviewFilterConfigurationSchema = z.object({
+  Layout: z.enum([
+    "LAYOUT_2EH",
+    "LAYOUT_2PL",
+    "LAYOUT_3EL",
+    "LAYOUT_3PL",
+    "LAYOUT_4E",
+    "LAYOUT_4PL",
+  ]).describe(
+    "A tile layout for a multiview channel. Each layout determines how many source tiles are composited into the output and how those tiles are arranged. The allowed values are:    LAYOUT_2EH – Two tiles of equal size, arranged horizontally.    LAYOUT_2PL – Two tiles, with one larger primary tile.    LAYOUT_3EL – Three tiles of equal size, arranged in two columns.    LAYOUT_3PL – Three tiles, with one larger primary tile on the left and two stacked on the right.    LAYOUT_4E – Four tiles of equal size, arranged in a two-by-two grid.    LAYOUT_4PL – Four tiles, with one larger primary tile on the left and three stacked on the right.",
+  ),
+  Sources: z.array(
+    z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_-]+$")),
+  ).describe(
+    "The source channels to composite, in tile order. Each channel must be one of the AvailableSources of the channel that this origin endpoint is on, and the number of channels must equal the number of tiles in Layout.",
+  ),
+});
+
 const FilterConfigurationSchema = z.object({
   ManifestFilter: z.string().min(1).max(1024).describe(
     "Optionally specify one or more manifest filters for all of your manifest egress requests. When you include a manifest filter, note that you cannot use an identical manifest filter query parameter for this manifest's endpoint URL.",
@@ -56,6 +74,9 @@ const FilterConfigurationSchema = z.object({
   ).optional(),
   ClipStartTime: z.string().describe(
     "Optionally specify the clip start time for all of your manifest egress requests. When you include clip start time, note that you cannot use clip start time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  Multiview: MultiviewFilterConfigurationSchema.describe(
+    "The multiview combination for a pinned manifest. MediaPackage serves the manifest with this layout and these sources, so players request it without an aws.multiview query parameter. If a request for a pinned manifest also includes an aws.multiview query parameter, MediaPackage rejects the request, even when that parameter requests the same combination.",
   ).optional(),
 });
 
@@ -254,6 +275,27 @@ const HlsManifestConfigurationSchema = z.object({
   UriPathType: z.enum(["LEAF", "ROOT"]).optional(),
 });
 
+const LowLatencyHlsFilterConfigurationSchema = z.object({
+  ManifestFilter: z.string().min(1).max(1024).describe(
+    "Optionally specify one or more manifest filters for all of your manifest egress requests. When you include a manifest filter, note that you cannot use an identical manifest filter query parameter for this manifest's endpoint URL.",
+  ).optional(),
+  DrmSettings: z.string().min(1).max(1024).describe(
+    "Optionally specify one or more DRM settings for all of your manifest egress requests. When you include a DRM setting, note that you cannot use an identical DRM setting query parameter for this manifest's endpoint URL.",
+  ).optional(),
+  Start: z.string().describe(
+    "Optionally specify the start time for all of your manifest egress requests. When you include start time, note that you cannot use start time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  End: z.string().describe(
+    "Optionally specify the end time for all of your manifest egress requests. When you include end time, note that you cannot use end time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  TimeDelaySeconds: z.number().int().min(0).max(1209600).describe(
+    "Optionally specify the time delay for all of your manifest egress requests. Enter a value that is smaller than your endpoint's startover window. When you include time delay, note that you cannot use time delay query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  ClipStartTime: z.string().describe(
+    "Optionally specify the clip start time for all of your manifest egress requests. When you include clip start time, note that you cannot use clip start time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+});
+
 const LowLatencyHlsManifestConfigurationSchema = z.object({
   ManifestName: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
     .describe(
@@ -274,7 +316,7 @@ const LowLatencyHlsManifestConfigurationSchema = z.object({
     "Inserts EXT-X-PROGRAM-DATE-TIME tags in the output manifest at the interval that you specify. If you don't enter an interval, EXT-X-PROGRAM-DATE-TIME tags aren't included in the manifest. The tags sync the stream to the wall clock so that viewers can seek to a specific time in the playback timeline on the player. Irrespective of this parameter, if any ID3Timed metadata is in the HLS input, it is passed through to the HLS output.",
   ).optional(),
   ScteHls: ScteHlsSchema.describe("The SCTE configuration.").optional(),
-  FilterConfiguration: FilterConfigurationSchema.describe(
+  FilterConfiguration: LowLatencyHlsFilterConfigurationSchema.describe(
     "Filter configuration includes settings for manifest filtering, start and end times, and time delay that apply to all of your egress requests for this manifest.",
   ).optional(),
   StartTag: StartTagSchema.describe(
@@ -286,12 +328,33 @@ const LowLatencyHlsManifestConfigurationSchema = z.object({
   UriPathType: z.enum(["LEAF", "ROOT"]).optional(),
 });
 
+const MssFilterConfigurationSchema = z.object({
+  ManifestFilter: z.string().min(1).max(1024).describe(
+    "Optionally specify one or more manifest filters for all of your manifest egress requests. When you include a manifest filter, note that you cannot use an identical manifest filter query parameter for this manifest's endpoint URL.",
+  ).optional(),
+  DrmSettings: z.string().min(1).max(1024).describe(
+    "Optionally specify one or more DRM settings for all of your manifest egress requests. When you include a DRM setting, note that you cannot use an identical DRM setting query parameter for this manifest's endpoint URL.",
+  ).optional(),
+  Start: z.string().describe(
+    "Optionally specify the start time for all of your manifest egress requests. When you include start time, note that you cannot use start time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  End: z.string().describe(
+    "Optionally specify the end time for all of your manifest egress requests. When you include end time, note that you cannot use end time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  TimeDelaySeconds: z.number().int().min(0).max(1209600).describe(
+    "Optionally specify the time delay for all of your manifest egress requests. Enter a value that is smaller than your endpoint's startover window. When you include time delay, note that you cannot use time delay query parameters for this manifest's endpoint URL.",
+  ).optional(),
+  ClipStartTime: z.string().describe(
+    "Optionally specify the clip start time for all of your manifest egress requests. When you include clip start time, note that you cannot use clip start time query parameters for this manifest's endpoint URL.",
+  ).optional(),
+});
+
 const MssManifestConfigurationSchema = z.object({
   ManifestName: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9-]+$"))
     .describe(
       "The name of the MSS manifest. This name is appended to the origin endpoint URL to create the unique path for accessing this specific MSS manifest.",
     ),
-  FilterConfiguration: FilterConfigurationSchema.describe(
+  FilterConfiguration: MssFilterConfigurationSchema.describe(
     "Filter configuration includes settings for manifest filtering, start and end times, and time delay that apply to all of your egress requests for this manifest.",
   ).optional(),
   ManifestWindowSeconds: z.number().int().describe(
@@ -654,7 +717,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.10.14.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -733,6 +796,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -140,6 +140,10 @@ const StateSchema = z.object({
     }),
     gcpResourcename: z.string(),
     location: z.string(),
+    netappVolumeProperties: z.object({
+      sourceResource: z.string(),
+      sourceResourceCreateTime: z.string(),
+    }),
     type: z.string(),
   }).optional(),
   name: z.string(),
@@ -187,7 +191,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service DataSourceReferences. Registered at `@swamp/gcp/backupdr/datasourcereferences`. */
 export const model = {
   type: "@swamp/gcp/backupdr/datasourcereferences",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -316,6 +320,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

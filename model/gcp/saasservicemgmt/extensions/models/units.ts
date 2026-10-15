@@ -184,6 +184,9 @@ const GlobalArgsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
+  application: z.string().describe(
+    "Optional. Reference to the AppHub Application this unit belongs to. All resources deployed in this Unit will be associated with the specified Application.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
   ).optional(),
@@ -222,6 +225,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
+  application: z.string().optional(),
   conditions: z.array(z.object({
     lastTransitionTime: z.string(),
     message: z.string(),
@@ -239,7 +243,6 @@ const StateSchema = z.object({
     unit: z.string(),
   })).optional(),
   etag: z.string().optional(),
-  flagRevisions: z.array(z.string()).optional(),
   inputVariables: z.array(z.object({
     type: z.string(),
     value: z.string(),
@@ -282,6 +285,9 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
+  ).optional(),
+  application: z.string().describe(
+    "Optional. Reference to the AppHub Application this unit belongs to. All resources deployed in this Unit will be associated with the specified Application.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -345,7 +351,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager Units. Registered at `@swamp/gcp/saasservicemgmt/units`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/units",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -527,6 +533,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Added: application",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -556,6 +567,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
+        }
+        if (g["application"] !== undefined) {
+          body["application"] = g["application"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["maintenance"] !== undefined) {
@@ -683,6 +697,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
+        }
+        if (g["application"] !== undefined) {
+          body["application"] = g["application"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["maintenance"] !== undefined) {

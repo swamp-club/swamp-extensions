@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/backupdr"
-version: "2026.10.13.1"
+version: "2026.10.15.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud backupdr infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, backupplanassociations, backupplans, backupplans_revisions, backupvaults, backupvaults_datasources, backupvaults_datasources_backups, datasourcereferences, managementservers, resourcebackupconfigs
+  - Updated: backupplanassociations, backupvaults_datasources, backupvaults_datasources_backups, datasourcereferences
 models:
   - backupplanassociations.ts
   - backupplans.ts

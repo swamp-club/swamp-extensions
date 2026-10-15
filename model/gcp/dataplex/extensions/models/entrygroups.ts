@@ -172,6 +172,13 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  changeRequestConfig: z.object({
+    approverEmails: z.array(z.string()).describe(
+      "Optional. Specifies the email addresses of users who are potential approvers and are notified when a change request is created for the metadata belonging to the Entry Group. The maximum number of emails allowed is 10.",
+    ).optional(),
+  }).describe(
+    "Optional. Specifies the configuration for requesting changes in the metadata belonging to the Entry Group.",
+  ).optional(),
   description: z.string().describe("Optional. Description of the EntryGroup.")
     .optional(),
   displayName: z.string().describe("Optional. User friendly display name.")
@@ -187,6 +194,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  changeRequestConfig: z.object({
+    approverEmails: z.array(z.string()),
+  }).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -208,6 +218,13 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  changeRequestConfig: z.object({
+    approverEmails: z.array(z.string()).describe(
+      "Optional. Specifies the email addresses of users who are potential approvers and are notified when a change request is created for the metadata belonging to the Entry Group. The maximum number of emails allowed is 10.",
+    ).optional(),
+  }).describe(
+    "Optional. Specifies the configuration for requesting changes in the metadata belonging to the Entry Group.",
+  ).optional(),
   description: z.string().describe("Optional. Description of the EntryGroup.")
     .optional(),
   displayName: z.string().describe("Optional. User friendly display name.")
@@ -248,7 +265,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryGroups. Registered at `@swamp/gcp/dataplex/entrygroups`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrygroups",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -390,6 +407,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Added: changeRequestConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -417,6 +439,9 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["changeRequestConfig"] !== undefined) {
+          body["changeRequestConfig"] = g["changeRequestConfig"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -538,6 +563,9 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["changeRequestConfig"] !== undefined) {
+          body["changeRequestConfig"] = g["changeRequestConfig"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -733,6 +761,51 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    batch_change_metadata: {
+      description: "batch change metadata",
+      arguments: z.object({
+        changes: z.any().optional(),
+        description: z.any().optional(),
+        name: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["changes"] !== undefined) body["changes"] = args["changes"];
+        if (args["description"] !== undefined) {
+          body["description"] = args["description"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "dataplex.projects.locations.entryGroups.batchChangeMetadata",
+            "path": "v1/{+name}:batchChangeMetadata",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     get_iam_policy: {
       description: "get iam policy",
       arguments: z.object({
@@ -778,6 +851,54 @@ export const model = {
           },
           params,
           undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    request_batch_metadata_change: {
+      description: "request batch metadata change",
+      arguments: z.object({
+        changePayload: z.any().optional(),
+        justification: z.any().optional(),
+        labels: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["changePayload"] !== undefined) {
+          body["changePayload"] = args["changePayload"];
+        }
+        if (args["justification"] !== undefined) {
+          body["justification"] = args["justification"];
+        }
+        if (args["labels"] !== undefined) body["labels"] = args["labels"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "dataplex.projects.locations.entryGroups.requestBatchMetadataChange",
+            "path": "v1/{+name}:requestBatchMetadataChange",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

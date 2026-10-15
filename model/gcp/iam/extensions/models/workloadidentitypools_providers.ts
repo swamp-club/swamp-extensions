@@ -157,6 +157,9 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  actorProviders: z.array(z.string()).describe(
+    "Optional. A list of the resource names of WorkloadIdentityPoolProviders in the same pool that are authorized to issue actor tokens for this provider. An actor token represents the identity of the acting party to whom authority is delegated. At most 3 actor providers can be specified.",
+  ).optional(),
   attributeCondition: z.string().describe(
     "Optional. [A Common Expression Language](https://opensource.google/projects/cel) expression, in plain text, to restrict what otherwise valid authentication credentials issued by the provider should not be accepted. The expression must output a boolean representing whether to allow the federation. The following keywords may be referenced in the expressions: * `assertion`: JSON representing the authentication credential issued by the provider. * `google`: The Google attributes mapped from the assertion in the `attribute_mappings`. * `attribute`: The custom attributes mapped from the assertion in the `attribute_mappings`. The maximum length of the `attribute_condition` expression is 4,096 characters. Providing a condition longer than this will result in an error. If unspecified, all valid authentication credentials are accepted. However, multi-tenant identity providers (such as GitHub or Terraform Cloud) require an `attribute_condition` to prevent token spoofing. The following example shows how to only allow credentials with a mapped `google.groups` value of `admins`: ` \"'admins' in google.groups\" `",
   ).optional(),
@@ -180,6 +183,9 @@ const GlobalArgsSchema = z.object({
   oidc: z.object({
     allowedAudiences: z.array(z.string()).describe(
       "Optional. Acceptable values for the `aud` field (audience) in the OIDC token. Token exchange requests are rejected if the token audience does not match one of the configured values. Each audience may be at most 256 characters. A maximum of 10 audiences may be configured. If this list is empty, the OIDC token audience must be equal to the full canonical resource name of the WorkloadIdentityPoolProvider, with or without the HTTPS prefix. For example: ` //iam.googleapis.com/projects//locations//workloadIdentityPools//providers/ https://iam.googleapis.com/projects//locations//workloadIdentityPools//providers/ `",
+    ).optional(),
+    discoveryUri: z.string().describe(
+      "Optional. The URL to fetch the OIDC discovery document from, overriding the default URL derived from `issuer_uri`. If not set, `discovery_uri` defaults to `issuer_uri` with `/.well-known/openid-configuration` appended, as per the OpenID Connect Discovery 1.0 specification. If set, `discovery_uri` must meet the following requirements: - Must start with `https://`. - Must not exceed 2000 characters. - The scheme, host, and port must match `issuer_uri`. - The path must contain `/.well-known/` (where `` is not empty, such as `openid-configuration`) and conform to the `issuer_uri` topology: - The well-known path segment is inserted before the issuer path (for example, `https://example.com/.well-known/openid-configuration/tenant1` for issuer `https://example.com/tenant1`), or - The well-known path segment is appended under the issuer path (for example, `https://example.com/tenant1/.well-known/openid-configuration` for issuer `https://example.com/tenant1`).",
     ).optional(),
     issuerUri: z.string().describe(
       "Required. The OIDC `issuer_uri`. Must be an HTTPS endpoint. Per OpenID Connect Discovery 1.0 spec, the OIDC issuer URL is used to locate the provider's public keys (via `jwks_uri`) for verifying tokens like the OIDC ID token. These public key types must be 'EC' or 'RSA'.",
@@ -228,6 +234,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  actorProviders: z.array(z.string()).optional(),
   attributeCondition: z.string().optional(),
   attributeMapping: z.record(z.string(), z.unknown()).optional(),
   aws: z.object({
@@ -240,6 +247,7 @@ const StateSchema = z.object({
   name: z.string(),
   oidc: z.object({
     allowedAudiences: z.array(z.string()),
+    discoveryUri: z.string(),
     issuerUri: z.string(),
     jwksJson: z.string(),
   }).optional(),
@@ -269,6 +277,9 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  actorProviders: z.array(z.string()).describe(
+    "Optional. A list of the resource names of WorkloadIdentityPoolProviders in the same pool that are authorized to issue actor tokens for this provider. An actor token represents the identity of the acting party to whom authority is delegated. At most 3 actor providers can be specified.",
+  ).optional(),
   attributeCondition: z.string().describe(
     "Optional. [A Common Expression Language](https://opensource.google/projects/cel) expression, in plain text, to restrict what otherwise valid authentication credentials issued by the provider should not be accepted. The expression must output a boolean representing whether to allow the federation. The following keywords may be referenced in the expressions: * `assertion`: JSON representing the authentication credential issued by the provider. * `google`: The Google attributes mapped from the assertion in the `attribute_mappings`. * `attribute`: The custom attributes mapped from the assertion in the `attribute_mappings`. The maximum length of the `attribute_condition` expression is 4,096 characters. Providing a condition longer than this will result in an error. If unspecified, all valid authentication credentials are accepted. However, multi-tenant identity providers (such as GitHub or Terraform Cloud) require an `attribute_condition` to prevent token spoofing. The following example shows how to only allow credentials with a mapped `google.groups` value of `admins`: ` \"'admins' in google.groups\" `",
   ).optional(),
@@ -292,6 +303,9 @@ const InputsSchema = z.object({
   oidc: z.object({
     allowedAudiences: z.array(z.string()).describe(
       "Optional. Acceptable values for the `aud` field (audience) in the OIDC token. Token exchange requests are rejected if the token audience does not match one of the configured values. Each audience may be at most 256 characters. A maximum of 10 audiences may be configured. If this list is empty, the OIDC token audience must be equal to the full canonical resource name of the WorkloadIdentityPoolProvider, with or without the HTTPS prefix. For example: ` //iam.googleapis.com/projects//locations//workloadIdentityPools//providers/ https://iam.googleapis.com/projects//locations//workloadIdentityPools//providers/ `",
+    ).optional(),
+    discoveryUri: z.string().describe(
+      "Optional. The URL to fetch the OIDC discovery document from, overriding the default URL derived from `issuer_uri`. If not set, `discovery_uri` defaults to `issuer_uri` with `/.well-known/openid-configuration` appended, as per the OpenID Connect Discovery 1.0 specification. If set, `discovery_uri` must meet the following requirements: - Must start with `https://`. - Must not exceed 2000 characters. - The scheme, host, and port must match `issuer_uri`. - The path must contain `/.well-known/` (where `` is not empty, such as `openid-configuration`) and conform to the `issuer_uri` topology: - The well-known path segment is inserted before the issuer path (for example, `https://example.com/.well-known/openid-configuration/tenant1` for issuer `https://example.com/tenant1`), or - The well-known path segment is appended under the issuer path (for example, `https://example.com/tenant1/.well-known/openid-configuration` for issuer `https://example.com/tenant1`).",
     ).optional(),
     issuerUri: z.string().describe(
       "Required. The OIDC `issuer_uri`. Must be an HTTPS endpoint. Per OpenID Connect Discovery 1.0 spec, the OIDC issuer URL is used to locate the provider's public keys (via `jwks_uri`) for verifying tokens like the OIDC ID token. These public key types must be 'EC' or 'RSA'.",
@@ -365,7 +379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkloadIdentityPools.Providers. Registered at `@swamp/gcp/iam/workloadidentitypools-providers`. */
 export const model = {
   type: "@swamp/gcp/iam/workloadidentitypools-providers",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -385,6 +399,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
+      description: "Added: actorProviders",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -415,6 +434,9 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["actorProviders"] !== undefined) {
+          body["actorProviders"] = g["actorProviders"];
+        }
         if (g["attributeCondition"] !== undefined) {
           body["attributeCondition"] = g["attributeCondition"];
         }
@@ -558,6 +580,9 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["actorProviders"] !== undefined) {
+          body["actorProviders"] = g["actorProviders"];
+        }
         if (g["attributeCondition"] !== undefined) {
           body["attributeCondition"] = g["attributeCondition"];
         }

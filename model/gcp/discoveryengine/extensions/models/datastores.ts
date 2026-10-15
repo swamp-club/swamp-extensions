@@ -351,6 +351,9 @@ const GlobalArgsSchema = z.object({
       "AlloyDB config. If set, this DataStore is connected to AlloyDB.",
     ).optional(),
     notebooklmConfig: z.object({
+      notebooks: z.array(z.string()).describe(
+        "Optional. Restricts this data store to the given notebooks. When empty, the data store covers every notebook the querying user can access, which is the existing behaviour. Each entry is a full notebook resource name, such as `projects/*/locations/*/notebooks/*`. Scoping is enforced on results as well as requested upstream, so a notebook outside this list cannot appear in a search response through this data store even if the backend returns one.",
+      ).optional(),
       searchConfig: z.string().describe(
         "Required. Search config name. Format: projects/*/locations/global/notebookLmSearchConfigs/*",
       ).optional(),
@@ -562,6 +565,7 @@ const StateSchema = z.object({
       returnedFields: z.array(z.string()),
     }),
     notebooklmConfig: z.object({
+      notebooks: z.array(z.string()),
       searchConfig: z.string(),
     }),
     thirdPartyOauthConfig: z.object({
@@ -790,6 +794,9 @@ const InputsSchema = z.object({
       "AlloyDB config. If set, this DataStore is connected to AlloyDB.",
     ).optional(),
     notebooklmConfig: z.object({
+      notebooks: z.array(z.string()).describe(
+        "Optional. Restricts this data store to the given notebooks. When empty, the data store covers every notebook the querying user can access, which is the existing behaviour. Each entry is a full notebook resource name, such as `projects/*/locations/*/notebooks/*`. Scoping is enforced on results as well as requested upstream, so a notebook outside this list cannot appear in a search response through this data store even if the backend returns one.",
+      ).optional(),
       searchConfig: z.string().describe(
         "Required. Search config name. Format: projects/*/locations/global/notebookLmSearchConfigs/*",
       ).optional(),
@@ -947,7 +954,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores. Registered at `@swamp/gcp/discoveryengine/datastores`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1193,6 +1200,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

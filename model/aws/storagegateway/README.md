@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/storagegateway/tape_pool` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/storagegateway/nfsfile_share` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new tape_pool model
-swamp model create @swamp/aws/storagegateway/tape_pool my-tape_pool
+# Create a new nfsfile_share model
+swamp model create @swamp/aws/storagegateway/nfsfile_share my-nfsfile_share
 
 # Edit the model to configure its properties
-swamp model edit my-tape_pool
+swamp model edit my-nfsfile_share
 
 # Create the resource in AWS
-swamp model method run my-tape_pool create
+swamp model method run my-nfsfile_share create
 
 # Sync current state from AWS
-swamp model method run my-tape_pool sync
+swamp model method run my-nfsfile_share sync
 ```
 
 ## License

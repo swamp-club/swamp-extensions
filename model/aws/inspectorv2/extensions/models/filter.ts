@@ -43,14 +43,14 @@ const StringFilterSchema = z.object({
   Value: z.string().min(1).max(1024),
 });
 
-const DateFilterSchema = z.object({
-  EndInclusive: z.number().int().optional(),
-  StartInclusive: z.number().int().optional(),
-});
-
 const NumberFilterSchema = z.object({
   LowerInclusive: z.number().optional(),
   UpperInclusive: z.number().optional(),
+});
+
+const DateFilterSchema = z.object({
+  EndInclusive: z.number().int().optional(),
+  StartInclusive: z.number().int().optional(),
 });
 
 const PortRangeFilterSchema = z.object({
@@ -107,6 +107,7 @@ const GlobalArgsSchema = z.object({
     Ec2InstanceVpcId: z.array(StringFilterSchema).optional(),
     EcrImageArchitecture: z.array(StringFilterSchema).optional(),
     EcrImageHash: z.array(StringFilterSchema).optional(),
+    EcrImageInUseCount: z.array(NumberFilterSchema).optional(),
     EcrImagePushedAt: z.array(DateFilterSchema).optional(),
     EcrImageRegistry: z.array(StringFilterSchema).optional(),
     EcrImageRepositoryName: z.array(StringFilterSchema).optional(),
@@ -161,6 +162,7 @@ const StateSchema = z.object({
     Ec2InstanceVpcId: z.array(StringFilterSchema),
     EcrImageArchitecture: z.array(StringFilterSchema),
     EcrImageHash: z.array(StringFilterSchema),
+    EcrImageInUseCount: z.array(NumberFilterSchema),
     EcrImagePushedAt: z.array(DateFilterSchema),
     EcrImageRegistry: z.array(StringFilterSchema),
     EcrImageRepositoryName: z.array(StringFilterSchema),
@@ -222,6 +224,7 @@ const InputsSchema = z.object({
     Ec2InstanceVpcId: z.array(StringFilterSchema).optional(),
     EcrImageArchitecture: z.array(StringFilterSchema).optional(),
     EcrImageHash: z.array(StringFilterSchema).optional(),
+    EcrImageInUseCount: z.array(NumberFilterSchema).optional(),
     EcrImagePushedAt: z.array(DateFilterSchema).optional(),
     EcrImageRegistry: z.array(StringFilterSchema).optional(),
     EcrImageRepositoryName: z.array(StringFilterSchema).optional(),
@@ -279,7 +282,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 Filter. Registered at `@swamp/aws/inspectorv2/filter`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/filter",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -333,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

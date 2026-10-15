@@ -47,7 +47,7 @@ const VpcEgressConfigurationSchema = z.object({
   SecurityGroupIds: z.array(
     z.string().min(0).max(1024).regex(new RegExp("^sg-[0-9a-zA-Z]*$")),
   ).describe(
-    "The IDs of the VPC security groups to attach to the ENIs. Specify 0 to 5 security groups. All security groups must be in the same VPC as the subnets.",
+    "The IDs of the VPC security groups to attach to the ENIs. All security groups must be in the same VPC as the subnets.",
   ),
   NetworkProtocol: z.enum(["IPv4", "DualStack"]).describe(
     "The network protocol for the connector. Specify IPv4 for IPv4-only networking, or DualStack for both IPv4 and IPv6.",
@@ -172,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
   type: "@swamp/aws/lambda/network-connector",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -186,6 +186,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -86,9 +86,6 @@ const GlobalArgsSchema = z.object({
   rule_settings: z.object({
     add_headers: z.record(z.string(), z.unknown()).optional(),
     allow_child_bypass: z.boolean().optional(),
-    audit_ssh: z.object({
-      command_logging: z.boolean().optional(),
-    }).optional(),
     biso_admin_controls: z.object({
       copy: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       dcp: z.boolean().optional(),
@@ -240,9 +237,6 @@ const ResourceSchema = z.object({
   rule_settings: z.object({
     add_headers: z.record(z.string(), z.unknown()).optional(),
     allow_child_bypass: z.boolean().optional(),
-    audit_ssh: z.object({
-      command_logging: z.boolean().optional(),
-    }).optional(),
     biso_admin_controls: z.object({
       copy: z.string().optional(),
       dcp: z.boolean().optional(),
@@ -385,9 +379,6 @@ const InputsSchema = z.object({
   rule_settings: z.object({
     add_headers: z.record(z.string(), z.unknown()).optional(),
     allow_child_bypass: z.boolean().optional(),
-    audit_ssh: z.object({
-      command_logging: z.boolean().optional(),
-    }).optional(),
     biso_admin_controls: z.object({
       copy: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       dcp: z.boolean().optional(),
@@ -509,7 +500,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/gateway/rules`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/rules",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -553,6 +544,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

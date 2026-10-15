@@ -417,6 +417,16 @@ const GlobalArgsSchema = z.object({
       imageVersion: z.string().describe(
         "Optional. The version of the software running in the environment. This encapsulates both the version of Cloud Composer functionality and the version of Apache Airflow. It must match the regular expression `composer-([0-9]+(\\.[0-9]+\\.[0-9]+(-preview\\.[0-9]+)?)?|latest)-airflow-([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)`. When used as input, the server also checks if the provided version is supported and denies the request for an unsupported version. The Cloud Composer portion of the image version is a full [semantic version](https://semver.org), or an alias in the form of major version number or `latest`. When an alias is provided, the server replaces it with the current Cloud Composer version that satisfies the alias. The Apache Airflow portion of the image version is a full semantic version that points to one of the supported Apache Airflow versions, or an alias in the form of only major or major.minor versions specified. When an alias is provided, the server replaces it with the latest Apache Airflow version that satisfies the alias and is supported in the given Cloud Composer version. In all cases, the resolved image version is stored in the same field. See also [version list](/composer/docs/concepts/versioning/composer-versions) and [versioning overview](/composer/docs/concepts/versioning/composer-versioning-overview).",
       ).optional(),
+      imageVersionRollbackTargets: z.array(z.object({
+        imageVersion: z.string().describe(
+          "Output only. The image version the environment can be rolled back to.",
+        ).optional(),
+        lastActiveTime: z.string().describe(
+          "Output only. The last time when the environment was running this image version.",
+        ).optional(),
+      })).describe(
+        "Output only. The list of image versions the environment can be rolled back to, sorted by last_active_time in descending order (most recent first). This field is supported for Cloud Composer environments in versions composer-3-airflow-*.*.*-build.* and newer.",
+      ).optional(),
       pypiPackages: z.record(z.string(), z.string()).describe(
         'Optional. Custom Python Package Index (PyPI) packages to be installed in the environment. Keys refer to the lowercase package name such as "numpy" and values are the lowercase extras and version specifier such as "==1.12.0", "[devel,gcp_api]", or "[devel]>=1.8.2, <1.9.2". To specify a package without pinning it to a version specifier, use the empty string as the value.',
       ).optional(),
@@ -651,6 +661,10 @@ const StateSchema = z.object({
       }),
       envVariables: z.record(z.string(), z.unknown()),
       imageVersion: z.string(),
+      imageVersionRollbackTargets: z.array(z.object({
+        imageVersion: z.string(),
+        lastActiveTime: z.string(),
+      })),
       pypiPackages: z.record(z.string(), z.unknown()),
       pythonVersion: z.string(),
       schedulerCount: z.number(),
@@ -986,6 +1000,16 @@ const InputsSchema = z.object({
       imageVersion: z.string().describe(
         "Optional. The version of the software running in the environment. This encapsulates both the version of Cloud Composer functionality and the version of Apache Airflow. It must match the regular expression `composer-([0-9]+(\\.[0-9]+\\.[0-9]+(-preview\\.[0-9]+)?)?|latest)-airflow-([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)`. When used as input, the server also checks if the provided version is supported and denies the request for an unsupported version. The Cloud Composer portion of the image version is a full [semantic version](https://semver.org), or an alias in the form of major version number or `latest`. When an alias is provided, the server replaces it with the current Cloud Composer version that satisfies the alias. The Apache Airflow portion of the image version is a full semantic version that points to one of the supported Apache Airflow versions, or an alias in the form of only major or major.minor versions specified. When an alias is provided, the server replaces it with the latest Apache Airflow version that satisfies the alias and is supported in the given Cloud Composer version. In all cases, the resolved image version is stored in the same field. See also [version list](/composer/docs/concepts/versioning/composer-versions) and [versioning overview](/composer/docs/concepts/versioning/composer-versioning-overview).",
       ).optional(),
+      imageVersionRollbackTargets: z.array(z.object({
+        imageVersion: z.string().describe(
+          "Output only. The image version the environment can be rolled back to.",
+        ).optional(),
+        lastActiveTime: z.string().describe(
+          "Output only. The last time when the environment was running this image version.",
+        ).optional(),
+      })).describe(
+        "Output only. The list of image versions the environment can be rolled back to, sorted by last_active_time in descending order (most recent first). This field is supported for Cloud Composer environments in versions composer-3-airflow-*.*.*-build.* and newer.",
+      ).optional(),
       pypiPackages: z.record(z.string(), z.string()).describe(
         'Optional. Custom Python Package Index (PyPI) packages to be installed in the environment. Keys refer to the lowercase package name such as "numpy" and values are the lowercase extras and version specifier such as "==1.12.0", "[devel,gcp_api]", or "[devel]>=1.8.2, <1.9.2". To specify a package without pinning it to a version specifier, use the empty string as the value.',
       ).optional(),
@@ -1153,7 +1177,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Composer Environments. Registered at `@swamp/gcp/composer/environments`. */
 export const model = {
   type: "@swamp/gcp/composer/environments",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1307,6 +1331,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

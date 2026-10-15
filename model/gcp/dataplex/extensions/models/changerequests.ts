@@ -151,6 +151,188 @@ const GlobalArgsSchema = z.object({
   author: z.string().describe(
     "Output only. The email address of the user who created the ChangeRequest.",
   ).optional(),
+  batchChangeMetadataRequest: z.object({
+    changes: z.array(z.object({
+      createEntryLinkRequest: z.object({
+        entryLink: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry link. The format of the aspect key has to be the following: {project_id_or_number}.{location_id}.{aspect_type_id} Currently, only a single aspect of a Dataplex-owned Aspect Type is allowed.",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was created.",
+          ).optional(),
+          entryLinkType: z.unknown().describe(
+            "Required. Immutable. Relative resource name of the Entry Link Type used to create this Entry Link. For example: Entry link between synonym terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/synonym Entry link between related terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/related Entry link between glossary terms and data assets: projects/dataplex-types/locations/global/entryLinkTypes/definition",
+          ).optional(),
+          entryReferences: z.unknown().describe(
+            "Required. Immutable. Specifies the Entries referenced in the Entry Link. There should be exactly two entry references.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Output only. Immutable. Identifier. The relative resource name of the Entry Link, of the form: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was last updated.",
+          ).optional(),
+        }).describe("Required. Entry Link resource.").optional(),
+        entryLinkId: z.string().describe(
+          "Required. Entry Link identifier * Must contain only lowercase letters, numbers and hyphens. * Must start with a letter. * Must be between 1-63 characters. * Must end with a number or a letter. * Must be unique within the EntryGroup.",
+        ).optional(),
+        parent: z.string().describe(
+          "Required. The resource name of the parent Entry Group: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}.",
+        ).optional(),
+      }).describe("Payload for creating an EntryLink.").optional(),
+      createEntryRequest: z.object({
+        entry: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry. Depending on how the aspect is attached to the entry, the format of the aspect key can be one of the following: If the aspect is attached directly to the entry: {project_id_or_number}.{location_id}.{aspect_type_id} If the aspect is attached to an entry's path: {project_id_or_number}.{location_id}.{aspect_type_id}@{path}",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entrySource: z.unknown().describe(
+            "Optional. Information related to the source system of the data resource that is represented by the entry.",
+          ).optional(),
+          entryType: z.unknown().describe(
+            "Required. Immutable. The relative resource name of the entry type that was used to create this entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryTypes/{entry_type_id}.",
+          ).optional(),
+          fullyQualifiedName: z.unknown().describe(
+            "Optional. A name for the entry that can be referenced by an external system. For more information, see Fully qualified names (https://cloud.google.com/data-catalog/docs/fully-qualified-names). The maximum size of the field is 4000 characters.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Identifier. The relative resource name of the entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          parentEntry: z.unknown().describe(
+            "Optional. Immutable. The resource name of the parent entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the entry was last updated in Dataplex Universal Catalog.",
+          ).optional(),
+        }).describe("Required. Entry resource.").optional(),
+        entryId: z.string().describe(
+          "Required. Entry identifier. It has to be unique within an Entry Group.Entries corresponding to Google Cloud resources use an Entry ID format based on full resource names (https://cloud.google.com/apis/design/resource_names#full_resource_name). The format is a full resource name of the resource without the prefix double slashes in the API service name part of the full resource name. This allows retrieval of entries using their associated resource name.For example, if the full resource name of a resource is //library.googleapis.com/shelves/shelf1/books/book2, then the suggested entry_id is library.googleapis.com/shelves/shelf1/books/book2.It is also suggested to follow the same convention for entries corresponding to resources from providers or systems other than Google Cloud.The maximum size of the field is 4000 characters.",
+        ).optional(),
+        parent: z.string().describe(
+          "Required. The resource name of the parent Entry Group: projects/{project}/locations/{location}/entryGroups/{entry_group}.",
+        ).optional(),
+      }).describe("Payload for creating an Entry.").optional(),
+      deleteEntryLinkRequest: z.object({
+        name: z.string().describe(
+          "Required. The resource name of the Entry Link: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}.",
+        ).optional(),
+      }).describe("Payload for deleting an EntryLink.").optional(),
+      deleteEntryRequest: z.object({
+        name: z.string().describe(
+          "Required. The resource name of the Entry: projects/{project}/locations/{location}/entryGroups/{entry_group}/entries/{entry}.",
+        ).optional(),
+      }).describe("Payload for deleting an Entry.").optional(),
+      updateEntryLinkRequest: z.object({
+        allowMissing: z.boolean().describe(
+          "Optional. If set to true and the entry link doesn't exist, the service will create it.",
+        ).optional(),
+        aspectKeys: z.array(z.unknown()).describe(
+          "Optional. The map keys of the Aspects which the service should modify. It should be the aspect type reference in the format {project_id_or_number}.{location_id}.{aspect_type_id}.If this field is left empty, the service treats it as specifying exactly those Aspects present in the request.",
+        ).optional(),
+        entryLink: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry link. The format of the aspect key has to be the following: {project_id_or_number}.{location_id}.{aspect_type_id} Currently, only a single aspect of a Dataplex-owned Aspect Type is allowed.",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was created.",
+          ).optional(),
+          entryLinkType: z.unknown().describe(
+            "Required. Immutable. Relative resource name of the Entry Link Type used to create this Entry Link. For example: Entry link between synonym terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/synonym Entry link between related terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/related Entry link between glossary terms and data assets: projects/dataplex-types/locations/global/entryLinkTypes/definition",
+          ).optional(),
+          entryReferences: z.unknown().describe(
+            "Required. Immutable. Specifies the Entries referenced in the Entry Link. There should be exactly two entry references.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Output only. Immutable. Identifier. The relative resource name of the Entry Link, of the form: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was last updated.",
+          ).optional(),
+        }).describe("Required. Entry Link resource.").optional(),
+      }).describe("Payload for updating an EntryLink.").optional(),
+      updateEntryRequest: z.object({
+        allowMissing: z.boolean().describe(
+          "Optional. If set to true and the entry doesn't exist, the service will create it.",
+        ).optional(),
+        aspectKeys: z.array(z.unknown()).describe(
+          "Optional. The map keys of the Aspects which the service should modify. It supports the following syntaxes: - matches an aspect of the given type and empty path. @path - matches an aspect of the given type and specified path. For example, to attach an aspect to a field that is specified by the schema aspect, the path should have the format Schema.. @* - matches aspects of the given type for all paths. *@path - matches aspects of all types on the given path.The service will not remove existing aspects matching the syntax unless delete_missing_aspects is set to true.If this field is left empty, the service treats it as specifying exactly those Aspects present in the request.",
+        ).optional(),
+        deleteMissingAspects: z.boolean().describe(
+          "Optional. If set to true and the aspect_keys specify aspect ranges, the service deletes any existing aspects from that range that weren't provided in the request.",
+        ).optional(),
+        entry: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry. Depending on how the aspect is attached to the entry, the format of the aspect key can be one of the following: If the aspect is attached directly to the entry: {project_id_or_number}.{location_id}.{aspect_type_id} If the aspect is attached to an entry's path: {project_id_or_number}.{location_id}.{aspect_type_id}@{path}",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entrySource: z.unknown().describe(
+            "Optional. Information related to the source system of the data resource that is represented by the entry.",
+          ).optional(),
+          entryType: z.unknown().describe(
+            "Required. Immutable. The relative resource name of the entry type that was used to create this entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryTypes/{entry_type_id}.",
+          ).optional(),
+          fullyQualifiedName: z.unknown().describe(
+            "Optional. A name for the entry that can be referenced by an external system. For more information, see Fully qualified names (https://cloud.google.com/data-catalog/docs/fully-qualified-names). The maximum size of the field is 4000 characters.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Identifier. The relative resource name of the entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          parentEntry: z.unknown().describe(
+            "Optional. Immutable. The resource name of the parent entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the entry was last updated in Dataplex Universal Catalog.",
+          ).optional(),
+        }).describe("Required. Entry resource.").optional(),
+        updateMask: z.string().describe(
+          'Optional. Mask of fields to update. To update Aspects, the update_mask must contain the value "aspects".If the update_mask is empty, the service will update all modifiable fields present in the request.',
+        ).optional(),
+      }).describe("Payload for updating an Entry.").optional(),
+    })).describe(
+      "Required. The list of changes to apply. Only a single change per resource is supported. Maximum number of changes supported is 250.",
+    ).optional(),
+    description: z.object({
+      content: z.string().describe("Optional. The text description content.")
+        .optional(),
+      job: z.object({
+        name: z.string().describe(
+          "Optional. The name of the job that created the batch change. For example: projects/{project_number}/locations/{location_id}/enrichmentTasks/{enrichment_task_id}/runs/{enrichment_run_id}",
+        ).optional(),
+        runTime: z.string().describe(
+          "Optional. The start time of the job run that created the batch change.",
+        ).optional(),
+      }).describe("Optional. The job that created the batch change.")
+        .optional(),
+    }).describe("Optional. Text description of the batch change.").optional(),
+    name: z.string().describe(
+      "Required. The resource name of the EntryGroup on which the batch change applies. Format: projects/{project_number_or_id}/locations/{location_id}/entryGroups/{entry_group_id}",
+    ).optional(),
+  }).describe("Payload for executing a batch of catalog changes.").optional(),
+  batchChangeMetadataResponse: z.object({
+    failedRequests: z.record(
+      z.string(),
+      z.object({
+        code: z.number().int().describe(
+          "The status code, which should be an enum value of google.rpc.Code.",
+        ).optional(),
+        details: z.array(z.record(z.string(), z.unknown())).describe(
+          "A list of messages that carry the error details. There is a common set of message types for APIs to use.",
+        ).optional(),
+        message: z.string().describe(
+          "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.",
+        ).optional(),
+      }),
+    ).describe(
+      "A map of failed requests for a batch change, where the key is the 0-based index of the failed request in the batch and the value is the error status. If all operations succeeded, this map is empty.",
+    ).optional(),
+  }).describe(
+    "Output only. Result of applying a batch change metadata request.",
+  ).optional(),
   changeType: z.enum([
     "CHANGE_TYPE_UNSPECIFIED",
     "CREATE_ENTRY",
@@ -168,6 +350,7 @@ const GlobalArgsSchema = z.object({
     "UPDATE_GLOSSARY_TERM",
     "DELETE_GLOSSARY_TERM",
     "REQUEST_DATA_PRODUCT_ACCESS",
+    "BATCH_CHANGE_METADATA",
   ]).describe(
     "Output only. The type of change represented by the change_payload. This field is derived from the populated field in the change_payload oneof.",
   ).optional(),
@@ -527,6 +710,8 @@ const GlobalArgsSchema = z.object({
     "REJECTED",
     "EXPIRED",
     "REVOKED",
+    "APPLYING",
+    "FAILED",
   ]).describe("Output only. The current state of the ChangeRequest.")
     .optional(),
   uid: z.string().describe(
@@ -758,6 +943,81 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   approver: z.string().optional(),
   author: z.string().optional(),
+  batchChangeMetadataRequest: z.object({
+    changes: z.array(z.object({
+      createEntryLinkRequest: z.object({
+        entryLink: z.object({
+          aspects: z.unknown(),
+          createTime: z.unknown(),
+          entryLinkType: z.unknown(),
+          entryReferences: z.unknown(),
+          name: z.unknown(),
+          updateTime: z.unknown(),
+        }),
+        entryLinkId: z.string(),
+        parent: z.string(),
+      }),
+      createEntryRequest: z.object({
+        entry: z.object({
+          aspects: z.unknown(),
+          createTime: z.unknown(),
+          entrySource: z.unknown(),
+          entryType: z.unknown(),
+          fullyQualifiedName: z.unknown(),
+          name: z.unknown(),
+          parentEntry: z.unknown(),
+          updateTime: z.unknown(),
+        }),
+        entryId: z.string(),
+        parent: z.string(),
+      }),
+      deleteEntryLinkRequest: z.object({
+        name: z.string(),
+      }),
+      deleteEntryRequest: z.object({
+        name: z.string(),
+      }),
+      updateEntryLinkRequest: z.object({
+        allowMissing: z.boolean(),
+        aspectKeys: z.array(z.unknown()),
+        entryLink: z.object({
+          aspects: z.unknown(),
+          createTime: z.unknown(),
+          entryLinkType: z.unknown(),
+          entryReferences: z.unknown(),
+          name: z.unknown(),
+          updateTime: z.unknown(),
+        }),
+      }),
+      updateEntryRequest: z.object({
+        allowMissing: z.boolean(),
+        aspectKeys: z.array(z.unknown()),
+        deleteMissingAspects: z.boolean(),
+        entry: z.object({
+          aspects: z.unknown(),
+          createTime: z.unknown(),
+          entrySource: z.unknown(),
+          entryType: z.unknown(),
+          fullyQualifiedName: z.unknown(),
+          name: z.unknown(),
+          parentEntry: z.unknown(),
+          updateTime: z.unknown(),
+        }),
+        updateMask: z.string(),
+      }),
+    })),
+    description: z.object({
+      content: z.string(),
+      job: z.object({
+        name: z.string(),
+        runTime: z.string(),
+      }),
+    }),
+    name: z.string(),
+  }).optional(),
+  batchChangeMetadataResponse: z.object({
+    failedRequests: z.record(z.string(), z.unknown()),
+  }).optional(),
   changeType: z.string().optional(),
   createEntry: z.object({
     entry: z.object({
@@ -970,6 +1230,188 @@ const InputsSchema = z.object({
   author: z.string().describe(
     "Output only. The email address of the user who created the ChangeRequest.",
   ).optional(),
+  batchChangeMetadataRequest: z.object({
+    changes: z.array(z.object({
+      createEntryLinkRequest: z.object({
+        entryLink: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry link. The format of the aspect key has to be the following: {project_id_or_number}.{location_id}.{aspect_type_id} Currently, only a single aspect of a Dataplex-owned Aspect Type is allowed.",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was created.",
+          ).optional(),
+          entryLinkType: z.unknown().describe(
+            "Required. Immutable. Relative resource name of the Entry Link Type used to create this Entry Link. For example: Entry link between synonym terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/synonym Entry link between related terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/related Entry link between glossary terms and data assets: projects/dataplex-types/locations/global/entryLinkTypes/definition",
+          ).optional(),
+          entryReferences: z.unknown().describe(
+            "Required. Immutable. Specifies the Entries referenced in the Entry Link. There should be exactly two entry references.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Output only. Immutable. Identifier. The relative resource name of the Entry Link, of the form: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was last updated.",
+          ).optional(),
+        }).describe("Required. Entry Link resource.").optional(),
+        entryLinkId: z.string().describe(
+          "Required. Entry Link identifier * Must contain only lowercase letters, numbers and hyphens. * Must start with a letter. * Must be between 1-63 characters. * Must end with a number or a letter. * Must be unique within the EntryGroup.",
+        ).optional(),
+        parent: z.string().describe(
+          "Required. The resource name of the parent Entry Group: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}.",
+        ).optional(),
+      }).describe("Payload for creating an EntryLink.").optional(),
+      createEntryRequest: z.object({
+        entry: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry. Depending on how the aspect is attached to the entry, the format of the aspect key can be one of the following: If the aspect is attached directly to the entry: {project_id_or_number}.{location_id}.{aspect_type_id} If the aspect is attached to an entry's path: {project_id_or_number}.{location_id}.{aspect_type_id}@{path}",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entrySource: z.unknown().describe(
+            "Optional. Information related to the source system of the data resource that is represented by the entry.",
+          ).optional(),
+          entryType: z.unknown().describe(
+            "Required. Immutable. The relative resource name of the entry type that was used to create this entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryTypes/{entry_type_id}.",
+          ).optional(),
+          fullyQualifiedName: z.unknown().describe(
+            "Optional. A name for the entry that can be referenced by an external system. For more information, see Fully qualified names (https://cloud.google.com/data-catalog/docs/fully-qualified-names). The maximum size of the field is 4000 characters.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Identifier. The relative resource name of the entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          parentEntry: z.unknown().describe(
+            "Optional. Immutable. The resource name of the parent entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the entry was last updated in Dataplex Universal Catalog.",
+          ).optional(),
+        }).describe("Required. Entry resource.").optional(),
+        entryId: z.string().describe(
+          "Required. Entry identifier. It has to be unique within an Entry Group.Entries corresponding to Google Cloud resources use an Entry ID format based on full resource names (https://cloud.google.com/apis/design/resource_names#full_resource_name). The format is a full resource name of the resource without the prefix double slashes in the API service name part of the full resource name. This allows retrieval of entries using their associated resource name.For example, if the full resource name of a resource is //library.googleapis.com/shelves/shelf1/books/book2, then the suggested entry_id is library.googleapis.com/shelves/shelf1/books/book2.It is also suggested to follow the same convention for entries corresponding to resources from providers or systems other than Google Cloud.The maximum size of the field is 4000 characters.",
+        ).optional(),
+        parent: z.string().describe(
+          "Required. The resource name of the parent Entry Group: projects/{project}/locations/{location}/entryGroups/{entry_group}.",
+        ).optional(),
+      }).describe("Payload for creating an Entry.").optional(),
+      deleteEntryLinkRequest: z.object({
+        name: z.string().describe(
+          "Required. The resource name of the Entry Link: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}.",
+        ).optional(),
+      }).describe("Payload for deleting an EntryLink.").optional(),
+      deleteEntryRequest: z.object({
+        name: z.string().describe(
+          "Required. The resource name of the Entry: projects/{project}/locations/{location}/entryGroups/{entry_group}/entries/{entry}.",
+        ).optional(),
+      }).describe("Payload for deleting an Entry.").optional(),
+      updateEntryLinkRequest: z.object({
+        allowMissing: z.boolean().describe(
+          "Optional. If set to true and the entry link doesn't exist, the service will create it.",
+        ).optional(),
+        aspectKeys: z.array(z.unknown()).describe(
+          "Optional. The map keys of the Aspects which the service should modify. It should be the aspect type reference in the format {project_id_or_number}.{location_id}.{aspect_type_id}.If this field is left empty, the service treats it as specifying exactly those Aspects present in the request.",
+        ).optional(),
+        entryLink: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry link. The format of the aspect key has to be the following: {project_id_or_number}.{location_id}.{aspect_type_id} Currently, only a single aspect of a Dataplex-owned Aspect Type is allowed.",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was created.",
+          ).optional(),
+          entryLinkType: z.unknown().describe(
+            "Required. Immutable. Relative resource name of the Entry Link Type used to create this Entry Link. For example: Entry link between synonym terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/synonym Entry link between related terms in a glossary: projects/dataplex-types/locations/global/entryLinkTypes/related Entry link between glossary terms and data assets: projects/dataplex-types/locations/global/entryLinkTypes/definition",
+          ).optional(),
+          entryReferences: z.unknown().describe(
+            "Required. Immutable. Specifies the Entries referenced in the Entry Link. There should be exactly two entry references.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Output only. Immutable. Identifier. The relative resource name of the Entry Link, of the form: projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entryLinks/{entry_link_id}",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the Entry Link was last updated.",
+          ).optional(),
+        }).describe("Required. Entry Link resource.").optional(),
+      }).describe("Payload for updating an EntryLink.").optional(),
+      updateEntryRequest: z.object({
+        allowMissing: z.boolean().describe(
+          "Optional. If set to true and the entry doesn't exist, the service will create it.",
+        ).optional(),
+        aspectKeys: z.array(z.unknown()).describe(
+          "Optional. The map keys of the Aspects which the service should modify. It supports the following syntaxes: - matches an aspect of the given type and empty path. @path - matches an aspect of the given type and specified path. For example, to attach an aspect to a field that is specified by the schema aspect, the path should have the format Schema.. @* - matches aspects of the given type for all paths. *@path - matches aspects of all types on the given path.The service will not remove existing aspects matching the syntax unless delete_missing_aspects is set to true.If this field is left empty, the service treats it as specifying exactly those Aspects present in the request.",
+        ).optional(),
+        deleteMissingAspects: z.boolean().describe(
+          "Optional. If set to true and the aspect_keys specify aspect ranges, the service deletes any existing aspects from that range that weren't provided in the request.",
+        ).optional(),
+        entry: z.object({
+          aspects: z.unknown().describe(
+            "Optional. The aspects that are attached to the entry. Depending on how the aspect is attached to the entry, the format of the aspect key can be one of the following: If the aspect is attached directly to the entry: {project_id_or_number}.{location_id}.{aspect_type_id} If the aspect is attached to an entry's path: {project_id_or_number}.{location_id}.{aspect_type_id}@{path}",
+          ).optional(),
+          createTime: z.unknown().describe(
+            "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entrySource: z.unknown().describe(
+            "Optional. Information related to the source system of the data resource that is represented by the entry.",
+          ).optional(),
+          entryType: z.unknown().describe(
+            "Required. Immutable. The relative resource name of the entry type that was used to create this entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryTypes/{entry_type_id}.",
+          ).optional(),
+          fullyQualifiedName: z.unknown().describe(
+            "Optional. A name for the entry that can be referenced by an external system. For more information, see Fully qualified names (https://cloud.google.com/data-catalog/docs/fully-qualified-names). The maximum size of the field is 4000 characters.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Identifier. The relative resource name of the entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          parentEntry: z.unknown().describe(
+            "Optional. Immutable. The resource name of the parent entry, in the format projects/{project_id_or_number}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}.",
+          ).optional(),
+          updateTime: z.unknown().describe(
+            "Output only. The time when the entry was last updated in Dataplex Universal Catalog.",
+          ).optional(),
+        }).describe("Required. Entry resource.").optional(),
+        updateMask: z.string().describe(
+          'Optional. Mask of fields to update. To update Aspects, the update_mask must contain the value "aspects".If the update_mask is empty, the service will update all modifiable fields present in the request.',
+        ).optional(),
+      }).describe("Payload for updating an Entry.").optional(),
+    })).describe(
+      "Required. The list of changes to apply. Only a single change per resource is supported. Maximum number of changes supported is 250.",
+    ).optional(),
+    description: z.object({
+      content: z.string().describe("Optional. The text description content.")
+        .optional(),
+      job: z.object({
+        name: z.string().describe(
+          "Optional. The name of the job that created the batch change. For example: projects/{project_number}/locations/{location_id}/enrichmentTasks/{enrichment_task_id}/runs/{enrichment_run_id}",
+        ).optional(),
+        runTime: z.string().describe(
+          "Optional. The start time of the job run that created the batch change.",
+        ).optional(),
+      }).describe("Optional. The job that created the batch change.")
+        .optional(),
+    }).describe("Optional. Text description of the batch change.").optional(),
+    name: z.string().describe(
+      "Required. The resource name of the EntryGroup on which the batch change applies. Format: projects/{project_number_or_id}/locations/{location_id}/entryGroups/{entry_group_id}",
+    ).optional(),
+  }).describe("Payload for executing a batch of catalog changes.").optional(),
+  batchChangeMetadataResponse: z.object({
+    failedRequests: z.record(
+      z.string(),
+      z.object({
+        code: z.number().int().describe(
+          "The status code, which should be an enum value of google.rpc.Code.",
+        ).optional(),
+        details: z.array(z.record(z.string(), z.unknown())).describe(
+          "A list of messages that carry the error details. There is a common set of message types for APIs to use.",
+        ).optional(),
+        message: z.string().describe(
+          "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.",
+        ).optional(),
+      }),
+    ).describe(
+      "A map of failed requests for a batch change, where the key is the 0-based index of the failed request in the batch and the value is the error status. If all operations succeeded, this map is empty.",
+    ).optional(),
+  }).describe(
+    "Output only. Result of applying a batch change metadata request.",
+  ).optional(),
   changeType: z.enum([
     "CHANGE_TYPE_UNSPECIFIED",
     "CREATE_ENTRY",
@@ -987,6 +1429,7 @@ const InputsSchema = z.object({
     "UPDATE_GLOSSARY_TERM",
     "DELETE_GLOSSARY_TERM",
     "REQUEST_DATA_PRODUCT_ACCESS",
+    "BATCH_CHANGE_METADATA",
   ]).describe(
     "Output only. The type of change represented by the change_payload. This field is derived from the populated field in the change_payload oneof.",
   ).optional(),
@@ -1346,6 +1789,8 @@ const InputsSchema = z.object({
     "REJECTED",
     "EXPIRED",
     "REVOKED",
+    "APPLYING",
+    "FAILED",
   ]).describe("Output only. The current state of the ChangeRequest.")
     .optional(),
   uid: z.string().describe(
@@ -1600,7 +2045,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex ChangeRequests. Registered at `@swamp/gcp/dataplex/changerequests`. */
 export const model = {
   type: "@swamp/gcp/dataplex/changerequests",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1670,6 +2115,12 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
+      description:
+        "Added: batchChangeMetadataRequest, batchChangeMetadataResponse",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1761,6 +2212,13 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["approver"] !== undefined) body["approver"] = g["approver"];
         if (g["author"] !== undefined) body["author"] = g["author"];
+        if (g["batchChangeMetadataRequest"] !== undefined) {
+          body["batchChangeMetadataRequest"] = g["batchChangeMetadataRequest"];
+        }
+        if (g["batchChangeMetadataResponse"] !== undefined) {
+          body["batchChangeMetadataResponse"] =
+            g["batchChangeMetadataResponse"];
+        }
         if (g["changeType"] !== undefined) body["changeType"] = g["changeType"];
         if (g["createEntry"] !== undefined) {
           body["createEntry"] = g["createEntry"];

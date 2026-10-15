@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ec2"
-version: "2026.10.14.1"
+version: "2026.10.15.1"
 license: "AGPL-3.0-or-later"
 description: "AWS EC2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: capacity_reservation
+  - Added: ipam_internet_registry_association
 models:
   - application_status_check.ts
   - capacity_manager_data_export.ts
@@ -38,6 +38,7 @@ models:
   - ip_pool_route_table_association.ts
   - ipam.ts
   - ipam_external_resource_verification_token.ts
+  - ipam_internet_registry_association.ts
   - ipamallocation.ts
   - ipampool.ts
   - ipampool_cidr.ts

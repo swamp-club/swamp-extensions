@@ -1,0 +1,20 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/licensemanagerusersubscriptions"
+version: "2026.10.15.1"
+license: "AGPL-3.0-or-later"
+description: "AWS LICENSEMANAGERUSERSUBSCRIPTIONS infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - licensemanagerusersubscriptions
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: license_server_endpoint
+models:
+  - license_server_endpoint.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

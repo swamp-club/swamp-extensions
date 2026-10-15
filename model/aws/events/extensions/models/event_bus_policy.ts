@@ -60,11 +60,11 @@ const GlobalArgsSchema = z.object({
     "The name of the event bus associated with the rule. If you omit this, the default event bus is used.",
   ).optional(),
   Condition: z.object({
-    Value: z.string().describe(
-      "Specifies the key for the condition. Currently the only supported key is aws:PrincipalOrgID.",
-    ).optional(),
     Type: z.string().describe(
       "Specifies the type of condition. Currently the only supported value is StringEquals.",
+    ).optional(),
+    Value: z.string().describe(
+      "Specifies the key for the condition. Currently the only supported key is aws:PrincipalOrgID.",
     ).optional(),
     Key: z.string().describe(
       "Specifies the value for the key. Currently, this must be the ID of the organization.",
@@ -91,8 +91,8 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   EventBusName: z.string(),
   Condition: z.object({
-    Value: z.string(),
     Type: z.string(),
+    Value: z.string(),
     Key: z.string(),
   }).optional(),
   Action: z.string().optional(),
@@ -115,11 +115,11 @@ const InputsSchema = z.object({
     "The name of the event bus associated with the rule. If you omit this, the default event bus is used.",
   ).optional(),
   Condition: z.object({
-    Value: z.string().describe(
-      "Specifies the key for the condition. Currently the only supported key is aws:PrincipalOrgID.",
-    ).optional(),
     Type: z.string().describe(
       "Specifies the type of condition. Currently the only supported value is StringEquals.",
+    ).optional(),
+    Value: z.string().describe(
+      "Specifies the key for the condition. Currently the only supported key is aws:PrincipalOrgID.",
     ).optional(),
     Key: z.string().describe(
       "Specifies the value for the key. Currently, this must be the ID of the organization.",
@@ -162,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBusPolicy. Registered at `@swamp/aws/events/event-bus-policy`. */
 export const model = {
   type: "@swamp/aws/events/event-bus-policy",
-  version: "2026.10.13.1",
+  version: "2026.10.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -221,6 +221,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
