@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/gcs-datastore"
-version: "2026.10.13.1"
+version: "2026.10.15.1"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in a Google Cloud Storage bucket with local cache synchronization.

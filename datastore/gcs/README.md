@@ -153,9 +153,10 @@ assigned by GCS on each write — enabling compare-and-swap (CAS) semantics:
   succeeds if no live version of the object exists (generation 0 means "create
   only"). This is an atomic create-if-absent operation.
 - **Heartbeat** — while the lock is held, a background interval extends the lock
-  using a CAS write with `ifGenerationMatch=<current generation>`. If the
-  generation changed (meaning another process took the lock), the CAS fails and
-  the holder knows it lost ownership.
+  using a CAS write with `ifGenerationMatch=<current generation>`. A CAS miss
+  alone does not prove the lock changed hands — an earlier write may have landed
+  with its response lost — so the holder reads the lock back and checks the
+  nonce before deciding.
 - **Release** — deletes the lock object with
   `ifGenerationMatch=<current generation>`, ensuring we only delete our own
   lock. If a heartbeat raced with the release, the cleanup path handles the new
@@ -165,6 +166,25 @@ assigned by GCS on each write — enabling compare-and-swap (CAS) semantics:
   TTL is 30 seconds. The steal path is rate-limited by a randomized 200-500 ms
   backoff between attempts so two contenders never tight-loop against the real
   holder's heartbeat.
+
+Losing a lock is never silent. Two answers end the hold outright: the lock
+object is gone, or it carries another holder's nonce. Anything else — an
+unreachable endpoint, a 403, a write that threw, or a CAS miss that cannot be
+read back — leaves the lock held and retries on the next tick, because none of
+those establish that the lock changed hands. That grace is bounded by the TTL:
+the object is stealable once its `updated` time is `ttlMs` old, so the hold ends
+just before that — counted from when the last confirmed write was sent, which is
+never later than when it committed, and enforced by a timer of its own rather
+than the next heartbeat tick. If a heartbeat write commits after the hold has
+already ended, it is deleted again (fenced on the generation it created), and
+`release()` after a given-up hold removes our last write if nobody has replaced
+it, so contenders do not wait out a TTL for a lock nobody holds. A lock lost
+while its operation is still running is logged as a warning naming the key, as
+is the first failed heartbeat of an outage.
+
+Reading the lock reports failures rather than hiding them: `inspect()` returns
+`null` only when GCS says the lock object does not exist, and throws when the
+bucket cannot be read, so an outage is never mistaken for an unheld lock.
 
 ### Health Checks
 

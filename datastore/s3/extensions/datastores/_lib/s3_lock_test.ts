@@ -66,6 +66,8 @@ interface MockControls {
   holdGet?: { promise: Promise<void>; release: () => void };
   /** Runs after a `getObject` resolves — the window a steal happens in. */
   afterGet?: () => void;
+  /** Delay before a `putObjectIfMatch` write commits, as on a slow link. */
+  putLatencyMs?: number;
 }
 
 /**
@@ -104,22 +106,21 @@ function createMockS3Client(): S3Client & MockControls {
       return Promise.resolve(true);
     },
 
-    putObjectIfMatch(
+    async putObjectIfMatch(
       key: string,
       body: Uint8Array,
       etag: string | null,
     ): Promise<{ etag?: string } | null> {
-      if (mock.failPutIfMatchWith) {
-        return Promise.reject(mock.failPutIfMatchWith());
+      if (mock.putLatencyMs) {
+        await new Promise((r) => setTimeout(r, mock.putLatencyMs));
       }
-      if (mock.putIfMatchConflict) return Promise.resolve(null);
+      if (mock.failPutIfMatchWith) throw mock.failPutIfMatchWith();
+      if (mock.putIfMatchConflict) return null;
       const current = etags.get(key) ?? null;
-      if (etag === null ? storage.has(key) : current !== etag) {
-        return Promise.resolve(null);
-      }
+      if (etag === null ? storage.has(key) : current !== etag) return null;
       mock.writes++;
       write(key, body);
-      return Promise.resolve({ etag: etags.get(key) });
+      return { etag: etags.get(key) };
     },
 
     async getObject(
@@ -826,8 +827,10 @@ Deno.test("S3Lock: a CAS conflict alone does not stop the heartbeat", async () =
 
   await captureWarnings(async () => {
     await lock.acquire();
+    // One tick's worth: a conflict that lasts out the TTL ends the hold on
+    // the deadline instead — see "gives up once the outage outlasts the TTL".
     mock.putIfMatchConflict = true;
-    await sleep(250);
+    await sleep(150);
     mock.putIfMatchConflict = false;
 
     const before = mock.writes;
@@ -1089,6 +1092,28 @@ Deno.test("S3Lock: inspect reports a read failure instead of an empty lock", asy
   await assertRejects(() => lock.inspect(), S3OperationError);
 });
 
+Deno.test("S3Lock: inspect reports an undecodable lock body instead of an empty lock", async () => {
+  // A corrupt body tells us nothing about ownership either.
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, { ttlMs: 5000 });
+  mock.storage.set(".datastore.lock", new TextEncoder().encode("{not json"));
+  await assertRejects(() => lock.inspect(), SyntaxError);
+});
+
+Deno.test("S3Lock: forceRelease reports a read failure instead of not-ours", async () => {
+  // `false` means absent or someone else's; an unreachable store is neither.
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, { ttlMs: 5000 });
+
+  mock.failGetWith = transportFailure;
+  await assertRejects(() => lock.forceRelease("some-nonce"), S3OperationError);
+  mock.failGetWith = () => s3Error("AccessDenied", 403);
+  await assertRejects(() => lock.forceRelease("some-nonce"), S3OperationError);
+  mock.failGetWith = undefined;
+
+  assertEquals(await lock.forceRelease("some-nonce"), false);
+});
+
 Deno.test("S3Lock: acquire survives a read failure during the stale check", async () => {
   const mock = createMockS3Client();
   const holder = new S3Lock(mock, { ttlMs: 5000 });
@@ -1269,5 +1294,57 @@ Deno.test("S3Lock: a parked heartbeat from a previous hold does not stall the ne
     warnings.filter((w) => w.includes("was lost")),
     [],
     "a heartbeat left over from a previous hold reported the new lock lost",
+  );
+});
+
+Deno.test("S3Lock: the hold ends before contenders may steal, despite slow writes", async () => {
+  // Contenders steal once the object's LastModified is ttlMs old, and S3
+  // stamps that when a write commits. Measuring our deadline from when the
+  // answer arrived — and only checking it on a tick — let the holder outlast
+  // that window, so both sides believed they held the lock.
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, { ttlMs: 600 }); // 200ms heartbeat
+  let lostAt = 0;
+  let lastCommit = 0;
+
+  const warnings: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const line = args.map(String).join(" ");
+    if (line.includes("was lost") && lostAt === 0) lostAt = Date.now();
+    warnings.push(line);
+  };
+  try {
+    await lock.acquire();
+    const acquiredAt = Date.now();
+    mock.putLatencyMs = 120; // every write commits well after it was sent
+    // The 200ms tick sends an extend that commits at ~320ms; read after it.
+    await sleep(380);
+    const head = await mock.headObject(".datastore.lock");
+    lastCommit = head.lastModified!.getTime();
+    assertEquals(
+      lastCommit - acquiredAt >= 250,
+      true,
+      "the slow extend had not committed when the deadline was measured",
+    );
+    mock.putLatencyMs = undefined;
+    mock.failPutIfMatchWith = transportFailure; // nothing confirms from here
+    await sleep(900);
+    mock.failPutIfMatchWith = undefined;
+    await lock.release();
+  } finally {
+    console.warn = original;
+  }
+
+  assertEquals(
+    lostAt > 0,
+    true,
+    `the hold never ended: ${JSON.stringify(warnings)}`,
+  );
+  assertEquals(
+    lostAt < lastCommit + 600,
+    true,
+    `the holder conceded ${lostAt - (lastCommit + 600)}ms after a contender ` +
+      `was entitled to steal`,
   );
 });

@@ -33,6 +33,12 @@ const DEFAULT_RETRY_INTERVAL_MS = 1_000;
 const DEFAULT_MAX_WAIT_MS = 60_000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS = 8_000;
 const DEFAULT_LOCK_KEY = ".datastore.lock";
+/**
+ * How far ahead of the TTL a holder concedes, at most. Absorbs a late timer
+ * on a busy event loop; the deadline itself is already conservative because
+ * it is measured from when a write was sent, not when it was answered.
+ */
+const MAX_CONCEDE_MARGIN_MS = 1_000;
 
 /**
  * Minimum and maximum sleep applied after a stale-lock steal attempt.
@@ -141,15 +147,19 @@ export class S3Lock implements DistributedLock {
   private readonly maxWaitMs: number;
   private readonly holderContext: Record<string, string> | undefined;
   private heartbeatId: ReturnType<typeof setInterval> | undefined;
+  /** Ends the hold at its deadline even if no heartbeat tick comes back. */
+  private deadlineId: ReturnType<typeof setTimeout> | undefined;
   private held = false;
   private releasing = false;
   private nonce: string | undefined;
   /** Ticks in a row that could not settle ownership; 0 while healthy. */
   private unconfirmedExtends = 0;
   /**
-   * When the lock body was last provably written. This is the same clock
-   * every contender reads off the object's `LastModified`, so it is what
-   * decides when holding on stops being defensible.
+   * When the last confirmed write of the lock body was *sent*. S3 stamps the
+   * object's `LastModified` when the write commits, which is never earlier,
+   * so a deadline measured from here expires no later than the one every
+   * contender applies — stamping on the answer instead would let a slow
+   * response push our hold past the point where the lock may be stolen.
    */
   private lastConfirmedAt = 0;
   /**
@@ -224,6 +234,7 @@ export class S3Lock implements DistributedLock {
             const body = encodeLockInfo(info);
 
             // Attempt conditional write — atomic create
+            const sentAt = Date.now();
             const created = await this.s3.putObjectConditional(
               this.lockKey,
               body,
@@ -231,9 +242,8 @@ export class S3Lock implements DistributedLock {
             if (created) {
               this.nonce = nonce;
               this.held = true;
-              this.lastConfirmedAt = Date.now();
-              this.unconfirmedExtends = 0;
               this.startHeartbeat();
+              this.confirm(sentAt);
               span.setAttributes({
                 [Attr.LOCK_WAIT_DURATION_MS]: Date.now() - startTime,
                 [Attr.LOCK_CONTENDED]: contended,
@@ -482,6 +492,7 @@ export class S3Lock implements DistributedLock {
 
       const info = buildLockInfo(this.ttlMs, nonce, this.holderContext);
       const body = encodeLockInfo(info);
+      const sentAt = Date.now();
       let written: boolean;
       try {
         written = await this.write(body, current.etag);
@@ -519,8 +530,7 @@ export class S3Lock implements DistributedLock {
         }
         return;
       }
-      this.unconfirmedExtends = 0;
-      this.lastConfirmedAt = Date.now();
+      this.confirm(sentAt);
     } finally {
       // Not if a later acquisition has taken the slot over — this tick is
       // then the stale one, and clearing would unguard the live hold.
@@ -581,15 +591,57 @@ export class S3Lock implements DistributedLock {
   }
 
   /**
-   * Ends the hold when nothing has been confirmed for longer than the TTL,
-   * and reports whether it did. Past ttlMs, "we might still hold it" stops
-   * being a guess and becomes wishful thinking: that is the exact deadline
-   * every contender applies to the object's LastModified, so anyone may
-   * already have deleted it and taken over. Hold no longer than our own TTL
-   * promises.
+   * Records a write that is known to have landed, sent at `sentAt`, and
+   * re-arms the deadline from it.
+   */
+  private confirm(sentAt: number): void {
+    this.unconfirmedExtends = 0;
+    this.lastConfirmedAt = sentAt;
+    this.armDeadline();
+  }
+
+  /**
+   * When the hold must end if nothing more is confirmed. Contenders may steal
+   * once the object's `LastModified` is ttlMs old; ours is measured from when
+   * the write was sent, which is never later, less a small margin for a late
+   * timer.
+   */
+  private holdDeadline(): number {
+    const margin = Math.min(
+      MAX_CONCEDE_MARGIN_MS,
+      Math.floor(this.ttlMs / 10),
+    );
+    return this.lastConfirmedAt + this.ttlMs - margin;
+  }
+
+  /**
+   * Ends the hold at its deadline on a timer of its own. The heartbeat only
+   * looks every ttlMs/3, and a tick parked on a slow request may not look at
+   * all, so waiting for one could leave us holding after a steal is legal.
+   */
+  private armDeadline(): void {
+    if (this.deadlineId !== undefined) clearTimeout(this.deadlineId);
+    const nonce = this.nonce;
+    this.deadlineId = setTimeout(() => {
+      this.deadlineId = undefined;
+      if (!nonce || this.holdIsOver(nonce)) return;
+      // A timer can fire a hair early, or the wall clock can step back;
+      // either way the deadline still stands, so look again at it.
+      if (!this.giveUpIfExpired("could not confirm the lock")) {
+        this.armDeadline();
+      }
+    }, Math.max(0, this.holdDeadline() - Date.now()));
+  }
+
+  /**
+   * Ends the hold once its deadline has passed with nothing confirmed, and
+   * reports whether it did. Past it, "we might still hold it" stops being a
+   * guess and becomes wishful thinking: every contender applies the same TTL
+   * to the object's LastModified, so anyone may already have deleted it and
+   * taken over. Hold no longer than our own TTL promises.
    */
   private giveUpIfExpired(what: string): boolean {
-    if (Date.now() - this.lastConfirmedAt < this.ttlMs) return false;
+    if (Date.now() < this.holdDeadline()) return false;
     this.loseLock(
       `${what} for longer than the ${this.ttlMs}ms TTL, so it is now ` +
         `stealable by any other process`,
@@ -633,6 +685,10 @@ export class S3Lock implements DistributedLock {
     if (this.heartbeatId !== undefined) {
       clearInterval(this.heartbeatId);
       this.heartbeatId = undefined;
+    }
+    if (this.deadlineId !== undefined) {
+      clearTimeout(this.deadlineId);
+      this.deadlineId = undefined;
     }
   }
 

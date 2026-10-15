@@ -93,11 +93,12 @@ extension, and two answers end the hold outright: the lock object is gone, or it
 carries another holder's nonce. Anything else — an unreachable endpoint, a 403,
 a write that threw or could not be confirmed — leaves the lock held and retries
 on the next tick, because none of those establish that the lock changed hands.
-That grace is bounded by the TTL: once `ttlMs` has passed with no confirmed
-write, the object is stealable by any other process on the same rule this
-extension applies to everyone else, so the hold ends too. A lock lost while its
-operation is still running is logged as a warning naming the key, as is the
-first failed heartbeat of an outage.
+That grace is bounded by the TTL: the object is stealable once its
+`LastModified` time is `ttlMs` old, so the hold ends just before that — counted
+from when the last confirmed write was sent, which is never later than when it
+committed, and enforced by a timer of its own rather than the next heartbeat
+tick. A lock lost while its operation is still running is logged as a warning
+naming the key, as is the first failed heartbeat of an outage.
 
 The verdict is memoized per process for 5 minutes, keyed on endpoint, bucket and
 prefix — `swamp serve` streams health once a second, and the probe must not
