@@ -95,9 +95,43 @@ export class PreconditionFailedError extends Error {
   override readonly name = "PreconditionFailedError";
 }
 
+/**
+ * Calls a multi-call rewrite may take before `touchObject` gives up. A rewrite
+ * within one location and storage class finishes in the first; the rest cover
+ * a dual-region object that has not finished replicating.
+ */
+const MAX_REWRITE_CALLS = 20;
+
 /** Error thrown when a GCS object is not found (HTTP 404). */
 export class NotFoundError extends Error {
   override readonly name = "NotFoundError";
+}
+
+/**
+ * Settles a 404 for `key`. GCS answers 404 for a missing bucket too, and so
+ * does anything answering in its place, so a 404 alone does not show the
+ * object is gone. A listing answers 200 only for a bucket that exists, and
+ * needs no permission a sync does not already use. Resolves when the bucket
+ * is there, so the object is missing; otherwise rejects, a failure of the
+ * listing rethrown as it is so a caller still sees an abort, a timeout or
+ * the HTTP status.
+ */
+export async function confirmGcsKeyMissing(
+  gcs: GcsClient,
+  key: string,
+  cause: unknown,
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    await gcs.listObjects(key, undefined, signal);
+  } catch (error) {
+    if (!(error instanceof NotFoundError)) throw error;
+    throw new Error(
+      `GCS answered 404 for ${JSON.stringify(key)}, but the bucket could not ` +
+        `be confirmed, so the object is not known to be missing`,
+      { cause },
+    );
+  }
 }
 
 /**
@@ -1350,6 +1384,58 @@ export class GcsClient {
       sourceKey,
     );
     await resp.text();
+  }
+
+  /**
+   * Refreshes an object's `updated` time without re-uploading it: a rewrite
+   * of the object onto itself with new custom metadata. The GCS JSON API
+   * allows a rewrite whose source and destination are the same object, and
+   * overwriting through it needs only `storage.objects.get`, `.create` and
+   * `.delete`, which the datastore already holds; a metadata PATCH would need
+   * `storage.objects.update`. Within one location and storage class it
+   * completes in one request; otherwise it is followed with `rewriteToken`
+   * until done. The new `updated` comes from the server's clock. A missing
+   * object rejects with NotFoundError.
+   */
+  async touchObject(key: string, signal?: AbortSignal): Promise<void> {
+    const name = encodeURIComponent(this.fullKey(key));
+    const bucket = encodeURIComponent(this.bucket);
+    const base = this.storageUrl(
+      `/b/${bucket}/o/${name}/rewriteTo/b/${bucket}/o/${name}`,
+    );
+    const body = JSON.stringify({
+      metadata: { swampTouchedAt: new Date().toISOString() },
+    });
+    let token: string | undefined;
+    for (let call = 0; call < MAX_REWRITE_CALLS; call++) {
+      signal?.throwIfAborted();
+      const url = token
+        ? `${base}?rewriteToken=${encodeURIComponent(token)}`
+        : base;
+      const hdrs = await this.headers();
+      hdrs["Content-Type"] = "application/json";
+      const resp = await this.send(
+        "touchObject",
+        url,
+        { method: "POST", headers: hdrs, body },
+        signal,
+        key,
+      );
+      const out = await resp.json() as {
+        done?: boolean;
+        rewriteToken?: string;
+      };
+      if (out.done !== false) return;
+      token = out.rewriteToken;
+      if (!token) {
+        throw new Error(
+          `GCS rewrite of ${key} reported not done without a rewriteToken`,
+        );
+      }
+    }
+    throw new Error(
+      `GCS rewrite of ${key} did not finish within ${MAX_REWRITE_CALLS} calls`,
+    );
   }
 
   /** Lists objects in GCS with the configured prefix. */

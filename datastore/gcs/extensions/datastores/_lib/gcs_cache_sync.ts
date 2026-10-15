@@ -155,9 +155,29 @@ export function isInternalCacheFile(rel: string): boolean {
   }
   if (rel === "_index" || rel.startsWith("_index/")) return true;
   if (rel === "_control" || rel.startsWith("_control/")) return true;
+  // storage/1 chunks, reached through storage(), never the file sync
+  // (swamp-club#3492).
+  if (rel === "_blobs" || rel.startsWith("_blobs/")) return true;
   const base = rel.split("/").pop() ?? "";
   if (base === ".lock" || base === ".namespace.json") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
+}
+
+/**
+ * Returns true for the bucket-relative control-plane keys that belong to
+ * the whole datastore rather than to any namespace: the v3 writer lease's
+ * records under `_control/writer/`, the v3 replication lineage records under
+ * `_control/lineage/` (swamp-club#3482), and the format marker
+ * `_control/datastore-format`. Swamp reads all of them at the datastore root
+ * whatever namespace a checkout uses, so the root-to-namespace control-plane
+ * migration must never move them (swamp-club#3395).
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isDatastoreWideControlKey(key: string): boolean {
+  return key.startsWith("_control/writer/") ||
+    key.startsWith("_control/lineage/") ||
+    key === "_control/datastore-format";
 }
 
 /**
@@ -905,6 +925,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     } catch {
       return { copied: 0, total: 0 };
     }
+
+    // The lease, the replication lineage and the format marker belong to the
+    // whole datastore and are read at the root whatever the namespace; moving
+    // them would look like a lost lease or lineage, or hand a second writer a
+    // fence or lineage already in use (swamp-club#3395).
+    listing = listing.filter((entry) => !isDatastoreWideControlKey(entry.key));
 
     if (listing.length === 0) return { copied: 0, total: 0 };
 

@@ -31,17 +31,21 @@ import type {
   CatalogExportRow,
   DatastoreHealthResult,
   DatastoreProvider,
+  DatastoreStorage,
   DatastoreSyncService,
   DatastoreVerifier,
   DistributedLock,
   LockInfo,
   LockOptions,
   SyncCapabilities,
+  WritableDatastoreControlPlaneStore,
 } from "./_lib/interfaces.ts";
 import { S3Client } from "./_lib/s3_client.ts";
 import { S3Lock } from "./_lib/s3_lock.ts";
 import { S3DatastoreVerifier } from "./_lib/s3_verifier.ts";
 import { S3CacheSyncService } from "./_lib/s3_cache_sync.ts";
+import { S3DatastoreControlPlaneStore } from "./_lib/s3_control_plane.ts";
+import { S3ChunkStorage } from "./_lib/s3_storage.ts";
 
 export type {
   CatalogExportEntry,
@@ -116,6 +120,13 @@ interface S3DatastoreProviderConfig {
 class S3DatastoreProviderImpl implements DatastoreProvider {
   private readonly config: S3DatastoreProviderConfig;
 
+  /**
+   * No namespaced pull or push moves `_control/writer/` (or the v3 lineage
+   * under `_control/lineage/`): the root-to-namespace control-plane migration
+   * skips them (swamp-club#3395).
+   */
+  readonly datastoreWideLease = true;
+
   constructor(config: S3DatastoreProviderConfig) {
     this.config = config;
   }
@@ -156,6 +167,16 @@ class S3DatastoreProviderImpl implements DatastoreProvider {
       pullConcurrency: this.config.pullConcurrency,
       pushConcurrency: this.config.pushConcurrency,
     });
+  }
+
+  datastoreControlPlaneStore(): WritableDatastoreControlPlaneStore {
+    return new S3DatastoreControlPlaneStore(
+      new S3Client(this.s3ClientConfig()),
+    );
+  }
+
+  storage(): DatastoreStorage {
+    return new S3ChunkStorage(new S3Client(this.s3ClientConfig()));
   }
 
   resolveDatastorePath(repoDir: string): string {

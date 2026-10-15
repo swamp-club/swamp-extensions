@@ -103,6 +103,10 @@ The authenticated principal needs the following permissions on the bucket:
 | `storage.objects.delete` | Releasing locks, cleanup, and removing the health-check probe object   |
 | `storage.objects.list`   | Sync service (listing remote files)                                    |
 
+Chunk storage's `touch` rewrites an object onto itself, which these already
+cover (`storage.objects.get`, `.create` and `.delete`); it needs no
+`storage.objects.update`.
+
 ### Recommended approach: custom role
 
 For least-privilege, create a custom role with exactly these permissions:
@@ -358,6 +362,107 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   race. One operator-visible consequence of the retry envelope: a single
   transient-5xx-affected file may be billed up to 3× on Cloud Storage PUT
   metrics — by design, not a regression.
+
+## Datastore-wide control plane and the v3 writer lease
+
+Swamp keeps a few records for the whole datastore, outside every namespace, at
+`<prefix>/_control/<key>`: the format marker `datastore-format`, which it reads
+before a command opens the datastore, the v3 writer lease's records under
+`writer/`, and the v3 replication lineage records under `lineage/`
+(`lineage/<fence>/started.json`, `head-<writer fence>.json`, `confirmed.json`;
+swamp-club#3482). The provider's `datastoreControlPlaneStore()` reads and writes
+them:
+
+- It binds no namespace and shares nothing with a sync service. Building it
+  makes no request, and a read is one object GET with no credentials preflight.
+  A failure still carries the same credential hint as every other GCS request.
+- `get` returns null only when the record is missing. A 403, a 5xx, an abort and
+  a missing bucket all reject. GCS answers 404 for a missing bucket too, so a
+  404 is confirmed with one listing before it reads as absent.
+- `putIfAbsent` is a simple upload with `ifGenerationMatch=0`, so of concurrent
+  creates of one key exactly one wins.
+
+The provider declares `datastoreWideLease: true`: no namespaced pull or push
+moves or copies `_control/writer/`. A namespaced push into a namespace that
+still has the legacy `<namespace>/.datastore-index.json` (one a solo datastore
+was upgraded to) moves the root `_control/` records into
+`<namespace>/_control/`, as before, except `_control/writer/...`,
+`_control/lineage/...` and `_control/datastore-format`, which stay at the root
+where swamp reads them (swamp-club#3395). An older extension version would move
+the lease and the lineage. Swamp's v3 on buckets (Phase 4E, not yet released)
+will name the minimum extension version it needs.
+
+## Chunk storage (`storage/1`)
+
+The provider's `storage()` returns the `storage/1` chunk storage a v3 datastore
+uses: immutable, content-addressed chunks at
+`<prefix>/_blobs/<namespace>/sha256/<first two hex>/<sha256>`, where
+`<namespace>` is the repository's namespace or `_default` (swamp-club#3492).
+Swamp first calls it in datastore rework Phase 4E, which is not yet released;
+until then the extension stores nothing there. `_blobs/` is never part of the
+file sync: a pull or push neither lists nor uploads it.
+
+- **Chunk size.** `capabilities().maxChunkBytes` is 16 MiB, the largest size
+  swamp cuts. A put is a single simple (`uploadType=media`) upload, never a
+  resumable one.
+- **Atomic puts, clean aborts.** GCS commits a simple upload whole or not at
+  all, so a reader never sees a partial chunk. An aborted put therefore leaves
+  no object and no resumable session behind. The tests show the client tears the
+  request down and that an emulator commits nothing; that GCS itself discards a
+  body it never received whole is its documented behaviour, not something the
+  tests measure.
+- **`has`, tuned for price.** Hashes are grouped by their two-hex shard. A shard
+  holding 13 or more of the batch's hashes is listed (one request per 1,000
+  chunks in that shard); the rest are checked one metadata GET each, 16 at a
+  time. GCS bills a list as a Class A operation
+  ($0.005 per 1,000) and a metadata GET as Class B ($0.0004 per 1,000), 12.5x
+  apart (S3 and R2 share the ratio), so a listing only pays for itself at 13 or
+  more hashes in a shard. A typical call (one commit's chunks) takes the
+  per-hash path; bulk callers list automatically. Only a 404 reads as absent;
+  any other failure rejects, so an unreadable chunk never reads as missing.
+  Measured request counts:
+
+  | Call                                                               | Requests             |
+  | ------------------------------------------------------------------ | -------------------- |
+  | `has` on 10 hashes, all stored                                     | 10 metadata GETs     |
+  | `has` on 1,000 hashes spread over all shards (at most 4 per shard) | 1,000 metadata GETs  |
+  | `has` on 1,000 hashes in 2 shards                                  | 2 listings           |
+  | `touch` on 10 or 1,000 hashes                                      | one rewrite per hash |
+
+  When any hash is missing, `has` adds one listing to confirm the bucket exists,
+  since a 404 alone cannot tell a missing chunk from a missing bucket. `touch`
+  does the same when any chunk is missing.
+- **`touch` without re-uploading.** `touch` rewrites each chunk onto itself with
+  new custom metadata: one `objects.rewrite` call per chunk within one location
+  and storage class, and no bytes travel. A rewrite of a dual-region object
+  still replicating can take more calls; the extension follows `rewriteToken`
+  until it is done. The GCS JSON API allows a rewrite whose source and
+  destination are the same object, and overwriting through it needs only
+  `storage.objects.get`, `.create` and `.delete`. A metadata PATCH would need
+  `storage.objects.update`, which the custom role above does not grant, so it is
+  not used. The new `lastModified` comes from the server's clock, and no
+  permission beyond those listed above is needed. On a versioned bucket every
+  touch leaves a noncurrent generation, billed as storage while it is retained;
+  a lifecycle rule that expires noncurrent generations keeps that bounded.
+- **Storage classes.** Do not transition `_blobs/` to Nearline, Coldline or
+  Archive. Those objects stay readable, but the rewrite names no storage class,
+  so `touch` moves each chunk back to the bucket's default class, and replacing
+  an object before its minimum storage duration (30, 90 or 365 days) is billed
+  as an early deletion, on top of the retrieval charge for reading it.
+- **`lastModified`** is always the server's `updated` time, never the client's
+  clock.
+
+The conformance suites (`assertStorageConformance` and
+`assertWritableDatastoreControlPlaneStoreConformance`, namespaced-push case
+included) run in every test run against an in-process emulator. To run them
+against fake-gcs-server 1.56.1 or later (earlier versions ignore
+`ifGenerationMatch` on simple uploads, fsouza/fake-gcs-server#2308) as well, set
+`SWAMP_TEST_GCS_ENDPOINT` (e.g. `http://localhost:4443`) and
+`SWAMP_TEST_GCS_BUCKET` (an existing bucket); each run uses a fresh prefix.
+Against a real endpoint the storage suite skips its `lastModified`-refresh
+checks, since an object cannot be backdated there; a direct measurement on
+fake-gcs-server 1.56.1 shows `touch` advancing `updated` time from the server's
+clock.
 
 ## Observability
 

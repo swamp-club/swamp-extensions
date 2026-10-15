@@ -131,6 +131,105 @@ export interface ControlPlaneStore {
   putIfAbsent(key: string, data: Uint8Array): Promise<boolean>;
 }
 
+/** Options for a control-plane read. */
+export interface ControlPlaneReadOptions {
+  /** Cancels the read: stops the request in flight and any retry backoff. */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * Reads control-plane records at the datastore-wide `_control/` root,
+ * whatever namespace a repository uses. Binds no namespace and shares no
+ * state with any sync service.
+ */
+export interface DatastoreControlPlaneStore {
+  /**
+   * The record at `_control/<key>`, or null only when no such record exists.
+   * Every other failure rejects, as does an aborted `options.signal`.
+   */
+  get(
+    key: string,
+    options?: ControlPlaneReadOptions,
+  ): Promise<Uint8Array | null>;
+}
+
+/**
+ * A {@link DatastoreControlPlaneStore} that also writes, at the same
+ * datastore-wide `_control/` root. The v3 writer lease keeps its records
+ * (`writer/`) here.
+ */
+export interface WritableDatastoreControlPlaneStore
+  extends DatastoreControlPlaneStore {
+  /** Writes the record at `_control/<key>`, replacing any record there. */
+  put(key: string, data: Uint8Array): Promise<void>;
+  /**
+   * Creates the record only if none is there; false, leaving the existing
+   * record unchanged, when one is.
+   */
+  putIfAbsent(key: string, data: Uint8Array): Promise<boolean>;
+  /** Removes the record; a missing record is no error. */
+  delete(key: string): Promise<void>;
+  /** The keys under `_control/<prefix>`, relative to `_control/`. */
+  list(prefix: string): Promise<string[]>;
+}
+
+/** What a {@link DatastoreStorage} supports. */
+export interface StorageCapabilities {
+  /** The largest chunk stored, in bytes. */
+  readonly maxChunkBytes: number;
+  /** True when the storage implements `touch`. */
+  readonly touch: boolean;
+}
+
+/** One chunk, as {@link DatastoreStorage.list} reports it. */
+export interface StoredChunk {
+  readonly sha256: string;
+  /** When the chunk was last put or touched, by the server's clock. */
+  readonly lastModified: Date;
+}
+
+/**
+ * The `storage/1` contract: immutable chunks keyed by namespace and the
+ * SHA-256 of their bytes, at
+ * `<prefix>/_blobs/<namespace>/sha256/<first two hex>/<sha256>`.
+ */
+export interface DatastoreStorage {
+  readonly contract: "storage/1";
+  capabilities(): StorageCapabilities;
+  /** The subset of `hashes` stored in `namespace`. */
+  has(
+    namespace: string,
+    hashes: readonly string[],
+    signal: AbortSignal,
+  ): Promise<Set<string>>;
+  /** Stores `bytes` under `sha256`, replacing any chunk already there. */
+  put(
+    namespace: string,
+    sha256: string,
+    bytes: Uint8Array,
+    signal: AbortSignal,
+  ): Promise<void>;
+  /** The chunk's bytes, or null only when no such chunk exists. */
+  get(
+    namespace: string,
+    sha256: string,
+    signal: AbortSignal,
+  ): Promise<Uint8Array | null>;
+  /**
+   * Refreshes `lastModified` for each of `hashes` that is stored, and
+   * returns the ones that are not.
+   */
+  touch?(
+    namespace: string,
+    hashes: readonly string[],
+    signal: AbortSignal,
+  ): Promise<Set<string>>;
+  /** Every chunk stored in `namespace`, in no particular order. */
+  list(namespace: string, signal: AbortSignal): AsyncIterable<StoredChunk>;
+  /** Removes the chunk; removing a missing chunk succeeds. */
+  delete(namespace: string, sha256: string, signal: AbortSignal): Promise<void>;
+}
+
 /**
  * Opaque manifest returned by {@link DatastoreSyncService.preparePush}
  * and consumed by {@link DatastoreSyncService.commitPush}.
@@ -285,4 +384,13 @@ export interface DatastoreProvider {
   ): Promise<void>;
   /** Lists all registered namespaces in the remote datastore. */
   listNamespaces?(datastorePath: string): Promise<string[]>;
+  /** The datastore-wide control plane at the root `_control/`. */
+  datastoreControlPlaneStore?(): DatastoreControlPlaneStore;
+  /**
+   * `true` declares that no namespaced pull or push moves or copies
+   * `_control/writer/`, so the v3 writer lease stays at the datastore root.
+   */
+  readonly datastoreWideLease?: boolean;
+  /** The `storage/1` chunk storage, scoped to the datastore root. */
+  storage?(): DatastoreStorage;
 }

@@ -28,6 +28,7 @@ import {
 import { join } from "jsr:@std/path@1";
 import { ensureDir, walk } from "jsr:@std/fs@1";
 import {
+  isDatastoreWideControlKey,
   isInsideNamespaceDir,
   isInternalCacheFile,
   isLazySkippable,
@@ -11830,3 +11831,127 @@ fetchContentTest(
     await svc.pullChanged({ namespace: "team-b" });
   },
 );
+
+// -- swamp-club#3395: datastore-wide control-plane records stay at the root --
+
+Deno.test("isDatastoreWideControlKey: writer/, lineage/ and datastore-format only", () => {
+  assert(isDatastoreWideControlKey("_control/writer/lease"));
+  // v3 replication lineage (swamp-club#3482).
+  assert(isDatastoreWideControlKey("_control/lineage/7/started.json"));
+  assert(isDatastoreWideControlKey("_control/lineage/7/head-3.json"));
+  assert(isDatastoreWideControlKey("_control/lineage/7/confirmed.json"));
+  assert(!isDatastoreWideControlKey("_control/lineage"));
+  assert(!isDatastoreWideControlKey("_control/lineagex/7/started.json"));
+  assert(isDatastoreWideControlKey("_control/writer/fence/1"));
+  assert(isDatastoreWideControlKey("_control/datastore-format"));
+  assert(!isDatastoreWideControlKey("_control/writer"));
+  assert(!isDatastoreWideControlKey("_control/writerx/lease"));
+  assert(!isDatastoreWideControlKey("_control/datastore-format-old"));
+  assert(!isDatastoreWideControlKey("_control/datastore-format/x"));
+  assert(!isDatastoreWideControlKey("_control/heartbeats/inst-1"));
+  assert(!isDatastoreWideControlKey("my-ns/_control/writer/lease"));
+});
+
+Deno.test("controlPlaneStore: migration leaves writer/, lineage/ and datastore-format at the root (swamp-club#3395)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-cp-wide-" });
+  try {
+    const mock = createMockS3Client();
+    // A namespace upgraded from solo: the legacy namespaced index exists.
+    mock.storage.set("my-ns/.datastore-index.json", encodeIndex({}));
+    mock.storage.set(
+      "_control/writer/lease",
+      new TextEncoder().encode("lease"),
+    );
+    mock.storage.set(
+      "_control/datastore-format",
+      new TextEncoder().encode("marker"),
+    );
+    mock.storage.set(
+      "_control/lineage/7/started.json",
+      new TextEncoder().encode("lineage"),
+    );
+    mock.storage.set(
+      "_control/heartbeats/inst-1",
+      new TextEncoder().encode("beat"),
+    );
+    mock.storage.set(
+      "my-ns/.namespace.json",
+      new TextEncoder().encode(JSON.stringify({
+        namespace: "my-ns",
+        repoId: "repo-1",
+        registeredAt: new Date().toISOString(),
+      })),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pushChanged({ namespace: "my-ns" });
+
+    for (
+      const key of [
+        "_control/writer/lease",
+        "_control/lineage/7/started.json",
+        "_control/datastore-format",
+      ]
+    ) {
+      assertEquals(
+        mock.storage.has(key),
+        true,
+        `a datastore-wide record must stay at the root: ${key}`,
+      );
+      assertEquals(
+        mock.storage.has(`my-ns/${key}`),
+        false,
+        `a datastore-wide record must never be copied into a namespace: ${key}`,
+      );
+    }
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get("_control/writer/lease")),
+      "lease",
+    );
+    // Every other root record still moves, as before.
+    assertEquals(mock.storage.has("my-ns/_control/heartbeats/inst-1"), true);
+    assertEquals(mock.storage.has("_control/heartbeats/inst-1"), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("isInternalCacheFile excludes _blobs/ chunk storage (swamp-club#3492)", () => {
+  assert(isInternalCacheFile("_blobs"));
+  assert(isInternalCacheFile("_blobs/_default/sha256/ab/" + "ab".repeat(32)));
+  assert(!isInternalCacheFile("data/_blobs/file.yaml"));
+  assert(!isInternalCacheFile("_blobsx/file.yaml"));
+});
+
+Deno.test("pullIndex discovery: leaves _blobs/ chunks out of a synthesized index (swamp-club#3492)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-blobs-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      "data/@org/m/legit.yaml",
+      new TextEncoder().encode("ok\n"),
+    );
+    mock.storage.set(
+      "_blobs/_default/sha256/ab/" + "ab".repeat(32),
+      new TextEncoder().encode("chunk"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut);
+    const synthesized = JSON.parse(new TextDecoder().decode(indexPut.body));
+    assertEquals(
+      Object.keys(synthesized.entries).sort(),
+      ["data/@org/m/legit.yaml"],
+      "chunks under _blobs/ must never enter the file index",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

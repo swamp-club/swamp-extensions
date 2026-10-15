@@ -28,6 +28,7 @@ import {
   PREFLIGHT_TIMEOUT_MS,
   PROBE_PREFIX,
   S3Client,
+  s3NotFoundKind,
   S3OperationError,
   unquoteETag,
 } from "./s3_client.ts";
@@ -1389,4 +1390,31 @@ Deno.test({
       });
     }
   },
+});
+
+Deno.test("s3NotFoundKind: only NoSuchKey is a missing key; NoSuchBucket and 403 are failures", () => {
+  const op = (name: string, status: number | undefined, code?: string) =>
+    new S3OperationError("x", {
+      name,
+      cause: undefined,
+      httpStatusCode: status,
+      code,
+      requestId: undefined,
+      bodyPreview: undefined,
+    });
+  assertEquals(s3NotFoundKind(op("NoSuchKey", 404, "NoSuchKey")), "key");
+  // A HeadObject 404 has no body, so it cannot name what is missing.
+  assertEquals(s3NotFoundKind(op("NotFound", 404)), "ambiguous");
+  // A 404 whose body is not XML arrives unnamed.
+  assertEquals(s3NotFoundKind(op("UnknownError", 404)), "ambiguous");
+  assertEquals(
+    s3NotFoundKind(op("NoSuchBucket", 404, "NoSuchBucket")),
+    undefined,
+  );
+  assertEquals(
+    s3NotFoundKind(op("AccessDenied", 403, "AccessDenied")),
+    undefined,
+  );
+  assertEquals(s3NotFoundKind(op("InternalError", 500)), undefined);
+  assertEquals(s3NotFoundKind("not an error"), undefined);
 });

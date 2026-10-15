@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.10.15.1"
+version: "2026.10.15.2"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
@@ -19,6 +19,16 @@ description: |
   configurable transfer concurrency, configurable per-request timeout,
   managed config refresh for pulling config partitions from the datastore,
   and a single-file remote read that writes nothing to the local cache.
+
+  Groundwork for the v3 datastore format: a datastore-wide control plane at
+  the root `_control/` that holds the v3 writer lease and replication lineage
+  (no namespaced pull or push moves `_control/writer/`, `_control/lineage/`
+  or `_control/datastore-format`, and the provider declares
+  `datastoreWideLease`), and `storage/1` chunk storage under
+  `_blobs/` with 16 MiB single-request puts, a price-tuned `has`, and a
+  `touch` that refreshes a chunk by a copy of it onto itself, with no
+  re-upload and no new permissions. Swamp's v3 on buckets (Phase 4E, not yet
+  released) will name the minimum extension version it needs.
 
   ## Authentication
 

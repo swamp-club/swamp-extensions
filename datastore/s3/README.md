@@ -31,6 +31,9 @@ The calling principal needs these S3 actions on the target bucket and objects:
 - `s3:DeleteObject`
 - `s3:ListBucket` (authorizes ListBucket, HeadBucket)
 
+Chunk storage's `touch` is a CopyObject, which these already cover
+(`s3:GetObject` on the source, `s3:PutObject` on the destination).
+
 ## Usage
 
 Switch the current swamp repository over to an S3-backed datastore:
@@ -190,6 +193,101 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   `NoSuchKey` answer means the file is absent; any other failure, including a
   404 without that error code, is an error rather than a missing file. Transient
   failures are retried with backoff, as on a pull.
+
+## Datastore-wide control plane and the v3 writer lease
+
+Swamp keeps a few records for the whole datastore, outside every namespace, at
+`<prefix>/_control/<key>`: the format marker `datastore-format`, which it reads
+before a command opens the datastore, the v3 writer lease's records under
+`writer/`, and the v3 replication lineage records under `lineage/`
+(`lineage/<fence>/started.json`, `head-<writer fence>.json`, `confirmed.json`;
+swamp-club#3482). The provider's `datastoreControlPlaneStore()` reads and writes
+them:
+
+- It binds no namespace and shares nothing with a sync service. Building it
+  makes no request, and a read is one GetObject with no credentials preflight. A
+  failure still carries the same credential hint as every other S3 request.
+- `get` returns null only when the record is missing. A 403, a 5xx, an abort and
+  a missing bucket all reject. A 404 that does not name the key (a non-XML body)
+  is confirmed with one listing before it reads as absent; `NoSuchBucket`
+  rejects.
+- `putIfAbsent` is a conditional PutObject (`If-None-Match: *`), so of
+  concurrent creates of one key exactly one wins.
+
+The provider declares `datastoreWideLease: true`: no namespaced pull or push
+moves or copies `_control/writer/`. A namespaced push into a namespace that
+still has the legacy `<namespace>/.datastore-index.json` (one a solo datastore
+was upgraded to) moves the root `_control/` records into
+`<namespace>/_control/`, as before, except `_control/writer/...`,
+`_control/lineage/...` and `_control/datastore-format`, which stay at the root
+where swamp reads them (swamp-club#3395). An older extension version would move
+the lease and the lineage. Swamp's v3 on buckets (Phase 4E, not yet released)
+will name the minimum extension version it needs.
+
+## Chunk storage (`storage/1`)
+
+The provider's `storage()` returns the `storage/1` chunk storage a v3 datastore
+uses: immutable, content-addressed chunks at
+`<prefix>/_blobs/<namespace>/sha256/<first two hex>/<sha256>`, where
+`<namespace>` is the repository's namespace or `_default` (swamp-club#3492).
+Swamp first calls it in datastore rework Phase 4E, which is not yet released;
+until then the extension stores nothing there. `_blobs/` is never part of the
+file sync: a pull or push neither lists nor uploads it.
+
+- **Chunk size.** `capabilities().maxChunkBytes` is 16 MiB, the largest size
+  swamp cuts. A put is a single PutObject, never a multipart upload.
+- **Atomic puts, clean aborts.** S3 commits a PutObject whole or not at all, so
+  a reader never sees a partial chunk. An aborted put therefore leaves no object
+  and no multipart upload to clean up. The tests show the client tears the
+  request down and that an emulator commits nothing; that S3 itself discards a
+  body it never received whole is its documented behaviour, not something the
+  tests measure.
+- **`has`, tuned for price.** Hashes are grouped by their two-hex shard. A shard
+  holding 13 or more of the batch's hashes is listed (one request per 1,000
+  chunks in that shard); the rest are checked one HEAD each, 16 at a time. S3
+  bills a LIST at the PUT tier
+  ($0.005 per 1,000) and a HEAD at the GET tier ($0.0004 per 1,000), 12.5x apart
+  (GCS and R2 share the ratio), so a listing only pays for itself at 13 or more
+  hashes in a shard. A typical call (one commit's chunks) takes the per-hash
+  path; bulk callers list automatically. Only a 404 reads as absent; any other
+  failure rejects, so an unreadable chunk never reads as missing. Measured
+  request counts:
+
+  | Call                                                               | Requests                |
+  | ------------------------------------------------------------------ | ----------------------- |
+  | `has` on 10 hashes, all stored                                     | 10 HEADs                |
+  | `has` on 1,000 hashes spread over all shards (at most 4 per shard) | 1,000 HEADs             |
+  | `has` on 1,000 hashes in 2 shards                                  | 2 listings              |
+  | `touch` on 10 or 1,000 hashes                                      | one CopyObject per hash |
+
+  When any hash is missing, `has` adds one listing to confirm the bucket exists,
+  since a 404 alone cannot tell a missing chunk from a missing bucket. `touch`
+  needs no such listing: CopyObject names a missing source `NoSuchKey`.
+- **`touch` without re-uploading.** `touch` copies each chunk onto itself,
+  replacing its user metadata (S3 refuses a self-copy that changes nothing): one
+  CopyObject per chunk, and no bytes travel. It needs only `s3:GetObject` and
+  `s3:PutObject`. The new `lastModified` comes from the server's clock, and no
+  permission beyond those listed above is needed. On a versioned bucket every
+  touch leaves a noncurrent version, billed as storage while it is retained; a
+  lifecycle rule that expires noncurrent versions keeps that bounded.
+- **Storage classes.** Do not transition `_blobs/` to S3 Glacier Flexible
+  Retrieval or Glacier Deep Archive: those objects must be restored before they
+  can be read or copied, so `get` and `touch` fail (`InvalidObjectState`) and
+  the commit that needs them fails. The self-copy names no `StorageClass`, so
+  `touch` moves a chunk in an infrequent-access class (Standard-IA, One Zone-IA,
+  Glacier Instant Retrieval) back to Standard.
+- **`lastModified`** is always the server's `LastModified`, never the client's
+  clock.
+
+The conformance suites (`assertStorageConformance` and
+`assertWritableDatastoreControlPlaneStoreConformance`, namespaced-push case
+included) run in every test run against an in-process emulator. To run them
+against ministack (or another S3-compatible endpoint) as well, set
+`SWAMP_TEST_S3_ENDPOINT` (e.g. `http://localhost:4566`) and
+`SWAMP_TEST_S3_BUCKET` (an existing bucket); each run uses a fresh prefix.
+Against a real endpoint the storage suite skips its `lastModified`-refresh
+checks, since an object cannot be backdated there; a direct measurement on
+ministack shows `touch` advancing `LastModified` from the server's clock.
 
 ## Observability
 

@@ -31,17 +31,21 @@ import type {
   CatalogExportRow,
   DatastoreHealthResult,
   DatastoreProvider,
+  DatastoreStorage,
   DatastoreSyncService,
   DatastoreVerifier,
   DistributedLock,
   LockInfo,
   LockOptions,
   SyncCapabilities,
+  WritableDatastoreControlPlaneStore,
 } from "./_lib/interfaces.ts";
 import { GcsClient, NotFoundError } from "./_lib/gcs_client.ts";
 import { GcsLock } from "./_lib/gcs_lock.ts";
 import { GcsDatastoreVerifier } from "./_lib/gcs_verifier.ts";
 import { GcsCacheSyncService } from "./_lib/gcs_cache_sync.ts";
+import { GcsDatastoreControlPlaneStore } from "./_lib/gcs_control_plane.ts";
+import { GcsChunkStorage } from "./_lib/gcs_storage.ts";
 
 export type {
   CatalogExportEntry,
@@ -123,6 +127,13 @@ interface GcsDatastoreProviderConfig {
 class GcsDatastoreProviderImpl implements DatastoreProvider {
   private readonly config: GcsDatastoreProviderConfig;
 
+  /**
+   * No namespaced pull or push moves `_control/writer/` (or the v3 lineage
+   * under `_control/lineage/`): the root-to-namespace control-plane migration
+   * skips them (swamp-club#3395).
+   */
+  readonly datastoreWideLease = true;
+
   constructor(config: GcsDatastoreProviderConfig) {
     this.config = config;
   }
@@ -165,6 +176,16 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
       pullConcurrency: this.config.pullConcurrency,
       pushConcurrency: this.config.pushConcurrency,
     });
+  }
+
+  datastoreControlPlaneStore(): WritableDatastoreControlPlaneStore {
+    return new GcsDatastoreControlPlaneStore(
+      new GcsClient(this.gcsClientConfig()),
+    );
+  }
+
+  storage(): DatastoreStorage {
+    return new GcsChunkStorage(new GcsClient(this.gcsClientConfig()));
   }
 
   resolveDatastorePath(repoDir: string): string {

@@ -24,7 +24,19 @@ import {
   assertVerifierConformance,
 } from "@systeminit/swamp-testing";
 import type { DatastoreHealthResult } from "./_lib/interfaces.ts";
-import { createS3EmulatorHandler } from "./_lib/s3_emulator_test_util.ts";
+import {
+  assertStorageConformance,
+  assertWritableDatastoreControlPlaneStoreConformance,
+  type DatastoreStorage as ConformanceDatastoreStorage,
+  type DatastoreSyncService as ConformanceDatastoreSyncService,
+  type WritableDatastoreControlPlaneStore as ConformanceWritableStore,
+} from "@swamp-club/swamp-testing";
+import {
+  createS3EmulatorHandler,
+  type S3EmulatorState,
+  withS3Emulator,
+} from "./_lib/s3_emulator_test_util.ts";
+import { S3Client } from "./_lib/s3_client.ts";
 import { datastore } from "./s3.ts";
 
 Deno.test("datastore export conforms to DatastoreProvider contract", () => {
@@ -753,5 +765,260 @@ Deno.test({
       }
       await server.shutdown();
     }
+  },
+});
+
+// --- swamp-club#3395 / #3492: datastore-wide control plane and storage/1 ---
+//
+// Both suites run against the in-process S3 emulator here, so they run in
+// every verification. The same suites run against a real S3-compatible
+// endpoint (ministack) when SWAMP_TEST_S3_ENDPOINT and SWAMP_TEST_S3_BUCKET
+// are set; see the cases at the end.
+//
+// sanitizeResources: false throughout: the AWS SDK's keep-alive connection
+// pool outlives each test body.
+
+/** An empty legacy (v1) index: what marks a namespace upgraded from solo. */
+function legacyIndex(): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify({
+    version: 1,
+    lastPulled: new Date().toISOString(),
+    entries: {},
+  }));
+}
+
+type ConformanceProvider = {
+  datastoreControlPlaneStore?(): unknown;
+  createSyncService?(repoDir: string, cachePath: string): unknown;
+  storage?(): unknown;
+};
+
+async function runWritableControlPlaneConformance(
+  provider: ConformanceProvider,
+  markNamespaceUpgradedFromSolo: (namespace: string) => Promise<void>,
+): Promise<void> {
+  const caches: string[] = [];
+  const openSyncFixture = async () => {
+    const cacheDir = await Deno.makeTempDir({ prefix: "s3-cp-conformance-" });
+    caches.push(cacheDir);
+    return {
+      service: provider.createSyncService!(
+        cacheDir,
+        cacheDir,
+      ) as ConformanceDatastoreSyncService,
+      cacheDir,
+    };
+  };
+  try {
+    const result = await assertWritableDatastoreControlPlaneStoreConformance({
+      openDatastoreStore: () =>
+        provider.datastoreControlPlaneStore!() as ConformanceWritableStore,
+      openSyncService: async () => (await openSyncFixture()).service,
+      openNamespacedSyncFixture: openSyncFixture,
+      markNamespaceUpgradedFromSolo,
+    });
+    // The case that proves the lease never moves must not silently skip.
+    assertEquals(result.namespacedPushSkipped, undefined);
+  } finally {
+    for (const dir of caches) {
+      await Deno.remove(dir, { recursive: true }).catch(() => {});
+    }
+  }
+}
+
+function emulatorProvider(endpoint: string) {
+  return datastore.createProvider({
+    bucket: "test-bucket",
+    region: "us-east-1",
+    endpoint,
+    forcePathStyle: true,
+  }) as ReturnType<typeof datastore.createProvider> & ConformanceProvider;
+}
+
+function chunkObjectKey(namespace: string, sha256: string): string {
+  return `_blobs/${namespace}/sha256/${sha256.slice(0, 2)}/${sha256}`;
+}
+
+function backdate(state: S3EmulatorState) {
+  return (namespace: string, sha256: string, date: Date) => {
+    const object = state.objects.get(chunkObjectKey(namespace, sha256));
+    if (!object) {
+      return Promise.reject(new Error(`no chunk ${namespace}/${sha256}`));
+    }
+    object.lastModified = date;
+    return Promise.resolve();
+  };
+}
+
+Deno.test({
+  name:
+    "provider declares datastoreWideLease and offers the control plane and storage",
+  fn: () => {
+    const provider = datastore.createProvider({ bucket: "my-test-bucket" });
+    assertEquals(provider.datastoreWideLease, true);
+    assertEquals(typeof provider.datastoreControlPlaneStore, "function");
+    assertEquals(provider.storage?.().contract, "storage/1");
+  },
+});
+
+Deno.test({
+  name:
+    "writable datastore-wide control plane conformance, namespaced push included (S3 emulator)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withS3Emulator({}, async (_s3, state, endpoint) => {
+      await runWritableControlPlaneConformance(
+        emulatorProvider(endpoint),
+        (namespace) => {
+          state.objects.set(`${namespace}/.datastore-index.json`, {
+            body: legacyIndex(),
+            etag: crypto.randomUUID().replaceAll("-", ""),
+            lastModified: new Date(),
+          });
+          return Promise.resolve();
+        },
+      );
+    });
+  },
+});
+
+Deno.test({
+  name: "storage/1 conformance (S3 emulator)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withS3Emulator({}, async (_s3, state, endpoint) => {
+      const provider = emulatorProvider(endpoint);
+      await assertStorageConformance(
+        () => provider.storage!() as ConformanceDatastoreStorage,
+        { setLastModified: backdate(state) },
+      );
+    });
+  },
+});
+
+// --- the same suites against a real S3-compatible endpoint (ministack) ---
+//
+// Set SWAMP_TEST_S3_ENDPOINT (e.g. http://localhost:4566) and
+// SWAMP_TEST_S3_BUCKET (an existing bucket). Each run uses a fresh prefix, so
+// the namespaced-push case always starts from an empty datastore root.
+// Credentials come from the environment; when none are set, dummy ones are
+// used and removed afterwards. The lastModified-refresh checks of the storage
+// suite are skipped there: a real endpoint cannot backdate an object.
+
+const realEndpoint = Deno.env.get("SWAMP_TEST_S3_ENDPOINT");
+const realBucket = Deno.env.get("SWAMP_TEST_S3_BUCKET");
+
+async function withRealEndpoint(
+  fn: (config: {
+    bucket: string;
+    prefix: string;
+    region: string;
+    endpoint: string;
+    forcePathStyle: boolean;
+  }) => Promise<void>,
+): Promise<void> {
+  const priorKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const priorSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  if (priorKey === undefined) Deno.env.set("AWS_ACCESS_KEY_ID", "test");
+  if (priorSecret === undefined) Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
+  try {
+    await fn({
+      bucket: realBucket!,
+      prefix: `swamp-conformance-${crypto.randomUUID().slice(0, 8)}`,
+      region: Deno.env.get("AWS_REGION") ?? "us-east-1",
+      endpoint: realEndpoint!,
+      forcePathStyle: true,
+    });
+  } finally {
+    if (priorKey === undefined) Deno.env.delete("AWS_ACCESS_KEY_ID");
+    if (priorSecret === undefined) Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+  }
+}
+
+Deno.test({
+  name:
+    "writable datastore-wide control plane conformance (SWAMP_TEST_S3_ENDPOINT, ministack)",
+  ignore: !realEndpoint || !realBucket,
+  sanitizeResources: false,
+  fn: async () => {
+    await withRealEndpoint(async (config) => {
+      const provider = datastore.createProvider(config) as
+        & ReturnType<typeof datastore.createProvider>
+        & ConformanceProvider;
+      const s3 = new S3Client(config);
+      await runWritableControlPlaneConformance(provider, async (namespace) => {
+        await s3.putObject(`${namespace}/.datastore-index.json`, legacyIndex());
+      });
+    });
+  },
+});
+
+Deno.test({
+  name: "storage/1 conformance (SWAMP_TEST_S3_ENDPOINT, ministack)",
+  ignore: !realEndpoint || !realBucket,
+  sanitizeResources: false,
+  fn: async () => {
+    await withRealEndpoint(async (config) => {
+      const provider = datastore.createProvider(config);
+      await assertStorageConformance(
+        () => provider.storage!() as ConformanceDatastoreStorage,
+      );
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "a namespaced push into an upgraded namespace leaves writer/ and lineage/ records at the root (swamp-club#3482)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withS3Emulator({}, async (_client, state, endpoint) => {
+      const provider = emulatorProvider(endpoint);
+      const store = provider
+        .datastoreControlPlaneStore!() as ConformanceWritableStore;
+      const keys = [
+        "writer/lease",
+        "lineage/7/started.json",
+        "lineage/7/head-3.json",
+      ];
+      for (const key of keys) {
+        await store.put(key, new TextEncoder().encode(key));
+      }
+      const namespace = "upgraded-ns";
+      state.objects.set(`${namespace}/.datastore-index.json`, {
+        body: legacyIndex(),
+        etag: crypto.randomUUID().replaceAll("-", ""),
+        lastModified: new Date(),
+      });
+      const cacheDir = await Deno.makeTempDir({ prefix: "lineage-push-" });
+      try {
+        const service = provider.createSyncService!(
+          cacheDir,
+          cacheDir,
+        ) as ConformanceDatastoreSyncService;
+        const relPath = `${namespace}/data/lineage/file`;
+        await service.pullChanged({ namespace });
+        await service.markDirty({ relPath, namespace });
+        await Deno.mkdir(`${cacheDir}/${namespace}/data/lineage`, {
+          recursive: true,
+        });
+        await Deno.writeTextFile(`${cacheDir}/${relPath}`, "x");
+        await service.pushChanged({ namespace });
+        for (const key of keys) {
+          assertEquals(
+            new TextDecoder().decode((await store.get(key))!),
+            key,
+            `${key} must stay at the datastore root`,
+          );
+          assertEquals(
+            state.objects.has(`${namespace}/_control/${key}`),
+            false,
+            `${key} must never be copied into the namespace`,
+          );
+        }
+      } finally {
+        await Deno.remove(cacheDir, { recursive: true });
+      }
+    });
   },
 });

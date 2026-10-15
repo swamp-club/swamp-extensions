@@ -121,6 +121,53 @@ export class S3OperationError extends Error {
 }
 
 /**
+ * How a failure says an object is missing. `"key"`: S3 named the key itself
+ * missing (`NoSuchKey`). `"ambiguous"`: a 404 that cannot tell a missing key
+ * from a missing bucket, as a HeadObject answers (no body, so `NotFound`) or
+ * a 404 whose body is not XML. `undefined`: not a missing-object answer at
+ * all, `NoSuchBucket`, a 403 and every other failure included, which must
+ * never read as missing.
+ */
+export function s3NotFoundKind(
+  err: unknown,
+): "key" | "ambiguous" | undefined {
+  if (!(err instanceof Error)) return undefined;
+  const code = err instanceof S3OperationError ? err.code : undefined;
+  if (err.name === "NoSuchBucket" || code === "NoSuchBucket") return undefined;
+  if (err.name === "NoSuchKey" || code === "NoSuchKey") return "key";
+  if (err.name === "NotFound") return "ambiguous";
+  if (err instanceof S3OperationError && err.httpStatusCode === 404) {
+    return "ambiguous";
+  }
+  return undefined;
+}
+
+/**
+ * Settles an ambiguous 404 for `key`: a listing answers 200 only for a bucket
+ * that exists, and needs no permission a sync does not already use. Resolves
+ * when the bucket is there, so the key is missing; otherwise rejects, a
+ * failure of the listing rethrown as it is so a caller still sees an abort,
+ * a timeout or the HTTP status.
+ */
+export async function confirmS3KeyMissing(
+  s3: S3Client,
+  key: string,
+  cause: unknown,
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    await s3.listObjects(key, undefined, signal);
+  } catch (error) {
+    if (s3NotFoundKind(error) === undefined) throw error;
+    throw new Error(
+      `S3 answered 404 for ${JSON.stringify(key)}, but the bucket could not ` +
+        `be confirmed, so the object is not known to be missing`,
+      { cause },
+    );
+  }
+}
+
+/**
  * Thrown by `putObjectIfMatch` when the endpoint cannot do an If-Match
  * compare-and-swap in either ETag form. Callers treat it like
  * NotImplemented and fall back to unconditional writes. Not an
@@ -617,6 +664,30 @@ export class S3Client {
         Bucket: this.bucket,
         CopySource: `${this.bucket}/${this.fullKey(sourceKey)}`,
         Key: this.fullKey(destKey),
+      }),
+      signal,
+    );
+  }
+
+  /**
+   * Refreshes an object's `LastModified` without re-uploading it: a copy of
+   * the object onto itself that replaces its user metadata, since S3 refuses
+   * a self-copy that changes nothing. One request, no body travels, and the
+   * new `LastModified` comes from the server's clock. A missing object
+   * rejects as CopyObject does (`NoSuchKey`).
+   */
+  async touchObject(key: string, signal?: AbortSignal): Promise<void> {
+    await this.run(
+      "touchObject",
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        // CopySource is a URL path: each segment encoded, the slashes kept.
+        CopySource: `${this.bucket}/${
+          this.fullKey(key).split("/").map(encodeURIComponent).join("/")
+        }`,
+        Key: this.fullKey(key),
+        MetadataDirective: "REPLACE",
+        Metadata: { "swamp-touched-at": new Date().toISOString() },
       }),
       signal,
     );
