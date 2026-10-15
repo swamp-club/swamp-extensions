@@ -161,3 +161,34 @@ function walkTested(node: unknown, out: ProductRef[]): void {
   }
   walk(current, out);
 }
+
+/**
+ * Evidence names an expression requires to be absent: a negated existence
+ * test (`!("x" in evidence)`, `!has(evidence.x)`) that is the whole
+ * expression or a term of its top-level `&&`, so the expression is false
+ * whenever that evidence exists. A deeper `has(evidence.x.payload.f)` does
+ * not count (it is false while x exists without f), nor does anything under
+ * `||` or a ternary.
+ */
+export function absentEvidence(ast: unknown): string[] {
+  if (!isCelNode(ast)) return [];
+  if (ast.op === "&&") {
+    return (ast.args as unknown[]).flatMap((term) => absentEvidence(term));
+  }
+  if (ast.op !== "!_" || !isCelNode(ast.args)) return [];
+  const test = ast.args;
+  if (test.op === "in") {
+    const [left, right] = test.args as [unknown, unknown];
+    return mapOf(right) === "evidence" && isCelNode(left) &&
+        left.op === "value" && typeof left.args === "string"
+      ? [left.args]
+      : [];
+  }
+  if (test.op === "call") {
+    const [name, args] = test.args as [unknown, unknown[]];
+    if (name !== "has" || args.length !== 1 || !isCelNode(args[0])) return [];
+    const ref = refOf(args[0]);
+    return ref !== null && ref.map === "evidence" ? [ref.name] : [];
+  }
+  return [];
+}

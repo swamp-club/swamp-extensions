@@ -15,7 +15,12 @@
 
 import { assertEquals } from "@std/assert";
 import { parse } from "npm:@marcbachmann/cel-js@7.6.1";
-import { productKind, type ProductRef, productRefs } from "./cel_refs.ts";
+import {
+  absentEvidence,
+  productKind,
+  type ProductRef,
+  productRefs,
+} from "./cel_refs.ts";
 
 function refs(expr: string): ProductRef[] {
   return productRefs(parse(expr).ast);
@@ -85,4 +90,31 @@ Deno.test("cel refs: productKind maps each map to the kind it holds", () => {
   assertEquals(productKind("validations.artifacts"), "artifact");
   assertEquals(productKind("evidence"), "evidence");
   assertEquals(productKind("validations.evidence"), "evidence");
+});
+
+function absent(expr: string): string[] {
+  return absentEvidence(parse(expr).ast);
+}
+
+Deno.test("cel refs: a negated existence test on evidence, alone or as an && term, requires it absent", () => {
+  assertEquals(absent('!("pr" in evidence)'), ["pr"]);
+  assertEquals(absent("!has(evidence.pr)"), ["pr"]);
+  assertEquals(absent('!has(evidence["change-request"])'), ["change-request"]);
+  assertEquals(
+    absent("item.key != '' && !has(evidence.pr) && !(\"ci\" in evidence)"),
+    ["pr", "ci"],
+  );
+});
+
+Deno.test("cel refs: other tests do not require evidence absent", () => {
+  assertEquals(absent('"pr" in evidence'), []);
+  assertEquals(absent("has(evidence.pr)"), []);
+  assertEquals(absent("!!has(evidence.pr)"), []);
+  assertEquals(absent("!has(evidence.pr.payload.f)"), []);
+  assertEquals(absent('!("pr" in validations.evidence)'), []);
+  assertEquals(absent("!has(validations.evidence.pr)"), []);
+  assertEquals(absent('!("plan" in artifacts)'), []);
+  assertEquals(absent("!has(evidence.pr) || item.key == ''"), []);
+  assertEquals(absent("item.key == '' ? true : !has(evidence.pr)"), []);
+  assertEquals(absent("!(item.key in evidence)"), []);
 });

@@ -830,6 +830,15 @@ and the other `findings-open` on the same findings artifact and every severity
 `findings-open` counts is one `findings-clear` blocks on. An open finding at
 such a severity fails `findings-clear`.
 
+An `evidence-recorded` gate is also exclusive with a sibling `cel` gate that
+requires the same evidence to be absent: `!("pr" in evidence)` or
+`!has(evidence.pr)`, as the whole expression or one term of its top-level `&&`.
+The gate passes only on evidence recorded in this stage and cycle, and the cel
+`evidence` map holds the latest record of each name since the last reset, so
+the negated test then fails. Under `||`, a ternary or a deeper
+`has(evidence.pr.payload.f)` the two can still both pass, and no other part of
+a `cel` gate is compared.
+
 ### What the analysis assumes
 
 It explores abstract run states breadth-first, so every finding comes with the

@@ -15,7 +15,7 @@
 
 import { parse as parseCel } from "npm:@marcbachmann/cel-js@7.6.1";
 import { canonicalJson, fieldAt, type Json } from "./canonical.ts";
-import { productKind, productRefs } from "./cel_refs.ts";
+import { absentEvidence, productKind, productRefs } from "./cel_refs.ts";
 import {
   type FactoryDefinition,
   type GateSpec,
@@ -44,7 +44,9 @@ import { hasPlaceholders, renderTarget } from "./template.ts";
 //
 // human-approval and cel gates are unknowns, so they are assumed passable. A
 // human-approval gate with `when` may not apply, so it is not a person
-// choosing between exits. See DESIGN.md, "Graph validation".
+// choosing between exits. The one thing read from a cel gate is evidence it
+// requires to be absent, to tell sibling exits apart. See DESIGN.md, "Graph
+// validation".
 // ---------------------------------------------------------------------------
 
 export type FindingCode =
@@ -736,6 +738,15 @@ function personChooses(t: TransitionSpec): boolean {
     );
 }
 
+/** Evidence a cel expression requires to be absent; none if it does not parse. */
+function celAbsent(expr: string): string[] {
+  try {
+    return absentEvidence(parseCel(expr).ast);
+  } catch {
+    return [];
+  }
+}
+
 /** Whether two sibling transitions can never both pass. */
 function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
   for (const x of a.gates ?? []) {
@@ -757,6 +768,17 @@ function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
           clear.type === "findings-clear" && open.type === "findings-open" &&
           clear.config.artifact === open.config.artifact &&
           open.config.blocking.every((s) => clear.config.blocking.includes(s))
+        ) {
+          return true;
+        }
+      }
+      // evidence-recorded passes only on evidence recorded in this stage and
+      // cycle, and a cel gate's evidence map holds the latest record of each
+      // name in the era (cel_context.ts), so it then sees that evidence.
+      for (const [recorded, cel] of [[x, y], [y, x]]) {
+        if (
+          recorded.type === "evidence-recorded" && cel.type === "cel" &&
+          celAbsent(cel.config.expr).includes(recorded.config.name)
         ) {
           return true;
         }

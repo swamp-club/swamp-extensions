@@ -805,6 +805,71 @@ stages:
   assertEquals(codes(siblings("").warnings), []);
 });
 
+/** The implement stage from swamp-club #3368: submitted needs pr evidence,
+ * no-change needs no-change evidence and a cel gate given by `expr`. */
+function noChange(expr: string): GraphReport {
+  return analyzeDefinition(definition(`
+stages:
+  - id: implement
+    initial: true
+    evidence:
+      - { name: pr, schema: ${OBJECT} }
+      - { name: no-change, schema: ${OBJECT} }
+      - { name: other, schema: ${OBJECT} }
+    transitions:
+      - name: submitted
+        to: review
+        gates:
+          - type: evidence-recorded
+            config: { name: pr }
+      - name: no-change
+        to: validate
+        gates:
+          - type: evidence-recorded
+            config: { name: no-change }
+          - type: cel
+            config: { expr: ${JSON.stringify(expr)} }
+  - id: review
+    terminal: true
+  - id: validate
+    terminal: true
+`));
+}
+
+Deno.test("graph: a cel gate requiring a sibling's evidence-recorded evidence absent makes them exclusive", () => {
+  for (
+    const expr of [
+      '!("pr" in evidence)',
+      "!has(evidence.pr)",
+      "item.key != '' && !has(evidence.pr)",
+    ]
+  ) {
+    const report = noChange(expr);
+    assertEquals(report.errors, [], expr);
+    assertEquals(report.warnings, [], expr);
+  }
+});
+
+Deno.test("graph: a cel gate that can pass while the sibling's evidence exists stays ambiguous", () => {
+  for (
+    const expr of [
+      "!has(evidence.pr) || item.key == ''",
+      "!has(evidence.pr.payload.f)",
+      '!("other" in evidence)',
+      '!("pr" in validations.evidence)',
+    ]
+  ) {
+    const report = noChange(expr);
+    assertEquals(codes(report.warnings), [
+      "ambiguous-exit stages.0.transitions.0 [implement]",
+    ], expr);
+    assert(
+      report.warnings[0].message.includes("cel gates could not be compared"),
+      expr,
+    );
+  }
+});
+
 Deno.test("graph: findings-clear and findings-open on the same findings are exclusive when open's severities all block clear", () => {
   const siblings = (clear: string, open: string, artifact = "review") =>
     analyzeDefinition(definition(`
