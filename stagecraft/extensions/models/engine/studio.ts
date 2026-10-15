@@ -17,6 +17,8 @@ import { z } from "npm:zod@4.3.6";
 import { STUDIO_ASSETS } from "../_lib/engine/studio_assets.ts";
 import { parsePublicOrigin } from "../_lib/engine/studio_server.ts";
 import {
+  parseServer,
+  REMOTE_PUBLIC,
   serveStudio,
   type StudioContext,
 } from "../_lib/engine/studio_serve.ts";
@@ -27,7 +29,8 @@ import {
 // too when a reverse proxy or tunnel is given one. The page lists every
 // factory in the repo and shows its definition file and scenario files,
 // reloading them as an agent edits them. It never writes: edits come from the agent
-// (DESIGN.md, "The studio server").
+// (DESIGN.md, "The studio server"). Given a server, it shows that swamp
+// serve's factories instead, read with the operator's own login.
 //
 // It is a model type of its own, not a method on the factory, so one studio
 // covers every factory and never takes a factory's lock.
@@ -46,7 +49,7 @@ export const model = {
   methods: {
     serve: {
       description:
-        "Serve the studio page on 127.0.0.1 until Ctrl-C, and at publicOrigin through a proxy when given: every factory's definition and scenarios, read-only, reloaded as they change",
+        "Serve the studio page on 127.0.0.1 until Ctrl-C, and at publicOrigin through a proxy when given: every factory's definition and scenarios, read-only, reloaded as they change; with server, a remote swamp serve's factories instead",
       // Not a read method: it runs for the session, holding this instance's
       // lock, so a second serve on the same studio waits.
       arguments: z.object({
@@ -63,11 +66,32 @@ export const model = {
           .describe(
             "The origin a reverse proxy or tunnel publishes the studio at, such as https://studio.example.com. Requests with that Host or Origin are answered too; the studio has no authentication, so the proxy must provide it",
           ),
+        server: z.string().superRefine((text, ctx) => {
+          try {
+            parseServer(text);
+          } catch (e) {
+            ctx.addIssue({ code: "custom", message: (e as Error).message });
+          }
+        }).optional()
+          .describe(
+            "A swamp serve to read instead of this repo, such as wss://swamp.example.com: its factories and work items, read-only, with your own swamp login, refreshed every few seconds. Not with publicOrigin",
+          ),
+      }).superRefine((args, ctx) => {
+        if (args.server !== undefined && args.publicOrigin !== undefined) {
+          ctx.addIssue({ code: "custom", message: REMOTE_PUBLIC });
+        }
       }),
       execute: (
-        args: { port: number; publicOrigin?: string },
+        args: { port: number; publicOrigin?: string; server?: string },
         context: StudioContext,
-      ) => serveStudio(context, args.port, STUDIO_ASSETS, args.publicOrigin),
+      ) =>
+        serveStudio(
+          context,
+          args.port,
+          STUDIO_ASSETS,
+          args.publicOrigin,
+          args.server === undefined ? undefined : { server: args.server },
+        ),
     },
   },
 };

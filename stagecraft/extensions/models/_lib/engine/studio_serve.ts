@@ -24,6 +24,12 @@ import {
   type StudioEvent,
   type StudioEvents,
 } from "./studio_server.ts";
+import {
+  remoteFactories,
+  remoteQuery,
+  type SwampRunner,
+  swampRunner,
+} from "./studio_remote.ts";
 import { watchStudio } from "./studio_watch.ts";
 import { type QueryData, watchWorkItems } from "./studio_work_items.ts";
 import type { Logger, MethodOutput } from "./work_item_ops.ts";
@@ -31,7 +37,8 @@ import type { Logger, MethodOutput } from "./work_item_ops.ts";
 // ---------------------------------------------------------------------------
 // The studio's serve method: the handler on 127.0.0.1, with the file watch,
 // until swamp aborts the method (Ctrl-C). It holds no state and runs no
-// engine; the page does that.
+// engine; the page does that. Given a server, it reads that swamp serve
+// instead of this repo (studio_remote.ts), on loopback only.
 // ---------------------------------------------------------------------------
 
 /** How often serve reads the factory list again. */
@@ -39,6 +46,13 @@ const RELIST_SECONDS = 3;
 
 /** How often serve polls the work items a page has open. */
 const WORK_ITEM_POLL_SECONDS = 3;
+
+/**
+ * How often a studio reading a remote serve reads its factories and work
+ * items again. Each read is a swamp command (about 0.7s, mostly starting
+ * swamp), and nobody iterates on a deployed factory's definition, so slowly.
+ */
+const REMOTE_POLL_SECONDS = 15;
 
 /** The part of swamp's method context serve uses. */
 export interface StudioContext {
@@ -50,15 +64,27 @@ export interface StudioContext {
   signal?: AbortSignal;
 }
 
+/** The remote serve a studio reads, and how it runs swamp (tests fake it). */
+export interface StudioRemote {
+  server: string;
+  run?: SwampRunner;
+}
+
 export async function serveStudio(
   ctx: StudioContext,
   port: number,
   assets: Readonly<Record<string, StudioAsset>>,
   publicOrigin?: string,
+  remote?: StudioRemote,
 ): Promise<MethodOutput> {
   // Checked here as well as in the argument schema, so a bad value stops
   // serve before it binds rather than failing each request.
   if (publicOrigin !== undefined) parsePublicOrigin(publicOrigin);
+  if (remote !== undefined) {
+    parseServer(remote.server);
+    if (publicOrigin !== undefined) throw new Error(REMOTE_PUBLIC);
+    return await serveRemote(ctx, port, assets, remote);
+  }
   const repoDir = ctx.repoDir;
   if (repoDir === undefined) {
     throw new Error("this method context has no repo directory");
@@ -146,23 +172,15 @@ export async function serveStudio(
       // streams close on the same signal.
       signal: ctx.signal,
     };
-    const server = Deno.serve({
-      hostname: "127.0.0.1",
-      port,
-      signal: ctx.signal,
-      onListen: ({ port }) => {
-        ctx.logger.info(`studio: http://127.0.0.1:${port}/`);
-        if (publicOrigin === undefined) return;
-        ctx.logger.info(
-          `studio: also answering at ${publicOrigin}/ through a proxy. ` +
-            "The studio has no authentication: anyone who can reach that " +
-            "address reads every factory definition and work item, so put " +
-            "access control in the proxy.",
-        );
-      },
-    }, (req) => handleStudioRequest(req, deps));
-    deps.port = server.addr.port;
-    await server.finished;
+    await listen(ctx, port, deps, () => {
+      if (publicOrigin === undefined) return;
+      ctx.logger.info(
+        `studio: also answering at ${publicOrigin}/ through a proxy. ` +
+          "The studio has no authentication: anyone who can reach that " +
+          "address reads every factory definition and work item, so put " +
+          "access control in the proxy.",
+      );
+    });
   } finally {
     // Also when the port cannot be bound.
     clearInterval(relist);
@@ -171,3 +189,140 @@ export async function serveStudio(
   }
   return { dataHandles: [] };
 }
+
+/** Why server and publicOrigin are refused together. */
+export const REMOTE_PUBLIC =
+  "server cannot be combined with publicOrigin: a studio reading a remote " +
+  "serve reads it with your own login, so it answers on 127.0.0.1 only and " +
+  "is never published through a proxy";
+
+/**
+ * The swamp serve a studio reads, as given: an absolute ws, wss, http or
+ * https URL with no credentials in it. Throws on anything else.
+ */
+export function parseServer(text: string): string {
+  let url: URL | null = null;
+  try {
+    url = new URL(text);
+  } catch {
+    // Reported below.
+  }
+  if (
+    url === null ||
+    !["ws:", "wss:", "http:", "https:"].includes(url.protocol)
+  ) {
+    throw new Error(
+      `server must be a swamp serve URL such as wss://swamp.example.com ` +
+        `(ws, wss, http or https), not '${text}'`,
+    );
+  }
+  if (url.username !== "" || url.password !== "") {
+    throw new Error(
+      "server must not carry credentials; swamp reads your login itself",
+    );
+  }
+  return text;
+}
+
+/** Runs the handler on 127.0.0.1 until the signal, logging its URL. */
+async function listen(
+  ctx: StudioContext,
+  port: number,
+  deps: StudioDeps,
+  listened: () => void,
+): Promise<void> {
+  const server = Deno.serve({
+    hostname: "127.0.0.1",
+    port,
+    signal: ctx.signal,
+    onListen: ({ port }) => {
+      ctx.logger.info(`studio: http://127.0.0.1:${port}/`);
+      listened();
+    },
+  }, (req) => handleStudioRequest(req, deps));
+  deps.port = server.addr.port;
+  await server.finished;
+}
+
+/**
+ * serve on a remote swamp serve's factories and work items, read with
+ * swamp's read commands. No file is watched: one slow poll reads the factory
+ * list, the definitions the page opened and the work items it watches.
+ */
+async function serveRemote(
+  ctx: StudioContext,
+  port: number,
+  assets: Readonly<Record<string, StudioAsset>>,
+  remote: StudioRemote,
+): Promise<MethodOutput> {
+  const { server } = remote;
+  const run = remote.run ?? swampRunner(server, ctx.signal);
+  const listeners = new Set<(event: StudioEvent) => void>();
+  const emit = (event: StudioEvent) => listeners.forEach((l) => l(event));
+  // A failed read is told once, not on every poll, until another differs or
+  // a good poll ends the outage. A read the shutdown killed is not told.
+  let told: string | null = null;
+  const factories = remoteFactories(run, server, emit, (message) => {
+    if (ctx.signal?.aborted || message === told) return;
+    told = message;
+    ctx.logger.info(
+      `studio: reading ${server} failed, showing the last read: ${message}`,
+    );
+  });
+  // The first read stops serve before it binds when the server cannot be
+  // read: a wrong URL, no login, or no grant to read it.
+  try {
+    await factories.list();
+  } catch (e) {
+    throw new Error(
+      `studio: cannot read ${server}: ${e instanceof Error ? e.message : e}`,
+    );
+  }
+  const query = remoteQuery(run);
+  const workItems = watchWorkItems(query, emit);
+  const events: StudioEvents = {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  let polling = false;
+  const poll = setInterval(() => {
+    if (polling) return;
+    polling = true;
+    factories.poll().then((ok) => {
+      if (ok) told = null;
+      return workItems.tick();
+    }).finally(() => polling = false);
+  }, REMOTE_POLL_SECONDS * 1000);
+  try {
+    const deps: StudioDeps = {
+      repoDir: ctx.repoDir ?? "",
+      port: 0,
+      files: denoRepoFiles,
+      factories: NO_FACTORIES,
+      remote: factories,
+      assets,
+      events,
+      query,
+      workItems,
+      signal: ctx.signal,
+    };
+    await listen(ctx, port, deps, () =>
+      ctx.logger.info(
+        `studio: reading ${server} with your swamp login, every ` +
+          `${REMOTE_POLL_SECONDS}s; it only reads`,
+      ));
+  } finally {
+    clearInterval(poll);
+  }
+  return { dataHandles: [] };
+}
+
+/** The local listing a remote studio never reads. */
+const NO_FACTORIES: FactoryLister = {
+  findAllGlobal: () => Promise.resolve([]),
+  getPath: () => {
+    throw new Error("a studio reading a remote serve lists no local files");
+  },
+};

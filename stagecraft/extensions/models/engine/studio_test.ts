@@ -57,3 +57,36 @@ Deno.test("studio: serve's publicOrigin is optional and must be a bare origin", 
     /did you mean 'https:\/\/xn--bcher-kva\.example'\?/,
   );
 });
+
+Deno.test("studio: serve's server is optional and must be a swamp serve URL with no credentials", () => {
+  const args = studio.methods.serve.arguments;
+  for (
+    const server of [
+      "wss://swamp.example.com",
+      "ws://127.0.0.1:9090",
+      "https://swamp.example.com/base",
+      "http://localhost:9090",
+    ]
+  ) {
+    assertEquals(args.parse({ server }), { port: 0, server }, server);
+  }
+  for (
+    const server of [
+      "swamp.example.com",
+      "ftp://swamp.example.com",
+      "wss://user:secret@swamp.example.com",
+      "",
+    ]
+  ) {
+    assertFalse(args.safeParse({ server }).success, server);
+  }
+});
+
+Deno.test("studio: serve refuses server together with publicOrigin", () => {
+  const refused = studio.methods.serve.arguments.safeParse({
+    server: "wss://swamp.example.com",
+    publicOrigin: "https://studio.example.com",
+  });
+  assertFalse(refused.success);
+  assertMatch(refused.error.issues[0].message, /cannot be combined/);
+});

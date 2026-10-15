@@ -68,6 +68,7 @@ extensions/models/
       studio_server.ts      the studio's routes and their checks
       studio_watch.ts       the studio's file watch, for live reload
       studio_serve.ts       the studio's serve method
+      studio_remote.ts      the studio's reads of a remote swamp serve
       studio_work_items.ts  the studio's reads of work items, the Board's
                             cards, and the poll that tells the page
       studio_work_item.ts   the work-item page's route: one work item
@@ -1547,7 +1548,8 @@ a factory's, so `validate` and `start` run while it is open.
 from the agent, and people do not create or edit factory definitions by hand).
 The agent writes the factory's model definition, and the page reloads it. Every
 route is `GET`; any other method gets 405. No route writes a file or runs swamp,
-a shell or a method.
+a shell or a method, except that a studio reading a remote serve runs swamp's
+read commands against it (below).
 
 | Route                                                  | Returns                                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
@@ -1672,6 +1674,41 @@ A browser sets `Origin` itself, so another site's page cannot claim it, and the
 authentication (Seth, 2026-10-11): it changes nothing, but anyone who reaches
 the public origin reads every factory definition and work item, so `serve`
 logs a warning saying so and access control belongs in the proxy.
+
+**Reading a remote serve** (swamp-club #3363). To see a deployed factory, the
+studio runs on the operator's machine and `serve` takes an optional `server`, a
+`swamp serve` URL, instead of running on the serve itself (which held a method
+open there, needed cluster access to reach its loopback port, and might not
+hear a cancel). With it, the studio reads that serve and not the repo, through
+swamp's own read commands with `--server` (`studio_remote.ts`): `model search`
+lists the factories, `model get` gives each one's model definition, and
+`data query` stands in for `ctx.queryData`, so the Board, work-item and Ticket
+routes are unchanged. Each command carries the operator's login and grants, and
+swamp resolves the credentials, CA and extra headers itself. The command is the
+swamp binary running the method (`Deno.execPath()`), never a `swamp` found on
+`PATH`.
+
+`model get`, not a method run, gives the definition (Seth, 2026-10-15). On a
+scratch serve both took about 0.7s, almost all of it starting swamp, but a
+method run on every poll writes output and report data on the serve, takes the
+factory's lock, needs a run grant, and needs a stagecraft new enough to have
+the method; `model get` is a plain read. It gives the definition as data, so
+the page gets YAML written from the fields of a model definition file (the
+type's methods, argument schema and staleness that `model get` adds are left
+out), and the server file's comments and layout are not shown. A factory name
+starting with `-` is never passed to `model get`, which would read it as an
+option; it is listed with an error.
+
+Nobody iterates on a deployed factory's definition, so a remote studio watches
+no files and polls slowly (every 15 seconds): the factory list, the definitions
+the page opened, and the work items it watches, one poll at a time. The factory
+routes answer from the last poll's reads, so a page load starts no swamp
+command once a factory has been read. A failed poll keeps the last reads and is
+logged once. The first read happens before the server binds, so a wrong URL,
+no login or no grant stops `serve` with swamp's message. `server` and
+`publicOrigin` are refused together (Seth, 2026-10-15): the reads carry the
+operator's identity, so a remote studio stays on loopback and is never
+published through a proxy.
 
 **Live reload.** The file watch (`Deno.watchFs`) covers the directory of each
 factory's model definition file, so an agent's write by rename is seen. Every

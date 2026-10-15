@@ -16,6 +16,8 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { memoryRepo } from "./fake_swamp.ts";
 import {
+  type FactoryEntry,
+  type FactorySource,
   handleStudioRequest,
   parsePublicOrigin,
   type StudioDeps,
@@ -1051,4 +1053,84 @@ Deno.test("studio: a public origin lets nothing else through", async () => {
   );
   assertEquals(post.status, 405);
   await post.body?.cancel();
+});
+
+/** A remote serve's factories: team, and one swamp gives no definition for. */
+function remoteSource(): FactorySource & { read: string[] } {
+  const read: string[] = [];
+  const entries: FactoryEntry[] = [
+    { name: "broken", path: "broken on wss://s" },
+    { name: "team", path: "team on wss://s" },
+    { name: "-x", path: null, error: "factory '-x': not read" },
+  ];
+  return {
+    read,
+    list: () => Promise.resolve(entries),
+    definition(entry) {
+      read.push(entry.name);
+      if (entry.name === "broken") {
+        return Promise.reject(new Error("swamp model get failed: no grant"));
+      }
+      return Promise.resolve({
+        factory: entry.name,
+        path: entry.path ?? "",
+        text: TEAM_TEXT,
+        digest: "sha256:0",
+      });
+    },
+  };
+}
+
+Deno.test("studio: with a remote source, the factory routes read it and never the repo", async () => {
+  const { deps, followed } = setup();
+  const remote = remoteSource();
+  deps.remote = remote;
+  deps.factories = {
+    findAllGlobal: () => Promise.reject(new Error("the repo was listed")),
+    getPath: () => {
+      throw new Error("the repo was read");
+    },
+  };
+  const list = await handleStudioRequest(get("/api/factories"), deps);
+  assertEquals(list.status, 200);
+  assertEquals((await body(list)).factories, await remote.list());
+  const team = await handleStudioRequest(get("/api/factories/team"), deps);
+  assertEquals(team.status, 200);
+  assertEquals(await body(team), {
+    factory: "team",
+    path: "team on wss://s",
+    text: TEAM_TEXT,
+    digest: "sha256:0",
+  });
+  const answers: [string, number, string][] = [
+    ["/api/factories/broken", 422, "no grant"],
+    ["/api/factories/-x", 422, "not read"],
+    ["/api/factories/nope", 404, "no factory named 'nope'"],
+    ["/api/factories/team/more", 404, "not found"],
+  ];
+  for (const [path, status, text] of answers) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, status, path);
+    assertMatch(String((await body(res)).error), new RegExp(text), path);
+  }
+  assertEquals(remote.read, ["team", "broken"]);
+  assertEquals(followed, []);
+});
+
+Deno.test("studio: with a remote source, /api/work-items needs a factory the remote lists", async () => {
+  const { deps } = setup();
+  deps.remote = remoteSource();
+  deps.query = await workItemQuery();
+  const known = await handleStudioRequest(
+    get("/api/work-items?factory=team"),
+    deps,
+  );
+  assertEquals(known.status, 200);
+  await known.body?.cancel();
+  const unknown = await handleStudioRequest(
+    get("/api/work-items?factory=other"),
+    deps,
+  );
+  assertEquals(unknown.status, 404);
+  await unknown.body?.cancel();
 });

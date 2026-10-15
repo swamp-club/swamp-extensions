@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/stagecraft"
-version: "2026.10.15.1"
+version: "2026.10.15.2"
 license: "AGPL-3.0-or-later"
 description: |
   stagecraft builds factories. A factory describes your process as a set of

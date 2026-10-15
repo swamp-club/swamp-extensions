@@ -36,7 +36,9 @@ import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
 // repository gives: a request names a factory, never a path. The model
 // definition holds the factory definition and its saved scenarios, so one
 // file and one change event cover both. Work items are read through swamp's
-// data query (studio_work_items.ts), never from files.
+// data query (studio_work_items.ts), never from files. A studio reading a
+// remote serve reads no files at all: its factories and work items come from
+// swamp's read commands run against that serve (studio_remote.ts).
 //
 // The page is served on each view's path, so every view has an address a
 // person can reload, bookmark or share: / and /f/<factory>/<view> for the
@@ -83,6 +85,24 @@ export interface FactoryEntry {
   error?: string;
 }
 
+/** A factory's model definition as the page reads it. */
+export interface DefinitionText {
+  factory: string;
+  path: string;
+  text: string;
+  digest: string;
+}
+
+/**
+ * Factories read from a remote swamp serve rather than this repo's files
+ * (studio_remote.ts). list gives every factory, as the page lists them;
+ * definition gives a listed one's model definition, or throws why not.
+ */
+export interface FactorySource {
+  list(): Promise<FactoryEntry[]>;
+  definition(entry: FactoryEntry): Promise<DefinitionText>;
+}
+
 /** One file of the page: text, or base64 for binary files. */
 export interface StudioAsset {
   type: string;
@@ -118,6 +138,11 @@ export interface StudioDeps {
   publicOrigin?: string;
   files: RepoFiles;
   factories: FactoryLister;
+  /**
+   * The factories of a remote serve. When given, the factory routes read
+   * them, and repoDir, files and factories are not read.
+   */
+  remote?: FactorySource;
   /** The page's files by served name; "index.html" is served at /. */
   assets: Readonly<Record<string, StudioAsset>>;
   events: StudioEvents;
@@ -350,7 +375,7 @@ export function inside(root: string, path: string): boolean {
   return rel !== ".." && !rel.startsWith(`..${SEPARATOR}`) && !isAbsolute(rel);
 }
 
-async function sha256(text: string): Promise<string> {
+export async function sha256(text: string): Promise<string> {
   const bytes = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(text),
@@ -387,6 +412,28 @@ async function definitionFile(
     text,
     digest: await sha256(text),
   });
+}
+
+/** The factory routes on a remote serve's factories. */
+async function remoteFactory(
+  remote: FactorySource,
+  parts: string[],
+): Promise<Response> {
+  try {
+    const entries = await remote.list();
+    if (parts.length === 2) return json({ factories: entries });
+    const entry = entries.find((f) => f.name === parts[2]);
+    if (entry === undefined) {
+      return error(404, `no factory named '${parts[2]}'`);
+    }
+    if (parts.length > 3) return error(404, "not found");
+    if (entry.path === null) {
+      return error(422, entry.error ?? "no model definition");
+    }
+    return json(await remote.definition(entry));
+  } catch (e) {
+    return error(422, message(e));
+  }
 }
 
 function asset(deps: StudioDeps, name: string): Response {
@@ -456,7 +503,9 @@ async function workItems(
     return error(422, "this studio cannot read work items");
   }
   try {
-    const { entries } = await listFactories(deps.factories, deps.repoDir);
+    const entries = deps.remote !== undefined
+      ? await deps.remote.list()
+      : (await listFactories(deps.factories, deps.repoDir)).entries;
     if (!entries.some((f) => f.name === factory)) {
       return error(404, `no factory named '${factory}'`);
     }
@@ -581,6 +630,9 @@ export async function handleStudioRequest(
     return await workItemTicket(deps, parts[2]);
   }
   if (parts[1] !== "factories") return error(404, "not found");
+  if (deps.remote !== undefined) {
+    return await remoteFactory(deps.remote, parts);
+  }
 
   try {
     const { entries, files } = await listFactories(

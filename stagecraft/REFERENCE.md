@@ -504,8 +504,9 @@ of its work items, which it reads with swamp's data query
 (`GET /api/work-items?factory=<name>`, `GET /api/work-items/<key>` for one, and
 `GET /api/work-items/<key>/ticket` for its ticket), so it works whatever
 datastore holds them. `serve` holds the studio's lock while it runs, so a second
-`serve` of the same studio waits; it never takes a factory's lock. See
-[DESIGN.md](DESIGN.md), "The studio server".
+`serve` of the same studio waits; it never takes a factory's lock. With
+`server`, it shows a remote serve's factories instead; see "Reading a factory
+on a remote serve" below. See [DESIGN.md](DESIGN.md), "The studio server".
 
 ### Serving the studio through a reverse proxy
 
@@ -534,6 +535,36 @@ The studio has no authentication. It changes nothing, but anyone who can reach
 the public origin can read every factory definition and work item, so `serve`
 logs a warning when `publicOrigin` is set. Put access control in the proxy
 (Cloudflare Access, or Traefik basic or forward auth).
+
+### Reading a factory on a remote serve
+
+To see the factories and work items of a deployed `swamp serve` from your own
+machine, run the studio in any local swamp repo and give it the serve's URL:
+
+```bash
+swamp model method run studio serve --input server=wss://swamp.example.com
+```
+
+`server` is a ws, wss, http or https URL with no credentials in it. The studio
+then shows that serve's factories, not this repo's, and reads them with swamp's
+own read commands (`swamp model search`, `swamp model get` and
+`swamp data query`, each with `--server`), so every read carries your login and
+your grants on that serve. swamp finds the credentials as it does for any
+`--server` call: your stored login, `SWAMP_SERVER_TOKEN` or
+`SWAMP_SERVER_TOKEN_FILE`, `SWAMP_CA_CERT` and `SWAMP_SERVE_EXTRA_HEADERS`. If
+the first read fails (a wrong URL, no login, no grant), `serve` stops before it
+listens and says why.
+
+It only reads: it runs no method on the serve, writes nothing there and takes
+no factory's lock. It reads again every 15 seconds, each read a swamp command,
+so a change on the serve shows within that, not at once. A failed read keeps
+what was read last and is logged. The definition comes from `swamp model get`
+as data, so the page shows YAML written from it: the server file's comments and
+layout are not shown, and the source is named `<factory> on <server>`.
+
+`server` cannot be combined with `publicOrigin`: the studio reads with your
+identity, so it answers on 127.0.0.1 only and is never published through a
+proxy.
 
 ## Summary and metrics
 

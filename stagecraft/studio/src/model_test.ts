@@ -20,7 +20,10 @@ import {
   loadOk,
   MODEL_LINES,
   modelFile,
+  modelPath,
 } from "./test_support.ts";
+import { parse as parseYaml } from "@std/yaml";
+import { remoteDefinition } from "../../extensions/models/_lib/engine/studio_remote.ts";
 import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
 
 const TEXT = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
@@ -191,4 +194,35 @@ Deno.test("model: a definition newer than this stagecraft reads is one problem a
     problem.message,
   );
   assertEquals(lineOf(text, problem.range!.line), held("schemaVersion: 99"));
+});
+
+Deno.test("model: a remote factory's definition, written from swamp model get, loads as its file does", async () => {
+  for (const name of EXAMPLES) {
+    const fileText = await exampleText(name);
+    const fromFile = await loadDefinition(modelPath(name), fileText);
+    assert(fromFile.ok, name);
+    // What swamp model get --json gives: the file's fields and more.
+    const got = {
+      ...(parseYaml(fileText) as Record<string, unknown>),
+      version: 1,
+      tags: {},
+      currentTypeVersion: "2026.10.12.1",
+      staleness: "current",
+      globalArgumentsSchema: { type: "object" },
+      methods: [{ name: "validate", arguments: {} }],
+    };
+    const remote = await remoteDefinition(
+      () => Promise.resolve(got),
+      "wss://swamp.example.com",
+      name,
+    );
+    const loaded = await loadDefinition(remote.path, remote.text);
+    assert(loaded.ok, `${name}: ${JSON.stringify(loaded)}`.slice(0, 500));
+    assertEquals(loaded.view, fromFile.view, name);
+    assertEquals(
+      loaded.scenarios.map((s) => s.name),
+      fromFile.scenarios.map((s) => s.name),
+      name,
+    );
+  }
 });
