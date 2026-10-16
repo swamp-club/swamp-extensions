@@ -145,6 +145,44 @@ export function createS3EmulatorHandler(
       // The continuation token is the last key of the previous page.
       const after = url.searchParams.get("continuation-token") ?? "";
       const maxKeys = state.options.maxKeys ?? 1000;
+      const delimiter = url.searchParams.get("delimiter");
+      if (delimiter) {
+        // Directories (CommonPrefixes) and the objects directly under the
+        // prefix, merged in key order and paged together, as S3 does. A
+        // token naming a directory skips everything under it.
+        const items = new Map<string, "dir" | "key">();
+        for (const k of state.objects.keys()) {
+          if (!k.startsWith(prefix)) continue;
+          const at = k.indexOf(delimiter, prefix.length);
+          if (at >= 0) items.set(k.slice(0, at + delimiter.length), "dir");
+          else items.set(k, "key");
+        }
+        const ordered = [...items.entries()]
+          .filter(([k]) =>
+            k > after && !(after.endsWith(delimiter) && k.startsWith(after))
+          )
+          .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+        const pageItems = ordered.slice(0, maxKeys);
+        const pageTruncated = ordered.length > pageItems.length;
+        const body = pageItems.map(([k, kind]) =>
+          kind === "dir"
+            ? `<CommonPrefixes><Prefix>${
+              xmlEscape(k)
+            }</Prefix></CommonPrefixes>`
+            : `<Contents><Key>${xmlEscape(k)}</Key><Size>${
+              state.objects.get(k)!.body.length
+            }</Size></Contents>`
+        ).join("");
+        const nextToken = pageTruncated
+          ? `<NextContinuationToken>${
+            xmlEscape(pageItems[pageItems.length - 1][0])
+          }</NextContinuationToken>`
+          : "";
+        return new Response(
+          `<?xml version="1.0"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>${pageItems.length}</KeyCount><MaxKeys>${maxKeys}</MaxKeys><IsTruncated>${pageTruncated}</IsTruncated>${body}${nextToken}</ListBucketResult>`,
+          { status: 200, headers: { "content-type": "application/xml" } },
+        );
+      }
       const all = [...state.objects.entries()]
         .filter(([k]) => k.startsWith(prefix) && k > after)
         .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);

@@ -221,8 +221,8 @@ was upgraded to) moves the root `_control/` records into
 `<namespace>/_control/`, as before, except `_control/writer/...`,
 `_control/lineage/...` and `_control/datastore-format`, which stay at the root
 where swamp reads them (swamp-club#3395). An older extension version would move
-the lease and the lineage. Swamp's v3 on buckets (Phase 4E, not yet released)
-will name the minimum extension version it needs.
+the lease and the lineage. Swamp's v3 on buckets (Phase 4E) needs this version
+or later; see the Litestream replica target section below.
 
 ## Chunk storage (`storage/1`)
 
@@ -288,6 +288,97 @@ against ministack (or another S3-compatible endpoint) as well, set
 Against a real endpoint the storage suite skips its `lastModified`-refresh
 checks, since an object cannot be backdated there; a direct measurement on
 ministack shows `touch` advancing `LastModified` from the server's clock.
+
+## Litestream replica target (`replicaTarget()`)
+
+A v3 datastore's `commits.db` is replicated by Litestream into this datastore's
+own bucket, under `<prefix>/_litestream/<fence>/` (swamp-club#3508). The
+provider's `replicaTarget()` tells swamp where that is; swamp builds the
+`_litestream/<fence>/` part itself. It returns:
+
+```ts
+{ type: "s3", bucket, prefix, region?, endpoint?, forcePathStyle? }
+```
+
+- **`prefix`** is the configured prefix exactly as the extension writes keys
+  under it, the same root `storage()` and the control plane use (empty when
+  unset).
+- **`region`** is included when it is configured and not empty.
+- **`endpoint`** is included for S3-compatible services (R2, MinIO, DigitalOcean
+  Spaces and others), always with **`forcePathStyle`** stated: the configured
+  value, or `false` when unset. The extension leaves path style off unless told
+  otherwise, while Litestream turns it on for any endpoint, so leaving it out
+  would make Litestream address the bucket differently.
+
+`replicaTarget()` refuses, with an error that names the rule but not the value:
+
+- a prefix with a leading, trailing or repeated `/`, or a `.` or `..` segment.
+  The extension joins the prefix onto keys as it is, so such a prefix cannot be
+  described to swamp, and tidying it would point the replica somewhere other
+  than where the datastore writes. Set a prefix without them.
+- an endpoint that is not a plain `http` or `https` URL, or that carries
+  credentials, a query or a fragment.
+
+**Credentials.** The target never carries credentials. Litestream resolves them
+from the same AWS default chain the extension uses (environment variables,
+shared config and SSO, container or instance identity). Whatever credentials the
+datastore uses must also be visible to the Litestream sidecar, through the same
+environment or shared config; swamp passes `AWS_*`, `HOME` and `PATH` through to
+it.
+
+**Minimum version.** Swamp's v3 on S3 (datastore rework Phase 4E) needs this
+version of the extension or later. An older version has no `replicaTarget()`,
+and swamp refuses to set up a v3 datastore on it.
+
+The conformance suite `assertReplicaTargetConformance` runs against the
+in-process emulator in every test run (empty and nested prefixes), and against
+ministack when `SWAMP_TEST_S3_ENDPOINT` and `SWAMP_TEST_S3_BUCKET` are set. A
+check that runs Litestream itself against ministack is run by hand, since
+Litestream is not installed where verification runs:
+
+```bash
+SWAMP_TEST_S3_ENDPOINT=http://localhost:4566 SWAMP_TEST_S3_BUCKET=<bucket> \
+SWAMP_TEST_LITESTREAM_BIN=<path to litestream 0.5.x> \
+deno test --allow-read --allow-write --allow-env --allow-net --allow-sys \
+  --allow-run extensions/datastores/s3_test.ts --filter Litestream
+```
+
+It writes Litestream's config from `replicaTarget()` the way swamp does,
+replicates a small database, and checks that objects appear under
+`<prefix>/_litestream/000000000001/`.
+
+### Lineage paths (`replicaPaths()`)
+
+Each lineage replicates to its own path, `<prefix>/_litestream/<fence>/`, and a
+takeover from another checkout starts a new one. `storage/1` is chunk-keyed and
+cannot reach these objects, so the provider's `replicaPaths()` lets swamp remove
+the path of a lineage a takeover replaced (swamp-club#3531). Until old lineages
+are collected, swamp defers chunk collection on the datastore (swamp-club#3491).
+
+- **`list`** returns the fence directories under `<prefix>/_litestream/`, from a
+  delimiter listing: one request per 1,000 directories, not per object.
+- **`removePath(fence)`** deletes every object under
+  `<prefix>/_litestream/<fence>/`, a page at a time until none is left, and
+  succeeds when nothing is there. The trailing slash keeps a look-alike
+  directory such as `<fence>-old/` out, and every key is checked to be under the
+  fence's path before it is deleted. A fence that is not exactly 12 digits from
+  `000000000001` is refused before any request. An object listed again after it
+  was deleted fails the call rather than looping.
+
+It needs no permission beyond those listed above (`s3:ListBucket` and
+`s3:DeleteObject`). Swamp calls it only from Phase 4E's lineage collection: best
+effort, never for the current lineage, and only once the new lineage's first
+sync is confirmed.
+
+On a versioned bucket, each object `removePath` deletes leaves a noncurrent
+version, billed until it expires. A lifecycle rule that expires noncurrent
+versions, the same one that bounds what `touch` leaves under `_blobs/`, also
+bounds what removed lineage paths leave behind.
+
+The conformance suite `assertReplicaPathConformance` runs against the in-process
+emulator in every test run (empty and nested prefixes, and pages of two keys so
+listing and removal must page), and against ministack when
+`SWAMP_TEST_S3_ENDPOINT` and `SWAMP_TEST_S3_BUCKET` are set.
 
 ## Observability
 

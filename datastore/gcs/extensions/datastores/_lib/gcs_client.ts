@@ -1492,6 +1492,42 @@ export class GcsClient {
     };
   }
 
+  /**
+   * Lists the directories directly under `subPrefix` (which ends with "/"),
+   * as logical keys with their trailing slash, handling pagination. One
+   * request per 1,000 directories, however many objects each holds.
+   */
+  async listCommonPrefixes(
+    subPrefix: string,
+    signal?: AbortSignal,
+  ): Promise<string[]> {
+    const prefixLen = this.prefix ? this.prefix.length + 1 : 0;
+    const out: string[] = [];
+    let pageToken: string | undefined;
+    do {
+      const params = new URLSearchParams();
+      params.set("prefix", this.fullKey(subPrefix));
+      params.set("delimiter", "/");
+      if (pageToken) params.set("pageToken", pageToken);
+      const resp = await this.send(
+        "listCommonPrefixes",
+        this.storageUrl(`/b/${encodeURIComponent(this.bucket)}/o?`) +
+          params.toString(),
+        { method: "GET", headers: await this.headers() },
+        signal,
+      );
+      const data = await resp.json() as {
+        prefixes?: string[];
+        nextPageToken?: string;
+      };
+      for (const prefix of data.prefixes ?? []) {
+        out.push(prefix.slice(prefixLen));
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+    return out;
+  }
+
   /** Lists all objects (handling pagination). */
   async listAllObjects(
     subPrefix?: string,

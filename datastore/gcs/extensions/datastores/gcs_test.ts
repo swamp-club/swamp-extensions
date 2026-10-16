@@ -25,19 +25,27 @@ import {
   assertVerifierConformance,
 } from "@systeminit/swamp-testing";
 import {
+  assertReplicaPathConformance,
+  assertReplicaTargetConformance,
   assertStorageConformance,
   assertWritableDatastoreControlPlaneStoreConformance,
   type DatastoreStorage as ConformanceDatastoreStorage,
   type DatastoreSyncService as ConformanceDatastoreSyncService,
+  replicaTargetProblem,
   type WritableDatastoreControlPlaneStore as ConformanceWritableStore,
 } from "@swamp-club/swamp-testing";
 import type { DatastoreHealthResult } from "./_lib/interfaces.ts";
 import { GcsClient } from "./_lib/gcs_client.ts";
 import {
+  GcsReplicaPathStore,
+  type ReplicaPathClient,
+  replicaPathFenceProblem,
+} from "./_lib/gcs_replica_paths.ts";
+import {
   type GcsEmulatorState,
   withGcsEmulator,
 } from "./_lib/gcs_emulator_test_util.ts";
-import { datastore } from "./gcs.ts";
+import { datastore, emulatorHostMatches, replicaPrefixProblem } from "./gcs.ts";
 
 Deno.test("datastore export conforms to DatastoreProvider contract", () => {
   assertDatastoreExportConformance(datastore, {
@@ -1068,6 +1076,386 @@ Deno.test({
         }
       } finally {
         await Deno.remove(cacheDir, { recursive: true });
+      }
+    });
+  },
+});
+
+// --- swamp-club#3508: replicaTarget() for v3 Litestream replication ---
+
+function replicaTargetFor(config: Record<string, unknown>) {
+  const provider = datastore.createProvider({ bucket: "my-bucket", ...config });
+  return provider.replicaTarget!();
+}
+
+Deno.test("replicaTarget: bucket and prefix only", () => {
+  assertEquals(replicaTargetFor({}), {
+    type: "gcs",
+    bucket: "my-bucket",
+    prefix: "",
+  });
+  assertEquals(
+    replicaTargetFor({ prefix: "team/prod/swamp", projectId: "my-project" }),
+    { type: "gcs", bucket: "my-bucket", prefix: "team/prod/swamp" },
+  );
+  for (const config of [{}, { prefix: "a" }, { prefix: "a/b/c" }]) {
+    assertEquals(replicaTargetProblem(replicaTargetFor(config)), undefined);
+  }
+});
+
+/** Runs `fn` with STORAGE_EMULATOR_HOST set to `value`, or unset. */
+function withEmulatorHost(value: string | undefined, fn: () => void): void {
+  const prior = Deno.env.get("STORAGE_EMULATOR_HOST");
+  try {
+    if (value === undefined) Deno.env.delete("STORAGE_EMULATOR_HOST");
+    else Deno.env.set("STORAGE_EMULATOR_HOST", value);
+    fn();
+  } finally {
+    if (prior === undefined) Deno.env.delete("STORAGE_EMULATOR_HOST");
+    else Deno.env.set("STORAGE_EMULATOR_HOST", prior);
+  }
+}
+
+Deno.test("replicaTarget: refuses apiEndpoint, without echoing it", () => {
+  withEmulatorHost(undefined, () => {
+    const apiEndpoint = "http://127.0.0.1:4443/zq9";
+    const err = assertThrows(() => replicaTargetFor({ apiEndpoint }), Error);
+    assertStringIncludes(err.message, "apiEndpoint");
+    assertStringIncludes(err.message, "Litestream");
+    // The test-only escape is named, so a test suite knows what to set.
+    assertStringIncludes(err.message, "STORAGE_EMULATOR_HOST");
+    assert(!err.message.includes("zq9"), `endpoint leaked: ${err.message}`);
+  });
+});
+
+Deno.test("replicaTarget: accepts apiEndpoint when STORAGE_EMULATOR_HOST names the same emulator", () => {
+  // Litestream reaches a GCS emulator through STORAGE_EMULATOR_HOST, so a
+  // matching host and port means the replica lands where the datastore
+  // writes (swamp-uat's gcs-v3 backend, Phase 4 H).
+  const apiEndpoint = "http://127.0.0.1:4443";
+  for (const host of ["127.0.0.1:4443", "http://127.0.0.1:4443"]) {
+    withEmulatorHost(host, () => {
+      assertEquals(
+        replicaTargetFor({ apiEndpoint, prefix: "swamp" }),
+        { type: "gcs", bucket: "my-bucket", prefix: "swamp" },
+      );
+    });
+  }
+  // The prefix rules still apply.
+  withEmulatorHost("127.0.0.1:4443", () => {
+    assertThrows(() => replicaTargetFor({ apiEndpoint, prefix: "/zq9" }));
+  });
+});
+
+Deno.test("replicaTarget: refuses apiEndpoint when STORAGE_EMULATOR_HOST names another host or port", () => {
+  const apiEndpoint = "http://127.0.0.1:4443/zq9";
+  for (
+    const host of ["127.0.0.1:4444", "localhost:4443", "10.0.0.1:4443", ""]
+  ) {
+    withEmulatorHost(host === "" ? undefined : host, () => {
+      const err = assertThrows(() => replicaTargetFor({ apiEndpoint }), Error);
+      assertStringIncludes(err.message, "STORAGE_EMULATOR_HOST");
+      assert(!err.message.includes("zq9"), `endpoint leaked: ${err.message}`);
+    });
+  }
+});
+
+Deno.test("emulatorHostMatches: host and port, with or without a scheme", () => {
+  assert(emulatorHostMatches("http://localhost:4443", "localhost:4443"));
+  assert(
+    emulatorHostMatches("http://LOCALHOST:4443/", "http://localhost:4443"),
+  );
+  assert(emulatorHostMatches("https://emu.example", "https://emu.example:443"));
+  assert(emulatorHostMatches("http://emu.example", "emu.example:80"));
+  assert(!emulatorHostMatches("http://localhost:4443", "localhost:4444"));
+  assert(!emulatorHostMatches("http://localhost:4443", "127.0.0.1:4443"));
+  assert(!emulatorHostMatches("http://localhost:4443", undefined));
+  assert(!emulatorHostMatches("http://localhost:4443", "::not a host::"));
+});
+
+Deno.test("replicaTarget: refuses a prefix it cannot express, without echoing it", () => {
+  const marker = "zq9";
+  const refused = [
+    `/${marker}`,
+    `${marker}/`,
+    `${marker}//b`,
+    `${marker}/./b`,
+    `../${marker}`,
+    `${marker}/..`,
+  ];
+  for (const prefix of refused) {
+    const err = assertThrows(() => replicaTargetFor({ prefix }), Error);
+    assertStringIncludes(err.message, "cannot host v3 replication");
+    assert(!err.message.includes(marker), `${prefix} leaked: ${err.message}`);
+    assert(replicaPrefixProblem(prefix) !== undefined);
+  }
+});
+
+// The conformance suite needs a provider that both reaches the emulator and
+// answers replicaTarget(). Reaching the emulator takes apiEndpoint, which
+// replicaTarget() refuses by design (Litestream has no custom GCS endpoint).
+// So the target comes from a twin provider with the same bucket and prefix
+// and no apiEndpoint, and storage() and the control plane from the
+// emulator-backed one: what the suite proves is that the twin's prefix is
+// the root the emulator-backed provider writes under.
+//
+// sanitizeResources: false is required here for the same reason as the
+// healthy-probe test above — fetch()'s pooled connections outlive the
+// test body.
+for (const prefix of [undefined, "swamp", "team/prod/swamp"]) {
+  Deno.test({
+    name: `replica target conformance, prefix ${
+      prefix ?? "(none)"
+    } (GCS emulator)`,
+    sanitizeResources: false,
+    fn: async () => {
+      await withGcsEmulator({}, async (_gcs, state, endpoint) => {
+        const base = {
+          bucket: "test-bucket",
+          ...(prefix !== undefined ? { prefix } : {}),
+        };
+        const writer = datastore.createProvider({
+          ...base,
+          apiEndpoint: endpoint,
+        });
+        const twin = datastore.createProvider(base);
+        await assertReplicaTargetConformance({
+          replicaTarget: () => twin.replicaTarget!(),
+          bucket: base.bucket,
+          openStorage: () => writer.storage!() as ConformanceDatastoreStorage,
+          openDatastoreStore: () =>
+            writer.datastoreControlPlaneStore!() as ConformanceWritableStore,
+          objectExists: (key) => Promise.resolve(state.objects.has(key)),
+        });
+      });
+    },
+  });
+}
+
+// --- swamp-club#3531: replicaPaths() for v3 lineage path collection ---
+//
+// The suite reads the replica root from replicaTarget(), which refuses
+// apiEndpoint by design, and an emulator needs apiEndpoint. So, as for the
+// replica target suite above, the target comes from a twin provider with the
+// same bucket and prefix and no apiEndpoint, and replicaPaths() and
+// storage() from the emulator-backed one.
+//
+// sanitizeResources: false — fetch()'s pooled connections outlive the test
+// body, as for the other emulator-backed tests in this file.
+
+async function runReplicaPathConformance(
+  base: { bucket: string; prefix?: string },
+  apiEndpoint: string,
+  bucket: {
+    write: (key: string, bytes: Uint8Array) => Promise<void>;
+    remove: (key: string) => Promise<void>;
+    exists: (key: string) => Promise<boolean>;
+  },
+  objectsPerFence?: number,
+): Promise<void> {
+  const writer = datastore.createProvider({ ...base, apiEndpoint });
+  const twin = datastore.createProvider(base);
+  await assertReplicaPathConformance({
+    replicaTarget: () => twin.replicaTarget!(),
+    openReplicaPaths: () => writer.replicaPaths!(),
+    openStorage: () => writer.storage!() as ConformanceDatastoreStorage,
+    writeObject: bucket.write,
+    deleteObject: bucket.remove,
+    objectExists: bucket.exists,
+    objectsPerFence,
+  });
+}
+
+for (
+  const [label, prefix, maxResults] of [
+    ["prefix (none)", undefined, undefined],
+    ["nested prefix", "team/prod/swamp", undefined],
+    // Two names a page, so removePath and list must page.
+    ["listing pages of two names", "swamp", 2],
+  ] as const
+) {
+  Deno.test({
+    name: `replica path conformance, ${label} (GCS emulator)`,
+    sanitizeResources: false,
+    fn: async () => {
+      await withGcsEmulator({ maxResults }, async (_gcs, state, endpoint) => {
+        await runReplicaPathConformance(
+          {
+            bucket: "test-bucket",
+            ...(prefix !== undefined ? { prefix } : {}),
+          },
+          endpoint,
+          {
+            write: (key, bytes) => {
+              const prior = state.objects.get(key);
+              state.objects.set(key, {
+                body: bytes,
+                generation: (prior?.generation ?? 0) + 1,
+                updated: new Date(),
+              });
+              return Promise.resolve();
+            },
+            remove: (key) => {
+              state.objects.delete(key);
+              return Promise.resolve();
+            },
+            exists: (key) => Promise.resolve(state.objects.has(key)),
+          },
+          maxResults === undefined ? undefined : 5,
+        );
+      });
+    },
+  });
+}
+
+Deno.test({
+  name:
+    "replica path conformance (SWAMP_TEST_GCS_ENDPOINT, fake-gcs-server >= 1.56.1)",
+  ignore: !realEndpoint || !realBucket,
+  sanitizeResources: false,
+  fn: async () => {
+    const config = realConfig();
+    const gcs = new GcsClient({
+      bucket: config.bucket,
+      apiEndpoint: config.apiEndpoint,
+    });
+    await runReplicaPathConformance(
+      { bucket: config.bucket, prefix: config.prefix },
+      config.apiEndpoint,
+      {
+        write: async (key, bytes) => {
+          await gcs.putObject(key, bytes);
+        },
+        remove: (key) => gcs.deleteObject(key),
+        exists: async (key) => (await gcs.getMetadata(key)).exists,
+      },
+    );
+  },
+});
+
+/** A stand-in client recording the calls the store makes. */
+function fakeReplicaClient(
+  keys: string[],
+  options: { ignoreDeletes?: boolean } = {},
+): ReplicaPathClient & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    listCommonPrefixes: (subPrefix: string) => {
+      calls.push(`dirs ${subPrefix}`);
+      const dirs = new Set<string>();
+      for (const key of keys) {
+        if (!key.startsWith(subPrefix)) continue;
+        const at = key.indexOf("/", subPrefix.length);
+        if (at >= 0) dirs.add(key.slice(0, at + 1));
+      }
+      return Promise.resolve([...dirs]);
+    },
+    listObjects: (subPrefix?: string) => {
+      calls.push(`list ${subPrefix}`);
+      const entries = keys.filter((key) => key.startsWith(subPrefix ?? ""))
+        .slice(0, 2).map((key) => ({ key, size: 1 }));
+      return Promise.resolve({ entries, truncated: false });
+    },
+    deleteObject: (key: string) => {
+      calls.push(`delete ${key}`);
+      if (!options.ignoreDeletes) keys.splice(keys.indexOf(key), 1);
+      return Promise.resolve();
+    },
+  } as ReplicaPathClient & { calls: string[] };
+}
+
+Deno.test("replicaPaths: a malformed fence is refused before any request", async () => {
+  const client = fakeReplicaClient(["_litestream/000000000001/snapshot"]);
+  const store = new GcsReplicaPathStore(client);
+  const signal = new AbortController().signal;
+  for (const fence of ["", "1", "000000000000", "../_blobs", "00000000001/"]) {
+    await assertRejects(() => store.removePath(fence, signal), Error);
+    assert(replicaPathFenceProblem(fence) !== undefined);
+  }
+  assertEquals(client.calls, []);
+  assertEquals(replicaPathFenceProblem("000000000001"), undefined);
+});
+
+Deno.test("replicaPaths: an absent fence is one listing and no deletes", async () => {
+  const client = fakeReplicaClient(["_litestream/000000000002/snapshot"]);
+  const store = new GcsReplicaPathStore(client);
+  await store.removePath("000000000001", new AbortController().signal);
+  assertEquals(client.calls, ["list _litestream/000000000001/"]);
+});
+
+Deno.test("replicaPaths: list returns fence names only, without slashes", async () => {
+  const client = fakeReplicaClient([
+    "_litestream/000000000001/snapshot",
+    "_litestream/000000000002/ltx/0/1",
+    "_litestream/stray-object",
+  ]);
+  const store = new GcsReplicaPathStore(client);
+  assertEquals(
+    (await store.list(new AbortController().signal)).sort(),
+    ["000000000001", "000000000002"],
+  );
+});
+
+Deno.test("replicaPaths: an endpoint that ignores deletes fails instead of looping", async () => {
+  const client = fakeReplicaClient(
+    ["_litestream/000000000001/snapshot"],
+    { ignoreDeletes: true },
+  );
+  const store = new GcsReplicaPathStore(client);
+  const err = await assertRejects(
+    () => store.removePath("000000000001", new AbortController().signal),
+    Error,
+  );
+  assertStringIncludes(err.message, "still listed after it was deleted");
+});
+
+Deno.test({
+  name:
+    "an emulator datastore with STORAGE_EMULATOR_HOST hosts v3: both replica suites, one provider (GCS emulator)",
+  // sanitizeResources: false — fetch()'s pooled connections outlive the
+  // test body, as for the other emulator-backed tests in this file.
+  sanitizeResources: false,
+  fn: async () => {
+    await withGcsEmulator({}, async (_gcs, state, endpoint) => {
+      const prior = Deno.env.get("STORAGE_EMULATOR_HOST");
+      Deno.env.set("STORAGE_EMULATOR_HOST", new URL(endpoint).host);
+      try {
+        const provider = datastore.createProvider({
+          bucket: "test-bucket",
+          prefix: "swamp",
+          apiEndpoint: endpoint,
+        });
+        const exists = (key: string) => Promise.resolve(state.objects.has(key));
+        await assertReplicaTargetConformance({
+          replicaTarget: () => provider.replicaTarget!(),
+          bucket: "test-bucket",
+          openStorage: () => provider.storage!() as ConformanceDatastoreStorage,
+          openDatastoreStore: () =>
+            provider.datastoreControlPlaneStore!() as ConformanceWritableStore,
+          objectExists: exists,
+        });
+        await assertReplicaPathConformance({
+          replicaTarget: () => provider.replicaTarget!(),
+          openReplicaPaths: () => provider.replicaPaths!(),
+          openStorage: () => provider.storage!() as ConformanceDatastoreStorage,
+          writeObject: (key, bytes) => {
+            state.objects.set(key, {
+              body: bytes,
+              generation: (state.objects.get(key)?.generation ?? 0) + 1,
+              updated: new Date(),
+            });
+            return Promise.resolve();
+          },
+          deleteObject: (key) => {
+            state.objects.delete(key);
+            return Promise.resolve();
+          },
+          objectExists: exists,
+        });
+      } finally {
+        if (prior === undefined) Deno.env.delete("STORAGE_EMULATOR_HOST");
+        else Deno.env.set("STORAGE_EMULATOR_HOST", prior);
       }
     });
   },

@@ -972,20 +972,25 @@ async function outage(
   failWith: () => Error,
 ): Promise<{ warnings: string[]; before: number; after: number }> {
   const mock = createMockGcsClient();
-  const lock = new GcsLock(mock, { ttlMs: 300 }); // 100ms heartbeat
+  const lock = new GcsLock(mock, { ttlMs: 900 }); // 300ms heartbeat
   let before = 0;
   let after = 0;
 
   const warnings = await captureWarnings(async () => {
     await lock.acquire();
-    await sleep(250); // two healthy ticks
+    // The hold ends ttlMs less a 10% margin after the last confirmed tick
+    // (swamp-club#2333). With ttlMs 900 that is 810ms, so a one-tick outage
+    // after two healthy ticks recovers about 200ms before the deadline; at
+    // ttlMs 300 the margin was close to nothing, and timer drift under load
+    // let the hold end mid-test.
+    await sleep(650); // two healthy ticks
 
     mock.failCasWith = failWith;
-    await sleep(150); // one tick's worth of outage
+    await sleep(300); // one tick's worth of outage
     mock.failCasWith = undefined;
     before = mock.writes;
 
-    await sleep(350); // three ticks after recovery
+    await sleep(1000); // three ticks after recovery
     after = mock.writes;
     await lock.release();
   });

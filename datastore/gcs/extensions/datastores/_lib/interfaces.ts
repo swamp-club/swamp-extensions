@@ -393,4 +393,65 @@ export interface DatastoreProvider {
   readonly datastoreWideLease?: boolean;
   /** The `storage/1` chunk storage, scoped to the datastore root. */
   storage?(): DatastoreStorage;
+  /**
+   * Where this datastore's v3 Litestream replica lives: the bucket, and the
+   * key prefix of the datastore root that `storage()` and
+   * `datastoreControlPlaneStore()` write under. Swamp appends
+   * `_litestream/<fence>/` to the prefix; the provider never builds replica
+   * paths. Synchronous, and never carries credentials: Litestream resolves
+   * them from the same default chain the datastore uses. Throws, rather than
+   * returning a target Litestream cannot reach; the message is shown to the
+   * user, so it carries no config values.
+   */
+  replicaTarget?(): V3ReplicaTarget;
+  /**
+   * The Litestream lineage paths under the replica target's
+   * `<prefix>/_litestream/`, so swamp can remove the path of a lineage a
+   * takeover replaced (`storage/1` is chunk-keyed and cannot reach them).
+   * It never touches anything outside `<prefix>/_litestream/<fence>/`, and
+   * refuses a fence that is not the 12-digit padded form.
+   */
+  replicaPaths?(): ReplicaPathStore;
 }
+
+/**
+ * Lists and removes Litestream lineage paths under `<prefix>/_litestream/`,
+ * as `DatastoreProvider.replicaPaths()` returns it.
+ */
+export interface ReplicaPathStore {
+  /**
+   * The fence directories present under `<prefix>/_litestream/`, without
+   * their trailing slash, in any order. A directory whose name is not a
+   * fence may be returned; swamp ignores it.
+   */
+  list(signal: AbortSignal): Promise<string[]>;
+  /**
+   * Deletes every object under `<prefix>/_litestream/<fence>/`, paging
+   * through listings, and resolves once none is left. Resolves when nothing
+   * is there. Throws, deleting nothing, when `fence` is not exactly 12
+   * digits from `000000000001`.
+   */
+  removePath(fence: string, signal: AbortSignal): Promise<void>;
+}
+
+/**
+ * A datastore's Litestream replica, as `DatastoreProvider.replicaTarget()`
+ * returns it. `prefix` is the datastore root's key prefix: no leading or
+ * trailing slash, or empty.
+ */
+export type V3ReplicaTarget =
+  | {
+    readonly type: "s3";
+    readonly bucket: string;
+    readonly prefix: string;
+    readonly region?: string;
+    /** An S3-compatible endpoint, as an http or https URL. */
+    readonly endpoint?: string;
+    /** Path-style addressing. Unset, it is on whenever `endpoint` is set. */
+    readonly forcePathStyle?: boolean;
+  }
+  | {
+    readonly type: "gcs";
+    readonly bucket: string;
+    readonly prefix: string;
+  };

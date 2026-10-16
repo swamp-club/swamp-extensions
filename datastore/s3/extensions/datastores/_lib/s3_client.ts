@@ -1155,4 +1155,37 @@ export class S3Client {
       },
     );
   }
+
+  /**
+   * Lists the directories directly under `subPrefix` (which ends with "/"),
+   * as logical keys with their trailing slash, handling pagination. One
+   * request per 1,000 directories, however many objects each holds.
+   */
+  async listCommonPrefixes(
+    subPrefix: string,
+    signal?: AbortSignal,
+  ): Promise<string[]> {
+    const prefixLen = this.prefix ? this.prefix.length + 1 : 0;
+    const out: string[] = [];
+    let continuationToken: string | undefined;
+    do {
+      const response = await this.run(
+        "listCommonPrefixes",
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: this.fullKey(subPrefix),
+          Delimiter: "/",
+          ContinuationToken: continuationToken,
+        }),
+        signal,
+      );
+      for (const entry of response.CommonPrefixes ?? []) {
+        if (entry.Prefix) out.push(entry.Prefix.slice(prefixLen));
+      }
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+    return out;
+  }
 }

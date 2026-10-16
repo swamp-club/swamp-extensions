@@ -37,7 +37,9 @@ import type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  ReplicaPathStore,
   SyncCapabilities,
+  V3ReplicaTarget,
   WritableDatastoreControlPlaneStore,
 } from "./_lib/interfaces.ts";
 import { GcsClient, NotFoundError } from "./_lib/gcs_client.ts";
@@ -46,6 +48,7 @@ import { GcsDatastoreVerifier } from "./_lib/gcs_verifier.ts";
 import { GcsCacheSyncService } from "./_lib/gcs_cache_sync.ts";
 import { GcsDatastoreControlPlaneStore } from "./_lib/gcs_control_plane.ts";
 import { GcsChunkStorage } from "./_lib/gcs_storage.ts";
+import { GcsReplicaPathStore } from "./_lib/gcs_replica_paths.ts";
 
 export type {
   CatalogExportEntry,
@@ -57,7 +60,9 @@ export type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  ReplicaPathStore,
   SyncCapabilities,
+  V3ReplicaTarget,
 };
 
 // ---------------------------------------------------------------------------
@@ -109,6 +114,71 @@ const gcsConfigSchema = z.object({
         "Override with SWAMP_GCS_REQUEST_TIMEOUT_MS env var.",
     ),
 });
+
+// ---------------------------------------------------------------------------
+// Replica target checks
+// ---------------------------------------------------------------------------
+
+/**
+ * Why `prefix` cannot be a replica target's prefix, or undefined when it can.
+ * The rules are swamp's for `V3ReplicaTarget.prefix`. Describes the rule, not
+ * the value, since swamp shows the message to the user.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function replicaPrefixProblem(prefix: string): string | undefined {
+  if (prefix === "") return undefined;
+  const segments = prefix.split("/");
+  if (segments.some((s) => s === "" || s === "." || s === "..")) {
+    return 'has a leading, trailing or repeated "/", or a "." or ".." ' +
+      "segment; set a prefix without them";
+  }
+  return undefined;
+}
+
+/**
+ * `STORAGE_EMULATOR_HOST`, the variable through which Litestream (like the
+ * Google client libraries) reaches a GCS emulator; undefined when unset or
+ * unreadable.
+ */
+function storageEmulatorHost(): string | undefined {
+  try {
+    return Deno.env.get("STORAGE_EMULATOR_HOST") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether `emulatorHost` (`host:port`, with or without a scheme) names the
+ * same host and port as `apiEndpoint`. Then Litestream reaches the same
+ * emulator the datastore writes to, so a v3 replica there is sound. Only
+ * an exact host and port match counts: `localhost` and `127.0.0.1` differ.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function emulatorHostMatches(
+  apiEndpoint: string,
+  emulatorHost: string | undefined,
+): boolean {
+  if (emulatorHost === undefined) return false;
+  const parse = (value: string): URL | undefined => {
+    try {
+      return new URL(
+        /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `http://${value}`,
+      );
+    } catch {
+      return undefined;
+    }
+  };
+  const endpoint = parse(apiEndpoint);
+  const emulator = parse(emulatorHost);
+  if (endpoint === undefined || emulator === undefined) return false;
+  const port = (url: URL) =>
+    url.port !== "" ? url.port : url.protocol === "https:" ? "443" : "80";
+  return endpoint.hostname.toLowerCase() === emulator.hostname.toLowerCase() &&
+    port(endpoint) === port(emulator);
+}
 
 // ---------------------------------------------------------------------------
 // GCS Datastore Provider
@@ -186,6 +256,49 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
 
   storage(): DatastoreStorage {
     return new GcsChunkStorage(new GcsClient(this.gcsClientConfig()));
+  }
+
+  /**
+   * The Litestream lineage paths under `<prefix>/_litestream/`, the root
+   * `replicaTarget()` names, so swamp can remove the path of a lineage a
+   * takeover replaced.
+   */
+  replicaPaths(): ReplicaPathStore {
+    return new GcsReplicaPathStore(new GcsClient(this.gcsClientConfig()));
+  }
+
+  /**
+   * Where Litestream replicates this datastore's v3 `commits.db`: the bucket
+   * and the same root `storage()` and the control plane write under. The
+   * prefix goes out exactly as GcsClient joins it onto object names, so a
+   * prefix the target cannot express is refused rather than tidied, which
+   * would point the replica somewhere else. A custom `apiEndpoint` is
+   * refused too: Litestream has no equivalent, so it would replicate to real
+   * GCS instead. The exception is an emulator that `STORAGE_EMULATOR_HOST`
+   * names at the same host and port, which Litestream reaches through that
+   * variable (how swamp's own tests and swamp-uat run v3 on GCS).
+   */
+  replicaTarget(): V3ReplicaTarget {
+    if (
+      this.config.apiEndpoint !== undefined &&
+      !emulatorHostMatches(this.config.apiEndpoint, storageEmulatorHost())
+    ) {
+      throw new Error(
+        "This GCS datastore cannot host v3 replication: it sets apiEndpoint, " +
+          "and Litestream cannot use a custom GCS endpoint, so it would " +
+          "replicate to Google Cloud Storage instead of that endpoint. For " +
+          "an emulator in tests, set STORAGE_EMULATOR_HOST to the same host " +
+          "and port as apiEndpoint: Litestream then reaches the emulator too.",
+      );
+    }
+    const prefix = this.config.prefix ?? "";
+    const prefixProblem = replicaPrefixProblem(prefix);
+    if (prefixProblem) {
+      throw new Error(
+        `This GCS datastore cannot host v3 replication: its prefix ${prefixProblem}.`,
+      );
+    }
+    return { type: "gcs", bucket: this.config.bucket, prefix };
   }
 
   resolveDatastorePath(repoDir: string): string {

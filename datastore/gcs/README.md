@@ -389,8 +389,8 @@ was upgraded to) moves the root `_control/` records into
 `<namespace>/_control/`, as before, except `_control/writer/...`,
 `_control/lineage/...` and `_control/datastore-format`, which stay at the root
 where swamp reads them (swamp-club#3395). An older extension version would move
-the lease and the lineage. Swamp's v3 on buckets (Phase 4E, not yet released)
-will name the minimum extension version it needs.
+the lease and the lineage. Swamp's v3 on buckets (Phase 4E) needs this version
+or later; see the Litestream replica target section below.
 
 ## Chunk storage (`storage/1`)
 
@@ -463,6 +463,82 @@ Against a real endpoint the storage suite skips its `lastModified`-refresh
 checks, since an object cannot be backdated there; a direct measurement on
 fake-gcs-server 1.56.1 shows `touch` advancing `updated` time from the server's
 clock.
+
+## Litestream replica target (`replicaTarget()`)
+
+A v3 datastore's `commits.db` is replicated by Litestream into this datastore's
+own bucket, under `<prefix>/_litestream/<fence>/` (swamp-club#3508). The
+provider's `replicaTarget()` tells swamp where that is; swamp builds the
+`_litestream/<fence>/` part itself. It returns
+`{ type: "gcs", bucket, prefix }`, where `prefix` is the configured prefix
+exactly as the extension writes object names under it, the same root `storage()`
+and the control plane use (empty when unset).
+
+`replicaTarget()` refuses, with an error that names the rule but not the value:
+
+- **`apiEndpoint` set,** unless `STORAGE_EMULATOR_HOST` names the same host and
+  port. Litestream has no custom GCS endpoint setting, so it would replicate to
+  Google Cloud Storage instead of the configured endpoint. It does reach a GCS
+  emulator through `STORAGE_EMULATOR_HOST`, so a datastore on an emulator such
+  as fake-gcs-server can host v3 when that variable is set to the emulator's
+  `host:port` (with or without a scheme). The match is exact: `localhost` and
+  `127.0.0.1` differ. This is for tests; swamp must also pass
+  `STORAGE_EMULATOR_HOST` through to the Litestream sidecar.
+- **A prefix it cannot describe:** a leading, trailing or repeated `/`, or a `.`
+  or `..` segment. The extension joins the prefix onto object names as it is, so
+  tidying it would point the replica somewhere other than where the datastore
+  writes. Set a prefix without them.
+
+**Credentials.** The target never carries credentials. Litestream resolves them
+from Application Default Credentials, as the extension does. Whatever
+credentials the datastore uses must also be visible to the Litestream sidecar,
+through the same environment or gcloud configuration; swamp passes
+`GOOGLE_APPLICATION_CREDENTIALS`, `CLOUDSDK_*`, `HOME` and `PATH` through to it.
+
+**Minimum version.** Swamp's v3 on GCS (datastore rework Phase 4E) needs this
+version of the extension or later. An older version has no `replicaTarget()`,
+and swamp refuses to set up a v3 datastore on it.
+
+The conformance suite `assertReplicaTargetConformance` runs against the
+in-process emulator in every test run (empty and nested prefixes). Because the
+emulator needs `apiEndpoint`, which `replicaTarget()` refuses, the suite reads
+the target from a twin provider with the same bucket and prefix and no endpoint,
+and writes through the emulator-backed one. There is no local check that runs
+Litestream against GCS, for the same reason; the S3 extension has one.
+
+### Lineage paths (`replicaPaths()`)
+
+Each lineage replicates to its own path, `<prefix>/_litestream/<fence>/`, and a
+takeover from another checkout starts a new one. `storage/1` is chunk-keyed and
+cannot reach these objects, so the provider's `replicaPaths()` lets swamp remove
+the path of a lineage a takeover replaced (swamp-club#3531). Until old lineages
+are collected, swamp defers chunk collection on the datastore (swamp-club#3491).
+
+- **`list`** returns the fence directories under `<prefix>/_litestream/`, from a
+  delimiter listing: one request per 1,000 directories, not per object.
+- **`removePath(fence)`** deletes every object under
+  `<prefix>/_litestream/<fence>/`, a page at a time until none is left, and
+  succeeds when nothing is there. The trailing slash keeps a look-alike
+  directory such as `<fence>-old/` out, and every key is checked to be under the
+  fence's path before it is deleted. A fence that is not exactly 12 digits from
+  `000000000001` is refused before any request. An object listed again after it
+  was deleted fails the call rather than looping.
+
+It needs no permission beyond those listed above (`storage.objects.list` and
+`storage.objects.delete`). Swamp calls it only from Phase 4E's lineage
+collection: best effort, never for the current lineage, and only once the new
+lineage's first sync is confirmed.
+
+On a bucket with object versioning, each object `removePath` deletes leaves a
+noncurrent version, billed until it expires. A lifecycle rule that expires
+noncurrent versions, the same one that bounds what `touch` leaves under
+`_blobs/`, also bounds what removed lineage paths leave behind.
+
+The conformance suite `assertReplicaPathConformance` runs against the in-process
+emulator in every test run (empty and nested prefixes, and pages of two names so
+listing and removal must page), and against fake-gcs-server when
+`SWAMP_TEST_GCS_ENDPOINT` and `SWAMP_TEST_GCS_BUCKET` are set. As for the
+replica target, the root comes from a twin provider without `apiEndpoint`.
 
 ## Observability
 

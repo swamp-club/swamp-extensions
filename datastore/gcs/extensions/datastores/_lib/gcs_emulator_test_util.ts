@@ -224,6 +224,36 @@ export function createGcsEmulatorHandler(
       // The page token is the last name of the previous page.
       const after = url.searchParams.get("pageToken") ?? "";
       const max = state.options.maxResults ?? 1000;
+      const delimiter = url.searchParams.get("delimiter");
+      if (delimiter) {
+        // Directories (`prefixes`) and the objects directly under the
+        // prefix, merged in name order and paged together, as GCS does. A
+        // token naming a directory skips everything under it.
+        const items = new Map<string, "dir" | "key">();
+        for (const k of state.objects.keys()) {
+          if (!k.startsWith(prefix)) continue;
+          const at = k.indexOf(delimiter, prefix.length);
+          if (at >= 0) items.set(k.slice(0, at + delimiter.length), "dir");
+          else items.set(k, "key");
+        }
+        const ordered = [...items.entries()]
+          .filter(([k]) =>
+            k > after && !(after.endsWith(delimiter) && k.startsWith(after))
+          )
+          .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+        const pageItems = ordered.slice(0, max);
+        const prefixes = pageItems.filter(([, kind]) => kind === "dir").map((
+          [k],
+        ) => k);
+        const objects = pageItems.filter(([, kind]) => kind === "key");
+        return Response.json({
+          ...(prefixes.length > 0 ? { prefixes } : {}),
+          items: objects.map(([k]) => resource(k, state.objects.get(k)!)),
+          nextPageToken: ordered.length > pageItems.length
+            ? pageItems[pageItems.length - 1][0]
+            : undefined,
+        });
+      }
       const all = [...state.objects.entries()]
         .filter(([k]) => k.startsWith(prefix) && k > after)
         .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);

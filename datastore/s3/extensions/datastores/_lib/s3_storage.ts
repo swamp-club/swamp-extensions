@@ -104,7 +104,7 @@ function chunkKey(namespace: string, sha256: string): string {
  * abort or once any call fails, so a failed batch sends no further requests
  * beyond those already in flight.
  */
-async function forEachBounded<T>(
+export async function forEachBounded<T>(
   items: readonly T[],
   limit: number,
   signal: AbortSignal,

@@ -17,6 +17,7 @@ import {
   assert,
   assertEquals,
   assertRejects,
+  assertStringIncludes,
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import {
@@ -25,10 +26,13 @@ import {
 } from "@systeminit/swamp-testing";
 import type { DatastoreHealthResult } from "./_lib/interfaces.ts";
 import {
+  assertReplicaPathConformance,
+  assertReplicaTargetConformance,
   assertStorageConformance,
   assertWritableDatastoreControlPlaneStoreConformance,
   type DatastoreStorage as ConformanceDatastoreStorage,
   type DatastoreSyncService as ConformanceDatastoreSyncService,
+  replicaTargetProblem,
   type WritableDatastoreControlPlaneStore as ConformanceWritableStore,
 } from "@swamp-club/swamp-testing";
 import {
@@ -37,7 +41,16 @@ import {
   withS3Emulator,
 } from "./_lib/s3_emulator_test_util.ts";
 import { S3Client } from "./_lib/s3_client.ts";
-import { datastore } from "./s3.ts";
+import {
+  type ReplicaPathClient,
+  replicaPathFenceProblem,
+  S3ReplicaPathStore,
+} from "./_lib/s3_replica_paths.ts";
+import {
+  datastore,
+  replicaEndpointProblem,
+  replicaPrefixProblem,
+} from "./s3.ts";
 
 Deno.test("datastore export conforms to DatastoreProvider contract", () => {
   assertDatastoreExportConformance(datastore, {
@@ -1021,4 +1034,446 @@ Deno.test({
       }
     });
   },
+});
+
+// --- swamp-club#3508: replicaTarget() for v3 Litestream replication ---
+
+/** A provider's replicaTarget(), for a config that may carry any field. */
+function replicaTargetFor(config: Record<string, unknown>) {
+  const provider = datastore.createProvider({ bucket: "my-bucket", ...config });
+  const target = provider.replicaTarget!();
+  if (target.type !== "s3") throw new Error(`expected s3, got ${target.type}`);
+  return target;
+}
+
+Deno.test("replicaTarget: bucket and prefix, nothing else, by default", () => {
+  assertEquals(replicaTargetFor({}), {
+    type: "s3",
+    bucket: "my-bucket",
+    prefix: "",
+  });
+  assertEquals(replicaTargetFor({ prefix: "swamp" }).prefix, "swamp");
+  assertEquals(
+    replicaTargetFor({ prefix: "team/prod/swamp" }).prefix,
+    "team/prod/swamp",
+  );
+});
+
+Deno.test("replicaTarget: region only when it is set and non-empty", () => {
+  assertEquals(
+    replicaTargetFor({ region: "eu-west-1" }),
+    { type: "s3", bucket: "my-bucket", prefix: "", region: "eu-west-1" },
+  );
+  assertEquals("region" in replicaTargetFor({ region: "" }), false);
+});
+
+Deno.test("replicaTarget: an endpoint always states path style", () => {
+  const endpoint = "https://nyc3.digitaloceanspaces.com";
+  // The SDK leaves path style off when it is unset, while an unset
+  // forcePathStyle in a target means on whenever there is an endpoint, so
+  // the target must say false.
+  assertEquals(replicaTargetFor({ endpoint }), {
+    type: "s3",
+    bucket: "my-bucket",
+    prefix: "",
+    endpoint,
+    forcePathStyle: false,
+  });
+  assertEquals(
+    replicaTargetFor({ endpoint, forcePathStyle: true }).forcePathStyle,
+    true,
+  );
+  assertEquals(
+    replicaTargetFor({ endpoint, forcePathStyle: false }).forcePathStyle,
+    false,
+  );
+  // Without an endpoint, path style is not part of the target.
+  assertEquals(
+    "forcePathStyle" in replicaTargetFor({ forcePathStyle: true }),
+    false,
+  );
+});
+
+Deno.test("replicaTarget: every target it returns is one swamp accepts", () => {
+  const configs: Record<string, unknown>[] = [
+    {},
+    { prefix: "a" },
+    { prefix: "a/b/c", region: "us-east-1" },
+    { endpoint: "http://127.0.0.1:9000", forcePathStyle: true },
+    { endpoint: "https://s3.example.com/", region: "auto" },
+  ];
+  for (const config of configs) {
+    const target = replicaTargetFor(config);
+    assertEquals(
+      replicaTargetProblem(target),
+      undefined,
+      JSON.stringify(config),
+    );
+  }
+});
+
+Deno.test("replicaTarget: refuses a prefix it cannot express, without echoing it", () => {
+  // Each refused prefix carries a marker that must not reach the message.
+  const marker = "zq9";
+  const refused = [
+    `/${marker}`,
+    `${marker}/`,
+    `${marker}//b`,
+    `${marker}/./b`,
+    `../${marker}`,
+    `${marker}/..`,
+  ];
+  for (const prefix of refused) {
+    const err = assertThrows(() => replicaTargetFor({ prefix }), Error);
+    assert(
+      err.message.includes("cannot host v3 replication"),
+      `${prefix}: ${err.message}`,
+    );
+    assert(!err.message.includes(marker), `${prefix} leaked: ${err.message}`);
+    assert(replicaPrefixProblem(prefix) !== undefined);
+  }
+});
+
+Deno.test("replicaTarget: refuses an endpoint Litestream cannot use, without echoing it", () => {
+  const refused = [
+    "ftp://s3.example.com",
+    "https://key:secret@s3.example.com",
+    "https://s3.example.com/?x-id=1",
+    "https://s3.example.com/#frag",
+  ];
+  for (const endpoint of refused) {
+    const err = assertThrows(() => replicaTargetFor({ endpoint }), Error);
+    assert(!err.message.includes(endpoint), `${endpoint} leaked`);
+    assert(!err.message.includes("secret"), `credentials leaked`);
+    assert(replicaEndpointProblem(endpoint) !== undefined);
+  }
+  assertEquals(replicaEndpointProblem("https://s3.example.com"), undefined);
+});
+
+Deno.test("replicaTarget: synchronous, and carries no credentials", () => {
+  const priorKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  Deno.env.set("AWS_ACCESS_KEY_ID", "AKIA-should-not-appear");
+  try {
+    const target = replicaTargetFor({
+      prefix: "p",
+      region: "us-east-1",
+      endpoint: "https://s3.example.com",
+    });
+    assertEquals(typeof (target as { then?: unknown }).then, "undefined");
+    assert(!JSON.stringify(target).includes("AKIA"));
+  } finally {
+    if (priorKey !== undefined) Deno.env.set("AWS_ACCESS_KEY_ID", priorKey);
+    else Deno.env.delete("AWS_ACCESS_KEY_ID");
+  }
+});
+
+async function runReplicaTargetConformance(
+  config: Record<string, unknown> & { bucket: string },
+  objectExists: (key: string) => Promise<boolean>,
+): Promise<void> {
+  const provider = datastore.createProvider(config);
+  await assertReplicaTargetConformance({
+    replicaTarget: () => provider.replicaTarget!(),
+    bucket: config.bucket,
+    openStorage: () => provider.storage!() as ConformanceDatastoreStorage,
+    openDatastoreStore: () =>
+      provider.datastoreControlPlaneStore!() as ConformanceWritableStore,
+    objectExists,
+  });
+}
+
+for (const prefix of [undefined, "swamp", "team/prod/swamp"]) {
+  Deno.test({
+    name: `replica target conformance, prefix ${
+      prefix ?? "(none)"
+    } (S3 emulator)`,
+    sanitizeResources: false,
+    fn: async () => {
+      await withS3Emulator({}, async (_s3, state, endpoint) => {
+        await runReplicaTargetConformance(
+          {
+            bucket: "test-bucket",
+            region: "us-east-1",
+            endpoint,
+            forcePathStyle: true,
+            ...(prefix !== undefined ? { prefix } : {}),
+          },
+          (key) => Promise.resolve(state.objects.has(key)),
+        );
+      });
+    },
+  });
+}
+
+Deno.test({
+  name: "replica target conformance (SWAMP_TEST_S3_ENDPOINT, ministack)",
+  ignore: !realEndpoint || !realBucket,
+  sanitizeResources: false,
+  fn: async () => {
+    await withRealEndpoint(async (config) => {
+      const s3 = new S3Client({ ...config, prefix: undefined });
+      await runReplicaTargetConformance(
+        config,
+        async (key) => (await s3.headObject(key)).exists,
+      );
+    });
+  },
+});
+
+// --- the same target, replicated by Litestream (run by hand) ---
+//
+// Litestream is not installed where verification runs, and verification's
+// datastores target grants no --allow-run, so this check only runs by hand,
+// against ministack:
+//
+//   SWAMP_TEST_S3_ENDPOINT=http://localhost:4566 SWAMP_TEST_S3_BUCKET=<bucket> \
+//   SWAMP_TEST_LITESTREAM_BIN=<path to litestream 0.5.x> \
+//   deno test --allow-read --allow-write --allow-env --allow-net --allow-sys \
+//     --allow-run extensions/datastores/s3_test.ts --filter Litestream
+//
+// It writes Litestream's config the way swamp does (replication_files.ts)
+// from replicaTarget(), with the replica path swamp builds (replicaPathFor:
+// the prefix, then _litestream and the fence padded to 12 digits). GCS has
+// no equivalent: the only local GCS is an emulator, which needs apiEndpoint,
+// and replicaTarget() refuses apiEndpoint.
+
+const litestreamBin = Deno.env.get("SWAMP_TEST_LITESTREAM_BIN");
+
+function runPermitted(): boolean {
+  try {
+    return Deno.permissions.querySync({ name: "run" }).state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+Deno.test({
+  name:
+    "Litestream replicates under <prefix>/_litestream/ from replicaTarget()",
+  ignore: !realEndpoint || !realBucket || !litestreamBin || !runPermitted(),
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const { DatabaseSync } = await import("node:sqlite");
+    await withRealEndpoint(async (config) => {
+      const target = datastore.createProvider(config).replicaTarget!();
+      if (target.type !== "s3") throw new Error("expected an s3 target");
+      const replicaPath = [target.prefix, "_litestream", "000000000001"]
+        .filter((s) => s !== "").join("/");
+      const dir = await Deno.makeTempDir({ prefix: "litestream-target-" });
+      try {
+        const dbPath = `${dir}/commits.db`;
+        const db = new DatabaseSync(dbPath);
+        db.exec("PRAGMA journal_mode=WAL");
+        db.exec("CREATE TABLE t (x INTEGER)");
+        db.exec("INSERT INTO t VALUES (1)");
+        db.close();
+        const q = (v: string) => JSON.stringify(v);
+        const lines = [
+          "dbs:",
+          `  - path: ${q(dbPath)}`,
+          "    replica:",
+          "      type: s3",
+          `      path: ${q(replicaPath)}`,
+          `      bucket: ${q(target.bucket)}`,
+        ];
+        if (target.region !== undefined) {
+          lines.push(`      region: ${q(target.region)}`);
+        }
+        if (target.endpoint !== undefined) {
+          lines.push(`      endpoint: ${q(target.endpoint)}`);
+          lines.push(
+            `      force-path-style: ${target.forcePathStyle ?? true}`,
+          );
+        }
+        const configPath = `${dir}/litestream.yml`;
+        await Deno.writeTextFile(configPath, lines.join("\n") + "\n");
+        const child = new Deno.Command(litestreamBin!, {
+          args: ["replicate", "-config", configPath],
+          stdout: "null",
+          stderr: "piped",
+        }).spawn();
+        const s3 = new S3Client({ ...config, prefix: undefined });
+        let found: string[] = [];
+        try {
+          const deadline = Date.now() + 30_000;
+          while (Date.now() < deadline && found.length === 0) {
+            await new Promise((r) => setTimeout(r, 500));
+            found = (await s3.listAllObjects(`${replicaPath}/`))
+              .map((e) => e.key);
+          }
+        } finally {
+          child.kill("SIGTERM");
+          await child.output();
+        }
+        assert(
+          found.length > 0,
+          `Litestream wrote nothing under ${replicaPath}/`,
+        );
+      } finally {
+        await Deno.remove(dir, { recursive: true });
+      }
+    });
+  },
+});
+
+// --- swamp-club#3531: replicaPaths() for v3 lineage path collection ---
+
+async function runReplicaPathConformance(
+  config: Record<string, unknown> & { bucket: string },
+  bucket: {
+    write: (key: string, bytes: Uint8Array) => Promise<void>;
+    remove: (key: string) => Promise<void>;
+    exists: (key: string) => Promise<boolean>;
+  },
+  objectsPerFence?: number,
+): Promise<void> {
+  const provider = datastore.createProvider(config);
+  await assertReplicaPathConformance({
+    replicaTarget: () => provider.replicaTarget!(),
+    openReplicaPaths: () => provider.replicaPaths!(),
+    openStorage: () => provider.storage!() as ConformanceDatastoreStorage,
+    writeObject: bucket.write,
+    deleteObject: bucket.remove,
+    objectExists: bucket.exists,
+    objectsPerFence,
+  });
+}
+
+for (
+  const [label, prefix, maxKeys] of [
+    ["prefix (none)", undefined, undefined],
+    ["nested prefix", "team/prod/swamp", undefined],
+    // Two keys a page, so removePath and list must page.
+    ["listing pages of two keys", "swamp", 2],
+  ] as const
+) {
+  Deno.test({
+    name: `replica path conformance, ${label} (S3 emulator)`,
+    sanitizeResources: false,
+    fn: async () => {
+      await withS3Emulator({ maxKeys }, async (_s3, state, endpoint) => {
+        await runReplicaPathConformance(
+          {
+            bucket: "test-bucket",
+            region: "us-east-1",
+            endpoint,
+            forcePathStyle: true,
+            ...(prefix !== undefined ? { prefix } : {}),
+          },
+          {
+            write: (key, bytes) => {
+              state.objects.set(key, {
+                body: bytes,
+                etag: crypto.randomUUID().replaceAll("-", ""),
+                lastModified: new Date(),
+              });
+              return Promise.resolve();
+            },
+            remove: (key) => {
+              state.objects.delete(key);
+              return Promise.resolve();
+            },
+            exists: (key) => Promise.resolve(state.objects.has(key)),
+          },
+          maxKeys === undefined ? undefined : 5,
+        );
+      });
+    },
+  });
+}
+
+Deno.test({
+  name: "replica path conformance (SWAMP_TEST_S3_ENDPOINT, ministack)",
+  ignore: !realEndpoint || !realBucket,
+  sanitizeResources: false,
+  fn: async () => {
+    await withRealEndpoint(async (config) => {
+      const s3 = new S3Client({ ...config, prefix: undefined });
+      await runReplicaPathConformance(config, {
+        write: async (key, bytes) => {
+          await s3.putObject(key, bytes);
+        },
+        remove: (key) => s3.deleteObject(key),
+        exists: async (key) => (await s3.headObject(key)).exists,
+      });
+    });
+  },
+});
+
+/** A stand-in client recording the calls the store makes. */
+function fakeReplicaClient(
+  keys: string[],
+  options: { ignoreDeletes?: boolean } = {},
+): ReplicaPathClient & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    listCommonPrefixes: (subPrefix: string) => {
+      calls.push(`dirs ${subPrefix}`);
+      const dirs = new Set<string>();
+      for (const key of keys) {
+        if (!key.startsWith(subPrefix)) continue;
+        const at = key.indexOf("/", subPrefix.length);
+        if (at >= 0) dirs.add(key.slice(0, at + 1));
+      }
+      return Promise.resolve([...dirs]);
+    },
+    listObjects: (subPrefix?: string) => {
+      calls.push(`list ${subPrefix}`);
+      const entries = keys.filter((key) => key.startsWith(subPrefix ?? ""))
+        .slice(0, 2).map((key) => ({ key, size: 1 }));
+      return Promise.resolve({ entries, truncated: false });
+    },
+    deleteObject: (key: string) => {
+      calls.push(`delete ${key}`);
+      if (!options.ignoreDeletes) keys.splice(keys.indexOf(key), 1);
+      return Promise.resolve();
+    },
+  } as ReplicaPathClient & { calls: string[] };
+}
+
+Deno.test("replicaPaths: a malformed fence is refused before any request", async () => {
+  const client = fakeReplicaClient(["_litestream/000000000001/snapshot"]);
+  const store = new S3ReplicaPathStore(client);
+  const signal = new AbortController().signal;
+  for (const fence of ["", "1", "000000000000", "../_blobs", "00000000001/"]) {
+    await assertRejects(() => store.removePath(fence, signal), Error);
+    assert(replicaPathFenceProblem(fence) !== undefined);
+  }
+  assertEquals(client.calls, []);
+  assertEquals(replicaPathFenceProblem("000000000001"), undefined);
+});
+
+Deno.test("replicaPaths: an absent fence is one listing and no deletes", async () => {
+  const client = fakeReplicaClient(["_litestream/000000000002/snapshot"]);
+  const store = new S3ReplicaPathStore(client);
+  await store.removePath("000000000001", new AbortController().signal);
+  assertEquals(client.calls, ["list _litestream/000000000001/"]);
+});
+
+Deno.test("replicaPaths: list returns fence names only, without slashes", async () => {
+  const client = fakeReplicaClient([
+    "_litestream/000000000001/snapshot",
+    "_litestream/000000000002/ltx/0/1",
+    "_litestream/stray-object",
+  ]);
+  const store = new S3ReplicaPathStore(client);
+  assertEquals(
+    (await store.list(new AbortController().signal)).sort(),
+    ["000000000001", "000000000002"],
+  );
+});
+
+Deno.test("replicaPaths: an endpoint that ignores deletes fails instead of looping", async () => {
+  const client = fakeReplicaClient(
+    ["_litestream/000000000001/snapshot"],
+    { ignoreDeletes: true },
+  );
+  const store = new S3ReplicaPathStore(client);
+  const err = await assertRejects(
+    () => store.removePath("000000000001", new AbortController().signal),
+    Error,
+  );
+  assertStringIncludes(err.message, "still listed after it was deleted");
 });

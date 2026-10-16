@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/gcs-datastore"
-version: "2026.10.15.2"
+version: "2026.10.16.1"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in a Google Cloud Storage bucket with local cache synchronization.
@@ -27,8 +27,16 @@ description: |
   `datastoreWideLease`), and `storage/1` chunk storage under
   `_blobs/` with 16 MiB single-request puts, a price-tuned `has`, and a
   `touch` that refreshes a chunk by a rewrite of it onto itself, with no
-  re-upload and no new permissions. Swamp's v3 on buckets (Phase 4E, not yet
-  released) will name the minimum extension version it needs.
+  re-upload and no new permissions.
+
+  The Litestream replica target for v3: `replicaTarget()` names the bucket
+  and the datastore root that `storage()` and the control plane write under,
+  with no credentials (Litestream reads the same default credential chain),
+  and refuses a config it cannot describe, including a custom `apiEndpoint`,
+  which Litestream cannot use. `replicaPaths()` lists and removes the
+  Litestream lineage paths under `<prefix>/_litestream/<fence>/`, so swamp
+  can collect a lineage a takeover replaced and stop deferring chunk
+  collection. Swamp's v3 on buckets (Phase 4E) needs this version or later.
 
   ## Authentication
 

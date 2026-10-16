@@ -37,7 +37,9 @@ import type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  ReplicaPathStore,
   SyncCapabilities,
+  V3ReplicaTarget,
   WritableDatastoreControlPlaneStore,
 } from "./_lib/interfaces.ts";
 import { S3Client } from "./_lib/s3_client.ts";
@@ -46,6 +48,7 @@ import { S3DatastoreVerifier } from "./_lib/s3_verifier.ts";
 import { S3CacheSyncService } from "./_lib/s3_cache_sync.ts";
 import { S3DatastoreControlPlaneStore } from "./_lib/s3_control_plane.ts";
 import { S3ChunkStorage } from "./_lib/s3_storage.ts";
+import { S3ReplicaPathStore } from "./_lib/s3_replica_paths.ts";
 
 export type {
   CatalogExportEntry,
@@ -57,7 +60,9 @@ export type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  ReplicaPathStore,
   SyncCapabilities,
+  V3ReplicaTarget,
 };
 
 // ---------------------------------------------------------------------------
@@ -101,6 +106,52 @@ const s3ConfigSchema = z.object({
         "Override with SWAMP_S3_REQUEST_TIMEOUT_MS env var.",
     ),
 });
+
+// ---------------------------------------------------------------------------
+// Replica target checks
+// ---------------------------------------------------------------------------
+
+/**
+ * Why `prefix` cannot be a replica target's prefix, or undefined when it can.
+ * The rules are swamp's for `V3ReplicaTarget.prefix`. Describes the rule, not
+ * the value, since swamp shows the message to the user.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function replicaPrefixProblem(prefix: string): string | undefined {
+  if (prefix === "") return undefined;
+  const segments = prefix.split("/");
+  if (segments.some((s) => s === "" || s === "." || s === "..")) {
+    return 'has a leading, trailing or repeated "/", or a "." or ".." ' +
+      "segment; set a prefix without them";
+  }
+  return undefined;
+}
+
+/**
+ * Why `endpoint` cannot be a replica target's endpoint, or undefined when it
+ * can: Litestream needs a plain http or https URL.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function replicaEndpointProblem(endpoint: string): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return "is not a URL";
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return "is not an http or https URL";
+  }
+  if (url.username !== "" || url.password !== "") {
+    return "carries credentials; supply them through the AWS credential chain";
+  }
+  if (url.search !== "" || url.hash !== "") {
+    return "has a query or fragment";
+  }
+  return undefined;
+}
 
 // ---------------------------------------------------------------------------
 // S3 Datastore Provider
@@ -177,6 +228,52 @@ class S3DatastoreProviderImpl implements DatastoreProvider {
 
   storage(): DatastoreStorage {
     return new S3ChunkStorage(new S3Client(this.s3ClientConfig()));
+  }
+
+  /**
+   * The Litestream lineage paths under `<prefix>/_litestream/`, the root
+   * `replicaTarget()` names, so swamp can remove the path of a lineage a
+   * takeover replaced.
+   */
+  replicaPaths(): ReplicaPathStore {
+    return new S3ReplicaPathStore(new S3Client(this.s3ClientConfig()));
+  }
+
+  /**
+   * Where Litestream replicates this datastore's v3 `commits.db`: the bucket
+   * and the same root `storage()` and the control plane write under. The
+   * prefix goes out exactly as S3Client joins it onto keys, so a prefix the
+   * target cannot express is refused rather than tidied, which would point
+   * the replica somewhere else. With an endpoint, path style is always
+   * stated: the SDK defaults it off, while an unset `forcePathStyle` in a
+   * target means on.
+   */
+  replicaTarget(): V3ReplicaTarget {
+    const prefix = this.config.prefix ?? "";
+    const prefixProblem = replicaPrefixProblem(prefix);
+    if (prefixProblem) {
+      throw new Error(
+        `This S3 datastore cannot host v3 replication: its prefix ${prefixProblem}.`,
+      );
+    }
+    const endpoint = this.config.endpoint;
+    if (endpoint !== undefined) {
+      const endpointProblem = replicaEndpointProblem(endpoint);
+      if (endpointProblem) {
+        throw new Error(
+          `This S3 datastore cannot host v3 replication: its endpoint ${endpointProblem}.`,
+        );
+      }
+    }
+    return {
+      type: "s3",
+      bucket: this.config.bucket,
+      prefix,
+      ...(this.config.region ? { region: this.config.region } : {}),
+      ...(endpoint !== undefined
+        ? { endpoint, forcePathStyle: this.config.forcePathStyle ?? false }
+        : {}),
+    };
   }
 
   resolveDatastorePath(repoDir: string): string {
