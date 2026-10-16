@@ -505,7 +505,8 @@ const worktreePath = z.string().min(1).refine(
   (v) => !v.startsWith("-"),
   { message: "must not start with a dash (interpreted as a git flag)" },
 ).refine(
-  (v) => !v.split("/").includes(".."),
+  // Either separator: on Windows a\..\b is the same path as a/../b.
+  (v) => !v.split(/[\\/]/).includes(".."),
   { message: "must not contain a '..' segment" },
 );
 

@@ -2,6 +2,17 @@ import { execGit } from "./runner.ts";
 import { Attr, getTracer } from "./tracing.ts";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { GlobalArgsSchema } from "./schemas.ts";
+import {
+  absolutePath,
+  canonicalPath,
+  currentDir,
+  isWindows,
+  isWithin,
+  pathKey,
+  realPathOrSelf,
+  samePath,
+  windowsFileUrlPath,
+} from "./paths.ts";
 import type {
   AmendArgs,
   BranchArgs,
@@ -134,18 +145,6 @@ export interface RemoteIdentity {
   path: string;
 }
 
-function absolutePath(path: string, base: string): string {
-  return path.startsWith("/") ? path : `${base}/${path}`;
-}
-
-function realPathOrSelf(path: string): string {
-  try {
-    return Deno.realPathSync(path);
-  } catch {
-    return path;
-  }
-}
-
 /** Percent-decodes a URL path, keeping it as-is when an escape is malformed. */
 function decodePath(pathname: string): string {
   try {
@@ -169,11 +168,16 @@ export function normaliseRemote(url: string, base: string): RemoteIdentity {
   let path: string;
 
   const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(trimmed);
-  const scp = /^(?:[^@/]+@)?([^:/]+):(.+)$/.exec(trimmed);
+  // git for Windows reads C:/repo as a local path, not host C. A
+  // drive-relative C:repo is ambiguous to git too and stays scp-style.
+  const drive = isWindows() && /^[a-z]:[\\/]/i.test(trimmed);
+  const scp = drive ? null : /^(?:[^@/]+@)?([^:/]+):(.+)$/.exec(trimmed);
   if (scheme) {
     const parsed = new URL(trimmed);
     if (scheme[1].toLowerCase() === "file") {
-      path = realPathOrSelf(decodePath(parsed.pathname));
+      path = realPathOrSelf(
+        isWindows() ? windowsFileUrlPath(trimmed) : decodePath(parsed.pathname),
+      );
     } else {
       host = parsed.hostname.toLowerCase();
       path = decodePath(parsed.pathname);
@@ -184,6 +188,9 @@ export function normaliseRemote(url: string, base: string): RemoteIdentity {
   } else {
     path = realPathOrSelf(absolutePath(trimmed, base));
   }
+  // A Windows local path compares as the filesystem does: either separator,
+  // any case.
+  if (!host && isWindows()) path = pathKey(path).replaceAll("\\", "/");
 
   path = path.replace(/\/+$/, "").replace(/^\/+/, "");
   // Hosted forges treat owner/name case-insensitively and serve name and
@@ -263,7 +270,7 @@ export async function runEnsureCheckout(
         const globals = resolveGlobalArgs(ctx.globalArgs);
         const remote = globals.remote;
         const safeUrl = scrubCredentials(args.url);
-        const target = absolutePath(args.path, Deno.cwd());
+        const target = absolutePath(args.path, currentDir());
 
         if (args.token && !args.url.startsWith("https://")) {
           throw new Error("token authentication requires an https:// URL");
@@ -384,7 +391,7 @@ export async function runEnsureCheckout(
           // git reports the symlink-resolved path (macOS /tmp is
           // /private/tmp), so compare resolved paths on both sides.
           const root = realPathOrSelf(toplevel.stdout.trim());
-          if (root !== realPathOrSelf(target)) {
+          if (!samePath(root, realPathOrSelf(target))) {
             throw new Error(
               `refusing to check out into ${target}: it is inside the checkout at ${root}, not the root of a checkout`,
             );
@@ -403,7 +410,7 @@ export async function runEnsureCheckout(
           if (
             !sameRemote(
               normaliseRemote(storedUrl, target),
-              normaliseRemote(args.url, Deno.cwd()),
+              normaliseRemote(args.url, currentDir()),
             )
           ) {
             throw new Error(
@@ -2016,45 +2023,6 @@ function parseWorktreeList(raw: string): WorktreeEntry[] {
   return entries;
 }
 
-/** Resolves `.` and `..` segments and repeated slashes in an absolute path. */
-function normaliseSegments(path: string): string[] {
-  const parts: string[] = [];
-  for (const part of path.split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") parts.pop();
-    else parts.push(part);
-  }
-  return parts;
-}
-
-/**
- * Absolute, symlink-resolved form of `path`, even when it does not exist yet:
- * the nearest existing ancestor is resolved and the missing tail re-appended.
- * git lists worktrees symlink-resolved (macOS /tmp is /private/tmp), so every
- * worktree path comparison goes through this on both sides.
- */
-export function canonicalPath(path: string, base: string): string {
-  const parts = normaliseSegments(absolutePath(path, base));
-  for (let i = parts.length; i >= 0; i--) {
-    let real: string;
-    try {
-      real = Deno.realPathSync(`/${parts.slice(0, i).join("/")}`);
-    } catch {
-      continue;
-    }
-    const tail = parts.slice(i);
-    if (tail.length === 0) return real;
-    return `${real === "/" ? "" : real}/${tail.join("/")}`;
-  }
-  return `/${parts.join("/")}`;
-}
-
-/** True when `child` is strictly inside `parent` (both canonical). */
-function isWithin(child: string, parent: string): boolean {
-  if (child === parent) return false;
-  return child.startsWith(parent === "/" ? "/" : `${parent}/`);
-}
-
 interface RegisteredWorktree extends WorktreeEntry {
   /** canonicalPath of `worktree`. */
   path: string;
@@ -2069,7 +2037,7 @@ interface RepoLayout {
   worktrees: RegisteredWorktree[];
 }
 
-async function readLayout(
+export async function readLayout(
   cwd: string,
   signal: AbortSignal,
 ): Promise<RepoLayout> {
@@ -2091,7 +2059,7 @@ async function readLayout(
       `git rev-parse --git-common-dir failed (exit ${common.exitCode}): ${common.stderr}`,
     );
   }
-  const base = absolutePath(cwd, Deno.cwd());
+  const base = absolutePath(cwd, currentDir());
   const worktrees = parseWorktreeList(list.stdout).map((entry) => ({
     ...entry,
     path: canonicalPath(entry.worktree, base),
@@ -2113,24 +2081,26 @@ async function readLayout(
  * allowed — that is the reuse case. Nesting inside the primary is allowed
  * (the common `.claude/worktrees` layout).
  */
-function assertPlacement(
+export function assertPlacement(
   target: string,
   layout: RepoLayout,
   root: string | undefined,
 ): void {
   if (root !== undefined) {
-    const bound = canonicalPath(root, Deno.cwd());
+    const bound = canonicalPath(root, currentDir());
     if (!isWithin(target, bound)) {
       throw new Error(`${target} is outside the worktree root ${bound}`);
     }
   }
-  if (target === layout.commonDir || isWithin(target, layout.commonDir)) {
+  if (
+    samePath(target, layout.commonDir) || isWithin(target, layout.commonDir)
+  ) {
     throw new Error(
       `${target} is inside the git directory ${layout.commonDir}`,
     );
   }
   layout.worktrees.forEach((w, index) => {
-    if (w.path === target) {
+    if (samePath(w.path, target)) {
       if (index === 0) throw new Error(`${target} is the primary checkout`);
       return;
     }
@@ -2245,15 +2215,15 @@ export async function runRemoveWorktree(
         const resolvedPath = args.path.replace(/\/+$/, "");
         // git lists worktrees symlink-resolved, so compare canonical forms:
         // /tmp/wt on macOS is registered as /private/tmp/wt.
-        const base = absolutePath(cwd, Deno.cwd());
-        const target = canonicalPath(resolvedPath, Deno.cwd());
+        const base = absolutePath(cwd, currentDir());
+        const target = canonicalPath(resolvedPath, currentDir());
 
         const primaryPath = worktrees.length > 0
           ? worktrees[0].worktree
           : undefined;
         if (
           primaryPath !== undefined &&
-          target === canonicalPath(primaryPath, base)
+          samePath(target, canonicalPath(primaryPath, base))
         ) {
           throw new Error(
             "cannot remove the primary checkout",
@@ -2261,7 +2231,7 @@ export async function runRemoveWorktree(
         }
 
         const registered = worktrees.find(
-          (w) => canonicalPath(w.worktree, base) === target,
+          (w) => samePath(canonicalPath(w.worktree, base), target),
         );
 
         if (!registered) {
@@ -2447,7 +2417,9 @@ async function assertCleanPrimary(
   }
   // -z: paths are NUL-terminated and never C-quoted, so a path with a space
   // still matches. A rename or copy carries its source as a second entry.
-  const nested = new Set(layout.worktrees.slice(1).map((w) => w.path));
+  const nested = new Set(
+    layout.worktrees.slice(1).map((w) => pathKey(w.path)),
+  );
   const entries = status.stdout.split("\0");
   const changes: string[] = [];
   for (let i = 0; i < entries.length; i++) {
@@ -2456,7 +2428,7 @@ async function assertCleanPrimary(
     if (entry[0] === "R" || entry[0] === "C") i++;
     if (
       entry.startsWith("?? ") &&
-      nested.has(canonicalPath(entry.substring(3), primary.path))
+      nested.has(pathKey(canonicalPath(entry.substring(3), primary.path)))
     ) {
       continue;
     }
@@ -2500,16 +2472,16 @@ export async function runEnsureWorktree(
         // Resolved once, against the current directory as ensure_checkout
         // does; git only ever sees the absolute path, so it cannot resolve a
         // relative one against repoPath instead.
-        const target = canonicalPath(args.path, Deno.cwd());
+        const target = canonicalPath(args.path, currentDir());
         assertPlacement(target, layout, args.root);
         if (args.requireCleanPrimary) await assertCleanPrimary(layout, signal);
 
         const baseRef = qualifyBase(args.base);
         const baseRefCommit = await fetchBase(cwd, remote, baseRef, signal);
 
-        const existing = layout.worktrees.find((w) => w.path === target);
+        const existing = layout.worktrees.find((w) => samePath(w.path, target));
         const holder = layout.worktrees.find((w) =>
-          w.branch === args.branch && w.path !== target
+          w.branch === args.branch && !samePath(w.path, target)
         );
         if (holder) {
           throw new Error(
@@ -2693,8 +2665,10 @@ export async function runVerifyWorktree(
         const signal = ctx.signal;
 
         const layout = await readLayout(cwd, signal);
-        const target = canonicalPath(args.path, Deno.cwd());
-        const index = layout.worktrees.findIndex((w) => w.path === target);
+        const target = canonicalPath(args.path, currentDir());
+        const index = layout.worktrees.findIndex((w) =>
+          samePath(w.path, target)
+        );
         if (index === -1) {
           throw new Error(
             `${target} is not a registered worktree of ${layout.primary}`,
@@ -2727,7 +2701,7 @@ export async function runVerifyWorktree(
         const linked = common.exitCode === 0
           ? canonicalPath(common.stdout.trim(), target)
           : `(unreadable: ${common.stderr.trim()})`;
-        if (linked !== layout.commonDir) {
+        if (!samePath(linked, layout.commonDir)) {
           mismatches.push(
             `git directory: expected ${layout.commonDir}, found ${linked}`,
           );
@@ -2787,7 +2761,7 @@ export async function runVerifyWorktree(
           } else if (
             !sameRemote(
               normaliseRemote(stored.stdout.trim(), target),
-              normaliseRemote(args.expectedUrl, Deno.cwd()),
+              normaliseRemote(args.expectedUrl, currentDir()),
             )
           ) {
             mismatches.push(

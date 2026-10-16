@@ -4,7 +4,16 @@ import {
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import { model } from "./git.ts";
-import { normaliseRemote } from "./_lib/operations.ts";
+import {
+  assertPlacement,
+  normaliseRemote,
+  readLayout,
+} from "./_lib/operations.ts";
+import {
+  type PathFlavor,
+  resetPathFlavor,
+  setPathFlavor,
+} from "./_lib/paths.ts";
 import { resetCommandExecutor, setCommandExecutor } from "./_lib/runner.ts";
 import type { DataHandle, ExecResult, GitContext } from "./_lib/types.ts";
 
@@ -4040,6 +4049,44 @@ Deno.test("normaliseRemote resolves local paths and file URLs alike", () => {
   assertEquals(normaliseRemote("repos/thing.git/", "/srv"), plain);
 });
 
+/** Windows path rules with nothing on disk, so realPath never resolves. */
+const WINDOWS_NOTHING: PathFlavor = {
+  windows: true,
+  cwd: () => "C:\\repos\\factory",
+  realPath: (path) => {
+    throw new Deno.errors.NotFound(path);
+  },
+};
+
+Deno.test("normaliseRemote on Windows reads drive-letter paths as local", () => {
+  setPathFlavor(WINDOWS_NOTHING);
+  try {
+    const local = { host: "", path: "c:/repos/thing.git" };
+    for (
+      const url of [
+        "C:/repos/thing.git",
+        "C:\\repos\\thing.git",
+        "c:/Repos/Thing.git/",
+        "file:///C:/repos/thing.git",
+      ]
+    ) {
+      assertEquals(normaliseRemote(url, "C:\\base"), local, url);
+    }
+    assertEquals(normaliseRemote("thing.git", "C:\\repos"), local);
+    assertEquals(normaliseRemote("file:///C:/x/100%zz", "C:\\base"), {
+      host: "",
+      path: "c:/x/100%zz",
+    });
+    // scp-style remotes with a real host are unaffected.
+    assertEquals(normaliseRemote("git@host:org/repo.git", "C:\\base"), {
+      host: "host",
+      path: "org/repo",
+    });
+  } finally {
+    resetPathFlavor();
+  }
+});
+
 Deno.test("normaliseRemote keeps a malformed percent escape as-is", () => {
   assertEquals(
     normaliseRemote("https://example.com/org/100%zz", "/base"),
@@ -4957,6 +5004,7 @@ Deno.test("worktree args refuse a ref as branch and '..' in paths", () => {
   assertEquals(ensure.safeParse({ ...ok, path: "a/../b" }).success, false);
   assertEquals(ensure.safeParse({ ...ok, path: ".." }).success, false);
   assertEquals(ensure.safeParse({ ...ok, root: "r/.." }).success, false);
+  assertEquals(ensure.safeParse({ ...ok, path: "a\\..\\b" }).success, false);
   // A name that merely contains dots is fine.
   assertEquals(ensure.safeParse({ ...ok, path: "a/..b/c" }).success, true);
 
@@ -5571,5 +5619,156 @@ Deno.test("real git: a detached worktree is refused by ensure_worktree and verif
     );
   } finally {
     await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Windows paths — the git for Windows listing format under Windows path rules
+// ---------------------------------------------------------------------------
+
+/** The reporter's machine: cwd C:\repos\factory, repository at C:/repos/factory. */
+function windowsFactory(extra: Record<string, string> = {}): PathFlavor {
+  const table = new Map(
+    Object.entries({
+      "C:\\": "C:\\",
+      "C:\\repos": "C:\\repos",
+      "C:\\repos\\factory": "C:\\repos\\factory",
+      "C:\\repos\\factory\\.git": "C:\\repos\\factory\\.git",
+      ...extra,
+    }).map(([k, v]) => [k.toLowerCase(), v]),
+  );
+  return {
+    windows: true,
+    cwd: () => "C:\\repos\\factory",
+    realPath: (path) => {
+      const hit = table.get(path.toLowerCase());
+      if (hit === undefined) throw new Deno.errors.NotFound(path);
+      return hit;
+    },
+  };
+}
+
+const WINDOWS_WORKTREE_LIST = [
+  "worktree C:/repos/factory",
+  "HEAD abc1234",
+  "branch refs/heads/main",
+  "",
+  "worktree C:/repos/factory/work/ITEM",
+  "HEAD def5678",
+  "branch refs/heads/work/item",
+  "",
+].join("\n");
+
+function windowsGit(argv: string[]): ExecResult {
+  if (argv.includes("list")) return ok(WINDOWS_WORKTREE_LIST);
+  if (argv.includes("--git-common-dir")) return ok("C:/repos/factory/.git\n");
+  return ok("");
+}
+
+Deno.test("windows: an existing worktree is reused, not refused as outside its root", async () => {
+  setPathFlavor(windowsFactory({
+    "C:\\repos\\factory\\work": "C:\\repos\\factory\\work",
+    "C:\\repos\\factory\\work\\ITEM": "C:\\repos\\factory\\work\\ITEM",
+  }));
+  setCommandExecutor(windowsGit);
+  try {
+    const layout = await readLayout(
+      "C:/repos/factory",
+      new AbortController().signal,
+    );
+    assertEquals(layout.primary, "C:\\repos\\factory");
+    assertEquals(layout.commonDir, "C:\\repos\\factory\\.git");
+    // The reuse case: an exact match with a secondary worktree, inside root.
+    assertPlacement(
+      "C:\\repos\\factory\\work\\ITEM",
+      layout,
+      "C:/repos/factory/work",
+    );
+    // A new sibling inside the root is placed as well.
+    assertPlacement(
+      "C:\\repos\\factory\\work\\OTHER",
+      layout,
+      "C:\\repos\\factory\\work",
+    );
+  } finally {
+    resetCommandExecutor();
+    resetPathFlavor();
+  }
+});
+
+Deno.test("windows: placement safety checks match git's C:/ listing", async () => {
+  setPathFlavor(windowsFactory());
+  setCommandExecutor(windowsGit);
+  try {
+    const layout = await readLayout(
+      "C:/repos/factory",
+      new AbortController().signal,
+    );
+    assertThrows(
+      () => assertPlacement("c:\\REPOS\\factory", layout, undefined),
+      Error,
+      "is the primary checkout",
+    );
+    assertThrows(
+      () =>
+        assertPlacement(
+          "C:\\repos\\factory\\.git\\wt",
+          layout,
+          undefined,
+        ),
+      Error,
+      "is inside the git directory",
+    );
+    assertThrows(
+      () => assertPlacement("C:\\repos\\factory\\work", layout, undefined),
+      Error,
+      "contains the worktree",
+    );
+    assertThrows(
+      () =>
+        assertPlacement(
+          "C:\\repos\\factory\\work\\ITEM\\nested",
+          layout,
+          undefined,
+        ),
+      Error,
+      "is inside the worktree",
+    );
+    assertThrows(
+      () => assertPlacement("D:\\elsewhere", layout, "C:/repos/factory/work"),
+      Error,
+      "is outside the worktree root",
+    );
+  } finally {
+    resetCommandExecutor();
+    resetPathFlavor();
+  }
+});
+
+Deno.test("windows: remove_worktree matches paths across spellings", async () => {
+  setPathFlavor(windowsFactory());
+  const calls: string[][] = [];
+  setCommandExecutor((argv) => {
+    calls.push(argv);
+    return windowsGit(argv);
+  });
+  try {
+    const { ctx, writes } = makeHarness({ repoPath: "C:/repos/factory" });
+    for (const path of ["C:\\repos\\factory", "c:/REPOS/factory/"]) {
+      await assertRejects(
+        () => model.methods.remove_worktree.execute({ path }, ctx),
+        Error,
+        "cannot remove the primary checkout",
+      );
+    }
+    await model.methods.remove_worktree.execute(
+      { path: "c:\\repos\\factory\\work\\item" },
+      ctx,
+    );
+    assertEquals(writes[0].data.removed, true);
+    assertEquals(calls.some((c) => c.includes("remove")), true);
+  } finally {
+    resetCommandExecutor();
+    resetPathFlavor();
   }
 });

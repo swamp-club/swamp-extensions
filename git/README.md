@@ -281,7 +281,8 @@ swamp model method run repo ensure_checkout \
   and `ssh://git@github.com/org/repo` all match. The host is part of the
   comparison, so an SSH host alias or a mirror on another host is treated as a
   different repository. Local-path remotes compare exactly: case matters and
-  `repo` is not `repo.git`.
+  `repo` is not `repo.git`. On Windows, local paths compare as the filesystem
+  does — `C:/repos/x`, `C:\repos\x`, and `c:/Repos/X` are the same remote.
 - **`ref`** must be a branch (tags and SHAs are refused before anything is
   cloned). When omitted, the remote's default branch is used. Switching `ref`
   in a single-branch (shallow) clone adds the branch to the remote's fetch
@@ -364,7 +365,10 @@ It also refuses, before touching anything:
 
 Relative `path` and `root` resolve against the current directory, and every
 path is compared symlink-resolved (macOS `/tmp` is `/private/tmp`). A `..`
-segment in `path` or `root` is refused. `branch` is a branch name
+segment in `path` or `root` is refused. On Windows, `path` and `root` may use a
+drive letter (`C:/repos/work/item-42`), backslashes, or no drive (`/repos/...`,
+resolved against the current drive); paths compare case-insensitively, and the
+paths in results use backslashes. `branch` is a branch name
 (`work/item-42`), not a ref — `refs/heads/...` is refused.
 
 The `worktreeResult` resource carries `subjectRoot` (the canonical worktree
