@@ -125,6 +125,16 @@ swamp vault create @swamp/1password my-1password \
 `put` creates a Secure Note if the item does not already exist, or updates the
 target field in place.
 
+`delete` of an item that does not exist succeeds without changing anything.
+
+## Errors
+
+A failed `op` call is reported as an authentication failure, a missing vault, or
+a plain `1Password CLI error`, decided by `op`'s own wording. Item and vault
+names never decide the kind: an item named `jira-authorization` that does not
+exist is reported as a missing item, not an authentication failure. Every error
+includes `op`'s message unchanged.
+
 ## Observability
 
 The extension emits [OpenTelemetry](https://opentelemetry.io/) spans for vault

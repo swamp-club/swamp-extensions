@@ -181,6 +181,20 @@ function createOpMock() {
     }
   }
 
+  // What real op prints for an item missing from the vault.
+  function missingItem(item: string, vaultName: string) {
+    return {
+      stdout: "",
+      stderr:
+        `[ERROR] "${item}" isn't an item in the "${vaultName}" vault. Specify the item with its UUID, name, or domain.`,
+      code: 1,
+    };
+  }
+
+  function vaultArg(args: string[]): string {
+    return args[args.indexOf("--vault") + 1];
+  }
+
   return (cmd: string, args: string[]) => {
     if (cmd !== "op") {
       return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
@@ -197,7 +211,7 @@ function createOpMock() {
       const field = parts.slice(2).join("/") || "password";
       const itemData = items.get(item);
       if (!itemData) {
-        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+        return missingItem(item, parts[0]);
       }
       if (itemData.fields.has(field)) {
         return { stdout: itemData.fields.get(field)! + "\n", code: 0 };
@@ -217,7 +231,7 @@ function createOpMock() {
     if (args[0] === "item" && args[1] === "get") {
       const item = args[2];
       if (!items.has(item)) {
-        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+        return missingItem(item, vaultArg(args));
       }
       if (args.includes("--format") && args.includes("json")) {
         return { stdout: buildItemJson(item, items.get(item)!), code: 0 };
@@ -263,7 +277,7 @@ function createOpMock() {
     if (args[0] === "item" && args[1] === "edit") {
       const item = args[2];
       if (!items.has(item)) {
-        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+        return missingItem(item, vaultArg(args));
       }
       const data = items.get(item)!;
 
@@ -328,7 +342,7 @@ function createOpMock() {
     if (args[0] === "item" && args[1] === "delete") {
       const item = args[2];
       if (!items.has(item)) {
-        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+        return missingItem(item, vaultArg(args));
       }
       items.delete(item);
       return { stdout: "", code: 0 };
@@ -361,10 +375,17 @@ Deno.test("1password vault: get returns stored secret", async () => {
 
 Deno.test("1password vault: get rejects for missing secret", async () => {
   await withMockedCommand(createOpMock(), async () => {
+    // One read: the mock never makes the item visible, so retrying only
+    // slows the test down.
     const provider = vault.createProvider("test", {
       op_vault: "Engineering",
+      read_retry_attempts: 1,
     });
-    await assertRejects(() => provider.get("nonexistent"));
+    await assertRejects(
+      () => provider.get("nonexistent"),
+      Error,
+      "isn't an item",
+    );
   });
 });
 
@@ -1457,4 +1478,219 @@ Deno.test("1password vault: get does not retry other op errors", async () => {
   });
 
   assertEquals(counter.reads, 1);
+});
+
+// --- Error classification ignores item and vault names (swamp-club #3544, #3543) ---
+
+const AUTH_NAMED_ITEM_NOT_VISIBLE =
+  `[ERROR] could not read secret 'op://Engineering/jira-authorization/password': could not get item Engineering/jira-authorization: "jira-authorization" isn't an item in the "Engineering" vault.`;
+
+/** Mock op whose every call after --version fails with stderr. */
+function createFailingOpMock(stderr: string) {
+  return (cmd: string, args: string[]) => {
+    if (cmd !== "op") {
+      return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
+    }
+    if (args.includes("--version")) {
+      return { stdout: "2.30.0", code: 0 };
+    }
+    return { stdout: "", stderr, code: 1 };
+  };
+}
+
+Deno.test("1password vault: get retries an item whose name contains authorization", async () => {
+  const { mock, counter } = createFlakyReadMock(AUTH_NAMED_ITEM_NOT_VISIBLE, 1);
+  const { result } = await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    return await provider.get("jira-authorization");
+  });
+
+  assertEquals(result, "s3cr3t");
+  assertEquals(counter.reads, 2);
+});
+
+Deno.test("1password vault: a missing item whose name contains authorization is not an auth failure", async () => {
+  const { mock } = createFlakyReadMock(AUTH_NAMED_ITEM_NOT_VISIBLE, Infinity);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_attempts: 1,
+    });
+    const err = await assertRejects(
+      () => provider.get("jira-authorization"),
+      Error,
+    );
+    assertEquals(
+      err.message,
+      `1Password CLI error: ${AUTH_NAMED_ITEM_NOT_VISIBLE}`,
+    );
+  });
+});
+
+Deno.test("1password vault: a missing vault whose name contains authorization is a missing vault", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    `[ERROR] could not read secret 'op://authorization-team/fresh/password': "authorization-team" isn't a vault in this account`,
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "authorization-team",
+    });
+    await assertRejects(
+      () => provider.get("fresh"),
+      Error,
+      "1Password vault 'authorization-team' not found",
+    );
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: a missing vault named vault is a missing vault", async () => {
+  await withMockedCommand(
+    createFailingOpMock(`[ERROR] "vault" isn't a vault in this account`),
+    async () => {
+      const provider = vault.createProvider("test", { op_vault: "vault" });
+      await assertRejects(
+        () => provider.delete("fresh"),
+        Error,
+        "1Password vault 'vault' not found",
+      );
+    },
+  );
+});
+
+Deno.test("1password vault: an unquoted item path containing authorization is not an auth failure", async () => {
+  const stderr =
+    `[ERROR] could not read secret 'op://Engineering/jira-authorization/password': could not get item Engineering/jira-authorization: connection reset`;
+  const { mock, counter } = createFlakyReadMock(stderr, 1);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    const err = await assertRejects(
+      () => provider.get("jira-authorization"),
+      Error,
+    );
+    assertEquals(err.message, `1Password CLI error: ${stderr}`);
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+for (const item of ["jira-authorization", "auth"]) {
+  Deno.test(`1password vault: a real auth failure for an item named ${item} is still an auth failure`, async () => {
+    const { mock, counter } = createFlakyReadMock(
+      `[ERROR] could not read secret 'op://Engineering/${item}/password': You are not currently signed in. Please run \`op signin --help\` for instructions`,
+      1,
+    );
+    await withMockedCommand(mock, async () => {
+      const provider = vault.createProvider("test", {
+        op_vault: "Engineering",
+      });
+      await assertRejects(
+        () => provider.get(item),
+        Error,
+        "1Password authentication failed",
+      );
+    });
+
+    assertEquals(counter.reads, 1);
+  });
+}
+
+Deno.test("1password vault: a missing item whose name has regex metacharacters is a plain op error", async () => {
+  const stderr =
+    `[ERROR] could not read secret 'op://Engineering/a.b+[c]/password': could not get item Engineering/a.b+[c]: "a.b+[c]" isn't an item in the "Engineering" vault.`;
+  const { mock } = createFlakyReadMock(stderr, Infinity);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_attempts: 1,
+    });
+    const err = await assertRejects(() => provider.get("a.b+[c]"), Error);
+    assertEquals(err.message, `1Password CLI error: ${stderr}`);
+  });
+});
+
+Deno.test("1password vault: delete of a missing item is a no-op with real op wording", async () => {
+  await withMockedCommand(
+    createFailingOpMock(
+      `[ERROR] "jira-authorization" isn't an item in the "Engineering" vault. Specify the item with its UUID, name, or domain.`,
+    ),
+    async () => {
+      const provider = vault.createProvider("test", {
+        op_vault: "Engineering",
+      });
+      await provider.delete("jira-authorization");
+    },
+  );
+});
+
+Deno.test("1password vault: delete propagates an authentication error", async () => {
+  await withMockedCommand(
+    createFailingOpMock(
+      "[ERROR] You are not currently signed in. Please run `op signin --help` for instructions",
+    ),
+    async () => {
+      const provider = vault.createProvider("test", {
+        op_vault: "Engineering",
+      });
+      await assertRejects(
+        () => provider.delete("some-item"),
+        Error,
+        "1Password authentication failed",
+      );
+    },
+  );
+});
+
+Deno.test("1password vault: a real auth failure in a vault named signed is still an auth failure", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    "[ERROR] could not read secret 'op://signed/fresh/password': You are not currently signed in. Please run `op signin --help` for instructions",
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "signed" });
+    await assertRejects(
+      () => provider.get("fresh"),
+      Error,
+      "1Password authentication failed",
+    );
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: a sign-in failure for an item named authorization is still an auth failure", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    "[ERROR] could not read secret 'op://Engineering/authorization/password': You are not currently signed in. Please run `op signin --help` for instructions",
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    await assertRejects(
+      () => provider.get("authorization"),
+      Error,
+      "1Password authentication failed",
+    );
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: a sign-in failure is not hidden by a field value op was given", async () => {
+  await withMockedCommand(
+    createFailingOpMock(
+      "[ERROR] You are not currently signed in. Please run `op signin --help` for instructions",
+    ),
+    async () => {
+      const provider = vault.createProvider("test", {
+        op_vault: "Engineering",
+      });
+      await assertRejects(
+        () => provider.put("fresh", "path/in"),
+        Error,
+        "1Password authentication failed",
+      );
+    },
+  );
 });

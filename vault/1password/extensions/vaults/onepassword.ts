@@ -157,15 +157,86 @@ function validateLabelKey(key: string): void {
 const READ_RETRY_INITIAL_DELAY_MS = 250;
 
 /**
- * True when `op` reported the item as missing from the vault. An item another
- * process has just created can be reported this way for a few seconds before
- * it becomes visible to this client. Errors runOp classified as an auth
- * failure or a missing vault never match, so those fail on the first attempt.
+ * True when `op` reported the item as missing from the vault. get() retries
+ * this, because an item another process has just created can be reported this
+ * way for a few seconds before it becomes visible to this client; delete()
+ * treats it as already deleted. Errors runOp classified as an auth failure or
+ * a missing vault never match.
  */
-function isItemNotVisible(err: unknown): boolean {
+function isItemMissing(err: unknown): boolean {
   return err instanceof Error &&
     err.message.startsWith("1Password CLI error:") &&
     err.message.includes("isn't an item");
+}
+
+type OpErrorKind = "auth" | "vault_missing" | "other";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Flags whose value is an item, vault or account name the user chose. */
+const NAME_FLAGS = new Set(["--vault", "--account", "--title"]);
+
+/**
+ * The item, vault and account names and op:// URI in an `op` call, split on
+ * / so the vault/item path op prints unquoted is covered too. Field values,
+ * tags and annotations are not names op echoes back, so they are left out.
+ */
+function opNameValues(args: string[]): Set<string> {
+  const names: string[] = [];
+  // The positional after the subcommand: the URI for `op read`, the item
+  // for `op item get|edit|delete`.
+  const positional = args[args[0] === "item" ? 2 : 1];
+  if (positional && !positional.startsWith("-")) names.push(positional);
+  for (let i = 0; i < args.length - 1; i++) {
+    if (NAME_FLAGS.has(args[i])) names.push(args[i + 1]);
+  }
+
+  const values = new Set<string>();
+  for (const name of names) {
+    values.add(name);
+    for (const segment of name.replace(/^op:\/\//, "").split("/")) {
+      values.add(segment);
+    }
+  }
+  values.delete("");
+  return values;
+}
+
+/**
+ * Classifies a failed `op` call from its stderr. The stderr embeds names the
+ * user chose (item, vault, op:// URI), so a name like jira-authorization must
+ * not decide the kind. op's own phrases are matched with the spans op quotes
+ * removed; the bare auth words are matched only after the names passed to op
+ * have also been removed.
+ */
+function classifyOpError(message: string, args: string[]): OpErrorKind {
+  const opText = message
+    .replace(/"[^"]*"/g, '""')
+    .replace(/'op:\/\/[^']*'/g, "''");
+
+  if (opText.includes("isn't an item")) return "other";
+  if (opText.includes("isn't a vault")) return "vault_missing";
+  if (/not (currently )?signed in/.test(opText)) return "auth";
+
+  let scrubbed = opText;
+  for (const value of opNameValues(args)) {
+    scrubbed = scrubbed.replace(
+      new RegExp(`(?<![\\w-])${escapeRegExp(value)}(?![\\w-])`, "g"),
+      "",
+    );
+  }
+
+  if (
+    scrubbed.includes("authorization") || scrubbed.includes("authenticate")
+  ) {
+    return "auth";
+  }
+  if (scrubbed.includes("vault") && scrubbed.includes("not found")) {
+    return "vault_missing";
+  }
+  return "other";
 }
 
 interface OpItemField {
@@ -350,7 +421,7 @@ class OnePasswordVaultProvider implements VaultProvider {
         const remainingMs = deadline - performance.now();
         if (
           finalRead || attempt >= this.readRetryAttempts || remainingMs <= 0 ||
-          !isItemNotVisible(err)
+          !isItemMissing(err)
         ) {
           throw err;
         }
@@ -624,11 +695,7 @@ class OnePasswordVaultProvider implements VaultProvider {
           try {
             await this.runOp(args);
           } catch (error: unknown) {
-            if (
-              error instanceof Error &&
-              error.message.includes("not found") &&
-              !error.message.startsWith("1Password vault")
-            ) {
+            if (isItemMissing(error)) {
               return;
             }
             throw error;
@@ -1115,12 +1182,9 @@ class OnePasswordVaultProvider implements VaultProvider {
 
           if (!success) {
             const errorMessage = stderrText.trim() || "Unknown error";
+            const kind = classifyOpError(errorMessage, args);
 
-            if (
-              errorMessage.includes("not signed in") ||
-              errorMessage.includes("authorization") ||
-              errorMessage.includes("authenticate")
-            ) {
+            if (kind === "auth") {
               throw new Error(
                 `1Password authentication failed.\n\n` +
                   `Authenticate using one of:\n` +
@@ -1132,11 +1196,7 @@ class OnePasswordVaultProvider implements VaultProvider {
               );
             }
 
-            if (
-              errorMessage.includes("isn't a vault") ||
-              (errorMessage.includes("vault") &&
-                errorMessage.includes("not found"))
-            ) {
+            if (kind === "vault_missing") {
               throw new Error(
                 `1Password vault '${this.opVault}' not found. Verify the vault name in your configuration.\n\n` +
                   `Error: ${errorMessage}`,
