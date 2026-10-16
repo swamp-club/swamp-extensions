@@ -148,7 +148,11 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   unchanged since this copy last wrote or verified it; otherwise it is
   hash-compared, on push and on pull. The index's `localMtime` is the pushing
   machine's, so it never decides on its own. A same-size file whose entry has no
-  sha256 is pushed once unless this copy recorded it, which adds the hash.
+  sha256 is pushed once unless this copy recorded it, which adds the hash. A
+  cache upgraded from an earlier version has no record yet: on its first sync it
+  seeds one, once, from its local index for entries without a sha256 whose file
+  still has the indexed size and mtime, so those legacy files are trusted as
+  before rather than re-uploaded.
 - **Shard-first index**: After migration to v2
   (`swamp datastore migrate-index`), per-model partition shards under `_index/`
   are the source of truth. Commits write only the dirty shards and `_meta.json`,

@@ -623,6 +623,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private syncStateLoaded = false;
   private readonly ownMtimesPath: string;
   private ownMtimes: Map<string, OwnMtimeRecord> | null = null;
+  private ownMtimesLoad: Promise<Map<string, OwnMtimeRecord>> | null = null;
+  private ownMtimesSeedPending = false;
+  private ownMtimesSeeding: Promise<void> | null = null;
   private ownMtimesDirty = false;
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
@@ -889,6 +892,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         () => this.gcs.putObject(this.indexKey(), indexData, signal),
         { signal },
       );
+      await this.beforeIndexWrite();
       await atomicWriteTextFile(
         this.indexPath,
         JSON.stringify(this.index, null, 2),
@@ -1684,11 +1688,22 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Loads the own mtime record on first call. A missing or corrupt file
-   * is an empty record: every same-size file is then hashed, never trusted.
+   * Loads the own mtime record on first call; concurrent first callers
+   * share one load. A corrupt or unreadable file is an empty record: every
+   * same-size file is then hashed, never trusted. A missing file is seeded
+   * once, after the namespace is bound, by {@link seedOwnMtimes}.
    */
   private async loadOwnMtimes(): Promise<Map<string, OwnMtimeRecord>> {
-    if (this.ownMtimes) return this.ownMtimes;
+    this.ownMtimesLoad ??= this.readOwnMtimes();
+    const records = await this.ownMtimesLoad;
+    if (this.ownMtimesSeedPending && this.namespaceBound) {
+      this.ownMtimesSeeding ??= this.seedOwnMtimes(records);
+      await this.ownMtimesSeeding;
+    }
+    return records;
+  }
+
+  private async readOwnMtimes(): Promise<Map<string, OwnMtimeRecord>> {
     const records = new Map<string, OwnMtimeRecord>();
     try {
       const parsed = JSON.parse(await Deno.readTextFile(this.ownMtimesPath));
@@ -1700,11 +1715,68 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           }
         }
       }
-    } catch {
-      // Missing/corrupt/unreadable — start empty (safe default).
+    } catch (err) {
+      // Missing — seed it (swamp-club#3550). Corrupt/unreadable — start
+      // empty and never seed, so foreign mtimes are never re-trusted.
+      if (err instanceof Deno.errors.NotFound) this.ownMtimesSeedPending = true;
     }
-    this.ownMtimes ??= records;
-    return this.ownMtimes;
+    this.ownMtimes = records;
+    return records;
+  }
+
+  /**
+   * Seeds a missing own record, once per cache, from the index this copy
+   * last synced. Only entries without a sha256 are seeded, and only when the
+   * local file still has the entry's size and localMtime. Such entries have
+   * no hash to fall back on, so a cache upgraded from before
+   * swamp-club#3546 would otherwise keep an unchanged legacy file a peer
+   * deleted, then push it back, and re-push every other one
+   * (swamp-club#3550). This trusts them exactly as before #3546, including
+   * pullChanged's size-only localMtime reconcile. Entries with a sha256 are
+   * hashed instead. Runs only once the namespace is bound, so local paths
+   * resolve, and must run before the on-disk index is first replaced (see
+   * {@link beforeIndexWrite}). The record is written straight away: from
+   * then on a missing entry means "not verified", never "seed again".
+   */
+  private async seedOwnMtimes(
+    records: Map<string, OwnMtimeRecord>,
+  ): Promise<void> {
+    const entries = Object.entries(await this.readLastSyncedEntries() ?? {})
+      .filter(([rel, entry]) =>
+        !entry.sha256 && entry.localMtime && !isInternalCacheFile(rel)
+      );
+    for (let i = 0; i < entries.length; i += this.pullConcurrency) {
+      await Promise.all(
+        entries.slice(i, i + this.pullConcurrency).map(async ([rel, entry]) => {
+          try {
+            const stat = await Deno.stat(
+              assertSafePath(this.cachePath, this.localRelPath(rel)),
+            );
+            const mtime = stat.mtime?.toISOString();
+            if (
+              stat.isFile && stat.size === entry.size && mtime &&
+              mtime === entry.localMtime && !records.has(rel)
+            ) {
+              records.set(rel, { mtime, size: entry.size });
+            }
+          } catch {
+            // Missing or unsafe path — not seeded.
+          }
+        }),
+      );
+    }
+    this.ownMtimesSeedPending = false;
+    this.ownMtimesDirty = true;
+    await this.flushOwnMtimes();
+  }
+
+  /**
+   * Call before replacing the on-disk index, so a pending seed reads the
+   * index this copy last synced, not a remote payload that has lost
+   * peer-deleted entries and carries pushers' mtimes (swamp-club#3550).
+   */
+  private async beforeIndexWrite(): Promise<void> {
+    await this.loadOwnMtimes();
   }
 
   /**
@@ -1756,7 +1828,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * may overwrite each other's writes with the same outcome.
    */
   private async flushOwnMtimes(): Promise<void> {
-    if (!this.ownMtimes || !this.ownMtimesDirty) return;
+    // While a seed is pending, writing the file would mark it done.
+    if (
+      !this.ownMtimes || !this.ownMtimesDirty || this.ownMtimesSeedPending
+    ) {
+      return;
+    }
     this.ownMtimesDirty = false;
     try {
       await ensureDir(this.cachePath);
@@ -2120,11 +2197,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     await ensureDir(this.cachePath);
     if (this.scrubIndex()) {
       this.indexMutated = true;
+      await this.beforeIndexWrite();
       await atomicWriteTextFile(
         this.indexPath,
         JSON.stringify(this.index, null, 2),
       );
     } else {
+      await this.beforeIndexWrite();
       await atomicWriteTextFile(this.indexPath, text);
     }
     return generation ?? null;
@@ -2247,6 +2326,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       { signal },
     );
     await ensureDir(this.cachePath);
+    await this.beforeIndexWrite();
     await atomicWriteTextFile(
       this.indexPath,
       JSON.stringify(this.index, null, 2),
@@ -2316,6 +2396,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     if (!this.index) return false;
     if (!this.indexIsPartial) {
       try {
+        await this.beforeIndexWrite();
         await atomicWriteTextFile(
           this.indexPath,
           JSON.stringify(this.index, null, 2),
@@ -2341,6 +2422,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         delete onDisk.entries[rel];
       }
       onDisk.lastPulled = this.index.lastPulled;
+      await this.beforeIndexWrite();
       await atomicWriteTextFile(
         this.indexPath,
         JSON.stringify(onDisk, null, 2),
@@ -2757,6 +2839,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           if (indexGeneration) {
             try {
               if ((pulled > 0 || this.indexMutated) && this.index) {
+                await this.beforeIndexWrite();
                 await atomicWriteTextFile(
                   this.indexPath,
                   JSON.stringify(this.index, null, 2),
@@ -2799,6 +2882,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 signal,
               );
 
+              await this.beforeIndexWrite();
               await atomicWriteTextFile(
                 this.indexPath,
                 JSON.stringify(this.index, null, 2),
@@ -3415,6 +3499,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 () => this.gcs.putObject(this.indexKey(), indexData, signal),
                 { signal },
               );
+              await this.beforeIndexWrite();
               await atomicWriteTextFile(
                 this.indexPath,
                 JSON.stringify(this.index, null, 2),
@@ -4079,6 +4164,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         () => this.gcs.putObject(this.indexKey(), indexData, signal),
         { signal },
       );
+      await this.beforeIndexWrite();
       await atomicWriteTextFile(
         this.indexPath,
         JSON.stringify(this.index, null, 2),
@@ -4110,6 +4196,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private async saveIndex(): Promise<void> {
     if (!this.index) return;
     await ensureDir(this.cachePath);
+    await this.beforeIndexWrite();
     await atomicWriteTextFile(
       this.indexPath,
       JSON.stringify(this.index, null, 2),

@@ -11322,7 +11322,7 @@ Deno.test("swamp-club#3546: pushChanged uploads a same-size hashless entry this 
   }
 });
 
-Deno.test("swamp-club#3546: a peer's deletion does not remove a locally edited hashless file whose mtime only matches the pusher's", async () => {
+Deno.test("swamp-club#3546: once recorded, a peer's deletion does not remove a locally edited hashless file whose mtime only matches the pusher's", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3546-gone-" });
   try {
     const mock = createMockGcsClient();
@@ -11341,6 +11341,13 @@ Deno.test("swamp-club#3546: a peer's deletion does not remove a locally edited h
       })),
     );
     await seedOld3546(cachePath, GONE_2999, "edit");
+    // An own record already exists, so nothing is seeded from the index
+    // (that happens only once, on upgrade — swamp-club#3550).
+    await seedFile(
+      cachePath,
+      OWN_3546,
+      JSON.stringify({ version: 1, files: {} }),
+    );
 
     await new GcsCacheSyncService(mock, cachePath).pullChanged();
 
@@ -11436,6 +11443,279 @@ Deno.test("swamp-club#3546: a corrupt own mtime record falls back to hashing", a
 
     assertEquals(await Deno.readTextFile(join(cachePath, REL_3546)), "BBBB");
     assertEquals((await readOwn3546(cachePath))[REL_3546]?.size, 4);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// swamp-club#3550: a cache upgraded from before #3546 has no own record. Its
+// hashless (legacy) entries are seeded once from the index it last synced, so
+// they are trusted as before #3546; entries with a sha256 are not seeded.
+// No conformance helper covers sync change detection, so these assert it
+// directly.
+
+const LEGACY_3550 = "data/m/legacy/raw";
+
+/** Writes a hashless entry for each file, with this copy's mtime. */
+function legacyIndex3550(
+  files: Record<string, string>,
+): Record<string, ReturnType<typeof indexEntry> & { localMtime: string }> {
+  const entries: Record<
+    string,
+    ReturnType<typeof indexEntry> & { localMtime: string }
+  > = {};
+  for (const [rel, body] of Object.entries(files)) {
+    entries[rel] = {
+      ...indexEntry(rel, body.length),
+      localMtime: OLD_MTIME_3546.toISOString(),
+    };
+  }
+  return entries;
+}
+
+/**
+ * An upgraded cache: the local files with OLD_MTIME_3546, an on-disk index
+ * listing them hashless with that mtime, and no own record.
+ */
+async function seedUpgraded3550(
+  cachePath: string,
+  files: Record<string, string>,
+): Promise<void> {
+  for (const [rel, body] of Object.entries(files)) {
+    await seedOld3546(cachePath, rel, body);
+  }
+  await seedFile(
+    cachePath,
+    ".datastore-index.json",
+    new TextDecoder().decode(encodeIndex(legacyIndex3550(files))),
+  );
+}
+
+/** Puts `files` on the remote under a hashless monolith index. */
+function seedLegacyRemote3550(
+  mock: ReturnType<typeof createMockGcsClient>,
+  files: Record<string, string>,
+): void {
+  mock.storage.set(
+    ".datastore-index.json",
+    encodeIndex(legacyIndex3550(files)),
+  );
+  for (const [rel, body] of Object.entries(files)) {
+    mock.storage.set(rel, new TextEncoder().encode(body));
+  }
+}
+
+/** The private own-record loader, bound to the root namespace first. */
+function ownLoader3550(
+  service: GcsCacheSyncService,
+): () => Promise<
+  Map<string, { mtime: string; size: number; sha256?: string }>
+> {
+  const s = service as unknown as {
+    bindNamespace(ns: string | undefined): void;
+    loadOwnMtimes(): Promise<
+      Map<string, { mtime: string; size: number; sha256?: string }>
+    >;
+  };
+  s.bindNamespace(undefined);
+  return () => s.loadOwnMtimes();
+}
+
+Deno.test("swamp-club#3550: after upgrading, a pull drops an unchanged legacy file a peer deleted, and a push does not restore it", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-gone-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [KEPT_2999]: "kept" });
+    await seedUpgraded3550(cachePath, { [GONE_2999]: "gone" });
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    assertEquals(await exists(join(cachePath, GONE_2999)), false);
+
+    await service.pushChanged();
+    assertEquals(mock.storage.has(GONE_2999), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: after upgrading, a push does not re-upload an unchanged legacy file", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-push-" });
+  try {
+    const mock = createMockGcsClient();
+    seedLegacyRemote3550(mock, { [LEGACY_3550]: "AAAA" });
+    await seedUpgraded3550(cachePath, { [LEGACY_3550]: "AAAA" });
+
+    mock.puts.length = 0;
+    await new GcsCacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(mock.puts.filter((p) => p.key === LEGACY_3550).length, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: only hashless entries are seeded; a hashed one whose localMtime matches is still replaced on pull", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-hash-" });
+  try {
+    const mock = createMockGcsClient();
+    const hashed = {
+      key: REL_3546,
+      size: 4,
+      lastModified: new Date().toISOString(),
+      // Matches the local file's mtime, so only the sha256 stops the seed.
+      localMtime: OLD_MTIME_3546.toISOString(),
+      sha256: await sha256Hex("BBBB"),
+    };
+    const entries = {
+      ...legacyIndex3550({ [LEGACY_3550]: "keep" }),
+      [REL_3546]: hashed,
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(LEGACY_3550, new TextEncoder().encode("keep"));
+    mock.storage.set(REL_3546, new TextEncoder().encode("BBBB"));
+    await seedOld3546(cachePath, LEGACY_3550, "keep");
+    await seedOld3546(cachePath, REL_3546, "AAAA");
+    await seedFile(
+      cachePath,
+      ".datastore-index.json",
+      new TextDecoder().decode(encodeIndex(entries)),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const seeded = await ownLoader3550(service)();
+    assertEquals(seeded.has(LEGACY_3550), true);
+    assertEquals(seeded.has(REL_3546), false);
+
+    await service.pullChanged();
+    assertEquals(await Deno.readTextFile(join(cachePath, REL_3546)), "BBBB");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: a corrupt own record is not seeded, so a legacy file is pushed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-bad-" });
+  try {
+    const mock = createMockGcsClient();
+    seedLegacyRemote3550(mock, { [LEGACY_3550]: "AAAA" });
+    await seedUpgraded3550(cachePath, { [LEGACY_3550]: "AAAA" });
+    await seedFile(cachePath, OWN_3546, "{not json");
+
+    mock.puts.length = 0;
+    await new GcsCacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(mock.puts.filter((p) => p.key === LEGACY_3550).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: seeding happens once per cache", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-once-" });
+  try {
+    const mock = createMockGcsClient();
+    seedLegacyRemote3550(mock, { [LEGACY_3550]: "AAAA" });
+    await seedUpgraded3550(cachePath, { [LEGACY_3550]: "AAAA" });
+
+    await ownLoader3550(new GcsCacheSyncService(mock, cachePath))();
+    assertEquals((await readOwn3546(cachePath))[LEGACY_3550]?.size, 4);
+
+    // Dropping the entry means "not verified", never "seed again".
+    await seedFile(
+      cachePath,
+      OWN_3546,
+      JSON.stringify({ version: 1, files: {} }),
+    );
+    mock.puts.length = 0;
+    await new GcsCacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(mock.puts.filter((p) => p.key === LEGACY_3550).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: seeding reads the last-synced index even when a pullIndex replaces it first", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-first-" });
+  try {
+    const mock = createMockGcsClient();
+    // The remote entry carries the pusher's mtime, not this copy's.
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [LEGACY_3550]: {
+          ...indexEntry(LEGACY_3550, 4),
+          localMtime: new Date(Date.UTC(2025, 5, 1)).toISOString(),
+        },
+      }),
+    );
+    mock.storage.set(LEGACY_3550, new TextEncoder().encode("AAAA"));
+    await seedUpgraded3550(cachePath, { [LEGACY_3550]: "AAAA" });
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    ownLoader3550(service); // binds the namespace, as a sync call would
+    await service.pullIndex({ forceRemote: true });
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    assertEquals(mock.puts.filter((p) => p.key === LEGACY_3550).length, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: a hydrate before the namespace is bound does not use up the seed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-hyd-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedSynced2999(mock, { [KEPT_2999]: "kept" });
+    await seedUpgraded3550(cachePath, { [GONE_2999]: "gone" });
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    assertEquals(await service.hydrateFile(KEPT_2999), true);
+    await service.pullChanged();
+
+    assertEquals(await exists(join(cachePath, GONE_2999)), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: concurrent first loads share one seed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-conc-" });
+  try {
+    const mock = createMockGcsClient();
+    await seedUpgraded3550(cachePath, { [LEGACY_3550]: "AAAA" });
+
+    const load = ownLoader3550(new GcsCacheSyncService(mock, cachePath));
+    const [first, second] = await Promise.all([load(), load()]);
+
+    assertEquals(first === second, true);
+    assertEquals(first.get(LEGACY_3550), {
+      mtime: OLD_MTIME_3546.toISOString(),
+      size: 4,
+    });
+    assertEquals(Object.keys(await readOwn3546(cachePath)), [LEGACY_3550]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3550: an upgraded repo with many legacy files uploads none on its first full-walk push", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3550-many-" });
+  try {
+    const mock = createMockGcsClient();
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 50; i++) files[`data/m/legacy${i}/raw`] = `body${i}`;
+    seedLegacyRemote3550(mock, files);
+    await seedUpgraded3550(cachePath, files);
+
+    mock.puts.length = 0;
+    // With no sync-state sidecar, the first push walks every file.
+    await new GcsCacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(mock.puts.filter((p) => p.key in files).length, 0);
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }

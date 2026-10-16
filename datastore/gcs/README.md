@@ -272,7 +272,11 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   local-only and never synced) shows the file unchanged → skip; otherwise
   compare SHA-256 hashes. The index's `localMtime` is the pushing machine's, so
   it never decides on its own. A same-size file whose entry has no sha256 is
-  pushed once unless this copy recorded it, which adds the hash.
+  pushed once unless this copy recorded it, which adds the hash. A cache
+  upgraded from an earlier version has no record yet: on its first sync it seeds
+  one, once, from its local index for entries without a sha256 whose file still
+  has the indexed size and mtime, so those legacy files are trusted as before
+  rather than re-uploaded.
 - **Per-path dirty tracking** — `markDirty(options)` accepts a `relPath`
   argument and tracks per-path dirty sets (capped at 200 paths). When pushing,
   only dirty directories/files are walked instead of the entire cache. Overflows
