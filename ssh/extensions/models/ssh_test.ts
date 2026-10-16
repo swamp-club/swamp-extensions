@@ -27,6 +27,7 @@ import {
   setForwardSpawner,
   setProcessKiller,
 } from "./_lib/forwarding.ts";
+import { checkMasterWritable } from "./_lib/checks.ts";
 import type { CelEnvLike } from "./_lib/selectors.ts";
 import type { FleetContext } from "./_lib/operations.ts";
 import { SelectionSchema } from "./_lib/schemas.ts";
@@ -1308,6 +1309,82 @@ Deno.test("check master-writable: passes for a fresh temp dir", async () => {
     else Deno.env.delete("XDG_RUNTIME_DIR");
     await Deno.remove(tmp, { recursive: true });
   }
+});
+
+/** Run `fn` with XDG_RUNTIME_DIR pointing at a temp dir whose fleet dir is 0777. */
+async function withLooseControlDir(fn: () => Promise<void>): Promise<void> {
+  const tmp = await Deno.makeTempDir();
+  const prev = Deno.env.get("XDG_RUNTIME_DIR");
+  Deno.env.set("XDG_RUNTIME_DIR", tmp);
+  try {
+    const dir = `${tmp}/swamp-ssh/awesome`;
+    await Deno.mkdir(dir, { recursive: true });
+    await Deno.chmod(dir, 0o777);
+    await fn();
+  } finally {
+    if (prev !== undefined) Deno.env.set("XDG_RUNTIME_DIR", prev);
+    else Deno.env.delete("XDG_RUNTIME_DIR");
+    await Deno.remove(tmp, { recursive: true });
+  }
+}
+
+const FLEET_CM_DISABLED = {
+  ...FLEET,
+  transport: {
+    ...FLEET.transport,
+    controlMaster: { enabled: false },
+  },
+};
+
+Deno.test("check master-writable: passes when ControlMaster is disabled, even for a 0777 dir", async () => {
+  await withLooseControlDir(async () => {
+    const r = await model.checks["master-writable"].execute(
+      checkCtx(FLEET_CM_DISABLED),
+    );
+    assertEquals(r.pass, true);
+  });
+});
+
+Deno.test("check master-writable: passes for an all-tailscale fleet, even for a 0777 dir", async () => {
+  await withLooseControlDir(async () => {
+    const r = await model.checks["master-writable"].execute(
+      checkCtx({ ...FLEET, transport: { kind: "tailscale" } }),
+    );
+    assertEquals(r.pass, true);
+  });
+});
+
+Deno.test("check master-writable: a host override re-enabling ControlMaster still needs 0700", async () => {
+  if (Deno.build.os === "windows") return;
+  await withLooseControlDir(async () => {
+    const r = await model.checks["master-writable"].execute(
+      checkCtx({
+        ...FLEET_CM_DISABLED,
+        hosts: [
+          {
+            name: "web-1",
+            address: "10.0.0.11",
+            transport: { controlMaster: { enabled: true } },
+          },
+        ],
+      }),
+    );
+    assertEquals(r.pass, false);
+    assert(r.errors && r.errors[0].includes("permissions"));
+  });
+});
+
+Deno.test("check master-writable: on windows, enabled ControlMaster fails with an unsupported message", async () => {
+  // The model's check entry passes no platform, so call the check directly.
+  const r = await checkMasterWritable(checkCtx(), "windows");
+  assertEquals(r.pass, false);
+  assert(r.errors && r.errors[0].includes("does not support ControlMaster"));
+  assert(r.errors[0].includes("web-1"));
+});
+
+Deno.test("check master-writable: on windows, disabled ControlMaster passes", async () => {
+  const r = await checkMasterWritable(checkCtx(FLEET_CM_DISABLED), "windows");
+  assertEquals(r.pass, true);
 });
 
 Deno.test("check sshpass-available: fails when a fleet host needs password auth + missing binary", async () => {

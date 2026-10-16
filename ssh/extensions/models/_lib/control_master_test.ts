@@ -300,6 +300,23 @@ Deno.test("ensureControlDir: refuses world-writable dir", async () => {
   }
 });
 
+Deno.test("ensureControlDir: skips the mode check on windows", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    const dir = `${tmp}/swamp-ssh/awesome`;
+    await Deno.mkdir(dir, { recursive: true });
+    await Deno.chmod(dir, 0o777);
+    const result = await ensureControlDir(
+      "awesome",
+      { XDG_RUNTIME_DIR: tmp },
+      "windows",
+    );
+    assert(result.writable, JSON.stringify(result));
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
 Deno.test("ensureControlDir: idempotent on a clean 0700 dir", async () => {
   const tmp = await Deno.makeTempDir();
   try {

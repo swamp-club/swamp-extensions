@@ -30,7 +30,8 @@
  *     (see `resolveSelection` in `operations.ts`), which DOES receive args.
  *
  * That leaves two checks here, both computable from `globalArgs` alone:
- *   - `master-writable`  — the ControlMaster socket dir (from globalArgs.name).
+ *   - `master-writable`  — the ControlMaster socket dir (from globalArgs.name),
+ *     only when some ssh host has ControlMaster enabled.
  *   - `sshpass-available` — sshpass presence when *any* fleet host uses
  *     password auth (whole fleet, since the selection isn't visible here).
  *
@@ -54,12 +55,37 @@ export interface CheckContext {
 
 /**
  * Ensure the control directory is writable + 0700 before opening masters.
+ *
+ * Passes outright when no effective host is an ssh host with ControlMaster
+ * enabled (fleet-level disable, per-host overrides, all-tailscale fleets) —
+ * nothing will create a socket. On Windows, OpenSSH does not support
+ * ControlMaster, so an enabled host fails with that reason instead of a
+ * permission check that cannot mean anything there. `platform` defaults to
+ * `Deno.build.os`; tests inject it.
  */
 export async function checkMasterWritable(
   ctx: CheckContext,
+  platform: typeof Deno.build.os = Deno.build.os,
 ): Promise<CheckResult> {
   const g = GlobalArgsSchema.parse(ctx.globalArgs);
-  const result = await ensureControlDir(g.name);
+  const masterHosts = effectiveHosts(g).filter(
+    (h) => h.transport.kind === "ssh" && h.transport.controlMaster.enabled,
+  );
+  if (masterHosts.length === 0) return { pass: true };
+
+  if (platform === "windows") {
+    return {
+      pass: false,
+      errors: [
+        `ControlMaster is enabled for ${
+          masterHosts.map((h) => h.name).join(", ")
+        }, but OpenSSH for Windows does not support ControlMaster. ` +
+        `Set transport.controlMaster.enabled: false.`,
+      ],
+    };
+  }
+
+  const result = await ensureControlDir(g.name, undefined, platform);
   if (result.writable) return { pass: true };
   return { pass: false, errors: [result.reason] };
 }
@@ -67,28 +93,54 @@ export async function checkMasterWritable(
 /** Probe whether an executable is resolvable on PATH or as an absolute path. */
 export type BinaryProbe = (binary: string) => Promise<boolean>;
 
-/** Default probe — walks PATH (or stats an absolute/relative path). */
-export const defaultBinaryProbe: BinaryProbe = async (binary) => {
-  if (binary.includes("/")) {
+/**
+ * Resolve an executable against a PATH string, platform-aware. On Windows
+ * PATH is `;`-separated and an extensionless binary is also tried with each
+ * PATHEXT suffix (`sshpass` → `sshpass.EXE`, ...). A binary containing a
+ * path separator is stat'ed directly.
+ */
+export async function resolveOnPath(
+  binary: string,
+  pathEnv: string,
+  platform: typeof Deno.build.os = Deno.build.os,
+  pathExt: string = ".EXE;.CMD;.BAT;.COM",
+): Promise<boolean> {
+  const windows = platform === "windows";
+  const isFile = async (p: string): Promise<boolean> => {
     try {
-      const stat = await Deno.stat(binary);
-      return stat.isFile;
+      return (await Deno.stat(p)).isFile;
     } catch {
       return false;
     }
+  };
+
+  const hasSep = binary.includes("/") || (windows && binary.includes("\\"));
+  if (hasSep) return await isFile(binary);
+
+  const candidates = [binary];
+  if (windows && !/\.[^\\/.]+$/.test(binary)) {
+    for (const ext of pathExt.split(";")) {
+      if (ext.length > 0) candidates.push(`${binary}${ext}`);
+    }
   }
-  const pathEnv = Deno.env.get("PATH") ?? "";
-  for (const dir of pathEnv.split(":")) {
+  const sep = windows ? "\\" : "/";
+  for (const dir of pathEnv.split(windows ? ";" : ":")) {
     if (dir.length === 0) continue;
-    try {
-      const stat = await Deno.stat(`${dir}/${binary}`);
-      if (stat.isFile) return true;
-    } catch {
-      // keep searching
+    for (const name of candidates) {
+      if (await isFile(`${dir}${sep}${name}`)) return true;
     }
   }
   return false;
-};
+}
+
+/** Default probe — walks PATH (or stats an absolute/relative path). */
+export const defaultBinaryProbe: BinaryProbe = (binary) =>
+  resolveOnPath(
+    binary,
+    Deno.env.get("PATH") ?? "",
+    Deno.build.os,
+    Deno.env.get("PATHEXT") || undefined,
+  );
 
 /**
  * Ensure sshpass is available when any fleet host uses password auth.

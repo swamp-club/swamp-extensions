@@ -83,23 +83,23 @@ workflow step.
 
 ### Transport — `kind: ssh`
 
-| Field                    | Notes                                                                                                                                                                |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `user`                   | Remote login user.                                                                                                                                                   |
-| `port`                   | TCP port. Defaults to 22.                                                                                                                                            |
-| `auth`                   | `{kind:"key"}` (default) or `{kind:"password", password: …}`. See [Authentication](#authentication).                                                                 |
-| `identityFile`           | Path to a private key. Passed as `-i <file>` whenever set. Mutually exclusive with `identityContent`.                                                                |
-| `identityContent`        | PEM private key content (e.g. from `vault.get()`). Written to a temp file (mode 0600) for the session and removed afterward. Mutually exclusive with `identityFile`. |
-| `identityAgent`          | Path to an SSH agent socket (e.g. `~/.1password/agent.sock`).                                                                                                        |
-| `identitiesOnly`         | If `true`, sets `IdentitiesOnly=yes` (refuse agent fallback).                                                                                                        |
-| `knownHostsFile`         | Path to `known_hosts`.                                                                                                                                               |
-| `strictHostKeyChecking`  | One of `"yes"`, `"accept-new"`, `"no"`, `"off"`.                                                                                                                     |
-| `connectTimeoutSec`      | Sets `ConnectTimeout`. Default 10s.                                                                                                                                  |
-| `serverAliveIntervalSec` | Sets `ServerAliveInterval`.                                                                                                                                          |
-| `proxyJump`              | `-J <user@bastion[,user@bastion2]>`.                                                                                                                                 |
-| `proxyCommand`           | Raw `ProxyCommand` string (e.g. SSM/IAP wrappers).                                                                                                                   |
-| `extraOptions`           | Array of `Foo=Bar` strings appended via `-o`.                                                                                                                        |
-| `controlMaster`          | `{enabled: bool, persistSec: number}`.                                                                                                                               |
+| Field                    | Notes                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user`                   | Remote login user.                                                                                                                                                      |
+| `port`                   | TCP port. Defaults to 22.                                                                                                                                               |
+| `auth`                   | `{kind:"key"}` (default) or `{kind:"password", password: …}`. See [Authentication](#authentication).                                                                    |
+| `identityFile`           | Path to a private key. Passed as `-i <file>` whenever set. Mutually exclusive with `identityContent`.                                                                   |
+| `identityContent`        | PEM private key content (e.g. from `vault.get()`). Written to a temp file (mode 0600) for the session and removed afterward. Mutually exclusive with `identityFile`.    |
+| `identityAgent`          | Path to an SSH agent socket (e.g. `~/.1password/agent.sock`).                                                                                                           |
+| `identitiesOnly`         | If `true`, sets `IdentitiesOnly=yes` (refuse agent fallback).                                                                                                           |
+| `knownHostsFile`         | Path to `known_hosts`.                                                                                                                                                  |
+| `strictHostKeyChecking`  | One of `"yes"`, `"accept-new"`, `"no"`, `"off"`.                                                                                                                        |
+| `connectTimeoutSec`      | Sets `ConnectTimeout`. Default 10s.                                                                                                                                     |
+| `serverAliveIntervalSec` | Sets `ServerAliveInterval`.                                                                                                                                             |
+| `proxyJump`              | `-J <user@bastion[,user@bastion2]>`.                                                                                                                                    |
+| `proxyCommand`           | Raw `ProxyCommand` string (e.g. SSM/IAP wrappers).                                                                                                                      |
+| `extraOptions`           | Array of `Foo=Bar` strings appended via `-o`.                                                                                                                           |
+| `controlMaster`          | `{enabled: bool, persistSec: number}`. Both default (`true`, `600`); `persistSec` can be omitted and is ignored when `enabled: false`. Set `enabled: false` on Windows. |
 
 ### Transport — `kind: tailscale`
 
@@ -357,6 +357,18 @@ recorded as no-op `ok`, and `check` probes by running `true` over
 `tailscale ssh`. `open` also no-ops for `ssh` hosts with
 `controlMaster.enabled: false`. Each selected host emits a `masterAudit-<host>`
 event.
+
+The `master-writable` pre-flight check (run for `open`, and by
+`swamp model validate`) requires the per-fleet socket directory to be 0700. It
+passes without touching the directory when no `ssh` host has ControlMaster
+enabled — a fleet-level `enabled: false`, per-host overrides, or an
+all-tailscale fleet.
+
+**Windows control hosts:** OpenSSH for Windows does not support ControlMaster,
+so set `transport.controlMaster.enabled: false`. With the default
+(`enabled: true`), `master-writable` — and therefore `validate` — still fails on
+Windows, with a message naming the hosts and saying ControlMaster is
+unsupported; that failure is expected, not a permissions problem.
 
 ### `exec`
 

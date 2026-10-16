@@ -131,13 +131,15 @@ export async function controlPath(
  * reason: ... }` so the `master-writable` check can refuse the call
  * before we touch the network.
  *
- * Creates parent directories as needed (`recursive: true`). On systems
- * without UNIX permissions (e.g. Windows), the mode check is skipped —
- * Deno.stat().mode is null there.
+ * Creates parent directories as needed (`recursive: true`). The mode check
+ * is skipped on Windows, where Deno synthesizes a mode (e.g. 0o666) that
+ * does not reflect the directory's ACLs, and wherever Deno.stat().mode is
+ * null. `platform` defaults to `Deno.build.os`; tests inject it.
  */
 export async function ensureControlDir(
   fleetName: string,
   envSource?: Record<string, string>,
+  platform: typeof Deno.build.os = Deno.build.os,
 ): Promise<
   { writable: true; path: string } | { writable: false; reason: string }
 > {
@@ -163,9 +165,13 @@ export async function ensureControlDir(
         reason: `${dir} exists but is not a directory`,
       };
     }
-    // mode === null on platforms without UNIX permissions. Treat that as
-    // "good enough" — the caller has nothing to compare against.
-    if (stat.mode !== null && (stat.mode & 0o077) !== 0) {
+    // Windows has no UNIX permissions: Deno reports a synthesized mode
+    // there, and null elsewhere it has none. Treat either as "good enough"
+    // — the caller has nothing meaningful to compare against.
+    if (
+      platform !== "windows" && stat.mode !== null &&
+      (stat.mode & 0o077) !== 0
+    ) {
       return {
         writable: false,
         reason:
