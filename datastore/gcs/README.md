@@ -286,7 +286,10 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   shard), so it merges its delta into the on-disk `.datastore-index.json` rather
   than replacing it, and it re-arms the pull fast path when the sidecar was
   already at the `commitSeq` the push read — a process that writes often keeps
-  its own fast path armed instead of disarming it on every write.
+  its own fast path armed instead of disarming it on every write. A push with
+  nothing to send records the remote `commitSeq` only after it has read the
+  whole index; after a model-scoped pull it leaves the sidecar's `commitSeq` as
+  it was, so the next full pull still fetches what other hosts committed.
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When core
   passes `context.models`, pull reads partition files for just those models,
   avoiding the full monolithic index parse.

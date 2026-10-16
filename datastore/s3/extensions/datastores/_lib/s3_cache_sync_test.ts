@@ -12541,3 +12541,130 @@ Deno.test("swamp-club#3550: an upgraded repo with many legacy files uploads none
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- swamp-club#3193: a model-scoped pull never arms commitSeq ---------------
+//
+// assertDatastoreExportConformance does not cover sync-state arming, so these
+// assert on the sidecar directly.
+
+const VPC_3193 = "data/vpc/m1/d1/1/raw";
+const CONSUMER_3193 = "data/consumer/m2/d2/1/raw";
+const CONSUMER_MODEL_3193 = { modelType: "consumer", modelId: "m2" };
+
+/** A clean sidecar at commitSeq 0, then a peer commits vpc and consumer. */
+async function seed3193(
+  mock: ReturnType<typeof createMockS3Client>,
+  cachePath: string,
+  service: S3CacheSyncService,
+): Promise<void> {
+  seedV2Repo(mock, {}, 0);
+  await service.pullChanged();
+  assertEquals((await readSidecar3193(cachePath)).commitSeq, 0);
+  const ts = new Date().toISOString();
+  seedV2Repo(mock, {
+    [VPC_3193]: { key: VPC_3193, size: 4, lastModified: ts },
+    [CONSUMER_3193]: { key: CONSUMER_3193, size: 4, lastModified: ts },
+  }, 2);
+  mock.storage.set(VPC_3193, new TextEncoder().encode("vpc\n"));
+  mock.storage.set(CONSUMER_3193, new TextEncoder().encode("con\n"));
+}
+
+async function readSidecar3193(
+  cachePath: string,
+): Promise<{ commitSeq?: number; localDirty: boolean }> {
+  return JSON.parse(
+    await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+  );
+}
+
+Deno.test("swamp-club#3193: a no-op push after a model-scoped pull keeps the sidecar commitSeq", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3193-" });
+  try {
+    const mock = createMockS3Client();
+    await seed3193(mock, cachePath, new S3CacheSyncService(mock, cachePath));
+
+    // A fresh process: the lock pull reads only consumer's shard, then the
+    // sync push finds nothing to send.
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged({ context: { models: [CONSUMER_MODEL_3193] } });
+    await service.commitPush(await service.preparePush());
+
+    const sidecar = await readSidecar3193(cachePath);
+    assertEquals(sidecar.localDirty, false);
+    assertEquals(sidecar.commitSeq, 0);
+
+    // The next full pull must not take the fast path: vpc arrives.
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, VPC_3193)),
+      "vpc\n",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3193: a model-scoped pull marks the index partial for a no-op commit", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3193-same-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seed3193(mock, cachePath, service);
+    await service.pullChanged({ context: { models: [CONSUMER_MODEL_3193] } });
+
+    // A no-op manifest that did not come from the preparePush fast path, so
+    // only the partial-index flag set by the scoped pull stops the arm.
+    const noop = {
+      newEntries: {},
+      deletedKeys: [],
+      pushed: 0,
+      deleted: 0,
+      dirtyPartitionKeys: [],
+    } as unknown as Parameters<S3CacheSyncService["commitPush"]>[0];
+    await service.commitPush(noop);
+
+    assertEquals((await readSidecar3193(cachePath)).commitSeq, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3193: after a later full pull, a no-op push arms commitSeq again", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3193-clear-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seed3193(mock, cachePath, service);
+    await service.pullChanged({ context: { models: [CONSUMER_MODEL_3193] } });
+    await service.pullChanged();
+    assertEquals((await readSidecar3193(cachePath)).commitSeq, 2);
+
+    // A peer commits without changing these entries. A bulk-dirty sidecar
+    // sends preparePush down the full assembly, which finds nothing to push;
+    // the no-op commit must arm the new commitSeq. preparePush resets the
+    // partial flag itself, so this guards the end-to-end behaviour of a
+    // long-lived process rather than the reset in readWholeIndex alone.
+    const meta = JSON.parse(
+      new TextDecoder().decode(mock.storage.get("_index/_meta.json")),
+    );
+    meta.commitSeq = 3;
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(JSON.stringify(meta)),
+    );
+    await service.markDirty();
+    const manifest = await service.preparePush();
+    assertEquals(
+      (manifest as unknown as { pushed: number }).pushed,
+      0,
+      "nothing local changed",
+    );
+    await service.commitPush(manifest);
+
+    const sidecar = await readSidecar3193(cachePath);
+    assertEquals(sidecar.localDirty, false);
+    assertEquals(sidecar.commitSeq, 3);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

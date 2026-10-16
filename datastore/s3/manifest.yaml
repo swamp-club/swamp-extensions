@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.10.16.3"
+version: "2026.10.16.4"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.

@@ -552,6 +552,12 @@ interface InternalPushManifest {
   pushed: number;
   deleted: number;
   dirtyPartitionKeys: string[];
+  /**
+   * Set when preparePush returned without reading the remote index, so
+   * `this.index` may hold only what a models-scoped pull merged. A no-op
+   * commit must not arm commitSeq from it (swamp-club #3193).
+   */
+  indexUnread?: boolean;
 }
 
 /** TTL in ms for using the local index cache instead of fetching from GCS. */
@@ -2610,6 +2616,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               });
               indexFromRemote = report.fromRemote;
             }
+            this.indexIsPartial = false;
           };
 
           if (models && models.length > 0) {
@@ -2628,6 +2635,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               for (const [rel, entry] of Object.entries(partitionEntries)) {
                 this.index.entries[rel] = entry;
               }
+              // Only these models' shards were read: no later arm in this
+              // process may trust the index as complete (swamp-club #3193).
+              this.indexIsPartial = true;
               indexGeneration = null;
             } else {
               // A model with no shard: read the whole index the way an
@@ -3613,7 +3623,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             fastResult !== null ? "hit" : "miss",
           );
           if (fastResult !== null) {
-            return emptyManifest as unknown as PushManifest;
+            return {
+              ...emptyManifest,
+              indexUnread: true,
+            } as unknown as PushManifest;
           }
 
           const indexStart = Date.now();
@@ -3973,8 +3986,11 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 this.bulkInvalidated = false;
                 this.dirtyPathsOverflowed = false;
                 const sidecar = this.buildV2State({ localDirty: false });
+                // A fast-path manifest read no index, so the existing
+                // commitSeq stays: arming here would vouch for commits
+                // this cache never read (swamp-club #3193).
                 if (
-                  !this.indexIsPartial && this.index &&
+                  !data.indexUnread && !this.indexIsPartial && this.index &&
                   await this.localHasAllRemoteEntries()
                 ) {
                   sidecar.commitSeq = (noopMeta as PartitionMetaV2).commitSeq;

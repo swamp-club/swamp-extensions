@@ -471,6 +471,11 @@ between, so this process wrote the only delta and the cache is still complete. A
 process that writes often (heartbeats, locks, catalog exports) therefore keeps
 its own fast path armed instead of disarming it on every write.
 
+A push with nothing to send records the remote `commitSeq` only after it has
+read the whole index. After a model-scoped pull (which reads only those models'
+shards) it leaves the sidecar's `commitSeq` as it was, so the next full pull
+still fetches what other hosts committed.
+
 ## License
 
 AGPLv3 — see [LICENSE.txt](./LICENSE.txt) for details.
