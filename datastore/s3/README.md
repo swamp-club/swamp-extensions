@@ -143,9 +143,12 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   directories changed. `pushChanged` walks only those directories instead of the
   entire cache. A 200-path cap falls back to a full walk for bulk operations.
 - **SHA-256 content hashing**: File content is hashed on push and stored in the
-  index. On subsequent pushes, files with matching size and mtime skip I/O
-  entirely; files with matching size but different mtime are hash-compared to
-  avoid redundant uploads across machines with clock skew.
+  index. A same-size file skips the hash only when this copy's own mtime record
+  (`.datastore-local-mtimes.json`, local-only and never synced) shows it
+  unchanged since this copy last wrote or verified it; otherwise it is
+  hash-compared, on push and on pull. The index's `localMtime` is the pushing
+  machine's, so it never decides on its own. A same-size file whose entry has no
+  sha256 is pushed once unless this copy recorded it, which adds the hash.
 - **Shard-first index**: After migration to v2
   (`swamp datastore migrate-index`), per-model partition shards under `_index/`
   are the source of truth. Commits write only the dirty shards and `_meta.json`,
@@ -435,16 +438,17 @@ the bucket's is removed from the cache, with any directories that leaves empty.
 Without this the file would stay cached with no index entry, and the next push
 would upload it again, undoing the peer's `swamp data gc`. Only a copy that is
 unchanged since it was synced is removed: same size and a matching sha256, or
-for an entry without one, the recorded mtime. A copy changed locally is kept,
-and a later push that walks it uploads it. The saved index is updated only after
-the removal, so an interrupted pull is finished by the next one. Nothing is
-removed when the bucket's index is missing or lists no entries in scope, since
-that reads the same as a wiped index. Files already orphaned by earlier versions
-are not in the last-synced index, so they are not removed; run `swamp data gc`
-once on that peer to clear them. An index entry whose object is missing from the
-bucket is different: the pull drops the entry but keeps the local copy, so a
-later push can upload it again, since the object may have gone because of an
-expiry rule or a mistaken delete and the local copy may be the last one.
+for an entry without one, this copy's own recorded mtime. A copy changed locally
+is kept, and a later push that walks it uploads it. The saved index is updated
+only after the removal, so an interrupted pull is finished by the next one.
+Nothing is removed when the bucket's index is missing or lists no entries in
+scope, since that reads the same as a wiped index. Files already orphaned by
+earlier versions are not in the last-synced index, so they are not removed; run
+`swamp data gc` once on that peer to clear them. An index entry whose object is
+missing from the bucket is different: the pull drops the entry but keeps the
+local copy, so a later push can upload it again, since the object may have gone
+because of an expiry rule or a mistaken delete and the local copy may be the
+last one.
 
 When `markDirty({ relPath })` is called before removing a file from the cache,
 the next `pushChanged` detects the absence and issues an S3 `DeleteObject` for

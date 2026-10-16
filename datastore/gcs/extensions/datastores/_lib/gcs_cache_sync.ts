@@ -68,6 +68,22 @@ function assertSafePath(cachePath: string, relativePath: string): string {
 const SYNC_STATE_FILE = ".datastore-sync-state.json";
 
 /**
+ * Filename of this copy's own mtime record: for each file, the mtime, size
+ * and sha256 it had when this copy last wrote or verified it. The index's
+ * `localMtime` is whichever machine pushed last, so only this record may
+ * vouch that a local file is unchanged (swamp-club#3546). Local-only,
+ * listed in `isInternalCacheFile`.
+ */
+const OWN_MTIMES_FILE = ".datastore-local-mtimes.json";
+
+/** One file's entry in the own mtime record. */
+interface OwnMtimeRecord {
+  mtime: string;
+  size: number;
+  sha256?: string;
+}
+
+/**
  * Returns true for files that live inside the cache directory but must
  * NOT cross the sync boundary in either direction (push or pull).
  *
@@ -80,6 +96,8 @@ const SYNC_STATE_FILE = ".datastore-sync-state.json";
  * - `.datastore-sync-state.json` — fast-path sidecar recording the
  *   last-verified remote index generation and the local-dirty flag.
  *   Never uploaded: its contents are per-machine state.
+ * - `.datastore-local-mtimes.json` — this copy's own mtime record, which
+ *   vouches that a local file is unchanged. Per-machine state.
  * - basename `_catalog.db` and anything starting with `_catalog.db-`
  *   (the SQLite WAL/SHM/journal sidecars) — the local-only data catalog
  *   store. It is deliberately colocated with the data tier so it can
@@ -149,7 +167,8 @@ async function detectNamespaceDirs(
 export function isInternalCacheFile(rel: string): boolean {
   if (
     rel === ".datastore-index.json" || rel === ".push-queue.json" ||
-    rel === ".datastore.lock" || rel === SYNC_STATE_FILE
+    rel === ".datastore.lock" || rel === SYNC_STATE_FILE ||
+    rel === OWN_MTIMES_FILE
   ) {
     return true;
   }
@@ -602,6 +621,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private indexIsPartial = false;
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
+  private readonly ownMtimesPath: string;
+  private ownMtimes: Map<string, OwnMtimeRecord> | null = null;
+  private ownMtimesDirty = false;
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
@@ -629,6 +651,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     this.cachePath = cachePath;
     this.indexPath = join(cachePath, ".datastore-index.json");
     this.syncStatePath = join(cachePath, SYNC_STATE_FILE);
+    this.ownMtimesPath = join(cachePath, OWN_MTIMES_FILE);
     this.pullConcurrency = options?.pullConcurrency ?? DEFAULT_PULL_CONCURRENCY;
     this.pushConcurrency = options?.pushConcurrency ?? DEFAULT_PUSH_CONCURRENCY;
   }
@@ -1660,6 +1683,95 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     );
   }
 
+  /**
+   * Loads the own mtime record on first call. A missing or corrupt file
+   * is an empty record: every same-size file is then hashed, never trusted.
+   */
+  private async loadOwnMtimes(): Promise<Map<string, OwnMtimeRecord>> {
+    if (this.ownMtimes) return this.ownMtimes;
+    const records = new Map<string, OwnMtimeRecord>();
+    try {
+      const parsed = JSON.parse(await Deno.readTextFile(this.ownMtimesPath));
+      if (parsed?.version === 1 && parsed.files) {
+        for (const [rel, r] of Object.entries(parsed.files)) {
+          const rec = r as OwnMtimeRecord;
+          if (typeof rec?.mtime === "string" && typeof rec.size === "number") {
+            records.set(rel, rec);
+          }
+        }
+      }
+    } catch {
+      // Missing/corrupt/unreadable — start empty (safe default).
+    }
+    this.ownMtimes ??= records;
+    return this.ownMtimes;
+  }
+
+  /**
+   * Returns this copy's record for `rel` when the file still has the
+   * recorded size and mtime, so its content is the recorded one. With
+   * `settled`, a file written within the last second does not match: on a
+   * coarse-mtime filesystem a same-size rewrite in that second keeps the
+   * mtime. Callers that can hash instead, or that destroy the file, pass it.
+   */
+  private async ownRecordFor(
+    rel: string,
+    stat: Deno.FileInfo,
+    settled: boolean,
+  ): Promise<OwnMtimeRecord | undefined> {
+    if (!stat.mtime) return undefined;
+    if (settled && Date.now() - stat.mtime.getTime() < 1000) return undefined;
+    const rec = (await this.loadOwnMtimes()).get(rel);
+    if (
+      !rec || rec.size !== stat.size || rec.mtime !== stat.mtime.toISOString()
+    ) {
+      return undefined;
+    }
+    return rec;
+  }
+
+  /** Records that this copy's `rel`, as `stat` sees it, has `sha256`. */
+  private async recordOwnMtime(
+    rel: string,
+    stat: Deno.FileInfo,
+    sha256: string | undefined,
+  ): Promise<void> {
+    if (!stat.mtime) return;
+    const records = await this.loadOwnMtimes();
+    records.set(rel, {
+      mtime: stat.mtime.toISOString(),
+      size: stat.size,
+      sha256,
+    });
+    this.ownMtimesDirty = true;
+  }
+
+  private async forgetOwnMtime(rel: string): Promise<void> {
+    if ((await this.loadOwnMtimes()).delete(rel)) this.ownMtimesDirty = true;
+  }
+
+  /**
+   * Persists the own mtime record when it changed. Never throws: a lost
+   * record only costs a re-hash, never a wrong skip. Concurrent processes
+   * may overwrite each other's writes with the same outcome.
+   */
+  private async flushOwnMtimes(): Promise<void> {
+    if (!this.ownMtimes || !this.ownMtimesDirty) return;
+    this.ownMtimesDirty = false;
+    try {
+      await ensureDir(this.cachePath);
+      await atomicWriteTextFile(
+        this.ownMtimesPath,
+        JSON.stringify({
+          version: 1,
+          files: Object.fromEntries(this.ownMtimes),
+        }),
+      );
+    } catch {
+      this.ownMtimesDirty = true;
+    }
+  }
+
   /** Build a v2 sidecar snapshot from current in-memory state. */
   private buildV2State(
     overrides?: Partial<
@@ -2298,6 +2410,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               throw err;
             }
           }
+          try {
+            await this.recordOwnMtime(
+              relativePath,
+              await Deno.stat(localPath),
+              this.index?.entries[relativePath]?.sha256,
+            );
+          } catch {
+            // Non-fatal: an unrecorded file is hashed next time.
+          }
         } catch (err) {
           span.setStatus({
             code: SpanStatusCode.ERROR,
@@ -2555,20 +2676,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             try {
               const stat = await Deno.stat(localPath);
               if (stat.size === entry.size) {
-                // Same size — use mtime as a fast path: if the local file
-                // hasn't been touched since we last recorded its mtime AND
-                // the index carries a sha256, the remote may have changed
-                // underneath us (another machine pushed a same-size update).
-                // Hash-compare only when mtime is missing, unrecorded, or
-                // differs — that covers fresh index pulls where localMtime
-                // hasn't been reconciled yet.
-                const mtimeMatch = entry.localMtime && stat.mtime &&
-                  entry.localMtime === stat.mtime.toISOString();
-                if (!mtimeMatch && entry.sha256) {
-                  const localHash = await streamingSha256(localPath);
-                  if (localHash !== entry.sha256) {
-                    toPull.push(rel);
-                    continue;
+                // Same size — skip the hash only when this copy's own record
+                // says the file still holds the entry's sha256. The entry's
+                // localMtime is the pusher's, so it cannot vouch for this
+                // copy's bytes (swamp-club#3546). Hashless entries stay
+                // size-only.
+                if (entry.sha256) {
+                  const own = await this.ownRecordFor(rel, stat, true);
+                  if (own?.sha256 !== entry.sha256) {
+                    const localHash = await streamingSha256(localPath);
+                    if (localHash !== entry.sha256) {
+                      toPull.push(rel);
+                      continue;
+                    }
+                    await this.recordOwnMtime(rel, stat, localHash);
                   }
                 }
                 if (
@@ -2743,6 +2864,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           );
           throw err;
         } finally {
+          await this.flushOwnMtimes();
           span.end();
         }
       },
@@ -2784,6 +2906,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           } else {
             localPath = assertSafePath(this.cachePath, relativePath);
           }
+          // Stat before the read: a write racing the read then leaves the
+          // file at another mtime, so the record cannot vouch for it.
+          const preReadStat = await Deno.stat(localPath);
           const data = await Deno.readFile(localPath);
           const hashBuffer = await crypto.subtle.digest("SHA-256", data);
           const sha256 = Array.from(new Uint8Array(hashBuffer))
@@ -2793,6 +2918,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             () => this.gcs.putObject(this.dataKey(relativePath), data, signal),
             { signal },
           );
+          await this.recordOwnMtime(relativePath, preReadStat, sha256);
 
           if (this.index) {
             const stat = await Deno.stat(localPath);
@@ -3353,6 +3479,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           );
           throw err;
         } finally {
+          await this.flushOwnMtimes();
           span.end();
         }
       },
@@ -3622,6 +3749,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             const batch = toPush.slice(i, i + this.pushConcurrency);
             const results = await Promise.allSettled(
               batch.map(async ({ rel, path: localPath }) => {
+                // Stat before the read, as in pushFile.
+                const preReadStat = await Deno.stat(localPath);
                 const data = await Deno.readFile(localPath);
                 const hashBuffer = await crypto.subtle.digest("SHA-256", data);
                 const sha256 = Array.from(new Uint8Array(hashBuffer))
@@ -3631,6 +3760,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                   () => this.gcs.putObject(this.dataKey(rel), data, signal),
                   { signal },
                 );
+                await this.recordOwnMtime(rel, preReadStat, sha256);
                 const stat = await Deno.stat(localPath);
                 newEntries[rel] = {
                   key: rel,
@@ -3725,6 +3855,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           );
           throw err;
         } finally {
+          await this.flushOwnMtimes();
           span.end();
         }
       },
@@ -4056,7 +4187,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   /**
    * Removes each local file whose content is provably what `entry`
    * recorded at sync time — same size, plus a matching sha256 (or, for a
-   * hashless entry, the recorded mtime) — then any parent directories the
+   * hashless entry, this copy's own mtime record) — then any parent
+   * directories the
    * removal emptied.
    * A file that changed locally holds work no remote has, so it is kept
    * for the next push to send. Returns how many files were removed.
@@ -4116,16 +4248,14 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       // Removal destroys the copy, so the hash decides whenever there is
       // one: on a coarse-mtime filesystem a same-size rewrite in the same
       // second keeps the recorded mtime. Only a hashless entry falls back
-      // to the mtime, and then only once it is over a second old.
+      // to this copy's own mtime record, which also requires the file to
+      // be over a second old. The entry's localMtime is the pusher's and
+      // cannot vouch for this copy (swamp-club#3546).
       if (entry.sha256) {
         if (await streamingSha256(localPath) !== entry.sha256) {
           return "changed";
         }
-      } else if (
-        !entry.localMtime || !stat.mtime ||
-        entry.localMtime !== stat.mtime.toISOString() ||
-        Date.now() - stat.mtime.getTime() < 1000
-      ) {
+      } else if (!(await this.ownRecordFor(rel, stat, true))) {
         return "changed";
       }
     } catch {
@@ -4136,6 +4266,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     } catch (err) {
       return err instanceof Deno.errors.NotFound ? "absent" : "failed";
     }
+    await this.forgetOwnMtime(rel);
     await this.removeEmptyParents(localPath);
     return "removed";
   }
@@ -4200,6 +4331,17 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return true;
   }
 
+  /**
+   * Change detection for a single file during push walk. Only this copy's
+   * own mtime record may skip the hash: the index's localMtime is the
+   * pusher's (swamp-club#3546).
+   * 1. Size differs → needs push
+   * 2. Own record matches, index has sha256 → push iff the recorded hash
+   *    differs from the index's
+   * 3. No matching own record, index has sha256 → SHA-256 comparison
+   * 4. Index has no sha256 → skip with a matching own record, else push
+   *    (the upload records a sha256, so the entry migrates)
+   */
   private async fileNeedsPush(
     absPath: string,
     rel: string,
@@ -4210,34 +4352,16 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     if (existing.size !== stat.size) return true;
 
-    // Same size + exact mtime match — usually safe to skip. The
-    // coarse-granularity concern (same-second writes on Linux tmpfs)
-    // only applies to recently-written files; for files whose mtime
-    // is >1 s old, an exact match is a reliable skip signal.
-    if (
-      existing.localMtime && stat.mtime &&
-      existing.localMtime === stat.mtime.toISOString()
-    ) {
-      if (
-        existing.sha256 &&
-        Date.now() - stat.mtime.getTime() < 1000
-      ) {
-        const localHash = await streamingSha256(absPath);
-        return localHash !== existing.sha256;
-      }
-      return false;
-    }
+    // Hashless: nothing to hash against, so any matching record skips,
+    // as the index mtime did before.
+    if (!existing.sha256) return !(await this.ownRecordFor(rel, stat, false));
+    const own = await this.ownRecordFor(rel, stat, true);
+    if (own?.sha256) return own.sha256 !== existing.sha256;
 
-    if (!stat.mtime || existing.localMtime === undefined) {
-      if (!existing.sha256) return false;
-    }
-
-    if (existing.sha256) {
-      const localHash = await streamingSha256(absPath);
-      return localHash !== existing.sha256;
-    }
-
-    return true;
+    const localHash = await streamingSha256(absPath);
+    if (localHash !== existing.sha256) return true;
+    await this.recordOwnMtime(rel, stat, localHash);
+    return false;
   }
 
   /**

@@ -242,6 +242,27 @@ async function seedFile(
   await Deno.writeTextFile(full, contents);
 }
 
+/**
+ * Records, in this copy's own mtime record, that each seeded file is
+ * unchanged since this copy last synced it (swamp-club#3546). Stamps the
+ * file's current mtime and size, so call it after any `Deno.utime`.
+ */
+async function seedOwnMtimes(
+  cachePath: string,
+  files: Record<string, { sha256?: string }>,
+): Promise<void> {
+  const out: Record<string, { mtime: string; size: number; sha256?: string }> =
+    {};
+  for (const [rel, { sha256 }] of Object.entries(files)) {
+    const stat = await Deno.stat(join(cachePath, rel));
+    out[rel] = { mtime: stat.mtime!.toISOString(), size: stat.size, sha256 };
+  }
+  await Deno.writeTextFile(
+    join(cachePath, ".datastore-local-mtimes.json"),
+    JSON.stringify({ version: 1, files: out }),
+  );
+}
+
 /** Encodes an index object as a remote .datastore-index.json body. */
 function encodeIndex(
   entries: Record<string, {
@@ -2379,6 +2400,9 @@ Deno.test("pushChanged no-writeback: does NOT mark the sidecar clean when nothin
       existingMtime,
       existingMtime,
     );
+    // This copy synced ok.yaml before: only its own record, not the
+    // index's localMtime, vouches that it is unchanged (swamp-club#3546).
+    await seedOwnMtimes(cachePath, { "data/@m/ok.yaml": {} });
 
     const service = new S3CacheSyncService(mock, cachePath);
     const pushed = await service.pushChanged();
@@ -2471,6 +2495,12 @@ Deno.test("pushChanged no-writeback: regenerates sidecar when local fully matche
       existingMtime,
       existingMtime,
     );
+    // The prior pull recorded both in this copy's own mtime record
+    // (swamp-club#3546).
+    await seedOwnMtimes(cachePath, {
+      "data/@m/a.yaml": {},
+      "data/@m/b.yaml": {},
+    });
 
     const service = new S3CacheSyncService(mock, cachePath);
     const pushed = await service.pushChanged();
@@ -11951,6 +11981,282 @@ Deno.test("pullIndex discovery: leaves _blobs/ chunks out of a synthesized index
       ["data/@org/m/legit.yaml"],
       "chunks under _blobs/ must never enter the file index",
     );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#3546: only this copy's own mtime record skips the hash -------
+//
+// An index entry's localMtime is the mtime on whichever machine pushed it.
+// No conformance helper covers sync change detection, so these assert it
+// directly.
+
+const OWN_3546 = ".datastore-local-mtimes.json";
+const REL_3546 = "data/m/rec/raw";
+/** An mtime well over a second old, so the coarse-mtime guard is clear. */
+const OLD_MTIME_3546 = new Date(Date.UTC(2026, 0, 1));
+
+/** Seeds a local file and sets its mtime to OLD_MTIME_3546. */
+async function seedOld3546(
+  cachePath: string,
+  rel: string,
+  body: string,
+): Promise<void> {
+  await seedFile(cachePath, rel, body);
+  await Deno.utime(join(cachePath, rel), OLD_MTIME_3546, OLD_MTIME_3546);
+}
+
+async function readOwn3546(
+  cachePath: string,
+): Promise<
+  Record<string, { mtime: string; size: number; sha256?: string }>
+> {
+  return JSON.parse(await Deno.readTextFile(join(cachePath, OWN_3546))).files;
+}
+
+Deno.test("swamp-club#3546: pullChanged replaces a same-size file whose mtime only matches the pusher's localMtime", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-pull-" });
+  try {
+    const mock = createMockS3Client();
+    await seedOld3546(cachePath, REL_3546, "AAAA");
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 4,
+          lastModified: new Date().toISOString(),
+          // The pusher's mtime, identical by coincidence (cp -p, restore).
+          localMtime: OLD_MTIME_3546.toISOString(),
+          sha256: await sha256Hex("BBBB"),
+        },
+      }),
+    );
+    mock.storage.set(REL_3546, new TextEncoder().encode("BBBB"));
+
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, REL_3546)),
+      "BBBB",
+      "a foreign localMtime must not vouch for this copy's bytes",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: an unchanged same-size file is not re-downloaded, and is recorded as this copy's own", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-keep-" });
+  try {
+    const mock = createMockS3Client();
+    const sha256 = await sha256Hex("AAAA");
+    await seedOld3546(cachePath, REL_3546, "AAAA");
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 4,
+          lastModified: new Date().toISOString(),
+          sha256,
+        },
+      }),
+    );
+    mock.storage.set(REL_3546, new TextEncoder().encode("AAAA"));
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.gets.length = 0;
+    await service.pullChanged();
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+
+    assertEquals(mock.gets.filter((k) => k === REL_3546).length, 0);
+    assertEquals((await readOwn3546(cachePath))[REL_3546], {
+      mtime: OLD_MTIME_3546.toISOString(),
+      size: 4,
+      sha256,
+    });
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: pushChanged uploads a same-size edit whose mtime only matches the pusher's localMtime", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-push-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 4,
+          lastModified: new Date().toISOString(),
+          localMtime: OLD_MTIME_3546.toISOString(),
+          sha256: await sha256Hex("AAAA"),
+        },
+      }),
+    );
+    mock.storage.set(REL_3546, new TextEncoder().encode("AAAA"));
+    await seedOld3546(cachePath, REL_3546, "BBBB");
+
+    await new S3CacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get(REL_3546)),
+      "BBBB",
+      "the local edit must be pushed",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: pushChanged uploads a same-size hashless entry this copy never recorded, and the entry gains a sha256", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-hless-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 4,
+          lastModified: new Date().toISOString(),
+          localMtime: OLD_MTIME_3546.toISOString(),
+        },
+      }),
+    );
+    mock.storage.set(REL_3546, new TextEncoder().encode("AAAA"));
+    await seedOld3546(cachePath, REL_3546, "BBBB");
+
+    await new S3CacheSyncService(mock, cachePath).pushChanged();
+
+    assertEquals(new TextDecoder().decode(mock.storage.get(REL_3546)), "BBBB");
+    const local = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-index.json")),
+    );
+    assertEquals(local.entries[REL_3546].sha256, await sha256Hex("BBBB"));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: a peer's deletion does not remove a locally edited hashless file whose mtime only matches the pusher's", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-gone-" });
+  try {
+    const mock = createMockS3Client();
+    // Remote: a peer deleted GONE_2999; KEPT_2999 remains.
+    await seedSynced2999(mock, { [KEPT_2999]: "kept" });
+    // This copy's last-synced index still lists GONE_2999, hashless, with
+    // the pusher's mtime.
+    await seedFile(
+      cachePath,
+      ".datastore-index.json",
+      new TextDecoder().decode(encodeIndex({
+        [GONE_2999]: {
+          ...indexEntry(GONE_2999, 4),
+          localMtime: OLD_MTIME_3546.toISOString(),
+        },
+      })),
+    );
+    await seedOld3546(cachePath, GONE_2999, "edit");
+
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, GONE_2999)),
+      "edit",
+      "only this copy's own record may authorise removing the file",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: a namespaced cache records its files under the index key", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-ns-" });
+  try {
+    const mock = createMockS3Client();
+    const sha256 = await sha256Hex("hello");
+    mock.storage.set(
+      "my-ns/.datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 5,
+          lastModified: new Date().toISOString(),
+          sha256,
+        },
+      }),
+    );
+    mock.storage.set(`my-ns/${REL_3546}`, new TextEncoder().encode("hello"));
+    await seedFile(
+      cachePath,
+      "my-ns/.namespace.json",
+      JSON.stringify({
+        namespace: "my-ns",
+        repoId: "test",
+        registeredAt: "2026-01-01T00:00:00Z",
+      }),
+    );
+    await seedOld3546(cachePath, `my-ns/${REL_3546}`, "hello");
+
+    await new S3CacheSyncService(mock, cachePath).pullChanged({
+      namespace: "my-ns",
+    });
+
+    const own = await readOwn3546(cachePath);
+    assertEquals(own[REL_3546]?.sha256, sha256);
+    assertEquals(own[`my-ns/${REL_3546}`], undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: the own mtime record is internal and never uploaded", async () => {
+  assert(isInternalCacheFile(OWN_3546));
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-int-" });
+  try {
+    const mock = createMockS3Client();
+    await seedFile(cachePath, REL_3546, "AAAA");
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pushChanged();
+    await Deno.writeTextFile(join(cachePath, REL_3546), "BBBB");
+    await service.markDirty({ relPath: REL_3546 });
+    await service.pushChanged();
+
+    assert(await exists(join(cachePath, OWN_3546)));
+    assertEquals(mock.puts.filter((p) => p.key.endsWith(OWN_3546)).length, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3546: a corrupt own mtime record falls back to hashing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3546-bad-" });
+  try {
+    const mock = createMockS3Client();
+    await seedOld3546(cachePath, REL_3546, "AAAA");
+    await seedFile(cachePath, OWN_3546, "{not json");
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [REL_3546]: {
+          key: REL_3546,
+          size: 4,
+          lastModified: new Date().toISOString(),
+          sha256: await sha256Hex("BBBB"),
+        },
+      }),
+    );
+    mock.storage.set(REL_3546, new TextEncoder().encode("BBBB"));
+
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+
+    assertEquals(await Deno.readTextFile(join(cachePath, REL_3546)), "BBBB");
+    assertEquals((await readOwn3546(cachePath))[REL_3546]?.size, 4);
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }

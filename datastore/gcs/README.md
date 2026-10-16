@@ -267,9 +267,12 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   the relevant partition files instead of the full monolithic index. Falls back
   to monolithic when partition files are missing (old writer).
 - **Content hashing** — push computes SHA-256 for each uploaded file and stores
-  it in the index. Change detection uses three branches: size differs → push;
-  same size + same mtime → skip (stat-only); same size + different mtime →
-  compare SHA-256 hashes (avoids redundant uploads when only mtime drifted).
+  it in the index. Change detection on push and pull: size differs → changed;
+  same size and this copy's own mtime record (`.datastore-local-mtimes.json`,
+  local-only and never synced) shows the file unchanged → skip; otherwise
+  compare SHA-256 hashes. The index's `localMtime` is the pushing machine's, so
+  it never decides on its own. A same-size file whose entry has no sha256 is
+  pushed once unless this copy recorded it, which adds the hash.
 - **Per-path dirty tracking** — `markDirty(options)` accepts a `relPath`
   argument and tracks per-path dirty sets (capped at 200 paths). When pushing,
   only dirty directories/files are walked instead of the entire cache. Overflows
@@ -337,11 +340,11 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   would stay cached with no index entry, and the next push would upload it
   again, undoing the peer's `swamp data gc`. Only a copy that is unchanged since
   it was synced is removed: same size and a matching sha256, or for an entry
-  without one, the recorded mtime. A copy changed locally is kept, and a later
-  push that walks it uploads it. The saved index is updated only after the
-  removal, so an interrupted pull is finished by the next one. Nothing is
-  removed when the bucket's index is missing or lists no entries in scope, since
-  that reads the same as a wiped index. Files already orphaned by earlier
+  without one, this copy's own recorded mtime. A copy changed locally is kept,
+  and a later push that walks it uploads it. The saved index is updated only
+  after the removal, so an interrupted pull is finished by the next one. Nothing
+  is removed when the bucket's index is missing or lists no entries in scope,
+  since that reads the same as a wiped index. Files already orphaned by earlier
   versions are not in the last-synced index, so they are not removed; run
   `swamp data gc` once on that peer to clear them. An index entry whose object
   is missing from the bucket is different: the pull drops the entry but keeps
