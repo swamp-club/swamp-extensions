@@ -38,6 +38,10 @@ import {
   S3CacheSyncService,
 } from "./s3_cache_sync.ts";
 import {
+  DATASTORE_FORMAT_MARKER_KEY,
+  DatastoreFormatUnsupportedError,
+} from "./s3_format_guard.ts";
+import {
   IfMatchUnsupportedError,
   S3Client,
   S3OperationError,
@@ -1564,6 +1568,16 @@ Deno.test({
 
       await withProgrammableServer(
         [
+          // 0. GET _control/datastore-format → 404 NoSuchKey: no format
+          //    marker, so the sync proceeds (swamp-club#3549).
+          () =>
+            new Response(
+              '<?xml version="1.0"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>_control/datastore-format</Key><RequestId>r0</RequestId></Error>',
+              {
+                status: 404,
+                headers: { "Content-Type": "application/xml" },
+              },
+            ),
           () =>
             new Response(
               '<?xml version="1.0"?><Error><Code>ServiceUnavailable</Code><Message>try later</Message><RequestId>rA</RequestId></Error>',
@@ -1582,8 +1596,8 @@ Deno.test({
           await service.pushFile("data/a.yaml");
           assertEquals(
             state.requestCount,
-            2,
-            "pushFile must retry a transient 503 via the real SDK",
+            3,
+            "pushFile must read the format marker, then retry a transient 503 via the real SDK",
           );
         },
       );
@@ -2756,6 +2770,16 @@ Deno.test({
     try {
       await withProgrammableServer(
         [
+          // 0. GET _control/datastore-format → 404 NoSuchKey: no format
+          //    marker, so the sync proceeds (swamp-club#3549).
+          () =>
+            new Response(
+              '<?xml version="1.0"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>_control/datastore-format</Key><RequestId>r0</RequestId></Error>',
+              {
+                status: 404,
+                headers: { "Content-Type": "application/xml" },
+              },
+            ),
           // 1. GET .datastore-index.json → 404 NoSuchKey
           //    (the catch branch our discovery hangs off)
           () =>
@@ -2796,8 +2820,8 @@ Deno.test({
           }).pullIndex({ forceRemote: true });
           assertEquals(
             state.requestCount,
-            3,
-            "discovery must produce exactly 3 SDK requests: GET index (404), ListObjectsV2, PUT index",
+            4,
+            "discovery must produce exactly 4 SDK requests: GET marker (404), GET index (404), ListObjectsV2, PUT index",
           );
           // The SDK surfaces the PUT response ETag with its surrounding
           // double-quotes — `normalizeETag()` is what the sidecar
@@ -11431,10 +11455,16 @@ function storeObject(
   });
 }
 
-/** Keys of the object GETs the emulator has answered, in order. */
+/**
+ * Keys of the object GETs the emulator has answered, in order, leaving out
+ * the sync service's one read of the format marker (swamp-club#3549).
+ */
 function objectGets(state: S3EmulatorState): string[] {
   return state.requests
-    .filter((r) => r.method === "GET" && r.key !== null)
+    .filter((r) =>
+      r.method === "GET" && r.key !== null &&
+      !r.key.endsWith(DATASTORE_FORMAT_MARKER_KEY)
+    )
     .map((r) => r.key!);
 }
 
@@ -11673,8 +11703,10 @@ fetchContentTest(
   async ({ state, service }) => {
     storeObject(state, "data/m/1/raw", "remote");
     let failures = 1;
-    state.options.respondToGet = () =>
-      failures-- > 0 ? s3ErrorResponse("InternalError", 500) : undefined;
+    state.options.respondToGet = (key) =>
+      key === "data/m/1/raw" && failures-- > 0
+        ? s3ErrorResponse("InternalError", 500)
+        : undefined;
 
     const bytes = await service().fetchContent("data/m/1/raw");
 
@@ -11894,7 +11926,7 @@ Deno.test("controlPlaneStore: migration leaves writer/, lineage/ and datastore-f
     );
     mock.storage.set(
       "_control/datastore-format",
-      new TextEncoder().encode("marker"),
+      new TextEncoder().encode(JSON.stringify({ format: 2 })),
     );
     mock.storage.set(
       "_control/lineage/7/started.json",
@@ -12665,6 +12697,505 @@ Deno.test("swamp-club#3193: after a later full pull, a no-op push arms commitSeq
     assertEquals(sidecar.localDirty, false);
     assertEquals(sidecar.commitSeq, 3);
   } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// =========================================================================
+// swamp-club#3549: the v2 file sync keeps off a v3 bucket. `_litestream/`
+// is never a file to sync, and a format-3 (or garbled) marker at the
+// datastore-wide root refuses every remote data operation before it writes
+// anything, unnamespaced and namespaced alike.
+//
+// These are direct assertions: no @systeminit/swamp-testing conformance
+// helper covers a sync service refusing a datastore by its format marker.
+// The provider's export contract is unchanged, and
+// assertDatastoreExportConformance still runs in the provider's own test.
+// =========================================================================
+
+const LTX_3549 =
+  "_litestream/000000000007/0/0000000000000001-0000000000000001.ltx";
+
+Deno.test("swamp-club#3549: isInternalCacheFile excludes _litestream/", () => {
+  assert(isInternalCacheFile("_litestream"));
+  assert(isInternalCacheFile("_litestream/"));
+  assert(isInternalCacheFile(LTX_3549));
+  assert(!isInternalCacheFile("_litestreamx/a"));
+  assert(!isInternalCacheFile("data/_litestream/a"));
+});
+
+Deno.test("swamp-club#3549: a pull never downloads or indexes Litestream objects, and a push never uploads them", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-ltx-" });
+  try {
+    const mock = createMockS3Client();
+    // No index: the pull discovers the bucket by listing it whole.
+    mock.storage.set("data/a.yaml", new TextEncoder().encode("a: 1\n"));
+    mock.storage.set(LTX_3549, new TextEncoder().encode("ltx"));
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+    assertEquals(await exists(join(cachePath, "_litestream")), false);
+
+    await seedFile(cachePath, "data/b.yaml", "b: 1\n");
+    await seedFile(cachePath, "_litestream/000000000008/0/x.ltx", "local");
+    await service.markDirty();
+    await service.pushChanged();
+
+    const decoder = new TextDecoder();
+    for (const put of mock.puts) {
+      assert(
+        !put.key.startsWith("_litestream/"),
+        `a push must never upload ${put.key}`,
+      );
+      assert(
+        !decoder.decode(put.body).includes("_litestream/"),
+        `no index may list a Litestream object: ${put.key}`,
+      );
+    }
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    // Litestream's own object is left as it was.
+    assertEquals(mock.storage.has(LTX_3549), true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+const MARKER_3549 = "_control/datastore-format";
+
+function v3Marker(extra: Record<string, unknown> = {}): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify({ format: 3, writtenBy: "20261016.120000.0", ...extra }),
+  );
+}
+
+/** Local files a sync writes into its cache as bookkeeping. */
+const SYNC_BOOKKEEPING_3549 = [
+  ".datastore-index.json",
+  ".datastore-sync-state.json",
+  ".datastore-local-mtimes.json",
+];
+
+async function assertNothingSynced3549(
+  mock: ReturnType<typeof createMockS3Client>,
+  cachePath: string,
+  namespace: string | undefined,
+): Promise<void> {
+  assertEquals(mock.puts, [], "a refused sync must write nothing remote");
+  assertEquals(mock.deletes, [], "a refused sync must delete nothing");
+  assertEquals(mock.lists, 0, "a refused sync must list nothing");
+  assertEquals(
+    mock.gets,
+    [MARKER_3549],
+    "a refused sync must read the marker once and nothing else",
+  );
+  for (const file of SYNC_BOOKKEEPING_3549) {
+    for (const rel of namespace ? [file, `${namespace}/${file}`] : [file]) {
+      assertEquals(
+        await exists(join(cachePath, rel)),
+        false,
+        `a refused sync must leave no ${rel}`,
+      );
+    }
+  }
+}
+
+for (const namespace of [undefined, "team-a"]) {
+  const label = namespace ? "namespaced" : "unnamespaced";
+  const ns = namespace ? `${namespace}/` : "";
+
+  for (
+    const [method, run] of [
+      ["pullChanged", (s: S3CacheSyncService) => s.pullChanged({ namespace })],
+      ["pushChanged", (s: S3CacheSyncService) => s.pushChanged({ namespace })],
+      ["preparePush", (s: S3CacheSyncService) => s.preparePush({ namespace })],
+      [
+        "commitPush",
+        (s: S3CacheSyncService) =>
+          s.commitPush(
+            {
+              newEntries: {},
+              deletedKeys: [],
+              pushed: 0,
+              deleted: 0,
+              dirtyPartitionKeys: [],
+            } as unknown as Parameters<S3CacheSyncService["commitPush"]>[0],
+            { namespace },
+          ),
+      ],
+    ] as const
+  ) {
+    Deno.test(`swamp-club#3549: ${method} refuses a format-3 marker at the root (${label}), writing nothing`, async () => {
+      const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-v3-" });
+      try {
+        const mock = createMockS3Client();
+        seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+        mock.storage.set(MARKER_3549, v3Marker());
+        await seedFile(cachePath, `${ns}data/local.yaml`, "local\n");
+        // Building the service makes no request and does not refuse.
+        const service = new S3CacheSyncService(mock, cachePath);
+        mock.gets.length = 0;
+        mock.puts.length = 0;
+
+        const error = await assertRejects(
+          () => run(service),
+          DatastoreFormatUnsupportedError,
+        );
+        assertEquals(error.code, "datastore_format_unsupported");
+        assertEquals(
+          error.message,
+          "This datastore uses format 3 (written by swamp 20261016.120000.0), " +
+            "which this swamp release can't open. Upgrade swamp to the " +
+            "latest release (`swamp update`). Nothing was synced.",
+        );
+        await assertNothingSynced3549(mock, cachePath, namespace);
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    });
+  }
+
+  Deno.test(`swamp-club#3549: the marker is read at the root, never under the namespace (${label})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-root-" });
+    try {
+      const mock = createMockS3Client();
+      seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+      if (namespace) {
+        // A marker under the namespace is not the datastore's marker.
+        mock.storage.set(`${ns}${MARKER_3549}`, v3Marker());
+      }
+      const service = new S3CacheSyncService(mock, cachePath);
+      await service.pullChanged({ namespace });
+      assertEquals(await exists(join(cachePath, `${ns}data/a.yaml`)), true);
+      assertEquals(mock.gets.filter((k) => k.endsWith(MARKER_3549)), [
+        MARKER_3549,
+      ]);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#3549: a minReaderFormat-3 marker refuses (${label})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-min-" });
+    try {
+      const mock = createMockS3Client();
+      seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+      mock.storage.set(
+        MARKER_3549,
+        new TextEncoder().encode(
+          JSON.stringify({ format: 4, minReaderFormat: 3 }),
+        ),
+      );
+      const error = await assertRejects(
+        () =>
+          new S3CacheSyncService(mock, cachePath).pullChanged({ namespace }),
+        DatastoreFormatUnsupportedError,
+      );
+      assertEquals(
+        error.message,
+        "This datastore uses format 4, which this swamp release can't open. " +
+          "Upgrade swamp to the latest release (`swamp update`). Nothing was " +
+          "synced.",
+      );
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#3549: a garbled marker refuses (${label})`, async () => {
+    for (const body of ["marker", '{"format":"3"}', '{"format":0}']) {
+      const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-bad-" });
+      try {
+        const mock = createMockS3Client();
+        seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+        mock.storage.set(MARKER_3549, new TextEncoder().encode(body));
+        mock.puts.length = 0;
+        const error = await assertRejects(
+          () =>
+            new S3CacheSyncService(mock, cachePath).pullChanged({ namespace }),
+          DatastoreFormatUnsupportedError,
+        );
+        assertEquals(error.code, "datastore_format_unsupported");
+        await assertNothingSynced3549(mock, cachePath, namespace);
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    }
+  });
+
+  Deno.test(`swamp-club#3549: no marker, a format-2 marker and an unreadable marker sync as today (${label})`, async () => {
+    const debug = console.debug;
+    console.debug = () => {};
+    try {
+      for (
+        const marker of [
+          "absent",
+          "format-2",
+          "403",
+          "500",
+        ] as const
+      ) {
+        const cachePath = await Deno.makeTempDir({
+          prefix: "s3sync-3549-open-",
+        });
+        try {
+          const mock = createMockS3Client();
+          seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+          if (marker === "format-2") {
+            mock.storage.set(
+              MARKER_3549,
+              new TextEncoder().encode(JSON.stringify({ format: 2 })),
+            );
+          } else if (marker !== "absent") {
+            const status = marker === "403" ? 403 : 500;
+            mock.storage.set(MARKER_3549, v3Marker());
+            const getObject = mock.getObject.bind(mock);
+            mock.getObject = (key: string, signal?: AbortSignal) => {
+              if (key !== MARKER_3549) return getObject(key, signal);
+              mock.gets.push(key);
+              return Promise.reject(opError(status));
+            };
+          }
+          const service = new S3CacheSyncService(mock, cachePath);
+          await service.pullChanged({ namespace });
+          assertEquals(
+            await exists(join(cachePath, `${ns}data/a.yaml`)),
+            true,
+            `the pull must go ahead with the marker ${marker}`,
+          );
+          await seedFile(cachePath, `${ns}data/b.yaml`, "b\n");
+          await service.markDirty({ namespace });
+          await service.pushChanged({ namespace });
+          assert(mock.puts.some((p) => p.key === `${ns}data/b.yaml`));
+        } finally {
+          await Deno.remove(cachePath, { recursive: true });
+        }
+      }
+    } finally {
+      console.debug = debug;
+    }
+  });
+}
+
+Deno.test("swamp-club#3549: one marker GET per service, across pulls and pushes", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-once-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    await service.pullChanged();
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    await service.markDirty();
+    await service.pushChanged();
+    await service.fetchContent("data/a.yaml");
+    assertEquals(mock.gets.filter((k) => k === MARKER_3549).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: the marker GET starts alongside the credentials preflight", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-par-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    let releasePreflight!: () => void;
+    mock.preflightCredentials = () =>
+      new Promise<void>((resolve) => releasePreflight = resolve);
+    const service = new S3CacheSyncService(mock, cachePath);
+    const pull = service.pullChanged();
+    // Let the pull run up to its awaits; the preflight is still held.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(mock.gets, [MARKER_3549]);
+    releasePreflight();
+    await pull;
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: an aborted hydrateFile does not fail a concurrent one or the next call", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-abort-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n", "data/b.yaml": "b: 1\n" });
+    let releaseMarker!: () => void;
+    const markerHeld = new Promise<void>((resolve) => releaseMarker = resolve);
+    const getObject = mock.getObject.bind(mock);
+    mock.getObject = async (key: string, signal?: AbortSignal) => {
+      if (key === MARKER_3549) await markerHeld;
+      return await getObject(key, signal);
+    };
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const controller = new AbortController();
+    const aborted = service.hydrateFile("data/a.yaml", {
+      signal: controller.signal,
+    });
+    const waiting = service.hydrateFile("data/b.yaml");
+    controller.abort(new Error("caller gave up"));
+    await assertRejects(() => aborted, Error, "caller gave up");
+
+    releaseMarker();
+    assertEquals(await waiting, true);
+    assertEquals(await service.hydrateFile("data/a.yaml"), true);
+    assertEquals(mock.gets.filter((k) => k === MARKER_3549).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: the control-plane store still reads the marker on a v3 bucket", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-cp-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const service = new S3CacheSyncService(mock, cachePath);
+    const bytes = await service.controlPlaneStore().get("datastore-format");
+    assertEquals(bytes, v3Marker());
+    await service.markDirty();
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+/** Fails the first `failures` reads of the marker with a 403. */
+function failMarkerReads3549(
+  mock: ReturnType<typeof createMockS3Client>,
+  failures: number,
+): { reads: number } {
+  const counter = { reads: 0 };
+  const getObject = mock.getObject.bind(mock);
+  mock.getObject = (key: string, signal?: AbortSignal) => {
+    if (key === MARKER_3549 && ++counter.reads <= failures) {
+      // A cold process: the read fails, as one past its deadline would.
+      return Promise.reject(opError(403));
+    }
+    return getObject(key, signal);
+  };
+  return counter;
+}
+
+Deno.test("swamp-club#3549: a failed marker read does not turn the check off for later operations", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-retry-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    const service = new S3CacheSyncService(mock, cachePath);
+    // The first operation fails open, as core's guard does.
+    assertEquals(
+      new TextDecoder().decode((await service.fetchContent("data/a.yaml"))!),
+      "a: 1\n",
+    );
+    // The next one reads the marker again and refuses.
+    mock.puts.length = 0;
+    await assertRejects(
+      () => service.pushChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    await assertRejects(
+      () => service.pullChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+    assertEquals(mock.puts, []);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a pull whose marker read fails goes ahead in full, reading the marker once; the next operation refuses", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-onceop-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    const service = new S3CacheSyncService(mock, cachePath);
+    // Its inner steps (pullIndex, pullFile) reuse the failed-open outcome:
+    // one deadline at most, and no refusal partway through.
+    await service.pullChanged();
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+    assertEquals(marker.reads, 1);
+    await assertRejects(
+      () => service.pullChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a push whose marker read fails completes, and so does its commit phase", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-onceop-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty();
+    // pushFile and commitPush run inside preparePush's operation.
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    assertEquals(marker.reads, 1);
+    // The next operation core starts reads the marker again and refuses.
+    await assertRejects(
+      () => service.pushChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a push let in after a failed read commits even when another operation refuses in between", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3549-overlap-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty();
+    const manifest = await service.preparePush();
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    // Another operation starts between the two phases, re-reads the marker
+    // and is refused.
+    await assertRejects(
+      () => service.fetchContent("data/b.yaml"),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+    // The push it interrupted still commits its index, so the uploaded file
+    // is not left unindexed.
+    await service.commitPush(manifest);
+    assert(
+      mock.puts.some((p) =>
+        p.key.startsWith("_index/") || p.key === ".datastore-index.json"
+      ),
+      "commitPush must write the index",
+    );
+  } finally {
+    console.debug = debug;
     await Deno.remove(cachePath, { recursive: true });
   }
 });

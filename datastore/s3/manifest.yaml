@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.10.16.4"
+version: "2026.10.16.5"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
@@ -37,6 +37,14 @@ description: |
   `<prefix>/_litestream/<fence>/`, so swamp can collect a lineage a takeover
   replaced and stop deferring chunk collection. Swamp's v3 on buckets (Phase
   4E) needs this version or later.
+
+  Keeps the v2 file sync off a v3 datastore, for swamp releases older than
+  v20261008.201010.0 that check no format marker: `_litestream/` is never
+  indexed, pulled or pushed, and the sync service reads the root
+  `_control/datastore-format` once, alongside the credentials preflight, and
+  refuses format 3 or newer, or a garbled marker, with
+  `datastore_format_unsupported` before it syncs anything. An unreadable
+  marker does not block that operation, and the next one reads it again.
 
   ## Authentication
 

@@ -38,10 +38,16 @@ import type {
   SyncCapabilities,
 } from "./interfaces.ts";
 import {
+  confirmS3KeyMissing,
   isIfMatchUnsupported,
   type S3Client,
+  s3NotFoundKind,
   S3OperationError,
 } from "./s3_client.ts";
+import {
+  DATASTORE_FORMAT_MARKER_KEY,
+  DatastoreFormatGate,
+} from "./s3_format_guard.ts";
 import { atomicWriteTextFile } from "./atomic_write.ts";
 import { Attr, getTracer } from "./tracing.ts";
 
@@ -98,6 +104,9 @@ interface OwnMtimeRecord {
  *   uploaded: its contents are per-machine state.
  * - `.datastore-local-mtimes.json` — this copy's own mtime record, which
  *   vouches that a local file is unchanged. Per-machine state.
+ * - `_index/`, `_control/`, `_blobs/` and `_litestream/` — the shard
+ *   index, the control plane, `storage/1` chunks and the v3 Litestream
+ *   replicas, each reached through its own code path, never the file sync.
  * - basename `_catalog.db` and anything starting with `_catalog.db-`
  *   (the SQLite WAL/SHM/journal sidecars) — the local-only data catalog
  *   store. It is deliberately colocated with the data tier so it can
@@ -140,6 +149,8 @@ export function isInternalCacheFile(rel: string): boolean {
   // storage/1 chunks, reached through storage(), never the file sync
   // (swamp-club#3492).
   if (rel === "_blobs" || rel.startsWith("_blobs/")) return true;
+  // Litestream's v3 replicas, never files to sync (swamp-club#3549).
+  if (rel === "_litestream" || rel.startsWith("_litestream/")) return true;
   const base = rel.split("/").pop() ?? "";
   if (base === ".lock" || base === ".namespace.json") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
@@ -688,6 +699,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private namespace: string | undefined = undefined;
   private namespaceBound = false;
   private preflightDone = false;
+  // Refuses a datastore the v2 file sync must not touch (swamp-club#3549).
+  private readonly formatGate = new DatastoreFormatGate(
+    (signal) => this.readFormatMarker(signal),
+    "[s3-sync]",
+  );
   private freshV2Initialized = false;
   private casUnsupported = false;
   private static readonly SHARD_CAS_ATTEMPTS = 8;
@@ -737,6 +753,47 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (this.preflightDone) return;
     await this.s3.preflightCredentials(signal);
     this.preflightDone = true;
+  }
+
+  /**
+   * The credentials preflight and the format check, started together so
+   * the check adds no round trip. The check's deadline starts once the
+   * preflight has resolved credentials. Both settle before the caller lists,
+   * reads or writes anything.
+   */
+  private async ensureSyncable(signal?: AbortSignal): Promise<void> {
+    const preflight = this.ensurePreflight(signal);
+    await Promise.all([preflight, this.formatGate.ensure(signal, preflight)]);
+  }
+
+  /**
+   * The datastore-wide format marker at the root `_control/`, whatever
+   * namespace this service binds, read as S3DatastoreControlPlaneStore
+   * reads it: null only when the key is missing, any other failure rejects
+   * (and the gate then fails open).
+   */
+  private async readFormatMarker(
+    signal: AbortSignal,
+  ): Promise<Uint8Array | null> {
+    try {
+      const { data } = await retryWithBackoff(
+        () => this.s3.getObject(DATASTORE_FORMAT_MARKER_KEY, signal),
+        { signal },
+      );
+      return data;
+    } catch (error) {
+      const kind = signal.aborted ? undefined : s3NotFoundKind(error);
+      if (kind === undefined) throw error;
+      if (kind === "ambiguous") {
+        await confirmS3KeyMissing(
+          this.s3,
+          DATASTORE_FORMAT_MARKER_KEY,
+          error,
+          signal,
+        );
+      }
+      return null;
+    }
   }
 
   /**
@@ -1467,6 +1524,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           span.setAttribute(Attr.DATASTORE_NAMESPACE, options?.namespace ?? "");
           const signal = options?.signal;
           this.bindNamespace(options?.namespace);
+          await this.formatGate.ensure(signal);
           const migrateStart = Date.now();
           await this.pullIndex({ forceRemote: true, signal });
           const allEntries = this.index?.entries ?? {};
@@ -2230,6 +2288,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   ): Promise<string | null> {
     const signal = options?.signal;
     if (options?.report) options.report.fromRemote = false;
+    await this.formatGate.ensureWithinOperation(signal);
     // Check local cache freshness (skipped when forceRemote is set).
     // Cache-hit returns null: no remote fetch happened, so we have no
     // fingerprint the caller can safely record. The alternative —
@@ -2575,6 +2634,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       async (span) => {
         try {
           span.setAttribute(Attr.DATASTORE_FILE, relativePath);
+          await this.formatGate.ensureWithinOperation(signal);
           const localPath = assertSafePath(
             this.cachePath,
             this.localRelPath(relativePath),
@@ -2662,7 +2722,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const signal = options?.signal;
           this.bindNamespace(options?.namespace);
           throwIfAborted(signal);
-          await this.ensurePreflight(signal);
+          await this.ensureSyncable(signal);
 
           // Subdir-scoped pull (configRefresh): only list, walk, prune and
           // download entries under these prefixes. A scoped pull never
@@ -3146,6 +3206,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       async (span) => {
         try {
           span.setAttribute(Attr.DATASTORE_FILE, relativePath);
+          await this.formatGate.ensureWithinOperation(signal);
           await this.markDirty();
           let localPath: string;
           if (overrideLocalPath) {
@@ -3226,7 +3287,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const signal = options?.signal;
           this.bindNamespace(options?.namespace);
           throwIfAborted(signal);
-          await this.ensurePreflight(signal);
+          await this.ensureSyncable(signal);
 
           const syncState = await this.loadSyncState() as
             | DatastoreSyncStateV2
@@ -3769,7 +3830,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const signal = options?.signal;
           this.bindNamespace(options?.namespace);
           throwIfAborted(signal);
-          await this.ensurePreflight(signal);
+          await this.ensureSyncable(signal);
 
           const prepareStart = Date.now();
           const prepSyncState = await this.loadSyncState() as
@@ -4149,6 +4210,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const commitStart = Date.now();
           const data = manifest as unknown as InternalPushManifest;
           const signal = options?.signal;
+          // The second half of preparePush's operation: it reuses the outcome
+          // preparePush saw, so a push never stops between its two phases.
+          await this.formatGate.ensureWithinOperation(signal);
 
           if (data.pushed === 0 && data.deleted === 0) {
             const noopMeta = await this.readPartitionMeta(signal);
@@ -4929,6 +4993,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       async (span) => {
         try {
           span.setAttribute(Attr.DATASTORE_FILE, relPath);
+          await this.formatGate.ensure(options?.signal);
           // Core passes a cache-relative path, which starts with the
           // namespace; pullFile expects a namespace-relative one and adds
           // the namespace itself (swamp-club#2404).
@@ -5009,6 +5074,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               );
             }
           }
+          await this.formatGate.ensure(signal);
           try {
             const { data } = await retryWithBackoff(
               () => this.s3.getObject(relPath, signal),
@@ -5048,6 +5114,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
         try {
           span.setAttribute(Attr.DATASTORE_NAMESPACE, namespace);
           span.setAttribute(Attr.DATASTORE_ROWS, rows.length);
+          await this.formatGate.ensure(signal);
           const key = `${namespace}/.catalog-export.json`;
           const data = new TextEncoder().encode(JSON.stringify(rows));
           const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -5087,6 +5154,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       async (span) => {
         try {
           span.setAttribute(Attr.DATASTORE_NAMESPACES, namespaces.length);
+          await this.formatGate.ensure(signal);
           const results: CatalogExportEntry[] = [];
           for (const ns of namespaces) {
             const key = `${ns}/.catalog-export.json`;
@@ -5130,6 +5198,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const dryRun = options?.dryRun ?? true;
 
           this.bindNamespace(options?.namespace);
+          await this.formatGate.ensure(signal);
           if (!this.namespace) {
             return {
               foreignNamespaces: [],
@@ -5273,6 +5342,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           ) {
             throw new Error(`Path traversal rejected: ${relPath}`);
           }
+          await this.formatGate.ensure(signal);
           const key = `${namespace}/${relPath}`;
           try {
             const { data } = await this.s3.getObject(key, signal);

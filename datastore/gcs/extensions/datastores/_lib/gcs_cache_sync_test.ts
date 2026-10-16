@@ -37,6 +37,10 @@ import {
   retryWithBackoff,
 } from "./gcs_cache_sync.ts";
 import {
+  DATASTORE_FORMAT_MARKER_KEY,
+  DatastoreFormatUnsupportedError,
+} from "./gcs_format_guard.ts";
+import {
   GcsClient,
   GcsOperationError,
   NotFoundError,
@@ -72,6 +76,8 @@ function createMockGcsClient(): GcsClient & {
   heads: string[];
   deletes: string[];
   bucketCheck: { checks: number; failure: Error | null };
+  /** Reads of the format marker and their bucket checks (swamp-club#3549). */
+  markerReads: string[];
 } {
   const storage = new Map<string, Uint8Array>();
   const generations = new Map<string, number>();
@@ -86,6 +92,10 @@ function createMockGcsClient(): GcsClient & {
     checks: 0,
     failure: null,
   };
+  // The sync service reads the format marker once before its first remote
+  // data operation (swamp-club#3549). Its reads are kept out of `gets` and
+  // `bucketCheck`, so those still show exactly what the code under test read.
+  const markerReads: string[] = [];
 
   const nextGen = (key: string): string => {
     const g = (generations.get(key) ?? 0) + 1;
@@ -112,14 +122,19 @@ function createMockGcsClient(): GcsClient & {
     heads,
     deletes,
     bucketCheck,
+    markerReads,
 
     listObjects(
-      _subPrefix?: string,
+      subPrefix?: string,
       _pageToken?: string,
       signal?: AbortSignal,
     ): Promise<{ entries: never[]; truncated: boolean }> {
       throwIfAborted(signal);
-      bucketCheck.checks++;
+      if (subPrefix === DATASTORE_FORMAT_MARKER_KEY) {
+        markerReads.push(`list ${subPrefix}`);
+      } else {
+        bucketCheck.checks++;
+      }
       return bucketCheck.failure
         ? Promise.reject(bucketCheck.failure)
         : Promise.resolve({ entries: [], truncated: false });
@@ -172,7 +187,7 @@ function createMockGcsClient(): GcsClient & {
       signal?: AbortSignal,
     ): Promise<{ data: Uint8Array; generation?: string }> {
       throwIfAborted(signal);
-      gets.push(key);
+      (key === DATASTORE_FORMAT_MARKER_KEY ? markerReads : gets).push(key);
       const data = storage.get(key);
       if (!data) {
         return Promise.reject(new NotFoundError(`Object not found: ${key}`));
@@ -280,6 +295,7 @@ function createMockGcsClient(): GcsClient & {
     heads: string[];
     deletes: string[];
     bucketCheck: { checks: number; failure: Error | null };
+    markerReads: string[];
   };
 }
 
@@ -10701,7 +10717,9 @@ Deno.test("fetchContent: retries a transient failure of the read and of the buck
     let reads = 0;
     const get = mock.getObject.bind(mock);
     mock.getObject = (key, signal) =>
-      ++reads === 1 ? Promise.reject(makeGcsErr(503)) : get(key, signal);
+      key === RAW_3161 && ++reads === 1
+        ? Promise.reject(makeGcsErr(503))
+        : get(key, signal);
     const fetched = await service.fetchContent(RAW_3161);
     assertEquals(new TextDecoder().decode(fetched!), "root");
     assertEquals(reads, 2);
@@ -10817,6 +10835,19 @@ function startFetchServer3161(opts: {
   const server = startIntegrationServer((req) => {
     const url = new URL(req.url);
     const object = url.pathname.match(/\/b\/b\/o\/(.+)$/);
+    // The sync service's one read of the format marker (swamp-club#3549):
+    // no marker, answered apart so the records show only fetchContent's own
+    // requests.
+    const requested = object ? decodeURIComponent(object[1]) : null;
+    if (requested?.endsWith(DATASTORE_FORMAT_MARKER_KEY)) {
+      return GCS_NO_SUCH_OBJECT_3161(requested);
+    }
+    if (
+      !object &&
+      url.searchParams.get("prefix")?.endsWith(DATASTORE_FORMAT_MARKER_KEY)
+    ) {
+      return Response.json({ kind: "storage#objects" });
+    }
     if (!object) {
       listings.push(url.searchParams.get("prefix") ?? "");
       return opts.listing?.() ?? Response.json({ kind: "storage#objects" });
@@ -11073,7 +11104,7 @@ Deno.test("controlPlaneStore: migration leaves writer/, lineage/ and datastore-f
     );
     mock.storage.set(
       "_control/datastore-format",
-      new TextEncoder().encode("marker"),
+      new TextEncoder().encode(JSON.stringify({ format: 2 })),
     );
     mock.storage.set(
       "_control/lineage/7/started.json",
@@ -11844,6 +11875,521 @@ Deno.test("swamp-club#3193: after a later full pull, a no-op push arms commitSeq
     assertEquals(sidecar.localDirty, false);
     assertEquals(sidecar.commitSeq, 3);
   } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+// =========================================================================
+// swamp-club#3549: the v2 file sync keeps off a v3 bucket. `_litestream/`
+// is never a file to sync, and a format-3 (or garbled) marker at the
+// datastore-wide root refuses every remote data operation before it writes
+// anything, unnamespaced and namespaced alike.
+//
+// These are direct assertions: no @systeminit/swamp-testing conformance
+// helper covers a sync service refusing a datastore by its format marker.
+// The provider's export contract is unchanged, and
+// assertDatastoreExportConformance still runs in the provider's own test.
+// =========================================================================
+
+const LTX_3549 =
+  "_litestream/000000000007/0/0000000000000001-0000000000000001.ltx";
+
+Deno.test("swamp-club#3549: isInternalCacheFile excludes _litestream/", () => {
+  assert(isInternalCacheFile("_litestream"));
+  assert(isInternalCacheFile("_litestream/"));
+  assert(isInternalCacheFile(LTX_3549));
+  assert(!isInternalCacheFile("_litestreamx/a"));
+  assert(!isInternalCacheFile("data/_litestream/a"));
+});
+
+Deno.test("swamp-club#3549: a pull never downloads or indexes Litestream objects, and a push never uploads them", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-ltx-" });
+  try {
+    const mock = createMockGcsClient();
+    // No index: the pull discovers the bucket by listing it whole.
+    mock.storage.set("data/a.yaml", new TextEncoder().encode("a: 1\n"));
+    mock.storage.set(LTX_3549, new TextEncoder().encode("ltx"));
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+    assertEquals(await exists(join(cachePath, "_litestream")), false);
+
+    await seedFile(cachePath, "data/b.yaml", "b: 1\n");
+    await seedFile(cachePath, "_litestream/000000000008/0/x.ltx", "local");
+    await service.markDirty();
+    await service.pushChanged();
+
+    const decoder = new TextDecoder();
+    for (const put of mock.puts) {
+      assert(
+        !put.key.startsWith("_litestream/"),
+        `a push must never upload ${put.key}`,
+      );
+      assert(
+        !decoder.decode(put.body).includes("_litestream/"),
+        `no index may list a Litestream object: ${put.key}`,
+      );
+    }
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    // Litestream's own object is left as it was.
+    assertEquals(mock.storage.has(LTX_3549), true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+const MARKER_3549 = "_control/datastore-format";
+
+function v3Marker(extra: Record<string, unknown> = {}): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify({ format: 3, writtenBy: "20261016.120000.0", ...extra }),
+  );
+}
+
+/** Local files a sync writes into its cache as bookkeeping. */
+const SYNC_BOOKKEEPING_3549 = [
+  ".datastore-index.json",
+  ".datastore-sync-state.json",
+  ".datastore-local-mtimes.json",
+];
+
+/** Counts the full listings a sync makes; the mock records none itself. */
+function countListings3549(
+  mock: ReturnType<typeof createMockGcsClient>,
+): { count: number } {
+  const counter = { count: 0 };
+  const listAll = mock.listAllObjects.bind(mock);
+  mock.listAllObjects = (subPrefix, signal) => {
+    counter.count++;
+    return listAll(subPrefix, signal);
+  };
+  return counter;
+}
+
+async function assertNothingSynced3549(
+  mock: ReturnType<typeof createMockGcsClient>,
+  listings: { count: number },
+  cachePath: string,
+  namespace: string | undefined,
+): Promise<void> {
+  assertEquals(mock.puts, [], "a refused sync must write nothing remote");
+  assertEquals(mock.deletes, [], "a refused sync must delete nothing");
+  assertEquals(listings.count, 0, "a refused sync must list nothing");
+  assertEquals(mock.bucketCheck.checks, 0, "nor check the bucket");
+  assertEquals(
+    mock.gets,
+    [],
+    "a refused sync must read nothing but the marker",
+  );
+  assertEquals(mock.markerReads, [MARKER_3549]);
+  for (const file of SYNC_BOOKKEEPING_3549) {
+    for (const rel of namespace ? [file, `${namespace}/${file}`] : [file]) {
+      assertEquals(
+        await exists(join(cachePath, rel)),
+        false,
+        `a refused sync must leave no ${rel}`,
+      );
+    }
+  }
+}
+
+for (const namespace of [undefined, "team-a"]) {
+  const label = namespace ? "namespaced" : "unnamespaced";
+  const ns = namespace ? `${namespace}/` : "";
+
+  for (
+    const [method, run] of [
+      ["pullChanged", (s: GcsCacheSyncService) => s.pullChanged({ namespace })],
+      ["pushChanged", (s: GcsCacheSyncService) => s.pushChanged({ namespace })],
+      ["preparePush", (s: GcsCacheSyncService) => s.preparePush({ namespace })],
+      [
+        "commitPush",
+        (s: GcsCacheSyncService) =>
+          s.commitPush(
+            {
+              newEntries: {},
+              deletedKeys: [],
+              pushed: 0,
+              deleted: 0,
+              dirtyPartitionKeys: [],
+            } as unknown as Parameters<GcsCacheSyncService["commitPush"]>[0],
+            { namespace },
+          ),
+      ],
+    ] as const
+  ) {
+    Deno.test(`swamp-club#3549: ${method} refuses a format-3 marker at the root (${label}), writing nothing`, async () => {
+      const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-v3-" });
+      try {
+        const mock = createMockGcsClient();
+        seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+        mock.storage.set(MARKER_3549, v3Marker());
+        await seedFile(cachePath, `${ns}data/local.yaml`, "local\n");
+        mock.puts.length = 0;
+        const listings = countListings3549(mock);
+        // Building the service makes no request and does not refuse.
+        const service = new GcsCacheSyncService(mock, cachePath);
+
+        const error = await assertRejects(
+          () => run(service),
+          DatastoreFormatUnsupportedError,
+        );
+        assertEquals(error.code, "datastore_format_unsupported");
+        assertEquals(
+          error.message,
+          "This datastore uses format 3 (written by swamp 20261016.120000.0), " +
+            "which this swamp release can't open. Upgrade swamp to the " +
+            "latest release (`swamp update`). Nothing was synced.",
+        );
+        await assertNothingSynced3549(mock, listings, cachePath, namespace);
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    });
+  }
+
+  Deno.test(`swamp-club#3549: the marker is read at the root, never under the namespace (${label})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-root-" });
+    try {
+      const mock = createMockGcsClient();
+      seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+      if (namespace) {
+        // A marker under the namespace is not the datastore's marker.
+        mock.storage.set(`${ns}${MARKER_3549}`, v3Marker());
+      }
+      const service = new GcsCacheSyncService(mock, cachePath);
+      await service.pullChanged({ namespace });
+      assertEquals(await exists(join(cachePath, `${ns}data/a.yaml`)), true);
+      assertEquals(mock.markerReads[0], MARKER_3549);
+      assertEquals(mock.gets.filter((k) => k.endsWith(MARKER_3549)), []);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#3549: a minReaderFormat-3 marker refuses (${label})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-min-" });
+    try {
+      const mock = createMockGcsClient();
+      seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+      mock.storage.set(
+        MARKER_3549,
+        new TextEncoder().encode(
+          JSON.stringify({ format: 4, minReaderFormat: 3 }),
+        ),
+      );
+      const error = await assertRejects(
+        () =>
+          new GcsCacheSyncService(mock, cachePath).pullChanged({ namespace }),
+        DatastoreFormatUnsupportedError,
+      );
+      assertEquals(
+        error.message,
+        "This datastore uses format 4, which this swamp release can't open. " +
+          "Upgrade swamp to the latest release (`swamp update`). Nothing was " +
+          "synced.",
+      );
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#3549: a garbled marker refuses (${label})`, async () => {
+    for (const body of ["marker", '{"format":"3"}', '{"format":0}']) {
+      const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-bad-" });
+      try {
+        const mock = createMockGcsClient();
+        seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+        mock.storage.set(MARKER_3549, new TextEncoder().encode(body));
+        mock.puts.length = 0;
+        const listings = countListings3549(mock);
+        const error = await assertRejects(
+          () =>
+            new GcsCacheSyncService(mock, cachePath).pullChanged({ namespace }),
+          DatastoreFormatUnsupportedError,
+        );
+        assertEquals(error.code, "datastore_format_unsupported");
+        await assertNothingSynced3549(mock, listings, cachePath, namespace);
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    }
+  });
+
+  Deno.test(`swamp-club#3549: no marker, a format-2 marker and an unreadable marker sync as today (${label})`, async () => {
+    const debug = console.debug;
+    console.debug = () => {};
+    try {
+      for (
+        const marker of [
+          "absent",
+          "format-2",
+          "403",
+          "500",
+        ] as const
+      ) {
+        const cachePath = await Deno.makeTempDir({
+          prefix: "gcssync-3549-open-",
+        });
+        try {
+          const mock = createMockGcsClient();
+          seedRemote(mock, { "data/a.yaml": "a: 1\n" }, ns);
+          if (marker === "format-2") {
+            mock.storage.set(
+              MARKER_3549,
+              new TextEncoder().encode(JSON.stringify({ format: 2 })),
+            );
+          } else if (marker !== "absent") {
+            const status = marker === "403" ? 403 : 500;
+            mock.storage.set(MARKER_3549, v3Marker());
+            const getObject = mock.getObject.bind(mock);
+            mock.getObject = (key: string, signal?: AbortSignal) => {
+              if (key !== MARKER_3549) return getObject(key, signal);
+              mock.markerReads.push(key);
+              return Promise.reject(makeGcsErr(status));
+            };
+          }
+          const service = new GcsCacheSyncService(mock, cachePath);
+          await service.pullChanged({ namespace });
+          assertEquals(
+            await exists(join(cachePath, `${ns}data/a.yaml`)),
+            true,
+            `the pull must go ahead with the marker ${marker}`,
+          );
+          await seedFile(cachePath, `${ns}data/b.yaml`, "b\n");
+          await service.markDirty({ namespace });
+          await service.pushChanged({ namespace });
+          assert(mock.puts.some((p) => p.key === `${ns}data/b.yaml`));
+        } finally {
+          await Deno.remove(cachePath, { recursive: true });
+        }
+      }
+    } finally {
+      console.debug = debug;
+    }
+  });
+}
+
+Deno.test("swamp-club#3549: one marker GET per service, across pulls and pushes", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-once-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+    await service.pullChanged();
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    await service.markDirty();
+    await service.pushChanged();
+    await service.fetchContent("data/a.yaml");
+    assertEquals(mock.markerReads.filter((k) => k === MARKER_3549).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: the marker GET starts alongside the credentials preflight", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-par-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    let releasePreflight!: () => void;
+    mock.preflightCredentials = () =>
+      new Promise<void>((resolve) => releasePreflight = resolve);
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const pull = service.pullChanged();
+    // Let the pull run up to its awaits; the preflight is still held.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(mock.markerReads[0], MARKER_3549);
+    assertEquals(mock.gets, []);
+    releasePreflight();
+    await pull;
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: an aborted hydrateFile does not fail a concurrent one or the next call", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-abort-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n", "data/b.yaml": "b: 1\n" });
+    let releaseMarker!: () => void;
+    const markerHeld = new Promise<void>((resolve) => releaseMarker = resolve);
+    const getObject = mock.getObject.bind(mock);
+    mock.getObject = async (key: string, signal?: AbortSignal) => {
+      if (key === MARKER_3549) await markerHeld;
+      return await getObject(key, signal);
+    };
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const controller = new AbortController();
+    const aborted = service.hydrateFile("data/a.yaml", {
+      signal: controller.signal,
+    });
+    const waiting = service.hydrateFile("data/b.yaml");
+    controller.abort(new Error("caller gave up"));
+    await assertRejects(() => aborted, Error, "caller gave up");
+
+    releaseMarker();
+    assertEquals(await waiting, true);
+    assertEquals(await service.hydrateFile("data/a.yaml"), true);
+    assertEquals(mock.markerReads.filter((k) => k === MARKER_3549).length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: the control-plane store still reads the marker on a v3 bucket", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-cp-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const bytes = await service.controlPlaneStore().get("datastore-format");
+    assertEquals(bytes, v3Marker());
+    await service.markDirty();
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+/** Fails the first `failures` reads of the marker with a 403. */
+function failMarkerReads3549(
+  mock: ReturnType<typeof createMockGcsClient>,
+  failures: number,
+): { reads: number } {
+  const counter = { reads: 0 };
+  const getObject = mock.getObject.bind(mock);
+  mock.getObject = (key: string, signal?: AbortSignal) => {
+    if (key === MARKER_3549 && ++counter.reads <= failures) {
+      // A cold process: the read fails, as one past its deadline would.
+      return Promise.reject(makeGcsErr(403));
+    }
+    return getObject(key, signal);
+  };
+  return counter;
+}
+
+Deno.test("swamp-club#3549: a failed marker read does not turn the check off for later operations", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-retry-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    const service = new GcsCacheSyncService(mock, cachePath);
+    // The first operation fails open, as core's guard does.
+    assertEquals(
+      new TextDecoder().decode((await service.fetchContent("data/a.yaml"))!),
+      "a: 1\n",
+    );
+    // The next one reads the marker again and refuses.
+    mock.puts.length = 0;
+    await assertRejects(
+      () => service.pushChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    await assertRejects(
+      () => service.pullChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+    assertEquals(mock.puts, []);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a pull whose marker read fails goes ahead in full, reading the marker once; the next operation refuses", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-onceop-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/a.yaml": "a: 1\n" });
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    const service = new GcsCacheSyncService(mock, cachePath);
+    // Its inner steps (pullIndex, pullFile) reuse the failed-open outcome:
+    // one deadline at most, and no refusal partway through.
+    await service.pullChanged();
+    assertEquals(await exists(join(cachePath, "data/a.yaml")), true);
+    assertEquals(marker.reads, 1);
+    await assertRejects(
+      () => service.pullChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a push whose marker read fails completes, and so does its commit phase", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-onceop-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.markDirty();
+    // pushFile and commitPush run inside preparePush's operation.
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    assertEquals(marker.reads, 1);
+    // The next operation core starts reads the marker again and refuses.
+    await assertRejects(
+      () => service.pushChanged(),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+  } finally {
+    console.debug = debug;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3549: a push let in after a failed read commits even when another operation refuses in between", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-3549-overlap-" });
+  const debug = console.debug;
+  console.debug = () => {};
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(MARKER_3549, v3Marker());
+    const marker = failMarkerReads3549(mock, 1);
+    await seedFile(cachePath, "data/b.yaml", "b\n");
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.markDirty();
+    const manifest = await service.preparePush();
+    assert(mock.puts.some((p) => p.key === "data/b.yaml"));
+    // Another operation starts between the two phases, re-reads the marker
+    // and is refused.
+    await assertRejects(
+      () => service.fetchContent("data/b.yaml"),
+      DatastoreFormatUnsupportedError,
+    );
+    assertEquals(marker.reads, 2);
+    // The push it interrupted still commits its index, so the uploaded file
+    // is not left unindexed.
+    await service.commitPush(manifest);
+    assert(
+      mock.puts.some((p) =>
+        p.key.startsWith("_index/") || p.key === ".datastore-index.json"
+      ),
+      "commitPush must write the index",
+    );
+  } finally {
+    console.debug = debug;
     await Deno.remove(cachePath, { recursive: true });
   }
 });

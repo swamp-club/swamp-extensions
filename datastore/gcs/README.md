@@ -402,6 +402,27 @@ where swamp reads them (swamp-club#3395). An older extension version would move
 the lease and the lineage. Swamp's v3 on buckets (Phase 4E) needs this version
 or later; see the Litestream replica target section below.
 
+The sync service never syncs a datastore it cannot read (swamp-club#3549).
+Before its first pull, push or other remote data operation it reads the root
+`_control/datastore-format` once, whatever namespace it binds, and refuses a
+marker whose `minReaderFormat` (or `format`) is 3 or newer, or one that is not a
+valid marker, with code `datastore_format_unsupported` and a message telling the
+user to upgrade swamp; nothing is listed, read or written. Swamp releases from
+v20261008.201010.0 refuse such a datastore themselves, so this matters for older
+binaries, which load this extension from a v3 repository's lockfile. A marker
+that cannot be read (a 403, a 5xx, no answer within 3 seconds) does not block:
+the operation that met it goes ahead in full as before, as swamp's own check
+does, and the next operation swamp starts reads the marker again, up to three
+failed reads per service. A marker that was read is remembered. So an operation
+refuses at its start or runs to the end: it waits out at most one deadline and
+never stops partway, even when another operation re-reads the marker meanwhile
+(a push's commit phase belongs to its push). For a pull or push the
+read runs alongside the credentials preflight, adding no round trip, and its 3
+seconds count from when credentials resolve; for a single-file read they count
+from the start, so a cold first one may fail open and leave the check to the
+next operation. Building the service, `markDirty` and the control-plane stores
+never check.
+
 ## Chunk storage (`storage/1`)
 
 The provider's `storage()` returns the `storage/1` chunk storage a v3 datastore
@@ -410,7 +431,8 @@ uses: immutable, content-addressed chunks at
 `<namespace>` is the repository's namespace or `_default` (swamp-club#3492).
 Swamp first calls it in datastore rework Phase 4E, which is not yet released;
 until then the extension stores nothing there. `_blobs/` is never part of the
-file sync: a pull or push neither lists nor uploads it.
+file sync: a pull or push neither lists nor uploads it. Nor is `_litestream/`,
+where Litestream replicates a v3 datastore's commit log (swamp-club#3549).
 
 - **Chunk size.** `capabilities().maxChunkBytes` is 16 MiB, the largest size
   swamp cuts. A put is a single simple (`uploadType=media`) upload, never a
