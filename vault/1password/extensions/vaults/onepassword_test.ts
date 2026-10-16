@@ -33,6 +33,13 @@ Deno.test("vault export conforms to VaultProvider contract", () => {
         op_vault: "Engineering",
         op_service_account_token_file: "/run/secrets/op-token",
       },
+      { op_vault: "Engineering", read_retry_attempts: 1 },
+      {
+        op_vault: "Engineering",
+        read_retry_attempts: 10,
+        read_retry_seconds: 0.5,
+      },
+      { op_vault: "Engineering", read_retry_seconds: 0 },
     ],
     invalidConfigs: [
       {},
@@ -42,6 +49,11 @@ Deno.test("vault export conforms to VaultProvider contract", () => {
         op_vault: "Engineering",
         op_service_account_token_file: "secrets/op-token",
       },
+      { op_vault: "Engineering", read_retry_attempts: 0 },
+      { op_vault: "Engineering", read_retry_attempts: 1.5 },
+      { op_vault: "Engineering", read_retry_attempts: 21 },
+      { op_vault: "Engineering", read_retry_seconds: -1 },
+      { op_vault: "Engineering", read_retry_seconds: 61 },
     ],
   });
 });
@@ -1289,4 +1301,160 @@ Deno.test("configSchema rejects a relative op_service_account_token_file", () =>
     Error,
     "must be an absolute path",
   );
+});
+
+// --- Read retry while a just-created item is not visible (swamp-club #3181) ---
+
+const ITEM_NOT_VISIBLE =
+  `[ERROR] could not read secret 'op://Engineering/fresh/password': could not get item Engineering/fresh: "fresh" isn't an item in the "Engineering" vault.`;
+
+/**
+ * Mock op whose `op read` fails with readError for the first failingReads
+ * reads, then returns the secret. Counts every `op read` it receives.
+ */
+function createFlakyReadMock(readError: string, failingReads: number) {
+  const counter = { reads: 0 };
+  const mock = (cmd: string, args: string[]) => {
+    if (cmd !== "op") {
+      return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
+    }
+    if (args.includes("--version")) {
+      return { stdout: "2.30.0", code: 0 };
+    }
+    if (args[0] === "read") {
+      counter.reads++;
+      if (counter.reads <= failingReads) {
+        return { stdout: "", stderr: readError, code: 1 };
+      }
+      return { stdout: "s3cr3t\n", code: 0 };
+    }
+    return {
+      stdout: "",
+      stderr: `unhandled op args: ${args.join(" ")}`,
+      code: 1,
+    };
+  };
+  return { mock, counter };
+}
+
+Deno.test("1password vault: get retries by default until a just-created item is visible", async () => {
+  const { mock, counter } = createFlakyReadMock(ITEM_NOT_VISIBLE, 1);
+  const { result } = await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    return await provider.get("fresh");
+  });
+
+  assertEquals(result, "s3cr3t");
+  assertEquals(counter.reads, 2);
+});
+
+Deno.test("1password vault: get returns the original error once the retry window ends", async () => {
+  const { mock, counter } = createFlakyReadMock(ITEM_NOT_VISIBLE, Infinity);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_seconds: 0.3,
+    });
+    const started = Date.now();
+    const err = await assertRejects(() => provider.get("fresh"), Error);
+    assertEquals(err.message, `1Password CLI error: ${ITEM_NOT_VISIBLE}`);
+    // Loose upper bound: the window is 300ms; allow slack for slow hosts.
+    const elapsed = Date.now() - started;
+    if (elapsed > 2000) {
+      throw new Error(`retry ran past its window: ${elapsed}ms`);
+    }
+  });
+
+  // Reads at ~0ms and ~250ms, then the backoff is clamped to the window and
+  // a last read runs at its 300ms end. A slow host can push the second read
+  // past the window, leaving 2; it must have retried at least once.
+  if (counter.reads < 2 || counter.reads > 3) {
+    throw new Error(`expected 2 or 3 reads, got ${counter.reads}`);
+  }
+});
+
+Deno.test("1password vault: get stops after read_retry_attempts reads", async () => {
+  const { mock, counter } = createFlakyReadMock(ITEM_NOT_VISIBLE, Infinity);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_attempts: 3,
+    });
+    await assertRejects(() => provider.get("fresh"), Error, "isn't an item");
+  });
+
+  assertEquals(counter.reads, 3);
+});
+
+Deno.test("1password vault: read_retry_attempts 1 disables read retry", async () => {
+  const { mock, counter } = createFlakyReadMock(ITEM_NOT_VISIBLE, 1);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_attempts: 1,
+    });
+    await assertRejects(() => provider.get("fresh"), Error, "isn't an item");
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: read_retry_seconds 0 disables read retry", async () => {
+  const { mock, counter } = createFlakyReadMock(ITEM_NOT_VISIBLE, 1);
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+      read_retry_seconds: 0,
+    });
+    await assertRejects(() => provider.get("fresh"), Error, "isn't an item");
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: get does not retry an authentication error", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    "[ERROR] authorization prompt dismissed, please try again",
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    await assertRejects(
+      () => provider.get("fresh"),
+      Error,
+      "1Password authentication failed",
+    );
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: get does not retry a missing vault", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    `[ERROR] could not read secret 'op://BadVault/fresh/password': "BadVault" isn't a vault in this account`,
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "BadVault" });
+    await assertRejects(() => provider.get("fresh"), Error, "1Password vault");
+  });
+
+  assertEquals(counter.reads, 1);
+});
+
+Deno.test("1password vault: get does not retry other op errors", async () => {
+  const { mock, counter } = createFlakyReadMock(
+    `[ERROR] could not read secret 'op://Engineering/fresh/token': "token" isn't a field in the "fresh" item`,
+    1,
+  );
+  await withMockedCommand(mock, async () => {
+    const provider = vault.createProvider("test", { op_vault: "Engineering" });
+    await assertRejects(
+      () => provider.get("fresh/token"),
+      Error,
+      "isn't a field",
+    );
+  });
+
+  assertEquals(counter.reads, 1);
 });

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/1password"
-version: "2026.10.13.1"
+version: "2026.10.16.0"
 license: "AGPL-3.0-or-later"
 description: |
   Read, write, delete, and annotate secrets stored in 1Password using the `op` CLI.
@@ -8,7 +8,8 @@ description: |
   and `swamp vault inspect` for attaching metadata (URL, notes, labels) to secrets.
   Emits OpenTelemetry spans for vault operations and per-CLI-invocation child spans
   so failures and latency are attributable in traces when a TracerProvider is
-  configured.
+  configured. Reads retry briefly by default when an item another process
+  just created is not visible yet (`read_retry_attempts`, `read_retry_seconds`).
 
   ## Prerequisites
 

@@ -28,7 +28,7 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
+import { type Span, SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { Attr, getTracer } from "./_lib/tracing.ts";
 
 /**
@@ -153,6 +153,21 @@ function validateLabelKey(key: string): void {
   }
 }
 
+/** First backoff between read retries; doubles after each retry. */
+const READ_RETRY_INITIAL_DELAY_MS = 250;
+
+/**
+ * True when `op` reported the item as missing from the vault. An item another
+ * process has just created can be reported this way for a few seconds before
+ * it becomes visible to this client. Errors runOp classified as an auth
+ * failure or a missing vault never match, so those fail on the first attempt.
+ */
+function isItemNotVisible(err: unknown): boolean {
+  return err instanceof Error &&
+    err.message.startsWith("1Password CLI error:") &&
+    err.message.includes("isn't an item");
+}
+
 interface OpItemField {
   id: string;
   type: string;
@@ -213,6 +228,8 @@ class OnePasswordVaultProvider implements VaultProvider {
   private readonly opVault: string;
   private readonly opAccount: string | undefined;
   private readonly tokenFile: string | undefined;
+  private readonly readRetryAttempts: number;
+  private readonly readRetrySeconds: number;
   private opInstalled: boolean | undefined;
 
   constructor(
@@ -221,12 +238,16 @@ class OnePasswordVaultProvider implements VaultProvider {
       op_vault: string;
       op_account?: string;
       op_service_account_token_file?: string;
+      read_retry_attempts: number;
+      read_retry_seconds: number;
     },
   ) {
     this.name = name;
     this.opVault = config.op_vault;
     this.opAccount = config.op_account;
     this.tokenFile = config.op_service_account_token_file;
+    this.readRetryAttempts = config.read_retry_attempts;
+    this.readRetrySeconds = config.read_retry_seconds;
   }
 
   async get(secretKey: string): Promise<string> {
@@ -245,7 +266,7 @@ class OnePasswordVaultProvider implements VaultProvider {
         if (this.opAccount) {
           args.push("--account", this.opAccount);
         }
-        const result = await this.runOp(args);
+        const result = await this.readWithRetry(args, span);
         return result.replace(/\n$/, "");
       } catch (err) {
         if (err instanceof Error) {
@@ -306,6 +327,41 @@ class OnePasswordVaultProvider implements VaultProvider {
         span.end();
       }
     });
+  }
+
+  /**
+   * Runs `op read`, retrying while the item is not yet visible. Retries stop
+   * once read_retry_attempts reads have run or read_retry_seconds have passed
+   * since the first one; an in-flight read is never cut short. The last error
+   * is then rethrown unchanged. Any other error is rethrown at once.
+   */
+  private async readWithRetry(args: string[], span: Span): Promise<string> {
+    // Monotonic, so a wall-clock step cannot stretch or shrink the window.
+    const deadline = performance.now() + this.readRetrySeconds * 1000;
+    let delayMs = READ_RETRY_INITIAL_DELAY_MS;
+    // Set once a wait is clamped to the window end; the read after it is the
+    // last. setTimeout truncates fractional delays, so that read can start a
+    // hair before the deadline and must not earn another retry.
+    let finalRead = false;
+    for (let attempt = 1;; attempt++) {
+      try {
+        return await this.runOp(args);
+      } catch (err) {
+        const remainingMs = deadline - performance.now();
+        if (
+          finalRead || attempt >= this.readRetryAttempts || remainingMs <= 0 ||
+          !isItemNotVisible(err)
+        ) {
+          throw err;
+        }
+        finalRead = delayMs >= remainingMs;
+        span.addEvent("retry", { attempt: attempt + 1 });
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(delayMs, remainingMs))
+        );
+        delayMs *= 2;
+      }
+    }
   }
 
   private async putViaFieldAssignment(
@@ -1130,6 +1186,14 @@ export const vault = {
       "Absolute path to a file containing a 1Password service account token " +
         "(not the token itself). Read on each op call and passed only to the " +
         "op child process.",
+    ),
+    read_retry_attempts: z.number().int().min(1).max(20).default(5).describe(
+      "Total op read attempts when an item is not visible yet, e.g. just " +
+        "created by another process. 1 disables retry.",
+    ),
+    read_retry_seconds: z.number().min(0).max(60).default(5).describe(
+      "Window in seconds, from the first read, during which a read of an " +
+        "item that is not visible yet is retried. 0 disables retry.",
     ),
   }).strict(),
   createProvider(

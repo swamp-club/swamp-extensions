@@ -46,11 +46,13 @@ swamp vault list-keys my-1password --json
 
 ## Configuration
 
-| Key                             | Required | Description                                                |
-| ------------------------------- | -------- | ---------------------------------------------------------- |
-| `op_vault`                      | yes      | The 1Password vault to use                                 |
-| `op_account`                    | no       | Account shorthand or UUID, passed to `op` as `--account`   |
-| `op_service_account_token_file` | no       | Absolute path to a file containing a service account token |
+| Key                             | Required | Description                                                            |
+| ------------------------------- | -------- | ---------------------------------------------------------------------- |
+| `op_vault`                      | yes      | The 1Password vault to use                                             |
+| `op_account`                    | no       | Account shorthand or UUID, passed to `op` as `--account`               |
+| `op_service_account_token_file` | no       | Absolute path to a file containing a service account token             |
+| `read_retry_attempts`           | no       | Total `op read` attempts for an item not visible yet (1–20, default 5) |
+| `read_retry_seconds`            | no       | Retry window in seconds, from the first read (0–60, default 5)         |
 
 ### Service account token file
 
@@ -82,6 +84,37 @@ sends to remote workers, and other child processes never see it.
 
 When the option is unset, behavior is unchanged: `op` inherits the swamp process
 environment.
+
+### Read-after-write retry
+
+An item that another process has just created can take a few seconds to become
+visible to this client. Until then `op read` reports it as missing
+(`"<item>" isn't an item in the "<vault>" vault`). `get` retries that one error,
+waiting 250ms before the first retry and doubling the wait each time, until the
+read succeeds, `read_retry_attempts` reads have run, or `read_retry_seconds`
+have passed since the first read. The window counts from the start of the first
+read; the last wait is shortened to end with the window, and a read already
+running is never cut short. When retries run out, the original `op` error is
+returned unchanged.
+
+- Authentication errors, a missing vault, and every other `op` error fail on the
+  first attempt.
+- Retry is on by default. A read of an item that really does not exist therefore
+  runs up to `read_retry_attempts` `op read` calls and can take
+  `read_retry_seconds` plus the duration of one read to fail, because a read
+  that starts inside the window runs to completion. With service accounts, each
+  of those calls counts against the account's read quota. This includes callers
+  that read a secret only to check whether it exists, such as the
+  token-consistency check `swamp serve` runs at startup. Deployments that probe
+  many absent keys can lower `read_retry_attempts` or shorten the window.
+- Set `read_retry_attempts` to `1` or `read_retry_seconds` to `0` to turn retry
+  off.
+- Each retry is recorded as a `retry` event on the `1password get` span.
+
+```bash
+swamp vault create @swamp/1password my-1password \
+  --config '{"op_vault": "Private", "read_retry_seconds": 10}' --json
+```
 
 ## Secret key format
 
