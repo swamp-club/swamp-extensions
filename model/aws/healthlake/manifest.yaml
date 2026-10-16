@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/healthlake"
-version: "2026.10.13.1"
+version: "2026.10.16.1"
 license: "AGPL-3.0-or-later"
 description: "AWS HEALTHLAKE infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: data_transformation_profile, fhirdatastore
+  - Updated: fhirdatastore
 models:
   - data_transformation_profile.ts
   - fhirdatastore.ts

@@ -73,6 +73,9 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "List of DNS search suffixes to apply to clients. Suffixes are evaluated in order. Use an empty array to clear.",
   ).optional(),
+  enable_device_credential_authentication: z.boolean().describe(
+    "Determines whether the WARP client can silently reauthenticate the user with device credentials (Microsoft Entra) instead of prompting for browser-based reauthentication.",
+  ).optional(),
   enabled: z.boolean().describe(
     "Whether the policy will be applied to matching devices.",
   ).optional(),
@@ -173,6 +176,7 @@ const ResourceSchema = z.object({
     description: z.string().optional(),
     suffix: z.string().optional(),
   })).optional(),
+  enable_device_credential_authentication: z.boolean().optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string().optional(),
@@ -246,6 +250,7 @@ const InputsSchema = z.object({
     description: z.string().optional(),
     suffix: z.string(),
   })).optional(),
+  enable_device_credential_authentication: z.boolean().optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string().optional(),
@@ -293,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -360,6 +365,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.16.1",
+      description: "Added: enable_device_credential_authentication",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -406,6 +416,10 @@ export const model = {
         }
         if (g.dns_search_suffixes !== undefined) {
           body.dns_search_suffixes = g.dns_search_suffixes;
+        }
+        if (g.enable_device_credential_authentication !== undefined) {
+          body.enable_device_credential_authentication =
+            g.enable_device_credential_authentication;
         }
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;
@@ -520,6 +534,12 @@ export const model = {
           filters.push([
             "disable_auto_fallback",
             String(g.disable_auto_fallback),
+          ]);
+        }
+        if (g.enable_device_credential_authentication !== undefined) {
+          filters.push([
+            "enable_device_credential_authentication",
+            String(g.enable_device_credential_authentication),
           ]);
         }
         if (g.enabled !== undefined) {
@@ -690,6 +710,10 @@ export const model = {
         }
         if (g.dns_search_suffixes !== undefined) {
           body.dns_search_suffixes = g.dns_search_suffixes;
+        }
+        if (g.enable_device_credential_authentication !== undefined) {
+          body.enable_device_credential_authentication =
+            g.enable_device_credential_authentication;
         }
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;

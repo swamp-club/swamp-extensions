@@ -82,7 +82,7 @@ const GlobalArgsSchema = z.object({
     "The property describes a name to identify the data migration.",
   ).optional(),
   DataMigrationIdentifier: z.string().min(1).max(300).describe(
-    "The property describes an ARN of the data migration.",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   ServiceAccessRoleArn: z.string().min(1).max(300).describe(
     "The property describes Amazon Resource Name (ARN) of the service access role.",
@@ -142,7 +142,7 @@ const InputsSchema = z.object({
     "The property describes a name to identify the data migration.",
   ).optional(),
   DataMigrationIdentifier: z.string().min(1).max(300).describe(
-    "The property describes an ARN of the data migration.",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   ServiceAccessRoleArn: z.string().min(1).max(300).describe(
     "The property describes Amazon Resource Name (ARN) of the service access role.",
@@ -192,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS DataMigration. Registered at `@swamp/aws/dms/data-migration`. */
 export const model = {
   type: "@swamp/aws/dms/data-migration",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -246,6 +246,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -69,6 +69,9 @@ const GlobalArgsSchema = z.object({
   ha: z.boolean().describe(
     "A boolean value indicating whether the control plane is run in a highly available configuration in the cluster. Highly available control planes incur less downtime. The property cannot be disabled. When omitted on create, the default is version-dependent; for DOKS 1.36.0 and later, the default is true; for earlier versions, the default is false.",
   ).optional(),
+  gpu_operator_ready: z.boolean().describe(
+    "A boolean value indicating whether GPU nodes in the cluster are launched with images that do not include pre-installed GPU drivers, allowing GPU drivers to be managed by a GPU operator instead. Mutually exclusive with other GPU-related cluster options, such as `nvidia_gpu_dra_driver` and `amd_gpu_dra_driver`. When omitted on create, the default value is false.",
+  ).optional(),
   control_plane_firewall: z.object({
     enabled: z.boolean().optional(),
     allowed_addresses: z.array(z.string()).optional(),
@@ -262,6 +265,7 @@ const ResourceSchema = z.object({
   }).nullable().optional(),
   auto_upgrade: z.boolean().optional(),
   isolated_workers: z.boolean().optional(),
+  gpu_operator_ready: z.boolean().optional(),
   status: z.object({
     state: z.string().optional(),
     message: z.string().optional(),
@@ -341,6 +345,7 @@ const InputsSchema = z.object({
   auto_upgrade: z.boolean().optional(),
   surge_upgrade: z.boolean().optional(),
   ha: z.boolean().optional(),
+  gpu_operator_ready: z.boolean().optional(),
   control_plane_firewall: z.object({
     enabled: z.boolean().optional(),
     allowed_addresses: z.array(z.string()).optional(),
@@ -448,7 +453,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -555,6 +560,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.16.1",
+      description: "Added: gpu_operator_ready",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -627,6 +637,9 @@ export const model = {
         if (g.auto_upgrade !== undefined) body.auto_upgrade = g.auto_upgrade;
         if (g.isolated_workers !== undefined) {
           body.isolated_workers = g.isolated_workers;
+        }
+        if (g.gpu_operator_ready !== undefined) {
+          body.gpu_operator_ready = g.gpu_operator_ready;
         }
         if (g.surge_upgrade !== undefined) body.surge_upgrade = g.surge_upgrade;
         if (g.ha !== undefined) body.ha = g.ha;
@@ -756,6 +769,9 @@ export const model = {
         if (g.auto_upgrade !== undefined) body.auto_upgrade = g.auto_upgrade;
         if (g.surge_upgrade !== undefined) body.surge_upgrade = g.surge_upgrade;
         if (g.ha !== undefined) body.ha = g.ha;
+        if (g.gpu_operator_ready !== undefined) {
+          body.gpu_operator_ready = g.gpu_operator_ready;
+        }
         if (g.control_plane_firewall !== undefined) {
           body.control_plane_firewall = g.control_plane_firewall;
         }
@@ -801,6 +817,7 @@ export const model = {
           "cluster_autoscaler_configuration",
           "control_plane_firewall",
           "coredns_autoscaler",
+          "gpu_operator_ready",
           "ha",
           "maintenance_policy",
           "name",

@@ -102,7 +102,7 @@ const GlobalArgsSchema = z.object({
   ),
   EventDestination: z.object({
     Name: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{0,64}$")).describe(
-      "The name of the event destination set.",
+      "The name of the event destination set. SES cannot rename an event destination, so changing the name replaces it.",
     ).optional(),
     Enabled: z.boolean().describe(
       "Sets whether Amazon SES publishes events to this destination when you send an email with the associated configuration set. Set to true to enable publishing to this destination; set to false to prevent publishing to this destination. The default value is false.",
@@ -152,7 +152,7 @@ const InputsSchema = z.object({
   ).optional(),
   EventDestination: z.object({
     Name: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{0,64}$")).describe(
-      "The name of the event destination set.",
+      "The name of the event destination set. SES cannot rename an event destination, so changing the name replaces it.",
     ).optional(),
     Enabled: z.boolean().describe(
       "Sets whether Amazon SES publishes events to this destination when you send an email with the associated configuration set. Set to true to enable publishing to this destination; set to false to prevent publishing to this destination. The default value is false.",
@@ -194,7 +194,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES ConfigurationSetEventDestination. Registered at `@swamp/aws/ses/configuration-set-event-destination`. */
 export const model = {
   type: "@swamp/aws/ses/configuration-set-event-destination",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

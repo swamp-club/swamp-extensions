@@ -47,6 +47,9 @@ const GlobalArgsSchema = z.object({
     validation: z.string().optional(),
   }).optional(),
   profile_id: z.string().optional(),
+  validator_ids: z.array(z.string()).describe(
+    "Validators the new entry should reference, by id, at most 10.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -79,6 +82,7 @@ const InputsSchema = z.object({
     validation: z.string().optional(),
   }).optional(),
   profile_id: z.string().optional(),
+  validator_ids: z.array(z.string()).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -87,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Entries. Registered at `@swamp/cloudflare/dlp/entries`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/entries",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -124,6 +128,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.16.1",
+      description: "Added: validator_ids",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -156,6 +165,7 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.pattern !== undefined) body.pattern = g.pattern;
         if (g.profile_id !== undefined) body.profile_id = g.profile_id;
+        if (g.validator_ids !== undefined) body.validator_ids = g.validator_ids;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

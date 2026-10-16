@@ -75,19 +75,10 @@ const GlobalArgsSchema = z.object({
     "The property describes a name to identify the migration project.",
   ).optional(),
   MigrationProjectIdentifier: z.string().min(1).max(255).describe(
-    "The property describes an identifier for the migration project. It is used for describing/deleting/modifying can be name/arn",
-  ).optional(),
-  MigrationProjectCreationTime: z.string().min(1).max(40).describe(
-    "The property describes a creating time of the migration project.",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   InstanceProfileIdentifier: z.string().min(1).max(255).describe(
     "The property describes an instance profile identifier for the migration project. For create",
-  ).optional(),
-  InstanceProfileName: z.string().min(1).max(255).describe(
-    "The property describes an instance profile name for the migration project. For read",
-  ).optional(),
-  InstanceProfileArn: z.string().min(1).max(255).describe(
-    "The property describes an instance profile arn for the migration project. For read",
   ).optional(),
   TransformationRules: z.string().describe(
     "The property describes transformation rules for the migration project.",
@@ -145,19 +136,10 @@ const InputsSchema = z.object({
     "The property describes a name to identify the migration project.",
   ).optional(),
   MigrationProjectIdentifier: z.string().min(1).max(255).describe(
-    "The property describes an identifier for the migration project. It is used for describing/deleting/modifying can be name/arn",
-  ).optional(),
-  MigrationProjectCreationTime: z.string().min(1).max(40).describe(
-    "The property describes a creating time of the migration project.",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   InstanceProfileIdentifier: z.string().min(1).max(255).describe(
     "The property describes an instance profile identifier for the migration project. For create",
-  ).optional(),
-  InstanceProfileName: z.string().min(1).max(255).describe(
-    "The property describes an instance profile name for the migration project. For read",
-  ).optional(),
-  InstanceProfileArn: z.string().min(1).max(255).describe(
-    "The property describes an instance profile arn for the migration project. For read",
   ).optional(),
   TransformationRules: z.string().describe(
     "The property describes transformation rules for the migration project.",
@@ -201,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS MigrationProject. Registered at `@swamp/aws/dms/migration-project`. */
 export const model = {
   type: "@swamp/aws/dms/migration-project",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +239,20 @@ export const model = {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
+      description:
+        "Removed: MigrationProjectCreationTime, InstanceProfileName, InstanceProfileArn",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          MigrationProjectCreationTime: _MigrationProjectCreationTime,
+          InstanceProfileName: _InstanceProfileName,
+          InstanceProfileArn: _InstanceProfileArn,
+          ...rest
+        } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,

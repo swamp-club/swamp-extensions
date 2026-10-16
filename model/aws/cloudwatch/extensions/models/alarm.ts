@@ -125,6 +125,18 @@ const AlarmPromQLCriteriaSchema = z.object({
   ).optional(),
 });
 
+const AlarmTagsPropagationSchema = z.object({
+  IncludedTagKeys: z.array(z.string().min(1).max(128)).describe(
+    "The only tag keys to include. Cannot be specified together with ExcludedTagKeys.",
+  ).optional(),
+  ExcludedTagKeys: z.array(z.string().min(1).max(128)).describe(
+    "The tag keys to leave out. Cannot be specified together with IncludedTagKeys.",
+  ).optional(),
+  Enabled: z.boolean().describe(
+    "Whether the alarm's tags are included in its action notifications and state-change events.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -231,6 +243,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AlarmDescription: z.string().describe("The description of the alarm.")
     .optional(),
+  ActionConfiguration: z.object({
+    AlarmTagsPropagation: AlarmTagsPropagationSchema.describe(
+      "Whether the alarm's tags are included in its action notifications and state-change events.",
+    ).optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -269,6 +286,9 @@ const StateSchema = z.object({
   AlarmActions: z.array(z.string()).optional(),
   AlarmDescription: z.string().optional(),
   Arn: z.string().optional(),
+  ActionConfiguration: z.object({
+    AlarmTagsPropagation: AlarmTagsPropagationSchema,
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -371,6 +391,11 @@ const InputsSchema = z.object({
   ).optional(),
   AlarmDescription: z.string().describe("The description of the alarm.")
     .optional(),
+  ActionConfiguration: z.object({
+    AlarmTagsPropagation: AlarmTagsPropagationSchema.describe(
+      "Whether the alarm's tags are included in its action notifications and state-change events.",
+    ).optional(),
+  }).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -392,7 +417,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Alarm. Registered at `@swamp/aws/cloudwatch/alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/alarm",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -472,6 +497,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
+      description: "Added: ActionConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

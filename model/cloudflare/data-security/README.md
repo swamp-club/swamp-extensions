@@ -16,8 +16,9 @@ that reflect the live state in Cloudflare. Available methods:
 - **delete** — remove the resource from Cloudflare
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/cloudflare/data-security/policies` to see
-the full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/cloudflare/data-security/finding-types` to
+see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -60,17 +61,17 @@ environment variables for the legacy path, while `apiToken` remains available.
 ## Usage
 
 ```bash
-# Create a new policies model
-swamp model create @swamp/cloudflare/data-security/policies my-policies
+# Create a new finding-types model
+swamp model create @swamp/cloudflare/data-security/finding-types my-finding-types
 
 # Edit the model to configure its properties
-swamp model edit my-policies
+swamp model edit my-finding-types
 
 # Create the resource in Cloudflare
-swamp model method run my-policies create
+swamp model method run my-finding-types create
 
 # Sync current state from Cloudflare
-swamp model method run my-policies sync
+swamp model method run my-finding-types sync
 ```
 
 ## License

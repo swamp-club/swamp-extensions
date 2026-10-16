@@ -114,7 +114,9 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   query_source: z.enum(["generated", "edited"]).optional(),
   requirement: z.string().min(1).max(4000).optional(),
-  status: z.enum(["draft", "active", "paused"]).optional(),
+  status: z.enum(["draft", "active"]).describe(
+    "`draft`: not monitored. `active`: monitored, unless `pause_reason` is set. Setting `active` on a PIR with a `pause_reason` resumes it. Moving a PIR back to `draft` and activating it again starts matching afresh with a 30-day backfill.",
+  ).optional(),
   title: z.string().min(1).max(200).optional(),
   tlp: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -203,7 +205,7 @@ const InputsSchema = z.object({
   }).optional(),
   query_source: z.enum(["generated", "edited"]).optional(),
   requirement: z.string().min(1).max(4000).optional(),
-  status: z.enum(["draft", "active", "paused"]).optional(),
+  status: z.enum(["draft", "active"]).optional(),
   title: z.string().min(1).max(200).optional(),
   tlp: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -214,7 +216,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Priority-intelligence. Registered at `@swamp/cloudflare/cloudforce-one/priority-intelligence`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/priority-intelligence",
-  version: "2026.10.14.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -235,6 +237,11 @@ export const model = {
     {
       toVersion: "2026.10.14.1",
       description: "Added: digest_interval_hours",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

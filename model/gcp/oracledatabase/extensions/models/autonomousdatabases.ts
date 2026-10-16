@@ -388,10 +388,16 @@ const GlobalArgsSchema = z.object({
     dbVersion: z.string().describe(
       "Optional. Immutable. The Oracle Database version for the Autonomous Database.",
     ).optional(),
-    dbWorkload: z.enum(["DB_WORKLOAD_UNSPECIFIED", "OLTP", "DW", "AJD", "APEX"])
-      .describe(
-        "Required. Immutable. The workload type of the Autonomous Database.",
-      ).optional(),
+    dbWorkload: z.enum([
+      "DB_WORKLOAD_UNSPECIFIED",
+      "OLTP",
+      "DW",
+      "AJD",
+      "APEX",
+      "LH",
+    ]).describe(
+      "Required. Immutable. The workload type of the Autonomous Database.",
+    ).optional(),
     disasterRecoveryRoleChangedTime: z.string().describe(
       "Output only. The date and time the Disaster Recovery role was changed for the standby Autonomous Database.",
     ).optional(),
@@ -1135,10 +1141,16 @@ const InputsSchema = z.object({
     dbVersion: z.string().describe(
       "Optional. Immutable. The Oracle Database version for the Autonomous Database.",
     ).optional(),
-    dbWorkload: z.enum(["DB_WORKLOAD_UNSPECIFIED", "OLTP", "DW", "AJD", "APEX"])
-      .describe(
-        "Required. Immutable. The workload type of the Autonomous Database.",
-      ).optional(),
+    dbWorkload: z.enum([
+      "DB_WORKLOAD_UNSPECIFIED",
+      "OLTP",
+      "DW",
+      "AJD",
+      "APEX",
+      "LH",
+    ]).describe(
+      "Required. Immutable. The workload type of the Autonomous Database.",
+    ).optional(),
     disasterRecoveryRoleChangedTime: z.string().describe(
       "Output only. The date and time the Disaster Recovery role was changed for the standby Autonomous Database.",
     ).optional(),
@@ -1518,7 +1530,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud AutonomousDatabases. Registered at `@swamp/gcp/oracledatabase/autonomousdatabases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/autonomousdatabases",
-  version: "2026.10.14.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1672,6 +1684,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -119,6 +119,25 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The identity provider configuration for the datastore")
     .optional(),
+  AnalyticsConfiguration: z.object({
+    Status: z.enum(["ENABLED", "PAUSED"]).describe(
+      "The analytics status for the Data Store.",
+    ),
+  }).describe(
+    "The analytics configuration for the Data Store. Omitted when the Data Store can't carry analytics.",
+  ).optional(),
+  NlpConfiguration: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "The NLP status for the Data Store.",
+    ),
+  }).describe(
+    "The natural language processing (NLP) configuration for the Data Store.",
+  ).optional(),
+  ProfileConfiguration: z.object({
+    DefaultProfiles: z.array(z.string()).describe(
+      "The FHIR profiles the Data Store validates resources against by default, for example us-core-3.1.1.",
+    ),
+  }).describe("The profile configuration for the Data Store.").optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -144,6 +163,15 @@ const StateSchema = z.object({
     FineGrainedAuthorizationEnabled: z.boolean(),
     Metadata: z.string(),
     IdpLambdaArn: z.string(),
+  }).optional(),
+  AnalyticsConfiguration: z.object({
+    Status: z.string(),
+  }).optional(),
+  NlpConfiguration: z.object({
+    Status: z.string(),
+  }).optional(),
+  ProfileConfiguration: z.object({
+    DefaultProfiles: z.array(z.string()),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -203,6 +231,25 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The identity provider configuration for the datastore")
     .optional(),
+  AnalyticsConfiguration: z.object({
+    Status: z.enum(["ENABLED", "PAUSED"]).describe(
+      "The analytics status for the Data Store.",
+    ).optional(),
+  }).describe(
+    "The analytics configuration for the Data Store. Omitted when the Data Store can't carry analytics.",
+  ).optional(),
+  NlpConfiguration: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "The NLP status for the Data Store.",
+    ).optional(),
+  }).describe(
+    "The natural language processing (NLP) configuration for the Data Store.",
+  ).optional(),
+  ProfileConfiguration: z.object({
+    DefaultProfiles: z.array(z.string()).describe(
+      "The FHIR profiles the Data Store validates resources against by default, for example us-core-3.1.1.",
+    ).optional(),
+  }).describe("The profile configuration for the Data Store.").optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -225,7 +272,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for HealthLake FHIRDatastore. Registered at `@swamp/aws/healthlake/fhirdatastore`. */
 export const model = {
   type: "@swamp/aws/healthlake/fhirdatastore",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +327,12 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
+      description:
+        "Added: AnalyticsConfiguration, NlpConfiguration, ProfileConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -389,13 +442,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          [
-            "DatastoreName",
-            "DatastoreTypeVersion",
-            "PreloadDataConfig",
-            "SseConfiguration",
-            "IdentityProviderConfiguration",
-          ],
+          ["DatastoreTypeVersion", "PreloadDataConfig", "SseConfiguration"],
           credentials,
         );
         const handle = await context.writeResource(

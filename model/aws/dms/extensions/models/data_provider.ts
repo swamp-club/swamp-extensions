@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
     "The property describes a name to identify the data provider.",
   ).optional(),
   DataProviderIdentifier: z.string().min(1).max(255).describe(
-    "The property describes an identifier for the data provider. It is used for describing/deleting/modifying can be name/arn",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   Description: z.string().min(1).max(255).describe(
     "The optional description of the data provider.",
@@ -305,7 +305,7 @@ const InputsSchema = z.object({
     "The property describes a name to identify the data provider.",
   ).optional(),
   DataProviderIdentifier: z.string().min(1).max(255).describe(
-    "The property describes an identifier for the data provider. It is used for describing/deleting/modifying can be name/arn",
+    "[DEPRECATED] This property is unused and will be ignored. Identity is managed via the resource ARN (primaryIdentifier) and Name (additionalIdentifier).",
   ).optional(),
   Description: z.string().min(1).max(255).describe(
     "The optional description of the data provider.",
@@ -456,7 +456,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS DataProvider. Registered at `@swamp/aws/dms/data-provider`. */
 export const model = {
   type: "@swamp/aws/dms/data-provider",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -515,6 +515,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

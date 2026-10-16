@@ -59,9 +59,34 @@ const CategoricalScaleDefinitionSchema = z.object({
   ),
 });
 
+const DimensionRatingScaleSchema = z.object({
+  Numerical: z.array(NumericalScaleDefinitionSchema).describe(
+    "The numerical rating scale for this dimension.",
+  ).optional(),
+  Categorical: z.array(CategoricalScaleDefinitionSchema).describe(
+    "The categorical rating scale for this dimension.",
+  ).optional(),
+});
+
+const EvaluationDimensionSchema = z.object({
+  DimensionName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
+    .describe(
+      "The name of the dimension. Must be unique within the evaluator.",
+    ),
+  DimensionInstruction: z.string().min(1).max(4000).describe(
+    "The instruction to the evaluator model describing what to judge for this dimension.",
+  ),
+  DimensionRatingScale: DimensionRatingScaleSchema.describe(
+    "The rating scale for one dimension of an LLM-as-a-Judge evaluator.",
+  ),
+});
+
 const RatingScaleSchema = z.object({
   Numerical: z.array(NumericalScaleDefinitionSchema).optional(),
   Categorical: z.array(CategoricalScaleDefinitionSchema).optional(),
+  MultiDimensional: z.array(EvaluationDimensionSchema).describe(
+    "The dimensions an LLM-as-a-Judge evaluator scores in a single judge call. Each dimension has its own instruction and rating scale.",
+  ).optional(),
 });
 
 const InferenceConfigurationSchema = z.object({
@@ -300,7 +325,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -379,6 +404,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

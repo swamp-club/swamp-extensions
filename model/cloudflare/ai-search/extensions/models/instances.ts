@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
     keyword: z.boolean(),
     vector: z.boolean(),
   }).describe(
-    "Controls which storage backends indexing uses. Defaults to vector and keyword indexing for new instances.",
+    "Controls which storage backends indexing uses. Defaults to vector and keyword indexing for new instances. When set, both vector and keyword are required.",
   ).optional(),
   indexing_options: z.object({
     keyword_tokenizer: z.enum(["porter", "trigram"]).optional(),
@@ -117,7 +117,9 @@ const GlobalArgsSchema = z.object({
     "A Workers AI model ID or an AI Gateway model ID compatible with the OpenAI Chat Completions API. An empty string uses the configured or default model.",
   ).optional(),
   rewrite_query: z.boolean().optional(),
-  score_threshold: z.number().min(0).max(1).optional(),
+  score_threshold: z.number().min(0).max(1).describe(
+    "Minimum similarity score a chunk must reach to be returned. Defaults to 0.4.",
+  ).optional(),
   source: z.string().optional(),
   source_params: z.object({
     exclude_items: z.array(
@@ -416,7 +418,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -510,6 +512,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

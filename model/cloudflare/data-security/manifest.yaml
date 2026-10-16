@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/data-security"
-version: "2026.10.13.1"
+version: "2026.10.16.1"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare data-security infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,9 +11,9 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: policies
-  - Updated: webhooks
+  - Added: finding_types
 models:
+  - finding_types.ts
   - policies.ts
   - webhooks.ts
 additionalFiles:

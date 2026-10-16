@@ -315,6 +315,9 @@ const GlobalArgsSchema = z.object({
       })).describe(
         "Optional. An array of configurations for this interface. Currently, only one access config, ONE_TO_ONE_NAT, is supported. If no accessConfigs specified, the instance will have an external internet access through an ephemeral external IP address.",
       ).optional(),
+      internalIp: z.string().describe(
+        "Optional. An internal IP address associated with this instance. Specify an unused static internal IP address available to the subnet this instance is in, or leave this field undefined to use an IP from the subnet's ephemeral range.",
+      ).optional(),
       network: z.string().describe(
         "Optional. The name of the VPC that this VM instance is in. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
@@ -380,6 +383,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       imageDescription: z.string().describe(
         'Output only. A human-readable description of the image running on the instance (for example, "Debian 11, Python 3.10"), derived at read time from the image release configuration (the source of truth). Set to "Custom" for unrecognized boot-disk images.',
+      ).optional(),
+      imageId: z.string().describe(
+        'Output only. The ID of the specific Compute Engine VM image the instance is currently running (for example, "workbench-instances-2603-20260918-2130-rc0").',
       ).optional(),
       name: z.string().describe(
         "Optional. Use VM image name to find the image.",
@@ -455,6 +461,7 @@ const StateSchema = z.object({
       accessConfigs: z.array(z.object({
         externalIp: z.unknown(),
       })),
+      internalIp: z.string(),
       network: z.string(),
       nicType: z.string(),
       subnet: z.string(),
@@ -478,6 +485,7 @@ const StateSchema = z.object({
     vmImage: z.object({
       family: z.string(),
       imageDescription: z.string(),
+      imageId: z.string(),
       name: z.string(),
       project: z.string(),
     }),
@@ -660,6 +668,9 @@ const InputsSchema = z.object({
       })).describe(
         "Optional. An array of configurations for this interface. Currently, only one access config, ONE_TO_ONE_NAT, is supported. If no accessConfigs specified, the instance will have an external internet access through an ephemeral external IP address.",
       ).optional(),
+      internalIp: z.string().describe(
+        "Optional. An internal IP address associated with this instance. Specify an unused static internal IP address available to the subnet this instance is in, or leave this field undefined to use an IP from the subnet's ephemeral range.",
+      ).optional(),
       network: z.string().describe(
         "Optional. The name of the VPC that this VM instance is in. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
@@ -726,6 +737,9 @@ const InputsSchema = z.object({
       imageDescription: z.string().describe(
         'Output only. A human-readable description of the image running on the instance (for example, "Debian 11, Python 3.10"), derived at read time from the image release configuration (the source of truth). Set to "Custom" for unrecognized boot-disk images.',
       ).optional(),
+      imageId: z.string().describe(
+        'Output only. The ID of the specific Compute Engine VM image the instance is currently running (for example, "workbench-instances-2603-20260918-2130-rc0").',
+      ).optional(),
       name: z.string().describe(
         "Optional. Use VM image name to find the image.",
       ).optional(),
@@ -780,7 +794,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1023,6 +1037,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -232,6 +232,17 @@ const GlobalArgsSchema = z.object({
       "^((arn:aws(-[^:]+)?:kms:[a-zA-Z0-9-]*:[0-9]{12}:((key/[a-zA-Z0-9-]{36})|(alias/[a-zA-Z0-9-_/]+)))|([a-zA-Z0-9-]{36})|(alias/[a-zA-Z0-9-_/]+))$",
     ),
   ).describe("The KMS key ID for encrypting service data.").optional(),
+  DevOpsAgentConfiguration: z.object({
+    AgentSpaceArn: z.string().regex(
+      new RegExp(
+        "^arn:(aws|aws-cn|aws-iso|aws-iso-[a-z]{1}|aws-us-gov):[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:([a-z]{2}-((iso[a-z]{0,1}-)|(gov-)){0,1}[a-z]+-[0-9]):[0-9]{12}:[A-Za-z0-9/][A-Za-z0-9:_/+.-]{0,1023}$",
+      ),
+    ).describe(
+      "The ARN of the DevOps Agent Agent Space to link to this service.",
+    ),
+  }).describe(
+    "Links the service to an AWS DevOps Agent Agent Space. Provide AgentSpaceArn to connect the service; omit this property to leave an existing link unchanged. The DevOps Agent integration is governed by the service's resilience policy and operates in analysis-only mode.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -264,6 +275,9 @@ const StateSchema = z.object({
     MultiRegionDrApproach: DisasterRecoverySourceSchema,
   }).optional(),
   KmsKeyId: z.string().optional(),
+  DevOpsAgentConfiguration: z.object({
+    AgentSpaceArn: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -332,6 +346,17 @@ const InputsSchema = z.object({
       "^((arn:aws(-[^:]+)?:kms:[a-zA-Z0-9-]*:[0-9]{12}:((key/[a-zA-Z0-9-]{36})|(alias/[a-zA-Z0-9-_/]+)))|([a-zA-Z0-9-]{36})|(alias/[a-zA-Z0-9-_/]+))$",
     ),
   ).describe("The KMS key ID for encrypting service data.").optional(),
+  DevOpsAgentConfiguration: z.object({
+    AgentSpaceArn: z.string().regex(
+      new RegExp(
+        "^arn:(aws|aws-cn|aws-iso|aws-iso-[a-z]{1}|aws-us-gov):[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:([a-z]{2}-((iso[a-z]{0,1}-)|(gov-)){0,1}[a-z]+-[0-9]):[0-9]{12}:[A-Za-z0-9/][A-Za-z0-9:_/+.-]{0,1023}$",
+      ),
+    ).describe(
+      "The ARN of the DevOps Agent Agent Space to link to this service.",
+    ).optional(),
+  }).describe(
+    "Links the service to an AWS DevOps Agent Agent Space. Provide AgentSpaceArn to connect the service; omit this property to leave an existing link unchanged. The DevOps Agent integration is governed by the service's resilience policy and operates in analysis-only mode.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -353,7 +378,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResilienceHubV2 Service. Registered at `@swamp/aws/resiliencehubv2/service`. */
 export const model = {
   type: "@swamp/aws/resiliencehubv2/service",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -393,6 +418,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
+      description: "Added: DevOpsAgentConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

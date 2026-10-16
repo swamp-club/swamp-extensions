@@ -221,10 +221,10 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         git: z.object({
           gcpServiceAccountEmail: z.string().describe(
-            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`.",
+            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`. Annotates the `RootSync` or `RepoSync` controller's Kubernetes Service Account.",
           ).optional(),
           httpsProxy: z.string().describe(
-            "Optional. URL for the HTTPS proxy to be used when communicating with the Git repo. Only specify when secret_type is `cookiefile`, `token`, or `none`.",
+            "Optional. URL for the HTTPS proxy to be used when communicating with the Git repo. Defines an HTTPS_PROXY environment variable and only accepts `https` or unadorned URLs. For example, `https://proxy.internal.business.co:443` or `proxy.internal.business.co:443`. If using an unadorned URL, make sure the communication between your proxy server and Git host is secure. Rejects `http://` URLs. Only specify when secret_type is `cookiefile`, `token`, or `none`.",
           ).optional(),
           policyDir: z.string().describe(
             "Optional. The path within the Git repository that represents the top level of the repo to sync. Default: the root directory of the repository.",
@@ -239,7 +239,7 @@ const GlobalArgsSchema = z.object({
             "Required. The URL of the Git repository to use as the source of truth.",
           ).optional(),
           syncRev: z.string().describe(
-            "Optional. Git revision (tag or hash) to check out. Default HEAD.",
+            "Optional. Git revision (tag or hash) or branch to sync from. Default `HEAD`. If not `HEAD`, takes precedence over `sync_branch` field. When using a hash, must be a full hash, and not an abbreviated form.",
           ).optional(),
           syncWaitSecs: z.string().describe(
             "Optional. Period in seconds between consecutive syncs. Default: 15.",
@@ -251,7 +251,7 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         oci: z.object({
           gcpServiceAccountEmail: z.string().describe(
-            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`.",
+            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`. Annotates the `RootSync` or `RepoSync` controller's Kubernetes Service Account.",
           ).optional(),
           policyDir: z.string().describe(
             "Optional. The absolute path of the directory that contains the local resources. Default: the root directory of the image.",
@@ -271,7 +271,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Set to true to enable the Config Sync admission webhook to prevent drifts. If set to false, disables the Config Sync admission webhook and does not prevent drifts. Defaults to false. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/how-to/prevent-config-drift for details.",
         ).optional(),
         sourceFormat: z.string().describe(
-          "Optional. Specifies whether the Config Sync repo is in `hierarchical` or `unstructured` mode. Defaults to `hierarchical`. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/concepts/configs#organize-configs for an explanation.",
+          "Optional. Specifies whether the Config Sync repo is in `hierarchy` or `unstructured` mode. Defaults to `hierarchy`. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/concepts/configs#organize-configs for an explanation.",
         ).optional(),
         stopSyncing: z.boolean().describe(
           "Optional. Set to true to stop syncing configs for a single cluster. Default to false.",
@@ -1068,10 +1068,10 @@ const InputsSchema = z.object({
         ).optional(),
         git: z.object({
           gcpServiceAccountEmail: z.string().describe(
-            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`.",
+            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`. Annotates the `RootSync` or `RepoSync` controller's Kubernetes Service Account.",
           ).optional(),
           httpsProxy: z.string().describe(
-            "Optional. URL for the HTTPS proxy to be used when communicating with the Git repo. Only specify when secret_type is `cookiefile`, `token`, or `none`.",
+            "Optional. URL for the HTTPS proxy to be used when communicating with the Git repo. Defines an HTTPS_PROXY environment variable and only accepts `https` or unadorned URLs. For example, `https://proxy.internal.business.co:443` or `proxy.internal.business.co:443`. If using an unadorned URL, make sure the communication between your proxy server and Git host is secure. Rejects `http://` URLs. Only specify when secret_type is `cookiefile`, `token`, or `none`.",
           ).optional(),
           policyDir: z.string().describe(
             "Optional. The path within the Git repository that represents the top level of the repo to sync. Default: the root directory of the repository.",
@@ -1086,7 +1086,7 @@ const InputsSchema = z.object({
             "Required. The URL of the Git repository to use as the source of truth.",
           ).optional(),
           syncRev: z.string().describe(
-            "Optional. Git revision (tag or hash) to check out. Default HEAD.",
+            "Optional. Git revision (tag or hash) or branch to sync from. Default `HEAD`. If not `HEAD`, takes precedence over `sync_branch` field. When using a hash, must be a full hash, and not an abbreviated form.",
           ).optional(),
           syncWaitSecs: z.string().describe(
             "Optional. Period in seconds between consecutive syncs. Default: 15.",
@@ -1098,7 +1098,7 @@ const InputsSchema = z.object({
         ).optional(),
         oci: z.object({
           gcpServiceAccountEmail: z.string().describe(
-            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`.",
+            "Optional. The Google Cloud Service Account Email used for auth when secret_type is `gcpserviceaccount`. Annotates the `RootSync` or `RepoSync` controller's Kubernetes Service Account.",
           ).optional(),
           policyDir: z.string().describe(
             "Optional. The absolute path of the directory that contains the local resources. Default: the root directory of the image.",
@@ -1118,7 +1118,7 @@ const InputsSchema = z.object({
           "Optional. Set to true to enable the Config Sync admission webhook to prevent drifts. If set to false, disables the Config Sync admission webhook and does not prevent drifts. Defaults to false. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/how-to/prevent-config-drift for details.",
         ).optional(),
         sourceFormat: z.string().describe(
-          "Optional. Specifies whether the Config Sync repo is in `hierarchical` or `unstructured` mode. Defaults to `hierarchical`. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/concepts/configs#organize-configs for an explanation.",
+          "Optional. Specifies whether the Config Sync repo is in `hierarchy` or `unstructured` mode. Defaults to `hierarchy`. See https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/concepts/configs#organize-configs for an explanation.",
         ).optional(),
         stopSyncing: z.boolean().describe(
           "Optional. Set to true to stop syncing configs for a single cluster. Default to false.",
@@ -1475,7 +1475,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Memberships.Features. Registered at `@swamp/gcp/gkehub/memberships-features`. */
 export const model = {
   type: "@swamp/gcp/gkehub/memberships-features",
-  version: "2026.10.13.1",
+  version: "2026.10.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1667,6 +1667,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
