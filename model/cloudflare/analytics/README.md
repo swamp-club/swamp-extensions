@@ -23,7 +23,8 @@ model.
 ## Authentication
 
 Set the `CLOUDFLARE_API_TOKEN` environment variable (recommended). The token is
-validated against `/user/tokens/verify` on first use.
+sent with each API request, which reports any auth error. Account-owned API
+tokens are supported.
 
 ```bash
 export CLOUDFLARE_API_TOKEN=your-token-here

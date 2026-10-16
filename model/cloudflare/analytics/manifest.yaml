@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/analytics"
-version: "2026.10.13.2"
+version: "2026.10.16.2"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare GraphQL Analytics models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,8 +11,6 @@ labels:
   - graphql
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: graphql_analytics
 models:
   - graphql_analytics.ts
 additionalFiles:

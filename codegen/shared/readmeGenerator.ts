@@ -382,14 +382,26 @@ AGPLv3 — see [LICENSE.txt](./LICENSE.txt).
 }
 
 /**
- * Generates a README.md for a Cloudflare extension package.
+ * Generates a README.md for a Cloudflare extension package. Standalone
+ * packages that do not validate the token up front pass
+ * `validatesToken: false`.
  */
 export function generateCloudflareReadme(
   serviceName: string,
   extensionName: string,
   modelSlug: string,
   modelType: string,
+  validatesToken = true,
 ): string {
+  const tokenValidation = validatesToken
+    ? `The token
+is validated against \`/user/tokens/verify\` on first use. Account-owned API
+tokens are supported: they are validated against
+\`/accounts/{account_id}/tokens/verify\` for account-scoped resources, and by
+the first API call otherwise.`
+    : `The token
+is sent with each API request, which reports any auth error. Account-owned API
+tokens are supported.`;
   return `# ${extensionName}
 
 Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
@@ -412,8 +424,7 @@ configurable properties and available methods for this model.
 
 ## Authentication
 
-Set the \`CLOUDFLARE_API_TOKEN\` environment variable (recommended). The token
-is validated against \`/user/tokens/verify\` on first use.
+Set the \`CLOUDFLARE_API_TOKEN\` environment variable (recommended). ${tokenValidation}
 
 \`\`\`bash
 export CLOUDFLARE_API_TOKEN=your-token-here

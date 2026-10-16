@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/sso-connectors"
-version: "2026.10.13.1"
+version: "2026.10.16.1"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare sso-connectors infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - sso-connectors
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: sso_connectors
 models:
   - sso_connectors.ts
 additionalFiles:

@@ -641,6 +641,7 @@ export async function generateCloudflareModels(options: {
       extensionName,
       firstSlug.replace(/_/g, "-"),
       firstType,
+      false,
     );
     const readmePath = `${serviceOutputDir}/README.md`;
     try {

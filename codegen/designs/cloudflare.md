@@ -723,6 +723,17 @@ variable or a per-model global argument) is validated exactly once and cached in
 a `Set` keyed by the resolved credential, so multiple models using different
 vault-sourced credentials each validate once.
 
+Account-owned API tokens (created under Manage Account → API Tokens) always fail
+`GET /user/tokens/verify` with 401 and error code `1000`; Cloudflare verifies
+them at `GET /accounts/{account_id}/tokens/verify` instead. When the user
+endpoint returns that response, the shared lib reads the account ID from the
+request path: an account-scoped path (`/accounts/{account_id}/...`) is verified
+at the account endpoint, and any other path (for example `/zones/{zone_id}/...`)
+skips the up-front check, so the request itself reports any auth error. Any
+other verify failure is reported as an invalid token. A token whose up-front
+check was skipped is not marked validated: later non-account requests go ahead
+without re-checking, and the next account-scoped request still verifies it.
+
 ### Vault-wireable credential arguments
 
 In addition to the environment variables, each generated model exposes optional,

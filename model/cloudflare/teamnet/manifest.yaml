@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/teamnet"
-version: "2026.10.13.1"
+version: "2026.10.16.1"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare teamnet infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,9 +10,6 @@ labels:
   - teamnet
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: routes
-  - Updated: virtual_networks
 models:
   - routes.ts
   - virtual_networks.ts

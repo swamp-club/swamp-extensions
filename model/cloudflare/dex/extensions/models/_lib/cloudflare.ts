@@ -39,6 +39,22 @@ export interface AuthOverrides {
 // validated exactly once.
 const validatedCredentials = new Set<string>();
 
+// Tokens that failed GET /user/tokens/verify with code 1000 and have not yet
+// been verified at an account endpoint. Requests on non-account paths go
+// ahead without re-checking; the next account-scoped request verifies them.
+const accountTokenCandidates = new Set<string>();
+
+/** Reports whether a Cloudflare error envelope carries the given error code. */
+function hasErrorCode(text: string, code: number): boolean {
+  try {
+    const data = JSON.parse(text) as { errors?: Array<{ code?: number }> };
+    return Array.isArray(data.errors) &&
+      data.errors.some((e) => e?.code === code);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Resolves Cloudflare credentials. Explicit overrides (e.g. from a model's
  * apiToken / apiKey / email global arguments, which may be wired with a
@@ -46,23 +62,50 @@ const validatedCredentials = new Set<string>();
  * CLOUDFLARE_API_KEY / CLOUDFLARE_EMAIL environment variables. An API token is
  * preferred over the legacy API key + email pair. Each distinct credential is
  * validated exactly once.
+ *
+ * Account-owned API tokens always fail GET /user/tokens/verify with 401 and
+ * error code 1000. When that happens, the token is verified at
+ * GET /accounts/{account_id}/tokens/verify if the request path is
+ * account-scoped; otherwise the up-front check is skipped and the request
+ * itself reports any auth error. A skipped token is not marked validated, so
+ * the next account-scoped request still verifies it.
  */
-async function getAuth(overrides?: AuthOverrides): Promise<ResolvedAuth> {
+async function getAuth(
+  overrides?: AuthOverrides,
+  path?: string,
+): Promise<ResolvedAuth> {
   const apiToken = overrides?.apiToken ?? Deno.env.get("CLOUDFLARE_API_TOKEN");
   if (apiToken) {
     const auth: ResolvedAuth = { style: "token", token: apiToken };
-    if (validatedCredentials.has(`token:${apiToken}`)) return auth;
-    const resp = await fetch(`${API_BASE}/user/tokens/verify`, {
-      headers: { "Authorization": `Bearer ${apiToken}` },
-    });
-    if (!resp.ok) {
+    const cacheKey = `token:${apiToken}`;
+    if (validatedCredentials.has(cacheKey)) return auth;
+    const headers = { "Authorization": `Bearer ${apiToken}` };
+    const accountId = path?.match(/^\/accounts\/([^/?]+)/)?.[1];
+    if (!accountTokenCandidates.has(cacheKey)) {
+      const resp = await fetch(`${API_BASE}/user/tokens/verify`, { headers });
       const text = await resp.text();
+      if (resp.ok) {
+        validatedCredentials.add(cacheKey);
+        return auth;
+      }
+      if (resp.status !== 401 || !hasErrorCode(text, 1000)) {
+        throw new Error(
+          `Cloudflare API token is invalid (GET /user/tokens/verify returned ${resp.status}): ${text}`,
+        );
+      }
+      accountTokenCandidates.add(cacheKey);
+    }
+    if (!accountId) return auth;
+    const accountVerify = `/accounts/${accountId}/tokens/verify`;
+    const accountResp = await fetch(`${API_BASE}${accountVerify}`, { headers });
+    const accountText = await accountResp.text();
+    if (!accountResp.ok) {
       throw new Error(
-        `Cloudflare API token is invalid (GET /user/tokens/verify returned ${resp.status}): ${text}`,
+        `Cloudflare API token is invalid (GET /user/tokens/verify returned 401, GET ${accountVerify} returned ${accountResp.status}): ${accountText}`,
       );
     }
-    await resp.text();
-    validatedCredentials.add(`token:${apiToken}`);
+    accountTokenCandidates.delete(cacheKey);
+    validatedCredentials.add(cacheKey);
     return auth;
   }
 
@@ -107,7 +150,7 @@ async function request(
   body?: Record<string, unknown>,
   auth?: AuthOverrides,
 ): Promise<Response> {
-  const resolved = await getAuth(auth);
+  const resolved = await getAuth(auth, path);
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = {
     ...authHeaders(resolved),

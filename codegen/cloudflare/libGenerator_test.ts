@@ -562,6 +562,223 @@ Deno.test(
   },
 );
 
+/** The response Cloudflare gives an account-owned token at /user/tokens/verify. */
+function accountTokenUserVerify(): Response {
+  return cfErrorResponse(401, [{ code: 1000, message: "Invalid API Token" }]);
+}
+
+Deno.test(
+  "auth: account-owned token is verified at /accounts/{id}/tokens/verify",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          accountTokenUserVerify(),
+          okTokenVerify(),
+          cfResponse({ id: "t1" }),
+        ]),
+        async () => {
+          const result = await mod.read("/accounts/acc1/tokens", "t1", {
+            apiToken: "account-token",
+          });
+          assertEquals(result.id, "t1");
+        },
+      );
+      assertEquals(captured.map((c) => new URL(c.url).pathname), [
+        "/client/v4/user/tokens/verify",
+        "/client/v4/accounts/acc1/tokens/verify",
+        "/client/v4/accounts/acc1/tokens/t1",
+      ]);
+      assertEquals(
+        captured[1].headers["authorization"],
+        "Bearer account-token",
+      );
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: account-owned token on a zone path skips the up-front check",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          accountTokenUserVerify(),
+          cfResponse({ id: "r1" }),
+        ]),
+        async () => {
+          await mod.read("/zones/z1/dns_records", "r1", {
+            apiToken: "account-token",
+          });
+        },
+      );
+      assertEquals(captured.map((c) => new URL(c.url).pathname), [
+        "/client/v4/user/tokens/verify",
+        "/client/v4/zones/z1/dns_records/r1",
+      ]);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: throws naming both endpoints when the account verify also fails",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    try {
+      await withFetchQueue(
+        [
+          accountTokenUserVerify(),
+          cfErrorResponse(401, [{ code: 1000, message: "Invalid API Token" }]),
+        ],
+        async () => {
+          const err = await assertRejects(
+            () =>
+              mod.read("/accounts/acc1/tokens", "t1", {
+                apiToken: "bad-token",
+              }),
+            Error,
+            "Cloudflare API token is invalid",
+          );
+          assertStringIncludes(err.message, "/user/tokens/verify returned 401");
+          assertStringIncludes(
+            err.message,
+            "/accounts/acc1/tokens/verify returned 401",
+          );
+        },
+      );
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: other verify failures throw without an account fallback",
+  { sanitizeResources: false },
+  async () => {
+    const failures: Array<[string, () => Response]> = [
+      [
+        "401 with another code",
+        () => cfErrorResponse(401, [{ code: 9109, message: "Unauthorized" }]),
+      ],
+      [
+        "403 with code 1000",
+        () => cfErrorResponse(403, [{ code: 1000, message: "Forbidden" }]),
+      ],
+      ["non-JSON 401", () => new Response("Unauthorized", { status: 401 })],
+    ];
+    for (const [label, failure] of failures) {
+      const restore = withEnv({});
+      const { mod, cleanup } = await importFreshLib();
+      const captured: CapturedRequest[] = [];
+      try {
+        await withFetchQueue(capturing(captured, [failure()]), async () => {
+          await assertRejects(
+            () =>
+              mod.read("/accounts/acc1/tokens", "t1", { apiToken: "token" }),
+            Error,
+            "GET /user/tokens/verify returned",
+          );
+        });
+        assertEquals(captured.length, 1, label);
+      } finally {
+        await cleanup();
+        restore();
+      }
+    }
+  },
+);
+
+Deno.test(
+  "auth: account-owned token is verified exactly once",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          accountTokenUserVerify(),
+          okTokenVerify(),
+          cfResponse({ id: "a" }),
+          cfResponse({ id: "b" }),
+        ]),
+        async () => {
+          const auth = { apiToken: "account-token" };
+          await mod.read("/accounts/acc1/tokens", "a", auth);
+          await mod.read("/accounts/acc1/tokens", "b", auth);
+        },
+      );
+      assertEquals(
+        captured.filter((c) => c.url.includes("/tokens/verify")).length,
+        2,
+      );
+      assertEquals(captured.length, 4);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: a token skipped on a zone path is still verified on an account path",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          accountTokenUserVerify(),
+          cfResponse({ id: "r1" }),
+          cfResponse({ id: "r2" }),
+          cfErrorResponse(401, [{ code: 1000, message: "Invalid API Token" }]),
+        ]),
+        async () => {
+          const auth = { apiToken: "revoked-token" };
+          await mod.read("/zones/z1/dns_records", "r1", auth);
+          await mod.read("/zones/z1/dns_records", "r2", auth);
+          await assertRejects(
+            () => mod.read("/accounts/acc1/tokens", "t1", auth),
+            Error,
+            "/accounts/acc1/tokens/verify returned 401",
+          );
+        },
+      );
+      // The user verify runs once; the account path still gets its own check.
+      assertEquals(captured.map((c) => new URL(c.url).pathname), [
+        "/client/v4/user/tokens/verify",
+        "/client/v4/zones/z1/dns_records/r1",
+        "/client/v4/zones/z1/dns_records/r2",
+        "/client/v4/accounts/acc1/tokens/verify",
+      ]);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
 Deno.test("generateCloudflareLibFile - imports only explicit or relative specifiers", () => {
   assertEquals(findBareSpecifiers(generateCloudflareLibFile()), []);
 });
