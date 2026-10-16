@@ -200,6 +200,40 @@ Deno.test("generateVercelExtensionModel - PATCH update neither fills nor checks 
   assertEquals(update.includes("missingForUpdate"), false);
 });
 
+Deno.test("generateVercelExtensionModel - PATCH update sends the naming field only when it differs from stored state", () => {
+  const update = updateBlock(makeResource({ updateMethod: "PATCH" }));
+  assertStringIncludes(
+    update,
+    "if (g.name !== undefined && g.name !== existing.name) body.name = g.name;",
+  );
+  assertEquals(
+    update.includes("if (g.name !== undefined) body.name = g.name;"),
+    false,
+  );
+  assertStringIncludes(
+    update,
+    "if (g.region !== undefined) body.region = g.region;",
+  );
+  assertStringIncludes(update, "if (g.note !== undefined) body.note = g.note;");
+  // An empty body skips the request, and a response without the name keeps it.
+  assert(
+    update.indexOf("Object.keys(body).length === 0") <
+      update.indexOf("await update("),
+  );
+  assertStringIncludes(update, "= body.name ?? existing.name;");
+  assertStringIncludes(update, 'if (result && typeof result === "object"');
+});
+
+Deno.test("generateVercelExtensionModel - PUT update always sends the naming field", () => {
+  const update = updateBlock(makeResource());
+  assertStringIncludes(
+    update,
+    "if (g.name !== undefined) body.name = g.name;",
+  );
+  assertEquals(update.includes("g.name !== existing.name"), false);
+  assertEquals(update.includes("Object.keys(body).length === 0"), false);
+});
+
 // ---------------------------------------------------------------------------
 // A resource property named like a team scope or auth arg is renamed
 // ---------------------------------------------------------------------------

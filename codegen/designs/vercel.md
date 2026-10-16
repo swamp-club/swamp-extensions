@@ -279,7 +279,9 @@ params and the synthetic `name` stay required.
   set the field explicitly if Vercel rejects it. A create-required field named
   like a secret is never filled (see below), so a `PUT` update that leaves it
   unset always throws rather than clearing it.
-- **`PATCH` update** sends only the fields set in globalArgs, as before.
+- **`PATCH` update** sends only the fields set in globalArgs, as before, except
+  that the naming field is sent only when it differs from stored state (see
+  below).
 
 ### PUT updates keep unset fields
 
@@ -305,6 +307,26 @@ similar), even when it is create-required: an API that returns it masked would
 have the mask written over the real value. Such fields, and write-only fields
 that never come back from `GET`, must be set explicitly. A `null` live value is
 not copied.
+
+### PATCH updates skip an unchanged naming field
+
+The naming field (`name` on most resources) is required by `create`, so it is
+always set in globalArgs. Vercel treats a PATCH carrying a project's current
+`name` as a rename to a name that already exists and rejects it with
+`409 Project "<name>" already exists` (swamp-club #3231). A PATCH `update`
+therefore copies the naming field only when it differs from the stored value
+(`existing.<namingField>`); when stored state lacks the field, it is sent as
+before. Leaving an unchanged value out of a PATCH changes nothing. When that
+leaves the body empty (the naming field is the only one set), no request is made
+and stored state is written back unchanged. When the PATCH response omits the
+naming field, the value sent (or the stored one) is kept in stored state, so the
+next `update` still compares against it. A PUT `update` always sends it, since
+its body replaces the resource.
+
+The comparison uses stored state, not the live resource, so a rename made
+outside swamp is not reverted by `update`: stored state still holds the old
+name, which matches globalArgs. Run `sync` (or `get`) first to refresh stored
+state, and the next `update` sends the configured name.
 
 ---
 

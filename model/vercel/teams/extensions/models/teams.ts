@@ -636,7 +636,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.14.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -740,6 +740,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1058,7 +1063,9 @@ export const model = {
         if (g.avatar !== undefined) body.avatar = g.avatar;
         if (g.description !== undefined) body.description = g.description;
         if (g.emailDomain !== undefined) body.emailDomain = g.emailDomain;
-        if (g.name !== undefined) body.name = g.name;
+        if (g.name !== undefined && g.name !== existing.name) {
+          body.name = g.name;
+        }
         if (g.previewDeploymentSuffix !== undefined) {
           body.previewDeploymentSuffix = g.previewDeploymentSuffix;
         }
@@ -1131,9 +1138,21 @@ export const model = {
         if (g.resourceConfig !== undefined) {
           body.resourceConfig = g.resourceConfig;
         }
+        if (Object.keys(body).length === 0) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            existing,
+          );
+          return { dataHandles: [handle] };
+        }
         const result = await update(endpoint, existing.id, body, "PATCH", {
           token: g.token,
         }, { teamId: g.teamId, slug: g.slug }) as ResourceData;
+        if (
+          result && typeof result === "object" &&
+          (result as Record<string, unknown>).name === undefined
+        ) (result as Record<string, unknown>).name = body.name ?? existing.name;
         const handle = await context.writeResource(
           "state",
           instanceName,

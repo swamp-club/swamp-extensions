@@ -202,13 +202,15 @@ async function withMockApi(
   const origBase = Deno.env.get("VERCEL_API_BASE");
   const origToken = Deno.env.get("VERCEL_TOKEN");
   const server = createMockVercelServer();
-  Deno.env.set("VERCEL_API_BASE", `http://localhost:${server.port}`);
-  Deno.env.set("VERCEL_TOKEN", "test-mock-token");
-  const { model, cleanup } = await importGeneratedModel();
+  let cleanup: (() => Promise<void>) | undefined;
   try {
-    await fn(server, model);
+    Deno.env.set("VERCEL_API_BASE", `http://localhost:${server.port}`);
+    Deno.env.set("VERCEL_TOKEN", "test-mock-token");
+    const imported = await importGeneratedModel();
+    cleanup = imported.cleanup;
+    await fn(server, imported.model);
   } finally {
-    await cleanup();
+    await cleanup?.();
     await server.close();
     if (origBase === undefined) Deno.env.delete("VERCEL_API_BASE");
     else Deno.env.set("VERCEL_API_BASE", origBase);

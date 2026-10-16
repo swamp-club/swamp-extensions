@@ -528,9 +528,22 @@ export function generateVercelExtensionModel(
     const isFullReplacement = resource.updateMethod === "PUT";
     const createRequiredSet = new Set(resource.createRequiredProperties);
     const updateRequired: string[] = [];
+    let skipsUnchangedName = false;
     for (const name of updateKeys) {
       if (injectedFields.has(name)) continue;
-      lines.push(`        ${copyToBody(name, argOf(name))}`);
+      // A PATCH sends the naming field only when it differs from stored
+      // state: Vercel treats an unchanged name as a rename to a name that
+      // already exists and rejects it with 409 (swamp-club #3231).
+      const skipIfUnchanged = !isFullReplacement &&
+        name === resource.namingField;
+      if (skipIfUnchanged) skipsUnchangedName = true;
+      lines.push(
+        `        ${
+          skipIfUnchanged
+            ? copyToBodyIfChanged(name, argOf(name))
+            : copyToBody(name, argOf(name))
+        }`,
+      );
       if (isFullReplacement && createRequiredSet.has(name)) {
         updateRequired.push(name);
       }
@@ -594,11 +607,29 @@ export function generateVercelExtensionModel(
         `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + ${names}.join(", "));`,
       );
     }
+    // With the unchanged name left out, a PATCH can have nothing to send;
+    // stored state already matches globalArgs, so no request is made.
+    if (skipsUnchangedName) {
+      lines.push(`        if (Object.keys(body).length === 0) {`);
+      lines.push(
+        `          const handle = await context.writeResource("state", instanceName, existing);`,
+      );
+      lines.push(`          return { dataHandles: [handle] };`);
+      lines.push(`        }`);
+    }
     lines.push(
       ...resultAssign(
         `await update(endpoint, ${existingId}, body, "${resource.updateMethod}"${authSuffix}${teamSuffix})`,
       ),
     );
+    // A response that omits the naming field would leave it out of stored
+    // state, and the next update would resend it and hit the 409 again.
+    if (skipsUnchangedName) {
+      const api = propAccess(resource.namingField);
+      lines.push(
+        `        if (result && typeof result === "object" && (result as Record<string, unknown>)${api} === undefined) (result as Record<string, unknown>)${api} = body${api} ?? existing${api};`,
+      );
+    }
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
     );
@@ -819,6 +850,14 @@ function propAccess(name: string): string {
 function copyToBody(apiName: string, argName: string): string {
   const g = `g${propAccess(argName)}`;
   return `if (${g} !== undefined) body${propAccess(apiName)} = ${g};`;
+}
+
+/** `copyToBody`, skipped when the value equals the stored `existing.<api>`. */
+function copyToBodyIfChanged(apiName: string, argName: string): string {
+  const g = `g${propAccess(argName)}`;
+  return `if (${g} !== undefined && ${g} !== existing${
+    propAccess(apiName)
+  }) body${propAccess(apiName)} = ${g};`;
 }
 
 function buildGlobalArgsProperties(

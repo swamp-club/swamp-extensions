@@ -234,7 +234,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Segments. Registered at `@swamp/vercel/feature-flags/segments`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/segments",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -283,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -494,13 +499,30 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.operations !== undefined) body.operations = g.operations;
-        if (g.label !== undefined) body.label = g.label;
+        if (g.label !== undefined && g.label !== existing.label) {
+          body.label = g.label;
+        }
         if (g.description !== undefined) body.description = g.description;
         if (g.data !== undefined) body.data = g.data;
         if (g.hint !== undefined) body.hint = g.hint;
+        if (Object.keys(body).length === 0) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            existing,
+          );
+          return { dataHandles: [handle] };
+        }
         const result = await update(endpoint, existing.id, body, "PATCH", {
           token: g.token,
         }, { teamId: g.teamId, slug: g.slug }) as ResourceData;
+        if (
+          result && typeof result === "object" &&
+          (result as Record<string, unknown>).label === undefined
+        ) {
+          (result as Record<string, unknown>).label = body.label ??
+            existing.label;
+        }
         const handle = await context.writeResource(
           "state",
           instanceName,

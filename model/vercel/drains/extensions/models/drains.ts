@@ -158,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Drains. Registered at `@swamp/vercel/drains/drains`. */
 export const model = {
   type: "@swamp/vercel/drains/drains",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -192,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -380,7 +385,9 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.name !== undefined) body.name = g.name;
+        if (g.name !== undefined && g.name !== existing.name) {
+          body.name = g.name;
+        }
         if (g.projects !== undefined) body.projects = g.projects;
         if (g.projectIds !== undefined) body.projectIds = g.projectIds;
         if (g.filter !== undefined) body.filter = g.filter;
@@ -390,9 +397,21 @@ export const model = {
         if (g.transforms !== undefined) body.transforms = g.transforms;
         if (g.status !== undefined) body.status = g.status;
         if (g.source !== undefined) body.source = g.source;
+        if (Object.keys(body).length === 0) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            existing,
+          );
+          return { dataHandles: [handle] };
+        }
         const result = await update(endpoint, existing.id, body, "PATCH", {
           token: g.token,
         }, { teamId: g.teamId, slug: g.slug }) as ResourceData;
+        if (
+          result && typeof result === "object" &&
+          (result as Record<string, unknown>).name === undefined
+        ) (result as Record<string, unknown>).name = body.name ?? existing.name;
         const handle = await context.writeResource(
           "state",
           instanceName,

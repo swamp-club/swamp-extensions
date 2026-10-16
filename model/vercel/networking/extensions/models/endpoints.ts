@@ -94,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Endpoints. Registered at `@swamp/vercel/networking/endpoints`. */
 export const model = {
   type: "@swamp/vercel/networking/endpoints",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.09.16.1",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -320,9 +325,19 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.name !== undefined) body.name = g.name;
+        if (g.name !== undefined && g.name !== existing.name) {
+          body.name = g.name;
+        }
         if (g.enablePrivateDns !== undefined) {
           body.enablePrivateDns = g.enablePrivateDns;
+        }
+        if (Object.keys(body).length === 0) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            existing,
+          );
+          return { dataHandles: [handle] };
         }
         const result = await update(
           endpoint,
@@ -332,6 +347,10 @@ export const model = {
           { token: g.token },
           { teamId: g.teamId, slug: g.slug },
         ) as ResourceData;
+        if (
+          result && typeof result === "object" &&
+          (result as Record<string, unknown>).name === undefined
+        ) (result as Record<string, unknown>).name = body.name ?? existing.name;
         const handle = await context.writeResource(
           "state",
           instanceName,

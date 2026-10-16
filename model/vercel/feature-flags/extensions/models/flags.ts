@@ -143,7 +143,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.10.15.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -222,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -457,14 +462,31 @@ export const model = {
         if (g.variants !== undefined) body.variants = g.variants;
         if (g.environments !== undefined) body.environments = g.environments;
         if (g.seed !== undefined) body.seed = g.seed;
-        if (g.description !== undefined) body.description = g.description;
+        if (
+          g.description !== undefined && g.description !== existing.description
+        ) body.description = g.description;
         if (g.state !== undefined) body.state = g.state;
         if (g.maintainerIds !== undefined) body.maintainerIds = g.maintainerIds;
         if (g.permanent !== undefined) body.permanent = g.permanent;
         if (g.tags !== undefined) body.tags = g.tags;
+        if (Object.keys(body).length === 0) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            existing,
+          );
+          return { dataHandles: [handle] };
+        }
         const result = await update(endpoint, existing.id, body, "PATCH", {
           token: g.token,
         }, { teamId: g.teamId, slug: g.slug }) as ResourceData;
+        if (
+          result && typeof result === "object" &&
+          (result as Record<string, unknown>).description === undefined
+        ) {
+          (result as Record<string, unknown>).description = body.description ??
+            existing.description;
+        }
         const handle = await context.writeResource(
           "state",
           instanceName,
