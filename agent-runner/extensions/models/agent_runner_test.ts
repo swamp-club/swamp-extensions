@@ -713,3 +713,178 @@ Deno.test("harness readResource returns null for missing", async () => {
   const result = await ctx.readResource("nonexistent");
   assertEquals(result, null);
 });
+
+// ---------------------------------------------------------------------------
+// Effort
+// ---------------------------------------------------------------------------
+
+Deno.test("run args accept each effort level", () => {
+  for (const effort of ["low", "medium", "high", "xhigh", "max"]) {
+    const result = model.methods.run.arguments.parse({
+      prompt: "hello",
+      effort,
+    });
+    assertEquals(result.effort, effort);
+  }
+});
+
+Deno.test("run args reject unknown effort", () => {
+  const result = model.methods.run.arguments.safeParse({
+    prompt: "hello",
+    effort: "extreme",
+  });
+  assertEquals(result.success, false);
+});
+
+Deno.test("review args reject unknown effort", () => {
+  const result = model.methods.review.arguments.safeParse({
+    promptFile: "review.md",
+    files: ["a.ts"],
+    effort: "minimal",
+  });
+  assertEquals(result.success, false);
+});
+
+Deno.test("ReviewResult schema still parses agent output without effort", () => {
+  const result = ReviewResultSchema.parse({
+    verdict: "pass",
+    body: "ok",
+    findings: [],
+    highestSeverity: "none",
+  });
+  assertEquals(result.effort, undefined);
+});
+
+const FAKE_CLAUDE_VERSION = "0.0.0-effort-test";
+
+// Runs fn in a temp working directory holding a cached fake claude binary
+// that prints its argv one per line, then agentJson.
+async function withFakeClaude(
+  fn: (dir: string) => Promise<void>,
+  agentJson =
+    '{"verdict":"pass","body":"ok","findings":[],"highestSeverity":"none"}',
+): Promise<void> {
+  const dir = await Deno.makeTempDir({ prefix: "agent-runner-effort-" });
+  const binDir = `${dir}/.swamp/agent-runner/bin/claude/${FAKE_CLAUDE_VERSION}`;
+  await Deno.mkdir(binDir, { recursive: true });
+  const script = `#!/bin/sh
+for a in "$@"; do printf 'ARG:%s\\n' "$a"; done
+echo '${agentJson}'
+`;
+  await Deno.writeTextFile(`${binDir}/claude`, script);
+  await Deno.chmod(`${binDir}/claude`, 0o755);
+
+  const originalCwd = Deno.cwd();
+  Deno.chdir(dir);
+  try {
+    await fn(dir);
+  } finally {
+    Deno.chdir(originalCwd);
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
+const fakeClaudeGlobals = {
+  provider: "claude",
+  version: FAKE_CLAUDE_VERSION,
+  apiKey: "test-key",
+};
+
+Deno.test({
+  name: "run passes effort to the CLI and records it",
+  // The fake binary is a POSIX shell script, and runAgent does not
+  // support Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withFakeClaude(async () => {
+      const { ctx, writes } = makeHarness(fakeClaudeGlobals);
+      await model.methods.run.execute(
+        model.methods.run.arguments.parse({ prompt: "hi", effort: "high" }),
+        ctx,
+      );
+
+      assertEquals(writes.length, 1);
+      const output = writes[0].data.output as string;
+      assertEquals(output.includes("ARG:--effort\nARG:high\n"), true);
+      assertEquals(writes[0].data.effort, "high");
+      assertEquals(writes[0].tags?.effort, "high");
+    });
+  },
+});
+
+Deno.test({
+  name: "run without effort sends no flag and records none",
+  // The fake binary is a POSIX shell script, and runAgent does not
+  // support Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withFakeClaude(async () => {
+      const { ctx, writes } = makeHarness(fakeClaudeGlobals);
+      await model.methods.run.execute(
+        model.methods.run.arguments.parse({ prompt: "hi" }),
+        ctx,
+      );
+
+      const output = writes[0].data.output as string;
+      assertEquals(output.includes("ARG:--effort"), false);
+      assertEquals("effort" in writes[0].data, false);
+      assertEquals(writes[0].tags?.effort, undefined);
+    });
+  },
+});
+
+Deno.test({
+  name: "review passes effort to the CLI and records it",
+  // The fake binary is a POSIX shell script, and runAgent does not
+  // support Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withFakeClaude(async (dir) => {
+      await Deno.writeTextFile(`${dir}/review.md`, "Review this.");
+      const { ctx, writes } = makeHarness(fakeClaudeGlobals);
+      await model.methods.review.execute(
+        model.methods.review.arguments.parse({
+          promptFile: "review.md",
+          diff: "+ added line",
+          effort: "low",
+        }),
+        ctx,
+      );
+
+      assertEquals(writes.length, 1);
+      assertEquals(writes[0].specName, "reviewResult");
+      assertEquals(writes[0].data.verdict, "pass");
+      assertEquals(writes[0].data.effort, "low");
+      assertEquals(writes[0].tags?.effort, "low");
+    });
+  },
+});
+
+Deno.test({
+  name: "review ignores an effort the agent writes into its own result",
+  // The fake binary is a POSIX shell script, and runAgent does not
+  // support Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    for (const agentEffort of ["max", "ultra"]) {
+      await withFakeClaude(
+        async (dir) => {
+          await Deno.writeTextFile(`${dir}/review.md`, "Review this.");
+          const { ctx, writes } = makeHarness(fakeClaudeGlobals);
+          await model.methods.review.execute(
+            model.methods.review.arguments.parse({
+              promptFile: "review.md",
+              diff: "+ added line",
+            }),
+            ctx,
+          );
+
+          assertEquals(writes[0].data.verdict, "pass");
+          assertEquals("effort" in writes[0].data, false);
+          assertEquals(writes[0].tags?.effort, undefined);
+        },
+        `{"verdict":"pass","body":"ok","findings":[],"highestSeverity":"none","effort":"${agentEffort}"}`,
+      );
+    }
+  },
+});

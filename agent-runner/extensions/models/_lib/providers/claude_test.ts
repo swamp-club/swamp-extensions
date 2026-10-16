@@ -239,3 +239,43 @@ Deno.test("claude: buildArgs with multiple disallowed tools", () => {
 Deno.test("claude: apiKeyEnvName returns ANTHROPIC_API_KEY", () => {
   assertEquals(claudeProvider.apiKeyEnvName({}), "ANTHROPIC_API_KEY");
 });
+
+// ---------------------------------------------------------------------------
+// Effort
+// ---------------------------------------------------------------------------
+
+Deno.test("claude: buildArgs passes --effort for each level", () => {
+  for (const effort of ["low", "medium", "high", "xhigh", "max"] as const) {
+    const args = claudeProvider.buildArgs(
+      {
+        prompt: "test",
+        model: "claude-sonnet-4-6",
+        effort,
+        workingDir: "/repo",
+        additionalDirs: [],
+        outputPath: "/out/result.json",
+        readOnly: true,
+      },
+      {},
+    );
+
+    const idx = args.indexOf("--effort");
+    assertEquals(args[idx + 1], effort);
+  }
+});
+
+Deno.test("claude: buildArgs omits --effort when unset", () => {
+  const args = claudeProvider.buildArgs(
+    {
+      prompt: "test",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "/out/result.json",
+      readOnly: true,
+    },
+    {},
+  );
+
+  assertEquals(args.includes("--effort"), false);
+});

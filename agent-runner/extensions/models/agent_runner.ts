@@ -24,7 +24,7 @@ import type { AgentRunnerContext } from "./_lib/types.ts";
 /** Agent runner model — providers, review profiles, and execution methods. */
 export const model = {
   type: "@swamp/agent-runner",
-  version: "2026.09.28.1",
+  version: "2026.10.17.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -39,6 +39,12 @@ export const model = {
       toVersion: "2026.09.28.1",
       description:
         "Add optional auth global argument (apiKey default, cli uses the Claude CLI's stored login)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
+      description:
+        "Add optional effort argument to run and review (claude --effort, codex model_reasoning_effort)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -100,6 +106,7 @@ export const model = {
               globalArgs,
               prompt: args.prompt,
               model: resolvedModel,
+              effort: args.effort,
               workingDir: Deno.cwd(),
               additionalDirs: [],
               outputPath: "",
@@ -114,12 +121,17 @@ export const model = {
             const handle = await ctx.writeResource(
               "runResult",
               `run-${crypto.randomUUID()}`,
-              { output: output.stdout, exitCode: output.exitCode },
+              {
+                output: output.stdout,
+                exitCode: output.exitCode,
+                ...(args.effort ? { effort: args.effort } : {}),
+              },
               {
                 tags: {
                   provider: provider.name,
                   exitCode: String(output.exitCode),
                   ...(resolvedModel ? { model: resolvedModel } : {}),
+                  ...(args.effort ? { effort: args.effort } : {}),
                 },
               },
             );

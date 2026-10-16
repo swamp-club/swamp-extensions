@@ -1,8 +1,8 @@
 # @swamp/agent-runner
 
 Run AI coding agents with structured, machine-readable output for CI
-integration. Manages agent CLI binaries (download, cache, verify), resolves
-API tokens from environment variables or vaults, and returns verdicts that CI
+integration. Manages agent CLI binaries (download, cache, verify), resolves API
+tokens from environment variables or vaults, and returns verdicts that CI
 pipelines can gate on — without coupling to any specific git forge.
 
 Provider-agnostic: each agent backend (Claude Code CLI, OpenAI Codex CLI) is a
@@ -22,16 +22,16 @@ swamp extension pull @swamp/agent-runner
 Each provider reads its API key from a standard environment variable — no
 configuration needed:
 
-| Provider | Environment Variable  |
-| -------- | --------------------- |
-| `claude` | `ANTHROPIC_API_KEY`   |
-| `codex`  | `CODEX_API_KEY`       |
+| Provider | Environment Variable |
+| -------- | -------------------- |
+| `claude` | `ANTHROPIC_API_KEY`  |
+| `codex`  | `CODEX_API_KEY`      |
 
 Set the env var in your shell or CI secrets and the extension picks it up
 automatically. Nothing to configure in global arguments.
 
-For production deployments where you want secrets managed centrally, reference
-a swamp vault instead:
+For production deployments where you want secrets managed centrally, reference a
+swamp vault instead:
 
 ```bash
 swamp model create @swamp/agent-runner reviewer \
@@ -40,8 +40,8 @@ swamp model create @swamp/agent-runner reviewer \
   --global-arg 'apiKey=${{ vault.get("my-vault", "anthropic-api-key") }}'
 ```
 
-If you need to use a non-standard env var name (e.g. your CI injects the key
-as `MY_CLAUDE_KEY`), set `apiKeyEnvVar` in global arguments to override:
+If you need to use a non-standard env var name (e.g. your CI injects the key as
+`MY_CLAUDE_KEY`), set `apiKeyEnvVar` in global arguments to override:
 
 ```bash
 swamp model create @swamp/agent-runner reviewer \
@@ -94,6 +94,7 @@ Write a review prompt (e.g. `prompts/review.md`):
 
 ```markdown
 You are a code reviewer. Review the changed files for:
+
 1. Security vulnerabilities
 2. Logic errors and off-by-one bugs
 3. Missing error handling
@@ -129,8 +130,8 @@ swamp model method run reviewer review \
 
 ### Override the Model Per-Invocation
 
-The model is a variable — override it on any call without changing the
-instance configuration:
+The model is a variable — override it on any call without changing the instance
+configuration:
 
 ```bash
 # Fast review with Haiku
@@ -148,6 +149,32 @@ swamp model method run reviewer review \
   --json
 ```
 
+### Set the Effort Per-Invocation
+
+`run` and `review` also take an `effort` argument next to `model`: one of `low`,
+`medium`, `high`, `xhigh` or `max`. It is a top-level argument rather than
+provider config, so it carries over when a caller switches provider:
+
+| Provider | Passed as                           |
+| -------- | ----------------------------------- |
+| `claude` | `--effort <level>`                  |
+| `codex`  | `-c model_reasoning_effort=<level>` |
+
+```bash
+swamp model method run reviewer review \
+  --input promptFile=prompts/review.md \
+  --input 'files:json=["src/main.ts"]' \
+  --input model=claude-haiku-4-5 \
+  --input effort=low \
+  --json
+```
+
+When `effort` is omitted, no flag is sent and the CLI's own default applies.
+When it is set, the result records it as an `effort` field and an `effort` tag.
+Whether a level is accepted depends on the model, and the CLI reports a level
+the model doesn't support. A pinned `version` older than the CLI's effort
+support fails when `effort` is set.
+
 ### Run an Arbitrary Prompt
 
 ```bash
@@ -158,11 +185,11 @@ swamp model method run reviewer run \
 
 ### Use in CI (Forgejo / GitHub Actions)
 
-Set `ANTHROPIC_API_KEY` (or `CODEX_API_KEY`) as a CI secret. The extension
-reads it automatically — no global argument configuration for auth.
+Set `ANTHROPIC_API_KEY` (or `CODEX_API_KEY`) as a CI secret. The extension reads
+it automatically — no global argument configuration for auth.
 
-The extension replaces manual Claude CLI invocation in CI. Instead of 80+
-lines of shell per review job:
+The extension replaces manual Claude CLI invocation in CI. Instead of 80+ lines
+of shell per review job:
 
 ```yaml
 # Before: manual shell
@@ -218,8 +245,8 @@ The `review` method writes a `reviewResult` resource with this structure:
 }
 ```
 
-Each result is tagged with `verdict`, `highestSeverity`, `provider`, and
-`model` for querying:
+Each result is tagged with `verdict`, `highestSeverity`, `provider`, `model`,
+and (when set) `effort` for querying:
 
 ```bash
 # Find all failed reviews
@@ -270,18 +297,18 @@ arguments.
 
 ## Methods
 
-| Method   | Description                                                       |
-| -------- | ----------------------------------------------------------------- |
-| `review` | Run a review against files, return structured verdict + findings  |
-| `run`    | Run an arbitrary prompt, return raw output                        |
+| Method   | Description                                                      |
+| -------- | ---------------------------------------------------------------- |
+| `review` | Run a review against files, return structured verdict + findings |
+| `run`    | Run an arbitrary prompt, return raw output                       |
 
 ## Resources
 
-| Resource        | Description                                                 |
-| --------------- | ----------------------------------------------------------- |
-| `reviewProfile` | Reusable review configuration (prompt, model, permissions)  |
-| `reviewResult`  | Structured output from a review (verdict, findings, body)   |
-| `runResult`     | Raw output from an arbitrary prompt execution               |
+| Resource        | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `reviewProfile` | Reusable review configuration (prompt, model, permissions) |
+| `reviewResult`  | Structured output from a review (verdict, findings, body)  |
+| `runResult`     | Raw output from an arbitrary prompt execution              |
 
 ## License
 

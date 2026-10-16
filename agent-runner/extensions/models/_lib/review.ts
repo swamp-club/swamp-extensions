@@ -1,9 +1,9 @@
 import type { AgentRunnerContext, ReviewResult } from "./types.ts";
 import {
+  AgentReviewOutputSchema,
   GlobalArgsSchema,
   type ReviewArgs,
   ReviewProfileSchema,
-  ReviewResultSchema,
 } from "./schemas.ts";
 import { getProvider } from "./providers/registry.ts";
 import { runAgent } from "./runner.ts";
@@ -76,6 +76,7 @@ export async function executeReview(
         globalArgs,
         prompt,
         model,
+        effort: args.effort,
         workingDir: Deno.cwd(),
         additionalDirs: [outputDir],
         outputPath,
@@ -85,7 +86,10 @@ export async function executeReview(
         signal: ctx.signal,
       });
 
-      const result = await parseResult(outputPath, output.stdout, ctx);
+      const parsed = await parseResult(outputPath, output.stdout, ctx);
+      const result: ReviewResult = args.effort
+        ? { ...parsed, effort: args.effort }
+        : parsed;
 
       span.setAttribute(Attr.VERDICT, result.verdict);
       span.setAttribute(Attr.HIGHEST_SEVERITY, result.highestSeverity);
@@ -100,6 +104,7 @@ export async function executeReview(
             highestSeverity: result.highestSeverity,
             provider: provider.name,
             ...(model ? { model } : {}),
+            ...(args.effort ? { effort: args.effort } : {}),
           },
         },
       );
@@ -247,7 +252,7 @@ async function parseResult(
       if (
         typeof direct === "object" && direct !== null && "verdict" in direct
       ) {
-        return ReviewResultSchema.parse(direct);
+        return AgentReviewOutputSchema.parse(direct);
       }
     } catch {
       ctx.logger.warn(
@@ -261,7 +266,7 @@ async function parseResult(
   const parsed = extractJsonResult(source);
   if (parsed) {
     try {
-      return ReviewResultSchema.parse(parsed);
+      return AgentReviewOutputSchema.parse(parsed);
     } catch (error) {
       ctx.logger.error(
         `Failed to validate agent result: ${

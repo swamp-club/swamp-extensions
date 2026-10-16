@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.10.13.1"
+version: "2026.10.17.1"
 license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
@@ -18,6 +18,10 @@ description: |
   | -------- | ------------ |
   | `review` | Run a coding agent review against a set of files and return a structured verdict (pass/fail) with findings. Supports an optional `diff` input for inline diff review mode (faster, no repo exploration). |
   | `run`    | Run an arbitrary prompt through a coding agent and return the output. |
+
+  Both methods accept optional `model` and `effort` arguments (`effort` is
+  low, medium, high, xhigh or max, passed as claude `--effort` or codex
+  `model_reasoning_effort`).
 
   ## Providers
 

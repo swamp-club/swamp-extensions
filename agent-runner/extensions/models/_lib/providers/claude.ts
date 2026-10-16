@@ -138,6 +138,10 @@ export const claudeProvider: AgentProvider = {
       args.push("--model", request.model);
     }
 
+    if (request.effort) {
+      args.push("--effort", request.effort);
+    }
+
     for (const dir of request.additionalDirs) {
       args.push("--add-dir", dir);
     }

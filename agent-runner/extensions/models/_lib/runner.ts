@@ -3,7 +3,7 @@ import { detectPlatform } from "./platform.ts";
 import { resolveAuthKey } from "./auth.ts";
 import { Attr, getTracer } from "./tracing.ts";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
-import type { GlobalArgs } from "./schemas.ts";
+import type { Effort, GlobalArgs } from "./schemas.ts";
 import { getProvider } from "./providers/registry.ts";
 
 const CACHE_DIR_NAME = ".swamp/agent-runner/bin";
@@ -12,6 +12,7 @@ export interface RunAgentOptions {
   readonly globalArgs: GlobalArgs;
   readonly prompt: string;
   readonly model: string | undefined;
+  readonly effort?: Effort;
   readonly workingDir: string;
   readonly additionalDirs: string[];
   readonly outputPath: string;
@@ -39,6 +40,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
     if (opts.model) {
       span.setAttribute(Attr.MODEL, opts.model);
     }
+    if (opts.effort) {
+      span.setAttribute(Attr.EFFORT, opts.effort);
+    }
 
     try {
       opts.logger.info(
@@ -54,6 +58,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
       const request: AgentRunRequest = {
         prompt: opts.prompt,
         model: opts.model,
+        effort: opts.effort,
         workingDir: opts.workingDir,
         additionalDirs: opts.additionalDirs,
         outputPath: opts.outputPath,
@@ -71,7 +76,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
       opts.logger.info(
         `Running ${provider.name} agent${
           opts.model ? ` (model: ${opts.model})` : ""
-        }`,
+        }${opts.effort ? ` (effort: ${opts.effort})` : ""}`,
       );
 
       const command = new Deno.Command(binaryPath, {

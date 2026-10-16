@@ -187,3 +187,48 @@ Deno.test("codex: downloads and extracts binary from mock npm tarball", async ()
     await Deno.remove(tmpDir, { recursive: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Effort
+// ---------------------------------------------------------------------------
+
+Deno.test("codex: buildArgs sets model_reasoning_effort for each level", () => {
+  for (const effort of ["low", "medium", "high", "xhigh", "max"] as const) {
+    const args = codexProvider.buildArgs(
+      {
+        prompt: "test",
+        model: "o4-mini",
+        effort,
+        workingDir: "/repo",
+        additionalDirs: [],
+        outputPath: "/out/result.json",
+        readOnly: true,
+      },
+      {},
+    );
+
+    const idx = args.indexOf(`model_reasoning_effort=${effort}`);
+    assertEquals(args[idx - 1], "-c");
+    assertEquals(args[args.length - 1], "test");
+  }
+});
+
+Deno.test("codex: buildArgs omits model_reasoning_effort when unset", () => {
+  const args = codexProvider.buildArgs(
+    {
+      prompt: "test",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "/out/result.json",
+      readOnly: true,
+    },
+    {},
+  );
+
+  assertEquals(args.includes("-c"), false);
+  assertEquals(
+    args.some((a) => a.startsWith("model_reasoning_effort=")),
+    false,
+  );
+});

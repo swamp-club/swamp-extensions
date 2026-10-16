@@ -130,6 +130,10 @@ export const codexProvider: AgentProvider = {
       args.push("-m", request.model);
     }
 
+    if (request.effort) {
+      args.push("-c", `model_reasoning_effort=${request.effort}`);
+    }
+
     for (const dir of request.additionalDirs) {
       args.push("--add-dir", dir);
     }

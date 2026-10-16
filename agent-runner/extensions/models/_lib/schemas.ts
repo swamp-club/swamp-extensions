@@ -22,6 +22,15 @@ export const GlobalArgsSchema = z.object({
 
 export type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
+export const EffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"])
+  .describe(
+    "Reasoning effort for the agent. claude passes --effort, codex sets " +
+      "model_reasoning_effort. Not every model accepts every level; the " +
+      "CLI reports one it doesn't. Omit to use the CLI's default",
+  );
+
+export type Effort = z.infer<typeof EffortSchema>;
+
 export const FindingSchema = z.object({
   severity: z.enum(["critical", "high", "medium", "low"]),
   file: z.string(),
@@ -31,11 +40,18 @@ export const FindingSchema = z.object({
   suggestion: z.string().optional(),
 });
 
-export const ReviewResultSchema = z.object({
+// The agent's own JSON is validated against this; effort is never taken
+// from it, only from the effort the run was started with.
+export const AgentReviewOutputSchema = z.object({
   verdict: z.enum(["pass", "fail"]),
   body: z.string(),
   findings: z.array(FindingSchema),
   highestSeverity: z.enum(["critical", "high", "medium", "low", "none"]),
+});
+
+export const ReviewResultSchema = AgentReviewOutputSchema.extend({
+  effort: EffortSchema.optional()
+    .describe("Effort the agent ran with, when one was set"),
 });
 
 export const ReviewProfileSchema = z.object({
@@ -60,6 +76,7 @@ export const ReviewArgsSchema = z.object({
     .describe("Path to prompt template (overrides profile if both given)"),
   model: z.string().optional()
     .describe("Model to use (overrides profile and global defaults)"),
+  effort: EffortSchema.optional(),
   files: z.array(z.string()).optional()
     .describe(
       "List of files to include in the review. The agent reads each file " +
@@ -84,6 +101,7 @@ export const RunArgsSchema = z.object({
     .describe("Prompt to send to the agent"),
   model: z.string().optional()
     .describe("Model to use (overrides global default)"),
+  effort: EffortSchema.optional(),
   readOnly: z.boolean().default(true)
     .describe("Whether the agent should have read-only access"),
   providerConfig: z.record(z.string(), z.unknown()).optional()
@@ -95,4 +113,6 @@ export type RunArgs = z.infer<typeof RunArgsSchema>;
 export const RunResultSchema = z.object({
   output: z.string(),
   exitCode: z.number().int(),
+  effort: EffortSchema.optional()
+    .describe("Effort the agent ran with, when one was set"),
 });

@@ -10,6 +10,7 @@ export const Attr = {
   PROVIDER: "agent_runner.provider",
   VERSION: "agent_runner.cli_version",
   MODEL: "agent_runner.model",
+  EFFORT: "agent_runner.effort",
   METHOD: "agent_runner.method",
   VERDICT: "agent_runner.verdict",
   HIGHEST_SEVERITY: "agent_runner.highest_severity",
