@@ -186,12 +186,13 @@ swamp data query deno 'tags.command.startsWith("deno test")'
 ## Binary Management
 
 The extension downloads Deno binaries from `dl.deno.land` and caches them
-under `.swamp/deno-runner/bin/<version>/deno`. On first run for a given
-version, it:
+under `.swamp/deno-runner/bin/<version>/deno` (`deno.exe` on Windows). On
+first run for a given version, it:
 
 1. Downloads the platform-appropriate archive (zip)
 2. Verifies the SHA-256 checksum when available
-3. Extracts the binary with atomic write (download → temp → rename)
+3. Extracts the binary in process (no `unzip` needed) with atomic write
+   (download → temp → rename)
 4. Caches for subsequent runs
 
 No manual binary management is needed — set the `version` in global
@@ -203,6 +204,9 @@ arguments and the extension handles the rest. Supported platforms:
 | Linux ARM64      | `deno-aarch64-unknown-linux-gnu.zip` |
 | macOS x64        | `deno-x86_64-apple-darwin.zip`       |
 | macOS ARM64      | `deno-aarch64-apple-darwin.zip`      |
+| Windows x64      | `deno-x86_64-pc-windows-msvc.zip`    |
+
+Deno publishes no Windows ARM64 build, so that platform is not supported.
 
 ## Methods
 

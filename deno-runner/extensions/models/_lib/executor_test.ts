@@ -132,6 +132,42 @@ Deno.test("execute without inheritEnv strips non-allowlisted vars", async () => 
   }
 });
 
+Deno.test({
+  name: "execute without inheritEnv forwards the Windows profile variables",
+  // The probe uses /bin/sh.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    const names = ["USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot"];
+    const originals = new Map(names.map((n) => [n, Deno.env.get(n)]));
+    try {
+      for (const name of names) {
+        Deno.env.set(name, `value-of-${name}`);
+      }
+      const { logger } = makeLogger();
+      const result = await execute({
+        binaryPath: "/bin/sh",
+        args: ["-c", names.map((n) => `echo $${n}`).join("; ")],
+        workingDir: Deno.cwd(),
+        logger,
+        signal: new AbortController().signal,
+      });
+
+      assertEquals(
+        result.stdout.trim().split("\n"),
+        names.map((n) => `value-of-${n}`),
+      );
+    } finally {
+      for (const [name, value] of originals) {
+        if (value !== undefined) {
+          Deno.env.set(name, value);
+        } else {
+          Deno.env.delete(name);
+        }
+      }
+    }
+  },
+});
+
 Deno.test("execute with inheritEnv merges extra env on top", async () => {
   const { logger } = makeLogger();
   const result = await execute({

@@ -41,6 +41,24 @@ const FORWARDED_ENV_VARS = [
   "HTTPS_PROXY",
   "NO_PROXY",
   "SSH_AUTH_SOCK",
+  // Windows: processes need these to start and to find the user's profile.
+  // They are unset on Unix, so the loop below skips them there.
+  "SystemRoot",
+  "SystemDrive",
+  "windir",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "ProgramData",
+  "ProgramFiles",
+  "TEMP",
+  "TMP",
+  "PATHEXT",
+  "COMSPEC",
+  "USERNAME",
+  "PROCESSOR_ARCHITECTURE",
 ];
 
 function buildSubprocessEnv(

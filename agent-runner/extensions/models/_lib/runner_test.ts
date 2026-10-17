@@ -289,3 +289,25 @@ Deno.test("runner: subprocess env still forwards HOME without a key", () => {
   const env = buildSubprocessEnv("ANTHROPIC_API_KEY", undefined, true);
   assertEquals(env["HOME"], home);
 });
+
+Deno.test("runner: subprocess env forwards the Windows profile variables", () => {
+  const names = ["USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot"];
+  const originals = new Map(names.map((n) => [n, Deno.env.get(n)]));
+  try {
+    for (const name of names) {
+      Deno.env.set(name, `value-of-${name}`);
+    }
+    const env = buildSubprocessEnv("ANTHROPIC_API_KEY", undefined, true);
+    for (const name of names) {
+      assertEquals(env[name], `value-of-${name}`);
+    }
+  } finally {
+    for (const [name, value] of originals) {
+      if (value !== undefined) {
+        Deno.env.set(name, value);
+      } else {
+        Deno.env.delete(name);
+      }
+    }
+  }
+});

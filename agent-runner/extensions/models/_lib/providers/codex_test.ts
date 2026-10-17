@@ -1,5 +1,6 @@
-import { assertEquals } from "jsr:@std/assert@1.0.19";
-import { codexProvider } from "./codex.ts";
+import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
+import { TarStream } from "jsr:@std/tar@0.1.10/tar-stream";
+import { codexProvider, extractTarball } from "./codex.ts";
 
 // ---------------------------------------------------------------------------
 // Arg building
@@ -123,67 +124,243 @@ Deno.test("codex: outputInstructions mentions final message", () => {
 // Binary download from mock npm registry
 // ---------------------------------------------------------------------------
 
-Deno.test("codex: downloads and extracts binary from mock npm tarball", async () => {
-  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
-  const tarballDir = `${tmpDir}/tarball`;
-  const packageDir = `${tarballDir}/package/bin`;
-  await Deno.mkdir(packageDir, { recursive: true });
+interface FakeEntry {
+  path: string;
+  content: string;
+  mode: number;
+}
 
-  const fakeBinary = "#!/bin/sh\necho mock-codex\n";
-  await Deno.writeTextFile(`${packageDir}/codex`, fakeBinary);
-  await Deno.chmod(`${packageDir}/codex`, 0o755);
+// Builds a gzipped npm-style tarball in memory.
+async function buildTarball(entries: FakeEntry[]): Promise<Uint8Array> {
+  const encoder = new TextEncoder();
+  const stream = ReadableStream.from(entries.map((e) => {
+    const data = encoder.encode(e.content);
+    return {
+      type: "file" as const,
+      path: e.path,
+      size: data.length,
+      readable: ReadableStream.from([data]),
+      options: { mode: e.mode },
+    };
+  }))
+    .pipeThrough(new TarStream())
+    .pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
 
-  // Create tarball
-  const tar = new Deno.Command("tar", {
-    args: ["czf", `${tmpDir}/codex.tgz`, "-C", tarballDir, "package"],
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const tarResult = await tar.output();
-  assertEquals(tarResult.success, true);
+function packageEntries(triple: string, binaryName: string): FakeEntry[] {
+  const root = `package/vendor/${triple}`;
+  return [
+    { path: "package/package.json", content: "{}", mode: 0o644 },
+    {
+      path: `${root}/bin/${binaryName}`,
+      content: "#!/bin/sh\necho mock-codex\n",
+      mode: 0o755,
+    },
+    {
+      path: `${root}/codex-resources/bwrap`,
+      content: "#!/bin/sh\necho mock-bwrap\n",
+      mode: 0o755,
+    },
+    { path: `${root}/codex-path/rg`, content: "rg", mode: 0o755 },
+    { path: `${root}/codex-package.json`, content: "{}", mode: 0o644 },
+  ];
+}
 
-  const tarballData = await Deno.readFile(`${tmpDir}/codex.tgz`);
-
-  const server = Deno.serve({ port: 0, onListen: () => {} }, (_req) => {
-    return new Response(tarballData, {
+// Serves the tarball from a local server and points the real npm registry
+// URLs at it, recording each requested path.
+async function withMockRegistry(
+  tarball: Uint8Array,
+  fn: (requested: string[]) => Promise<void>,
+): Promise<void> {
+  const requested: string[] = [];
+  const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
+    requested.push(new URL(req.url).pathname);
+    return new Response(tarball as unknown as BodyInit, {
       status: 200,
       headers: { "content-type": "application/gzip" },
     });
   });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (input: string | URL | Request, init?: RequestInit) => {
+    const urlStr = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
+    if (urlStr.startsWith("https://registry.npmjs.org/")) {
+      const path = urlStr.replace("https://registry.npmjs.org/", "/");
+      return originalFetch(
+        `http://127.0.0.1:${server.addr.port}${path}`,
+        init,
+      );
+    }
+    return originalFetch(input, init);
+  };
+  try {
+    await fn(requested);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await server.shutdown();
+  }
+}
+
+Deno.test("codex: ensureBinary installs the win32 vendor tree and returns codex.exe", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball(
+    packageEntries("x86_64-pc-windows-msvc", "codex.exe"),
+  );
 
   try {
-    const cacheDir = `${tmpDir}/cache/codex/0.1.0`;
-    await Deno.mkdir(cacheDir, { recursive: true });
+    await withMockRegistry(tarball, async (requested) => {
+      const cacheDir = `${tmpDir}/cache`;
+      const binaryPath = await codexProvider.ensureBinary(
+        "0.163.0",
+        cacheDir,
+        "win32-x64",
+      );
+      const vendorDir = `${cacheDir}/codex/0.163.0/vendor`;
+      assertEquals(binaryPath, `${vendorDir}/bin/codex.exe`);
+      assertEquals(
+        await Deno.readTextFile(binaryPath),
+        "#!/bin/sh\necho mock-codex\n",
+      );
+      assertEquals(
+        (await Deno.stat(`${vendorDir}/codex-resources/bwrap`)).isFile,
+        true,
+      );
+      assertEquals(requested, [
+        "/@openai/codex/-/codex-0.163.0-win32-x64.tgz",
+      ]);
 
-    // Simulate what the provider does: download, extract, find binary
-    const port = server.addr.port;
-    const resp = await fetch(`http://127.0.0.1:${port}/codex.tgz`);
-    const data = new Uint8Array(await resp.arrayBuffer());
+      // Only the vendor tree is left behind
+      const left = [];
+      for await (const entry of Deno.readDir(`${cacheDir}/codex/0.163.0`)) {
+        left.push(entry.name);
+      }
+      assertEquals(left, ["vendor"]);
 
-    const tarballPath = `${cacheDir}/codex.tgz`;
-    await Deno.writeFile(tarballPath, data);
-
-    const extractDir = `${cacheDir}/extract`;
-    await Deno.mkdir(extractDir, { recursive: true });
-
-    const extract = new Deno.Command("tar", {
-      args: ["xzf", tarballPath, "-C", extractDir],
-      stdout: "piped",
-      stderr: "piped",
+      // Second call hits the cache without another download
+      const binaryPath2 = await codexProvider.ensureBinary(
+        "0.163.0",
+        cacheDir,
+        "win32-x64",
+      );
+      assertEquals(binaryPath2, binaryPath);
+      assertEquals(requested.length, 1);
     });
-    const extractResult = await extract.output();
-    assertEquals(extractResult.success, true);
-
-    // Find binary
-    const binaryPath = `${extractDir}/package/bin/codex`;
-    const stat = await Deno.stat(binaryPath);
-    assertEquals(stat.isFile, true);
-
-    // Read and verify content
-    const content = await Deno.readTextFile(binaryPath);
-    assertEquals(content, fakeBinary);
   } finally {
-    await server.shutdown();
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test({
+  name: "codex: ensureBinary keeps executable modes for bundled helpers",
+  // File modes are not meaningful on Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+    const tarball = await buildTarball(
+      packageEntries("x86_64-unknown-linux-musl", "codex"),
+    );
+
+    try {
+      await withMockRegistry(tarball, async (requested) => {
+        const cacheDir = `${tmpDir}/cache`;
+        const binaryPath = await codexProvider.ensureBinary(
+          "0.163.0",
+          cacheDir,
+          "linux-x64",
+        );
+        const vendorDir = `${cacheDir}/codex/0.163.0/vendor`;
+        assertEquals(binaryPath, `${vendorDir}/bin/codex`);
+        assertEquals(requested, [
+          "/@openai/codex/-/codex-0.163.0-linux-x64.tgz",
+        ]);
+        assertEquals((await Deno.stat(binaryPath)).mode! & 0o777, 0o755);
+        assertEquals(
+          (await Deno.stat(`${vendorDir}/codex-resources/bwrap`)).mode! &
+            0o777,
+          0o755,
+        );
+        assertEquals(
+          (await Deno.stat(`${vendorDir}/codex-package.json`)).mode! & 0o777,
+          0o644,
+        );
+      });
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test("codex: ensureBinary finds the binary in the older codex/ layout", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball([
+    {
+      path: "package/vendor/x86_64-unknown-linux-musl/codex/codex",
+      content: "old-layout",
+      mode: 0o755,
+    },
+  ]);
+
+  try {
+    await withMockRegistry(tarball, async () => {
+      const cacheDir = `${tmpDir}/cache`;
+      const binaryPath = await codexProvider.ensureBinary(
+        "0.100.0",
+        cacheDir,
+        "linux-x64",
+      );
+      assertEquals(
+        binaryPath,
+        `${cacheDir}/codex/0.100.0/vendor/codex/codex`,
+      );
+    });
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("codex: ensureBinary fails when the tarball has no binary", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball([
+    { path: "package/package.json", content: "{}", mode: 0o644 },
+  ]);
+
+  try {
+    await withMockRegistry(tarball, async () => {
+      await assertRejects(
+        () =>
+          codexProvider.ensureBinary("0.163.0", `${tmpDir}/cache`, "win32-x64"),
+        Error,
+        "Could not find 'codex.exe' binary",
+      );
+    });
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("codex: extractTarball rejects a path that escapes the destination", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball([
+    { path: "package/../../escape", content: "x", mode: 0o644 },
+  ]);
+
+  try {
+    await assertRejects(
+      () =>
+        extractTarball(
+          ReadableStream.from([new Uint8Array(tarball)]),
+          `${tmpDir}/dest`,
+          "linux-x64",
+        ),
+      Error,
+      "Refusing unsafe path",
+    );
+    await assertRejects(() => Deno.stat(`${tmpDir}/escape`));
+  } finally {
     await Deno.remove(tmpDir, { recursive: true });
   }
 });
@@ -231,4 +408,52 @@ Deno.test("codex: buildArgs omits model_reasoning_effort when unset", () => {
     args.some((a) => a.startsWith("model_reasoning_effort=")),
     false,
   );
+});
+
+Deno.test("codex: extractTarball rejects a segment naming an NTFS stream", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball([
+    { path: "package/bin/codex.exe:hidden", content: "x", mode: 0o644 },
+  ]);
+
+  try {
+    await assertRejects(
+      () =>
+        extractTarball(
+          ReadableStream.from([new Uint8Array(tarball)]),
+          `${tmpDir}/dest`,
+          "win32-x64",
+        ),
+      Error,
+      "Refusing unsafe path",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("codex: ensureBinary replaces a vendor directory that has no binary", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "codex-test-" });
+  const tarball = await buildTarball(
+    packageEntries("x86_64-pc-windows-msvc", "codex.exe"),
+  );
+
+  try {
+    const cacheDir = `${tmpDir}/cache`;
+    const vendorDir = `${cacheDir}/codex/0.163.0/vendor`;
+    await Deno.mkdir(`${vendorDir}/codex-path`, { recursive: true });
+    await Deno.writeTextFile(`${vendorDir}/codex-path/rg`, "stale");
+
+    await withMockRegistry(tarball, async () => {
+      const binaryPath = await codexProvider.ensureBinary(
+        "0.163.0",
+        cacheDir,
+        "win32-x64",
+      );
+      assertEquals(binaryPath, `${vendorDir}/bin/codex.exe`);
+      assertEquals(await Deno.readTextFile(`${vendorDir}/codex-path/rg`), "rg");
+    });
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
 });

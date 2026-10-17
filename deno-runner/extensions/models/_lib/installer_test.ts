@@ -1,5 +1,14 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
-import { detectPlatform, ensureDeno, tryVerifyChecksum } from "./installer.ts";
+import {
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.19";
+import {
+  detectPlatform,
+  ensureDeno,
+  extractDenoFromZip,
+  tryVerifyChecksum,
+} from "./installer.ts";
 
 // ---------------------------------------------------------------------------
 // Platform detection
@@ -7,8 +16,43 @@ import { detectPlatform, ensureDeno, tryVerifyChecksum } from "./installer.ts";
 
 Deno.test("detectPlatform returns valid platform", () => {
   const platform = detectPlatform();
-  const valid = ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"];
+  const valid = [
+    "linux-x64",
+    "linux-arm64",
+    "darwin-x64",
+    "darwin-arm64",
+    "windows-x64",
+  ];
   assertEquals(valid.includes(platform), true);
+});
+
+Deno.test("detectPlatform maps every supported os and arch", () => {
+  assertEquals(detectPlatform("linux", "x86_64"), "linux-x64");
+  assertEquals(detectPlatform("linux", "aarch64"), "linux-arm64");
+  assertEquals(detectPlatform("darwin", "x86_64"), "darwin-x64");
+  assertEquals(detectPlatform("darwin", "aarch64"), "darwin-arm64");
+  assertEquals(detectPlatform("windows", "x86_64"), "windows-x64");
+});
+
+Deno.test("detectPlatform rejects Windows ARM64, which Deno does not publish", () => {
+  assertThrows(
+    () => detectPlatform("windows", "aarch64"),
+    Error,
+    "Deno publishes no Windows build for aarch64",
+  );
+});
+
+Deno.test("detectPlatform rejects unsupported os and arch", () => {
+  assertThrows(
+    () => detectPlatform("freebsd", "x86_64"),
+    Error,
+    "Unsupported operating system: freebsd",
+  );
+  assertThrows(
+    () => detectPlatform("linux", "riscv64"),
+    Error,
+    "Unsupported architecture: riscv64",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -291,3 +335,73 @@ Deno.test(
     }
   },
 );
+
+Deno.test(
+  "ensureDeno downloads the Windows zip and caches deno.exe",
+  { sanitizeResources: false }, // mock server may leave connection open
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    const exeContent = new TextEncoder().encode("MZ fake deno.exe");
+    const zipData = buildZipWithFile("deno.exe", exeContent);
+
+    const requested: string[] = [];
+    const server = Deno.serve({ port: 0 }, (req) => {
+      const url = new URL(req.url);
+      requested.push(url.pathname);
+      if (url.pathname.endsWith(".zip")) {
+        return new Response(zipData as unknown as BodyInit);
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+
+    const originalFetch = globalThis.fetch;
+    const port = server.addr.port;
+    globalThis.fetch = (input: string | URL | Request, init?: RequestInit) => {
+      const urlStr = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+      if (urlStr.startsWith("https://dl.deno.land/")) {
+        const path = urlStr.replace("https://dl.deno.land/", "/");
+        return originalFetch(`http://localhost:${port}${path}`, init);
+      }
+      return originalFetch(input, init);
+    };
+
+    const cacheDir = `${tmpDir}/cache`;
+    try {
+      const binaryPath = await ensureDeno("2.7.5", cacheDir, "windows-x64");
+      assertEquals(
+        binaryPath,
+        `${cacheDir}/.swamp/deno-runner/bin/2.7.5/deno.exe`,
+      );
+      assertEquals(await Deno.readFile(binaryPath), exeContent);
+      assertEquals(requested, [
+        "/release/v2.7.5/deno-x86_64-pc-windows-msvc.zip",
+        "/release/v2.7.5/deno-x86_64-pc-windows-msvc.zip.sha256",
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+      await server.shutdown();
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test("extractDenoFromZip fails when the archive lacks the binary", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    const zipData = buildZipWithFile(
+      "README.md",
+      new TextEncoder().encode("no binary here"),
+    );
+    await assertRejects(
+      () => extractDenoFromZip(zipData, "deno.exe", `${tmpDir}/deno.exe`),
+      Error,
+      "deno.exe not found in archive",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});

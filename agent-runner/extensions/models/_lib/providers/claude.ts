@@ -1,5 +1,6 @@
 import { z } from "npm:zod@4.3.6";
 import type { AgentProvider, AgentRunRequest, Platform } from "../types.ts";
+import { binaryFileName, isWindows } from "../platform.ts";
 
 const DOWNLOAD_BASE = "https://downloads.claude.ai/claude-code-releases";
 
@@ -11,13 +12,25 @@ export const ClaudeConfigSchema = z.object({
 });
 
 function downloadUrl(version: string, platform: Platform): string {
-  return `${DOWNLOAD_BASE}/${version}/${platform}/claude`;
+  return `${DOWNLOAD_BASE}/${version}/${platform}/${
+    binaryFileName("claude", platform)
+  }`;
 }
 
-function checksumUrl(version: string, platform: Platform): string {
-  return `${DOWNLOAD_BASE}/${version}/${platform}/checksums.txt`;
+function manifestUrl(version: string): string {
+  return `${DOWNLOAD_BASE}/${version}/manifest.json`;
 }
 
+const ReleaseManifestSchema = z.object({
+  platforms: z.record(
+    z.string(),
+    z.object({ checksum: z.string().optional() }),
+  ),
+});
+
+// Checks the binary against the SHA-256 that the release's manifest.json
+// records for this platform. A release without a manifest, or a manifest
+// without this platform, is skipped rather than failed.
 export async function tryVerifyChecksum(
   binaryPath: string,
   version: string,
@@ -26,20 +39,21 @@ export async function tryVerifyChecksum(
   baseUrl?: string,
 ): Promise<"verified" | "skipped"> {
   const url = baseUrl
-    ? `${baseUrl}/${version}/${platform}/checksums.txt`
-    : checksumUrl(version, platform);
+    ? `${baseUrl}/${version}/manifest.json`
+    : manifestUrl(version);
   const resp = await fetch(url, { signal });
   if (!resp.ok) {
     await resp.body?.cancel();
     return "skipped";
   }
-  const text = await resp.text();
 
-  const expectedHash = text.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .find((line) => line.endsWith("claude"))
-    ?.split(/\s+/)[0];
+  let expectedHash: string | undefined;
+  try {
+    const manifest = ReleaseManifestSchema.parse(await resp.json());
+    expectedHash = manifest.platforms[platform]?.checksum;
+  } catch {
+    return "skipped";
+  }
 
   if (!expectedHash) {
     return "skipped";
@@ -75,7 +89,7 @@ export const claudeProvider: AgentProvider = {
     signal?: AbortSignal,
   ): Promise<string> {
     const dir = `${cacheDir}/claude/${version}`;
-    const binaryPath = `${dir}/claude`;
+    const binaryPath = `${dir}/${binaryFileName("claude", platform)}`;
 
     try {
       await Deno.stat(binaryPath);
@@ -102,7 +116,9 @@ export const claudeProvider: AgentProvider = {
     try {
       const data = new Uint8Array(await resp.arrayBuffer());
       await Deno.writeFile(tmpPath, data);
-      await Deno.chmod(tmpPath, 0o755);
+      if (!isWindows(platform)) {
+        await Deno.chmod(tmpPath, 0o755);
+      }
       const checksumStatus = await tryVerifyChecksum(
         tmpPath,
         version,
@@ -111,7 +127,7 @@ export const claudeProvider: AgentProvider = {
       );
       if (checksumStatus === "skipped") {
         console.warn(
-          `[agent-runner] Checksum verification skipped for Claude CLI ${version} — no checksums file available`,
+          `[agent-runner] Checksum verification skipped for Claude CLI ${version} — no checksum in the release manifest`,
         );
       }
       await Deno.rename(tmpPath, binaryPath);
@@ -168,9 +184,16 @@ export const claudeProvider: AgentProvider = {
       "After completing your analysis, you MUST write your result as JSON using tee.",
       "Do NOT use the Write tool. Use this exact command:",
       "",
-      `tee ${outputPath} <<'AGENT_RESULT_EOF'`,
+      `tee ${shellPath(outputPath)} <<'AGENT_RESULT_EOF'`,
       "(your JSON here)",
       "AGENT_RESULT_EOF",
     ].join("\n");
   },
 };
+
+// Quotes a path for the tee command. On Windows the agent's shell is Git Bash,
+// which strips the backslashes from an unquoted C:\... path; forward slashes
+// work there and in Win32 alike.
+export function shellPath(path: string): string {
+  return `'${path.replaceAll("\\", "/").replaceAll("'", "'\\''")}'`;
+}

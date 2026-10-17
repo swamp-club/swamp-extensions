@@ -1,11 +1,14 @@
 manifestVersion: 1
 name: "@swamp/deno-runner"
-version: "2026.10.13.1"
+version: "2026.10.17.1"
 license: "AGPL-3.0-or-later"
 description: |
   Install and run Deno commands. Manages Deno binary downloads with
   checksum verification and provides generic command execution for CI
   and development workflows.
+
+  Runs on Linux and macOS (x64 and ARM64) and Windows x64. The binary is
+  unpacked in process, so no unzip tool is needed.
 
   Provider-agnostic: does not impose any project structure or command
   conventions. You specify the Deno version and the arguments to run.
@@ -49,7 +52,12 @@ models:
 additionalFiles:
   - LICENSE.txt
   - README.md
-platforms: []
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+  - windows-x86_64
 labels:
   - deno
   - ci

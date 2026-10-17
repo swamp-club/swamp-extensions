@@ -4,7 +4,7 @@ import { ClaudeConfigSchema } from "./_lib/providers/claude.ts";
 import { CodexConfigSchema } from "./_lib/providers/codex.ts";
 import { getProvider, listProviders } from "./_lib/providers/registry.ts";
 import { resolveApiKey, resolveAuthKey } from "./_lib/auth.ts";
-import { detectPlatform } from "./_lib/platform.ts";
+import { binaryFileName, detectPlatform, isWindows } from "./_lib/platform.ts";
 import { ReviewResultSchema } from "./_lib/schemas.ts";
 import type { AgentRunnerContext, DataHandle } from "./_lib/types.ts";
 
@@ -522,8 +522,46 @@ Deno.test("auth cli mode rejects apiKeyEnvVar", () => {
 
 Deno.test("platform detection returns valid platform", () => {
   const platform = detectPlatform();
-  const valid = ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"];
+  const valid = [
+    "linux-x64",
+    "linux-arm64",
+    "darwin-x64",
+    "darwin-arm64",
+    "win32-x64",
+    "win32-arm64",
+  ];
   assertEquals(valid.includes(platform), true);
+});
+
+Deno.test("platform detection maps every supported os and arch", () => {
+  assertEquals(detectPlatform("linux", "x86_64"), "linux-x64");
+  assertEquals(detectPlatform("linux", "aarch64"), "linux-arm64");
+  assertEquals(detectPlatform("darwin", "x86_64"), "darwin-x64");
+  assertEquals(detectPlatform("darwin", "aarch64"), "darwin-arm64");
+  assertEquals(detectPlatform("windows", "x86_64"), "win32-x64");
+  assertEquals(detectPlatform("windows", "aarch64"), "win32-arm64");
+});
+
+Deno.test("platform detection rejects unsupported os and arch", () => {
+  assertThrows(
+    () => detectPlatform("freebsd", "x86_64"),
+    Error,
+    "Unsupported operating system: freebsd",
+  );
+  assertThrows(
+    () => detectPlatform("linux", "riscv64"),
+    Error,
+    "Unsupported architecture: riscv64",
+  );
+});
+
+Deno.test("binaryFileName adds .exe only on Windows", () => {
+  assertEquals(binaryFileName("claude", "win32-x64"), "claude.exe");
+  assertEquals(binaryFileName("codex", "win32-arm64"), "codex.exe");
+  assertEquals(binaryFileName("claude", "linux-x64"), "claude");
+  assertEquals(binaryFileName("codex", "darwin-arm64"), "codex");
+  assertEquals(isWindows("win32-x64"), true);
+  assertEquals(isWindows("linux-arm64"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -792,8 +830,7 @@ const fakeClaudeGlobals = {
 
 Deno.test({
   name: "run passes effort to the CLI and records it",
-  // The fake binary is a POSIX shell script, and runAgent does not
-  // support Windows.
+  // The fake binary is a POSIX shell script.
   ignore: Deno.build.os === "windows",
   fn: async () => {
     await withFakeClaude(async () => {
@@ -814,8 +851,7 @@ Deno.test({
 
 Deno.test({
   name: "run without effort sends no flag and records none",
-  // The fake binary is a POSIX shell script, and runAgent does not
-  // support Windows.
+  // The fake binary is a POSIX shell script.
   ignore: Deno.build.os === "windows",
   fn: async () => {
     await withFakeClaude(async () => {
@@ -835,8 +871,7 @@ Deno.test({
 
 Deno.test({
   name: "review passes effort to the CLI and records it",
-  // The fake binary is a POSIX shell script, and runAgent does not
-  // support Windows.
+  // The fake binary is a POSIX shell script.
   ignore: Deno.build.os === "windows",
   fn: async () => {
     await withFakeClaude(async (dir) => {
@@ -862,8 +897,7 @@ Deno.test({
 
 Deno.test({
   name: "review ignores an effort the agent writes into its own result",
-  // The fake binary is a POSIX shell script, and runAgent does not
-  // support Windows.
+  // The fake binary is a POSIX shell script.
   ignore: Deno.build.os === "windows",
   fn: async () => {
     for (const agentEffort of ["max", "ultra"]) {

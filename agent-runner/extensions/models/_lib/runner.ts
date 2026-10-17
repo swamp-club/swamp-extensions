@@ -131,6 +131,26 @@ const FORWARDED_ENV_VARS = [
   "XDG_CACHE_HOME",
   "NO_COLOR",
   "FORCE_COLOR",
+  // Windows: processes need these to start and to find the user's profile
+  // (the Claude CLI's stored login lives under USERPROFILE / APPDATA). They
+  // are unset on Unix, so the loop below skips them there.
+  "SystemRoot",
+  "SystemDrive",
+  "windir",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "ProgramData",
+  "ProgramFiles",
+  "TEMP",
+  "TMP",
+  "PATHEXT",
+  "COMSPEC",
+  "USERNAME",
+  "PROCESSOR_ARCHITECTURE",
+  "CLAUDE_CODE_GIT_BASH_PATH",
 ];
 
 const WRITE_MODE_ENV_VARS = [

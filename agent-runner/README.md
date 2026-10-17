@@ -288,12 +288,39 @@ Defaults to `read-only` when the review has `readOnly: true`.
 ## Binary Management
 
 The extension downloads and caches agent CLI binaries automatically. On first
-run, it fetches the binary for the configured `version` and platform, verifies
-the checksum when available, and caches it under
-`.swamp/agent-runner/bin/<provider>/<version>/`. Subsequent runs use the cache.
+run, it fetches the binary for the configured `version` and platform and caches
+it under `.swamp/agent-runner/bin/<provider>/<version>/`. Subsequent runs use
+the cache.
+
+- **Claude** downloads the single `claude` binary (`claude.exe` on Windows) and
+  verifies it against the SHA-256 checksum in the release's `manifest.json`. If
+  a release has no manifest entry for the platform, verification is skipped with
+  a warning.
+- **Codex** downloads the platform package from npm
+  (`@openai/codex@<version>-<platform>`), unpacks it in process, and keeps its
+  whole `vendor/` tree under `.swamp/agent-runner/bin/codex/<version>/vendor/`,
+  so the sandbox helpers and `rg` that ship next to the binary stay available.
 
 No manual binary management is needed — just set the `version` in global
 arguments.
+
+## Supported Platforms
+
+| Platform      | Claude | Codex |
+| ------------- | ------ | ----- |
+| Linux x64     | yes    | yes   |
+| Linux ARM64   | yes    | yes   |
+| macOS x64     | yes    | yes   |
+| macOS ARM64   | yes    | yes   |
+| Windows x64   | yes    | yes   |
+| Windows ARM64 | yes    | yes   |
+
+On Windows the `claude` provider needs
+[Git for Windows](https://git-scm.com/downloads/win): Claude Code runs its shell
+tool through Git Bash, and the review instructions write the result with `tee`.
+If Git Bash is not on `PATH`, set `CLAUDE_CODE_GIT_BASH_PATH`; the extension
+forwards it to the agent. Without it, the review falls back to reading the
+result from the agent's output.
 
 ## Methods
 

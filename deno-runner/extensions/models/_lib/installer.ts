@@ -1,3 +1,10 @@
+import {
+  type Entry,
+  type FileEntry,
+  Uint8ArrayReader,
+  Uint8ArrayWriter,
+  ZipReader,
+} from "jsr:@zip-js/zip-js@2.8.22";
 import type { DenoRunnerLogger, Platform } from "./types.ts";
 
 const DOWNLOAD_BASE = "https://dl.deno.land/release";
@@ -10,8 +17,19 @@ function archiveFilename(platform: Platform): string {
     "linux-arm64": "deno-aarch64-unknown-linux-gnu.zip",
     "darwin-x64": "deno-x86_64-apple-darwin.zip",
     "darwin-arm64": "deno-aarch64-apple-darwin.zip",
+    "windows-x64": "deno-x86_64-pc-windows-msvc.zip",
   };
   return mapping[platform];
+}
+
+function isWindows(platform: Platform): boolean {
+  return platform.startsWith("windows-");
+}
+
+// Windows only launches executables by their .exe name, and the Windows
+// release zip holds deno.exe.
+function denoFileName(platform: Platform): string {
+  return isWindows(platform) ? "deno.exe" : "deno";
 }
 
 function downloadUrl(version: string, platform: Platform): string {
@@ -64,29 +82,31 @@ export async function tryVerifyChecksum(
   return "verified";
 }
 
-async function extractDenoFromZip(
+// Unpacks the binary in process, so no unzip tool is needed (a stock Windows
+// host has none).
+export async function extractDenoFromZip(
   zipData: Uint8Array,
+  fileName: string,
   destPath: string,
 ): Promise<void> {
-  const tmpZip = `${destPath}.zip.${crypto.randomUUID()}`;
+  const reader = new ZipReader(new Uint8ArrayReader(zipData), {
+    useWebWorkers: false,
+  });
   try {
-    await Deno.writeFile(tmpZip, zipData);
-    const command = new Deno.Command("unzip", {
-      args: ["-o", tmpZip, "deno", "-d", destPath],
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await command.output();
-    if (output.code !== 0) {
-      const stderr = new TextDecoder().decode(output.stderr);
-      throw new Error(`Failed to extract Deno binary: ${stderr}`);
+    const entries: Entry[] = await reader.getEntries();
+    const entry = entries.find((e): e is FileEntry =>
+      !e.directory && e.filename === fileName
+    );
+    if (!entry) {
+      throw new Error(
+        `Failed to extract Deno binary: ${fileName} not found in archive`,
+      );
     }
+    const data = await entry.getData(new Uint8ArrayWriter());
+    await Deno.writeFile(destPath, data);
   } finally {
-    try {
-      await Deno.remove(tmpZip);
-    } catch {
-      // best-effort cleanup
-    }
+    // A close error must not hide the extraction error above.
+    await reader.close().catch(() => {});
   }
 }
 
@@ -99,7 +119,8 @@ export async function ensureDeno(
 ): Promise<string> {
   const cacheDir = `${baseDir}/${CACHE_DIR_NAME}`;
   const dir = `${cacheDir}/${version}`;
-  const binaryPath = `${dir}/deno`;
+  const fileName = denoFileName(platform);
+  const binaryPath = `${dir}/${fileName}`;
 
   try {
     await Deno.stat(binaryPath);
@@ -137,9 +158,11 @@ export async function ensureDeno(
   const tmpDir = `${dir}/extract.${crypto.randomUUID()}`;
   try {
     await Deno.mkdir(tmpDir, { recursive: true });
-    await extractDenoFromZip(zipData, tmpDir);
-    const extractedBinary = `${tmpDir}/deno`;
-    await Deno.chmod(extractedBinary, 0o755);
+    const extractedBinary = `${tmpDir}/${fileName}`;
+    await extractDenoFromZip(zipData, fileName, extractedBinary);
+    if (!isWindows(platform)) {
+      await Deno.chmod(extractedBinary, 0o755);
+    }
     await Deno.rename(extractedBinary, binaryPath);
   } catch (error) {
     try {
@@ -159,11 +182,17 @@ export async function ensureDeno(
   return binaryPath;
 }
 
-export function detectPlatform(): Platform {
-  const os = Deno.build.os;
-  const arch = Deno.build.arch;
-
-  const osKey = os === "darwin" ? "darwin" : os === "linux" ? "linux" : null;
+export function detectPlatform(
+  os: string = Deno.build.os,
+  arch: string = Deno.build.arch,
+): Platform {
+  const osKey = os === "darwin"
+    ? "darwin"
+    : os === "linux"
+    ? "linux"
+    : os === "windows"
+    ? "windows"
+    : null;
   if (!osKey) {
     throw new Error(`Unsupported operating system: ${os}`);
   }
@@ -175,6 +204,13 @@ export function detectPlatform(): Platform {
     : null;
   if (!archKey) {
     throw new Error(`Unsupported architecture: ${arch}`);
+  }
+
+  // Deno publishes no Windows ARM64 build.
+  if (osKey === "windows" && archKey !== "x64") {
+    throw new Error(
+      `Unsupported platform: Deno publishes no Windows build for ${arch}`,
+    );
   }
 
   return `${osKey}-${archKey}` as Platform;

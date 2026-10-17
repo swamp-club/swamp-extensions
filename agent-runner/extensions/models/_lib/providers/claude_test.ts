@@ -1,97 +1,143 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
-import { claudeProvider, tryVerifyChecksum } from "./claude.ts";
+import { claudeProvider, shellPath, tryVerifyChecksum } from "./claude.ts";
 
 // ---------------------------------------------------------------------------
 // Binary download + checksum verification against a local HTTP server
 // ---------------------------------------------------------------------------
 
-Deno.test("claude: downloads and caches binary from mock server", async () => {
-  const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
+const RELEASES_ORIGIN = "https://downloads.claude.ai/";
 
-  const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock-claude\n");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", fakeBinary);
-  const checksum = Array.from(new Uint8Array(hashBuffer))
+async function sha256Hex(data: Uint8Array): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new Uint8Array(data).buffer as ArrayBuffer,
+  );
+  return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
 
-  const checksumBody = `${checksum}  claude\n`;
-
-  const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
-    const url = new URL(req.url);
-    if (url.pathname.endsWith("/claude")) {
-      return new Response(fakeBinary, { status: 200 });
-    }
-    if (url.pathname.endsWith("/checksums.txt")) {
-      return new Response(checksumBody, { status: 200 });
-    }
-    return new Response("not found", { status: 404 });
+function manifestBody(platform: string, checksum: string): string {
+  return JSON.stringify({
+    version: "test",
+    platforms: { [platform]: { binary: "claude", checksum } },
   });
+}
 
-  const port = server.addr.port;
-
-  const patchedProvider = {
-    ...claudeProvider,
-    async ensureBinary(
-      _version: string,
-      cacheDir: string,
-    ): Promise<string> {
-      const dir = `${cacheDir}/claude/test`;
-      const binaryPath = `${dir}/claude`;
-
-      try {
-        await Deno.stat(binaryPath);
-        return binaryPath;
-      } catch {
-        // not cached
-      }
-
-      await Deno.mkdir(dir, { recursive: true });
-
-      const binResp = await fetch(
-        `http://127.0.0.1:${port}/releases/test/linux-x64/claude`,
+// Serves the mock release from a local server and points the real
+// downloads.claude.ai URLs at it, recording each requested path.
+async function withMockReleases(
+  handler: (path: string) => Response,
+  fn: (requested: string[]) => Promise<void>,
+): Promise<void> {
+  const requested: string[] = [];
+  const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
+    const path = new URL(req.url).pathname;
+    requested.push(path);
+    return handler(path);
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (input: string | URL | Request, init?: RequestInit) => {
+    const urlStr = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
+    if (urlStr.startsWith(RELEASES_ORIGIN)) {
+      const path = urlStr.slice(RELEASES_ORIGIN.length - 1);
+      return originalFetch(
+        `http://127.0.0.1:${server.addr.port}${path}`,
+        init,
       );
-      const data = new Uint8Array(await binResp.arrayBuffer());
-      await Deno.writeFile(binaryPath, data);
-      await Deno.chmod(binaryPath, 0o755);
-
-      const csResp = await fetch(
-        `http://127.0.0.1:${port}/releases/test/linux-x64/checksums.txt`,
-      );
-      const csText = await csResp.text();
-      const expectedHash = csText.split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0)
-        .find((l) => l.endsWith("claude"))
-        ?.split(/\s+/)[0];
-
-      const actualData = await Deno.readFile(binaryPath);
-      const actualHashBuf = await crypto.subtle.digest("SHA-256", actualData);
-      const actualHash = Array.from(new Uint8Array(actualHashBuf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
-      assertEquals(actualHash, expectedHash);
-
-      return binaryPath;
-    },
+    }
+    return originalFetch(input, init);
   };
+  try {
+    await fn(requested);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await server.shutdown();
+  }
+}
+
+for (
+  const { platform, fileName } of [
+    { platform: "linux-x64", fileName: "claude" },
+    { platform: "win32-x64", fileName: "claude.exe" },
+  ] as const
+) {
+  Deno.test(`claude: ensureBinary downloads, verifies and caches for ${platform}`, async () => {
+    const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
+    const fakeBinary = new TextEncoder().encode(
+      "#!/bin/sh\necho mock-claude\n",
+    );
+    const checksum = await sha256Hex(fakeBinary);
+
+    try {
+      await withMockReleases((path) => {
+        if (path.endsWith(`/${platform}/${fileName}`)) {
+          return new Response(fakeBinary);
+        }
+        if (path.endsWith("/manifest.json")) {
+          return new Response(manifestBody(platform, checksum));
+        }
+        return new Response("not found", { status: 404 });
+      }, async (requested) => {
+        const cacheDir = `${tmpDir}/cache`;
+        const binaryPath = await claudeProvider.ensureBinary(
+          "1.2.3",
+          cacheDir,
+          platform,
+        );
+        assertEquals(binaryPath, `${cacheDir}/claude/1.2.3/${fileName}`);
+        assertEquals(await Deno.readFile(binaryPath), fakeBinary);
+        assertEquals(requested, [
+          `/claude-code-releases/1.2.3/${platform}/${fileName}`,
+          "/claude-code-releases/1.2.3/manifest.json",
+        ]);
+
+        // Second call hits the cache without another download
+        const binaryPath2 = await claudeProvider.ensureBinary(
+          "1.2.3",
+          cacheDir,
+          platform,
+        );
+        assertEquals(binaryPath2, binaryPath);
+        assertEquals(requested.length, 2);
+      });
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  });
+}
+
+Deno.test("claude: ensureBinary rejects and caches nothing on a checksum mismatch", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
+  const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock\n");
 
   try {
-    const binaryPath = await patchedProvider.ensureBinary(
-      "test",
-      `${tmpDir}/cache`,
-    );
-    const stat = await Deno.stat(binaryPath);
-    assertEquals(stat.isFile, true);
-
-    // Second call should hit cache
-    const binaryPath2 = await patchedProvider.ensureBinary(
-      "test",
-      `${tmpDir}/cache`,
-    );
-    assertEquals(binaryPath2, binaryPath);
+    await withMockReleases((path) => {
+      if (path.endsWith("/claude.exe")) {
+        return new Response(fakeBinary);
+      }
+      if (path.endsWith("/manifest.json")) {
+        return new Response(manifestBody("win32-x64", "0".repeat(64)));
+      }
+      return new Response("not found", { status: 404 });
+    }, async () => {
+      const cacheDir = `${tmpDir}/cache`;
+      await assertRejects(
+        () => claudeProvider.ensureBinary("1.2.3", cacheDir, "win32-x64"),
+        Error,
+        "Checksum mismatch",
+      );
+      const leftovers = [];
+      for await (const entry of Deno.readDir(`${cacheDir}/claude/1.2.3`)) {
+        leftovers.push(entry.name);
+      }
+      assertEquals(leftovers, []);
+    });
   } finally {
-    await server.shutdown();
     await Deno.remove(tmpDir, { recursive: true });
   }
 });
@@ -100,13 +146,11 @@ Deno.test("claude: tryVerifyChecksum rejects binary with bad checksum", async ()
   const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
 
   const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock\n");
-  const wrongChecksum = "0".repeat(64);
-  const checksumBody = `${wrongChecksum}  claude\n`;
 
   const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
     const url = new URL(req.url);
-    if (url.pathname.endsWith("/checksums.txt")) {
-      return new Response(checksumBody, { status: 200 });
+    if (url.pathname.endsWith("/manifest.json")) {
+      return new Response(manifestBody("linux-x64", "0".repeat(64)));
     }
     return new Response("not found", { status: 404 });
   });
@@ -133,7 +177,7 @@ Deno.test("claude: tryVerifyChecksum rejects binary with bad checksum", async ()
   }
 });
 
-Deno.test("claude: tryVerifyChecksum returns skipped when no checksums available", async () => {
+Deno.test("claude: tryVerifyChecksum returns skipped when no manifest is available", async () => {
   const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
 
   const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock\n");
@@ -159,23 +203,45 @@ Deno.test("claude: tryVerifyChecksum returns skipped when no checksums available
   }
 });
 
+Deno.test("claude: tryVerifyChecksum returns skipped when the manifest lacks the platform", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
+
+  const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock\n");
+  const binaryPath = `${tmpDir}/claude.exe`;
+  await Deno.writeFile(binaryPath, fakeBinary);
+
+  const server = Deno.serve({ port: 0, onListen: () => {} }, (_req) => {
+    return new Response(manifestBody("linux-x64", "0".repeat(64)));
+  });
+
+  try {
+    const result = await tryVerifyChecksum(
+      binaryPath,
+      "test",
+      "win32-x64",
+      undefined,
+      `http://127.0.0.1:${server.addr.port}`,
+    );
+    assertEquals(result, "skipped");
+  } finally {
+    await server.shutdown();
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
 Deno.test("claude: tryVerifyChecksum returns verified on matching checksum", async () => {
   const tmpDir = await Deno.makeTempDir({ prefix: "claude-test-" });
 
   const fakeBinary = new TextEncoder().encode("#!/bin/sh\necho mock\n");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", fakeBinary);
-  const correctChecksum = Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  const checksumBody = `${correctChecksum}  claude\n`;
+  const correctChecksum = await sha256Hex(fakeBinary);
 
   const binaryPath = `${tmpDir}/claude`;
   await Deno.writeFile(binaryPath, fakeBinary);
 
   const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
     const url = new URL(req.url);
-    if (url.pathname.endsWith("/checksums.txt")) {
-      return new Response(checksumBody, { status: 200 });
+    if (url.pathname.endsWith("/manifest.json")) {
+      return new Response(manifestBody("linux-x64", correctChecksum));
     }
     return new Response("not found", { status: 404 });
   });
@@ -278,4 +344,40 @@ Deno.test("claude: buildArgs omits --effort when unset", () => {
   );
 
   assertEquals(args.includes("--effort"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Output instructions
+// ---------------------------------------------------------------------------
+
+Deno.test("claude: shellPath quotes a Unix path", () => {
+  assertEquals(shellPath("/tmp/out/result.json"), "'/tmp/out/result.json'");
+});
+
+Deno.test("claude: shellPath turns a Windows path into a quoted forward-slash path", () => {
+  assertEquals(
+    shellPath(
+      "C:\\Users\\me\\AppData\\Local\\Temp\\agent-runner-x/result.json",
+    ),
+    "'C:/Users/me/AppData/Local/Temp/agent-runner-x/result.json'",
+  );
+});
+
+Deno.test("claude: shellPath escapes single quotes", () => {
+  assertEquals(
+    shellPath("/tmp/it's/result.json"),
+    "'/tmp/it'\\''s/result.json'",
+  );
+});
+
+Deno.test("claude: outputInstructions tee a quoted Windows path", () => {
+  const instructions = claudeProvider.outputInstructions(
+    "C:\\Temp\\agent-runner-x/result.json",
+  );
+  assertEquals(
+    instructions.includes(
+      "tee 'C:/Temp/agent-runner-x/result.json' <<'AGENT_RESULT_EOF'",
+    ),
+    true,
+  );
 });
