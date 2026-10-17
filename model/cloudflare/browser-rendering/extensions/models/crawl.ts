@@ -196,8 +196,14 @@ const ResourceSchema = z.object({
       title: z.string().optional(),
       url: z.string().optional(),
     }).optional(),
+    outcome: z.string().optional(),
     status: z.string().optional(),
     url: z.string().optional(),
+  })).optional(),
+  robots: z.array(z.object({
+    origin: z.string().optional(),
+    state: z.string().optional(),
+    status: z.number().optional(),
   })).optional(),
   skipped: z.number().optional(),
   status: z.string().optional(),
@@ -305,7 +311,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Crawl. Registered at `@swamp/cloudflare/browser-rendering/crawl`. */
 export const model = {
   type: "@swamp/cloudflare/browser-rendering/crawl",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.15.1",
@@ -334,6 +340,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

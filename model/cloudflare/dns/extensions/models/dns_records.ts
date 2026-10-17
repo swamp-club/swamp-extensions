@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     "TLSA",
     "URI",
   ]).describe("Record type.").optional(),
-  priority: z.number().min(0).max(65535).describe(
+  priority: z.number().describe(
     "Required for MX and URI records; ignored for other record types (but may still be returned by the API). Records with lower priorities are preferred. This field is to be deprecated in favor of the priority field within the data map.",
   ).optional(),
   data: z.object({
@@ -155,7 +155,7 @@ const InputsSchema = z.object({
     "TLSA",
     "URI",
   ]).optional(),
-  priority: z.number().min(0).max(65535).optional(),
+  priority: z.number().optional(),
   data: z.object({
     flags: z.number().min(0).max(255).optional(),
     tag: z.string().optional(),
@@ -169,7 +169,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Dns Records. Registered at `@swamp/cloudflare/dns/dns-records`. */
 export const model = {
   type: "@swamp/cloudflare/dns/dns-records",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -218,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

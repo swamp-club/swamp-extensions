@@ -256,6 +256,13 @@ const GlobalArgsSchema = z.object({
       printHeader: z.boolean().describe(
         "Optional. Whether to print out a header row in the results. Default is true. Not applicable when extracting models.",
       ).optional(),
+      secureContext: z.object({
+        secureParameterEntries: z.record(z.string(), z.string()).describe(
+          "Optional. A set of key-value pairs representing the secure parameter values. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
+        ).optional(),
+      }).describe(
+        "Optional. A set of key-value pairs representing the secure context. This can be used to pass sensitive or context-specific information. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of an extract job on tables with row access policies.",
+      ).optional(),
       sourceModel: z.object({
         datasetId: z.string().describe(
           "Required. The ID of the dataset containing this model.",
@@ -1269,6 +1276,9 @@ const StateSchema = z.object({
       }),
       nativeGeographyExportEnabled: z.boolean(),
       printHeader: z.boolean(),
+      secureContext: z.object({
+        secureParameterEntries: z.record(z.string(), z.unknown()),
+      }),
       sourceModel: z.object({
         datasetId: z.string(),
         modelId: z.string(),
@@ -2034,6 +2044,13 @@ const InputsSchema = z.object({
       ).optional(),
       printHeader: z.boolean().describe(
         "Optional. Whether to print out a header row in the results. Default is true. Not applicable when extracting models.",
+      ).optional(),
+      secureContext: z.object({
+        secureParameterEntries: z.record(z.string(), z.string()).describe(
+          "Optional. A set of key-value pairs representing the secure parameter values. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
+        ).optional(),
+      }).describe(
+        "Optional. A set of key-value pairs representing the secure context. This can be used to pass sensitive or context-specific information. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of an extract job on tables with row access policies.",
       ).optional(),
       sourceModel: z.object({
         datasetId: z.string().describe(
@@ -2833,7 +2850,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Jobs. Registered at `@swamp/gcp/bigquery/jobs`. */
 export const model = {
   type: "@swamp/gcp/bigquery/jobs",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3223,6 +3240,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

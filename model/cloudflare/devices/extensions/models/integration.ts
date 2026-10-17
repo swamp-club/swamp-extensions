@@ -39,16 +39,9 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  config: z.object({
-    api_url: z.string().optional(),
-    auth_url: z.string().optional(),
-    client_id: z.string().optional(),
-    client_secret: z.string().optional(),
-    customer_id: z.string().optional(),
-    client_key: z.string().optional(),
-    access_client_id: z.string().optional(),
-    access_client_secret: z.string().optional(),
-  }).optional(),
+  config: z.record(z.string(), z.unknown()).describe(
+    "The configuration object containing third-party integration information.",
+  ).optional(),
   interval: z.string().describe(
     "The interval between each posture check with the third-party API. Use `m` for minutes (e.g. `5m`) and `h` for hours (e.g. `12h`).",
   ).optional(),
@@ -91,16 +84,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  config: z.object({
-    api_url: z.string().optional(),
-    auth_url: z.string().optional(),
-    client_id: z.string().optional(),
-    client_secret: z.string().optional(),
-    customer_id: z.string().optional(),
-    client_key: z.string().optional(),
-    access_client_id: z.string().optional(),
-    access_client_secret: z.string().optional(),
-  }).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
   interval: z.string().optional(),
   name: z.string().optional(),
   type: z.enum([
@@ -121,7 +105,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Integration. Registered at `@swamp/cloudflare/devices/integration`. */
 export const model = {
   type: "@swamp/cloudflare/devices/integration",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -155,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

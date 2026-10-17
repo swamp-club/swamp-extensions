@@ -843,7 +843,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The parameters to use for autoscaling when this schedule is active.",
       ).optional(),
       priority: z.string().describe(
-        "Optional. Specifies the priority of the schedule. If two schedules overlap, the one with the higher priority will be used. The higher the value, the higher the priority of the schedule.",
+        "Optional. Specifies the priority of the schedule. If two schedules overlap, the one with the higher priority will be used. The higher the value, the higher the priority of the schedule. The value must be non-negative; the lowest priority is `0`, which is the default.",
       ).optional(),
       timeZone: z.string().describe(
         "Optional. The time zone for the schedule. The value of this field must be a time zone name from the [tz database](http://en.wikipedia.org/wiki/Tz_database). The default value is UTC.",
@@ -1861,7 +1861,7 @@ const InputsSchema = z.object({
         "Optional. The parameters to use for autoscaling when this schedule is active.",
       ).optional(),
       priority: z.string().describe(
-        "Optional. Specifies the priority of the schedule. If two schedules overlap, the one with the higher priority will be used. The higher the value, the higher the priority of the schedule.",
+        "Optional. Specifies the priority of the schedule. If two schedules overlap, the one with the higher priority will be used. The higher the value, the higher the priority of the schedule. The value must be non-negative; the lowest priority is `0`, which is the default.",
       ).optional(),
       timeZone: z.string().describe(
         "Optional. The time zone for the schedule. The value of this field must be a time zone name from the [tz database](http://en.wikipedia.org/wiki/Tz_database). The default value is UTC.",
@@ -1963,7 +1963,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2180,6 +2180,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

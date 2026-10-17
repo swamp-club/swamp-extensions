@@ -44,6 +44,9 @@ const GlobalArgsSchema = z.object({
   ),
   comments: z.string().max(1024).optional(),
   created_at: z.string().optional(),
+  expires_at: z.string().describe(
+    "Timestamp at which the pattern expires. After this time, Email Security ignores the pattern. The value must lie in the future. Send `null` to clear the expiration.",
+  ).optional(),
   id: z.string().describe("Blocked sender pattern identifier.").optional(),
   is_regex: z.boolean().describe(
     "Whether `pattern` is a regular expression instead of a literal value.",
@@ -70,6 +73,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   comments: z.string().optional(),
   created_at: z.string().optional(),
+  expires_at: z.string().optional(),
   id: z.string(),
   is_regex: z.boolean().optional(),
   last_modified: z.string().optional(),
@@ -85,6 +89,7 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   comments: z.string().max(1024).optional(),
   created_at: z.string().optional(),
+  expires_at: z.string().optional(),
   id: z.string().optional(),
   is_regex: z.boolean().optional(),
   last_modified: z.string().optional(),
@@ -99,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Block Senders. Registered at `@swamp/cloudflare/email-security/block-senders`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/block-senders",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -156,6 +161,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.17.1",
+      description: "Added: expires_at",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -178,6 +188,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.comments !== undefined) body.comments = g.comments;
         if (g.created_at !== undefined) body.created_at = g.created_at;
+        if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.id !== undefined) body.id = g.id;
         if (g.is_regex !== undefined) body.is_regex = g.is_regex;
         if (g.last_modified !== undefined) body.last_modified = g.last_modified;
@@ -241,6 +252,9 @@ export const model = {
         }
         if (g.created_at !== undefined) {
           filters.push(["created_at", String(g.created_at)]);
+        }
+        if (g.expires_at !== undefined) {
+          filters.push(["expires_at", String(g.expires_at)]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.is_regex !== undefined) {
@@ -362,6 +376,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.comments !== undefined) body.comments = g.comments;
         if (g.created_at !== undefined) body.created_at = g.created_at;
+        if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.id !== undefined) body.id = g.id;
         if (g.is_regex !== undefined) body.is_regex = g.is_regex;
         if (g.last_modified !== undefined) body.last_modified = g.last_modified;

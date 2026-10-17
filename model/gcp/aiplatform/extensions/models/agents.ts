@@ -223,6 +223,7 @@ const StateSchema = z.object({
   base_environment: z.string().optional(),
   created: z.string().optional(),
   description: z.string().optional(),
+  effectiveIdentity: z.string().optional(),
   id: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   modelConfig: z.object({
@@ -338,7 +339,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -410,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

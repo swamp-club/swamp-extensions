@@ -83,6 +83,7 @@ const GlobalArgsSchema = z.object({
     "AGENTCORE_EVALUATION_PREDEFINED_V1",
     "AGENTCORE_EVALUATION_SIMULATED_V1",
     "GENERIC_EVALUATION_PREDEFINED_V1",
+    "THIRD_PARTY_EVALUATION_V1",
   ]).describe(
     "Versioned schema type governing the structure of examples. Immutable after creation.",
   ),
@@ -142,6 +143,7 @@ const InputsSchema = z.object({
     "AGENTCORE_EVALUATION_PREDEFINED_V1",
     "AGENTCORE_EVALUATION_SIMULATED_V1",
     "GENERIC_EVALUATION_PREDEFINED_V1",
+    "THIRD_PARTY_EVALUATION_V1",
   ]).describe(
     "Versioned schema type governing the structure of examples. Immutable after creation.",
   ).optional(),
@@ -184,7 +186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Dataset. Registered at `@swamp/aws/bedrockagentcore/dataset`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/dataset",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -223,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

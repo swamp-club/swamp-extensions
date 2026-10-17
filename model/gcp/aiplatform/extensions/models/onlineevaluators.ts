@@ -196,6 +196,13 @@ const GlobalArgsSchema = z.object({
         }).describe(
           "Filter on the number of underlying LLM calls within a session.",
         ).optional(),
+        serviceVersion: z.object({
+          values: z.unknown().describe(
+            "Required. The values to match exactly (case-sensitive). Requires 1 to 20 values, each at most 128 characters long.",
+          ).optional(),
+        }).describe(
+          "Filter on the versions that served a session (`service.version` OTel resource attribute); matches if any of them is listed. At most one is allowed. On Vertex AI Agent Engine, this is the runtime revision id, currently set only for agents created via v1beta1.",
+        ).optional(),
         toolCallErrors: z.object({
           comparisonOperator: z.unknown().describe(
             "Required. The comparison operator to apply.",
@@ -253,6 +260,13 @@ const GlobalArgsSchema = z.object({
             .optional(),
         }).describe("Filter on the duration of a trace (in seconds).")
           .optional(),
+        serviceVersion: z.object({
+          values: z.unknown().describe(
+            "Required. The values to match exactly (case-sensitive). Requires 1 to 20 values, each at most 128 characters long.",
+          ).optional(),
+        }).describe(
+          "Filter on the version that served a trace (`service.version` OTel resource attribute). At most one is allowed. On Vertex AI Agent Engine, this is the runtime revision id, currently set only for agents created via v1beta1.",
+        ).optional(),
         totalTokenUsage: z.object({
           comparisonOperator: z.unknown().describe(
             "Required. The comparison operator to apply.",
@@ -502,6 +516,9 @@ const StateSchema = z.object({
           comparisonOperator: z.unknown(),
           value: z.unknown(),
         }),
+        serviceVersion: z.object({
+          values: z.unknown(),
+        }),
         toolCallErrors: z.object({
           comparisonOperator: z.unknown(),
           value: z.unknown(),
@@ -528,6 +545,9 @@ const StateSchema = z.object({
         duration: z.object({
           comparisonOperator: z.unknown(),
           value: z.unknown(),
+        }),
+        serviceVersion: z.object({
+          values: z.unknown(),
         }),
         totalTokenUsage: z.object({
           comparisonOperator: z.unknown(),
@@ -678,6 +698,13 @@ const InputsSchema = z.object({
         }).describe(
           "Filter on the number of underlying LLM calls within a session.",
         ).optional(),
+        serviceVersion: z.object({
+          values: z.unknown().describe(
+            "Required. The values to match exactly (case-sensitive). Requires 1 to 20 values, each at most 128 characters long.",
+          ).optional(),
+        }).describe(
+          "Filter on the versions that served a session (`service.version` OTel resource attribute); matches if any of them is listed. At most one is allowed. On Vertex AI Agent Engine, this is the runtime revision id, currently set only for agents created via v1beta1.",
+        ).optional(),
         toolCallErrors: z.object({
           comparisonOperator: z.unknown().describe(
             "Required. The comparison operator to apply.",
@@ -735,6 +762,13 @@ const InputsSchema = z.object({
             .optional(),
         }).describe("Filter on the duration of a trace (in seconds).")
           .optional(),
+        serviceVersion: z.object({
+          values: z.unknown().describe(
+            "Required. The values to match exactly (case-sensitive). Requires 1 to 20 values, each at most 128 characters long.",
+          ).optional(),
+        }).describe(
+          "Filter on the version that served a trace (`service.version` OTel resource attribute). At most one is allowed. On Vertex AI Agent Engine, this is the runtime revision id, currently set only for agents created via v1beta1.",
+        ).optional(),
         totalTokenUsage: z.object({
           comparisonOperator: z.unknown().describe(
             "Required. The comparison operator to apply.",
@@ -989,7 +1023,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform OnlineEvaluators. Registered at `@swamp/gcp/aiplatform/onlineevaluators`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/onlineevaluators",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -1023,6 +1057,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

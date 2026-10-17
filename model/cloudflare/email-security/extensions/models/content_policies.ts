@@ -41,6 +41,9 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   created_at: z.string().optional(),
   enabled: z.boolean().describe("Whether the policy is active.").optional(),
+  expires_at: z.string().describe(
+    "Timestamp at which the policy expires. After this time, Email Security ignores the policy. The value must lie in the future. Send `null` to clear the expiration.",
+  ).optional(),
   id: z.string().describe("Content policy identifier.").optional(),
   modified_at: z.string().optional(),
   name: z.string().min(1).max(256).describe(
@@ -69,6 +72,7 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   created_at: z.string().optional(),
   enabled: z.boolean().optional(),
+  expires_at: z.string().optional(),
   id: z.string(),
   modified_at: z.string().optional(),
   name: z.string().optional(),
@@ -83,6 +87,7 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   created_at: z.string().optional(),
   enabled: z.boolean().optional(),
+  expires_at: z.string().optional(),
   id: z.string().optional(),
   modified_at: z.string().optional(),
   name: z.string().min(1).max(256).optional(),
@@ -97,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Content Policies. Registered at `@swamp/cloudflare/email-security/content-policies`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/content-policies",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.09.28.1",
@@ -107,6 +112,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
+      description: "Added: expires_at",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -131,6 +141,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.created_at !== undefined) body.created_at = g.created_at;
         if (g.enabled !== undefined) body.enabled = g.enabled;
+        if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.id !== undefined) body.id = g.id;
         if (g.modified_at !== undefined) body.modified_at = g.modified_at;
         if (g.name !== undefined) body.name = g.name;
@@ -194,6 +205,9 @@ export const model = {
         }
         if (g.enabled !== undefined) {
           filters.push(["enabled", String(g.enabled)]);
+        }
+        if (g.expires_at !== undefined) {
+          filters.push(["expires_at", String(g.expires_at)]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.modified_at !== undefined) {
@@ -308,6 +322,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.created_at !== undefined) body.created_at = g.created_at;
         if (g.enabled !== undefined) body.enabled = g.enabled;
+        if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.id !== undefined) body.id = g.id;
         if (g.modified_at !== undefined) body.modified_at = g.modified_at;
         if (g.name !== undefined) body.name = g.name;

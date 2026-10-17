@@ -168,6 +168,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
     installCommand: z.string().max(256).optional(),
     nodeVersion: z.enum([
+      "26.x",
       "24.x",
       "22.x",
       "20.x",
@@ -320,6 +321,7 @@ const InputsSchema = z.object({
     ]).optional(),
     installCommand: z.string().max(256).optional(),
     nodeVersion: z.enum([
+      "26.x",
       "24.x",
       "22.x",
       "20.x",
@@ -344,7 +346,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -418,6 +420,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -47,6 +47,19 @@ const AvailabilityZoneMappingSchema = z.object({
   AvailabilityZone: z.string().describe("A AvailabilityZone"),
 });
 
+const NatGatewayMappingSchema = z.object({
+  NatGatewayId: z.string().describe("The unique identifier of a NAT gateway."),
+});
+
+const ListenerPropertySchema = z.object({
+  Port: z.number().int().describe(
+    "The port the proxy listener accepts traffic on.",
+  ).optional(),
+  Type: z.enum(["HTTP", "HTTPS"]).describe(
+    "The protocol the proxy listener uses.",
+  ).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(255),
@@ -85,6 +98,25 @@ const GlobalArgsSchema = z.object({
   EnabledAnalysisTypes: z.array(z.enum(["TLS_SNI", "HTTP_HOST"])).describe(
     "The types of analysis to enable for the firewall. Can be TLS_SNI, HTTP_HOST, or both.",
   ).optional(),
+  NoSourcePreservation: z.boolean().describe(
+    "Indicates whether the firewall operates in proxy mode, where the source IP address of traffic is not preserved. When true, specify NatGatewayMappings and VpcEndpoint instead of the top-level VpcId and SubnetMappings. You can't change this setting after you create the firewall.",
+  ).optional(),
+  NatGatewayMappings: z.array(NatGatewayMappingSchema).describe(
+    "The NAT gateways that the firewall proxies egress traffic through when NoSourcePreservation is true.",
+  ).optional(),
+  ProxySettings: z.object({
+    ListenerProperties: z.array(ListenerPropertySchema).optional(),
+  }).describe(
+    "The proxy listener configuration for a proxy-mode (no source preservation) firewall.",
+  ).optional(),
+  VpcEndpoint: z.object({
+    VpcId: z.string().min(1).max(128).regex(new RegExp("^vpc-[0-9a-f]+$"))
+      .describe("The unique identifier of the VPC for the firewall endpoint.")
+      .optional(),
+    SubnetMappings: z.array(SubnetMappingSchema).optional(),
+  }).describe(
+    "The VPC and subnets for a proxy-mode firewall's endpoint. Provide this instead of the top-level VpcId and SubnetMappings when NoSourcePreservation is true.",
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -105,6 +137,16 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   EndpointIds: z.array(z.string()).optional(),
   EnabledAnalysisTypes: z.array(z.string()).optional(),
+  NoSourcePreservation: z.boolean().optional(),
+  NatGatewayMappings: z.array(NatGatewayMappingSchema).optional(),
+  ProxySettings: z.object({
+    ListenerProperties: z.array(ListenerPropertySchema),
+  }).optional(),
+  VpcEndpoint: z.object({
+    VpcId: z.string(),
+    SubnetMappings: z.array(SubnetMappingSchema),
+  }).optional(),
+  NumberOfAssociations: z.number().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -134,6 +176,25 @@ const InputsSchema = z.object({
   EnabledAnalysisTypes: z.array(z.enum(["TLS_SNI", "HTTP_HOST"])).describe(
     "The types of analysis to enable for the firewall. Can be TLS_SNI, HTTP_HOST, or both.",
   ).optional(),
+  NoSourcePreservation: z.boolean().describe(
+    "Indicates whether the firewall operates in proxy mode, where the source IP address of traffic is not preserved. When true, specify NatGatewayMappings and VpcEndpoint instead of the top-level VpcId and SubnetMappings. You can't change this setting after you create the firewall.",
+  ).optional(),
+  NatGatewayMappings: z.array(NatGatewayMappingSchema).describe(
+    "The NAT gateways that the firewall proxies egress traffic through when NoSourcePreservation is true.",
+  ).optional(),
+  ProxySettings: z.object({
+    ListenerProperties: z.array(ListenerPropertySchema).optional(),
+  }).describe(
+    "The proxy listener configuration for a proxy-mode (no source preservation) firewall.",
+  ).optional(),
+  VpcEndpoint: z.object({
+    VpcId: z.string().min(1).max(128).regex(new RegExp("^vpc-[0-9a-f]+$"))
+      .describe("The unique identifier of the VPC for the firewall endpoint.")
+      .optional(),
+    SubnetMappings: z.array(SubnetMappingSchema).optional(),
+  }).describe(
+    "The VPC and subnets for a proxy-mode firewall's endpoint. Provide this instead of the top-level VpcId and SubnetMappings when NoSourcePreservation is true.",
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -156,7 +217,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall Firewall. Registered at `@swamp/aws/networkfirewall/firewall`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/firewall",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +272,12 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
+      description:
+        "Added: NoSourcePreservation, NatGatewayMappings, ProxySettings, VpcEndpoint",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -320,7 +387,13 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["VpcId", "FirewallName"],
+          [
+            "VpcId",
+            "FirewallName",
+            "NoSourcePreservation",
+            "NatGatewayMappings",
+            "VpcEndpoint",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

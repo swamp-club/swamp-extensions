@@ -154,9 +154,6 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "Optional. Brief description of the template.",
   ).optional(),
-  displayName: z.string().describe(
-    "Optional. User-friendly display name for the session template. Can be up to 63 characters.",
-  ).optional(),
   environmentConfig: z.object({
     executionConfig: z.object({
       authenticationConfig: z.object({
@@ -275,7 +272,6 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   creator: z.string().optional(),
   description: z.string().optional(),
-  displayName: z.string().optional(),
   environmentConfig: z.object({
     executionConfig: z.object({
       authenticationConfig: z.object({
@@ -334,9 +330,6 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   description: z.string().describe(
     "Optional. Brief description of the template.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. User-friendly display name for the session template. Can be up to 63 characters.",
   ).optional(),
   environmentConfig: z.object({
     executionConfig: z.object({
@@ -478,7 +471,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc SessionTemplates. Registered at `@swamp/gcp/dataproc/sessiontemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessiontemplates",
-  version: "2026.10.16.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -663,6 +656,14 @@ export const model = {
       description: "Added: displayName",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.17.1",
+      description: "Removed: displayName",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { displayName: _displayName, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -691,9 +692,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
         }
         if (g["environmentConfig"] !== undefined) {
           body["environmentConfig"] = g["environmentConfig"];
@@ -729,8 +727,8 @@ export const model = {
                 String(g["location"] ?? "")
               }`,
             },
-            matchField: "displayName",
-            matchValue: String(g["displayName"] ?? ""),
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
           },
           credentials,
         ) as StateData;
@@ -821,9 +819,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
         }
         if (g["environmentConfig"] !== undefined) {
           body["environmentConfig"] = g["environmentConfig"];

@@ -39,11 +39,21 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  config: z.string().optional(),
-  is_active: z.boolean().optional(),
-  name: z.string().min(1).max(100).optional(),
-  output_schema: z.string().min(1).max(4096).optional(),
-  prompt: z.string().min(1).max(4000).optional(),
+  config: z.string().describe(
+    "Optional skill configuration (stored but not currently interpreted).",
+  ).optional(),
+  is_active: z.boolean().describe(
+    "Whether the skill is active and eligible for feed assignment.",
+  ).optional(),
+  name: z.string().min(1).max(100).describe(
+    "Custom Skill name (1–100 characters).",
+  ).optional(),
+  output_schema: z.string().min(1).max(4096).describe(
+    "JSON Schema serialized as a string (max 4096 characters).",
+  ).optional(),
+  prompt: z.string().min(1).max(4000).describe(
+    "AI prompt (1–4000 characters) defining the skill's instructions.",
+  ).optional(),
   type: z.enum(["summary", "tags"]).describe(
     'Optional label; does not affect execution. Defaults to "summary".',
   ).optional(),
@@ -89,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Skills. Registered at `@swamp/cloudflare/cloudforce-one/skills`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/skills",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -108,6 +118,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

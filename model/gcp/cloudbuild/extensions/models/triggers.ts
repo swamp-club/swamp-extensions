@@ -461,7 +461,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       genericArtifact: z.object({
         destPath: z.string().describe(
-          "Required. Where the artifact files should be placed on the worker.",
+          "Optional. Where the artifact files should be placed on the worker. Required when specified in `Build.dependencies`.",
         ).optional(),
         resource: z.string().describe(
           "Required. The location to download the artifact files from. Ex: projects/p1/locations/us/repositories/r1/packages/p1/versions/v1",
@@ -600,9 +600,8 @@ const GlobalArgsSchema = z.object({
       pubsubTopic: z.string().describe(
         "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
       ).optional(),
-      requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
-        "Requested verifiability options.",
-      ).optional(),
+      requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
+        .describe("Requested verifiability options.").optional(),
       resolvedWorkerRelease: z.string().describe(
         "Output only. Worker release resolved from the release channel.",
       ).optional(),
@@ -789,6 +788,23 @@ const GlobalArgsSchema = z.object({
       })).describe(
         "Python artifacts uploaded to Artifact Registry at the end of the build.",
       ).optional(),
+      resourceUsage: z.object({
+        averageCpuUtilization: z.number().describe(
+          "Output only. The average CPU utilization ratio across all vCPUs over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        averageMemoryUtilization: z.number().describe(
+          "Output only. The average memory utilization ratio over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        peakCpuUtilization: z.number().describe(
+          "Output only. The highest CPU utilization ratio across all vCPUs observed over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        peakMemoryUtilization: z.number().describe(
+          "Output only. The highest memory utilization ratio observed over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        totalCpuDuration: z.string().describe(
+          "Output only. Total CPU execution time consumed across all cores during build execution.",
+        ).optional(),
+      }).describe("Output only. Aggregated metrics for the build.").optional(),
     }).describe("Output only. Results of the build.").optional(),
     secrets: z.array(z.object({
       kmsKeyName: z.string().describe(
@@ -1690,6 +1706,13 @@ const StateSchema = z.object({
         }),
         uri: z.string(),
       })),
+      resourceUsage: z.object({
+        averageCpuUtilization: z.number(),
+        averageMemoryUtilization: z.number(),
+        peakCpuUtilization: z.number(),
+        peakMemoryUtilization: z.number(),
+        totalCpuDuration: z.string(),
+      }),
     }),
     secrets: z.array(z.object({
       kmsKeyName: z.string(),
@@ -2207,7 +2230,7 @@ const InputsSchema = z.object({
       ).optional(),
       genericArtifact: z.object({
         destPath: z.string().describe(
-          "Required. Where the artifact files should be placed on the worker.",
+          "Optional. Where the artifact files should be placed on the worker. Required when specified in `Build.dependencies`.",
         ).optional(),
         resource: z.string().describe(
           "Required. The location to download the artifact files from. Ex: projects/p1/locations/us/repositories/r1/packages/p1/versions/v1",
@@ -2346,9 +2369,8 @@ const InputsSchema = z.object({
       pubsubTopic: z.string().describe(
         "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
       ).optional(),
-      requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
-        "Requested verifiability options.",
-      ).optional(),
+      requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
+        .describe("Requested verifiability options.").optional(),
       resolvedWorkerRelease: z.string().describe(
         "Output only. Worker release resolved from the release channel.",
       ).optional(),
@@ -2535,6 +2557,23 @@ const InputsSchema = z.object({
       })).describe(
         "Python artifacts uploaded to Artifact Registry at the end of the build.",
       ).optional(),
+      resourceUsage: z.object({
+        averageCpuUtilization: z.number().describe(
+          "Output only. The average CPU utilization ratio across all vCPUs over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        averageMemoryUtilization: z.number().describe(
+          "Output only. The average memory utilization ratio over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        peakCpuUtilization: z.number().describe(
+          "Output only. The highest CPU utilization ratio across all vCPUs observed over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        peakMemoryUtilization: z.number().describe(
+          "Output only. The highest memory utilization ratio observed over the duration of the build, expressed as a fraction in the range [0.0, 1.0].",
+        ).optional(),
+        totalCpuDuration: z.string().describe(
+          "Output only. Total CPU execution time consumed across all cores during build execution.",
+        ).optional(),
+      }).describe("Output only. Aggregated metrics for the build.").optional(),
     }).describe("Output only. Results of the build.").optional(),
     secrets: z.array(z.object({
       kmsKeyName: z.string().describe(
@@ -3212,7 +3251,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Triggers. Registered at `@swamp/gcp/cloudbuild/triggers`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/triggers",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -3256,6 +3295,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

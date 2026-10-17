@@ -269,7 +269,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     genericArtifact: z.object({
       destPath: z.string().describe(
-        "Required. Where the artifact files should be placed on the worker.",
+        "Optional. Where the artifact files should be placed on the worker. Required when specified in `Build.dependencies`.",
       ).optional(),
       resource: z.string().describe(
         "Required. The location to download the artifact files from. Ex: projects/p1/locations/us/repositories/r1/packages/p1/versions/v1",
@@ -380,9 +380,8 @@ const GlobalArgsSchema = z.object({
     pubsubTopic: z.string().describe(
       "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
     ).optional(),
-    requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
-      "Requested verifiability options.",
-    ).optional(),
+    requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
+      .describe("Requested verifiability options.").optional(),
     resolvedWorkerRelease: z.string().describe(
       "Output only. Worker release resolved from the release channel.",
     ).optional(),
@@ -850,6 +849,13 @@ const StateSchema = z.object({
       }),
       uri: z.string(),
     })),
+    resourceUsage: z.object({
+      averageCpuUtilization: z.number(),
+      averageMemoryUtilization: z.number(),
+      peakCpuUtilization: z.number(),
+      peakMemoryUtilization: z.number(),
+      totalCpuDuration: z.string(),
+    }),
   }).optional(),
   secrets: z.array(z.object({
     kmsKeyName: z.string(),
@@ -1123,7 +1129,7 @@ const InputsSchema = z.object({
     ).optional(),
     genericArtifact: z.object({
       destPath: z.string().describe(
-        "Required. Where the artifact files should be placed on the worker.",
+        "Optional. Where the artifact files should be placed on the worker. Required when specified in `Build.dependencies`.",
       ).optional(),
       resource: z.string().describe(
         "Required. The location to download the artifact files from. Ex: projects/p1/locations/us/repositories/r1/packages/p1/versions/v1",
@@ -1234,9 +1240,8 @@ const InputsSchema = z.object({
     pubsubTopic: z.string().describe(
       "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
     ).optional(),
-    requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
-      "Requested verifiability options.",
-    ).optional(),
+    requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
+      .describe("Requested verifiability options.").optional(),
     resolvedWorkerRelease: z.string().describe(
       "Output only. Worker release resolved from the release channel.",
     ).optional(),
@@ -1521,7 +1526,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Builds. Registered at `@swamp/gcp/cloudbuild/builds`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/builds",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1550,6 +1555,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

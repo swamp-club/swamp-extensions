@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
       "Non-function rule declared in rego_source. Evaluation uses data.<package_path>.<entrypoint>.",
     ).optional(),
   filter: z.string().min(1).max(4096).describe(
-    "Optional filter expression that determines whether this policy applies. Omit or set null to apply the policy to every request. Maximum 4096 UTF-8 bytes.",
+    "Filter expression that determines whether this policy applies. Maximum 4096 UTF-8 bytes.",
   ).optional(),
   name: z.string().min(1).max(100).describe("Name of the policy").optional(),
   rego_source: z.string().min(1).max(16384).describe(
@@ -98,7 +98,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/cws/policies`. */
 export const model = {
   type: "@swamp/cloudflare/cws/policies",
-  version: "2026.10.13.1",
+  version: "2026.10.17.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -115,9 +122,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["entrypoint", "name", "rego_source"].filter((k) =>
-          g[k] === undefined
-        );
+        const missing = ["entrypoint", "filter", "name", "rego_source"].filter((
+          k,
+        ) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
@@ -314,9 +321,8 @@ export const model = {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
         }
-        const missingForUpdate = ["entrypoint", "name", "rego_source"].filter((
-          k,
-        ) => body[k] === undefined);
+        const missingForUpdate = ["entrypoint", "filter", "name", "rego_source"]
+          .filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {
           throw new Error(
             "update requires global arguments: " + missingForUpdate.join(", "),
