@@ -315,6 +315,10 @@ arguments.
 | Windows x64   | yes    | yes   |
 | Windows ARM64 | yes    | yes   |
 
+The registry has no Windows ARM64 platform, so `manifest.yaml` declares
+`windows-x86_64` only. The extension still detects Windows ARM64 at run time and
+downloads the ARM64 builds of both agents.
+
 On Windows the `claude` provider needs
 [Git for Windows](https://git-scm.com/downloads/win): Claude Code runs its shell
 tool through Git Bash, and the review instructions write the result with `tee`.

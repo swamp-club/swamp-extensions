@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.10.17.2"
+version: "2026.10.17.3"
 license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
@@ -60,7 +60,6 @@ platforms:
   - darwin-x86_64
   - linux-aarch64
   - linux-x86_64
-  - windows-aarch64
   - windows-x86_64
 labels:
   - ai
