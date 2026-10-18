@@ -799,6 +799,26 @@ const GlobalArgsSchema = z.object({
         }).describe(
           "Optional. The Compute Engine config settings for the cluster's master instance.",
         ).optional(),
+        masterFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for the cluster's master instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration across node groups: * For single-node clusters: master_flexible_config must be specified, and no worker configs should be set. * For multi-node (standard) clusters: both master_flexible_config and worker_flexible_config must be specified. Mixing standard and flexible configs across node groups is not allowed.Only one of master_config or master_flexible_config can be set.",
+        ).optional(),
         metastoreConfig: z.object({
           dataprocMetastoreService: z.string().describe(
             "Required. Resource name of an existing Metastore service.Example: projects/[project_id]/locations/[dataproc_region]/services/[service-name]",
@@ -901,6 +921,26 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe(
           "Optional. The Compute Engine config settings for a cluster's secondary worker instances",
+        ).optional(),
+        secondaryWorkerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for a cluster's secondary worker instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration. num_instances represents the desired capacity of the secondary worker group and is mutable via cluster updates and autoscaling.Only one of secondary_worker_config or secondary_worker_flexible_config can be set.In High Obtainability (HO) mode, secondary workers are optional. If secondary workers are used in an HO cluster, they must be configured using secondary_worker_flexible_config (not secondary_worker_config).",
         ).optional(),
         securityConfig: z.object({
           identityConfig: z.object({
@@ -1073,6 +1113,26 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe(
           "Optional. The Compute Engine config settings for the cluster's worker instances.",
+        ).optional(),
+        workerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for the cluster's worker instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration. num_instances represents the desired capacity of the worker group and is mutable via cluster updates and autoscaling.Only one of worker_config or worker_flexible_config can be set.In High Obtainability (HO) mode, for multi-node (standard) clusters, both master_flexible_config and worker_flexible_config must be specified. Mixing standard and flexible configs across node groups is not allowed. Single-node clusters do not specify worker configs.",
         ).optional(),
       }).describe("Required. The cluster configuration.").optional(),
       labels: z.record(z.string(), z.string()).describe(
@@ -1357,6 +1417,12 @@ const StateSchema = z.object({
             requiredRegistrationFraction: z.unknown(),
           }),
         }),
+        masterFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number(),
+          coreCount: z.number(),
+          hardwareClass: z.string(),
+          numInstances: z.number(),
+        }),
         metastoreConfig: z.object({
           dataprocMetastoreService: z.string(),
         }),
@@ -1394,6 +1460,12 @@ const StateSchema = z.object({
           startupConfig: z.object({
             requiredRegistrationFraction: z.unknown(),
           }),
+        }),
+        secondaryWorkerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number(),
+          coreCount: z.number(),
+          hardwareClass: z.string(),
+          numInstances: z.number(),
         }),
         securityConfig: z.object({
           identityConfig: z.object({
@@ -1458,6 +1530,12 @@ const StateSchema = z.object({
           startupConfig: z.object({
             requiredRegistrationFraction: z.unknown(),
           }),
+        }),
+        workerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number(),
+          coreCount: z.number(),
+          hardwareClass: z.string(),
+          numInstances: z.number(),
         }),
       }),
       labels: z.record(z.string(), z.unknown()),
@@ -2119,6 +2197,26 @@ const InputsSchema = z.object({
         }).describe(
           "Optional. The Compute Engine config settings for the cluster's master instance.",
         ).optional(),
+        masterFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for the cluster's master instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration across node groups: * For single-node clusters: master_flexible_config must be specified, and no worker configs should be set. * For multi-node (standard) clusters: both master_flexible_config and worker_flexible_config must be specified. Mixing standard and flexible configs across node groups is not allowed.Only one of master_config or master_flexible_config can be set.",
+        ).optional(),
         metastoreConfig: z.object({
           dataprocMetastoreService: z.string().describe(
             "Required. Resource name of an existing Metastore service.Example: projects/[project_id]/locations/[dataproc_region]/services/[service-name]",
@@ -2221,6 +2319,26 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe(
           "Optional. The Compute Engine config settings for a cluster's secondary worker instances",
+        ).optional(),
+        secondaryWorkerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for a cluster's secondary worker instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration. num_instances represents the desired capacity of the secondary worker group and is mutable via cluster updates and autoscaling.Only one of secondary_worker_config or secondary_worker_flexible_config can be set.In High Obtainability (HO) mode, secondary workers are optional. If secondary workers are used in an HO cluster, they must be configured using secondary_worker_flexible_config (not secondary_worker_config).",
         ).optional(),
         securityConfig: z.object({
           identityConfig: z.object({
@@ -2394,6 +2512,26 @@ const InputsSchema = z.object({
         }).describe(
           "Optional. The Compute Engine config settings for the cluster's worker instances.",
         ).optional(),
+        workerFlexibleConfig: z.object({
+          bootDiskSizeGb: z.number().int().describe(
+            "Optional. The boot disk size in GB. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          coreCount: z.number().int().describe(
+            "Optional. The number of vCPUs per instance. Must be a power of 2 (2, 4, 8, 16, 32). This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          hardwareClass: z.enum([
+            "HARDWARE_CLASS_UNSPECIFIED",
+            "STANDARD",
+            "PERFORMANCE",
+          ]).describe(
+            "Optional. The hardware class of the instances. This is a create-time specification and is not currently mutable via update masks.",
+          ).optional(),
+          numInstances: z.number().int().describe(
+            "Optional. The number of VM instances requested.For master instances, this must be 1. For worker and secondary worker instances, this represents the desired capacity of the group and is mutable via cluster update operations and autoscaling.",
+          ).optional(),
+        }).describe(
+          "Optional. The High Obtainability (HO) config settings for the cluster's worker instances.In High Obtainability (HO) mode, flexible configs are the single source of truth for desired cluster configuration. num_instances represents the desired capacity of the worker group and is mutable via cluster updates and autoscaling.Only one of worker_config or worker_flexible_config can be set.In High Obtainability (HO) mode, for multi-node (standard) clusters, both master_flexible_config and worker_flexible_config must be specified. Mixing standard and flexible configs across node groups is not allowed. Single-node clusters do not specify worker configs.",
+        ).optional(),
       }).describe("Required. The cluster configuration.").optional(),
       labels: z.record(z.string(), z.string()).describe(
         "Optional. The labels to associate with this cluster.Label keys must be between 1 and 63 characters long, and must conform to the following PCRE regular expression: \\p{Ll}\\p{Lo}{0,62}Label values must be between 1 and 63 characters long, and must conform to the following PCRE regular expression: \\p{Ll}\\p{Lo}\\p{N}_-{0,63}No more than 32 labels can be associated with a given cluster.",
@@ -2434,7 +2572,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc WorkflowTemplates. Registered at `@swamp/gcp/dataproc/workflowtemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/workflowtemplates",
-  version: "2026.10.17.1",
+  version: "2026.10.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2673,6 +2811,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
