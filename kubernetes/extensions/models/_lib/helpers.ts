@@ -193,6 +193,16 @@ export function normalizeMeta(raw: { metadata?: k8s.V1ObjectMeta }) {
   };
 }
 
+/**
+ * True when err is a Kubernetes API 404. @kubernetes/client-node 1.x reports
+ * the HTTP status on ApiException.code; a legacy statusCode is also accepted.
+ */
+export function isNotFound(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: unknown; statusCode?: unknown };
+  return e.code === 404 || e.statusCode === 404;
+}
+
 export function sanitizeInstanceName(name: string) {
   return name
     .replace(/\.\./g, "--")

@@ -4,6 +4,7 @@ import {
   buildClient,
   type DataHandle,
   fromBase64,
+  isNotFound,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
@@ -22,6 +23,8 @@ const SecretListSchema = z.object({
   labels: z.record(z.string(), z.string()),
   annotations: z.record(z.string(), z.string()),
   createdAt: z.string(),
+  resourceVersion: z.string().optional(),
+  action: z.enum(["created", "updated", "unchanged"]).optional(),
 }).passthrough();
 
 const SecretSchema = z.object({
@@ -55,6 +58,19 @@ const UpdateArgsSchema = z.object({
   data: z.record(z.string(), z.string()),
   namespace: z.string().optional(),
 });
+const GetMetaArgsSchema = z.object({
+  secretName: z.string(),
+  namespace: z.string().optional(),
+});
+const EnsureArgsSchema = z.object({
+  secretName: z.string(),
+  data: z.record(z.string(), z.string()),
+  // Only checked against an existing Secret when given; Opaque on create.
+  type: z.string().optional(),
+  labels: z.record(z.string(), z.string()).optional(),
+  prune: z.boolean().default(false),
+  namespace: z.string().optional(),
+});
 const DeleteArgsSchema = z.object({
   secretName: z.string(),
   namespace: z.string().optional(),
@@ -80,7 +96,22 @@ function normalizeSecretMeta(raw: V1Secret) {
     ...meta,
     type: raw.type || "Opaque",
     dataKeys: Object.keys(raw.data || {}),
+    resourceVersion: raw.metadata?.resourceVersion ?? "",
   };
+}
+
+function encodeSecretData(data: Record<string, string>) {
+  const encoded: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    encoded[key] = toBase64(value);
+  }
+  return encoded;
+}
+
+function sameRecord(a: Record<string, string>, b: Record<string, string>) {
+  const aKeys = Object.keys(a);
+  return aKeys.length === Object.keys(b).length &&
+    aKeys.every((key) => Object.hasOwn(b, key) && a[key] === b[key]);
 }
 
 // --- Model ---
@@ -88,7 +119,7 @@ function normalizeSecretMeta(raw: V1Secret) {
 /** Kubernetes Secret model. */
 export const model = {
   type: "@swamp/kubernetes/secret",
-  version: "2026.08.01.1",
+  version: "2026.10.20.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -125,6 +156,13 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
+      description: "Add ensure (idempotent create-or-update) and getMeta " +
+        "(metadata-only read) methods. secretMeta gains optional " +
+        "resourceVersion and action fields.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -208,6 +246,124 @@ export const model = {
 
         const handle = await context.writeResource(
           "secret",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    getMeta: {
+      description:
+        "Get a secret's metadata, type and data key names without its values",
+      arguments: GetMetaArgsSchema,
+      execute: async (
+        args: z.infer<typeof GetMetaArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const sec = await coreApi.readNamespacedSecret({
+          name: args.secretName,
+          namespace: ns,
+        });
+        const normalized = normalizeSecretMeta(sec);
+
+        const handle = await context.writeResource(
+          "secretMeta",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    ensure: {
+      description:
+        "Create the secret if absent, otherwise replace it only when data or labels differ (values are never stored)",
+      arguments: EnsureArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnsureArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+        const desiredData = encodeSecretData(args.data);
+
+        let current: V1Secret | undefined;
+        try {
+          current = await coreApi.readNamespacedSecret({
+            name: args.secretName,
+            namespace: ns,
+          });
+        } catch (err: unknown) {
+          if (!isNotFound(err)) throw err;
+        }
+
+        let result: V1Secret;
+        let action: "created" | "updated" | "unchanged";
+        if (!current) {
+          result = await coreApi.createNamespacedSecret({
+            namespace: ns,
+            body: {
+              metadata: {
+                name: args.secretName,
+                namespace: ns,
+                ...(args.labels && { labels: args.labels }),
+              },
+              type: args.type ?? "Opaque",
+              data: desiredData,
+            },
+          });
+          action = "created";
+        } else {
+          const currentType = current.type || "Opaque";
+          if (args.type !== undefined && currentType !== args.type) {
+            throw new Error(
+              `Secret ${ns}/${args.secretName} has type "${currentType}" ` +
+                `but "${args.type}" was requested; a Secret's type is ` +
+                `immutable, so delete and recreate it to change the type`,
+            );
+          }
+
+          // Compare in base64 form: decoding is lossy for binary values.
+          const currentData = current.data || {};
+          const nextData = args.prune
+            ? desiredData
+            : { ...currentData, ...desiredData };
+          const currentLabels = current.metadata?.labels || {};
+          const nextLabels = { ...currentLabels, ...args.labels };
+
+          if (
+            sameRecord(currentData, nextData) &&
+            sameRecord(currentLabels, nextLabels)
+          ) {
+            result = current;
+            action = "unchanged";
+          } else {
+            // The read object keeps metadata.resourceVersion, so a
+            // concurrent writer makes this replace fail with a 409.
+            current.data = nextData;
+            current.metadata = { ...current.metadata, labels: nextLabels };
+            result = await coreApi.replaceNamespacedSecret({
+              name: args.secretName,
+              namespace: ns,
+              body: current,
+            });
+            action = "updated";
+          }
+        }
+
+        context.logger.info("Ensured secret {name} in {ns}: {action}", {
+          name: args.secretName,
+          ns,
+          action,
+        });
+
+        const normalized = { ...normalizeSecretMeta(result), action };
+        const handle = await context.writeResource(
+          "secretMeta",
           sanitizeInstanceName(normalized.name),
           normalized,
         );

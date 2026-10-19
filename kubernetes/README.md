@@ -53,7 +53,7 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `namespace` | `@swamp/kubernetes/namespace` | Namespace CRUD, resource quotas, limit ranges, resource counts, health |
 | `node` | `@swamp/kubernetes/node` | Node conditions, capacity, taints, cordon/uncordon, drain, metrics. `list` syncs: upserts live nodes and prunes departed ones. |
 | `configmap` | `@swamp/kubernetes/configmap` | ConfigMap CRUD |
-| `secret` | `@swamp/kubernetes/secret` | Secret CRUD with base64 decoding and vault-backed sensitive storage |
+| `secret` | `@swamp/kubernetes/secret` | Secret CRUD with base64 decoding and vault-backed sensitive storage, idempotent `ensure`, and metadata-only `getMeta` |
 | `ingress` | `@swamp/kubernetes/ingress` | Ingress CRUD with TLS and rule inspection |
 | `pvc` | `@swamp/kubernetes/pvc` | PersistentVolumeClaim and PersistentVolume listing |
 | `hpa` | `@swamp/kubernetes/hpa` | HorizontalPodAutoscaler CRUD and status |
@@ -61,6 +61,26 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `netpol` | `@swamp/kubernetes/netpol` | NetworkPolicy listing, analysis, and connectivity testing |
 | `rbac` | `@swamp/kubernetes/rbac` | Roles, ClusterRoles, bindings, and ServiceAccounts |
 | `event` | `@swamp/kubernetes/event` | Cluster events with filtering by type and involved object |
+
+### Secrets without stored values
+
+`get`, `create` and `update` write the decoded values to the `secret`
+resource (sensitive, so stored in the vault). `ensure` and `getMeta` write only
+the `secretMeta` resource — name, type, data key names, labels and
+`resourceVersion` — so secret values never reach swamp's datastore.
+
+- `getMeta` reads one Secret's metadata. It fails if the Secret does not exist.
+- `ensure` creates the Secret if it is absent. Otherwise it replaces it only when
+  the data or labels differ, and records `action` as `created`, `updated` or
+  `unchanged`. The replace carries the read `resourceVersion`, so a concurrent
+  change makes it fail with a 409 rather than overwrite.
+- `ensure` merges the given keys into the existing data. With `prune: true` the
+  data becomes exactly the given keys. Labels are merged and never removed, and
+  annotations are left alone. `type` defaults to `Opaque` when creating; on an
+  existing Secret it is checked only when given. A Secret's type cannot change,
+  so a different `type` fails; delete and recreate the Secret instead.
+- A later `list` or `getMeta` overwrites the stored `secretMeta`, so read
+  `action` from the `ensure` step's own output.
 
 ## Workflows
 

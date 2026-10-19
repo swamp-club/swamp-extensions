@@ -7,6 +7,7 @@ import type {
 import {
   buildClient,
   type DataHandle,
+  isNotFound,
   type K8sGlobalArgs,
   normalizeMeta,
 } from "./_lib/helpers.ts";
@@ -261,7 +262,7 @@ function normalizeLimitRange(raw: V1LimitRange) {
 /** Kubernetes Namespace model. */
 export const model = {
   type: "@swamp/kubernetes/namespace",
-  version: "2026.08.01.1",
+  version: "2026.10.20.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -298,6 +299,13 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
+      description: "setResourceQuota and setLimitRange now create the " +
+        "object when it does not exist (404 detection fixed for " +
+        "client-node 1.x). No schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -553,10 +561,7 @@ export const model = {
             namespace: args.namespaceName,
           });
         } catch (err: unknown) {
-          if (
-            err instanceof Error && "statusCode" in err &&
-            (err as { statusCode: number }).statusCode === 404
-          ) {
+          if (isNotFound(err)) {
             exists = false;
           } else {
             throw err;
@@ -678,10 +683,7 @@ export const model = {
             namespace: args.namespaceName,
           });
         } catch (err: unknown) {
-          if (
-            err instanceof Error && "statusCode" in err &&
-            (err as { statusCode: number }).statusCode === 404
-          ) {
+          if (isNotFound(err)) {
             exists = false;
           } else {
             throw err;

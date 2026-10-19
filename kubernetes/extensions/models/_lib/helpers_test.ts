@@ -3,7 +3,8 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "jsr:@std/assert@1";
-import { buildClient } from "./helpers.ts";
+import { buildClient, isNotFound } from "./helpers.ts";
+import { startFakeApiServer } from "./fake_api_server.ts";
 
 async function generateSelfSignedCert(): Promise<
   { cert: string; key: string }
@@ -141,4 +142,33 @@ Deno.test({
       await Deno.remove(tmpKubeconfig);
     }
   },
+});
+
+Deno.test({
+  name: "isNotFound recognises a client-node ApiException 404",
+  // @kubernetes/client-node keeps an HTTP agent connection pool alive
+  sanitizeResources: false,
+  fn: async () => {
+    const fake = await startFakeApiServer();
+    try {
+      const { coreApi } = buildClient({
+        namespace: "default",
+        kubeconfig: fake.kubeconfig,
+      });
+      const err = await assertRejects(() =>
+        coreApi.readNamespacedSecret({ name: "x", namespace: "default" })
+      );
+      assertEquals(isNotFound(err), true);
+    } finally {
+      await fake.close();
+    }
+  },
+});
+
+Deno.test("isNotFound rejects non-404 errors and non-errors", () => {
+  assertEquals(isNotFound({ statusCode: 404 }), true);
+  assertEquals(isNotFound({ code: 409 }), false);
+  assertEquals(isNotFound(new Error("boom")), false);
+  assertEquals(isNotFound(undefined), false);
+  assertEquals(isNotFound("404"), false);
 });
