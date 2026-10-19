@@ -71,6 +71,12 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(0).max(200).regex(
     new RegExp("^[\\p{Print}]*$", "u"),
   ).describe("The text description for this host key.").optional(),
+  StorageType: z.enum(["SERVICE_MANAGED", "SECRETS_MANAGER"]).describe(
+    "The type of storage used for the host key. SERVICE_MANAGED keys are stored within the Transfer Family service. SECRETS_MANAGER keys are stored in an AWS Secrets Manager secret in your account.",
+  ).optional(),
+  KmsKey: z.string().min(20).max(1600).regex(new RegExp("^arn:\\S+$")).describe(
+    "The Amazon Resource Name (ARN) of a customer managed key used to encrypt the Secrets Manager secret that holds the host key. Applies only when StorageType is SECRETS_MANAGER. If omitted, the AWS managed key is used.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to group and search for host keys.",
   ).optional(),
@@ -85,6 +91,9 @@ const StateSchema = z.object({
   HostKeyFingerprint: z.string().optional(),
   Type: z.string().optional(),
   DateImported: z.string().optional(),
+  StorageType: z.string().optional(),
+  KmsKey: z.string().optional(),
+  SecretId: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -105,6 +114,12 @@ const InputsSchema = z.object({
   Description: z.string().min(0).max(200).regex(
     new RegExp("^[\\p{Print}]*$", "u"),
   ).describe("The text description for this host key.").optional(),
+  StorageType: z.enum(["SERVICE_MANAGED", "SECRETS_MANAGER"]).describe(
+    "The type of storage used for the host key. SERVICE_MANAGED keys are stored within the Transfer Family service. SECRETS_MANAGER keys are stored in an AWS Secrets Manager secret in your account.",
+  ).optional(),
+  KmsKey: z.string().min(20).max(1600).regex(new RegExp("^arn:\\S+$")).describe(
+    "The Amazon Resource Name (ARN) of a customer managed key used to encrypt the Secrets Manager secret that holds the host key. Applies only when StorageType is SECRETS_MANAGER. If omitted, the AWS managed key is used.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to group and search for host keys.",
   ).optional(),
@@ -129,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer HostKey. Registered at `@swamp/aws/transfer/host-key`. */
 export const model = {
   type: "@swamp/aws/transfer/host-key",
-  version: "2026.10.14.1",
+  version: "2026.10.19.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -144,6 +159,11 @@ export const model = {
     {
       toVersion: "2026.10.14.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.19.1",
+      description: "Added: StorageType, KmsKey",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

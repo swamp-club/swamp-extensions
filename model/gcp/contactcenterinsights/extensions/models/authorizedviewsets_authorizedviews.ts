@@ -248,7 +248,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights AuthorizedViewSets.AuthorizedViews. Registered at `@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews",
-  version: "2026.10.13.1",
+  version: "2026.10.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -392,6 +392,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -743,6 +748,7 @@ export const model = {
         sessionId: z.any().optional(),
         sqlComparisonKey: z.any().optional(),
         sqlQuery: z.any().optional(),
+        timeZone: z.any().optional(),
         userProvidedChartSpec: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -774,6 +780,7 @@ export const model = {
           body["sqlComparisonKey"] = args["sqlComparisonKey"];
         }
         if (args["sqlQuery"] !== undefined) body["sqlQuery"] = args["sqlQuery"];
+        if (args["timeZone"] !== undefined) body["timeZone"] = args["timeZone"];
         if (args["userProvidedChartSpec"] !== undefined) {
           body["userProvidedChartSpec"] = args["userProvidedChartSpec"];
         }

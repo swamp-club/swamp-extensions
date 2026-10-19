@@ -184,7 +184,7 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe("Optional. User provided description.")
     .optional(),
   endpointIp: z.string().describe(
-    "Required. Immutable. User provided IP address to use for outbound DNS forwarding. This address must be a free address on the subnetwork.",
+    "Optional. Immutable. User provided IP address to use for outbound DNS forwarding. This address must be a free address on the subnetwork. If omitted, a free IP address from the subnetwork is automatically allocated.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
@@ -243,7 +243,7 @@ const InputsSchema = z.object({
   description: z.string().describe("Optional. User provided description.")
     .optional(),
   endpointIp: z.string().describe(
-    "Required. Immutable. User provided IP address to use for outbound DNS forwarding. This address must be a free address on the subnetwork.",
+    "Optional. Immutable. User provided IP address to use for outbound DNS forwarding. This address must be a free address on the subnetwork. If omitted, a free IP address from the subnetwork is automatically allocated.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
@@ -300,10 +300,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS OutboundEndpoints. Registered at `@swamp/gcp/dns/outboundendpoints`. */
 export const model = {
   type: "@swamp/gcp/dns/outboundendpoints",
-  version: "2026.10.13.1",
+  version: "2026.10.19.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
