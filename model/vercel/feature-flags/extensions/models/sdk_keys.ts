@@ -45,19 +45,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  data: z.array(z.object({
-    createdAt: z.number().optional(),
-    createdBy: z.string().optional(),
-    deletedAt: z.number().optional(),
-    environment: z.string().optional(),
-    hashKey: z.string().optional(),
-    label: z.string().optional(),
-    partialKeyValue: z.string().optional(),
-    projectId: z.string().optional(),
-    type: z.string().optional(),
-    updatedAt: z.number().optional(),
-  })).nullable().optional(),
-  id: z.string(),
+  createdAt: z.number().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
+  deletedAt: z.number().nullable().optional(),
+  environment: z.string().nullable().optional(),
+  hashKey: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+  partialKeyValue: z.string().nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -75,7 +72,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Sdk Keys. Registered at `@swamp/vercel/feature-flags/sdk-keys`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/sdk-keys",
-  version: "2026.10.13.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -119,6 +116,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -183,6 +190,28 @@ export const model = {
           filters.push(["environment", String(g.environment)]);
         }
         if (g.label !== undefined) filters.push(["label", String(g.label)]);
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.createdBy !== undefined) {
+          filters.push(["createdBy", String(g.createdBy)]);
+        }
+        if (g.deletedAt !== undefined) {
+          filters.push(["deletedAt", String(g.deletedAt)]);
+        }
+        if (g.hashKey !== undefined) {
+          filters.push(["hashKey", String(g.hashKey)]);
+        }
+        if (g.partialKeyValue !== undefined) {
+          filters.push(["partialKeyValue", String(g.partialKeyValue)]);
+        }
+        if (g.projectId !== undefined) {
+          filters.push(["projectId", String(g.projectId)]);
+        }
+        if (g.type !== undefined) filters.push(["type", String(g.type)]);
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -216,10 +245,8 @@ export const model = {
         }
         const result = matches[0] as ResourceData;
         const instanceName =
-          (g.label?.toString() ?? result.id?.toString() ?? "current").replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (g.label?.toString() ?? result.hashKey?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

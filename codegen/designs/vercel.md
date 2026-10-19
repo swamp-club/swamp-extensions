@@ -242,8 +242,20 @@ Since Vercel defines most schemas inline, the pipeline extracts properties by:
 1. Finding the POST request body → `content["application/json"].schema`
 2. Finding the GET response →
    `responses["200"].content["application/json"].schema`
-3. Flattening `allOf`/`oneOf`/`anyOf` using the same rules as Cloudflare
+3. Flattening `allOf`/`oneOf`/`anyOf` using the same rules as Cloudflare. A read
+   response that is a top-level union (`projects/env`'s three-branch `oneOf`) is
+   merged like a request body, so its fields are typed in `ResourceSchema`
+   rather than left to `.passthrough()` (swamp-club #3648)
 4. Merging create (POST) and update (PATCH/PUT) properties for GlobalArgsSchema
+
+A resource without an individual `GET` (DNS records, project members, project
+routes, SDK keys, organization teams) stores a list item (`lookup`) or the
+create response, never the list envelope. Its `ResourceSchema` comes from the
+list item schema, found as described under [Lookup filters](#lookup-filters);
+envelope fields such as `pagination` or `cursor` never reach stored state. When
+the items cannot be identified, it falls back to an id-only schema. A synthetic
+`id` is added only when the response carries none of `id`, `uid`, `name` or the
+resource's own identifier.
 
 ### Create-only property detection
 
@@ -366,13 +378,15 @@ Vercel uses string identifiers for most resources, but with a notable pattern:
 many endpoints accept `{idOrName}` — either the resource ID or its display name.
 The pipeline maps path parameters to response fields:
 
-| Path parameter | Response field | Resources      |
-| -------------- | -------------- | -------------- |
-| `{idOrName}`   | `id`           | Projects       |
-| `{id}`         | `id`           | Most resources |
-| `{domain}`     | `name`         | Domains        |
-| `{idOrUrl}`    | `id`           | Deployments    |
-| `{recordId}`   | `id`           | DNS records    |
+| Path parameter   | Response field | Resources          |
+| ---------------- | -------------- | ------------------ |
+| `{idOrName}`     | `id`           | Projects           |
+| `{id}`           | `id`           | Most resources     |
+| `{domain}`       | `name`         | Domains            |
+| `{idOrUrl}`      | `id`           | Deployments        |
+| `{recordId}`     | `id`           | DNS records        |
+| `{hashKey}`      | `hashKey`      | SDK keys           |
+| `{targetTeamId}` | `teamId`       | Organization teams |
 
 ### IDENTIFIER_MAP
 
@@ -390,15 +404,17 @@ identifier if list items carry it, otherwise `uid` or `id`). When they differ,
 the generated `sync` and `update` key on
 `existing.<identifyingField> ?? existing.<listIdentifyingField>`, so state
 written by `create`, `get`, `adopt` or `lookup` can all be synced, and `lookup`
-names an instance by the list identifier (swamp-club #2843).
+names an instance by the list identifier (swamp-club #2843). A resource without
+an individual `GET` resolves both from the list item schema.
 
 ### Lookup filters
 
 `lookup` lists the resource and keeps the items whose fields equal every set
 global argument. When the pipeline can identify the list item schema (the
 response array named after the list path's last segment, or its only array of
-objects — the same array the runtime `listAll` reads), a filter is emitted only
-if list items can match it:
+objects — the same array the runtime `listAll` reads — after flattening a union
+list response or union items), a filter is emitted only if list items can match
+it:
 
 - the same field name;
 - the read identifier, compared against the list identifier (deployments: `id`

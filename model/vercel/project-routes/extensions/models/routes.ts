@@ -86,7 +86,59 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  description: z.string().nullable().optional(),
+  enabled: z.boolean().nullable().optional(),
   id: z.string(),
+  name: z.string().nullable().optional(),
+  rawDest: z.string().nullable().optional(),
+  rawSrc: z.string().nullable().optional(),
+  route: z.object({
+    caseSensitive: z.boolean().optional(),
+    check: z.boolean().optional(),
+    continue: z.boolean().optional(),
+    dest: z.string().optional(),
+    destination: z.string().optional(),
+    env: z.array(z.string()).optional(),
+    has: z.array(z.object({
+      type: z.string().optional(),
+      value: z.string().optional(),
+    })).optional(),
+    headers: z.record(z.string(), z.unknown()).optional(),
+    important: z.boolean().optional(),
+    locale: z.object({
+      cookie: z.string().optional(),
+      redirect: z.record(z.string(), z.unknown()).optional(),
+    }).optional(),
+    methods: z.array(z.string()).optional(),
+    middleware: z.number().optional(),
+    middlewarePath: z.string().optional(),
+    middlewareRawSrc: z.array(z.string()).optional(),
+    missing: z.array(z.object({
+      type: z.string().optional(),
+      value: z.string().optional(),
+    })).optional(),
+    mitigate: z.object({
+      action: z.string().optional(),
+    }).optional(),
+    override: z.boolean().optional(),
+    respectOriginCacheControl: z.boolean().optional(),
+    source: z.string().optional(),
+    src: z.string().optional(),
+    status: z.number().optional(),
+    statusCode: z.number().optional(),
+    transforms: z.array(z.object({
+      args: z.string().optional(),
+      env: z.array(z.string()).optional(),
+      op: z.string().optional(),
+      target: z.object({
+        key: z.string().optional(),
+      }).optional(),
+      type: z.string().optional(),
+    })).optional(),
+  }).nullable().optional(),
+  routeType: z.string().nullable().optional(),
+  srcSyntax: z.string().nullable().optional(),
+  staged: z.boolean().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -139,7 +191,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Routes. Registered at `@swamp/vercel/project-routes/routes`. */
 export const model = {
   type: "@swamp/vercel/project-routes/routes",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -178,6 +230,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -235,10 +292,24 @@ export const model = {
         const endpoint = "/v1/projects/" + encodeURIComponent(g.projectId) +
           "/routes";
         const filters: [string, string][] = [];
-        if (g.restore !== undefined) {
-          filters.push(["restore", String(g.restore)]);
+        if (g.description !== undefined) {
+          filters.push(["description", String(g.description)]);
+        }
+        if (g.enabled !== undefined) {
+          filters.push(["enabled", String(g.enabled)]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.rawDest !== undefined) {
+          filters.push(["rawDest", String(g.rawDest)]);
+        }
+        if (g.rawSrc !== undefined) filters.push(["rawSrc", String(g.rawSrc)]);
+        if (g.routeType !== undefined) {
+          filters.push(["routeType", String(g.routeType)]);
+        }
+        if (g.srcSyntax !== undefined) {
+          filters.push(["srcSyntax", String(g.srcSyntax)]);
+        }
+        if (g.staged !== undefined) filters.push(["staged", String(g.staged)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

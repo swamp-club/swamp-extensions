@@ -57,7 +57,15 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  id: z.string(),
+  avatar: z.string().nullable().optional(),
+  computedProjectRole: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  email: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
+  teamRole: z.string().nullable().optional(),
+  uid: z.string(),
+  username: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -77,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Members. Registered at `@swamp/vercel/project-members/members`. */
 export const model = {
   type: "@swamp/vercel/project-members/members",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -111,6 +119,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -176,7 +189,16 @@ export const model = {
         }
         if (g.email !== undefined) filters.push(["email", String(g.email)]);
         if (g.role !== undefined) filters.push(["role", String(g.role)]);
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.avatar !== undefined) filters.push(["avatar", String(g.avatar)]);
+        if (g.computedProjectRole !== undefined) {
+          filters.push(["computedProjectRole", String(g.computedProjectRole)]);
+        }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.teamRole !== undefined) {
+          filters.push(["teamRole", String(g.teamRole)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

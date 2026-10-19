@@ -58,7 +58,20 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  comment: z.string().nullable().optional(),
+  created: z.number().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  creator: z.string().nullable().optional(),
   id: z.string(),
+  mxPriority: z.number().nullable().optional(),
+  name: z.string().nullable().optional(),
+  priority: z.number().nullable().optional(),
+  slug: z.string().nullable().optional(),
+  ttl: z.number().nullable().optional(),
+  type: z.string().nullable().optional(),
+  updated: z.number().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  value: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -86,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Records. Registered at `@swamp/vercel/dns/records`. */
 export const model = {
   type: "@swamp/vercel/dns/records",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -120,6 +133,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -177,7 +195,33 @@ export const model = {
           "/records";
         const filters: [string, string][] = [];
         if (g.type !== undefined) filters.push(["type", String(g.type)]);
+        if (g.comment !== undefined) {
+          filters.push(["comment", String(g.comment)]);
+        }
+        if (g.created !== undefined) {
+          filters.push(["created", String(g.created)]);
+        }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.creator !== undefined) {
+          filters.push(["creator", String(g.creator)]);
+        }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.mxPriority !== undefined) {
+          filters.push(["mxPriority", String(g.mxPriority)]);
+        }
+        if (g.priority !== undefined) {
+          filters.push(["priority", String(g.priority)]);
+        }
+        if (g.ttl !== undefined) filters.push(["ttl", String(g.ttl)]);
+        if (g.updated !== undefined) {
+          filters.push(["updated", String(g.updated)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.value !== undefined) filters.push(["value", String(g.value)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

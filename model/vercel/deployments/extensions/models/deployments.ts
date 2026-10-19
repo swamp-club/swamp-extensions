@@ -199,7 +199,470 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  alias: z.array(z.string()).nullable().optional(),
+  aliasAssigned: z.boolean().nullable().optional(),
+  aliasError: z.object({
+    code: z.string().optional(),
+    message: z.string().optional(),
+  }).nullable().optional(),
+  aliasWarning: z.object({
+    action: z.string().optional(),
+    code: z.string().optional(),
+    link: z.string().optional(),
+    message: z.string().optional(),
+  }).nullable().optional(),
+  duration: z.object({
+    endTime: z.number().optional(),
+    endTimeCapped: z.number().optional(),
+    startTime: z.number().optional(),
+    timeForBilling: z.number().optional(),
+    timeToContainerExit: z.number().optional(),
+    timeToContainerExitCapped: z.number().optional(),
+    timeToReady: z.number().optional(),
+  }).nullable().optional(),
+  errorCode: z.string().nullable().optional(),
+  errorMessage: z.string().nullable().optional(),
   id: z.string(),
+  readyState: z.string().nullable().optional(),
+  target: z.string().nullable().optional(),
+  aliasAssignedAt: z.number().nullable().optional(),
+  aliasFinal: z.string().nullable().optional(),
+  alwaysRefuseToBuild: z.boolean().nullable().optional(),
+  atproto: z.object({
+    enabled: z.boolean().optional(),
+  }).nullable().optional(),
+  attribution: z.object({
+    commitMeta: z.object({
+      email: z.string().optional(),
+      isVerified: z.boolean().optional(),
+      name: z.string().optional(),
+    }).optional(),
+    gitUser: z.object({
+      id: z.string().optional(),
+      login: z.string().optional(),
+      provider: z.string().optional(),
+      type: z.string().optional(),
+    }).optional(),
+    vercelUser: z.object({
+      id: z.string().optional(),
+      teamRoles: z.array(z.string()).optional(),
+      username: z.string().optional(),
+    }).optional(),
+  }).nullable().optional(),
+  autoAssignCustomDomains: z.boolean().nullable().optional(),
+  automaticAliases: z.array(z.string()).nullable().optional(),
+  bootedAt: z.number().nullable().optional(),
+  build: z.object({
+    env: z.array(z.string()).optional(),
+  }).nullable().optional(),
+  buildArtifactUrls: z.array(z.string()).nullable().optional(),
+  buildContainerFinishedAt: z.number().nullable().optional(),
+  buildErrorAt: z.number().nullable().optional(),
+  buildingAt: z.number().nullable().optional(),
+  builds: z.array(z.object({
+    config: z.record(z.string(), z.unknown()).optional(),
+    src: z.string().optional(),
+    use: z.string().optional(),
+  })).nullable().optional(),
+  buildSkipped: z.boolean().nullable().optional(),
+  canceledAt: z.number().nullable().optional(),
+  checks: z.object({
+    "deployment-alias": z.object({
+      completedAt: z.number().optional(),
+      startedAt: z.number().optional(),
+      state: z.string().optional(),
+    }).optional(),
+  }).nullable().optional(),
+  checksConclusion: z.string().nullable().optional(),
+  checksState: z.string().nullable().optional(),
+  config: z.object({
+    functionMemoryType: z.string().optional(),
+    functionTimeout: z.number().optional(),
+    functionType: z.string().optional(),
+    isUsingActiveCPU: z.boolean().optional(),
+    resourceConfig: z.object({
+      buildQueue: z.object({
+        configuration: z.string().optional(),
+      }).optional(),
+      elasticConcurrency: z.string().optional(),
+      buildMachine: z.object({
+        purchaseType: z.string().optional(),
+      }).optional(),
+    }).optional(),
+    secureComputeFallbackRegion: z.string().optional(),
+    secureComputePrimaryRegion: z.string().optional(),
+    version: z.number().optional(),
+  }).nullable().optional(),
+  connectBuildsEnabled: z.boolean().nullable().optional(),
+  connectConfigurationId: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  createdIn: z.string().nullable().optional(),
+  creator: z.object({
+    avatar: z.string().optional(),
+    type: z.string().optional(),
+    uid: z.string().optional(),
+    username: z.string().optional(),
+  }).nullable().optional(),
+  crons: z.array(z.object({
+    path: z.string().optional(),
+    schedule: z.string().optional(),
+  })).nullable().optional(),
+  customEnvironment: z.object({
+    branchMatcher: z.object({
+      pattern: z.string().optional(),
+      type: z.string().optional(),
+    }).optional(),
+    createdAt: z.number().optional(),
+    currentDeploymentAliases: z.array(z.string()).optional(),
+    description: z.string().optional(),
+    domains: z.array(z.object({
+      apexName: z.string().optional(),
+      createdAt: z.number().optional(),
+      customEnvironmentId: z.string().optional(),
+      gitBranch: z.string().optional(),
+      name: z.string().optional(),
+      projectId: z.string().optional(),
+      redirect: z.string().optional(),
+      redirectStatusCode: z.number().optional(),
+      updatedAt: z.number().optional(),
+      verification: z.array(z.object({
+        domain: z.string().optional(),
+        reason: z.string().optional(),
+        type: z.string().optional(),
+        value: z.string().optional(),
+      })).optional(),
+      verified: z.boolean().optional(),
+    })).optional(),
+    id: z.string().optional(),
+    slug: z.string().optional(),
+    type: z.string().optional(),
+    updatedAt: z.number().optional(),
+  }).nullable().optional(),
+  defaultRoute: z.string().nullable().optional(),
+  deletedAt: z.number().nullable().optional(),
+  env: z.array(z.string()).nullable().optional(),
+  errorLink: z.string().nullable().optional(),
+  errorStep: z.string().nullable().optional(),
+  flags: z.object({
+    definitions: z.record(z.string(), z.unknown()).optional(),
+  }).nullable().optional(),
+  functions: z.record(z.string(), z.unknown()).nullable().optional(),
+  gitRepo: z.object({
+    defaultBranch: z.string().optional(),
+    name: z.string().optional(),
+    namespace: z.string().optional(),
+    ownerType: z.string().optional(),
+    path: z.string().optional(),
+    private: z.boolean().optional(),
+    projectId: z.number().optional(),
+    type: z.string().optional(),
+    url: z.string().optional(),
+  }).nullable().optional(),
+  gitSource: z.object({
+    prId: z.number().optional(),
+    ref: z.string().optional(),
+    repoId: z.string().optional(),
+    sha: z.string().optional(),
+    type: z.string().optional(),
+  }).nullable().optional(),
+  images: z.object({
+    contentDispositionType: z.string().optional(),
+    contentSecurityPolicy: z.string().optional(),
+    dangerouslyAllowSVG: z.boolean().optional(),
+    domains: z.array(z.string()).optional(),
+    formats: z.array(z.string()).optional(),
+    localPatterns: z.array(z.object({
+      pathname: z.string().optional(),
+      search: z.string().optional(),
+    })).optional(),
+    minimumCacheTTL: z.number().optional(),
+    qualities: z.array(z.number()).optional(),
+    remotePatterns: z.array(z.object({
+      hostname: z.string().optional(),
+      pathname: z.string().optional(),
+      port: z.string().optional(),
+      protocol: z.string().optional(),
+      search: z.string().optional(),
+    })).optional(),
+    sizes: z.array(z.number()).optional(),
+  }).nullable().optional(),
+  initReadyAt: z.number().nullable().optional(),
+  inspectorUrl: z.string().nullable().optional(),
+  integrations: z.object({
+    claimedAt: z.number().optional(),
+    completedAt: z.number().optional(),
+    skippedAt: z.number().optional(),
+    skippedBy: z.string().optional(),
+    startedAt: z.number().optional(),
+    status: z.string().optional(),
+  }).nullable().optional(),
+  isFirstBranchDeployment: z.boolean().nullable().optional(),
+  isInConcurrentBuildsQueue: z.boolean().nullable().optional(),
+  isInstantStatic: z.boolean().nullable().optional(),
+  isInSystemBuildsQueue: z.boolean().nullable().optional(),
+  lambdas: z.array(z.object({
+    createdAt: z.number().optional(),
+    entrypoint: z.string().optional(),
+    id: z.string().optional(),
+    readyState: z.string().optional(),
+    readyStateAt: z.number().optional(),
+    output: z.array(z.object({
+      functionName: z.string().optional(),
+      path: z.string().optional(),
+    })).optional(),
+  })).nullable().optional(),
+  manualProvisioning: z.object({
+    completedAt: z.number().optional(),
+    state: z.string().optional(),
+  }).nullable().optional(),
+  meta: z.record(z.string(), z.unknown()).nullable().optional(),
+  microfrontends: z.object({
+    defaultAppProjectName: z.string().optional(),
+    defaultRoute: z.string().optional(),
+    groupIds: z.array(z.string()).optional(),
+    isDefaultApp: z.boolean().optional(),
+  }).nullable().optional(),
+  monorepoManager: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  nodeVersion: z.string().nullable().optional(),
+  oidcTokenClaims: z.object({
+    aud: z.string().optional(),
+    custom_environment_id: z.string().optional(),
+    deployment_id: z.string().optional(),
+    environment: z.string().optional(),
+    iss: z.string().optional(),
+    mfe_group_ids: z.array(z.string()).optional(),
+    owner: z.string().optional(),
+    owner_id: z.string().optional(),
+    plan: z.string().optional(),
+    project: z.string().optional(),
+    project_id: z.string().optional(),
+    scope: z.string().optional(),
+    sub: z.string().optional(),
+  }).nullable().optional(),
+  oomReport: z.string().nullable().optional(),
+  originCacheRegion: z.string().nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  passiveConnectConfigurationId: z.string().nullable().optional(),
+  passiveRegions: z.array(z.string()).nullable().optional(),
+  plan: z.string().nullable().optional(),
+  platform: z.object({
+    creator: z.object({
+      avatar: z.string().optional(),
+      name: z.string().optional(),
+    }).optional(),
+    meta: z.record(z.string(), z.unknown()).optional(),
+    origin: z.object({
+      type: z.string().optional(),
+      value: z.string().optional(),
+    }).optional(),
+    source: z.object({
+      name: z.string().optional(),
+    }).optional(),
+  }).nullable().optional(),
+  prebuilt: z.boolean().nullable().optional(),
+  previewCommentsEnabled: z.boolean().nullable().optional(),
+  project: z.object({
+    framework: z.string().optional(),
+    id: z.string().optional(),
+    name: z.string().optional(),
+  }).nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  projectSettings: z.object({
+    buildCommand: z.string().optional(),
+    commandForIgnoringBuildStep: z.string().optional(),
+    devCommand: z.string().optional(),
+    framework: z.string().optional(),
+    installCommand: z.string().optional(),
+    nodeVersion: z.string().optional(),
+    outputDirectory: z.string().optional(),
+    speedInsights: z.object({
+      canceledAt: z.number().optional(),
+      dataReceivedAt: z.number().optional(),
+      disabledAt: z.number().optional(),
+      enabledAt: z.number().optional(),
+      hasData: z.boolean().optional(),
+      id: z.string().optional(),
+      paidAt: z.number().optional(),
+    }).optional(),
+    webAnalytics: z.object({
+      canceledAt: z.number().optional(),
+      disabledAt: z.number().optional(),
+      enabledAt: z.number().optional(),
+      hasData: z.boolean().optional(),
+      id: z.string().optional(),
+    }).optional(),
+  }).nullable().optional(),
+  public: z.boolean().nullable().optional(),
+  ready: z.number().nullable().optional(),
+  readyStateReason: z.string().nullable().optional(),
+  readySubstate: z.string().nullable().optional(),
+  regions: z.array(z.string()).nullable().optional(),
+  resourceConfig: z.object({
+    buildMachine: z.object({
+      cores: z.number().optional(),
+      defaultPurchaseType: z.string().optional(),
+      machineSelectionType: z.string().optional(),
+      memory: z.number().optional(),
+      purchaseType: z.string().optional(),
+      selectionSource: z.string().optional(),
+    }).optional(),
+  }).nullable().optional(),
+  routes: z.array(z.object({
+    caseSensitive: z.boolean().optional(),
+    check: z.boolean().optional(),
+    continue: z.boolean().optional(),
+    dest: z.string().optional(),
+    destination: z.string().optional(),
+    env: z.array(z.string()).optional(),
+    has: z.array(z.object({
+      type: z.string().optional(),
+      value: z.string().optional(),
+    })).optional(),
+    headers: z.record(z.string(), z.unknown()).optional(),
+    important: z.boolean().optional(),
+    locale: z.object({
+      cookie: z.string().optional(),
+      redirect: z.record(z.string(), z.unknown()).optional(),
+    }).optional(),
+    methods: z.array(z.string()).optional(),
+    middleware: z.number().optional(),
+    middlewarePath: z.string().optional(),
+    middlewareRawSrc: z.array(z.string()).optional(),
+    missing: z.array(z.object({
+      type: z.string().optional(),
+      value: z.string().optional(),
+    })).optional(),
+    mitigate: z.object({
+      action: z.string().optional(),
+    }).optional(),
+    override: z.boolean().optional(),
+    respectOriginCacheControl: z.boolean().optional(),
+    source: z.string().optional(),
+    src: z.string().optional(),
+    status: z.number().optional(),
+    statusCode: z.number().optional(),
+    transforms: z.array(z.object({
+      args: z.string().optional(),
+      env: z.array(z.string()).optional(),
+      op: z.string().optional(),
+      target: z.object({
+        key: z.string().optional(),
+      }).optional(),
+      type: z.string().optional(),
+    })).optional(),
+  })).nullable().optional(),
+  seatBlock: z.object({
+    blockCode: z.string().optional(),
+    gitProvider: z.string().optional(),
+    gitUserId: z.string().optional(),
+    isVerified: z.boolean().optional(),
+    userId: z.string().optional(),
+  }).nullable().optional(),
+  services: z.array(z.object({
+    buildCommand: z.string().optional(),
+    builder: z.object({
+      config: z.object({
+        buildCommand: z.string().optional(),
+        buildpack: z.string().optional(),
+        bundle: z.boolean().optional(),
+        bunVersion: z.string().optional(),
+        daemon: z.object({
+          command: z.array(z.string()).optional(),
+          entrypoint: z.string().optional(),
+          instances: z.record(z.string(), z.unknown()).optional(),
+          replicas: z.record(z.string(), z.unknown()).optional(),
+          resources: z.object({
+            requests: z.object({
+              memory: z.string().optional(),
+            }).optional(),
+          }).optional(),
+          root: z.string().optional(),
+          terminationGracePeriodSeconds: z.number().optional(),
+          name: z.string().optional(),
+        }).optional(),
+        debug: z.boolean().optional(),
+        devCommand: z.string().optional(),
+        excludeFiles: z.string().optional(),
+        framework: z.string().optional(),
+        functions: z.record(z.string(), z.unknown()).optional(),
+        helpers: z.boolean().optional(),
+        import: z.record(z.string(), z.unknown()).optional(),
+        includeFiles: z.string().optional(),
+        installCommand: z.string().optional(),
+        ldsflags: z.string().optional(),
+        maxLambdaSize: z.string().optional(),
+        middleware: z.boolean().optional(),
+        middlewareMatcher: z.string().optional(),
+        middlewareRuntime: z.string().optional(),
+        nodeVersion: z.string().optional(),
+        outputDirectory: z.string().optional(),
+        projectSettings: z.object({
+          autoExposeSystemEnvs: z.boolean().optional(),
+          buildCommand: z.string().optional(),
+          commandForIgnoringBuildStep: z.string().optional(),
+          createdAt: z.number().optional(),
+          devCommand: z.string().optional(),
+          directoryListing: z.boolean().optional(),
+          framework: z.string().optional(),
+          gitForkProtection: z.boolean().optional(),
+          installCommand: z.string().optional(),
+          monorepoManager: z.string().optional(),
+          nodeVersion: z.string().optional(),
+          outputDirectory: z.string().optional(),
+          rootDirectory: z.string().optional(),
+          sourceFilesOutsideRootDirectory: z.boolean().optional(),
+        }).optional(),
+        rust: z.string().optional(),
+        scheduleFunction: z.object({
+          entrypoints: z.array(z.object({
+            entrypoint: z.string().optional(),
+            scheduleNames: z.array(z.string()).optional(),
+            sourceFile: z.string().optional(),
+          })).optional(),
+          outputPath: z.string().optional(),
+        }).optional(),
+        serviceName: z.string().optional(),
+        zeroConfig: z.boolean().optional(),
+      }).optional(),
+      src: z.string().optional(),
+      use: z.string().optional(),
+    }).optional(),
+    entrypoint: z.string().optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+    framework: z.string().optional(),
+    group: z.string().optional(),
+    handlerFunction: z.string().optional(),
+    installCommand: z.string().optional(),
+    name: z.string().optional(),
+    preDeployCommand: z.string().optional(),
+    routePrefix: z.string().optional(),
+    routePrefixSource: z.string().optional(),
+    runtime: z.string().optional(),
+    schedule: z.string().optional(),
+    schema: z.string().optional(),
+    subdomain: z.string().optional(),
+    topics: z.array(z.string()).optional(),
+    trigger: z.string().optional(),
+    type: z.string().optional(),
+    workspace: z.string().optional(),
+  })).nullable().optional(),
+  softDeletedByRetention: z.boolean().nullable().optional(),
+  source: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+  team: z.object({
+    avatar: z.string().optional(),
+    id: z.string().optional(),
+    name: z.string().optional(),
+    slug: z.string().optional(),
+  }).nullable().optional(),
+  ttyBuildLogs: z.boolean().nullable().optional(),
+  type: z.string().nullable().optional(),
+  undeletedAt: z.number().nullable().optional(),
+  url: z.string().nullable().optional(),
+  userAliases: z.array(z.string()).nullable().optional(),
+  userConfiguredDeploymentId: z.string().nullable().optional(),
+  version: z.number().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -346,7 +809,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.17.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -425,6 +888,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -535,7 +1003,111 @@ export const model = {
         if (g.target !== undefined) {
           filters.push(["target", String(g.target), "target"]);
         }
+        if (g.aliasAssigned !== undefined) {
+          filters.push([
+            "aliasAssigned",
+            String(g.aliasAssigned),
+            "aliasAssigned",
+          ]);
+        }
+        if (g.errorCode !== undefined) {
+          filters.push(["errorCode", String(g.errorCode), "errorCode"]);
+        }
+        if (g.errorMessage !== undefined) {
+          filters.push([
+            "errorMessage",
+            String(g.errorMessage),
+            "errorMessage",
+          ]);
+        }
         if (g.id !== undefined) filters.push(["uid", String(g.id), "id"]);
+        if (g.readyState !== undefined) {
+          filters.push(["readyState", String(g.readyState), "readyState"]);
+        }
+        if (g.buildingAt !== undefined) {
+          filters.push(["buildingAt", String(g.buildingAt), "buildingAt"]);
+        }
+        if (g.checksConclusion !== undefined) {
+          filters.push([
+            "checksConclusion",
+            String(g.checksConclusion),
+            "checksConclusion",
+          ]);
+        }
+        if (g.checksState !== undefined) {
+          filters.push(["checksState", String(g.checksState), "checksState"]);
+        }
+        if (g.connectBuildsEnabled !== undefined) {
+          filters.push([
+            "connectBuildsEnabled",
+            String(g.connectBuildsEnabled),
+            "connectBuildsEnabled",
+          ]);
+        }
+        if (g.connectConfigurationId !== undefined) {
+          filters.push([
+            "connectConfigurationId",
+            String(g.connectConfigurationId),
+            "connectConfigurationId",
+          ]);
+        }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt), "createdAt"]);
+        }
+        if (g.defaultRoute !== undefined) {
+          filters.push([
+            "defaultRoute",
+            String(g.defaultRoute),
+            "defaultRoute",
+          ]);
+        }
+        if (g.inspectorUrl !== undefined) {
+          filters.push([
+            "inspectorUrl",
+            String(g.inspectorUrl),
+            "inspectorUrl",
+          ]);
+        }
+        if (g.oomReport !== undefined) {
+          filters.push(["oomReport", String(g.oomReport), "oomReport"]);
+        }
+        if (g.passiveConnectConfigurationId !== undefined) {
+          filters.push([
+            "passiveConnectConfigurationId",
+            String(g.passiveConnectConfigurationId),
+            "passiveConnectConfigurationId",
+          ]);
+        }
+        if (g.prebuilt !== undefined) {
+          filters.push(["prebuilt", String(g.prebuilt), "prebuilt"]);
+        }
+        if (g.projectId !== undefined) {
+          filters.push(["projectId", String(g.projectId), "projectId"]);
+        }
+        if (g.ready !== undefined) {
+          filters.push(["ready", String(g.ready), "ready"]);
+        }
+        if (g.readySubstate !== undefined) {
+          filters.push([
+            "readySubstate",
+            String(g.readySubstate),
+            "readySubstate",
+          ]);
+        }
+        if (g.softDeletedByRetention !== undefined) {
+          filters.push([
+            "softDeletedByRetention",
+            String(g.softDeletedByRetention),
+            "softDeletedByRetention",
+          ]);
+        }
+        if (g.source !== undefined) {
+          filters.push(["source", String(g.source), "source"]);
+        }
+        if (g.type !== undefined) {
+          filters.push(["type", String(g.type), "type"]);
+        }
+        if (g.url !== undefined) filters.push(["url", String(g.url), "url"]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

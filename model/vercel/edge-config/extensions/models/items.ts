@@ -52,7 +52,6 @@ const ResourceSchema = z.object({
   key: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
   value: z.string().nullable().optional(),
-  id: z.string(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -70,7 +69,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Items. Registered at `@swamp/vercel/edge-config/items`. */
 export const model = {
   type: "@swamp/vercel/edge-config/items",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -137,6 +136,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

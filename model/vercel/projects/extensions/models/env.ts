@@ -72,7 +72,33 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  comment: z.string().nullable().optional(),
+  configurationId: z.string().nullable().optional(),
+  contentHint: z.object({
+    storeId: z.string().optional(),
+    type: z.string().optional(),
+  }).nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
+  customEnvironmentIds: z.array(z.string()).nullable().optional(),
+  decrypted: z.boolean().nullable().optional(),
+  edgeConfigId: z.string().nullable().optional(),
+  edgeConfigTokenId: z.string().nullable().optional(),
+  gitBranch: z.string().nullable().optional(),
   id: z.string(),
+  key: z.string().nullable().optional(),
+  sunsetSecretId: z.string().nullable().optional(),
+  target: z.array(z.string()).nullable().optional(),
+  type: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  visibility: z.string().nullable().optional(),
+  value: z.string().nullable().optional(),
+  internalContentHint: z.object({
+    encryptedValue: z.string().optional(),
+    type: z.string().optional(),
+  }).nullable().optional(),
+  legacyValue: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -95,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/projects/env`. */
 export const model = {
   type: "@swamp/vercel/projects/env",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -139,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -244,7 +275,37 @@ export const model = {
         if (g.comment !== undefined) {
           filters.push(["comment", String(g.comment)]);
         }
+        if (g.configurationId !== undefined) {
+          filters.push(["configurationId", String(g.configurationId)]);
+        }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.createdBy !== undefined) {
+          filters.push(["createdBy", String(g.createdBy)]);
+        }
+        if (g.decrypted !== undefined) {
+          filters.push(["decrypted", String(g.decrypted)]);
+        }
+        if (g.edgeConfigId !== undefined) {
+          filters.push(["edgeConfigId", String(g.edgeConfigId)]);
+        }
+        if (g.edgeConfigTokenId !== undefined) {
+          filters.push(["edgeConfigTokenId", String(g.edgeConfigTokenId)]);
+        }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.sunsetSecretId !== undefined) {
+          filters.push(["sunsetSecretId", String(g.sunsetSecretId)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.updatedBy !== undefined) {
+          filters.push(["updatedBy", String(g.updatedBy)]);
+        }
+        if (g.visibility !== undefined) {
+          filters.push(["visibility", String(g.visibility)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

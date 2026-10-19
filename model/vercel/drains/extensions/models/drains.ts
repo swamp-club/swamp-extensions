@@ -96,7 +96,68 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  createdAt: z.number().nullable().optional(),
+  delivery: z.object({
+    compression: z.string().optional(),
+    encoding: z.string().optional(),
+    endpoint: z.string().optional(),
+    headers: z.record(z.string(), z.unknown()).optional(),
+    secret: z.string().optional(),
+    type: z.string().optional(),
+  }).nullable().optional(),
+  disabledAt: z.number().nullable().optional(),
+  disabledBy: z.string().nullable().optional(),
+  disabledReason: z.string().nullable().optional(),
+  firstErrorTimestamp: z.number().nullable().optional(),
   id: z.string(),
+  name: z.string().nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  projectIds: z.array(z.string()).nullable().optional(),
+  sampling: z.array(z.object({
+    env: z.string().optional(),
+    rate: z.number().optional(),
+    requestPath: z.string().optional(),
+    type: z.string().optional(),
+  })).nullable().optional(),
+  schemas: z.object({
+    ai_gateway: z.record(z.string(), z.unknown()).optional(),
+    analytics: z.record(z.string(), z.unknown()).optional(),
+    audit_log: z.record(z.string(), z.unknown()).optional(),
+    connect: z.record(z.string(), z.unknown()).optional(),
+    log: z.record(z.string(), z.unknown()).optional(),
+    speed_insights: z.record(z.string(), z.unknown()).optional(),
+    trace: z.record(z.string(), z.unknown()).optional(),
+  }).nullable().optional(),
+  source: z.object({
+    defaultFor: z.string().optional(),
+    kind: z.string().optional(),
+  }).nullable().optional(),
+  status: z.string().nullable().optional(),
+  teamId: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  filterV2: z.object({
+    filter: z.object({
+      deployment: z.object({
+        environments: z.array(z.string()).optional(),
+      }).optional(),
+      log: z.object({
+        legacy_excludeCachedStaticAssetLogs: z.boolean().optional(),
+        sources: z.array(z.string()).optional(),
+      }).optional(),
+      project: z.object({
+        ids: z.array(z.string()).optional(),
+      }).optional(),
+      type: z.string().optional(),
+    }).optional(),
+    version: z.string().optional(),
+  }).nullable().optional(),
+  integrationConfigurationUri: z.string().nullable().optional(),
+  integrationIcon: z.string().nullable().optional(),
+  integrationWebsite: z.string().nullable().optional(),
+  projectAccess: z.object({
+    access: z.string().optional(),
+    managedBy: z.string().optional(),
+  }).nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -158,7 +219,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Drains. Registered at `@swamp/vercel/drains/drains`. */
 export const model = {
   type: "@swamp/vercel/drains/drains",
-  version: "2026.10.17.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -197,6 +258,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -289,7 +355,40 @@ export const model = {
         }
         if (g.status !== undefined) filters.push(["status", String(g.status)]);
         if (g.source !== undefined) filters.push(["source", String(g.source)]);
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.disabledAt !== undefined) {
+          filters.push(["disabledAt", String(g.disabledAt)]);
+        }
+        if (g.disabledBy !== undefined) {
+          filters.push(["disabledBy", String(g.disabledBy)]);
+        }
+        if (g.disabledReason !== undefined) {
+          filters.push(["disabledReason", String(g.disabledReason)]);
+        }
+        if (g.firstErrorTimestamp !== undefined) {
+          filters.push(["firstErrorTimestamp", String(g.firstErrorTimestamp)]);
+        }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.ownerId !== undefined) {
+          filters.push(["ownerId", String(g.ownerId)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.integrationConfigurationUri !== undefined) {
+          filters.push([
+            "integrationConfigurationUri",
+            String(g.integrationConfigurationUri),
+          ]);
+        }
+        if (g.integrationIcon !== undefined) {
+          filters.push(["integrationIcon", String(g.integrationIcon)]);
+        }
+        if (g.integrationWebsite !== undefined) {
+          filters.push(["integrationWebsite", String(g.integrationWebsite)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

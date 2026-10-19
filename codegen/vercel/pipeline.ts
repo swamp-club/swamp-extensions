@@ -184,6 +184,8 @@ const IDENTIFIER_MAP: Record<string, string> = {
   idOrAlias: "uid",
   edgeConfigItemKey: "key",
   uid: "uid",
+  hashKey: "hashKey",
+  targetTeamId: "teamId",
 };
 
 /** Request-body field names that hold secrets (see isSensitive). */
@@ -1057,8 +1059,15 @@ function buildResource(
     updateProps = result.properties;
   }
 
-  const responseProps = extractResponseProperties(getOp, spec);
-  if (!responseProps.id && !responseProps.uid && !responseProps.name) {
+  // Without an individual GET, stored state is a list item (lookup) or the
+  // create response, never the list envelope
+  const responseProps = paths && !paths.hasIndividualRead
+    ? extractListItemSchemaProperties(getOp, paths.listPath ?? basePath, spec)
+    : extractResponseProperties(getOp, spec);
+  if (
+    !responseProps.id && !responseProps.uid && !responseProps.name &&
+    !responseProps[IDENTIFIER_MAP[idParam] ?? "id"]
+  ) {
     responseProps.id = { type: "string", description: "Resource identifier" };
   }
 
@@ -1206,11 +1215,18 @@ function buildManualResource(
     const createResponseProps = extractResponseProperties(createOp, spec);
     responseProps = Object.keys(createResponseProps).length > 0
       ? createResponseProps
-      : extractResponseProperties(readOp, spec);
+      : extractListItemSchemaProperties(
+        readOp,
+        manual.listPath ?? manual.readPath,
+        spec,
+      );
   } else {
     responseProps = extractResponseProperties(readOp, spec);
   }
-  if (!responseProps.id && !responseProps.uid && !responseProps.name) {
+  if (
+    !responseProps.id && !responseProps.uid && !responseProps.name &&
+    !responseProps[IDENTIFIER_MAP[manual.idParam] ?? "id"]
+  ) {
     responseProps.id = { type: "string", description: "Resource identifier" };
   }
 
@@ -1441,28 +1457,28 @@ function isSensitive(name: string, schema: OApiSchema): boolean {
 }
 
 /**
- * Property names of a list response item. The response is either itself an
+ * The schema of a list response item. The response is either itself an
  * array, or an object holding the items in an array property named after the
  * list path's last segment (`deployments` in `{ deployments: [...],
  * pagination }`) or, failing that, in its only array of objects. A team
  * members list also returns `emailInviteCodes`, so the first array is not
- * enough. Returns null when the items cannot be identified.
+ * enough. A union response (`{} | { records, pagination }`) is flattened
+ * first. Returns null when the items cannot be identified.
  */
-function extractListItemProperties(
+function findListItemSchema(
   operation: OApiOperation | undefined,
   listPath: string,
   spec: OApiSpec,
-): string[] | null {
+): OApiSchema | null {
   const content = operation?.responses?.["200"]?.content?.["application/json"];
   if (!content?.schema) return null;
-  const schema = resolveSchema(content.schema, spec);
-  const itemProps = (array: OApiSchema): string[] | null => {
+  const schema = flattenSchema(content.schema, spec);
+  const itemSchema = (array: OApiSchema): OApiSchema | null => {
     if (array.type !== "array" || !array.items) return null;
-    const item = resolveSchema(array.items, spec);
-    const names = Object.keys(item.properties ?? {});
-    return names.length > 0 ? names : null;
+    const item = flattenSchema(array.items, spec);
+    return Object.keys(item.properties ?? {}).length > 0 ? item : null;
   };
-  if (schema.type === "array") return itemProps(schema);
+  if (schema.type === "array") return itemSchema(schema);
 
   const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, "");
   const segments = listPath.split("/").filter((s) => s && !s.startsWith("{"));
@@ -1470,12 +1486,35 @@ function extractListItemProperties(
   const candidates = Object.entries(schema.properties ?? {})
     .map(([name, prop]) => ({
       name,
-      items: itemProps(resolveSchema(prop, spec)),
+      item: itemSchema(resolveSchema(prop, spec)),
     }))
-    .filter((c) => c.items !== null);
+    .filter((c) => c.item !== null);
   const named = candidates.find((c) => normalize(c.name) === collection);
-  if (named) return named.items;
-  return candidates.length === 1 ? candidates[0].items : null;
+  if (named) return named.item;
+  return candidates.length === 1 ? candidates[0].item : null;
+}
+
+/** Property names of a list response item; see findListItemSchema. */
+function extractListItemProperties(
+  operation: OApiOperation | undefined,
+  listPath: string,
+  spec: OApiSpec,
+): string[] | null {
+  const item = findListItemSchema(operation, listPath, spec);
+  return item ? Object.keys(item.properties ?? {}) : null;
+}
+
+/**
+ * Resource properties of a list response item, for resources without an
+ * individual GET; empty when the items cannot be identified.
+ */
+function extractListItemSchemaProperties(
+  operation: OApiOperation | undefined,
+  listPath: string,
+  spec: OApiSpec,
+): Record<string, VercelProperty> {
+  const item = findListItemSchema(operation, listPath, spec);
+  return item ? normalizeProperties(item, spec) : {};
 }
 
 /** The list-item ID field: the read ID if items carry it, else uid or id. */
@@ -1599,7 +1638,9 @@ function extractResponseProperties(
   const content = responseObj.content?.["application/json"];
   if (!content?.schema) return {};
 
-  const schema = resolveSchema(content.schema, spec);
+  // A union response (e.g. projects/env's three-branch oneOf) is flattened
+  // the same way request bodies are
+  const schema = flattenSchema(content.schema, spec);
 
   // Vercel has no response envelope — resource properties are at the top level
   if (schema.properties) {

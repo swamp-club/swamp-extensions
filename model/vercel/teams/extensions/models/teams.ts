@@ -636,7 +636,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.17.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -748,6 +748,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -835,12 +840,6 @@ export const model = {
           filters.push([
             "previewDeploymentSuffix",
             String(g.previewDeploymentSuffix),
-          ]);
-        }
-        if (g.regenerateInviteCode !== undefined) {
-          filters.push([
-            "regenerateInviteCode",
-            String(g.regenerateInviteCode),
           ]);
         }
         if (g.resourceSlug !== undefined) {

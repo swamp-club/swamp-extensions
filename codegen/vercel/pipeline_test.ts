@@ -283,3 +283,172 @@ Deno.test("parseResources marks secret request-body fields sensitive", () => {
   // not the boolean hasSecret, whose name matches but holds no secret.
   assertEquals(sensitive.sort(), ["gitAccessToken", "hookSecret", "importKey"]);
 });
+
+// A widgets resource: create on the base path, an optional individual GET,
+// and a delete keyed by `idParam`. `read` is the individual GET response when
+// `hasRead`, otherwise the list response.
+function widgetsSpec(
+  idParam: string,
+  read: unknown,
+  hasRead: boolean,
+) {
+  const ok = (schema: unknown) => ({
+    responses: { "200": { content: { "application/json": { schema } } } },
+  });
+  const created = {
+    type: "object",
+    properties: { key: { type: "string" } },
+  };
+  return {
+    paths: {
+      "/v1/widgets": {
+        post: {
+          tags: ["widgets"],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    key: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          ...ok(created),
+        },
+        get: { tags: ["widgets"], ...ok(hasRead ? { type: "array" } : read) },
+      },
+      [`/v1/widgets/{${idParam}}`]: {
+        ...(hasRead ? { get: { tags: ["widgets"], ...ok(read) } } : {}),
+        delete: { tags: ["widgets"] },
+      },
+    },
+  } as unknown as Parameters<typeof parseResources>[0];
+}
+
+Deno.test("parseResources flattens a oneOf read response into resource properties", () => {
+  const { resources } = parseResources(widgetsSpec("id", {
+    oneOf: [
+      {
+        type: "object",
+        properties: { id: { type: "string" }, key: { type: "string" } },
+        required: ["id", "key"],
+      },
+      { type: "null" },
+      {
+        type: "object",
+        properties: { id: { type: "string" }, value: { type: "string" } },
+        required: ["id", "value"],
+      },
+    ],
+  }, true));
+
+  assertEquals(resources.length, 1);
+  assertEquals(Object.keys(resources[0].resourceProperties), [
+    "id",
+    "key",
+    "value",
+  ]);
+  assertEquals(resources[0].identifyingField, "id");
+});
+
+Deno.test("parseResources takes a list-only resource's properties from the items of a union list response", () => {
+  const { resources } = parseResources(widgetsSpec("widgetId", {
+    oneOf: [
+      { type: "object", properties: {} },
+      {
+        type: "object",
+        properties: {
+          widgets: {
+            type: "array",
+            items: {
+              oneOf: [
+                { type: "object", properties: { id: { type: "string" } } },
+                {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    name: { type: "string" },
+                  },
+                },
+              ],
+            },
+          },
+          pagination: { type: "object" },
+        },
+      },
+    ],
+  }, false));
+
+  const r = resources[0];
+  // The list envelope's widgets/pagination never reach stored state.
+  assertEquals(Object.keys(r.resourceProperties), ["id", "name"]);
+  assertEquals(r.listItemProperties, ["id", "name"]);
+  assertEquals(r.identifyingField, "id");
+});
+
+Deno.test("parseResources keeps the id-only fallback when a list-only resource's items cannot be identified", () => {
+  const { resources } = parseResources(widgetsSpec("widgetId", {
+    oneOf: [
+      { type: "object", properties: {} },
+      {
+        type: "object",
+        properties: {
+          invites: itemsOf({ email: { type: "string" } }),
+          others: itemsOf({ uid: { type: "string" } }),
+        },
+      },
+    ],
+  }, false));
+
+  assertEquals(Object.keys(resources[0].resourceProperties), ["id"]);
+  assertEquals(resources[0].listItemProperties, null);
+});
+
+Deno.test("parseResources keys a list-only team by teamId, not another field ending in Id", () => {
+  const { resources } = parseResources(widgetsSpec("targetTeamId", {
+    type: "object",
+    properties: {
+      cursor: { type: "string" },
+      widgets: itemsOf({
+        name: { type: "string" },
+        organizationId: { type: "string" },
+        teamId: { type: "string" },
+      }),
+    },
+  }, false));
+
+  const r = resources[0];
+  assertEquals(Object.keys(r.resourceProperties), [
+    "name",
+    "organizationId",
+    "teamId",
+  ]);
+  assertEquals(r.identifyingField, "teamId");
+  assertEquals(r.listIdentifyingField, "teamId");
+});
+
+Deno.test("parseResources keys a hashKey resource by hashKey without a synthetic id", () => {
+  const { resources } = parseResources(widgetsSpec("hashKey", {
+    type: "object",
+    properties: {
+      widgets: itemsOf({
+        hashKey: { type: "string" },
+        label: { type: "string" },
+        projectId: { type: "string" },
+      }),
+    },
+  }, false));
+
+  const r = resources[0];
+  assertEquals(Object.keys(r.resourceProperties), [
+    "hashKey",
+    "label",
+    "projectId",
+  ]);
+  assertEquals(r.identifyingField, "hashKey");
+  assertEquals(r.listIdentifyingField, "hashKey");
+});

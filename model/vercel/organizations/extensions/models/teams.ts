@@ -55,20 +55,16 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  cursor: z.string().nullable().optional(),
-  teams: z.array(z.object({
-    avatar: z.string().optional(),
-    billingPlan: z.string().optional(),
-    createdAt: z.string().optional(),
-    memberCount: z.number().optional(),
-    name: z.string().optional(),
-    organizationId: z.string().optional(),
-    slug: z.string().optional(),
-    ssoMode: z.string().optional(),
-    teamId: z.string().optional(),
-    updatedAt: z.string().optional(),
-  })).nullable().optional(),
-  id: z.string(),
+  avatar: z.string().nullable().optional(),
+  billingPlan: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
+  memberCount: z.number().nullable().optional(),
+  name: z.string().nullable().optional(),
+  organizationId: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
+  ssoMode: z.string().nullable().optional(),
+  teamId: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -88,7 +84,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/organizations/teams`. */
 export const model = {
   type: "@swamp/vercel/organizations/teams",
-  version: "2026.10.17.1",
+  version: "2026.10.20.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -155,6 +158,19 @@ export const model = {
         if (g.billingPlan !== undefined) {
           filters.push(["billingPlan", String(g.billingPlan)]);
         }
+        if (g.avatar !== undefined) filters.push(["avatar", String(g.avatar)]);
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.memberCount !== undefined) {
+          filters.push(["memberCount", String(g.memberCount)]);
+        }
+        if (g.ssoMode !== undefined) {
+          filters.push(["ssoMode", String(g.ssoMode)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -192,10 +208,8 @@ export const model = {
         }
         const result = matches[0] as ResourceData;
         const instanceName =
-          (g.name?.toString() ?? result.id?.toString() ?? "current").replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (g.name?.toString() ?? result.teamId?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

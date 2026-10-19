@@ -958,6 +958,7 @@ const ResourceSchema = z.object({
     connectConfigurationLink: z.array(z.string()).optional(),
     connectLogs: z.array(z.string()).optional(),
     connexClient: z.array(z.string()).optional(),
+    connexClientAccess: z.array(z.string()).optional(),
     connexClientProject: z.array(z.string()).optional(),
     connexContact: z.array(z.string()).optional(),
     connexInstallation: z.array(z.string()).optional(),
@@ -1000,6 +1001,7 @@ const ResourceSchema = z.object({
     fileUpload: z.array(z.string()).optional(),
     flagsExplorerSubscription: z.array(z.string()).optional(),
     gitCredentialGrant: z.array(z.string()).optional(),
+    githubUsage: z.array(z.string()).optional(),
     gitRepository: z.array(z.string()).optional(),
     imageOptimizationNewPrice: z.array(z.string()).optional(),
     integration: z.array(z.string()).optional(),
@@ -1713,7 +1715,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.17.2",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1925,6 +1927,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2097,10 +2109,6 @@ export const model = {
         if (g.gitForkProtection !== undefined) {
           filters.push(["gitForkProtection", String(g.gitForkProtection)]);
         }
-        if (g.gitLFS !== undefined) filters.push(["gitLFS", String(g.gitLFS)]);
-        if (g.protectedSourcemaps !== undefined) {
-          filters.push(["protectedSourcemaps", String(g.protectedSourcemaps)]);
-        }
         if (g.installCommand !== undefined) {
           filters.push(["installCommand", String(g.installCommand)]);
         }
@@ -2110,21 +2118,6 @@ export const model = {
         }
         if (g.outputDirectory !== undefined) {
           filters.push(["outputDirectory", String(g.outputDirectory)]);
-        }
-        if (g.previewDeploymentsDisabled !== undefined) {
-          filters.push([
-            "previewDeploymentsDisabled",
-            String(g.previewDeploymentsDisabled),
-          ]);
-        }
-        if (g.previewDeploymentSuffix !== undefined) {
-          filters.push([
-            "previewDeploymentSuffix",
-            String(g.previewDeploymentSuffix),
-          ]);
-        }
-        if (g.publicSource !== undefined) {
-          filters.push(["publicSource", String(g.publicSource)]);
         }
         if (g.rootDirectory !== undefined) {
           filters.push(["rootDirectory", String(g.rootDirectory)]);
@@ -2141,18 +2134,6 @@ export const model = {
             String(g.serverlessFunctionZeroConfigFailover),
           ]);
         }
-        if (g.skewProtectionBoundaryAt !== undefined) {
-          filters.push([
-            "skewProtectionBoundaryAt",
-            String(g.skewProtectionBoundaryAt),
-          ]);
-        }
-        if (g.skewProtectionMaxAge !== undefined) {
-          filters.push([
-            "skewProtectionMaxAge",
-            String(g.skewProtectionMaxAge),
-          ]);
-        }
         if (g.skipGitConnectDuringLink !== undefined) {
           filters.push([
             "skipGitConnectDuringLink",
@@ -2165,30 +2146,6 @@ export const model = {
             String(g.sourceFilesOutsideRootDirectory),
           ]);
         }
-        if (g.enablePreviewFeedback !== undefined) {
-          filters.push([
-            "enablePreviewFeedback",
-            String(g.enablePreviewFeedback),
-          ]);
-        }
-        if (g.enableProductionFeedback !== undefined) {
-          filters.push([
-            "enableProductionFeedback",
-            String(g.enableProductionFeedback),
-          ]);
-        }
-        if (g.enableAffectedProjectsDeployments !== undefined) {
-          filters.push([
-            "enableAffectedProjectsDeployments",
-            String(g.enableAffectedProjectsDeployments),
-          ]);
-        }
-        if (g.enableExternalRewriteCaching !== undefined) {
-          filters.push([
-            "enableExternalRewriteCaching",
-            String(g.enableExternalRewriteCaching),
-          ]);
-        }
         if (g.accountId !== undefined) {
           filters.push(["accountId", String(g.accountId)]);
         }
@@ -2198,52 +2155,15 @@ export const model = {
             String(g.appliedCve55182Migration),
           ]);
         }
-        if (g.avatar !== undefined) filters.push(["avatar", String(g.avatar)]);
-        if (g.avatarDarkMode !== undefined) {
-          filters.push(["avatarDarkMode", String(g.avatarDarkMode)]);
-        }
-        if (g.concurrencyBucketName !== undefined) {
-          filters.push([
-            "concurrencyBucketName",
-            String(g.concurrencyBucketName),
-          ]);
-        }
-        if (g.connectBuildsEnabled !== undefined) {
-          filters.push([
-            "connectBuildsEnabled",
-            String(g.connectBuildsEnabled),
-          ]);
-        }
-        if (g.connectConfigurationId !== undefined) {
-          filters.push([
-            "connectConfigurationId",
-            String(g.connectConfigurationId),
-          ]);
-        }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
         if (g.hasActiveBranches !== undefined) {
           filters.push(["hasActiveBranches", String(g.hasActiveBranches)]);
         }
-        if (g.hasDeployments !== undefined) {
-          filters.push(["hasDeployments", String(g.hasDeployments)]);
-        }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.live !== undefined) filters.push(["live", String(g.live)]);
-        if (g.passiveConnectConfigurationId !== undefined) {
-          filters.push([
-            "passiveConnectConfigurationId",
-            String(g.passiveConnectConfigurationId),
-          ]);
-        }
         if (g.paused !== undefined) filters.push(["paused", String(g.paused)]);
-        if (g.productionDeploymentsFastLane !== undefined) {
-          filters.push([
-            "productionDeploymentsFastLane",
-            String(g.productionDeploymentsFastLane),
-          ]);
-        }
         if (g.tier !== undefined) filters.push(["tier", String(g.tier)]);
         if (g.transferCompletedAt !== undefined) {
           filters.push(["transferCompletedAt", String(g.transferCompletedAt)]);
@@ -2262,10 +2182,6 @@ export const model = {
         }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.v0 !== undefined) filters.push(["v0", String(g.v0)]);
-        if (g.v0Created !== undefined) {
-          filters.push(["v0Created", String(g.v0Created)]);
         }
         if (filters.length === 0) {
           throw new Error(
