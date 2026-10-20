@@ -49,6 +49,12 @@ import {
   DatastoreFormatGate,
 } from "./s3_format_guard.ts";
 import { atomicWriteTextFile } from "./atomic_write.ts";
+import {
+  cacheRelativeKey,
+  isWithinDir,
+  resolveWithinDir,
+  toKeyPath,
+} from "./path_containment.ts";
 import { Attr, getTracer } from "./tracing.ts";
 
 /**
@@ -56,14 +62,7 @@ import { Attr, getTracer } from "./tracing.ts";
  * Prevents path traversal attacks from malicious S3 keys.
  */
 function assertSafePath(cachePath: string, relativePath: string): string {
-  const resolved = normalize(join(cachePath, relativePath));
-  const normalizedCache = normalize(cachePath);
-  if (
-    !resolved.startsWith(normalizedCache + "/") && resolved !== normalizedCache
-  ) {
-    throw new Error(`Path traversal detected: ${relativePath}`);
-  }
-  return resolved;
+  return resolveWithinDir(cachePath, relativePath);
 }
 
 /**
@@ -2050,14 +2049,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // dir (e.g. definitions-evaluated, outputs). Resolve and re-derive
       // the cache-relative form so the scoped walker can find the files.
       const resolved = normalize(join(this.cachePath, relPath));
-      const normalizedCache = normalize(this.cachePath);
-      let normalizedRel: string;
-      if (
-        resolved.startsWith(normalizedCache + "/") ||
-        resolved === normalizedCache
-      ) {
-        normalizedRel = relative(this.cachePath, resolved);
-      } else {
+      const normalizedRel = cacheRelativeKey(this.cachePath, resolved);
+      if (normalizedRel === undefined) {
         // Path escapes cache dir — can't scope the walk to it, so
         // fall back to bulk invalidation.
         this.bulkInvalidated = true;
@@ -3211,11 +3204,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           let localPath: string;
           if (overrideLocalPath) {
             const resolved = normalize(overrideLocalPath);
-            const normalizedCache = normalize(this.cachePath);
-            if (
-              !resolved.startsWith(normalizedCache + "/") &&
-              resolved !== normalizedCache
-            ) {
+            if (!isWithinDir(this.cachePath, resolved)) {
               throw new Error(`Path traversal detected: ${overrideLocalPath}`);
             }
             localPath = resolved;
@@ -3455,7 +3444,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                   for await (
                     const entry of walk(absPath, { includeDirs: false })
                   ) {
-                    const rel = relative(this.cachePath, entry.path);
+                    const rel = toKeyPath(relative(this.cachePath, entry.path));
                     if (isInternalCacheFile(rel)) continue;
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
@@ -3521,7 +3510,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               for await (
                 const entry of walk(this.cachePath, { includeDirs: false })
               ) {
-                const rel = relative(this.cachePath, entry.path);
+                const rel = toKeyPath(relative(this.cachePath, entry.path));
                 if (isInternalCacheFile(rel)) continue;
                 if (nsPrefix && !rel.startsWith(nsPrefix)) {
                   soloLayoutSkips++;
@@ -3990,7 +3979,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                   for await (
                     const entry of walk(absPath, { includeDirs: false })
                   ) {
-                    const rel = relative(this.cachePath, entry.path);
+                    const rel = toKeyPath(relative(this.cachePath, entry.path));
                     if (isInternalCacheFile(rel)) continue;
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
@@ -4041,7 +4030,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               for await (
                 const entry of walk(this.cachePath, { includeDirs: false })
               ) {
-                const rel = relative(this.cachePath, entry.path);
+                const rel = toKeyPath(relative(this.cachePath, entry.path));
                 if (isInternalCacheFile(rel)) continue;
                 if (nsPrefix && !rel.startsWith(nsPrefix)) continue;
                 if (isInsideNamespaceDir(rel, namespaceDirs)) continue;

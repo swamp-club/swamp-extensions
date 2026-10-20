@@ -49,6 +49,12 @@ import {
 import type { GcsClient } from "./gcs_client.ts";
 import { atomicWriteTextFile } from "./atomic_write.ts";
 import {
+  cacheRelativeKey,
+  isWithinDir,
+  resolveWithinDir,
+  toKeyPath,
+} from "./path_containment.ts";
+import {
   DATASTORE_FORMAT_MARKER_KEY,
   DatastoreFormatGate,
 } from "./gcs_format_guard.ts";
@@ -58,14 +64,7 @@ import {
  * Prevents path traversal attacks from malicious GCS object names.
  */
 function assertSafePath(cachePath: string, relativePath: string): string {
-  const resolved = normalize(join(cachePath, relativePath));
-  const normalizedCache = normalize(cachePath);
-  if (
-    !resolved.startsWith(normalizedCache + "/") && resolved !== normalizedCache
-  ) {
-    throw new Error(`Path traversal detected: ${relativePath}`);
-  }
-  return resolved;
+  return resolveWithinDir(cachePath, relativePath);
 }
 
 /**
@@ -1959,14 +1958,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         return;
       }
       const resolved = normalize(join(this.cachePath, relPath));
-      const normalizedCache = normalize(this.cachePath);
-      let normalizedRel: string;
-      if (
-        resolved.startsWith(normalizedCache + "/") ||
-        resolved === normalizedCache
-      ) {
-        normalizedRel = relative(this.cachePath, resolved);
-      } else {
+      const normalizedRel = cacheRelativeKey(this.cachePath, resolved);
+      if (normalizedRel === undefined) {
         this.bulkInvalidated = true;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
@@ -3049,11 +3042,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           let localPath: string;
           if (overrideLocalPath) {
             const resolved = normalize(overrideLocalPath);
-            const normalizedCache = normalize(this.cachePath);
-            if (
-              !resolved.startsWith(normalizedCache + "/") &&
-              resolved !== normalizedCache
-            ) {
+            if (!isWithinDir(this.cachePath, resolved)) {
               throw new Error(`Path traversal detected: ${overrideLocalPath}`);
             }
             localPath = resolved;
@@ -3304,7 +3293,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                   for await (
                     const entry of walk(absPath, { includeDirs: false })
                   ) {
-                    const rel = relative(this.cachePath, entry.path);
+                    const rel = toKeyPath(relative(this.cachePath, entry.path));
                     if (isInternalCacheFile(rel)) continue;
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
@@ -3357,7 +3346,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               for await (
                 const entry of walk(this.cachePath, { includeDirs: false })
               ) {
-                const rel = relative(this.cachePath, entry.path);
+                const rel = toKeyPath(relative(this.cachePath, entry.path));
                 if (isInternalCacheFile(rel)) continue;
                 if (nsPrefix && !rel.startsWith(nsPrefix)) {
                   soloLayoutSkips++;
@@ -3811,7 +3800,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                   for await (
                     const entry of walk(absPath, { includeDirs: false })
                   ) {
-                    const rel = relative(this.cachePath, entry.path);
+                    const rel = toKeyPath(relative(this.cachePath, entry.path));
                     if (isInternalCacheFile(rel)) continue;
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
@@ -3862,7 +3851,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               for await (
                 const entry of walk(this.cachePath, { includeDirs: false })
               ) {
-                const rel = relative(this.cachePath, entry.path);
+                const rel = toKeyPath(relative(this.cachePath, entry.path));
                 if (isInternalCacheFile(rel)) continue;
                 if (nsPrefix && !rel.startsWith(nsPrefix)) continue;
                 if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
