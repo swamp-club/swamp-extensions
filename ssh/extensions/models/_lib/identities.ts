@@ -208,7 +208,19 @@ async function prepareAgent(
     // pointed at another host's key. (`ssh-keygen -y -f /dev/stdin` is not
     // an option: OpenSSH's private-key permission check rejects a pipe,
     // which macOS reports as mode 0660.)
+    const env = { SSH_AUTH_SOCK: socket };
+    const add = (key: string) =>
+      helper(
+        opts.sshAddBinary,
+        ["-t", String(opts.keyLifetimeSec), "-"],
+        env,
+        key,
+      );
+    const list = async () =>
+      (await helper(opts.sshAddBinary, ["-L"], env))
+        .split("\n").map((l) => l.trim()).filter((l) => l !== "");
     const pubByKey = new Map<string, string>();
+    const pubById = new Map<string, string>();
     const listed = new Set<string>();
     const patched: EffectiveHost[] = [];
     for (const host of hosts) {
@@ -225,28 +237,37 @@ async function prepareAgent(
       const key = withTrailingNewline(host.transport.identityContent!);
       let pubPath = pubByKey.get(key);
       if (pubPath === undefined) {
-        await helper(
-          opts.sshAddBinary,
-          ["-t", String(opts.keyLifetimeSec), "-"],
-          { SSH_AUTH_SOCK: socket },
-          key,
-        );
-        const lines = (await helper(
-          opts.sshAddBinary,
-          ["-L"],
-          { SSH_AUTH_SOCK: socket },
-        )).split("\n").map((l) => l.trim()).filter((l) => l !== "");
+        await add(key);
+        const lines = await list();
         const added = lines.filter((l) => !listed.has(keyId(l)));
-        if (added.length !== 1) {
+        if (added.length === 0) {
+          // The same key is already loaded under another encoding (PEM vs
+          // OpenSSH format): the agent stores it once, so nothing new is
+          // listed. Find out which by loading it alone, then reload the rest.
+          // Nothing has connected yet, so briefly emptying the agent is safe;
+          // a failed reload throws and the caller kills the agent.
+          await helper(opts.sshAddBinary, ["-D"], env);
+          await add(key);
+          const alone = await list();
+          pubPath = alone.length === 1
+            ? pubById.get(keyId(alone[0]))
+            : undefined;
+          for (const other of pubByKey.keys()) await add(other);
+          if (pubPath === undefined) {
+            throw new Error(
+              `could not identify the loaded key (ssh-add -L listed ${alone.length} keys after loading it alone)`,
+            );
+          }
+        } else if (added.length !== 1) {
           throw new Error(
-            added.length === 0
-              ? "a key was already loaded under another encoding (e.g. PEM vs OpenSSH format); use one encoding per key"
-              : `could not identify the loaded key (ssh-add -L listed ${added.length} new keys)`,
+            `could not identify the loaded key (ssh-add -L listed ${added.length} new keys)`,
           );
+        } else {
+          for (const l of lines) listed.add(keyId(l));
+          pubPath = `${dir}/k${pubById.size}.pub`;
+          await Deno.writeTextFile(pubPath, added[0] + "\n", { mode: 0o600 });
+          pubById.set(keyId(added[0]), pubPath);
         }
-        for (const l of lines) listed.add(keyId(l));
-        pubPath = `${dir}/k${pubByKey.size}.pub`;
-        await Deno.writeTextFile(pubPath, added[0] + "\n", { mode: 0o600 });
         pubByKey.set(key, pubPath);
       }
       patched.push({

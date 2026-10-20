@@ -23,6 +23,11 @@
  * independent of the runner's ssh_config (`HostName` mappings,
  * `ProxyCommand`) and of OpenSSH's `[host]:port` bracket rules.
  *
+ * A ControlMaster opened by a call (`open`, or ControlPersist) outlives that
+ * call's known_hosts file. That is safe: on rekey OpenSSH checks the server's
+ * key against the one cached from the initial key exchange and does not
+ * re-read known_hosts (verified with forced rekeys on OpenSSH 8.0p1, RHEL 8).
+ *
  * Type-only imports from schemas.ts/hosts.ts: schemas.ts imports this module
  * for validation, so a value import back would be a runtime cycle.
  *
@@ -31,6 +36,7 @@
 
 import type { EffectiveTransport } from "./hosts.ts";
 import type { HostKeyPolicy } from "./schemas.ts";
+import { toHex } from "./hex.ts";
 
 type SshEffective = Extract<EffectiveTransport, { kind: "ssh" }>;
 
@@ -100,9 +106,7 @@ async function sha256Hex(value: string): Promise<string> {
     "SHA-256",
     new TextEncoder().encode(value),
   );
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(new Uint8Array(digest));
 }
 
 /** Stable short digest of `address:port`, shared by alias and pin name. */

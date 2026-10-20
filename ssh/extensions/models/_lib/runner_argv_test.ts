@@ -1100,11 +1100,14 @@ Deno.test("stagingPath: hidden sibling of dst", () => {
   assertEquals(stagingPath("app.conf", "t0k"), ".app.conf.swamp-t0k");
 });
 
+/** Run the finalize script under a real sh, with `umask` set first if given. */
 async function runFinalize(
   f: Parameters<typeof atomicFinalizeCommand>[0],
+  umask?: string,
 ): Promise<{ code: number; stderr: string }> {
+  const cmd = atomicFinalizeCommand(f);
   const out = await new Deno.Command("sh", {
-    args: ["-c", atomicFinalizeCommand(f)],
+    args: ["-c", umask === undefined ? cmd : `umask ${umask}; ${cmd}`],
     stderr: "piped",
   }).output();
   return { code: out.code, stderr: new TextDecoder().decode(out.stderr) };
@@ -1195,7 +1198,7 @@ Deno.test("atomicFinalizeCommand: keeps an existing dst's mode when mode is not 
     await Deno.chmod(dst, 0o640);
     await Deno.writeTextFile(staging, "new");
     await Deno.chmod(staging, 0o600);
-    const r = await runFinalize({ staging, dst, defaultMode: "644" });
+    const r = await runFinalize({ staging, dst, defaultMode: "644" }, "077");
     assertEquals(r.code, 0, r.stderr);
     assertEquals(await Deno.readTextFile(dst), "new");
     assertEquals((await Deno.stat(dst)).mode! & 0o777, 0o640);
@@ -1206,19 +1209,48 @@ Deno.test("atomicFinalizeCommand: keeps an existing dst's mode when mode is not 
   }
 });
 
-Deno.test("atomicFinalizeCommand: a new dst gets the default (source) mode", async () => {
+/** Finalize a new dst from `defaultMode` under `umask`; returns its mode. */
+async function newDstMode(defaultMode: string, umask: string): Promise<number> {
   const dir = await Deno.makeTempDir();
   try {
     const staging = `${dir}/.f.swamp-x`;
     await Deno.writeTextFile(staging, "new");
     await Deno.chmod(staging, 0o600);
-    const r = await runFinalize({
-      staging,
-      dst: `${dir}/f`,
-      defaultMode: "644",
-    });
+    const r = await runFinalize(
+      { staging, dst: `${dir}/f`, defaultMode },
+      umask,
+    );
     assertEquals(r.code, 0, r.stderr);
-    assertEquals((await Deno.stat(`${dir}/f`)).mode! & 0o777, 0o644);
+    return (await Deno.stat(`${dir}/f`)).mode! & 0o7777;
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
+Deno.test("atomicFinalizeCommand: a new dst gets the default (source) mode", async () => {
+  assertEquals(await newDstMode("644", "022"), 0o644);
+});
+
+Deno.test("atomicFinalizeCommand: a new dst gets the remote umask applied, like scp", async () => {
+  assertEquals(await newDstMode("664", "027"), 0o640);
+});
+
+Deno.test("atomicFinalizeCommand: a new dst drops setuid/setgid/sticky from the source mode", async () => {
+  assertEquals(await newDstMode("4755", "027"), 0o750);
+  assertEquals(await newDstMode("3777", "022"), 0o755);
+});
+
+Deno.test("atomicFinalizeCommand: an explicit mode is applied exactly, setuid included", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.f.swamp-x`;
+    await Deno.writeTextFile(staging, "new");
+    const r = await runFinalize(
+      { staging, dst: `${dir}/f`, mode: "4755", defaultMode: "644" },
+      "077",
+    );
+    assertEquals(r.code, 0, r.stderr);
+    assertEquals((await Deno.stat(`${dir}/f`)).mode! & 0o7777, 0o4755);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

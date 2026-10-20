@@ -26,6 +26,7 @@
 import {
   assert,
   assertEquals,
+  assertNotEquals,
   assertRejects,
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
@@ -737,16 +738,23 @@ const PEM_1 =
   "-----BEGIN OPENSSH PRIVATE KEY-----\none\n-----END OPENSSH PRIVATE KEY-----\n";
 const PEM_2 =
   "-----BEGIN OPENSSH PRIVATE KEY-----\ntwo\n-----END OPENSSH PRIVATE KEY-----\n";
+// PEM_1's key in the older PEM encoding: different text, same public key.
+const PEM_1_RSA =
+  "-----BEGIN RSA PRIVATE KEY-----\none\n-----END RSA PRIVATE KEY-----\n";
 
 /**
  * Fake ssh-agent / ssh-add: `ssh-add -` loads the key on stdin, `ssh-add -L`
- * lists loaded keys in load order, as the real agent does. ssh succeeds.
+ * lists loaded keys in load order, as the real agent does. Like the real
+ * agent it holds a key once, whatever its encoding; `ssh-add -D` empties it.
+ * `failAddAt` fails only the nth key load (1-based). ssh succeeds.
  */
 function agentExecutor(
   requests: ExecRequest[],
   failAdd = false,
+  failAddAt?: number,
 ): CommandExecutor {
   const loaded: string[] = [];
+  let adds = 0;
   return (req) => {
     requests.push(req);
     if (req.command === "ssh-agent") {
@@ -767,10 +775,23 @@ function agentExecutor(
         stderr: "Could not open a connection to your authentication agent.",
       });
     }
+    if (req.command === "ssh-add" && req.args[0] === "-D") {
+      loaded.length = 0;
+      return ok();
+    }
+    if (req.command === "ssh-add" && ++adds === failAddAt) {
+      return Promise.resolve({
+        code: 1,
+        signal: null,
+        stdout: "",
+        stderr: "agent refused operation",
+      });
+    }
     if (req.command === "ssh-add") {
-      loaded.push(
-        req.stdin === PEM_1 ? `${KEY_A} (stdin)` : `${KEY_B} (stdin)`,
-      );
+      const line = req.stdin === PEM_1 || req.stdin === PEM_1_RSA
+        ? `${KEY_A} (stdin)`
+        : `${KEY_B} (stdin)`;
+      if (!loaded.includes(line)) loaded.push(line);
     }
     return ok();
   };
@@ -839,6 +860,139 @@ Deno.test({
       )!;
       assertEquals(kill.env.SSH_AGENT_PID, "4242");
       assert(!(await exists(socket.slice(0, socket.lastIndexOf("/")))));
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+});
+
+/** Three hosts: PEM_1, PEM_2, then PEM_1's key in the PEM encoding. */
+function twoEncodingsFleet(extra: Record<string, unknown> = {}) {
+  return harness({
+    ...fleet({}),
+    ...extra,
+    hosts: [
+      { name: "a", address: "10.0.0.1", transport: { identityContent: PEM_1 } },
+      { name: "b", address: "10.0.0.2", transport: { identityContent: PEM_2 } },
+      {
+        name: "c",
+        address: "10.0.0.3",
+        transport: { identityContent: PEM_1_RSA },
+      },
+    ],
+  });
+}
+
+for (const mode of ["auto", "agent"] as const) {
+  Deno.test({
+    name:
+      `identityContent ${mode}: the same key in two encodings shares one .pub`,
+    fn: async () => {
+      const h = twoEncodingsFleet({ identityContentMode: mode });
+      const requests: ExecRequest[] = [];
+      const identity = new Map<string, string>();
+      const inner = agentExecutor(requests);
+      setCommandExecutor((req) => {
+        if (req.command === "ssh") {
+          const i = req.args.indexOf("-i");
+          identity.set(req.args.at(-2)!, req.args[i + 1]);
+          assert(
+            !req.args[i + 1].includes("swamp-ssh-key-"),
+            "no private key file",
+          );
+        }
+        return inner(req);
+      });
+      try {
+        await model.methods.exec.execute(
+          model.methods.exec.arguments.parse({
+            hosts: "all",
+            command: "true",
+          }),
+          h.ctx,
+        );
+        assertEquals(
+          identity.get("deploy@10.0.0.3"),
+          identity.get("deploy@10.0.0.1"),
+        );
+        assertNotEquals(
+          identity.get("deploy@10.0.0.2"),
+          identity.get("deploy@10.0.0.1"),
+        );
+        // Identified by loading it alone, then the other keys were reloaded.
+        const adds = requests.filter((r) =>
+          r.command === "ssh-add" && r.args[0] !== "-L"
+        );
+        assertEquals(adds.map((r) => r.args[0] === "-D" ? "-D" : r.stdin), [
+          PEM_1,
+          PEM_2,
+          PEM_1_RSA,
+          "-D",
+          PEM_1_RSA,
+          PEM_1,
+          PEM_2,
+        ]);
+        assertEquals(h.warns, []);
+      } finally {
+        resetCommandExecutor();
+      }
+    },
+  });
+}
+
+Deno.test({
+  name:
+    "identityContent auto: a failed reload after identifying a duplicate falls back to the temp file",
+  fn: async () => {
+    const h = twoEncodingsFleet();
+    const requests: ExecRequest[] = [];
+    // Loads: PEM_1, PEM_2, PEM_1_RSA, PEM_1_RSA alone, then the PEM_1 reload.
+    setCommandExecutor(agentExecutor(requests, false, 5));
+    try {
+      await model.methods.exec.execute(
+        model.methods.exec.arguments.parse({ hosts: "all", command: "true" }),
+        h.ctx,
+      );
+      const ssh = requests.filter((r) => r.command === "ssh");
+      assertEquals(ssh.length, 3);
+      for (const r of ssh) {
+        assert(r.args[r.args.indexOf("-i") + 1].includes("swamp-ssh-key-"));
+        assertEquals(opt(r, "IdentityAgent"), undefined);
+      }
+      assert(h.warns.some((w) => w.includes("temporary key file")));
+      assert(
+        requests.some((r) => r.command === "ssh-agent" && r.args[0] === "-k"),
+      );
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "identityContent agent mode: a failed reload after identifying a duplicate fails closed",
+  fn: async () => {
+    const h = twoEncodingsFleet({ identityContentMode: "agent" });
+    const requests: ExecRequest[] = [];
+    setCommandExecutor(agentExecutor(requests, false, 5));
+    try {
+      await assertRejects(
+        () =>
+          model.methods.exec.execute(
+            model.methods.exec.arguments.parse({
+              hosts: "all",
+              command: "true",
+            }),
+            h.ctx,
+          ),
+        Error,
+        "agent refused operation",
+      );
+      assert(!requests.some((r) => r.command === "ssh"), "never connected");
+      assert(
+        requests.some((r) => r.command === "ssh-agent" && r.args[0] === "-k"),
+      );
     } finally {
       resetCommandExecutor();
     }
@@ -1583,6 +1737,174 @@ Deno.test("repin: a failed pin write still retires the old master", async () => 
     );
     assert(requests.some((r) => r.args[0] === "-O" && r.args[1] === "exit"));
     assert(h.writes.some((w) => w.specName === "runResult"));
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+/** Two tofu hosts; only web-1's pin write fails. */
+function twoHostsFirstPinFails(
+  seed: Record<string, Record<string, unknown>> = {},
+) {
+  const h = harness(
+    fleet({ hostKeyPolicy: "tofu" }, {
+      hosts: [
+        { name: "web-1", address: "10.0.0.1" },
+        { name: "web-2", address: "10.0.0.2" },
+      ],
+    }),
+    seed,
+  );
+  const write = h.ctx.writeResource;
+  h.ctx.writeResource = (spec, name, data, o) =>
+    spec === "hostKeyPin" && o?.tags?.host === "web-1"
+      ? Promise.reject(new Error("datastore unavailable"))
+      : write(spec, name, data, o);
+  return h;
+}
+
+/** `-O exit` requests aimed at `address`. */
+function exitsFor(requests: ExecRequest[], address: string): ExecRequest[] {
+  return requests.filter((r) =>
+    r.args[0] === "-O" && r.args[1] === "exit" &&
+    r.args.some((a) => a.endsWith(`@${address}`))
+  );
+}
+
+Deno.test("tofu: a failed pin write does not stop later hosts being pinned", async () => {
+  const h = twoHostsFirstPinFails();
+  const requests: ExecRequest[] = [];
+  setCommandExecutor(acceptNew(KEY_A_B64, requests));
+  try {
+    await assertRejects(
+      () =>
+        model.methods.exec.execute(
+          model.methods.exec.arguments.parse({ hosts: "all", command: "true" }),
+          h.ctx,
+        ),
+      Error,
+      "datastore unavailable",
+    );
+    const pins = h.writes.filter((w) => w.specName === "hostKeyPin");
+    assertEquals(pins.map((w) => w.tags?.host), ["web-2"]);
+    // Only the unpinned master is retired; web-2's pinned master stays up.
+    assertEquals(exitsFor(requests, "10.0.0.1").length, 1);
+    assertEquals(exitsFor(requests, "10.0.0.2").length, 0);
+    const runs = h.writes.filter((w) => w.specName === "runResult");
+    assertEquals(runs.map((w) => w.tags?.host).sort(), ["web-1", "web-2"]);
+    const run1 = runs.find((w) => w.tags?.host === "web-1")!;
+    assertStringIncludes(String(run1.data.error), "datastore unavailable");
+    const run2 = runs.find((w) => w.tags?.host === "web-2")!;
+    assertEquals(run2.data.error ?? null, null);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("tofu: a failed pin write does not stop a later host's refusal being typed", async () => {
+  const pin = await pinFor("10.0.0.2", 22, KEY_A_B64);
+  const h = twoHostsFirstPinFails({ [pin.name]: pin.data });
+  const presented = await computeFingerprint(KEY_B_B64);
+  const accept = acceptNew(KEY_A_B64);
+  setCommandExecutor((req) =>
+    req.args.some((a) => a.endsWith("@10.0.0.2")) &&
+      !(req.args[0] === "-O")
+      ? Promise.resolve({
+        code: 255,
+        signal: null,
+        stdout: "",
+        stderr: CHANGED_KEY_STDERR(presented),
+      })
+      : accept(req)
+  );
+  try {
+    await assertRejects(
+      () =>
+        model.methods.exec.execute(
+          model.methods.exec.arguments.parse({ hosts: "all", command: "true" }),
+          h.ctx,
+        ),
+      Error,
+      "datastore unavailable",
+    );
+    const run2 = h.writes.find((w) =>
+      w.specName === "runResult" && w.tags?.host === "web-2"
+    )!;
+    assertStringIncludes(
+      String(run2.data.error),
+      "host key changed for 10.0.0.2:22",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("tofu: an unexpected settle error retires only the masters left unpinned", async () => {
+  const h = harness(
+    fleet({ hostKeyPolicy: "tofu" }, {
+      hosts: [
+        { name: "web-1", address: "10.0.0.1" },
+        { name: "web-2", address: "10.0.0.2" },
+      ],
+    }),
+  );
+  const requests: ExecRequest[] = [];
+  // web-2's recorded key is not valid base64, so fingerprinting it throws.
+  setCommandExecutor(async (req) => {
+    requests.push(req);
+    const file = opt(req, "UserKnownHostsFile");
+    const alias = opt(req, "HostKeyAlias");
+    if (file && alias && opt(req, "StrictHostKeyChecking") === "accept-new") {
+      const b64 = req.args.some((a) => a.endsWith("@10.0.0.2"))
+        ? "A"
+        : KEY_A_B64;
+      await Deno.writeTextFile(file, `${alias} ssh-ed25519 ${b64}\n`);
+    }
+    return await ok();
+  });
+  try {
+    await assertRejects(() =>
+      model.methods.exec.execute(
+        model.methods.exec.arguments.parse({ hosts: "all", command: "true" }),
+        h.ctx,
+      )
+    );
+    const pins = h.writes.filter((w) => w.specName === "hostKeyPin");
+    assertEquals(pins.map((w) => w.tags?.host), ["web-1"]);
+    assertEquals(exitsFor(requests, "10.0.0.1").length, 0);
+    assertEquals(exitsFor(requests, "10.0.0.2").length, 1);
+    assertEquals(
+      h.writes.filter((w) => w.specName === "runResult").length,
+      2,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("open: a failed pin write audits only that host's master as an error", async () => {
+  const h = twoHostsFirstPinFails();
+  const requests: ExecRequest[] = [];
+  setCommandExecutor(acceptNew(KEY_A_B64, requests));
+  try {
+    await assertRejects(
+      () =>
+        model.methods.open.execute(
+          model.methods.open.arguments.parse({ hosts: "all" }),
+          h.ctx,
+        ),
+      Error,
+      "datastore unavailable",
+    );
+    const pins = h.writes.filter((w) => w.specName === "hostKeyPin");
+    assertEquals(pins.map((w) => w.tags?.host), ["web-2"]);
+    const audit = (host: string) =>
+      h.writes.find((w) =>
+        w.specName === "masterAudit" && w.name === `masterAudit-${host}`
+      )!.data.outcome;
+    assertEquals(audit("web-1"), "error");
+    assertEquals(audit("web-2"), "ok");
+    assertEquals(exitsFor(requests, "10.0.0.2").length, 0);
   } finally {
     resetCommandExecutor();
   }

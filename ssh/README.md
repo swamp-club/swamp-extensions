@@ -230,6 +230,8 @@ key; a configured `identityAgent` is replaced for the call, with a warning. The
 per-call agent is never forwarded: agent-loaded hosts get `ForwardAgent=no`,
 which overrides `extraOptions` and `ForwardAgent yes` in the runner's
 `ssh_config` (otherwise a target could sign as any other host in the call).
+Hosts may carry the same key in different encodings (PEM or OpenSSH format);
+they share one loaded key.
 
 `identityFile` and `identityContent` are mutually exclusive. Setting both is a
 validation error. Setting neither is fine — the SSH agent is consulted.
@@ -638,10 +640,10 @@ including a failed upload or a finalize step that could not connect.
 The rename replaces `dst` with a new file, so attributes are set explicitly
 rather than inherited:
 
-| Attribute | With the option               | Without it, existing `dst`                                                                                    | Without it, new `dst`                                   |
-| --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| mode      | `mode` (setuid/setgid kept)   | the existing file's mode                                                                                      | the local source file's mode (0600 on a Windows runner) |
-| owner     | `owner` (needs the privilege) | the existing owner when the ssh user may set it; otherwise the ssh user, with a warning in the run's `stderr` | the ssh user                                            |
+| Attribute | With the option               | Without it, existing `dst`                                                                                    | Without it, new `dst`                                                                                                                |
+| --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| mode      | `mode` (setuid/setgid kept)   | the existing file's mode                                                                                      | the local source file's permission bits less the remote umask, as scp does — setuid/setgid/sticky dropped (0600 on a Windows runner) |
+| owner     | `owner` (needs the privilege) | the existing owner when the ssh user may set it; otherwise the ssh user, with a warning in the run's `stderr` | the ssh user                                                                                                                         |
 
 A `dst` that is a directory or a symlink is refused rather than having the file
 moved into the directory or replacing the link — point `dst` at the link's

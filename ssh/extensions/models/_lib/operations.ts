@@ -38,6 +38,7 @@ import {
   type Targeting,
 } from "./schemas.ts";
 import { type EffectiveHost, effectiveHosts } from "./hosts.ts";
+import { toHex } from "./hex.ts";
 import {
   computeFingerprint,
   effectiveHostKeyPolicy,
@@ -594,12 +595,21 @@ async function settleHostKeys(
   // tofu ControlPath does not change when a pin is written).
   const rejected: EffectiveHost[] = [];
   const hostOf = (name: string) => prepared.hosts.find((h) => h.name === name)!;
+  // The first pin write that failed. Every host is still settled — later
+  // hosts get their errors typed and their pins written — and the error is
+  // rethrown once the batch is done.
+  let writeError: unknown;
+  const pinnedHosts = new Set<string>();
   try {
     await settleEach();
   } catch (err) {
-    // A failed pin write leaves the first-contact master unpinned.
+    // Anything else that throws (a malformed key ssh recorded) stops the
+    // batch: no first-contact master left unpinned may serve later calls.
     for (const r of results) {
-      if (prepared.hostKeys.get(r.host)?.readBack) {
+      if (
+        prepared.hostKeys.get(r.host)?.readBack && !pinnedHosts.has(r.host) &&
+        !rejected.some((h) => h.name === r.host)
+      ) {
         rejected.push(hostOf(r.host));
       }
     }
@@ -607,6 +617,7 @@ async function settleHostKeys(
   } finally {
     if (rejected.length > 0 && !opts.repin) await retireMasters(g, rejected);
   }
+  if (writeError !== undefined) throw writeError;
   return handles;
 
   async function settleEach(): Promise<void> {
@@ -717,14 +728,23 @@ async function settleHostKeys(
         pinnedAt: now,
         ...(opts.repin && previous ? { previousFingerprints: previous } : {}),
       };
-      handles.push(
-        await ctx.writeResource(
-          "hostKeyPin",
-          state.pinName,
-          pin as unknown as Record<string, unknown>,
-          { tags: { fleet: g.name, host: r.host } },
-        ),
-      );
+      try {
+        handles.push(
+          await ctx.writeResource(
+            "hostKeyPin",
+            state.pinName,
+            pin as unknown as Record<string, unknown>,
+            { tags: { fleet: g.name, host: r.host } },
+          ),
+        );
+      } catch (err) {
+        // A failed pin write leaves this first-contact master unpinned.
+        r.error = err instanceof Error ? err.message : String(err);
+        writeError ??= err;
+        if (!opts.repin) rejected.push(hostOf(r.host));
+        continue;
+      }
+      pinnedHosts.add(r.host);
       if (opts.repin) {
         ctx.logger.warn("repinned {host}: {previous} -> {current}", {
           host: r.host,
@@ -736,18 +756,6 @@ async function settleHostKeys(
   }
 }
 
-/**
- * Persist one RunResult resource and return its handle.
- *
- * The write is tagged with the run's outcome metadata so a `runModel` caller
- * holding the returned handle can branch on `handle.tags.exitCode` without
- * reading resource content, and so the audit trail is queryable by tag
- * (e.g. every non-zero exec on a given host). Tag values are always strings.
- *
- * `exitCode` is omitted when the process produced none — killed by a signal
- * or failed to spawn. An absent tag is the honest encoding: there was no
- * exit status, which is not the same as exit 0 or any other number.
- */
 /**
  * settleHostKeys, then write every host's run record — also when settling
  * throws (a failed pin write), so the audit trail of commands that already
@@ -772,6 +780,18 @@ async function settleAndRecord(
   return [...pins, ...runs];
 }
 
+/**
+ * Persist one RunResult resource and return its handle.
+ *
+ * The write is tagged with the run's outcome metadata so a `runModel` caller
+ * holding the returned handle can branch on `handle.tags.exitCode` without
+ * reading resource content, and so the audit trail is queryable by tag
+ * (e.g. every non-zero exec on a given host). Tag values are always strings.
+ *
+ * `exitCode` is omitted when the process produced none — killed by a signal
+ * or failed to spawn. An absent tag is the honest encoding: there was no
+ * exit status, which is not the same as exit 0 or any other number.
+ */
 async function writeRunResult(
   ctx: FleetContext,
   result: HostRunResult,
@@ -973,15 +993,11 @@ async function sha256FileHex(path: string): Promise<string> {
     );
   }
   const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(new Uint8Array(digest));
 }
 
 function randomToken(): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
 /** Did this stage fail (anything but a clean exit 0)? */
@@ -1740,6 +1756,11 @@ export async function runRepin(
       ...runOptions(g, args, "repin", {}),
       capture: true,
     });
+    // Taken before settling, which sets `error` on a host whose pin write
+    // failed — that host's old master must still be retired.
+    const probed = results
+      .filter((r) => r.error === undefined && r.exitCode === 0)
+      .map((r) => prepared.hosts.find((h) => h.name === r.host)!);
     let handles: DataHandle[];
     try {
       handles = await settleAndRecord(ctx, g, prepared, results, {
@@ -1750,12 +1771,7 @@ export async function runRepin(
       // pin write threw: the tofu ControlPath does not change on repin, so
       // later calls would otherwise keep multiplexing over it until
       // ControlPersist expires.
-      await retireMasters(
-        g,
-        results
-          .filter((r) => r.error === undefined && r.exitCode === 0)
-          .map((r) => prepared.hosts.find((h) => h.name === r.host)!),
-      );
+      await retireMasters(g, probed);
     }
 
     throwOnHostFailures(results, "repin");
@@ -1790,9 +1806,7 @@ async function selectorHash(normalized: string): Promise<string> {
       new TextEncoder().encode(normalized),
     ),
   );
-  return [...digest.slice(0, 6)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(digest.slice(0, 6));
 }
 
 /**

@@ -31,6 +31,7 @@
 
 import type { EffectiveHost } from "./hosts.ts";
 import { hostKeyPolicyDigest } from "./host_keys.ts";
+import { toHex } from "./hex.ts";
 
 // macOS sockaddr_un.sun_path is 104 bytes including the null terminator;
 // the max usable string length is 103. Linux is 108 (107 usable). Use the
@@ -98,9 +99,7 @@ export async function safeFleetDir(
 export async function sha1Hex(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-1", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(new Uint8Array(digest));
 }
 
 /**

@@ -422,7 +422,10 @@ export interface AtomicFinalize {
   mode?: string;
   owner?: string;
   sha256?: string;
-  /** Mode for a dst that does not exist yet (the local source's mode). */
+  /**
+   * The local source's mode, for a dst that does not exist yet. Finalize
+   * keeps only its permission bits and applies the remote umask, as scp does.
+   */
   defaultMode?: string;
 }
 
@@ -435,9 +438,13 @@ export interface AtomicFinalize {
 // refuses a symlink or directory at dst (mv would replace the link, or move
 // the file into the directory); keeps an existing dst's owner unless `owner`
 // is given — warning on stderr, not failing, when the ssh user may not chown;
-// and keeps an existing dst's mode unless `mode` is given, falling back to
-// the local source's mode for a new file. chown runs before chmod because
-// chown clears setuid/setgid. `stat` is tried GNU-style, then BSD-style.
+// and keeps an existing dst's mode unless `mode` is given. A new file gets
+// what scp would give it: the local source's permission bits (no
+// setuid/setgid/sticky) less the remote umask. That is worked out one octal
+// digit at a time: a single digit reads the same in any base, so it does not
+// rely on the shell parsing a leading 0 as octal (mksh does not). chown runs
+// before chmod because chown clears setuid/setgid. `stat` is tried GNU-style,
+// then BSD-style.
 const ATOMIC_FINALIZE_SCRIPT = [
   "set -e",
   "s=$1; d=$2; m=$3; o=$4; h=$5; dm=$6",
@@ -459,7 +466,13 @@ const ATOMIC_FINALIZE_SCRIPT = [
   'if [ -z "$m" ] && [ -e "$d" ]; then',
   '  m=$(stat -c %a -- "$d" 2>/dev/null || stat -f %Mp%Lp -- "$d")',
   "fi",
-  'if [ -z "$m" ]; then m=$dm; fi',
+  'if [ -z "$m" ] && [ -n "$dm" ]; then',
+  '  x=000$dm; x=${x#"${x%???}"}; k=000$(umask); k=${k#"${k%???}"}; m=',
+  '  while [ -n "$x" ]; do',
+  '    m=$m$(( ${x%"${x#?}"} & ~${k%"${k#?}"} & 7 ))',
+  "    x=${x#?}; k=${k#?}",
+  "  done",
+  "fi",
   'if [ -n "$m" ]; then chmod -- "$m" "$s"; fi',
   'mv -f -- "$s" "$d"',
 ].join("\n");
