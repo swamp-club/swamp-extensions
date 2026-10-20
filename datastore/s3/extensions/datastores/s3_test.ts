@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { join } from "jsr:@std/path@1";
 import {
   assert,
   assertEquals,
@@ -86,7 +87,7 @@ Deno.test("provider.resolveDatastorePath returns .swamp under repoDir", () => {
   const provider = datastore.createProvider({ bucket: "my-test-bucket" });
   assertEquals(
     provider.resolveDatastorePath("/tmp/my-repo"),
-    "/tmp/my-repo/.swamp",
+    join("/tmp/my-repo", ".swamp"),
   );
 });
 

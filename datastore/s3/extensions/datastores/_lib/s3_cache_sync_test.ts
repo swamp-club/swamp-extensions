@@ -25,7 +25,7 @@ import {
   assertExists,
   assertRejects,
 } from "jsr:@std/assert@1.0.19";
-import { join } from "jsr:@std/path@1";
+import { dirname, join } from "jsr:@std/path@1";
 import { ensureDir, walk } from "jsr:@std/fs@1";
 import {
   isDatastoreWideControlKey,
@@ -237,12 +237,7 @@ async function seedFile(
   contents: string,
 ): Promise<void> {
   const full = join(cachePath, relPath);
-  const parent = full.substring(0, full.lastIndexOf("/"));
-  if (parent && parent !== cachePath) {
-    await Deno.mkdir(parent, { recursive: true });
-  } else {
-    await Deno.mkdir(cachePath, { recursive: true });
-  }
+  await Deno.mkdir(dirname(full), { recursive: true });
   await Deno.writeTextFile(full, contents);
 }
 

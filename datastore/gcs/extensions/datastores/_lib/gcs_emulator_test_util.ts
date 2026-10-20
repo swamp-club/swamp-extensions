@@ -305,7 +305,10 @@ export async function withGcsEmulator(
   ) => Promise<void>,
 ): Promise<void> {
   const { handler, state } = createGcsEmulatorHandler(options);
-  const server = Deno.serve({ port: 0, onListen() {} }, handler);
+  const server = Deno.serve(
+    { port: 0, hostname: "127.0.0.1", onListen() {} },
+    handler,
+  );
   const { port } = server.addr as Deno.NetAddr;
   try {
     const endpoint = `http://127.0.0.1:${port}`;

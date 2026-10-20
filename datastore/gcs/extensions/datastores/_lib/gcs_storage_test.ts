@@ -123,6 +123,10 @@ Deno.test({
       await arrival;
       controller.abort();
       await assertRejects(() => put);
+      // Give the emulator time to see the connection close before the held
+      // request resumes: where the loopback buffers the whole body (Windows),
+      // it would otherwise read the complete upload and commit it.
+      await new Promise((r) => setTimeout(r, 50));
       release();
       // Let the emulator finish the request it was holding.
       await new Promise((r) => setTimeout(r, 50));

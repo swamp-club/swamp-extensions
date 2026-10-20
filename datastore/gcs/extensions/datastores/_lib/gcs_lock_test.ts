@@ -766,7 +766,7 @@ Deno.test({
     let uploads = 0;
     const ac = new AbortController();
     const server = Deno.serve(
-      { port: 0, signal: ac.signal, onListen() {} },
+      { port: 0, hostname: "127.0.0.1", signal: ac.signal, onListen() {} },
       async (req) => {
         const url = new URL(req.url);
 
@@ -1390,7 +1390,7 @@ function startGcsEmulator(): GcsEmulator {
   const ac = new AbortController();
   const emulator = {} as GcsEmulator;
   const server = Deno.serve(
-    { port: 0, signal: ac.signal, onListen() {} },
+    { port: 0, hostname: "127.0.0.1", signal: ac.signal, onListen() {} },
     async (req) => {
       const url = new URL(req.url);
       const ifGen = url.searchParams.get("ifGenerationMatch");
@@ -1510,13 +1510,13 @@ httpTest(
   async () => {
     const gcs = startGcsEmulator();
     try {
-      const lock = new GcsLock(gcs.client, { ttlMs: 600 }); // 200ms heartbeat
+      const lock = new GcsLock(gcs.client, { ttlMs: 3000 }); // 1s heartbeat
       const warnings = await captureWarnings(async () => {
         await lock.acquire();
         gcs.dropUploadResponses = true;
-        await sleep(250); // one extend lands, answered 503
+        await sleep(1250); // one extend lands, answered 503
         gcs.dropUploadResponses = false;
-        await sleep(500); // 412 on the stale generation, read back, adopt
+        await sleep(1500); // 412 on the stale generation, read back, adopt
         const info = await lock.inspect();
         assert(info !== null, "the lock disappeared");
         await lock.release();

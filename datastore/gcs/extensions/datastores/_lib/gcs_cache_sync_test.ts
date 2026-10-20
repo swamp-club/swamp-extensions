@@ -25,7 +25,7 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
-import { join } from "jsr:@std/path@1";
+import { dirname, join } from "jsr:@std/path@1";
 import {
   GcsCacheSyncService,
   isDatastoreWideControlKey,
@@ -306,12 +306,7 @@ async function seedFile(
   contents: string,
 ): Promise<void> {
   const full = join(cachePath, relPath);
-  const parent = full.substring(0, full.lastIndexOf("/"));
-  if (parent && parent !== cachePath) {
-    await Deno.mkdir(parent, { recursive: true });
-  } else {
-    await Deno.mkdir(cachePath, { recursive: true });
-  }
+  await Deno.mkdir(dirname(full), { recursive: true });
   await Deno.writeTextFile(full, contents);
 }
 
@@ -2064,13 +2059,11 @@ function startIntegrationServer(
 ): { url: string; shutdown: () => Promise<void> } {
   const ac = new AbortController();
   const server = Deno.serve(
-    { port: 0, signal: ac.signal, onListen() {} },
+    { port: 0, hostname: "127.0.0.1", signal: ac.signal, onListen() {} },
     handler,
   );
   const addr = server.addr;
-  const url = `http://${
-    addr.hostname === "::" ? "localhost" : addr.hostname
-  }:${addr.port}`;
+  const url = `http://127.0.0.1:${addr.port}`;
   return {
     url,
     shutdown: async () => {

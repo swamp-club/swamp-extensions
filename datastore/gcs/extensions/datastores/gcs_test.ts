@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { join } from "jsr:@std/path@1";
 import {
   assert,
   assertEquals,
@@ -84,7 +85,7 @@ Deno.test("provider.resolveDatastorePath returns .swamp under repoDir", () => {
   const provider = datastore.createProvider({ bucket: "my-test-bucket" });
   assertEquals(
     provider.resolveDatastorePath("/tmp/my-repo"),
-    "/tmp/my-repo/.swamp",
+    join("/tmp/my-repo", ".swamp"),
   );
 });
 
@@ -147,14 +148,17 @@ Deno.test({
   name: "gcs verifier: reports unhealthy when bucket is not accessible",
   sanitizeResources: false,
   fn: async () => {
-    const server = Deno.serve({ port: 0, onListen() {} }, (_req) => {
-      return new Response(
-        JSON.stringify({
-          error: { code: 404, message: "Not Found" },
-        }),
-        { status: 404, headers: { "Content-Type": "application/json" } },
-      );
-    });
+    const server = Deno.serve(
+      { port: 0, hostname: "127.0.0.1", onListen() {} },
+      (_req) => {
+        return new Response(
+          JSON.stringify({
+            error: { code: 404, message: "Not Found" },
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    );
 
     const addr = server.addr as Deno.NetAddr;
     const endpoint = `http://localhost:${addr.port}`;
@@ -239,166 +243,174 @@ function createMockGcsServer(opts: {
         },
       );
 
-  const server = Deno.serve({ port: 0, onListen() {} }, async (req) => {
-    const url = new URL(req.url);
-    const path = url.pathname;
+  const server = Deno.serve(
+    { port: 0, hostname: "127.0.0.1", onListen() {} },
+    async (req) => {
+      const url = new URL(req.url);
+      const path = url.pathname;
 
-    // LIST objects: GET /storage/v1/b/{bucket}/o
-    if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+\/o$/)) {
-      const prefix = url.searchParams.get("prefix") ?? "";
-      const items = [...storage.entries()]
-        .filter(([k]) => k.startsWith(prefix))
-        .map(([k, v]) => ({
-          name: k,
-          size: String(v.length),
-          generation: String(generations.get(k) ?? 1),
-          updated: "2026-01-01T00:00:00.000Z",
-        }));
-      return new Response(JSON.stringify({ kind: "storage#objects", items }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // GET object: GET /storage/v1/b/{bucket}/o/{key}?alt=media
-    if (
-      req.method === "GET" &&
-      path.match(/\/storage\/v1\/b\/[^/]+\/o\//) &&
-      url.searchParams.get("alt") === "media"
-    ) {
-      const objectName = decodeURIComponent(
-        path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
-      );
-      const data = storage.get(objectName);
-      if (data) {
-        return new Response(data.buffer as ArrayBuffer, {
-          status: 200,
-          headers: {
-            "x-goog-generation": String(generations.get(objectName) ?? 1),
-          },
-        });
-      }
-      return new Response(
-        JSON.stringify({ error: { code: 404, message: "Not Found" } }),
-        { status: 404, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // DELETE object: DELETE /storage/v1/b/{bucket}/o/{key}
-    if (req.method === "DELETE") {
-      if (opts.denyDelete) {
+      // LIST objects: GET /storage/v1/b/{bucket}/o
+      if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+\/o$/)) {
+        const prefix = url.searchParams.get("prefix") ?? "";
+        const items = [...storage.entries()]
+          .filter(([k]) => k.startsWith(prefix))
+          .map(([k, v]) => ({
+            name: k,
+            size: String(v.length),
+            generation: String(generations.get(k) ?? 1),
+            updated: "2026-01-01T00:00:00.000Z",
+          }));
         return new Response(
-          JSON.stringify({ error: { code: 403, message: "Forbidden" } }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      const objectName = decodeURIComponent(
-        path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
-      );
-      storage.delete(objectName);
-      generations.delete(objectName);
-      return new Response(null, { status: 204 });
-    }
-
-    // PUT object: POST /upload/storage/v1/b/{bucket}/o?uploadType=media&name={key}
-    if (
-      req.method === "POST" &&
-      path.match(/\/upload\/storage\/v1\/b\/[^/]+\/o/)
-    ) {
-      const uploaded = new Uint8Array(await req.arrayBuffer());
-      if (opts.uploadStatus !== undefined) {
-        return new Response(
-          JSON.stringify({
-            error: { code: opts.uploadStatus, message: "Upload rejected" },
-          }),
+          JSON.stringify({ kind: "storage#objects", items }),
           {
-            status: opts.uploadStatus,
+            status: 200,
             headers: { "Content-Type": "application/json" },
           },
         );
       }
 
-      const objectName = url.searchParams.get("name");
-      const ifGenMatch = url.searchParams.get("ifGenerationMatch");
-
-      const skipCheck = opts.ignorePreconditions ||
-        (opts.ignoreCasPrecondition && ifGenMatch !== "0");
-      if (!skipCheck && objectName && ifGenMatch !== null) {
-        const live = generations.get(objectName);
-        // ifGenerationMatch=0 means "only if absent"; anything else must
-        // match the live generation exactly.
-        if (
-          ifGenMatch === "0" ? live !== undefined : String(live) !== ifGenMatch
-        ) {
-          return preconditionFailed();
-        }
-      }
-
-      if (objectName) {
-        storage.set(objectName, uploaded);
-        generations.set(objectName, ++nextGeneration);
-        if (opts.malformedUploadResponse) {
-          // Committed, but the client cannot read the response.
-          return new Response("<html>gateway</html>", {
+      // GET object: GET /storage/v1/b/{bucket}/o/{key}?alt=media
+      if (
+        req.method === "GET" &&
+        path.match(/\/storage\/v1\/b\/[^/]+\/o\//) &&
+        url.searchParams.get("alt") === "media"
+      ) {
+        const objectName = decodeURIComponent(
+          path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
+        );
+        const data = storage.get(objectName);
+        if (data) {
+          return new Response(data.buffer as ArrayBuffer, {
             status: 200,
-            headers: { "Content-Type": "text/html" },
+            headers: {
+              "x-goog-generation": String(generations.get(objectName) ?? 1),
+            },
           });
         }
-        return new Response(
-          JSON.stringify({
-            kind: "storage#object",
-            generation: String(generations.get(objectName)),
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      return new Response(
-        JSON.stringify({ kind: "storage#object", generation: "1" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // Object metadata: GET /storage/v1/b/{bucket}/o/{key}
-    if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+\/o\//)) {
-      const objectName = decodeURIComponent(
-        path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
-      );
-      const data = storage.get(objectName);
-      if (!data) {
         return new Response(
           JSON.stringify({ error: { code: 404, message: "Not Found" } }),
           { status: 404, headers: { "Content-Type": "application/json" } },
         );
       }
-      return new Response(
-        JSON.stringify({
-          size: String(data.length),
-          generation: String(generations.get(objectName) ?? 1),
-          updated: new Date().toISOString(),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
 
-    // Bucket check: GET /storage/v1/b/{bucket}
-    if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+$/)) {
-      if (opts.stallBucketGet) {
-        // Resolves only when the test aborts, so shutdown() can never block
-        // on an in-flight request.
-        await new Promise<void>((resolve) => {
-          opts.stallBucketGet!.addEventListener("abort", () => resolve(), {
-            once: true,
-          });
-        });
+      // DELETE object: DELETE /storage/v1/b/{bucket}/o/{key}
+      if (req.method === "DELETE") {
+        if (opts.denyDelete) {
+          return new Response(
+            JSON.stringify({ error: { code: 403, message: "Forbidden" } }),
+            { status: 403, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        const objectName = decodeURIComponent(
+          path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
+        );
+        storage.delete(objectName);
+        generations.delete(objectName);
+        return new Response(null, { status: 204 });
       }
-      return new Response(
-        JSON.stringify({ kind: "storage#bucket", name: "test-bucket" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
 
-    return new Response(null, { status: 404 });
-  });
+      // PUT object: POST /upload/storage/v1/b/{bucket}/o?uploadType=media&name={key}
+      if (
+        req.method === "POST" &&
+        path.match(/\/upload\/storage\/v1\/b\/[^/]+\/o/)
+      ) {
+        const uploaded = new Uint8Array(await req.arrayBuffer());
+        if (opts.uploadStatus !== undefined) {
+          return new Response(
+            JSON.stringify({
+              error: { code: opts.uploadStatus, message: "Upload rejected" },
+            }),
+            {
+              status: opts.uploadStatus,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        const objectName = url.searchParams.get("name");
+        const ifGenMatch = url.searchParams.get("ifGenerationMatch");
+
+        const skipCheck = opts.ignorePreconditions ||
+          (opts.ignoreCasPrecondition && ifGenMatch !== "0");
+        if (!skipCheck && objectName && ifGenMatch !== null) {
+          const live = generations.get(objectName);
+          // ifGenerationMatch=0 means "only if absent"; anything else must
+          // match the live generation exactly.
+          if (
+            ifGenMatch === "0"
+              ? live !== undefined
+              : String(live) !== ifGenMatch
+          ) {
+            return preconditionFailed();
+          }
+        }
+
+        if (objectName) {
+          storage.set(objectName, uploaded);
+          generations.set(objectName, ++nextGeneration);
+          if (opts.malformedUploadResponse) {
+            // Committed, but the client cannot read the response.
+            return new Response("<html>gateway</html>", {
+              status: 200,
+              headers: { "Content-Type": "text/html" },
+            });
+          }
+          return new Response(
+            JSON.stringify({
+              kind: "storage#object",
+              generation: String(generations.get(objectName)),
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({ kind: "storage#object", generation: "1" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Object metadata: GET /storage/v1/b/{bucket}/o/{key}
+      if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+\/o\//)) {
+        const objectName = decodeURIComponent(
+          path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
+        );
+        const data = storage.get(objectName);
+        if (!data) {
+          return new Response(
+            JSON.stringify({ error: { code: 404, message: "Not Found" } }),
+            { status: 404, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            size: String(data.length),
+            generation: String(generations.get(objectName) ?? 1),
+            updated: new Date().toISOString(),
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      // Bucket check: GET /storage/v1/b/{bucket}
+      if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+$/)) {
+        if (opts.stallBucketGet) {
+          // Resolves only when the test aborts, so shutdown() can never block
+          // on an in-flight request.
+          await new Promise<void>((resolve) => {
+            opts.stallBucketGet!.addEventListener("abort", () => resolve(), {
+              once: true,
+            });
+          });
+        }
+        return new Response(
+          JSON.stringify({ kind: "storage#bucket", name: "test-bucket" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(null, { status: 404 });
+    },
+  );
 
   const addr = server.addr as Deno.NetAddr;
   return {
