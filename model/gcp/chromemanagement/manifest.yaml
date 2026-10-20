@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/chromemanagement"
-version: "2026.10.17.1"
+version: "2026.10.20.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud chromemanagement infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: customers_chromebrowsers
+  - Updated: customers_enrollmenttokens
 models:
   - customers_apps_android.ts
   - customers_apps_chrome.ts

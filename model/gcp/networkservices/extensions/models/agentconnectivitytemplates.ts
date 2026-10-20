@@ -165,7 +165,7 @@ const GlobalArgsSchema = z.object({
     "CLIENT_TO_AGENT",
     "AGENT_TO_ANYWHERE",
   ]).describe(
-    "Optional. Immutable. The path of the access. Maps roughly to ingress/egress, though we keep CLIENT_TO_AGENT and AGENT_TO_ANYWHERE as carryovers from Agent Gateway's original resource model. The path is immutable once set. Exactly one path can be set.",
+    "Required. Immutable. The path of the access. Maps roughly to ingress/egress, though we keep CLIENT_TO_AGENT and AGENT_TO_ANYWHERE as carryovers from Agent Gateway's original resource model. The path is immutable once set. Exactly one path can be set.",
   ).optional(),
   accessTypes: z.array(z.enum(["ACCESS_TYPE_UNSPECIFIED", "PUBLIC", "PRIVATE"]))
     .describe(
@@ -184,7 +184,7 @@ const GlobalArgsSchema = z.object({
     "DEPLOYMENT_MODEL_UNSPECIFIED",
     "CENTRALIZED",
     "AMBIENT",
-  ]).describe("Optional. The deployment model for the gateway.").optional(),
+  ]).describe("Required. The deployment model for the gateway.").optional(),
   description: z.string().describe(
     "Optional. A free-text description of the resource. Max length 1024 characters.",
   ).optional(),
@@ -277,7 +277,7 @@ const InputsSchema = z.object({
     "CLIENT_TO_AGENT",
     "AGENT_TO_ANYWHERE",
   ]).describe(
-    "Optional. Immutable. The path of the access. Maps roughly to ingress/egress, though we keep CLIENT_TO_AGENT and AGENT_TO_ANYWHERE as carryovers from Agent Gateway's original resource model. The path is immutable once set. Exactly one path can be set.",
+    "Required. Immutable. The path of the access. Maps roughly to ingress/egress, though we keep CLIENT_TO_AGENT and AGENT_TO_ANYWHERE as carryovers from Agent Gateway's original resource model. The path is immutable once set. Exactly one path can be set.",
   ).optional(),
   accessTypes: z.array(z.enum(["ACCESS_TYPE_UNSPECIFIED", "PUBLIC", "PRIVATE"]))
     .describe(
@@ -296,7 +296,7 @@ const InputsSchema = z.object({
     "DEPLOYMENT_MODEL_UNSPECIFIED",
     "CENTRALIZED",
     "AMBIENT",
-  ]).describe("Optional. The deployment model for the gateway.").optional(),
+  ]).describe("Required. The deployment model for the gateway.").optional(),
   description: z.string().describe(
     "Optional. A free-text description of the resource. Max length 1024 characters.",
   ).optional(),
@@ -374,7 +374,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentConnectivityTemplates. Registered at `@swamp/gcp/networkservices/agentconnectivitytemplates`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentconnectivitytemplates",
-  version: "2026.10.16.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.16.1",
@@ -398,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

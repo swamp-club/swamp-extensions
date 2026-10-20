@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud YouTube Data PlaylistItems.
  *
- * A *playlistItem* resource identifies another resource, such as a video, that is included in a playlist. In addition, the playlistItem resource contains details about the included resource that pertain specifically to how that resource is used in that playlist. YouTube uses playlists to identify special collections of videos for a channel, such as: - uploaded videos - favorite videos - positively rated (liked) videos - watch history - watch later To be more specific, these lists are associated with a channel, which is a collection of a person, group, or company's videos, playlists, and other YouTube information. You can retrieve the playlist IDs for each of these lists from the channel resource for a given channel. You can then use the playlistItems.list method to retrieve any of those lists. You can also add or remove items from those lists by calling the playlistItems.insert and playlistItems.delete methods. For example, if a user gives a positive rating to a video, you would insert that video into the liked videos playlist for that user's channel.
+ * A *playlistItem* resource identifies another resource, such as a video, that is included in a playlist. In addition, the playlistItem resource contains details about the included resource that pertain specifically to how that resource is used in that playlist. YouTube uses playlists to identify special collections of videos for a channel, such as: * uploaded videos * favorite videos * positively rated (liked) videos * watch history * watch later To be more specific, these lists are associated with a channel, which is a collection of a person, group, or company's videos, playlists, and other YouTube information. You can retrieve the playlist IDs for each of these lists from the [`channel resource`](https://developers.google.com/youtube/data/reference/rest/v3/channels) for a given channel. You can then use the [`playlistItems.list`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/list) method to retrieve any of those lists. You can also add or remove items from those lists by calling the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) methods. For example, if a user gives a positive rating to a video, you would insert that video into the liked videos playlist for that user's channel.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -172,7 +172,7 @@ const GlobalArgsSchema = z.object({
       "The time, measured in seconds from the start of the video, when the video should start playing. (The playlist owner can specify the times when the video should start and stop playing when the video is played in the context of the playlist.) The default value is 0.",
     ).optional(),
     videoId: z.string().describe(
-      "The ID that YouTube uses to uniquely identify a video. To retrieve the video resource, set the id query parameter to this value in your API request.",
+      "The ID that YouTube uses to uniquely identify a video. To [retrieve the `video` resource](https://developers.google.com/youtube/data/reference/rest/v3/videos/list), set the id query parameter to this value in your API request.",
     ).optional(),
     videoPublishedAt: z.string().describe(
       "The date and time that the video was published to YouTube.",
@@ -417,7 +417,7 @@ const InputsSchema = z.object({
       "The time, measured in seconds from the start of the video, when the video should start playing. (The playlist owner can specify the times when the video should start and stop playing when the video is played in the context of the playlist.) The default value is 0.",
     ).optional(),
     videoId: z.string().describe(
-      "The ID that YouTube uses to uniquely identify a video. To retrieve the video resource, set the id query parameter to this value in your API request.",
+      "The ID that YouTube uses to uniquely identify a video. To [retrieve the `video` resource](https://developers.google.com/youtube/data/reference/rest/v3/videos/list), set the id query parameter to this value in your API request.",
     ).optional(),
     videoPublishedAt: z.string().describe(
       "The date and time that the video was published to YouTube.",
@@ -593,7 +593,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data PlaylistItems. Registered at `@swamp/gcp/youtube/playlistitems`. */
 export const model = {
   type: "@swamp/gcp/youtube/playlistitems",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -727,6 +727,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

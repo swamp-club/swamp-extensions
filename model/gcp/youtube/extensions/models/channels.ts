@@ -320,19 +320,19 @@ const GlobalArgsSchema = z.object({
   contentDetails: z.object({
     relatedPlaylists: z.object({
       favorites: z.string().describe(
-        'The ID of the playlist that contains the channel"s favorite videos. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s favorite videos. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       likes: z.string().describe(
-        'The ID of the playlist that contains the channel"s liked videos. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s liked videos. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       uploads: z.string().describe(
-        'The ID of the playlist that contains the channel"s uploaded videos. Use the videos.insert method to upload new videos and the videos.delete method to delete previously uploaded videos.',
+        'The ID of the playlist that contains the channel"s uploaded videos. Use the [`videos.insert`](https://developers.google.com/youtube/data/reference/rest/v3/videos/insert) method to upload new videos and the [`videos.delete`](https://developers.google.com/youtube/data/reference/rest/v3/videos/delete) method to delete previously uploaded videos.',
       ).optional(),
       watchHistory: z.string().describe(
-        'The ID of the playlist that contains the channel"s watch history. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s watch history. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       watchLater: z.string().describe(
-        'The ID of the playlist that contains the channel"s watch later playlist. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s watch later playlist. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
     }).optional(),
   }).describe(
@@ -933,19 +933,19 @@ const InputsSchema = z.object({
   contentDetails: z.object({
     relatedPlaylists: z.object({
       favorites: z.string().describe(
-        'The ID of the playlist that contains the channel"s favorite videos. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s favorite videos. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       likes: z.string().describe(
-        'The ID of the playlist that contains the channel"s liked videos. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s liked videos. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       uploads: z.string().describe(
-        'The ID of the playlist that contains the channel"s uploaded videos. Use the videos.insert method to upload new videos and the videos.delete method to delete previously uploaded videos.',
+        'The ID of the playlist that contains the channel"s uploaded videos. Use the [`videos.insert`](https://developers.google.com/youtube/data/reference/rest/v3/videos/insert) method to upload new videos and the [`videos.delete`](https://developers.google.com/youtube/data/reference/rest/v3/videos/delete) method to delete previously uploaded videos.',
       ).optional(),
       watchHistory: z.string().describe(
-        'The ID of the playlist that contains the channel"s watch history. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s watch history. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
       watchLater: z.string().describe(
-        'The ID of the playlist that contains the channel"s watch later playlist. Use the playlistItems.insert and playlistItems.delete to add or remove items from that list.',
+        'The ID of the playlist that contains the channel"s watch later playlist. Use the [`playlistItems.insert`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/insert) and [`playlistItems.delete`](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/delete) to add or remove items from that list.',
       ).optional(),
     }).optional(),
   }).describe(
@@ -1181,7 +1181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Channels. Registered at `@swamp/gcp/youtube/channels`. */
 export const model = {
   type: "@swamp/gcp/youtube/channels",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1330,6 +1330,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -422,6 +422,7 @@ const StateSchema = z.object({
           enableRedaction: z.boolean(),
           inspectTemplate: z.string(),
         }),
+        requiredRecordingConsent: z.boolean(),
         unredactedAudioRecordingConfig: z.object({
           gcsBucket: z.string(),
           gcsPathPrefix: z.string(),
@@ -560,6 +561,7 @@ const StateSchema = z.object({
         bannedContentsInUserInput: z.array(z.unknown()),
         disregardDiacritics: z.boolean(),
         matchType: z.string(),
+        sensitiveWordsExemptions: z.array(z.unknown()),
       }),
       createTime: z.string(),
       description: z.string(),
@@ -992,7 +994,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1244,6 +1246,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

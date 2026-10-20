@@ -206,8 +206,14 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe("Android native binary execution.").optional(),
         iosXcTest: z.object({
+          smartSharding: z.unknown().describe(
+            "Optional. Smart sharding strategy to split the job into multiple shards based on the test methods and their execution time.",
+          ).optional(),
           testsZip: z.unknown().describe(
             "Required. The.zip containing the.xctestrun file and the contents of the DerivedData/Build/Products directory.",
+          ).optional(),
+          uniformSharding: z.unknown().describe(
+            "Optional. Uniform sharding strategy to split the job into multiple shards with equal number of test methods.",
           ).optional(),
           xcTestTimeout: z.unknown().describe(
             "Optional. The timeout of the test. Default value: 5 min. Range: [1 min, 3 hours].",
@@ -294,7 +300,9 @@ const StateSchema = z.object({
           executionTimeout: z.unknown(),
         }),
         iosXcTest: z.object({
+          smartSharding: z.unknown(),
           testsZip: z.unknown(),
+          uniformSharding: z.unknown(),
           xcTestTimeout: z.unknown(),
           xcodeVersion: z.unknown(),
           xctestrun: z.unknown(),
@@ -438,8 +446,14 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe("Android native binary execution.").optional(),
         iosXcTest: z.object({
+          smartSharding: z.unknown().describe(
+            "Optional. Smart sharding strategy to split the job into multiple shards based on the test methods and their execution time.",
+          ).optional(),
           testsZip: z.unknown().describe(
             "Required. The.zip containing the.xctestrun file and the contents of the DerivedData/Build/Products directory.",
+          ).optional(),
+          uniformSharding: z.unknown().describe(
+            "Optional. Uniform sharding strategy to split the job into multiple shards with equal number of test methods.",
           ).optional(),
           xcTestTimeout: z.unknown().describe(
             "Optional. The timeout of the test. Default value: 5 min. Range: [1 min, 3 hours].",
@@ -527,7 +541,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run Sessions. Registered at `@swamp/gcp/devicerun/sessions`. */
 export const model = {
   type: "@swamp/gcp/devicerun/sessions",
-  version: "2026.10.14.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
@@ -546,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -82,6 +82,15 @@ const StateSchema = z.object({
   aiSummary: z.string().optional(),
   author: z.string().optional(),
   collectionTime: z.string().optional(),
+  communicationContext: z.object({
+    channelDescription: z.string(),
+    channelName: z.string(),
+    channelPath: z.string(),
+    channelUrl: z.string(),
+    messageId: z.string(),
+    serviceName: z.string(),
+    threadId: z.string(),
+  }).optional(),
   content: z.string().optional(),
   createTime: z.string().optional(),
   ingestTime: z.string().optional(),
@@ -135,7 +144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Alerts.Documents. Registered at `@swamp/gcp/threatintelligence/alerts-documents`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/alerts-documents",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +258,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -196,6 +196,7 @@ const GlobalArgsSchema = z.object({
         "POSTGRES_16",
         "POSTGRES_17",
         "POSTGRES_18",
+        "POSTGRES_19",
       ]).describe(
         "Optional. The database engine major version. This is an optional field. If a database version is not supplied at cluster creation time, then a default database version will be used.",
       ).optional(),
@@ -465,7 +466,7 @@ const GlobalArgsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -535,7 +536,7 @@ const GlobalArgsSchema = z.object({
           "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
         ).optional(),
         sslFlags: z.record(z.string(), z.string()).describe(
-          'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+          'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
         ).optional(),
         type: z.enum([
           "SSL_TYPE_UNSPECIFIED",
@@ -578,7 +579,7 @@ const GlobalArgsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -664,7 +665,7 @@ const GlobalArgsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -764,7 +765,7 @@ const GlobalArgsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -1058,6 +1059,7 @@ const InputsSchema = z.object({
         "POSTGRES_16",
         "POSTGRES_17",
         "POSTGRES_18",
+        "POSTGRES_19",
       ]).describe(
         "Optional. The database engine major version. This is an optional field. If a database version is not supplied at cluster creation time, then a default database version will be used.",
       ).optional(),
@@ -1327,7 +1329,7 @@ const InputsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -1397,7 +1399,7 @@ const InputsSchema = z.object({
           "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
         ).optional(),
         sslFlags: z.record(z.string(), z.string()).describe(
-          'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+          'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
         ).optional(),
         type: z.enum([
           "SSL_TYPE_UNSPECIFIED",
@@ -1440,7 +1442,7 @@ const InputsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -1526,7 +1528,7 @@ const InputsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -1626,7 +1628,7 @@ const InputsSchema = z.object({
         "Input only. The unencrypted PKCS#1 or PKCS#8 PEM-encoded private key associated with the Client Certificate. If this field is used then the 'client_certificate' field is mandatory.",
       ).optional(),
       sslFlags: z.record(z.string(), z.string()).describe(
-        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Example: { "server_certificate_hostname": "server.com"}.',
+        'Optional. SSL flags used for establishing SSL connection to the source database. Only source specific flags are supported. An object containing a list of "key": "value" pairs. Examples: { "server_certificate_dn": "CN=server.com,OU=RDS,O=Amazon.com,C=US"} or { "server_certificate_hostname": "server.com"}.',
       ).optional(),
       type: z.enum([
         "SSL_TYPE_UNSPECIFIED",
@@ -1699,7 +1701,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConnectionProfiles. Registered at `@swamp/gcp/datamigration/connectionprofiles`. */
 export const model = {
   type: "@swamp/gcp/datamigration/connectionprofiles",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1948,6 +1950,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

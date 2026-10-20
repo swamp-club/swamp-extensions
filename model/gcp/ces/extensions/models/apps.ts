@@ -484,7 +484,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The default language code of the app.",
     ).optional(),
     enableMultilingualSupport: z.boolean().describe(
-      "Optional. Enables multilingual support. If true, agents in the app will use pre-built instructions to improve handling of multilingual input.",
+      "Optional. Enables multilingual support. If `true`, agents in the app will use pre-built instructions to improve handling of multilingual input.",
     ).optional(),
     fallbackAction: z.string().describe(
       'Optional. Deprecated: This feature is no longer supported. Use `enable_multilingual_support` instead to improve handling of multilingual input. The action to perform when an agent receives input in an unsupported language. This can be a predefined action or a custom tool call. Valid values are: - A tool\'s full resource name, which triggers a specific tool execution. - A predefined system action, such as "escalate" or "exit", which triggers an EndSession signal with corresponding metadata to terminate the conversation.',
@@ -559,13 +559,16 @@ const GlobalArgsSchema = z.object({
         "Optional. [DLP](https://cloud.google.com/dlp/docs) deidentify template name to instruct on how to de-identify content. Format: `projects/{project}/locations/{location}/deidentifyTemplates/{deidentify_template}`",
       ).optional(),
       enableRedaction: z.boolean().describe(
-        "Optional. If true, redaction will be applied in various logging scenarios, including conversation history, Cloud Logging and audio recording.",
+        "Optional. If `true`, redaction will be applied in various logging scenarios, including conversation history, Cloud Logging and audio recording.",
       ).optional(),
       inspectTemplate: z.string().describe(
         "Optional. [DLP](https://cloud.google.com/dlp/docs) inspect template name to configure detection of sensitive data types. Format: `projects/{project}/locations/{location}/inspectTemplates/{inspect_template}`",
       ).optional(),
     }).describe(
       "Optional. Configuration for how sensitive data should be redacted.",
+    ).optional(),
+    requiredRecordingConsent: z.boolean().describe(
+      "Optional. Whether the app has to say what may be recorded before anything is kept. When true, a session starts with recording off and stays off until the client sends SessionInput.recording_control, which then decides every turn from that point on. This covers audio recording as well as conversation history, BigQuery export and Cloud Logging. When `false`, the default, the settings above decide on their own and the client does not have to send anything.",
     ).optional(),
     unredactedAudioRecordingConfig: z.object({
       gcsBucket: z.string().describe(
@@ -862,6 +865,7 @@ const StateSchema = z.object({
       enableRedaction: z.boolean(),
       inspectTemplate: z.string(),
     }),
+    requiredRecordingConsent: z.boolean(),
     unredactedAudioRecordingConfig: z.object({
       gcsBucket: z.string(),
       gcsPathPrefix: z.string(),
@@ -1272,7 +1276,7 @@ const InputsSchema = z.object({
       "Optional. The default language code of the app.",
     ).optional(),
     enableMultilingualSupport: z.boolean().describe(
-      "Optional. Enables multilingual support. If true, agents in the app will use pre-built instructions to improve handling of multilingual input.",
+      "Optional. Enables multilingual support. If `true`, agents in the app will use pre-built instructions to improve handling of multilingual input.",
     ).optional(),
     fallbackAction: z.string().describe(
       'Optional. Deprecated: This feature is no longer supported. Use `enable_multilingual_support` instead to improve handling of multilingual input. The action to perform when an agent receives input in an unsupported language. This can be a predefined action or a custom tool call. Valid values are: - A tool\'s full resource name, which triggers a specific tool execution. - A predefined system action, such as "escalate" or "exit", which triggers an EndSession signal with corresponding metadata to terminate the conversation.',
@@ -1347,13 +1351,16 @@ const InputsSchema = z.object({
         "Optional. [DLP](https://cloud.google.com/dlp/docs) deidentify template name to instruct on how to de-identify content. Format: `projects/{project}/locations/{location}/deidentifyTemplates/{deidentify_template}`",
       ).optional(),
       enableRedaction: z.boolean().describe(
-        "Optional. If true, redaction will be applied in various logging scenarios, including conversation history, Cloud Logging and audio recording.",
+        "Optional. If `true`, redaction will be applied in various logging scenarios, including conversation history, Cloud Logging and audio recording.",
       ).optional(),
       inspectTemplate: z.string().describe(
         "Optional. [DLP](https://cloud.google.com/dlp/docs) inspect template name to configure detection of sensitive data types. Format: `projects/{project}/locations/{location}/inspectTemplates/{inspect_template}`",
       ).optional(),
     }).describe(
       "Optional. Configuration for how sensitive data should be redacted.",
+    ).optional(),
+    requiredRecordingConsent: z.boolean().describe(
+      "Optional. Whether the app has to say what may be recorded before anything is kept. When true, a session starts with recording off and stays off until the client sends SessionInput.recording_control, which then decides every turn from that point on. This covers audio recording as well as conversation history, BigQuery export and Cloud Logging. When `false`, the default, the settings above decide on their own and the client does not have to send anything.",
     ).optional(),
     unredactedAudioRecordingConfig: z.object({
       gcsBucket: z.string().describe(
@@ -1528,7 +1535,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps. Registered at `@swamp/gcp/ces/apps`. */
 export const model = {
   type: "@swamp/gcp/ces/apps",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1712,6 +1719,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

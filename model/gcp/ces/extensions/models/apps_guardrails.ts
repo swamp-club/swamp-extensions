@@ -279,7 +279,11 @@ const GlobalArgsSchema = z.object({
       "SIMPLE_STRING_MATCH",
       "WORD_BOUNDARY_STRING_MATCH",
       "REGEXP_MATCH",
+      "SENSITIVE_WORDS",
     ]).describe("Required. Match type for the content filter.").optional(),
+    sensitiveWordsExemptions: z.array(z.string()).describe(
+      "Optional. Entries of the sensitive words list that this guardrail allows. Only valid when match_type is SENSITIVE_WORDS. Each value must equal a list entry (case-insensitive, surrounding whitespace ignored); other values have no effect. Applies to this guardrail only. At most 1000 entries of up to 256 characters each.",
+    ).optional(),
   }).describe(
     "Optional. Guardrail that bans certain content from being used in the conversation.",
   ).optional(),
@@ -322,7 +326,9 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Required. Defines when to apply the policy check during the conversation. If set to `POLICY_SCOPE_UNSPECIFIED`, the policy will be applied to the user input. When applying the policy to the agent response, additional latency will be introduced before the agent can respond.",
     ).optional(),
-    prompt: z.string().describe("Required. Policy prompt.").optional(),
+    prompt: z.string().describe(
+      "Required. Policy prompt. Supports session variable placeholders (`{var}`) as well as `{agent_system_instruction}` to inject the agent's resolved system instructions.",
+    ).optional(),
   }).describe(
     "Optional. Guardrail that blocks the conversation if the LLM response is considered violating the policy based on the LLM classification.",
   ).optional(),
@@ -360,7 +366,9 @@ const GlobalArgsSchema = z.object({
       ]).describe(
         "Required. Defines when to apply the policy check during the conversation. If set to `POLICY_SCOPE_UNSPECIFIED`, the policy will be applied to the user input. When applying the policy to the agent response, additional latency will be introduced before the agent can respond.",
       ).optional(),
-      prompt: z.string().describe("Required. Policy prompt.").optional(),
+      prompt: z.string().describe(
+        "Required. Policy prompt. Supports session variable placeholders (`{var}`) as well as `{agent_system_instruction}` to inject the agent's resolved system instructions.",
+      ).optional(),
     }).describe(
       "Optional. Use a user-defined LlmPolicy to configure the security guardrail.",
     ).optional(),
@@ -480,6 +488,7 @@ const StateSchema = z.object({
     bannedContentsInUserInput: z.array(z.string()),
     disregardDiacritics: z.boolean(),
     matchType: z.string(),
+    sensitiveWordsExemptions: z.array(z.string()),
   }).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -652,7 +661,11 @@ const InputsSchema = z.object({
       "SIMPLE_STRING_MATCH",
       "WORD_BOUNDARY_STRING_MATCH",
       "REGEXP_MATCH",
+      "SENSITIVE_WORDS",
     ]).describe("Required. Match type for the content filter.").optional(),
+    sensitiveWordsExemptions: z.array(z.string()).describe(
+      "Optional. Entries of the sensitive words list that this guardrail allows. Only valid when match_type is SENSITIVE_WORDS. Each value must equal a list entry (case-insensitive, surrounding whitespace ignored); other values have no effect. Applies to this guardrail only. At most 1000 entries of up to 256 characters each.",
+    ).optional(),
   }).describe(
     "Optional. Guardrail that bans certain content from being used in the conversation.",
   ).optional(),
@@ -695,7 +708,9 @@ const InputsSchema = z.object({
     ]).describe(
       "Required. Defines when to apply the policy check during the conversation. If set to `POLICY_SCOPE_UNSPECIFIED`, the policy will be applied to the user input. When applying the policy to the agent response, additional latency will be introduced before the agent can respond.",
     ).optional(),
-    prompt: z.string().describe("Required. Policy prompt.").optional(),
+    prompt: z.string().describe(
+      "Required. Policy prompt. Supports session variable placeholders (`{var}`) as well as `{agent_system_instruction}` to inject the agent's resolved system instructions.",
+    ).optional(),
   }).describe(
     "Optional. Guardrail that blocks the conversation if the LLM response is considered violating the policy based on the LLM classification.",
   ).optional(),
@@ -733,7 +748,9 @@ const InputsSchema = z.object({
       ]).describe(
         "Required. Defines when to apply the policy check during the conversation. If set to `POLICY_SCOPE_UNSPECIFIED`, the policy will be applied to the user input. When applying the policy to the agent response, additional latency will be introduced before the agent can respond.",
       ).optional(),
-      prompt: z.string().describe("Required. Policy prompt.").optional(),
+      prompt: z.string().describe(
+        "Required. Policy prompt. Supports session variable placeholders (`{var}`) as well as `{agent_system_instruction}` to inject the agent's resolved system instructions.",
+      ).optional(),
     }).describe(
       "Optional. Use a user-defined LlmPolicy to configure the security guardrail.",
     ).optional(),
@@ -832,7 +849,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Guardrails. Registered at `@swamp/gcp/ces/apps-guardrails`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-guardrails",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -981,6 +998,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

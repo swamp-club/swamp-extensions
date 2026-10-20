@@ -221,10 +221,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.EnrollmentTokens. Registered at `@swamp/gcp/chromemanagement/customers-enrollmenttokens`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-enrollmenttokens",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -396,7 +401,7 @@ export const model = {
       description: "List enrollmentTokens resources",
       arguments: z.object({
         filter: z.string().describe(
-          "Optional. Filter to apply to list results. The following fields can be used in the filter: * device_type (currently only 'CHROME_BROWSER' is supported) * token_state (supported values: 'ACTIVE', 'EXPIRED', 'REVOKED') * org_unit_path The full path of the org unit, such as /Montreal/Sales. * org_unit_id The obfuscated id of the org unit, not the full path.",
+          'Optional. Filter to apply to list results. The following fields can be used in the filter: * `device_type` (currently only `"CHROME_BROWSER"` is supported) * `token_state` (supported values: `"ACTIVE"`, `"EXPIRED"`, `"REVOKED"`) * `org_unit_path` The full path of the org unit, such as `/Montreal/Sales`. * `org_unit_id` The obfuscated id of the org unit, not the full path.',
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Maximum number of results to return. Maximum and default are 100.",

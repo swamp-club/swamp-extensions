@@ -14,7 +14,7 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/bcmpricingcalculator/bill_scenario` to
+Use `swamp model type describe @swamp/aws/bcmpricingcalculator/bill_estimate` to
 see the full list of configurable properties and available methods for this
 model.
 
@@ -48,17 +48,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new bill_scenario model
-swamp model create @swamp/aws/bcmpricingcalculator/bill_scenario my-bill_scenario
+# Create a new bill_estimate model
+swamp model create @swamp/aws/bcmpricingcalculator/bill_estimate my-bill_estimate
 
 # Edit the model to configure its properties
-swamp model edit my-bill_scenario
+swamp model edit my-bill_estimate
 
 # Create the resource in AWS
-swamp model method run my-bill_scenario create
+swamp model method run my-bill_estimate create
 
 # Sync current state from AWS
-swamp model method run my-bill_scenario sync
+swamp model method run my-bill_estimate sync
 ```
 
 ## License

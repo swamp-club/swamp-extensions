@@ -38,6 +38,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -78,6 +79,27 @@ const INSERT_CONFIG = {
       "required": true,
     },
     "requestId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "oracledatabase.projects.locations.odbNetworks.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "requestId": {
+      "location": "query",
+    },
+    "updateMask": {
       "location": "query",
     },
   },
@@ -159,6 +181,17 @@ const GlobalArgsSchema = z.object({
   network: z.string().describe(
     "Required. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
   ).optional(),
+  serviceConnectivityConfig: z.object({
+    pscInterfaceConfig: z.object({
+      networkAttachment: z.string().describe(
+        "Optional. The resource name of the Network Attachment that Oracledatabase@Google Cloud will use to establish private connectivity to the database via a Private Service Connect Interface (PSC-I). Format: projects/{project}/regions/{region}/networkAttachments/{network_attachment}",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration for Private Service Connect (PSC) interface.",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration to enable the service (Oracledatabase@Google Cloud) to establish connectivity to the database. This should be specified if you intend to associate this OdbNetwork with a DatabaseConnection resource to `ExecuteSQL` on the database, or to create a ServiceIntegration with the Database. Please don't specify it otherwise to avoid complicating the network setup.",
+  ).optional(),
   odbNetworkId: z.string().describe(
     "Required. The ID of the OdbNetwork to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
   ).optional(),
@@ -177,6 +210,12 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
+  reconciling: z.boolean().optional(),
+  serviceConnectivityConfig: z.object({
+    pscInterfaceConfig: z.object({
+      networkAttachment: z.string(),
+    }),
+  }).optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -200,6 +239,17 @@ const InputsSchema = z.object({
   ).optional(),
   network: z.string().describe(
     "Required. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
+  ).optional(),
+  serviceConnectivityConfig: z.object({
+    pscInterfaceConfig: z.object({
+      networkAttachment: z.string().describe(
+        "Optional. The resource name of the Network Attachment that Oracledatabase@Google Cloud will use to establish private connectivity to the database via a Private Service Connect Interface (PSC-I). Format: projects/{project}/regions/{region}/networkAttachments/{network_attachment}",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration for Private Service Connect (PSC) interface.",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration to enable the service (Oracledatabase@Google Cloud) to establish connectivity to the database. This should be specified if you intend to associate this OdbNetwork with a DatabaseConnection resource to `ExecuteSQL` on the database, or to create a ServiceIntegration with the Database. Please don't specify it otherwise to avoid complicating the network setup.",
   ).optional(),
   odbNetworkId: z.string().describe(
     "Required. The ID of the OdbNetwork to create. This value is restricted to (^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$) and must be a maximum of 63 characters in length. The value must start with a letter and end with a letter or a number.",
@@ -238,7 +288,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud OdbNetworks. Registered at `@swamp/gcp/oracledatabase/odbnetworks`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/odbnetworks",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -370,6 +420,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "Added: serviceConnectivityConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -406,6 +461,9 @@ export const model = {
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["network"] !== undefined) body["network"] = g["network"];
+        if (g["serviceConnectivityConfig"] !== undefined) {
+          body["serviceConnectivityConfig"] = g["serviceConnectivityConfig"];
+        }
         if (g["odbNetworkId"] !== undefined) {
           params["odbNetworkId"] = String(g["odbNetworkId"]);
         }
@@ -480,6 +538,95 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update odbNetworks attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific odbNetworks by name (e.g. one discovered by list)",
+        ).optional(),
+        waitForReady: z.boolean().describe(
+          "Wait for the resource to reach a ready state after update (default: true)",
+        ).optional(),
+      }),
+      execute: async (
+        args: { identifier?: string; waitForReady?: boolean },
+        context: any,
+      ) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error(
+            "No existing state found - run create, get, or list first",
+          );
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            existingName ?? g["name"]?.toString() ?? "",
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (g["gcpOracleZone"] !== undefined) {
+          body["gcpOracleZone"] = g["gcpOracleZone"];
+        }
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["network"] !== undefined) body["network"] = g["network"];
+        if (g["serviceConnectivityConfig"] !== undefined) {
+          body["serviceConnectivityConfig"] = g["serviceConnectivityConfig"];
+        }
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          baseUrl,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          (args.waitForReady ?? true)
+            ? {
+              "statusField": "state",
+              "readyValues": ["AVAILABLE"],
+              "failedValues": ["FAILED"],
+            }
+            : undefined,
+          credentials,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ecs"
-version: "2026.10.13.1"
+version: "2026.10.20.1"
 license: "AGPL-3.0-or-later"
 description: "AWS ECS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: capacity_provider, cluster, cluster_capacity_provider_associations, daemon, daemon_task_definition, express_gateway_service, primary_task_set, service, task_definition, task_set
+  - Added: gateway, gateway_cluster_associations
+  - Updated: service, task_definition
 models:
   - capacity_provider.ts
   - cluster.ts
@@ -19,6 +20,8 @@ models:
   - daemon.ts
   - daemon_task_definition.ts
   - express_gateway_service.ts
+  - gateway.ts
+  - gateway_cluster_associations.ts
   - primary_task_set.ts
   - service.ts
   - task_definition.ts

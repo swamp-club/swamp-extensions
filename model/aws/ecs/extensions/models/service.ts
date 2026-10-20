@@ -303,9 +303,15 @@ const LogConfigurationSchema = z.object({
 });
 
 const VpcLatticeAdvancedConfigurationSchema = z.object({
-  TestListenerRule: z.string().optional(),
-  AlternateTargetGroupArn: z.string().optional(),
-  ProductionListenerRule: z.string().optional(),
+  TestListenerRule: z.string().describe(
+    "The Amazon Resource Name (ARN) that identifies the test listener rule or listener for routing test traffic.",
+  ).optional(),
+  AlternateTargetGroupArn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the alternate target group associated with the VPC Lattice Configuration for Amazon ECS blue/green deployments.",
+  ).optional(),
+  ProductionListenerRule: z.string().describe(
+    "The Amazon Resource Name (ARN) that identifies the production listener rule or listener for routing production traffic.",
+  ).optional(),
 });
 
 const VpcLatticeConfigurationSchema = z.object({
@@ -822,7 +828,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -931,6 +937,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

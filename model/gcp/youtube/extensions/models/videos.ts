@@ -1321,7 +1321,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   snippet: z.object({
     categoryId: z.string().describe(
-      "The YouTube video category associated with the video.",
+      "The YouTube [video category](https://developers.google.com/youtube/data/reference/rest/v3/videoCategories/list) associated with the video.",
     ).optional(),
     channelId: z.string().describe(
       "The ID that YouTube uses to uniquely identify the channel that the video was uploaded to.",
@@ -1595,7 +1595,7 @@ const GlobalArgsSchema = z.object({
       "A list of Freebase topic IDs that are centrally associated with the video. These are topics that are centrally featured in the video, and it can be said that the video is mainly about each of these. You can retrieve information about each topic using the Freebase Topic API.",
     ).optional(),
   }).describe(
-    "The topicDetails object encapsulates information about Freebase topics associated with the video.",
+    "The topicDetails object encapsulates information about [Freebase](http://www.freebase.com) topics associated with the video.",
   ).optional(),
   part: z.string().describe(
     "The *part* parameter serves two purposes in this operation. It identifies the properties that the write operation will set as well as the properties that the API response will include. Note that not all parts contain properties that can be set when inserting or updating a video. For example, the statistics object encapsulates statistics that YouTube calculates for a video and does not contain values that you can set or modify. If the parameter value specifies a part that does not contain mutable values, that part will still be included in the API response.",
@@ -1610,7 +1610,7 @@ const GlobalArgsSchema = z.object({
     "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
   ).optional(),
   onBehalfOfContentOwnerChannel: z.string().describe(
-    "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+    "This parameter can only be used in a properly [authorized request](https://developers.google.com/youtube/data/guides/authentication). *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
   ).optional(),
   stabilize: z.string().describe("Should stabilize be applied to the upload.")
     .optional(),
@@ -3025,7 +3025,7 @@ const InputsSchema = z.object({
   ).optional(),
   snippet: z.object({
     categoryId: z.string().describe(
-      "The YouTube video category associated with the video.",
+      "The YouTube [video category](https://developers.google.com/youtube/data/reference/rest/v3/videoCategories/list) associated with the video.",
     ).optional(),
     channelId: z.string().describe(
       "The ID that YouTube uses to uniquely identify the channel that the video was uploaded to.",
@@ -3299,7 +3299,7 @@ const InputsSchema = z.object({
       "A list of Freebase topic IDs that are centrally associated with the video. These are topics that are centrally featured in the video, and it can be said that the video is mainly about each of these. You can retrieve information about each topic using the Freebase Topic API.",
     ).optional(),
   }).describe(
-    "The topicDetails object encapsulates information about Freebase topics associated with the video.",
+    "The topicDetails object encapsulates information about [Freebase](http://www.freebase.com) topics associated with the video.",
   ).optional(),
   part: z.string().describe(
     "The *part* parameter serves two purposes in this operation. It identifies the properties that the write operation will set as well as the properties that the API response will include. Note that not all parts contain properties that can be set when inserting or updating a video. For example, the statistics object encapsulates statistics that YouTube calculates for a video and does not contain values that you can set or modify. If the parameter value specifies a part that does not contain mutable values, that part will still be included in the API response.",
@@ -3314,7 +3314,7 @@ const InputsSchema = z.object({
     "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
   ).optional(),
   onBehalfOfContentOwnerChannel: z.string().describe(
-    "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+    "This parameter can only be used in a properly [authorized request](https://developers.google.com/youtube/data/guides/authentication). *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
   ).optional(),
   stabilize: z.string().describe("Should stabilize be applied to the upload.")
     .optional(),
@@ -3346,7 +3346,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Videos. Registered at `@swamp/gcp/youtube/videos`. */
 export const model = {
   type: "@swamp/gcp/youtube/videos",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3505,6 +3505,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3864,7 +3869,7 @@ export const model = {
         id: z.string().describe("Return videos with the given ids.").optional(),
         maxHeight: z.number().optional(),
         maxResults: z.number().describe(
-          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set. *Note:* This parameter is supported for use in conjunction with the myRating and chart parameters, but it is not supported for use in conjunction with the id parameter.",
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set. *Note:* This parameter is supported for use in conjunction with the [`myRating`](https://developers.google.com/youtube/data/reference/rest/v3/videos/list#myRating) and [`chart`](https://developers.google.com/youtube/data/reference/rest/v3/videos/list#chart) parameters, but it is not supported for use in conjunction with the [`id`](https://developers.google.com/youtube/data/reference/rest/v3/videos/list#id) parameter.",
         ).optional(),
         maxWidth: z.number().describe(
           "Return the player with maximum height specified in",

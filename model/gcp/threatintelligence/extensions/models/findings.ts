@@ -133,6 +133,7 @@ const StateSchema = z.object({
           channelName: z.string(),
           channelPath: z.string(),
           channelUrl: z.string(),
+          messageId: z.string(),
           serviceName: z.string(),
           threadId: z.string(),
         }),
@@ -215,6 +216,7 @@ const StateSchema = z.object({
           channelName: z.string(),
           channelPath: z.string(),
           channelUrl: z.string(),
+          messageId: z.string(),
           serviceName: z.string(),
           threadId: z.string(),
         }),
@@ -232,6 +234,7 @@ const StateSchema = z.object({
           channelName: z.string(),
           channelPath: z.string(),
           channelUrl: z.string(),
+          messageId: z.string(),
           serviceName: z.string(),
           threadId: z.string(),
         }),
@@ -342,7 +345,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Findings. Registered at `@swamp/gcp/threatintelligence/findings`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/findings",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -491,6 +494,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -196,6 +196,9 @@ const GlobalArgsSchema = z.object({
   network: z.string().describe(
     "Optional. Immutable. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
   ).optional(),
+  odbDnsZone: z.string().describe(
+    "Optional. Immutable. The name of the OdbDnsZone for using custom domain name for the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbDnsZones/{odb_dns_zone}",
+  ).optional(),
   odbNetwork: z.string().describe(
     "Optional. Immutable. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
   ).optional(),
@@ -369,6 +372,7 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   network: z.string().optional(),
+  odbDnsZone: z.string().optional(),
   odbNetwork: z.string().optional(),
   odbSubnet: z.string().optional(),
   properties: z.object({
@@ -453,6 +457,9 @@ const InputsSchema = z.object({
   ).optional(),
   network: z.string().describe(
     "Optional. Immutable. The name of the VPC network. Format: projects/{project}/global/networks/{network}",
+  ).optional(),
+  odbDnsZone: z.string().describe(
+    "Optional. Immutable. The name of the OdbDnsZone for using custom domain name for the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network}/odbDnsZones/{odb_dns_zone}",
   ).optional(),
   odbNetwork: z.string().describe(
     "Optional. Immutable. The name of the OdbNetwork associated with the VM Cluster. Format: projects/{project}/locations/{location}/odbNetworks/{odb_network} It is optional but if specified, this should match the parent ODBNetwork of the odb_subnet and backup_odb_subnet.",
@@ -637,7 +644,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudVmClusters. Registered at `@swamp/gcp/oracledatabase/cloudvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudvmclusters",
-  version: "2026.10.14.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -792,6 +799,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "Added: odbDnsZone",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -838,6 +850,7 @@ export const model = {
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["network"] !== undefined) body["network"] = g["network"];
+        if (g["odbDnsZone"] !== undefined) body["odbDnsZone"] = g["odbDnsZone"];
         if (g["odbNetwork"] !== undefined) body["odbNetwork"] = g["odbNetwork"];
         if (g["odbSubnet"] !== undefined) body["odbSubnet"] = g["odbSubnet"];
         if (g["properties"] !== undefined) body["properties"] = g["properties"];

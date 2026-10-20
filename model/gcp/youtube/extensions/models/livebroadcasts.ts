@@ -213,7 +213,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The broadcast's availability config. Used to set specific region availability or block specific regions It is optional - if not set, it is not enforced.",
     ).optional(),
     boundStreamId: z.string().describe(
-      "This value uniquely identifies the live stream bound to the broadcast.",
+      "This value uniquely identifies the [`live stream`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveStreams) bound to the broadcast.",
     ).optional(),
     boundStreamLastUpdateTimeMs: z.string().describe(
       "The date and time that the live stream referenced by boundStreamId was last updated.",
@@ -254,11 +254,11 @@ const GlobalArgsSchema = z.object({
       "If both this and enable_low_latency are set, they must match. LATENCY_NORMAL should match enable_low_latency=false LATENCY_LOW should match enable_low_latency=true LATENCY_ULTRA_LOW should have enable_low_latency omitted.",
     ).optional(),
     mesh: z.string().describe(
-      "The mesh for projecting the video if projection is mesh. The mesh value must be a UTF-8 string containing the base-64 encoding of 3D mesh data that follows the Spherical Video V2 RFC specification for an mshp box, excluding the box size and type but including the following four reserved zero bytes for the version and flags.",
+      "The mesh for projecting the video if projection is mesh. The mesh value must be a UTF-8 string containing the base-64 encoding of 3D mesh data that follows the [Spherical Video V2 RFC specification](https://github.com/google/spatial-media/blob/master/docs/spherical-video-v2-rfc.md) for an mshp box, excluding the box size and type but including the following four reserved zero bytes for the version and flags.",
     ).optional(),
     monitorStream: z.object({
       broadcastStreamDelayMs: z.number().int().describe(
-        "If you have set the enableMonitorStream property to true, then this property determines the length of the live broadcast delay.",
+        "If you have set the [`enableMonitorStream`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveBroadcasts#contentDetails.monitorStream.enableMonitorStream) property to true, then this property determines the length of the live broadcast delay.",
       ).optional(),
       embedHtml: z.string().describe(
         "HTML code that embeds a player that plays the monitor stream.",
@@ -277,7 +277,7 @@ const GlobalArgsSchema = z.object({
       "Automatically start recording after the event goes live. The default value for this property is true. *Important:* You must also set the enableDvr property's value to true if you want the playback to be available immediately after the broadcast ends. If you set this property's value to true but do not also set the enableDvr property to true, there may be a delay of around one day before the archived video will be available for playback.",
     ).optional(),
     startWithSlate: z.boolean().describe(
-      "This setting indicates whether the broadcast should automatically begin with an in-stream slate when you update the broadcast's status to live. After updating the status, you then need to send a liveCuepoints.insert request that sets the cuepoint's eventState to end to remove the in-stream slate and make your broadcast stream visible to viewers.",
+      "This setting indicates whether the broadcast should automatically begin with an [in-stream slate](https://developers.google.com/youtube/data/live/getting-started#Displaying_Slates) when you update the broadcast's status to live. After updating the status, you then need to send a [`liveCuepoints.insert`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveCuepoints/insert) request that sets the cuepoint's eventState to end to remove the in-stream slate and make your broadcast stream visible to viewers.",
     ).optional(),
     stereoLayout: z.enum([
       "stereoLayoutUnspecified",
@@ -323,13 +323,13 @@ const GlobalArgsSchema = z.object({
       "The date and time that the broadcast actually started. This information is only available once the broadcast's state is live.",
     ).optional(),
     categoryId: z.string().describe(
-      "The YouTube video category associated with the video broadcast.",
+      "The YouTube [video category](https://developers.google.com/youtube/data/reference/rest/v3/videoCategories/list) associated with the video broadcast.",
     ).optional(),
     channelId: z.string().describe(
       "The ID that YouTube uses to uniquely identify the channel that is publishing the broadcast.",
     ).optional(),
     description: z.string().describe(
-      "The broadcast's description. As with the title, you can set this field by modifying the broadcast resource or by setting the description field of the corresponding video resource.",
+      "The broadcast's description. As with the title, you can set this field by modifying the broadcast resource or by setting the [`description`](https://developers.google.com/youtube/data/reference/rest/v3/videos#snippet.description) field of the corresponding video resource.",
     ).optional(),
     isDefaultBroadcast: z.boolean().describe(
       "Indicates whether this broadcast is the default broadcast. Internal only.",
@@ -430,7 +430,7 @@ const GlobalArgsSchema = z.object({
       "A map of thumbnail images associated with the broadcast. For each nested object in this object, the key is the name of the thumbnail image, and the value is an object that contains other information about the thumbnail.",
     ).optional(),
     title: z.string().describe(
-      "The broadcast's title. Note that the broadcast represents exactly one YouTube video. You can set this field by modifying the broadcast resource or by setting the title field of the corresponding video resource.",
+      "The broadcast's title. Note that the broadcast represents exactly one YouTube video. You can set this field by modifying the broadcast resource or by setting the [`title`](https://developers.google.com/youtube/data/reference/rest/v3/videos#snippet.title) field of the corresponding video resource.",
     ).optional(),
   }).describe(
     "The snippet object contains basic details about the event, including its title, description, start time, and end time.",
@@ -454,7 +454,7 @@ const GlobalArgsSchema = z.object({
       "testStarting",
       "liveStarting",
     ]).describe(
-      "The broadcast's status. The status can be updated using the API's liveBroadcasts.transition method.",
+      "The broadcast's status. The status can be updated using the API's [`liveBroadcasts.transition`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveBroadcasts/transition) method.",
     ).optional(),
     liveBroadcastPriority: z.enum([
       "liveBroadcastPriorityUnspecified",
@@ -467,7 +467,7 @@ const GlobalArgsSchema = z.object({
       "Whether the broadcast is made for kids or not, decided by YouTube instead of the creator. This field is read only.",
     ).optional(),
     privacyStatus: z.enum(["public", "unlisted", "private"]).describe(
-      "The broadcast's privacy status. Note that the broadcast represents exactly one YouTube video, so the privacy settings are identical to those supported for videos. In addition, you can set this field by modifying the broadcast resource or by setting the privacyStatus field of the corresponding video resource.",
+      "The broadcast's privacy status. Note that the broadcast represents exactly one YouTube video, so the privacy settings are identical to those supported for videos. In addition, you can set this field by modifying the broadcast resource or by setting the [`privacyStatus`](https://developers.google.com/youtube/data/reference/rest/v3/videos#status.privacyStatus) field of the corresponding video resource.",
     ).optional(),
     recordingStatus: z.enum([
       "liveBroadcastRecordingStatusUnspecified",
@@ -488,7 +488,7 @@ const GlobalArgsSchema = z.object({
     "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
   ).optional(),
   onBehalfOfContentOwnerChannel: z.string().describe(
-    "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+    "This parameter can only be used in a properly [authorized request](https://developers.google.com/youtube/data/guides/authentication). *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
   ).optional(),
 });
 
@@ -656,7 +656,7 @@ const InputsSchema = z.object({
       "Optional. The broadcast's availability config. Used to set specific region availability or block specific regions It is optional - if not set, it is not enforced.",
     ).optional(),
     boundStreamId: z.string().describe(
-      "This value uniquely identifies the live stream bound to the broadcast.",
+      "This value uniquely identifies the [`live stream`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveStreams) bound to the broadcast.",
     ).optional(),
     boundStreamLastUpdateTimeMs: z.string().describe(
       "The date and time that the live stream referenced by boundStreamId was last updated.",
@@ -697,11 +697,11 @@ const InputsSchema = z.object({
       "If both this and enable_low_latency are set, they must match. LATENCY_NORMAL should match enable_low_latency=false LATENCY_LOW should match enable_low_latency=true LATENCY_ULTRA_LOW should have enable_low_latency omitted.",
     ).optional(),
     mesh: z.string().describe(
-      "The mesh for projecting the video if projection is mesh. The mesh value must be a UTF-8 string containing the base-64 encoding of 3D mesh data that follows the Spherical Video V2 RFC specification for an mshp box, excluding the box size and type but including the following four reserved zero bytes for the version and flags.",
+      "The mesh for projecting the video if projection is mesh. The mesh value must be a UTF-8 string containing the base-64 encoding of 3D mesh data that follows the [Spherical Video V2 RFC specification](https://github.com/google/spatial-media/blob/master/docs/spherical-video-v2-rfc.md) for an mshp box, excluding the box size and type but including the following four reserved zero bytes for the version and flags.",
     ).optional(),
     monitorStream: z.object({
       broadcastStreamDelayMs: z.number().int().describe(
-        "If you have set the enableMonitorStream property to true, then this property determines the length of the live broadcast delay.",
+        "If you have set the [`enableMonitorStream`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveBroadcasts#contentDetails.monitorStream.enableMonitorStream) property to true, then this property determines the length of the live broadcast delay.",
       ).optional(),
       embedHtml: z.string().describe(
         "HTML code that embeds a player that plays the monitor stream.",
@@ -720,7 +720,7 @@ const InputsSchema = z.object({
       "Automatically start recording after the event goes live. The default value for this property is true. *Important:* You must also set the enableDvr property's value to true if you want the playback to be available immediately after the broadcast ends. If you set this property's value to true but do not also set the enableDvr property to true, there may be a delay of around one day before the archived video will be available for playback.",
     ).optional(),
     startWithSlate: z.boolean().describe(
-      "This setting indicates whether the broadcast should automatically begin with an in-stream slate when you update the broadcast's status to live. After updating the status, you then need to send a liveCuepoints.insert request that sets the cuepoint's eventState to end to remove the in-stream slate and make your broadcast stream visible to viewers.",
+      "This setting indicates whether the broadcast should automatically begin with an [in-stream slate](https://developers.google.com/youtube/data/live/getting-started#Displaying_Slates) when you update the broadcast's status to live. After updating the status, you then need to send a [`liveCuepoints.insert`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveCuepoints/insert) request that sets the cuepoint's eventState to end to remove the in-stream slate and make your broadcast stream visible to viewers.",
     ).optional(),
     stereoLayout: z.enum([
       "stereoLayoutUnspecified",
@@ -766,13 +766,13 @@ const InputsSchema = z.object({
       "The date and time that the broadcast actually started. This information is only available once the broadcast's state is live.",
     ).optional(),
     categoryId: z.string().describe(
-      "The YouTube video category associated with the video broadcast.",
+      "The YouTube [video category](https://developers.google.com/youtube/data/reference/rest/v3/videoCategories/list) associated with the video broadcast.",
     ).optional(),
     channelId: z.string().describe(
       "The ID that YouTube uses to uniquely identify the channel that is publishing the broadcast.",
     ).optional(),
     description: z.string().describe(
-      "The broadcast's description. As with the title, you can set this field by modifying the broadcast resource or by setting the description field of the corresponding video resource.",
+      "The broadcast's description. As with the title, you can set this field by modifying the broadcast resource or by setting the [`description`](https://developers.google.com/youtube/data/reference/rest/v3/videos#snippet.description) field of the corresponding video resource.",
     ).optional(),
     isDefaultBroadcast: z.boolean().describe(
       "Indicates whether this broadcast is the default broadcast. Internal only.",
@@ -873,7 +873,7 @@ const InputsSchema = z.object({
       "A map of thumbnail images associated with the broadcast. For each nested object in this object, the key is the name of the thumbnail image, and the value is an object that contains other information about the thumbnail.",
     ).optional(),
     title: z.string().describe(
-      "The broadcast's title. Note that the broadcast represents exactly one YouTube video. You can set this field by modifying the broadcast resource or by setting the title field of the corresponding video resource.",
+      "The broadcast's title. Note that the broadcast represents exactly one YouTube video. You can set this field by modifying the broadcast resource or by setting the [`title`](https://developers.google.com/youtube/data/reference/rest/v3/videos#snippet.title) field of the corresponding video resource.",
     ).optional(),
   }).describe(
     "The snippet object contains basic details about the event, including its title, description, start time, and end time.",
@@ -897,7 +897,7 @@ const InputsSchema = z.object({
       "testStarting",
       "liveStarting",
     ]).describe(
-      "The broadcast's status. The status can be updated using the API's liveBroadcasts.transition method.",
+      "The broadcast's status. The status can be updated using the API's [`liveBroadcasts.transition`](https://developers.google.com/youtube/data/live/reference/rest/v3/liveBroadcasts/transition) method.",
     ).optional(),
     liveBroadcastPriority: z.enum([
       "liveBroadcastPriorityUnspecified",
@@ -910,7 +910,7 @@ const InputsSchema = z.object({
       "Whether the broadcast is made for kids or not, decided by YouTube instead of the creator. This field is read only.",
     ).optional(),
     privacyStatus: z.enum(["public", "unlisted", "private"]).describe(
-      "The broadcast's privacy status. Note that the broadcast represents exactly one YouTube video, so the privacy settings are identical to those supported for videos. In addition, you can set this field by modifying the broadcast resource or by setting the privacyStatus field of the corresponding video resource.",
+      "The broadcast's privacy status. Note that the broadcast represents exactly one YouTube video, so the privacy settings are identical to those supported for videos. In addition, you can set this field by modifying the broadcast resource or by setting the [`privacyStatus`](https://developers.google.com/youtube/data/reference/rest/v3/videos#status.privacyStatus) field of the corresponding video resource.",
     ).optional(),
     recordingStatus: z.enum([
       "liveBroadcastRecordingStatusUnspecified",
@@ -931,7 +931,7 @@ const InputsSchema = z.object({
     "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
   ).optional(),
   onBehalfOfContentOwnerChannel: z.string().describe(
-    "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+    "This parameter can only be used in a properly [authorized request](https://developers.google.com/youtube/data/guides/authentication). *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
   ).optional(),
 });
 
@@ -961,7 +961,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data LiveBroadcasts. Registered at `@swamp/gcp/youtube/livebroadcasts`. */
 export const model = {
   type: "@swamp/gcp/youtube/livebroadcasts",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1105,6 +1105,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1398,7 +1403,7 @@ export const model = {
           "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
         ).optional(),
         onBehalfOfContentOwnerChannel: z.string().describe(
-          "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+          "This parameter can only be used in a properly [authorized request](https://developers.google.com/youtube/data/guides/authentication). *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
         ).optional(),
         part: z.string().describe(
           "The *part* parameter specifies a comma-separated list of one or more liveBroadcast resource properties that the API response will include. The part names that you can include in the parameter value are id, snippet, contentDetails, status and statistics.",

@@ -1,0 +1,22 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/deepreview"
+version: "2026.10.20.1"
+license: "AGPL-3.0-or-later"
+description: "Google Cloud deepreview infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - deepreview
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: documents, documents_reviews
+models:
+  - documents.ts
+  - documents_reviews.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

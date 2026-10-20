@@ -95,6 +95,9 @@ const GET_CONFIG = {
     "filter.version.displayNames": {
       "location": "query",
     },
+    "filterExpression": {
+      "location": "query",
+    },
     "granularity": {
       "location": "query",
     },
@@ -300,7 +303,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Reports. Registered at `@swamp/gcp/firebasecrashlytics/apps-reports`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-reports",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -359,6 +362,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -117,6 +117,9 @@ const GlobalArgsSchema = z.object({
     MessageStreaming: z.boolean().describe(
       "Boolean flag which enables MESSAGE_STREAMING on an instance.",
     ).optional(),
+    AutoMuteAgentOnHold: z.boolean().describe(
+      "Boolean flag which enables AUTO_MUTE_AGENT_ON_HOLD on an instance.",
+    ).optional(),
   }).describe("The attributes for the instance."),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -146,6 +149,7 @@ const StateSchema = z.object({
     EnhancedChatMonitoring: z.boolean(),
     MultiPartyChatConference: z.boolean(),
     MessageStreaming: z.boolean(),
+    AutoMuteAgentOnHold: z.boolean(),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -213,6 +217,9 @@ const InputsSchema = z.object({
     MessageStreaming: z.boolean().describe(
       "Boolean flag which enables MESSAGE_STREAMING on an instance.",
     ).optional(),
+    AutoMuteAgentOnHold: z.boolean().describe(
+      "Boolean flag which enables AUTO_MUTE_AGENT_ON_HOLD on an instance.",
+    ).optional(),
   }).describe("The attributes for the instance.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -238,7 +245,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Instance. Registered at `@swamp/aws/connect/instance`. */
 export const model = {
   type: "@swamp/aws/connect/instance",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -292,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

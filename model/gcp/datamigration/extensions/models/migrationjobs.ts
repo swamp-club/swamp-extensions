@@ -985,7 +985,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1205,6 +1205,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1936,6 +1941,7 @@ export const model = {
     promote: {
       description: "promote",
       arguments: z.object({
+        failback: z.any().optional(),
         objectsFilter: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1952,6 +1958,7 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (args["failback"] !== undefined) body["failback"] = args["failback"];
         if (args["objectsFilter"] !== undefined) {
           body["objectsFilter"] = args["objectsFilter"];
         }
