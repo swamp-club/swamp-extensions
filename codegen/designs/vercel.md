@@ -429,6 +429,15 @@ error names the argument that was set and the field it was compared against
 (`project="my-app" (matched against projectId)`): `project` also accepts a
 project name, which never equals an item's `projectId`.
 
+`lookup` takes an optional `allowMissing` argument and writes a `lookupResult`
+record (`found`, `filters`, optional `id` from the list identifier) as
+`lookup-<naming argument or current>`, the same contract as Cloudflare (see
+`cloudflare.md`, "Recording a miss"). With `allowMissing: true`, 0 matches
+writes `found: false` instead of throwing; more than one match and API errors
+still throw. `filters` is keyed by the global argument that was set (`project`),
+not the item field it was compared against (`projectId`). Resources without a
+list endpoint have no `lookup`, so they get no `lookupResult` spec either.
+
 ### Sensitive fields
 
 A top-level request-body field is emitted with `.meta({ sensitive: true })` in

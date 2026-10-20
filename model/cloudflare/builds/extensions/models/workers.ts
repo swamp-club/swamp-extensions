@@ -173,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
   type: "@swamp/cloudflare/builds/workers",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -215,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -222,6 +227,16 @@ export const model = {
     state: {
       description: "Workers resource state",
       schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -302,8 +317,12 @@ export const model = {
     lookup: {
       description:
         "Look up an existing Workers by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe(
+          "Succeed and record found: false in lookupResult when nothing matches, instead of failing",
+        ),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const filters: [string, string][] = [];
@@ -331,7 +350,21 @@ export const model = {
           }
           return true;
         });
+        const resultName = `lookup-${
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "")
+        }`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource(
+              "lookupResult",
+              resultName,
+              { found: false, filters: Object.fromEntries(filters) },
+            );
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) =>
             `${k}=${JSON.stringify(v)}`
           ).join(", ");
@@ -356,7 +389,16 @@ export const model = {
           instanceName,
           result,
         );
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource(
+          "lookupResult",
+          resultName,
+          {
+            found: true,
+            filters: Object.fromEntries(filters),
+            id: result.id?.toString(),
+          },
+        );
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {

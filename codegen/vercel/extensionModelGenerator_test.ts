@@ -412,6 +412,39 @@ Deno.test("generateVercelExtensionModel - one identifier keeps the direct existi
   assertStringIncludes(code, "await tryRead(endpoint, existing.id,");
 });
 
+Deno.test("generateVercelExtensionModel - lookup allowMissing records a miss in lookupResult", () => {
+  const code = generate(uidListResource());
+  const lookup = block(code, "    lookup: {", "    adopt: {");
+
+  assertStringIncludes(code, "    lookupResult: {");
+  assertStringIncludes(lookup, "allowMissing: z.boolean().optional()");
+
+  const noMatch = block(
+    lookup,
+    "if (matches.length === 0) {",
+    "if (matches.length > 1) {",
+  );
+  assertStringIncludes(noMatch, "if (args.allowMissing) {");
+  // A remapped filter is recorded under the global arg the user set.
+  assertStringIncludes(
+    noMatch,
+    'context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters.map(([, v, arg]) => [arg, v])) })',
+  );
+
+  const multiMatch = block(
+    lookup,
+    "if (matches.length > 1) {",
+    "const result = matches[0]",
+  );
+  assertEquals(multiMatch.includes("allowMissing"), false);
+
+  assertStringIncludes(lookup, "id: result.uid?.toString() })");
+  assertStringIncludes(
+    lookup,
+    "return { dataHandles: [handle, resultHandle] };",
+  );
+});
+
 Deno.test("generateVercelExtensionModel - lookup filters only on list item fields", () => {
   const lookup = block(
     generate(uidListResource()),

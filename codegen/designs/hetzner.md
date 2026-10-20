@@ -701,14 +701,21 @@ enforced only by `create` (see "Create-required properties").
 Two methods support importing existing resources into swamp management:
 
 **`lookup`** — generated for resources with both `read` and `list` handlers AND
-a natural naming field (not synthetic). Takes no arguments; uses `globalArgs` to
-identify the resource. Calls `listAll()`, filters by matching the naming field
-against `globalArgs.name`, and validates exactly one match (throws on zero or
-multiple matches, or when the naming field is unset). This is the primary
-adoption path — users set the naming field in globalArgs (no other create fields
-are needed), then `lookup` finds the matching resource without needing the
-numeric ID. On multiple matches, the error message directs the user to `adopt`
-with a specific ID.
+a natural naming field (not synthetic). Takes only `allowMissing`; uses
+`globalArgs` to identify the resource. Calls `listAll()`, filters by matching
+the naming field against `globalArgs.name`, and validates exactly one match
+(throws on zero or multiple matches, or when the naming field is unset). This is
+the primary adoption path — users set the naming field in globalArgs (no other
+create fields are needed), then `lookup` finds the matching resource without
+needing the numeric ID. On multiple matches, the error message directs the user
+to `adopt` with a specific ID.
+
+`lookup` takes an optional `allowMissing` argument and writes a `lookupResult`
+record (`found`, `filters` with the naming field, optional `id`) as
+`lookup-<name>`, the same contract as Cloudflare (see `cloudflare.md`,
+"Recording a miss"). With `allowMissing: true`, no match writes `found: false`
+instead of throwing; multiple matches, an unset naming field and API errors
+still throw. Models without `lookup` get no `lookupResult` spec.
 
 **`adopt`** — generated for every resource with a `read` handler (17 of 18
 models). Takes an `id` (number) and, for resources with natural naming fields,

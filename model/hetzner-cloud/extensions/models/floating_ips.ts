@@ -102,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud floating ip. Registered at `@swamp/hetzner-cloud/floating-ips`. */
 export const model = {
   type: "@swamp/hetzner-cloud/floating-ips",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -184,6 +184,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -191,6 +196,16 @@ export const model = {
     state: {
       description: "Floating ip resource state",
       schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -394,8 +409,12 @@ export const model = {
     lookup: {
       description:
         "Find an existing floating ip by name and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe(
+          "Succeed and record found: false in lookupResult when nothing matches, instead of failing",
+        ),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.name;
         if (!expectedName) {
@@ -408,6 +427,16 @@ export const model = {
         ) as ResourceData[];
         const matches = items.filter((item) => item.name === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\/\\]/g, "_")
+              .replace(/\.\./g, "_").replace(/\0/g, "");
+            const missHandle = await context.writeResource(
+              "lookupResult",
+              `lookup-${missName}`,
+              { found: false, filters: { "name": String(expectedName) } },
+            );
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(`No floating ip found matching name=${expectedName}`);
         }
         if (matches.length > 1) {
@@ -425,7 +454,16 @@ export const model = {
           instanceName,
           result,
         );
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource(
+          "lookupResult",
+          `lookup-${instanceName}`,
+          {
+            found: true,
+            filters: { "name": String(expectedName) },
+            id: result.id?.toString(),
+          },
+        );
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {

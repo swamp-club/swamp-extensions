@@ -493,6 +493,70 @@ Deno.test("lookup - filters by scalar GlobalArgs fields only", () => {
   assertStringIncludes(out, "Expected exactly 1 match, found");
 });
 
+Deno.test("lookup - allowMissing records a miss in lookupResult instead of throwing", () => {
+  const out = generateCloudflareExtensionModel({
+    resource: makeResource({
+      resourcePath: "d1/database",
+      service: "d1",
+      modelSlug: "database",
+      fileName: "database.ts",
+      createProperties: { name: stringProp },
+      resourceProperties: { id: stringProp, name: stringProp },
+    }),
+    extensionName: "@swamp/cloudflare/d1",
+    version: "2026.01.01.1",
+  });
+  const lookup = out.slice(
+    out.indexOf("    lookup: {"),
+    out.indexOf("    adopt: {"),
+  );
+
+  assertStringIncludes(out, "    lookupResult: {");
+  assertStringIncludes(lookup, "allowMissing: z.boolean().optional()");
+  assertStringIncludes(
+    lookup,
+    "execute: async (args: { allowMissing?: boolean }, context: any)",
+  );
+
+  // A miss is recorded only when allowMissing is set, under its own data name.
+  const noMatch = lookup.slice(
+    lookup.indexOf("if (matches.length === 0) {"),
+    lookup.indexOf("if (matches.length > 1) {"),
+  );
+  assertStringIncludes(noMatch, "if (args.allowMissing) {");
+  assertStringIncludes(
+    noMatch,
+    'context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) })',
+  );
+  assertStringIncludes(noMatch, "No database found matching filters:");
+
+  // lookupResult is named from the query, so a miss and a hit share it.
+  assertStringIncludes(
+    lookup,
+    'const resultName = `lookup-${(g.name?.toString() ?? "current")',
+  );
+
+  // More than one match always throws.
+  const multiMatch = lookup.slice(
+    lookup.indexOf("if (matches.length > 1) {"),
+    lookup.indexOf("const result = matches[0]"),
+  );
+  assert(
+    !multiMatch.includes("allowMissing"),
+    "multiple matches must throw whatever allowMissing says",
+  );
+
+  // A hit writes state first, then lookupResult.
+  assertStringIncludes(
+    lookup,
+    'context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.id?.toString() })',
+  );
+  assertStringIncludes(
+    lookup,
+    "return { dataHandles: [handle, resultHandle] };",
+  );
+});
+
 Deno.test("lookup - skips synthetic name field from filters", () => {
   const resource = makeResource({
     resourcePath: "addressing/address_maps",

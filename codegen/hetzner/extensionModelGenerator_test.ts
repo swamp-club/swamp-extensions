@@ -717,6 +717,49 @@ Deno.test("emits lookup method for resource with natural name + read + list", ()
   assertStringIncludes(out, "Use adopt with a specific ID instead.");
 });
 
+Deno.test("lookup - allowMissing records a miss in lookupResult instead of throwing", () => {
+  const out = generateServers();
+  const lookup = out.slice(
+    out.indexOf("    lookup: {"),
+    out.indexOf("    adopt: {"),
+  );
+
+  assertStringIncludes(out, "    lookupResult: {");
+  assertStringIncludes(lookup, "allowMissing: z.boolean().optional()");
+
+  const noMatch = lookup.slice(
+    lookup.indexOf("if (matches.length === 0) {"),
+    lookup.indexOf("if (matches.length > 1) {"),
+  );
+  assertStringIncludes(noMatch, "if (args.allowMissing) {");
+  assertStringIncludes(
+    noMatch,
+    'context.writeResource("lookupResult", `lookup-${missName}`, { found: false, filters: { "name": String(expectedName) } })',
+  );
+  assertStringIncludes(noMatch, "No server found matching name=");
+
+  const multiMatch = lookup.slice(
+    lookup.indexOf("if (matches.length > 1) {"),
+    lookup.indexOf("const result = matches[0]"),
+  );
+  assertFalse(multiMatch.includes("allowMissing"));
+
+  assertStringIncludes(
+    lookup,
+    'context.writeResource("lookupResult", `lookup-${instanceName}`, { found: true, filters: { "name": String(expectedName) }, id: result.id?.toString() })',
+  );
+  assertStringIncludes(
+    lookup,
+    "return { dataHandles: [handle, resultHandle] };",
+  );
+});
+
+Deno.test("omits lookupResult when no lookup method is emitted", () => {
+  const out = generateServers({ list: false });
+  assertFalse(out.includes("lookup: {"));
+  assertFalse(out.includes("lookupResult"));
+});
+
 Deno.test("omits lookup method for resource with synthetic name", () => {
   const resource = makeResource({
     noun: "primary_ips",

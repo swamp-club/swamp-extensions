@@ -77,6 +77,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -184,14 +194,21 @@ export const model = {
     },
     lookup: {
       description: "Find an existing server by name and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.name;
         if (!expectedName) throw new Error("globalArgs.name is required for lookup");
         const items = await listAll("/servers", {}, g.token) as ResourceData[];
         const matches = items.filter((item) => item.name === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { "name": String(expectedName) } });
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(\`No server found matching name=\${expectedName}\`);
         }
         if (matches.length > 1) {
@@ -200,7 +217,8 @@ export const model = {
         const result = matches[0];
         const instanceName = (result.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { "name": String(expectedName) }, id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -288,6 +306,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -360,14 +388,21 @@ export const model = {
     },
     lookup: {
       description: "Find an existing zone by name and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.name;
         if (!expectedName) throw new Error("globalArgs.name is required for lookup");
         const items = await listAll("/zones", {}, g.token) as ResourceData[];
         const matches = items.filter((item) => item.name === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { "name": String(expectedName) } });
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(\`No zone found matching name=\${expectedName}\`);
         }
         if (matches.length > 1) {
@@ -376,7 +411,8 @@ export const model = {
         const result = matches[0];
         const instanceName = (result.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { "name": String(expectedName) }, id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -637,6 +673,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -743,14 +789,21 @@ export const model = {
     },
     lookup: {
       description: "Find an existing placement group by label and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.label;
         if (!expectedName) throw new Error("globalArgs.label is required for lookup");
         const items = await listAll("/placement_groups", {}, g.token) as ResourceData[];
         const matches = items.filter((item) => item.label === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { "label": String(expectedName) } });
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(\`No placement group found matching label=\${expectedName}\`);
         }
         if (matches.length > 1) {
@@ -759,7 +812,8 @@ export const model = {
         const result = matches[0];
         const instanceName = (result.label?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { "label": String(expectedName) }, id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -854,6 +908,16 @@ export const model = {
     state: {
       description: "Ssh key resource state",
       schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -963,14 +1027,21 @@ export const model = {
     },
     lookup: {
       description: "Find an existing ssh key by name and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.name;
         if (!expectedName) throw new Error("globalArgs.name is required for lookup");
         const items = await listAll("/ssh_keys", {}, g.token) as ResourceData[];
         const matches = items.filter((item) => item.name === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { "name": String(expectedName) } });
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(\`No ssh key found matching name=\${expectedName}\`);
         }
         if (matches.length > 1) {
@@ -979,7 +1050,8 @@ export const model = {
         const result = matches[0];
         const instanceName = (result.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { "name": String(expectedName) }, id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -1283,6 +1355,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -1388,14 +1470,21 @@ export const model = {
     },
     lookup: {
       description: "Find an existing firewall by name and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const expectedName = g.name;
         if (!expectedName) throw new Error("globalArgs.name is required for lookup");
         const items = await listAll("/firewalls", {}, g.token) as ResourceData[];
         const matches = items.filter((item) => item.name === expectedName);
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missName = (String(expectedName)).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { "name": String(expectedName) } });
+            return { dataHandles: [missHandle] };
+          }
           throw new Error(\`No firewall found matching name=\${expectedName}\`);
         }
         if (matches.length > 1) {
@@ -1404,7 +1493,8 @@ export const model = {
         const result = matches[0];
         const instanceName = (result.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { "name": String(expectedName) }, id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {

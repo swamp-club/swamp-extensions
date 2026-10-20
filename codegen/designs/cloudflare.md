@@ -925,8 +925,11 @@ state.
 4. Filter results: for each item, every filter `[key, value]` must match
    `String(item[key]) === value`.
 5. Require exactly 1 match — error on 0 or >1, with the applied filters in the
-   error message for debuggability.
-6. Write the matched record to state using the naming field.
+   error message for debuggability. With `allowMissing: true`, 0 matches is
+   recorded instead of thrown (see below); >1 always throws.
+6. Write the matched record to state using the naming field, then write a
+   `lookupResult` record with `found: true`, the applied filters and the
+   record's `identifyingField`. `state` stays first in `dataHandles`.
 
 Example flow (DNS records):
 
@@ -936,6 +939,54 @@ swamp model edit my-record
 # Set: zone_id, name="www.example.com", type="A"
 swamp model method run my-record lookup
 # → lists all DNS records in the zone, finds the A record for www.example.com
+```
+
+### Recording a miss — `allowMissing` and `lookupResult`
+
+A failed `lookup` cannot tell its caller whether the record is absent or the
+lookup could not run (auth, network or API error), which breaks the natural
+create-or-adopt flow (swamp-club #3582). `lookup` takes an optional
+`allowMissing` argument for that flow:
+
+- 0 matches and `allowMissing` unset → throws the no-match error, as before.
+- 0 matches and `allowMissing: true` → succeeds and writes only a `lookupResult`
+  record with `found: false` and the applied filters. Existing `state` data is
+  left untouched, so branch on `lookupResult` and never on whether `state`
+  exists.
+- More than one match, or any `listAll()` error → throws, whatever
+  `allowMissing` says.
+
+`lookupResult` is its own resource spec (`found`, `filters`, optional `id`). A
+model's data names share one namespace across specs, so it is written as
+`lookup-<name>`, where `<name>` is the naming field global argument, or
+`"current"` when it is unset. The name comes from the query, never the result,
+so a miss and a later hit for the same query write the same record (state, by
+contrast, falls back to the record id on a hit). Every lookup without a naming
+field shares `lookup-current`. A `<name>` that itself starts with `lookup-`
+could in principle collide with another record's data name.
+
+A workflow step can branch on it. `data.latest()` reads the value written
+earlier in the same run, and a step whose `guard` is true is skipped:
+
+```yaml
+steps:
+  - name: find-record
+    task:
+      type: model_method
+      modelIdOrName: www-record
+      methodName: lookup
+      inputs:
+        allowMissing: true
+  - name: create-record
+    guard: ${{ data.latest("www-record", "lookup-www.example.com").attributes.found }}
+    task:
+      type: model_method
+      modelIdOrName: www-record
+      methodName: create
+    dependsOn:
+      - step: find-record
+        condition:
+          type: succeeded
 ```
 
 ### Adopt — import by ID

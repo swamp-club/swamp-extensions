@@ -10,7 +10,8 @@ that reflect the live state in Vercel. Available methods:
 - **create** — provision the resource using the configured properties
 - **get** — fetch the current state of a specific resource by ID
 - **lookup** — find an existing resource by field values and import it into
-  state
+  state (pass `allowMissing: true` to record a miss in `lookupResult` instead of
+  failing)
 - **adopt** — import a resource by ID into state for management
 - **update** — apply property changes to an existing resource
 - **delete** — remove the resource from Vercel

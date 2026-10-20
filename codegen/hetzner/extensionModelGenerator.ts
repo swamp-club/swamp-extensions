@@ -293,6 +293,20 @@ export function generateHetznerExtensionModel(
   lines.push(`      lifetime: "infinite",`);
   lines.push(`      garbageCollection: 10,`);
   lines.push(`    },`);
+  if (hasLookup) {
+    // Outcome of the latest lookup, so a caller can branch on found instead
+    // of telling a no-match failure apart from an API failure.
+    lines.push(`    lookupResult: {`);
+    lines.push(`      description: "Outcome of the most recent lookup",`);
+    lines.push(`      schema: z.object({`);
+    lines.push(`        found: z.boolean(),`);
+    lines.push(`        filters: z.record(z.string(), z.string()),`);
+    lines.push(`        id: z.string().optional(),`);
+    lines.push(`      }),`);
+    lines.push(`      lifetime: "infinite",`);
+    lines.push(`      garbageCollection: 10,`);
+    lines.push(`    },`);
+  }
   lines.push(`  },`);
   lines.push(`  methods: {`);
 
@@ -641,9 +655,13 @@ export function generateHetznerExtensionModel(
     lines.push(
       `      description: "Find an existing ${singularName} by ${namingField} and import it into state",`,
     );
-    lines.push(`      arguments: z.object({}),`);
+    lines.push(`      arguments: z.object({`);
     lines.push(
-      `      execute: async (_args: Record<string, never>, context: any) => {`,
+      `        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),`,
+    );
+    lines.push(`      }),`);
+    lines.push(
+      `      execute: async (args: { allowMissing?: boolean }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
     lines.push(
@@ -659,6 +677,19 @@ export function generateHetznerExtensionModel(
       `        const matches = items.filter((item) => item.${namingField} === expectedName);`,
     );
     lines.push(`        if (matches.length === 0) {`);
+    lines.push(`          if (args.allowMissing) {`);
+    lines.push(
+      `            const missName = ${
+        wrapWithSanitize("String(expectedName)")
+      };`,
+    );
+    lines.push(
+      `            const missHandle = await context.writeResource("lookupResult", \`lookup-\${missName}\`, { found: false, filters: { ${
+        JSON.stringify(namingField)
+      }: String(expectedName) } });`,
+    );
+    lines.push(`            return { dataHandles: [missHandle] };`);
+    lines.push(`          }`);
     lines.push(
       `          throw new Error(\`No ${singularName} found matching ${namingField}=\${expectedName}\`);`,
     );
@@ -679,7 +710,12 @@ export function generateHetznerExtensionModel(
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
     );
-    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(
+      `        const resultHandle = await context.writeResource("lookupResult", \`lookup-\${instanceName}\`, { found: true, filters: { ${
+        JSON.stringify(namingField)
+      }: String(expectedName) }, id: result.id?.toString() });`,
+    );
+    lines.push(`        return { dataHandles: [handle, resultHandle] };`);
     lines.push(`      },`);
     lines.push(`    },`);
   }

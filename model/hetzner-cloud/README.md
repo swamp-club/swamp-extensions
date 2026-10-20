@@ -10,6 +10,8 @@ Hetzner Cloud. Available methods:
 
 - **create** — provision the resource using the configured properties
 - **get** — fetch the current state of a specific resource by ID
+- **lookup** — find an existing resource by name and import it into state (pass
+  `allowMissing: true` to record a miss in `lookupResult` instead of failing)
 - **update** — apply property changes to an existing resource
 - **delete** — remove the resource from Hetzner Cloud
 - **sync** — refresh all resource properties from the API

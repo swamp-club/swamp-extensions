@@ -45,6 +45,18 @@ function createMockHetznerServer(): {
           { status: 201 },
         );
       }
+      if (req.method === "GET" && path === "/v1/servers") {
+        // A token without read access, for API-failure paths.
+        if (req.headers.get("Authorization") === "Bearer denied") {
+          return Response.json({ error: { code: "forbidden" } }, {
+            status: 403,
+          });
+        }
+        return Response.json({
+          servers: [{ id: 1, name: "web-1" }],
+          meta: { pagination: { next_page: null } },
+        });
+      }
       if (req.method === "GET" && path === "/v1/servers/1") {
         return Response.json({ server: { id: 1, name: "web-1" } });
       }
@@ -234,9 +246,9 @@ function createMockContext(globalArgs: Record<string, unknown>) {
   return {
     context: {
       globalArgs,
-      writeResource(_type: string, instanceName: string, data: unknown) {
+      writeResource(type: string, instanceName: string, data: unknown) {
         written.set(instanceName, data);
-        return { type: "state", name: instanceName };
+        return { type, name: instanceName };
       },
     },
     written,
@@ -332,6 +344,75 @@ Deno.test({
         await model.methods.get.execute({ id: 1 }, context);
         assertEquals(written.get("web-1"), { id: 1, name: "web-1" });
       });
+
+      await t.step(
+        "lookup with allowMissing records a miss in lookupResult",
+        async () => {
+          const strict = createMockContext({ name: "web-9", token: "t6" });
+          await assertRejects(
+            () => model.methods.lookup.execute({}, strict.context),
+            Error,
+            "No server found matching name=web-9",
+          );
+
+          const { context, written } = createMockContext({
+            name: "web-9",
+            token: "t6",
+          });
+          const result = await model.methods.lookup.execute(
+            { allowMissing: true },
+            context,
+          );
+          assertEquals(result.dataHandles, [
+            { type: "lookupResult", name: "lookup-web-9" },
+          ]);
+          assertEquals(written.get("lookup-web-9"), {
+            found: false,
+            filters: { name: "web-9" },
+          });
+          assertEquals(written.size, 1);
+        },
+      );
+
+      await t.step(
+        "lookup with one match writes state, then lookupResult",
+        async () => {
+          const { context, written } = createMockContext({
+            name: "web-1",
+            token: "t6",
+          });
+          const result = await model.methods.lookup.execute(
+            { allowMissing: true },
+            context,
+          );
+          assertEquals(result.dataHandles, [
+            { type: "state", name: "web-1" },
+            { type: "lookupResult", name: "lookup-web-1" },
+          ]);
+          assertEquals(written.get("web-1"), { id: 1, name: "web-1" });
+          assertEquals(written.get("lookup-web-1"), {
+            found: true,
+            filters: { name: "web-1" },
+            id: "1",
+          });
+        },
+      );
+
+      await t.step(
+        "lookup with allowMissing still throws on an API error",
+        async () => {
+          const { context, written } = createMockContext({
+            name: "web-9",
+            token: "denied",
+          });
+          await assertRejects(
+            () => model.methods.lookup.execute({ allowMissing: true }, context),
+            Error,
+            "403",
+          );
+          assertEquals(written.size, 0);
+        },
+      );
 
       await t.step("create with every required field posts them", async () => {
         const { context } = createMockContext({

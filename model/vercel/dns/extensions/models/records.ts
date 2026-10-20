@@ -99,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Records. Registered at `@swamp/vercel/dns/records`. */
 export const model = {
   type: "@swamp/vercel/dns/records",
-  version: "2026.10.20.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -141,6 +141,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -148,6 +153,16 @@ export const model = {
     state: {
       description: "Records resource state",
       schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -188,8 +203,12 @@ export const model = {
     lookup: {
       description:
         "Look up an existing Records by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe(
+          "Succeed and record found: false in lookupResult when nothing matches, instead of failing",
+        ),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/v5/domains/" + encodeURIComponent(g.domain) +
           "/records";
@@ -243,7 +262,21 @@ export const model = {
           }
           return true;
         });
+        const resultName = `lookup-${
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "")
+        }`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource(
+              "lookupResult",
+              resultName,
+              { found: false, filters: Object.fromEntries(filters) },
+            );
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) =>
             `${k}=${JSON.stringify(v)}`
           ).join(", ");
@@ -268,7 +301,16 @@ export const model = {
           instanceName,
           result,
         );
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource(
+          "lookupResult",
+          resultName,
+          {
+            found: true,
+            filters: Object.fromEntries(filters),
+            id: result.id?.toString(),
+          },
+        );
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     delete: {

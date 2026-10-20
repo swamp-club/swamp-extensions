@@ -93,6 +93,11 @@ function createMockCfServer(): {
         return cfOk({ id: "test", status: "active" });
       }
 
+      // A zone the token cannot read, for API-failure paths.
+      if (path.startsWith("/client/v4/zones/forbidden-zone/")) {
+        return cfError(403, 10000, "Authentication error");
+      }
+
       const listMatch = path.match(
         /^\/client\/v4\/zones\/([^/]+)\/dns_records$/,
       );
@@ -271,6 +276,8 @@ async function importGeneratedModel(
 
 function createMockContext(globalArgs: Record<string, unknown>) {
   const artifacts = new Map<string, Uint8Array>();
+  // Resource spec each artifact was written under, keyed like artifacts.
+  const specs = new Map<string, string>();
 
   return {
     context: {
@@ -287,7 +294,7 @@ function createMockContext(globalArgs: Record<string, unknown>) {
         },
       },
       writeResource(
-        _type: string,
+        type: string,
         instanceName: string,
         data: unknown,
       ): { type: string; name: string } {
@@ -295,10 +302,12 @@ function createMockContext(globalArgs: Record<string, unknown>) {
           instanceName,
           new TextEncoder().encode(JSON.stringify(data)),
         );
-        return { type: "state", name: instanceName };
+        specs.set(instanceName, type);
+        return { type, name: instanceName };
       },
     },
     artifacts,
+    specs,
   };
 }
 
@@ -669,6 +678,173 @@ Deno.test({
         false,
         "update must fail before the PUT",
       );
+    } finally {
+      restoreFetch();
+      await modelCleanup();
+      await server.close();
+      restoreToken();
+    }
+  },
+});
+
+function readArtifact(
+  artifacts: Map<string, Uint8Array>,
+  name: string,
+): Record<string, unknown> {
+  const data = artifacts.get(name);
+  if (!data) throw new Error(`no artifact named ${name}`);
+  return JSON.parse(new TextDecoder().decode(data));
+}
+
+// lookup with allowMissing: a no-match is recorded in lookupResult, while API
+// failures and ambiguous matches still fail. sanitizeResources: false for the
+// same reason as the tests above.
+Deno.test({
+  name: "lookup allowMissing: no-match recorded, API errors still thrown",
+  sanitizeResources: false,
+  async fn() {
+    const restoreToken = withTestToken();
+    const server = createMockCfServer();
+    const { restore: restoreFetch } = redirectFetchToMock(server.port);
+    const { model, cleanup: modelCleanup } = await importGeneratedModel(
+      server.port,
+    );
+
+    const recId = "aaaa1111bbbb2222cccc3333dddd4444";
+    server.records.set(recId, {
+      id: recId,
+      name: "www.example.com",
+      type: "A",
+      content: "1.2.3.4",
+      ttl: 300,
+    });
+
+    try {
+      const missArgs = { zone_id: "test-zone-id", name: "new.example.com" };
+
+      // --- No match without allowMissing keeps the existing error ---
+      const { context: strictCtx } = createMockContext(missArgs);
+      await assertRejects(
+        () => model.methods.lookup.execute({}, strictCtx),
+        Error,
+        "No dns record found matching filters",
+      );
+
+      // --- No match with allowMissing records found: false, writes no state ---
+      const { context: missCtx, artifacts: missArtifacts, specs: missSpecs } =
+        createMockContext(missArgs);
+      const missResult = await model.methods.lookup.execute(
+        { allowMissing: true },
+        missCtx,
+      );
+      assertEquals(missResult.dataHandles, [
+        { type: "lookupResult", name: "lookup-new.example.com" },
+      ]);
+      assertEquals(readArtifact(missArtifacts, "lookup-new.example.com"), {
+        found: false,
+        filters: { name: "new.example.com" },
+      });
+      assertEquals([...missSpecs.values()], ["lookupResult"]);
+
+      // --- A miss leaves earlier state untouched ---
+      const { context: staleCtx, artifacts: staleArtifacts } =
+        createMockContext(missArgs);
+      staleCtx.writeResource("state", "new.example.com", { id: "old" });
+      await model.methods.lookup.execute({ allowMissing: true }, staleCtx);
+      assertEquals(readArtifact(staleArtifacts, "new.example.com"), {
+        id: "old",
+      });
+
+      // --- One match writes state first, then lookupResult found: true ---
+      const hitArgs = { zone_id: "test-zone-id", name: "www.example.com" };
+      const { context: hitCtx, artifacts: hitArtifacts, specs: hitSpecs } =
+        createMockContext(hitArgs);
+      const hitResult = await model.methods.lookup.execute(
+        { allowMissing: true },
+        hitCtx,
+      );
+      assertEquals(hitResult.dataHandles, [
+        { type: "state", name: "www.example.com" },
+        { type: "lookupResult", name: "lookup-www.example.com" },
+      ]);
+      assertEquals(readArtifact(hitArtifacts, "www.example.com").id, recId);
+      assertEquals(readArtifact(hitArtifacts, "lookup-www.example.com"), {
+        found: true,
+        filters: { name: "www.example.com" },
+        id: recId,
+      });
+      assertEquals(hitSpecs.get("www.example.com"), "state");
+
+      // --- update and sync by identifier resolve state, not lookupResult ---
+      await model.methods.update.execute(
+        { identifier: "www.example.com" },
+        hitCtx,
+      );
+      await model.methods.sync.execute(
+        { identifier: "www.example.com" },
+        hitCtx,
+      );
+      assertEquals(readArtifact(hitArtifacts, "www.example.com").id, recId);
+      assertEquals(
+        readArtifact(hitArtifacts, "lookup-www.example.com").found,
+        true,
+      );
+
+      // --- Without a naming arg, a miss and a later hit share one record ---
+      const contentArgs = { zone_id: "test-zone-id", content: "9.9.9.9" };
+      const { context: anonCtx, artifacts: anonArtifacts } = createMockContext(
+        contentArgs,
+      );
+      await model.methods.lookup.execute({ allowMissing: true }, anonCtx);
+      assertEquals(readArtifact(anonArtifacts, "lookup-current").found, false);
+      const anonId = "cccc9999dddd0000eeee1111ffff2222";
+      server.records.set(anonId, {
+        id: anonId,
+        name: "nine.example.com",
+        type: "A",
+        content: "9.9.9.9",
+        ttl: 300,
+      });
+      const anonHit = await model.methods.lookup.execute(
+        { allowMissing: true },
+        anonCtx,
+      );
+      // state is named after the record; lookupResult after the query.
+      assertEquals(anonHit.dataHandles, [
+        { type: "state", name: anonId },
+        { type: "lookupResult", name: "lookup-current" },
+      ]);
+      assertEquals(readArtifact(anonArtifacts, "lookup-current"), {
+        found: true,
+        filters: { content: "9.9.9.9" },
+        id: anonId,
+      });
+
+      // --- More than one match throws whatever allowMissing says ---
+      const dupId = "eeee5555ffff6666aaaa7777bbbb8888";
+      server.records.set(dupId, {
+        id: dupId,
+        name: "www.example.com",
+        type: "AAAA",
+        content: "::1",
+        ttl: 300,
+      });
+      const { context: dupCtx } = createMockContext(hitArgs);
+      await assertRejects(
+        () => model.methods.lookup.execute({ allowMissing: true }, dupCtx),
+        Error,
+        "Expected exactly 1 match, found 2",
+      );
+
+      // --- An API failure throws whatever allowMissing says ---
+      const { context: deniedCtx, artifacts: deniedArtifacts } =
+        createMockContext({ zone_id: "forbidden-zone", name: "x.example.com" });
+      await assertRejects(
+        () => model.methods.lookup.execute({ allowMissing: true }, deniedCtx),
+        Error,
+        "Authentication error",
+      );
+      assertEquals(deniedArtifacts.size, 0);
     } finally {
       restoreFetch();
       await modelCleanup();

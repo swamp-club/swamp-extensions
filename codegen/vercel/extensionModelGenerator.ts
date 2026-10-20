@@ -205,6 +205,21 @@ export function generateVercelExtensionModel(
   lines.push(`      lifetime: "infinite",`);
   lines.push(`      garbageCollection: 10,`);
   lines.push(`    },`);
+  const hasLookup = !!resource.listPath || resource.paginationStyle !== "none";
+  if (hasLookup) {
+    // Outcome of the latest lookup, so a caller can branch on found instead
+    // of telling a no-match failure apart from an API failure.
+    lines.push(`    lookupResult: {`);
+    lines.push(`      description: "Outcome of the most recent lookup",`);
+    lines.push(`      schema: z.object({`);
+    lines.push(`        found: z.boolean(),`);
+    lines.push(`        filters: z.record(z.string(), z.string()),`);
+    lines.push(`        id: z.string().optional(),`);
+    lines.push(`      }),`);
+    lines.push(`      lifetime: "infinite",`);
+    lines.push(`      garbageCollection: 10,`);
+    lines.push(`    },`);
+  }
   lines.push(`  },`);
   lines.push(`  methods: {`);
 
@@ -371,14 +386,18 @@ export function generateVercelExtensionModel(
   );
   const allFilterFields = [...filterFields, ...responseFilterFields];
 
-  if (resource.listPath || resource.paginationStyle !== "none") {
+  if (hasLookup) {
     lines.push(`    lookup: {`);
     lines.push(
       `      description: "Look up an existing ${singular} by matching global argument values and import it into state",`,
     );
-    lines.push(`      arguments: z.object({}),`);
+    lines.push(`      arguments: z.object({`);
     lines.push(
-      `      execute: async (_args: Record<string, never>, context: any) => {`,
+      `        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),`,
+    );
+    lines.push(`      }),`);
+    lines.push(
+      `      execute: async (args: { allowMissing?: boolean }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
     lines.push(...listEp);
@@ -422,7 +441,24 @@ export function generateVercelExtensionModel(
     lines.push(`          }`);
     lines.push(`          return true;`);
     lines.push(`        });`);
+    // lookupResult names each filter by the global arg the user set.
+    const filtersRecordExpr = hasRemap
+      ? `Object.fromEntries(filters.map(([, v, arg]) => [arg, v]))`
+      : `Object.fromEntries(filters)`;
+    // Named from the query, not the result, so a miss and a later hit write
+    // the same lookupResult record.
+    lines.push(
+      `        const resultName = \`lookup-\${${
+        wrapWithSanitize(`g.${namingArg}?.toString() ?? "current"`)
+      }}\`;`,
+    );
     lines.push(`        if (matches.length === 0) {`);
+    lines.push(`          if (args.allowMissing) {`);
+    lines.push(
+      `            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: ${filtersRecordExpr} });`,
+    );
+    lines.push(`            return { dataHandles: [missHandle] };`);
+    lines.push(`          }`);
     lines.push(`          const filterDesc = ${filterDescExpr};`);
     lines.push(
       `          throw new Error(\`No ${singular.toLowerCase()} found matching filters: \${filterDesc}\`);`,
@@ -445,7 +481,10 @@ export function generateVercelExtensionModel(
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
     );
-    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(
+      `        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: ${filtersRecordExpr}, id: result.${listIdField}?.toString() });`,
+    );
+    lines.push(`        return { dataHandles: [handle, resultHandle] };`);
     lines.push(`      },`);
     lines.push(`    },`);
   }

@@ -20,6 +20,8 @@ function createMockVercelServer() {
   // Deployments by id, in the shape the read endpoint returns (no uid).
   const records = new Map<string, Record<string, unknown>>();
   const requests: string[] = [];
+  // When set, the list endpoint answers 403, for API-failure paths.
+  const opts = { denyList: false };
 
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
@@ -39,6 +41,11 @@ function createMockVercelServer() {
         return Response.json(created);
       }
       if (req.method === "GET" && url.pathname === LIST) {
+        if (opts.denyList) {
+          return Response.json({ error: { code: "forbidden" } }, {
+            status: 403,
+          });
+        }
         // List items carry uid, not id.
         const deployments = [...records.values()].map(({ id, ...rest }) => ({
           uid: id,
@@ -62,6 +69,7 @@ function createMockVercelServer() {
     close: () => server.shutdown(),
     records,
     requests,
+    opts,
   };
 }
 
@@ -168,7 +176,7 @@ function createMockContext(globalArgs: Record<string, unknown>) {
         },
       },
       writeResource(
-        _type: string,
+        type: string,
         instanceName: string,
         data: unknown,
       ): { type: string; name: string } {
@@ -176,7 +184,7 @@ function createMockContext(globalArgs: Record<string, unknown>) {
           instanceName,
           new TextEncoder().encode(JSON.stringify(data)),
         );
-        return { type: "state", name: instanceName };
+        return { type, name: instanceName };
       },
     },
     stored(instanceName: string): Record<string, unknown> {
@@ -336,6 +344,56 @@ Deno.test({
       await model.methods.sync.execute({}, context);
       assertEquals(stored("site").id, "dpl_1");
       assertEquals(stored("site").status, "not_found");
+    });
+  },
+});
+
+// sanitizeResources: false for the same reason as the tests above.
+Deno.test({
+  name:
+    "deployments: lookup allowMissing records a miss by global arg, API errors still throw",
+  sanitizeResources: false,
+  async fn() {
+    await withMockApi(async (server, model) => {
+      const { context, stored } = createMockContext({
+        name: "site",
+        project: "prj_missing",
+      });
+      const result = await model.methods.lookup.execute(
+        { allowMissing: true },
+        context,
+      );
+      assertEquals(result.dataHandles, [
+        { type: "lookupResult", name: "lookup-site" },
+      ]);
+      // project is recorded under the arg the user set, not projectId.
+      assertEquals(stored("lookup-site"), {
+        found: false,
+        filters: { name: "site", project: "prj_missing" },
+      });
+
+      server.records.set("dpl_1", {
+        id: "dpl_1",
+        name: "site",
+        projectId: "prj_1",
+      });
+      const hit = createMockContext({ name: "site", project: "prj_1" });
+      await model.methods.lookup.execute({ allowMissing: true }, hit.context);
+      assertEquals(hit.stored("site").uid, "dpl_1");
+      assertEquals(hit.stored("lookup-site"), {
+        found: true,
+        filters: { name: "site", project: "prj_1" },
+        id: "dpl_1",
+      });
+
+      server.opts.denyList = true;
+      const denied = createMockContext({ name: "site" });
+      await assertRejects(
+        () =>
+          model.methods.lookup.execute({ allowMissing: true }, denied.context),
+        Error,
+        "403",
+      );
     });
   },
 });

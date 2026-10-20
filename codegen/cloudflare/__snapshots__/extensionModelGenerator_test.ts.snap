@@ -74,6 +74,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -107,8 +117,10 @@ export const model = {
     },
     lookup: {
       description: "Look up an existing Database by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/d1/database";
         const filters: [string, string][] = [];
@@ -122,7 +134,12 @@ export const model = {
           }
           return true;
         });
+        const resultName = \`lookup-\${(g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "")}\`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) });
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");
           throw new Error(\`No database found matching filters: \${filterDesc}\`);
         }
@@ -133,7 +150,8 @@ export const model = {
         const result = matches[0] as ResourceData;
         const instanceName = (g.name?.toString() ?? result.id?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -277,6 +295,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -313,8 +341,10 @@ export const model = {
     },
     lookup: {
       description: "Look up an existing DNS Record by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/dns_records";
         const filters: [string, string][] = [];
@@ -331,7 +361,12 @@ export const model = {
           }
           return true;
         });
+        const resultName = \`lookup-\${(g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "")}\`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) });
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");
           throw new Error(\`No dns record found matching filters: \${filterDesc}\`);
         }
@@ -342,7 +377,8 @@ export const model = {
         const result = matches[0] as ResourceData;
         const instanceName = (g.name?.toString() ?? result.id?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -505,6 +541,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -543,8 +589,10 @@ export const model = {
     },
     lookup: {
       description: "Look up an existing Ruleset by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         if ((g.account_id == null) === (g.zone_id == null)) throw new Error("Exactly one of account_id or zone_id must be provided");
         const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
@@ -561,7 +609,12 @@ export const model = {
           }
           return true;
         });
+        const resultName = \`lookup-\${(g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "")}\`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) });
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");
           throw new Error(\`No ruleset found matching filters: \${filterDesc}\`);
         }
@@ -572,7 +625,8 @@ export const model = {
         const result = matches[0] as ResourceData;
         const instanceName = (g.name?.toString() ?? result.id?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -741,6 +795,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -771,8 +835,10 @@ export const model = {
     },
     lookup: {
       description: "Look up an existing Address Map by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
         const filters: [string, string][] = [];
@@ -785,7 +851,12 @@ export const model = {
           }
           return true;
         });
+        const resultName = \`lookup-\${(g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "")}\`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) });
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");
           throw new Error(\`No address map found matching filters: \${filterDesc}\`);
         }
@@ -796,7 +867,8 @@ export const model = {
         const result = matches[0] as ResourceData;
         const instanceName = (g.name?.toString() ?? result.id?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.id?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
@@ -956,6 +1028,16 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    lookupResult: {
+      description: "Outcome of the most recent lookup",
+      schema: z.object({
+        found: z.boolean(),
+        filters: z.record(z.string(), z.string()),
+        id: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     create: {
@@ -988,8 +1070,10 @@ export const model = {
     },
     lookup: {
       description: "Look up an existing Worker Script by matching global argument values and import it into state",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      arguments: z.object({
+        allowMissing: z.boolean().optional().describe("Succeed and record found: false in lookupResult when nothing matches, instead of failing"),
+      }),
+      execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
         const filters: [string, string][] = [];
@@ -1002,7 +1086,12 @@ export const model = {
           }
           return true;
         });
+        const resultName = \`lookup-\${(g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "")}\`;
         if (matches.length === 0) {
+          if (args.allowMissing) {
+            const missHandle = await context.writeResource("lookupResult", resultName, { found: false, filters: Object.fromEntries(filters) });
+            return { dataHandles: [missHandle] };
+          }
           const filterDesc = filters.map(([k, v]) => \`\${k}=\${JSON.stringify(v)}\`).join(", ");
           throw new Error(\`No worker script found matching filters: \${filterDesc}\`);
         }
@@ -1013,7 +1102,8 @@ export const model = {
         const result = matches[0] as ResourceData;
         const instanceName = (g.name?.toString() ?? result.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
-        return { dataHandles: [handle] };
+        const resultHandle = await context.writeResource("lookupResult", resultName, { found: true, filters: Object.fromEntries(filters), id: result.name?.toString() });
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     adopt: {
