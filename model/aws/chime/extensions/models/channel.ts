@@ -79,6 +79,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(1).max(256).regex(
     new RegExp(
       "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD𐀀-􏿿]*$",
+      "u",
     ),
   ).describe("The name of the channel."),
   Mode: z.enum(["UNRESTRICTED", "RESTRICTED"]).describe(
@@ -197,6 +198,7 @@ const InputsSchema = z.object({
   Name: z.string().min(1).max(256).regex(
     new RegExp(
       "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD𐀀-􏿿]*$",
+      "u",
     ),
   ).describe("The name of the channel.").optional(),
   Mode: z.enum(["UNRESTRICTED", "RESTRICTED"]).describe(
@@ -275,10 +277,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime Channel. Registered at `@swamp/aws/chime/channel`. */
 export const model = {
   type: "@swamp/aws/chime/channel",
-  version: "2026.10.14.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

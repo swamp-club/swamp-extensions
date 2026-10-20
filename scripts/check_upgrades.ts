@@ -32,7 +32,11 @@
  *   to the new version once the local source replaces it — pull, create,
  *   remove, `extension source add`, run a method, read `typeVersion`. Run once
  *   per extension; skipped for extensions with no published version (new in
- *   the change, or not found by `swamp extension info`).
+ *   the change, or not found by `swamp extension info`). When the published
+ *   version's code fails to import, the pull is only partly applied and the
+ *   path test still runs if the bumped model loads from it. If that model does
+ *   not load, no instance can be on it, so a fresh install stands in: an
+ *   instance created from the local source alone must be at the new version.
  *
  * Every model it examined is printed, so a run that checked nothing says so
  * rather than passing in silence.
@@ -43,7 +47,7 @@
  */
 
 import { parseArgs } from "@std/cli/parse-args";
-import { join, resolve } from "@std/path";
+import { basename, join, resolve } from "@std/path";
 
 /** What a model definition declares, as far as upgrades are concerned. */
 export interface ModelDefinition {
@@ -269,6 +273,64 @@ export async function runUpgradeMethod(
   );
 }
 
+/**
+ * Causes of a failed bundle or import that come from the published code itself
+ * and so fail the same way on every pull. Bundling also fetches dependencies,
+ * and a failed fetch gives the same wrapper with a different cause, so only
+ * these count.
+ */
+const UNIMPORTABLE_CAUSES = ["Invalid regular expression:"];
+
+/**
+ * Whether `swamp extension pull <name>` failed because the published version's
+ * code does not import (swamp extracts the files, then fails to bundle or
+ * import them) for one of the `UNIMPORTABLE_CAUSES`. Any other pull failure is
+ * not this, so a registry outage or a failed dependency fetch cannot turn the
+ * path test into a fresh install.
+ */
+export function unimportablePublish(
+  name: string,
+  code: number,
+  out: string,
+): boolean {
+  return code !== 0 &&
+    out.includes(`Install partially applied for ${name} `) &&
+    UNIMPORTABLE_CAUSES.some((cause) =>
+      out.includes(`bundling/importing the extension failed (${cause}`)
+    );
+}
+
+/**
+ * Whether `swamp model create` failed because the published code of the model
+ * at `modelFile` does not import: the fatal error is a SyntaxError for one of
+ * the `UNIMPORTABLE_CAUSES`, and its stack names that model's bundle (swamp
+ * bundles each model file to `<basename>.js`). A sibling model's load error
+ * logged along the way does not count, and any other create failure (a
+ * registry error, a lock) fails the path test rather than turning it into a
+ * fresh install.
+ */
+export function unloadableModel(
+  code: number,
+  out: string,
+  modelFile: string,
+): boolean {
+  if (code === 0) return false;
+  const fatal = out.split("\n").findIndex((line) => line.includes("[FTL]"));
+  if (fatal === -1) return false;
+  const lines = out.split("\n").slice(fatal);
+  if (
+    !UNIMPORTABLE_CAUSES.some((cause) =>
+      lines[0].includes(`SyntaxError: ${cause}`)
+    )
+  ) {
+    return false;
+  }
+  const bundle = `/${basename(modelFile, ".ts")}.js`;
+  return lines.some((line) =>
+    line.includes(`${bundle}?`) || line.includes(`${bundle}:`)
+  );
+}
+
 /** Runs a command to completion, or until `signal` aborts it. */
 async function run(
   cmd: string,
@@ -350,12 +412,35 @@ async function pathTest(
         ["extension", "source", "add", resolve(extDir), "--only", "models"],
       ],
     ];
+    // A pull whose code fails to import is only partly applied: swamp loads
+    // models file by file, so the bumped model may still load from it and
+    // carry instances, and its upgrade path is tested as usual.
+    let partialPull = false;
     for (const [label, args] of steps) {
       const { code, out } = await run(
         "swamp",
         args,
         label === "init" ? undefined : scratch,
       );
+      if (label === "pull" && unimportablePublish(name, code, out)) {
+        console.log(
+          `  ${extDir}: published ${name} fails to import in part; ` +
+            `trying ${change.head.type} from it anyway:\n${out}`,
+        );
+        partialPull = true;
+        continue;
+      }
+      if (
+        label === "create" && partialPull &&
+        unloadableModel(code, out, change.path)
+      ) {
+        console.log(
+          `  ${extDir}: ${change.head.type} does not load from the published ` +
+            `${name}, so no instance can be on it; the upgrade path from it ` +
+            `is not tested, checking a fresh install instead:\n${out}`,
+        );
+        return await freshInstallTest(extDir, change);
+      }
       if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
     }
     // The upgrade chain runs before the method body; the method itself may
@@ -380,13 +465,7 @@ async function pathTest(
       }
     }
     await runUpgradeMethod(scratch, method);
-    const { out } = await run("swamp", [
-      "model",
-      "get",
-      "upgrade-test",
-      "--json",
-    ], scratch);
-    const typeVersion = out.match(/"typeVersion"\s*:\s*"([^"]+)"/)?.[1];
+    const typeVersion = await readTypeVersion(scratch);
     if (typeVersion !== change.head.version) {
       return `${extDir}: published instance upgraded to ${
         typeVersion ?? "nothing"
@@ -398,6 +477,57 @@ async function pathTest(
   } finally {
     await Deno.remove(scratch, { recursive: true }).catch(() => {});
   }
+}
+
+/**
+ * Stands in for the path test when the bumped model does not load from the
+ * published version: an instance created from the local source alone must be
+ * at the new version.
+ * When the local source cannot load the type, swamp falls back to the registry
+ * copy, so the version check is what proves the local code loaded.
+ */
+async function freshInstallTest(
+  extDir: string,
+  change: ModelChange,
+): Promise<string | null> {
+  const scratch = await Deno.makeTempDir({ prefix: "fresh-install-" });
+  try {
+    const steps: Array<[string, string[]]> = [
+      ["init", ["init", scratch, "--tool", "none", "--force"]],
+      [
+        "source",
+        ["extension", "source", "add", resolve(extDir), "--only", "models"],
+      ],
+      ["create", ["model", "create", change.head.type, "upgrade-test"]],
+    ];
+    for (const [label, args] of steps) {
+      const { code, out } = await run(
+        "swamp",
+        args,
+        label === "init" ? undefined : scratch,
+      );
+      if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
+    }
+    const typeVersion = await readTypeVersion(scratch);
+    if (typeVersion !== change.head.version) {
+      return `${extDir}: fresh instance is at ${typeVersion ?? "nothing"}, ` +
+        `expected ${change.head.version}`;
+    }
+    console.log(`  ${extDir}: fresh instance created at ${typeVersion}`);
+    return null;
+  } finally {
+    await Deno.remove(scratch, { recursive: true }).catch(() => {});
+  }
+}
+
+async function readTypeVersion(scratch: string): Promise<string | undefined> {
+  const { out } = await run("swamp", [
+    "model",
+    "get",
+    "upgrade-test",
+    "--json",
+  ], scratch);
+  return out.match(/"typeVersion"\s*:\s*"([^"]+)"/)?.[1];
 }
 
 async function main(): Promise<number> {

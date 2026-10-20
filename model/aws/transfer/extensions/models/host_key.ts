@@ -68,9 +68,9 @@ const GlobalArgsSchema = z.object({
   HostKeyBody: z.string().max(4096).describe(
     "The private key portion of an SSH key pair. Transfer Family accepts RSA, ECDSA, and ED25519 keys.",
   ).optional(),
-  Description: z.string().min(0).max(200).regex(
-    new RegExp("^[\\p{Print}]*$", "u"),
-  ).describe("The text description for this host key.").optional(),
+  Description: z.string().min(0).max(200).describe(
+    "The text description for this host key.",
+  ).optional(),
   StorageType: z.enum(["SERVICE_MANAGED", "SECRETS_MANAGER"]).describe(
     "The type of storage used for the host key. SERVICE_MANAGED keys are stored within the Transfer Family service. SECRETS_MANAGER keys are stored in an AWS Secrets Manager secret in your account.",
   ).optional(),
@@ -111,9 +111,9 @@ const InputsSchema = z.object({
   HostKeyBody: z.string().max(4096).describe(
     "The private key portion of an SSH key pair. Transfer Family accepts RSA, ECDSA, and ED25519 keys.",
   ).optional(),
-  Description: z.string().min(0).max(200).regex(
-    new RegExp("^[\\p{Print}]*$", "u"),
-  ).describe("The text description for this host key.").optional(),
+  Description: z.string().min(0).max(200).describe(
+    "The text description for this host key.",
+  ).optional(),
   StorageType: z.enum(["SERVICE_MANAGED", "SECRETS_MANAGER"]).describe(
     "The type of storage used for the host key. SERVICE_MANAGED keys are stored within the Transfer Family service. SECRETS_MANAGER keys are stored in an AWS Secrets Manager secret in your account.",
   ).optional(),
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer HostKey. Registered at `@swamp/aws/transfer/host-key`. */
 export const model = {
   type: "@swamp/aws/transfer/host-key",
-  version: "2026.10.19.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -164,6 +164,11 @@ export const model = {
     {
       toVersion: "2026.10.19.1",
       description: "Added: StorageType, KmsKey",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

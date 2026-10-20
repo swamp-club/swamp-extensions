@@ -45,6 +45,7 @@ const ResourceUriSchema = z.object({
   Uri: z.string().min(1).max(1024).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
+      "u",
     ),
   ).describe("The URI for accessing the resource.").optional(),
 });
@@ -68,6 +69,7 @@ const GlobalArgsSchema = z.object({
   DatabaseName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe(
     "The name of the catalog database in which the function is located.",
@@ -75,16 +77,19 @@ const GlobalArgsSchema = z.object({
   FunctionName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The name of the function."),
   ClassName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The Java class that contains the function code.").optional(),
   OwnerName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The owner of the function.").optional(),
   OwnerType: z.enum(["USER", "ROLE", "GROUP"]).describe("The owner type.")
@@ -121,6 +126,7 @@ const InputsSchema = z.object({
   DatabaseName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe(
     "The name of the catalog database in which the function is located.",
@@ -128,16 +134,19 @@ const InputsSchema = z.object({
   FunctionName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The name of the function.").optional(),
   ClassName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The Java class that contains the function code.").optional(),
   OwnerName: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The owner of the function.").optional(),
   OwnerType: z.enum(["USER", "ROLE", "GROUP"]).describe("The owner type.")
@@ -171,7 +180,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue UserDefinedFunction. Registered at `@swamp/aws/glue/user-defined-function`. */
 export const model = {
   type: "@swamp/aws/glue/user-defined-function",
-  version: "2026.10.14.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -185,6 +194,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

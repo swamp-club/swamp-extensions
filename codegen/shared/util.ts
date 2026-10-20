@@ -37,12 +37,42 @@ export function htmlToMarkdown(
 /**
  * Converts a PCRE pattern from the CloudFormation schema into a JS RegExp.
  * Not exhaustive — designed for the patterns in published AWS CF schemas.
+ *
+ * Generated models compile the result at import time, so a pattern JS rejects
+ * makes the whole module unimportable. The result is compiled here first: one
+ * that only compiles with the u flag (astral ranges written as literal
+ * characters or surrogate pairs) gains it, and one that never compiles is
+ * skipped.
  */
 export function pcreToRegexp(
   pattern: string,
 ): { pattern: string; flags: string } | undefined {
-  if (pattern in BROKEN_REGEXES) return BROKEN_REGEXES[pattern];
+  const converted = pattern in BROKEN_REGEXES
+    ? BROKEN_REGEXES[pattern]
+    : translatePcre(pattern);
+  if (!converted) return undefined;
+  if (compiles(converted.pattern, converted.flags)) return converted;
+  if (
+    !converted.flags.includes("u") &&
+    compiles(converted.pattern, converted.flags + "u")
+  ) {
+    return { pattern: converted.pattern, flags: converted.flags + "u" };
+  }
+  return undefined;
+}
 
+function compiles(pattern: string, flags: string): boolean {
+  try {
+    new RegExp(pattern, flags);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function translatePcre(
+  pattern: string,
+): { pattern: string; flags: string } | undefined {
   let flags = "";
   const matchFlags = pattern.match(/^\(\?([ims]+)\)/);
   if (matchFlags) {

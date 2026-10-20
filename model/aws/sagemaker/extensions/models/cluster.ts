@@ -246,6 +246,11 @@ const ClusterInstanceGroupSchema = z.object({
   AutoPatchConfig: AutoPatchConfigSchema.describe(
     "The configuration for automatic patching of the instance group. Enables workload-aware, patch-level AMI updates.",
   ).optional(),
+  ImageReleaseVersion: z.string().min(5).max(64).regex(
+    new RegExp("^[0-9]+\\.[0-9]+\\.[0-9]+$"),
+  ).describe(
+    "The version of the HyperPod-managed AMI for the instance group, in semantic version format MAJOR.MINOR.PATCH (for example, 1.2.3). Supported only for EKS-orchestrated clusters. If omitted at creation, the latest available version is used (or the version of an existing same-architecture instance group when adding a group). Changing this value on an existing instance group triggers a software update via UpdateClusterSoftware. Automatic patching (AutoPatchConfig) and out-of-band software updates can advance the running version past this value; CloudFormation does not revert such changes and may report the property as drifted. Only an explicit change to this value in the template triggers an update.",
+  ).optional(),
   ExecutionRole: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("The execution role for the instance group to assume."),
@@ -531,7 +536,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Cluster. Registered at `@swamp/aws/sagemaker/cluster`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -630,6 +635,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

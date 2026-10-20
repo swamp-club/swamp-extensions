@@ -55,7 +55,13 @@ or failed.
      step `typeVersion` to the new version. Once per extension; skipped for
      extensions not yet published — new in the change, or reported not found
      by `swamp extension info` (a manifest on `main` does not prove a publish
-     happened). Any other registry failure fails the gate.
+     happened). Any other registry failure fails the gate. When the pull fails
+     because the published version's own code does not import (a cause that
+     repeats on every pull, such as an invalid regular expression, not a failed
+     dependency fetch), the pull is only partly applied: the path test still
+     runs if the bumped model loads from it. If that model does not load, no
+     instance can be on it, so a fresh install stands in: an instance created
+     from the local source alone must be at the new version.
 
    Both steps list every model they examined, so a run that found nothing to
    check says so. Run it locally with

@@ -62,11 +62,13 @@ const GlobalArgsSchema = z.object({
   Id: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The ID of the session."),
   Description: z.string().min(0).max(2048).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
+      "u",
     ),
   ).describe("The description of the session.").optional(),
   Role: z.string().min(20).max(2048).regex(
@@ -76,6 +78,7 @@ const GlobalArgsSchema = z.object({
     Name: z.string().min(1).max(255).regex(
       new RegExp(
         "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+        "u",
       ),
     ).describe(
       "Specifies the name of the SessionCommand. Can be 'glueetl' or 'gluestreaming'.",
@@ -95,6 +98,7 @@ const GlobalArgsSchema = z.object({
     z.string().min(0).max(4096).regex(
       new RegExp(
         "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
+        "u",
       ),
     ),
   ).describe("A map array of key-value pairs. Max is 75 pairs.").optional(),
@@ -123,6 +127,7 @@ const GlobalArgsSchema = z.object({
   SecurityConfiguration: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe(
     "The name of the SecurityConfiguration structure to be used with the session.",
@@ -176,11 +181,13 @@ const InputsSchema = z.object({
   Id: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe("The ID of the session.").optional(),
   Description: z.string().min(0).max(2048).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
+      "u",
     ),
   ).describe("The description of the session.").optional(),
   Role: z.string().min(20).max(2048).regex(
@@ -190,6 +197,7 @@ const InputsSchema = z.object({
     Name: z.string().min(1).max(255).regex(
       new RegExp(
         "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+        "u",
       ),
     ).describe(
       "Specifies the name of the SessionCommand. Can be 'glueetl' or 'gluestreaming'.",
@@ -209,6 +217,7 @@ const InputsSchema = z.object({
     z.string().min(0).max(4096).regex(
       new RegExp(
         "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
+        "u",
       ),
     ),
   ).describe("A map array of key-value pairs. Max is 75 pairs.").optional(),
@@ -237,6 +246,7 @@ const InputsSchema = z.object({
   SecurityConfiguration: z.string().min(1).max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
+      "u",
     ),
   ).describe(
     "The name of the SecurityConfiguration structure to be used with the session.",
@@ -271,10 +281,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Session. Registered at `@swamp/aws/glue/session`. */
 export const model = {
   type: "@swamp/aws/glue/session",
-  version: "2026.10.14.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

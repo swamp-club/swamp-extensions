@@ -26,6 +26,8 @@ import {
   pathTestTarget,
   registryTarget,
   runUpgradeMethod,
+  unimportablePublish,
+  unloadableModel,
 } from "./check_upgrades.ts";
 
 const SOURCE = `
@@ -278,6 +280,114 @@ Deno.test("registryTarget: any other registry failure is an error, not a skip", 
   ) {
     const target = registryTarget("@swamp/ssh", code, stdout, stderr);
     assertEquals(target.kind, "error", `${code} ${stdout} ${stderr}`);
+  }
+});
+
+// `swamp extension pull <name>` for a published version whose code fails to
+// import, verbatim from @swamp/aws/glue and @swamp/aws/sagemaker (exit 1).
+const PULL_GLUE_UNIMPORTABLE =
+  "Error: Install partially applied for @swamp/aws/glue — files extracted but bundling/importing the extension failed (Invalid regular expression: /^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$/: Range out of order in character class). Run `swamp doctor extensions` to inspect, or retry `swamp extension pull @swamp/aws/glue` to reconcile.\n";
+const PULL_SAGEMAKER_UNIMPORTABLE =
+  "Error: Install partially applied for @swamp/aws/sagemaker — files extracted but bundling/importing the extension failed (Invalid regular expression: /^([\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)${1,256}/u: Nothing to repeat). Run `swamp doctor extensions` to inspect, or retry `swamp extension pull @swamp/aws/sagemaker` to reconcile.\n";
+
+Deno.test("unimportablePublish: a published version that fails to import", () => {
+  assertEquals(
+    unimportablePublish("@swamp/aws/glue", 1, PULL_GLUE_UNIMPORTABLE),
+    true,
+  );
+  assertEquals(
+    unimportablePublish("@swamp/aws/sagemaker", 1, PULL_SAGEMAKER_UNIMPORTABLE),
+    true,
+  );
+});
+
+Deno.test("unimportablePublish: any other pull result is not one", () => {
+  for (
+    const [name, code, out] of [
+      // A pull that succeeded.
+      ["@swamp/aws/glue", 0, ""],
+      // The message with a zero exit is not trusted.
+      ["@swamp/aws/glue", 0, PULL_GLUE_UNIMPORTABLE],
+      // The message for a different extension does not count.
+      ["@swamp/aws/glu", 1, PULL_GLUE_UNIMPORTABLE],
+      ["@swamp/aws/glue-x", 1, PULL_GLUE_UNIMPORTABLE],
+      // Registry and network failures.
+      ["@swamp/aws/glue", 1, "Error: fetch failed: connection refused\n"],
+      ["@swamp/aws/glue", 1, ""],
+      // A partial install that failed for another reason.
+      [
+        "@swamp/aws/glue",
+        1,
+        "Error: Install partially applied for @swamp/aws/glue — lockfile write failed\n",
+      ],
+      // A bundle that failed fetching a dependency, which a retry could fix.
+      [
+        "@swamp/aws/glue",
+        1,
+        "Error: Install partially applied for @swamp/aws/glue — files extracted but bundling/importing the extension failed (Import 'https://registry.npmjs.org/zod' failed: error sending request: connection refused). Run `swamp doctor extensions` to inspect, or retry `swamp extension pull @swamp/aws/glue` to reconcile.\n",
+      ],
+    ] as const
+  ) {
+    assertEquals(
+      unimportablePublish(name, code, out),
+      false,
+      `${name} ${code}`,
+    );
+  }
+});
+
+// `swamp model create @swamp/aws/glue/session` after the partial pull above,
+// verbatim apart from the scratch path and shortened hashes (exit 1).
+const SESSION = "model/aws/glue/extensions/models/session.ts";
+const CREATE_GLUE_UNLOADABLE =
+  "2026-10-20T17:22:08.860Z [FTL] error: SyntaxError: Invalid regular expression: /^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$/: Range out of order in character class\n    at new RegExp (<anonymous>)\n    at file:///scratch/.swamp/bundles/f2bae901/session.js?fp=1d92dabc&h=111527d4:312\n";
+// A sibling model's load error logged as a warning, then a fatal error of
+// its own; the stack names the sibling's bundle, not the bumped model's.
+const SIBLING_WARNING =
+  "[WRN] SyntaxError: Invalid regular expression: /x{/u: Lone quantifier brackets\n    at file:///scratch/.swamp/bundles/f2bae901/model_package.js?fp=aa&h=bb:40\n";
+
+Deno.test("unloadableModel: a model whose published code does not import", () => {
+  assertEquals(unloadableModel(1, CREATE_GLUE_UNLOADABLE, SESSION), true);
+});
+
+Deno.test("unloadableModel: any other create result is not one", () => {
+  for (
+    const [code, out, file] of [
+      // A create that succeeded.
+      [0, "", SESSION],
+      // The message with a zero exit is not trusted.
+      [0, CREATE_GLUE_UNLOADABLE, SESSION],
+      // Registry, lock and other failures.
+      [1, "[FTL] error: fetch failed: connection refused\n", SESSION],
+      [1, "[FTL] error: could not acquire the datastore lock\n", SESSION],
+      [1, "", SESSION],
+      // A syntax error with another cause.
+      [1, "[FTL] error: SyntaxError: Unexpected token '}'\n", SESSION],
+      // The error belongs to another model's bundle.
+      [
+        1,
+        CREATE_GLUE_UNLOADABLE,
+        "model/aws/glue/extensions/models/user_defined_function.ts",
+      ],
+      [1, CREATE_GLUE_UNLOADABLE, "model/aws/glue/extensions/models/sess.ts"],
+      // A sibling's regex error as a warning, then an unrelated fatal error.
+      [
+        1,
+        SIBLING_WARNING +
+        "[FTL] error: could not acquire the datastore lock\n",
+        "model/aws/sagemaker/extensions/models/model_package.ts",
+      ],
+      // The regex error is not the fatal one.
+      [
+        1,
+        "[WRN] SyntaxError: Invalid regular expression: /x{/u\n" +
+        "    at file:///scratch/.swamp/bundles/f2bae901/session.js?fp=aa:1\n" +
+        "[FTL] error: could not acquire the datastore lock\n",
+        SESSION,
+      ],
+    ] as const
+  ) {
+    assertEquals(unloadableModel(code, out, file), false, `${code} ${file}`);
   }
 });
 

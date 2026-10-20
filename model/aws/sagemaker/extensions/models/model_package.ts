@@ -377,14 +377,10 @@ const GlobalArgsSchema = z.object({
     .describe(
       "A unique token that guarantees that the call to this API is idempotent.",
     ).optional(),
-  CustomerMetadataProperties: z.record(
-    z.string(),
-    z.string().min(1).max(256).regex(
-      new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)${1,256}", "u"),
-    ),
-  ).describe(
-    "The metadata properties associated with the model package versions.",
-  ).optional(),
+  CustomerMetadataProperties: z.record(z.string(), z.string().min(1).max(256))
+    .describe(
+      "The metadata properties associated with the model package versions.",
+    ).optional(),
   Domain: z.string().describe(
     "The machine learning domain of the model package you specified.",
   ).optional(),
@@ -619,14 +615,10 @@ const InputsSchema = z.object({
     .describe(
       "A unique token that guarantees that the call to this API is idempotent.",
     ).optional(),
-  CustomerMetadataProperties: z.record(
-    z.string(),
-    z.string().min(1).max(256).regex(
-      new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)${1,256}", "u"),
-    ),
-  ).describe(
-    "The metadata properties associated with the model package versions.",
-  ).optional(),
+  CustomerMetadataProperties: z.record(z.string(), z.string().min(1).max(256))
+    .describe(
+      "The metadata properties associated with the model package versions.",
+    ).optional(),
   Domain: z.string().describe(
     "The machine learning domain of the model package you specified.",
   ).optional(),
@@ -788,7 +780,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelPackage. Registered at `@swamp/aws/sagemaker/model-package`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-package",
-  version: "2026.10.13.1",
+  version: "2026.10.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -847,6 +839,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
