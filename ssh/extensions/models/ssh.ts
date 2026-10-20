@@ -36,6 +36,7 @@ import {
   ForwardArgsSchema,
   ForwardStateSchema,
   GlobalArgsSchema,
+  HostKeyPinSchema,
   HostPublicKeySchema,
   HostResourceSchema,
   MasterAuditSchema,
@@ -65,6 +66,7 @@ import {
   runExec,
   runForward,
   runOpen,
+  runRepin,
   runResolve,
   runScript,
 } from "./_lib/operations.ts";
@@ -88,6 +90,7 @@ const SELECTOR_METHODS = [
   "copy",
   "forward",
   "collect-host-public-key",
+  "repin",
 ];
 
 /**
@@ -97,7 +100,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.09.28.1",
+  version: "2026.10.20.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -294,6 +297,32 @@ export const model = {
         "globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.20.1",
+      description:
+        "Feature (swamp-club #3581): explicit host-key policy. New optional " +
+        "transport fields `hostKeyPolicy` (pinned | tofu | accept-new | " +
+        "insecure) and `hostKeys`; pinned and tofu hosts verify only " +
+        "against a per-call known_hosts file under a fixed HostKeyAlias. " +
+        "tofu pins the first-seen key as a new `hostKeyPin` resource " +
+        "(keyed by address:port), a changed key fails with a typed " +
+        "`host key changed` error, and the new `repin` method replaces a " +
+        "pin. Fix: `open` now passes the declared host-key options, " +
+        "ConnectTimeout, ServerAliveInterval and extraOptions to the " +
+        "ControlMaster connection — previously the master verified host " +
+        "keys under the runner's ssh_config defaults and later calls " +
+        "multiplexed over it. Hosts with a host-key policy get a " +
+        "policy-specific ControlPath, so masters opened under another " +
+        "policy are not reused; legacy hosts keep their path. `exec` " +
+        "accepts `argv` (POSIX-quoted) as an alternative to `command`. " +
+        "`copy` accepts `atomic` with `mode`, `owner` and `verifySha256`. " +
+        "`identityContent` is loaded into a per-call ssh-agent over stdin " +
+        "by default (new `identityContentMode`, `sshAgentBinary`, " +
+        "`sshAddBinary` globals), falling back to the " +
+        "temp file. All new fields are optional; existing definitions " +
+        "validate unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
 
   resources: {
@@ -335,6 +364,15 @@ export const model = {
       schema: HostPublicKeySchema,
       lifetime: "infinite" as const,
       garbageCollection: 10,
+    },
+    hostKeyPin: {
+      description:
+        "Trust-on-first-use host-key pin for a `hostKeyPolicy: tofu` host, " +
+        "keyed by address:port (instance `hostKeyPin-<hash>`). Written on " +
+        "first contact and by `repin`; never overwritten by a normal call.",
+      schema: HostKeyPinSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 20,
     },
     selection: {
       description:
@@ -406,7 +444,9 @@ export const model = {
       execute: (args: Targeting, ctx: FleetContext) => runClose(args, ctx),
     },
     exec: {
-      description: "Run a single shell command on each selected host.",
+      description:
+        "Run a single shell command (`command`) or argument vector (`argv`) " +
+        "on each selected host.",
       arguments: ExecArgsSchema,
       execute: (args: ExecArgs, ctx: FleetContext) => runExec(args, ctx),
     },
@@ -417,7 +457,9 @@ export const model = {
       execute: (args: ScriptArgs, ctx: FleetContext) => runScript(args, ctx),
     },
     copy: {
-      description: "scp (or rsync) files to/from each selected host.",
+      description:
+        "scp (or rsync) files to/from each selected host; `atomic: true` " +
+        "stages next to dst and renames into place.",
       arguments: CopyArgsSchema,
       execute: (args: CopyArgs, ctx: FleetContext) => runCopy(args, ctx),
     },
@@ -435,6 +477,14 @@ export const model = {
       arguments: CollectHostPublicKeyArgsSchema,
       execute: (args: CollectHostPublicKeyArgs, ctx: FleetContext) =>
         runCollectHostPublicKey(args, ctx),
+    },
+    repin: {
+      description:
+        "Replace the tofu host-key pin of each selected host with the key " +
+        "it presents now (bypasses ControlMaster). The only way a pin " +
+        "changes.",
+      arguments: TargetingSchema,
+      execute: (args: Targeting, ctx: FleetContext) => runRepin(args, ctx),
     },
   },
 };

@@ -89,6 +89,8 @@ function mergeSshTransport(
       override.strictHostKeyChecking,
       base.strictHostKeyChecking,
     ),
+    hostKeyPolicy: pick(override.hostKeyPolicy, base.hostKeyPolicy),
+    hostKeys: pick(override.hostKeys, base.hostKeys),
     connectTimeoutSec: pick(
       override.connectTimeoutSec,
       base.connectTimeoutSec,

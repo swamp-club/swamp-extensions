@@ -28,6 +28,9 @@ import {
   type ForwardArgs,
   type GlobalArgs,
   GlobalArgsSchema,
+  type HostKeyPin,
+  HostKeyPinSchema,
+  KNOWN_KEY_ALGORITHMS,
   type OkExitCodes,
   type ResolveArgs,
   type ScriptArgs,
@@ -35,6 +38,22 @@ import {
   type Targeting,
 } from "./schemas.ts";
 import { type EffectiveHost, effectiveHosts } from "./hosts.ts";
+import {
+  computeFingerprint,
+  effectiveHostKeyPolicy,
+  hostKeyAlias,
+  type HostKeyArgv,
+  hostKeyChangedMessage,
+  hostKeyPinName,
+  isHostKeyFailure,
+  knownHostsContent,
+  type ParsedKey,
+  parseKeyLine,
+  parseKnownHosts,
+  presentedFingerprint,
+  usesPerCallKnownHosts,
+} from "./host_keys.ts";
+import { makeSafeTempDir, prepareIdentities } from "./identities.ts";
 import {
   type CelEnvLike,
   looksLikeCel,
@@ -51,9 +70,14 @@ import {
 import {
   applySudo,
   type ArgvContext,
+  argvRemoteCommand,
+  atomicCleanupCommand,
+  atomicFinalizeCommand,
+  atomicPrepareCommand,
   buildCopyArgv,
   buildExecArgv,
   forwardedEnv,
+  hostKeyOpts,
   type HostPlan,
   type HostRunResult,
   isExitAllowed,
@@ -64,6 +88,7 @@ import {
   scriptRemoteCommand,
   sendEnvKeys,
   spawnEnv,
+  stagingPath,
 } from "./runner.ts";
 import {
   cancelTailscaleForward,
@@ -310,6 +335,7 @@ async function argvContextFor(
   g: GlobalArgs,
   host: EffectiveHost,
   methodEnv: Record<string, string> | undefined,
+  prepared: PreparedCall,
 ): Promise<ArgvContext> {
   let cp: string | undefined;
   if (host.transport.kind === "ssh" && host.transport.controlMaster.enabled) {
@@ -320,6 +346,7 @@ async function argvContextFor(
     binaries: binaries(g),
     controlPath: cp,
     sendEnvKeys: sendEnvKeys(host, methodEnv),
+    hostKey: prepared.hostKeys.get(host.name)?.argv,
   };
 }
 
@@ -332,61 +359,379 @@ function envFor(
 }
 
 // ---------------------------------------------------------------------------
-// Temp-key materialization for identityContent
+// Per-call preparation: identityContent keys + per-call known_hosts
 // ---------------------------------------------------------------------------
 
-interface MaterializedKeys {
-  hosts: EffectiveHost[];
-  tempPaths: Map<string, string>;
+/** Host-key verification state for one pinned/tofu host in this call. */
+interface HostKeyState {
+  argv: HostKeyArgv;
+  address: string;
+  port: number;
+  /** Fingerprints the host is expected to present (empty on first contact). */
+  pinned: string[];
+  /** tofu only: the pin resource instance. */
+  pinName?: string;
+  /** tofu only: the pin read at the start of the call, if any. */
+  existingPin?: HostKeyPin;
+  /**
+   * The call connects with accept-new against an empty file (tofu first
+   * contact, or repin); afterwards the file holds the key ssh accepted.
+   */
+  readBack: boolean;
 }
 
-async function materializeTempKeys(
-  hosts: EffectiveHost[],
-): Promise<MaterializedKeys> {
-  const tempPaths = new Map<string, string>();
-  const patched: EffectiveHost[] = [];
+interface PreparedCall {
+  hosts: EffectiveHost[];
+  hostKeys: Map<string, HostKeyState>;
+  cleanup(): Promise<void>;
+}
 
-  try {
-    for (const host of hosts) {
-      if (
-        host.transport.kind === "ssh" &&
-        host.transport.identityContent !== undefined
-      ) {
-        const tmpFile = await Deno.makeTempFile({ prefix: "swamp-ssh-key-" });
-        tempPaths.set(host.name, tmpFile);
-        const ic = host.transport.identityContent;
-        const content = ic.endsWith("\n") ? ic : ic + "\n";
-        await Deno.writeTextFile(tmpFile, content, {
-          mode: 0o600,
-        });
-        patched.push({
-          ...host,
-          transport: {
-            ...host.transport,
-            identityFile: tmpFile,
-            identityContent: undefined,
-          },
-        });
-      } else {
-        patched.push(host);
+/** For spawns that never verify a host key (tailscale probes). */
+const NO_PREPARATION: PreparedCall = {
+  hosts: [],
+  hostKeys: new Map(),
+  cleanup: () => Promise.resolve(),
+};
+
+/**
+ * Read a tofu pin. Absent → undefined. A pin that exists but does not parse
+ * throws: treating it as "no pin" would downgrade the host to first contact
+ * (accept any key) and overwrite the pin — failing open. `repin` is the way
+ * out of a corrupt pin.
+ */
+class UnreadablePinError extends Error {}
+
+async function readPin(
+  ctx: FleetContext,
+  name: string,
+): Promise<HostKeyPin | undefined> {
+  const raw = await ctx.readResource(name);
+  if (raw === null) return undefined;
+  const parsed = HostKeyPinSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new UnreadablePinError(
+      `hostKeyPin ${name} is unreadable (${
+        parsed.error.issues[0]?.message ?? "invalid"
+      }); ` +
+        "refusing to connect — run `repin` to replace it",
+    );
+  }
+  return parsed.data;
+}
+
+/**
+ * Prepare every selected host for connecting: materialize identityContent
+ * (agent or temp file) and write a per-call known_hosts file for each
+ * pinned/tofu host. `repin` forces tofu hosts to first-contact mode. The
+ * returned `cleanup` must run in a finally.
+ */
+async function prepareCall(
+  ctx: FleetContext,
+  g: GlobalArgs,
+  selected: EffectiveHost[],
+  t: Targeting,
+  opts: { repin?: boolean } = {},
+): Promise<PreparedCall> {
+  const parallel = t.parallel ?? g.defaultParallel;
+  const timeoutSec = t.timeoutSec ?? g.defaultTimeoutSec;
+  const identities = await prepareIdentities(selected, {
+    mode: g.identityContentMode,
+    sshAgentBinary: g.sshAgentBinary,
+    sshAddBinary: g.sshAddBinary,
+    // Hosts run in waves of `parallel`, and atomic copy runs up to four
+    // batches (prepare, upload, finalize, cleanup); keep keys loaded for the
+    // worst case. The agent is killed at the end of the call anyway — this
+    // only bounds a crash.
+    keyLifetimeSec: 4 * timeoutSec * Math.ceil(selected.length / parallel) +
+      60,
+    logger: ctx.logger,
+  });
+
+  const hostKeys = new Map<string, HostKeyState>();
+  let dir: string | undefined;
+  const cleanup = async () => {
+    await identities.cleanup();
+    if (dir !== undefined) {
+      try {
+        await Deno.remove(dir, { recursive: true });
+      } catch {
+        // Already removed — ignore.
       }
     }
+  };
+
+  try {
+    for (const host of identities.hosts) {
+      if (host.transport.kind !== "ssh") continue;
+      const policy = effectiveHostKeyPolicy(host.transport);
+      if (!usesPerCallKnownHosts(policy)) continue;
+
+      const port = host.transport.port;
+      let keys: ParsedKey[] = [];
+      let pinName: string | undefined;
+      let existingPin: HostKeyPin | undefined;
+      if (policy === "pinned") {
+        keys = (host.transport.hostKeys ?? [])
+          .map(parseKeyLine)
+          .filter((k): k is ParsedKey => k !== null);
+      } else {
+        pinName = await hostKeyPinName(host.address, port);
+        // repin replaces the pin, so an unreadable one must not block it;
+        // any other read error (the datastore) still propagates.
+        existingPin = opts.repin
+          ? await readPin(ctx, pinName).catch((err) => {
+            if (err instanceof UnreadablePinError) return undefined;
+            throw err;
+          })
+          : await readPin(ctx, pinName);
+        if (existingPin && !opts.repin) {
+          keys = existingPin.keys
+            .map((k) => parseKeyLine(k.publicKey))
+            .filter((k): k is ParsedKey => k !== null);
+          // Defence in depth behind the schema: an existing pin must never
+          // degrade to first contact (accept-new against an empty file).
+          if (keys.length !== existingPin.keys.length) {
+            throw new Error(
+              `hostKeyPin ${pinName} has an unparseable key; refusing to connect — run \`repin\` to replace it`,
+            );
+          }
+        }
+      }
+
+      dir ??= await makeSafeTempDir("swamp-ssh-hosts-");
+      const alias = await hostKeyAlias(host.address, port);
+      const file = `${dir}/${hostKeys.size}.known_hosts`;
+      await Deno.writeTextFile(file, knownHostsContent(alias, keys), {
+        mode: 0o600,
+      });
+      const pinned: string[] = [];
+      for (const k of keys) pinned.push(await computeFingerprint(k.base64Data));
+      hostKeys.set(host.name, {
+        argv: { strict: keys.length > 0, knownHostsFile: file, alias },
+        address: host.address,
+        port,
+        pinned,
+        pinName,
+        existingPin,
+        readBack: keys.length === 0,
+      });
+    }
   } catch (err) {
-    await cleanupTempKeys(tempPaths);
+    await cleanup();
     throw err;
   }
 
-  return { hosts: patched, tempPaths };
+  return { hosts: identities.hosts, hostKeys, cleanup };
 }
 
-async function cleanupTempKeys(
-  tempPaths: Map<string, string>,
+async function fingerprintsOf(keys: ParsedKey[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const k of keys) out.push(await computeFingerprint(k.base64Data));
+  return out;
+}
+
+function sameFingerprints(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && [...a].sort().join() === [...b].sort().join();
+}
+
+/**
+ * Close the ControlMaster of each host (`ssh -O exit`). Best effort — it
+ * fails harmlessly when no master is running. Used wherever a master may have
+ * authenticated a key that is no longer trusted: after `repin`, and after a
+ * tofu first contact whose key was rejected or could not be pinned.
+ */
+async function retireMasters(
+  g: GlobalArgs,
+  hosts: EffectiveHost[],
 ): Promise<void> {
-  for (const path of tempPaths.values()) {
-    try {
-      await Deno.remove(path);
-    } catch {
-      // Already removed or never written — ignore.
+  const plans: HostPlan[] = [];
+  for (const host of hosts) {
+    if (host.transport.kind !== "ssh") continue;
+    if (!host.transport.controlMaster.enabled) continue;
+    plans.push({
+      host,
+      argv: exitMasterArgv(
+        binaries(g).ssh,
+        await controlPath(g.name, host),
+        host.transport.user,
+        host.address,
+      ),
+      env: envFor(host, undefined),
+    });
+  }
+  if (plans.length === 0) return;
+  await runHosts(plans, {
+    method: "close",
+    parallel: g.defaultParallel,
+    timeoutSec: g.defaultTimeoutSec,
+    failFast: false,
+    capture: true,
+    recordedArgs: {},
+  });
+}
+
+/**
+ * After a batch ran: turn OpenSSH host-key refusals into a typed error, and
+ * record the key a tofu first contact (or repin) accepted as a hostKeyPin.
+ *
+ * A pin that appeared while this call was running (a parallel first contact)
+ * is re-read before writing: the same key skips the write, a different key
+ * fails the host — never overwrite a pin outside `repin`.
+ *
+ * Mutates `results` (sets `error`) so the run records carry the outcome;
+ * returns handles for any pins written.
+ */
+async function settleHostKeys(
+  ctx: FleetContext,
+  g: GlobalArgs,
+  prepared: PreparedCall,
+  results: HostRunResult[],
+  opts: { repin?: boolean; transfer?: boolean } = {},
+): Promise<DataHandle[]> {
+  const handles: DataHandle[] = [];
+  // tofu first contacts whose key was rejected: the master they may have
+  // opened authenticated that key and must not serve later strict calls (the
+  // tofu ControlPath does not change when a pin is written).
+  const rejected: EffectiveHost[] = [];
+  const hostOf = (name: string) => prepared.hosts.find((h) => h.name === name)!;
+  try {
+    await settleEach();
+  } catch (err) {
+    // A failed pin write leaves the first-contact master unpinned.
+    for (const r of results) {
+      if (prepared.hostKeys.get(r.host)?.readBack) {
+        rejected.push(hostOf(r.host));
+      }
+    }
+    throw err;
+  } finally {
+    if (rejected.length > 0 && !opts.repin) await retireMasters(g, rejected);
+  }
+  return handles;
+
+  async function settleEach(): Promise<void> {
+    for (const r of results) {
+      const state = prepared.hostKeys.get(r.host);
+      if (state === undefined) continue;
+
+      if (!state.readBack) {
+        // Only ssh's own failure is a host-key refusal: for exec/script
+        // stderr also carries the remote command's output, which may mention
+        // host keys (a nested ssh, a git fetch) without this host's key being
+        // at fault, so require ssh's exit 255. scp/rsync (`transfer`) run no
+        // remote command and exit 1/12 when their ssh child fails.
+        const sshFailed = r.signal === null &&
+          (opts.transfer
+            ? r.exitCode !== null && r.exitCode !== 0
+            : r.exitCode === 255);
+        if (sshFailed && isHostKeyFailure(r.stderr)) {
+          r.error = hostKeyChangedMessage(
+            state.address,
+            state.port,
+            state.pinned,
+            presentedFingerprint(r.stderr),
+          );
+        }
+        continue;
+      }
+      if (state.pinName === undefined) continue;
+      // repin only replaces a pin after the probe fully succeeded: a host that
+      // completed key exchange but rejected auth must not get re-pinned.
+      if (opts.repin && (r.error !== undefined || r.exitCode !== 0)) continue;
+
+      let content = "";
+      try {
+        content = await Deno.readTextFile(state.argv.knownHostsFile);
+      } catch {
+        // Unreadable → treated as "ssh recorded nothing".
+      }
+      const keys = parseKnownHosts(content);
+      if (keys.length === 0) {
+        // The connection never reached key exchange, or rode an existing
+        // master. Nothing to pin; repin must say so. A tofu call that succeeded
+        // without a key exchange rode a master while no pin exists — say so,
+        // since the host is running unpinned until that master goes away.
+        if (opts.repin) {
+          r.error =
+            `repin: ssh recorded no host key for ${state.address}:${state.port}`;
+        } else if (r.error === undefined && r.exitCode === 0) {
+          ctx.logger.warn(
+            "tofu host {host} has no pin and this call reused an existing ControlMaster; it will be pinned on the next fresh connection (or run repin)",
+            { host: r.host },
+          );
+        }
+        continue;
+      }
+      // A pin must be readable back (HostKeyPinSchema validates the
+      // algorithm); refuse an algorithm we cannot store rather than write a
+      // pin that would lock the host out on every later call.
+      const unsupported = keys.find((k) =>
+        !KNOWN_KEY_ALGORITHMS.has(k.algorithm)
+      );
+      if (unsupported !== undefined) {
+        r.error =
+          `cannot pin ${state.address}:${state.port}: unsupported host ` +
+          `key algorithm '${unsupported.algorithm}'; use hostKeyPolicy ` +
+          "'accept-new' for this host";
+        if (!opts.repin) rejected.push(hostOf(r.host));
+        continue;
+      }
+      const seen = await fingerprintsOf(keys);
+
+      if (!opts.repin) {
+        let current: HostKeyPin | undefined;
+        try {
+          current = await readPin(ctx, state.pinName);
+        } catch (err) {
+          r.error = err instanceof Error ? err.message : String(err);
+          rejected.push(hostOf(r.host));
+          continue;
+        }
+        if (current) {
+          const pinnedNow = current.keys.map((k) => k.fingerprint);
+          if (!sameFingerprints(pinnedNow, seen)) {
+            r.error = hostKeyChangedMessage(
+              state.address,
+              state.port,
+              pinnedNow,
+              seen[0],
+            );
+            rejected.push(hostOf(r.host));
+          }
+          continue;
+        }
+      }
+
+      const now = new Date().toISOString();
+      const previous = state.existingPin?.keys.map((k) => k.fingerprint);
+      const pin: HostKeyPin = {
+        fleet: g.name,
+        address: state.address,
+        port: state.port,
+        keys: keys.map((k, i) => ({
+          algorithm: k.algorithm,
+          publicKey: k.publicKey,
+          fingerprint: seen[i],
+        })),
+        firstSeenAt: now,
+        pinnedAt: now,
+        ...(opts.repin && previous ? { previousFingerprints: previous } : {}),
+      };
+      handles.push(
+        await ctx.writeResource(
+          "hostKeyPin",
+          state.pinName,
+          pin as unknown as Record<string, unknown>,
+          { tags: { fleet: g.name, host: r.host } },
+        ),
+      );
+      if (opts.repin) {
+        ctx.logger.warn("repinned {host}: {previous} -> {current}", {
+          host: r.host,
+          previous: previous?.join(", ") ?? "(none)",
+          current: seen.join(", "),
+        });
+      }
     }
   }
 }
@@ -403,6 +748,30 @@ async function cleanupTempKeys(
  * or failed to spawn. An absent tag is the honest encoding: there was no
  * exit status, which is not the same as exit 0 or any other number.
  */
+/**
+ * settleHostKeys, then write every host's run record — also when settling
+ * throws (a failed pin write), so the audit trail of commands that already
+ * ran is never lost. Pin handles first, then run handles.
+ */
+async function settleAndRecord(
+  ctx: FleetContext,
+  g: GlobalArgs,
+  prepared: PreparedCall,
+  results: HostRunResult[],
+  opts: { repin?: boolean; transfer?: boolean } = {},
+): Promise<DataHandle[]> {
+  let pins: DataHandle[] = [];
+  const runs: DataHandle[] = [];
+  try {
+    pins = await settleHostKeys(ctx, g, prepared, results, opts);
+  } finally {
+    for (const r of results) {
+      runs.push(await writeRunResult(ctx, r, g.runHistory, g.name));
+    }
+  }
+  return [...pins, ...runs];
+}
+
 async function writeRunResult(
   ctx: FleetContext,
   result: HostRunResult,
@@ -436,13 +805,13 @@ export async function runExec(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-  const { hosts: materialized, tempPaths } = await materializeTempKeys(
-    selected,
-  );
+  const prepared = await prepareCall(ctx, g, selected, args);
 
   try {
     const recordedArgs: Record<string, unknown> = {
-      command: args.command,
+      ...(args.argv !== undefined
+        ? { argv: args.argv }
+        : { command: args.command }),
       sudo: args.sudo ?? false,
       hasStdin: args.stdin !== undefined,
       ...(args.okExitCodes !== undefined
@@ -451,9 +820,11 @@ export async function runExec(
     };
 
     const plans: HostPlan[] = [];
-    for (const host of materialized) {
-      const actx = await argvContextFor(g, host, args.env);
-      const command = applySudo(args.command, args.sudo, actx.sendEnvKeys);
+    for (const host of prepared.hosts) {
+      const actx = await argvContextFor(g, host, args.env, prepared);
+      const command = args.argv !== undefined
+        ? argvRemoteCommand(args.argv, args.sudo)
+        : applySudo(args.command!, args.sudo, actx.sendEnvKeys);
       plans.push({
         host,
         argv: buildExecArgv(host, command, actx),
@@ -466,14 +837,11 @@ export async function runExec(
       plans,
       runOptions(g, args, "exec", recordedArgs, args.okExitCodes),
     );
-    const handles: DataHandle[] = [];
-    for (const r of results) {
-      handles.push(await writeRunResult(ctx, r, g.runHistory, g.name));
-    }
+    const handles = await settleAndRecord(ctx, g, prepared, results);
     throwOnHostFailures(results, "exec", args.okExitCodes);
     return { dataHandles: handles };
   } finally {
-    await cleanupTempKeys(tempPaths);
+    await prepared.cleanup();
   }
 }
 
@@ -487,9 +855,7 @@ export async function runScript(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-  const { hosts: materialized, tempPaths } = await materializeTempKeys(
-    selected,
-  );
+  const prepared = await prepareCall(ctx, g, selected, args);
 
   try {
     const recordedArgs: Record<string, unknown> = {
@@ -502,8 +868,8 @@ export async function runScript(
     };
 
     const plans: HostPlan[] = [];
-    for (const host of materialized) {
-      const actx = await argvContextFor(g, host, args.env);
+    for (const host of prepared.hosts) {
+      const actx = await argvContextFor(g, host, args.env, prepared);
       const remote = scriptRemoteCommand(args.interpreter, args.sudo);
       plans.push({
         host,
@@ -517,14 +883,11 @@ export async function runScript(
       plans,
       runOptions(g, args, "script", recordedArgs, args.okExitCodes),
     );
-    const handles: DataHandle[] = [];
-    for (const r of results) {
-      handles.push(await writeRunResult(ctx, r, g.runHistory, g.name));
-    }
+    const handles = await settleAndRecord(ctx, g, prepared, results);
     throwOnHostFailures(results, "script", args.okExitCodes);
     return { dataHandles: handles };
   } finally {
-    await cleanupTempKeys(tempPaths);
+    await prepared.cleanup();
   }
 }
 
@@ -538,9 +901,7 @@ export async function runCopy(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-  const { hosts: materialized, tempPaths } = await materializeTempKeys(
-    selected,
-  );
+  const prepared = await prepareCall(ctx, g, selected, args);
 
   try {
     const recordedArgs: Record<string, unknown> = {
@@ -549,37 +910,239 @@ export async function runCopy(
       direction: args.direction,
       recursive: args.recursive ?? false,
       useRsync: args.useRsync ?? false,
+      ...(args.atomic
+        ? {
+          atomic: true,
+          ...(args.mode !== undefined ? { mode: args.mode } : {}),
+          ...(args.owner !== undefined ? { owner: args.owner } : {}),
+          verifySha256: args.verifySha256 ?? false,
+        }
+        : {}),
     };
 
-    const plans: HostPlan[] = [];
-    for (const host of materialized) {
-      const actx = await argvContextFor(g, host, args.env);
-      plans.push({
-        host,
-        argv: buildCopyArgv(host, {
-          src: args.src,
-          dst: args.dst,
-          direction: args.direction,
-          recursive: args.recursive,
-          useRsync: args.useRsync,
-        }, actx),
-        env: envFor(host, args.env),
-      });
-    }
-
-    const results = await runHosts(
-      plans,
-      runOptions(g, args, "copy", recordedArgs),
-    );
-    const handles: DataHandle[] = [];
-    for (const r of results) {
-      handles.push(await writeRunResult(ctx, r, g.runHistory, g.name));
-    }
+    const results = args.atomic
+      ? await runAtomicCopy(args, g, prepared, recordedArgs)
+      : await runPlainCopy(args, g, prepared, recordedArgs);
+    // Atomic results carry the finalize exec's output (a key refusal there
+    // happens in the prepare exec, which exits 255 like any exec).
+    const handles = await settleAndRecord(ctx, g, prepared, results, {
+      transfer: !args.atomic,
+    });
     throwOnHostFailures(results, "copy");
     return { dataHandles: handles };
   } finally {
-    await cleanupTempKeys(tempPaths);
+    await prepared.cleanup();
   }
+}
+
+async function runPlainCopy(
+  args: CopyArgs,
+  g: GlobalArgs,
+  prepared: PreparedCall,
+  recordedArgs: Record<string, unknown>,
+  staged?: { hosts: EffectiveHost[]; staging: Map<string, string> },
+): Promise<HostRunResult[]> {
+  const plans: HostPlan[] = [];
+  for (const host of staged?.hosts ?? prepared.hosts) {
+    const actx = await argvContextFor(g, host, args.env, prepared);
+    plans.push({
+      host,
+      argv: buildCopyArgv(host, {
+        src: args.src,
+        dst: staged?.staging.get(host.name) ?? args.dst,
+        direction: args.direction,
+        recursive: args.recursive,
+        useRsync: args.useRsync,
+        privateUpload: staged !== undefined,
+      }, actx),
+      env: envFor(host, args.env),
+    });
+  }
+  return await runHosts(plans, runOptions(g, args, "copy", recordedArgs));
+}
+
+async function sha256FileHex(path: string): Promise<string> {
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    bytes = await Deno.readFile(path);
+  } catch (err) {
+    throw new Error(
+      `copy: cannot read src '${path}' to compute verifySha256: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function randomToken(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Did this stage fail (anything but a clean exit 0)? */
+function stageFailed(r: HostRunResult): boolean {
+  return r.error !== undefined || r.signal !== null || r.exitCode !== 0;
+}
+
+/**
+ * The local source's permission bits as octal; undefined on Windows (no
+ * mode) or when the source cannot be stat'ed — the upload then reports the
+ * missing file itself, as a plain copy would.
+ */
+async function localMode(path: string): Promise<string | undefined> {
+  try {
+    const mode = (await Deno.stat(path)).mode;
+    return mode === null ? undefined : (mode & 0o7777).toString(8);
+  } catch {
+    return undefined;
+  }
+}
+
+function stageError(stage: string, r: HostRunResult): string {
+  if (r.error !== undefined) return `${stage} failed: ${r.error}`;
+  return r.signal !== null
+    ? `${stage} failed (killed by ${r.signal})`
+    : `${stage} failed (exit ${r.exitCode})`;
+}
+
+/**
+ * Atomic copy, per host: create an empty 0600 staging file next to `dst`,
+ * upload into it, then one remote finalize (refuse symlink/directory,
+ * sha256, keep or set owner and mode, mv) over the same connection. A host
+ * whose prepare or upload failed gets a best-effort `rm -f` of its staging
+ * path. Each host yields one result — the failed stage's, or the
+ * finalize's — with `error` naming the stage and timing spanning them all.
+ * Stages are paired by host name.
+ */
+async function runAtomicCopy(
+  args: CopyArgs,
+  g: GlobalArgs,
+  prepared: PreparedCall,
+  recordedArgs: Record<string, unknown>,
+): Promise<HostRunResult[]> {
+  const sha256 = args.verifySha256 ? await sha256FileHex(args.src) : undefined;
+  const defaultMode = await localMode(args.src);
+  const staging = new Map<string, string>();
+  for (const host of prepared.hosts) {
+    staging.set(host.name, stagingPath(args.dst, randomToken()));
+  }
+  const hostByName = new Map(prepared.hosts.map((h) => [h.name, h]));
+  const opts = runOptions(g, args, "copy", recordedArgs);
+
+  const remotePlans = async (
+    hosts: EffectiveHost[],
+    command: (host: EffectiveHost) => string,
+  ): Promise<HostPlan[]> => {
+    const plans: HostPlan[] = [];
+    for (const host of hosts) {
+      const actx = await argvContextFor(g, host, args.env, prepared);
+      plans.push({
+        host,
+        argv: buildExecArgv(host, command(host), actx),
+        env: envFor(host, args.env),
+      });
+    }
+    return plans;
+  };
+
+  const prepares = await runHosts(
+    await remotePlans(
+      prepared.hosts,
+      (h) => atomicPrepareCommand(staging.get(h.name)!),
+    ),
+    opts,
+  );
+  const ready = prepares.filter((r) => !stageFailed(r)).map((r) =>
+    hostByName.get(r.host)!
+  );
+  const uploads = await runPlainCopy(args, g, prepared, recordedArgs, {
+    hosts: ready,
+    staging,
+  });
+  const uploaded = uploads.filter((r) => !stageFailed(r)).map((r) =>
+    hostByName.get(r.host)!
+  );
+
+  // Finalize and cleanup ignore fail-fast: a host that already holds a
+  // staging file must not be left with an orphan.
+  const noFailFast = { ...opts, failFast: false };
+  const finalized = await runHosts(
+    await remotePlans(uploaded, (h) =>
+      atomicFinalizeCommand({
+        staging: staging.get(h.name)!,
+        dst: args.dst,
+        mode: args.mode,
+        owner: args.owner,
+        sha256,
+        defaultMode,
+      })),
+    noFailFast,
+  );
+  // Clean up hosts whose staging file may exist but was never finalized:
+  // the upload failed, or prepare was killed (timeout/signal) possibly after
+  // creating it — the 128-bit token path can only be ours. A prepare that
+  // exited non-zero did not create it (`set -C` refuses an existing path),
+  // so removing that path could delete a file we do not own.
+  const uploadedNames = new Set(uploaded.map((h) => h.name));
+  const killed = prepares.filter((r) => r.signal !== null).map((r) =>
+    hostByName.get(r.host)!
+  );
+  // A finalize whose script never ran — ssh could not connect (exit 255),
+  // the spawn failed, or it was killed before the shell's EXIT trap could
+  // fire — leaves the uploaded staging file behind; remove it too. Any other
+  // exit came from the script itself, whose trap already removed it.
+  const unfinalized = finalized.filter((r) =>
+    r.signal !== null || r.exitCode === 255 ||
+    (r.exitCode === null && r.error !== undefined)
+  ).map((r) => hostByName.get(r.host)!);
+  const toClean = [
+    ...[...ready, ...killed].filter((h) => !uploadedNames.has(h.name)),
+    ...unfinalized,
+  ];
+  if (toClean.length > 0) {
+    await runHosts(
+      await remotePlans(
+        toClean,
+        (h) => atomicCleanupCommand(staging.get(h.name)!),
+      ),
+      noFailFast,
+    );
+  }
+
+  const uploadBy = new Map(uploads.map((r) => [r.host, r]));
+  const finalBy = new Map(finalized.map((r) => [r.host, r]));
+  return prepares.map((prep): HostRunResult => {
+    const up = uploadBy.get(prep.host);
+    const fin = finalBy.get(prep.host);
+    if (up === undefined) {
+      if (prep.error?.startsWith("skipped:")) return prep;
+      return { ...prep, error: stageError("prepare", prep) };
+    }
+    if (fin === undefined) {
+      return {
+        ...up,
+        startedAt: prep.startedAt,
+        error: stageError("upload", up),
+      };
+    }
+    const joined = (k: "stdout" | "stderr") =>
+      [prep, up, fin].every((r) => r[k] === undefined)
+        ? undefined
+        : [prep, up, fin].map((r) => r[k] ?? "").join("");
+    return {
+      ...fin,
+      startedAt: prep.startedAt,
+      durationMs: Date.parse(fin.finishedAt) - Date.parse(prep.startedAt),
+      stdout: joined("stdout"),
+      stderr: joined("stderr"),
+      ...(stageFailed(fin) ? { error: stageError("finalize", fin) } : {}),
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -664,15 +1227,13 @@ export async function runOpen(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-  const { hosts: materialized, tempPaths } = await materializeTempKeys(
-    selected,
-  );
+  const prepared = await prepareCall(ctx, g, selected, args);
   const bins = binaries(g);
 
   try {
     const plans: HostPlan[] = [];
     const tailscaleHandles: DataHandle[] = [];
-    for (const host of materialized) {
+    for (const host of prepared.hosts) {
       if (host.transport.kind !== "ssh") {
         tailscaleHandles.push(
           await writeMasterAudit(
@@ -710,6 +1271,13 @@ export async function runOpen(
         port: host.transport.port,
         proxyJump: host.transport.proxyJump,
         proxyCommand: host.transport.proxyCommand,
+        connectTimeoutSec: host.transport.connectTimeoutSec,
+        serverAliveIntervalSec: host.transport.serverAliveIntervalSec,
+        hostKeyOpts: hostKeyOpts(
+          host.transport,
+          prepared.hostKeys.get(host.name)?.argv,
+        ),
+        extraOptions: host.transport.extraOptions,
       });
       const actx: ArgvContext = { binaries: bins, sendEnvKeys: [] };
       plans.push({
@@ -729,21 +1297,26 @@ export async function runOpen(
     });
 
     const handles = [...tailscaleHandles];
-    for (const r of results) {
-      const outcome = r.error || r.exitCode !== 0 ? "error" : "ok";
-      handles.push(
-        await writeMasterAudit(
-          ctx,
-          r.host,
-          "open",
-          outcome,
-          r.error ?? (r.stderr || undefined),
-        ),
-      );
+    // Audit every master even if a pin write throws.
+    try {
+      handles.push(...await settleHostKeys(ctx, g, prepared, results));
+    } finally {
+      for (const r of results) {
+        const outcome = r.error || r.exitCode !== 0 ? "error" : "ok";
+        handles.push(
+          await writeMasterAudit(
+            ctx,
+            r.host,
+            "open",
+            outcome,
+            r.error ?? (r.stderr || undefined),
+          ),
+        );
+      }
     }
     return { dataHandles: handles };
   } finally {
-    await cleanupTempKeys(tempPaths);
+    await prepared.cleanup();
   }
 }
 
@@ -759,7 +1332,7 @@ export async function runCheck(
   for (const host of selected) {
     if (host.transport.kind !== "ssh") {
       // tailscale: probe with a trivial remote command.
-      const actx = await argvContextFor(g, host, args.env);
+      const actx = await argvContextFor(g, host, args.env, NO_PREPARATION);
       plans.push({
         host,
         argv: buildExecArgv(host, "true", actx),
@@ -1002,24 +1575,6 @@ export async function runForward(
 // collect-host-public-key
 // ---------------------------------------------------------------------------
 
-const KNOWN_ALGORITHMS = new Set([
-  "ssh-ed25519",
-  "ssh-rsa",
-  "ecdsa-sha2-nistp256",
-  "ecdsa-sha2-nistp384",
-  "ecdsa-sha2-nistp521",
-  "sk-ssh-ed25519@openssh.com",
-  "sk-ecdsa-sha2-nistp256@openssh.com",
-  "ssh-dss",
-]);
-
-async function computeFingerprint(base64Data: string): Promise<string> {
-  const raw = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", raw));
-  const b64 = btoa(String.fromCharCode(...hash)).replace(/=+$/, "");
-  return `SHA256:${b64}`;
-}
-
 function parsePublicKeyLine(
   stdout: string,
   hostName: string,
@@ -1058,11 +1613,11 @@ function parsePublicKeyLine(
   }
 
   const algorithm = parts[0];
-  if (!KNOWN_ALGORITHMS.has(algorithm)) {
+  if (!KNOWN_KEY_ALGORITHMS.has(algorithm)) {
     throw new Error(
       `collect-host-public-key failed on ${hostName}: unrecognized key ` +
         `algorithm "${algorithm}". Expected one of: ${
-          [...KNOWN_ALGORITHMS].join(", ")
+          [...KNOWN_KEY_ALGORITHMS].join(", ")
         }.`,
     );
   }
@@ -1076,9 +1631,7 @@ export async function runCollectHostPublicKey(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-  const { hosts: materialized, tempPaths } = await materializeTempKeys(
-    selected,
-  );
+  const prepared = await prepareCall(ctx, g, selected, args);
 
   try {
     const recordedArgs: Record<string, unknown> = {
@@ -1086,8 +1639,8 @@ export async function runCollectHostPublicKey(
     };
 
     const plans: HostPlan[] = [];
-    for (const host of materialized) {
-      const actx = await argvContextFor(g, host, args.env);
+    for (const host of prepared.hosts) {
+      const actx = await argvContextFor(g, host, args.env, prepared);
       const command = `cat ${posixQuote(args.hostKeyPath)}`;
       plans.push({
         host,
@@ -1101,10 +1654,7 @@ export async function runCollectHostPublicKey(
       runOptions(g, args, "collect-host-public-key", recordedArgs),
     );
 
-    const handles: DataHandle[] = [];
-    for (const r of results) {
-      handles.push(await writeRunResult(ctx, r, g.runHistory, g.name));
-    }
+    const handles = await settleAndRecord(ctx, g, prepared, results);
 
     throwOnHostFailures(results, "collect-host-public-key");
 
@@ -1112,7 +1662,7 @@ export async function runCollectHostPublicKey(
     for (const r of results) {
       if (r.exitCode !== 0 || r.error) continue;
       const stdout = r.stdout ?? "";
-      const host = materialized.find((h) => h.name === r.host)!;
+      const host = prepared.hosts.find((h) => h.name === r.host)!;
       const parsed = parsePublicKeyLine(stdout, r.host);
       const fingerprint = await computeFingerprint(parsed.base64Data);
 
@@ -1136,7 +1686,82 @@ export async function runCollectHostPublicKey(
 
     return { dataHandles: handles };
   } finally {
-    await cleanupTempKeys(tempPaths);
+    await prepared.cleanup();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// repin
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace the tofu pin of each selected host with the key it presents now.
+ * The only way a pin changes — a mismatch on a normal call fails closed.
+ *
+ * Connects with accept-new against an empty per-call file and runs `true`,
+ * bypassing ControlMaster so an existing master cannot answer for the key
+ * being re-pinned. Writes a new hostKeyPin version that records the previous
+ * fingerprints.
+ */
+export async function runRepin(
+  args: Targeting,
+  ctx: FleetContext,
+): Promise<{ dataHandles: DataHandle[] }> {
+  const g = parseGlobals(ctx);
+  const selected = resolveSelection(ctx, g, args.hosts);
+  const notTofu = selected.filter((h) =>
+    h.transport.kind !== "ssh" || effectiveHostKeyPolicy(h.transport) !== "tofu"
+  );
+  if (notTofu.length > 0) {
+    throw new Error(
+      `repin only applies to hosts with hostKeyPolicy 'tofu'; not tofu: ${
+        notTofu.map((h) => h.name).join(", ")
+      }`,
+    );
+  }
+  const prepared = await prepareCall(ctx, g, selected, args, { repin: true });
+
+  try {
+    const plans: HostPlan[] = [];
+    for (const host of prepared.hosts) {
+      const actx = await argvContextFor(g, host, args.env, prepared);
+      plans.push({
+        host,
+        argv: buildExecArgv(host, "true", {
+          ...actx,
+          controlPath: undefined,
+          noMultiplex: true,
+        }),
+        env: envFor(host, args.env),
+      });
+    }
+
+    const results = await runHosts(plans, {
+      ...runOptions(g, args, "repin", {}),
+      capture: true,
+    });
+    let handles: DataHandle[];
+    try {
+      handles = await settleAndRecord(ctx, g, prepared, results, {
+        repin: true,
+      });
+    } finally {
+      // Retire any master that authenticated the previous key — even when a
+      // pin write threw: the tofu ControlPath does not change on repin, so
+      // later calls would otherwise keep multiplexing over it until
+      // ControlPersist expires.
+      await retireMasters(
+        g,
+        results
+          .filter((r) => r.error === undefined && r.exitCode === 0)
+          .map((r) => prepared.hosts.find((h) => h.name === r.host)!),
+      );
+    }
+
+    throwOnHostFailures(results, "repin");
+    return { dataHandles: handles };
+  } finally {
+    await prepared.cleanup();
   }
 }
 

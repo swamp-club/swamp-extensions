@@ -384,8 +384,10 @@ Deno.test("exec: password auth puts SSHPASS in env, not argv", async () => {
 const PEM_CONTENT =
   "-----BEGIN OPENSSH PRIVATE KEY-----\nfakekey\n-----END OPENSSH PRIVATE KEY-----\n";
 
+// These tests exercise the temp-file path; the agent path has its own tests.
 const FLEET_WITH_IDENTITY_CONTENT = {
   ...FLEET,
+  identityContentMode: "file",
   transport: {
     kind: "ssh",
     user: "deploy",
@@ -586,6 +588,7 @@ Deno.test({
   fn: async () => {
     const mixedFleet = {
       ...FLEET,
+      identityContentMode: "file",
       transport: {
         kind: "ssh",
         user: "deploy",
@@ -649,6 +652,7 @@ Deno.test({
   fn: async () => {
     const fleetWithOverride = {
       ...FLEET,
+      identityContentMode: "file",
       transport: {
         kind: "ssh",
         user: "deploy",
@@ -704,6 +708,7 @@ Deno.test({
       "-----BEGIN OPENSSH PRIVATE KEY-----\nfakekey\n-----END OPENSSH PRIVATE KEY-----";
     const fleetNoNewline = {
       ...FLEET,
+      identityContentMode: "file",
       transport: {
         kind: "ssh",
         user: "deploy",

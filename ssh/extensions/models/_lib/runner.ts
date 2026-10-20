@@ -44,6 +44,11 @@
 
 import type { EffectiveHost, EffectiveTransport } from "./hosts.ts";
 import type { OkExitCodes } from "./schemas.ts";
+import {
+  effectiveHostKeyPolicy,
+  type HostKeyArgv,
+  usesPerCallKnownHosts,
+} from "./host_keys.ts";
 
 const SSHPASS_ENV_VAR = "SSHPASS";
 
@@ -89,11 +94,94 @@ export interface ArgvContext {
   controlPath?: string;
   /** Extra env keys (method + host merged) to forward via SendEnv. */
   sendEnvKeys: string[];
+  /**
+   * Per-call known_hosts for a pinned/tofu host. Required for those
+   * policies — argv assembly refuses to build without it rather than fall
+   * back to the runner's defaults.
+   */
+  hostKey?: HostKeyArgv;
+  /**
+   * Force a fresh connection (ControlMaster=no, ControlPath=none) even if
+   * the runner's ssh_config multiplexes — used by `repin`, where an existing
+   * master must not answer for the key being re-pinned.
+   */
+  noMultiplex?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // SSH option assembly
 // ---------------------------------------------------------------------------
+
+/**
+ * Host-key options for an ssh-transport host.
+ *
+ * pinned/tofu verify only against the per-call file under a fixed alias:
+ * GlobalKnownHostsFile=/dev/null keeps /etc/ssh/ssh_known_hosts from widening
+ * the pin (`/dev/null` works on every OpenSSH, `none` does not),
+ * UpdateHostKeys=no stops ssh rewriting the file, and CheckHostIP=no stops
+ * IP entries being added or warned about; VerifyHostKeyDNS=no stops SSHFP
+ * records counting as a key source. Emitted before `extraOptions`, so
+ * ssh's first-value-wins rule means extraOptions cannot loosen the policy.
+ *
+ * With no policy, the historical strictHostKeyChecking/knownHostsFile
+ * emission is unchanged.
+ */
+export function hostKeyOpts(
+  t: SshEffective,
+  hostKey: HostKeyArgv | undefined,
+): string[] {
+  const policy = effectiveHostKeyPolicy(t);
+  if (usesPerCallKnownHosts(policy)) {
+    if (hostKey === undefined) {
+      throw new Error(
+        `hostKeyPolicy '${policy}' needs a per-call known_hosts file; none was prepared`,
+      );
+    }
+    return [
+      "-o",
+      `StrictHostKeyChecking=${hostKey.strict ? "yes" : "accept-new"}`,
+      "-o",
+      `UserKnownHostsFile=${hostKey.knownHostsFile}`,
+      "-o",
+      "GlobalKnownHostsFile=/dev/null",
+      "-o",
+      "UpdateHostKeys=no",
+      "-o",
+      "CheckHostIP=no",
+      "-o",
+      `HostKeyAlias=${hostKey.alias}`,
+      // SSHFP records are another key source. (KnownHostsCommand, OpenSSH
+      // 8.5+, is rejected in extraOptions at validation instead: emitting
+      // `KnownHostsCommand=none` would be a fatal unknown option on older
+      // clients such as RHEL 8's OpenSSH 8.0.)
+      "-o",
+      "VerifyHostKeyDNS=no",
+    ];
+  }
+  const o: string[] = [];
+  if (policy === "accept-new") {
+    o.push("-o", "StrictHostKeyChecking=accept-new");
+    if (t.knownHostsFile !== undefined) {
+      o.push("-o", `UserKnownHostsFile=${t.knownHostsFile}`);
+    }
+    return o;
+  }
+  if (policy === "insecure") {
+    return [
+      "-o",
+      "StrictHostKeyChecking=no",
+      "-o",
+      "UserKnownHostsFile=/dev/null",
+    ];
+  }
+  if (t.strictHostKeyChecking !== undefined) {
+    o.push("-o", `StrictHostKeyChecking=${t.strictHostKeyChecking}`);
+  }
+  if (t.knownHostsFile !== undefined) {
+    o.push("-o", `UserKnownHostsFile=${t.knownHostsFile}`);
+  }
+  return o;
+}
 
 /**
  * Build the `-o Key=Value` (and `-i`, `-J`, `-p`) option list shared by
@@ -107,7 +195,10 @@ function sshCommonOpts(
 ): string[] {
   const o: string[] = [];
 
-  if (ctx.controlPath && t.controlMaster.enabled) {
+  if (ctx.noMultiplex) {
+    o.push("-o", "ControlMaster=no");
+    o.push("-o", "ControlPath=none");
+  } else if (ctx.controlPath && t.controlMaster.enabled) {
     o.push("-o", "ControlMaster=auto");
     o.push("-o", `ControlPath=${ctx.controlPath}`);
     o.push("-o", `ControlPersist=${t.controlMaster.persistSec}`);
@@ -117,12 +208,7 @@ function sshCommonOpts(
   if (t.serverAliveIntervalSec !== undefined) {
     o.push("-o", `ServerAliveInterval=${t.serverAliveIntervalSec}`);
   }
-  if (t.strictHostKeyChecking !== undefined) {
-    o.push("-o", `StrictHostKeyChecking=${t.strictHostKeyChecking}`);
-  }
-  if (t.knownHostsFile !== undefined) {
-    o.push("-o", `UserKnownHostsFile=${t.knownHostsFile}`);
-  }
+  o.push(...hostKeyOpts(t, ctx.hostKey));
   if (t.identityAgent !== undefined) {
     o.push("-o", `IdentityAgent=${t.identityAgent}`);
   }
@@ -298,6 +384,119 @@ export function scriptRemoteCommand(
   return applySudo(base, sudo);
 }
 
+/**
+ * The remote command for exec's `argv` form: every element POSIX-quoted, so
+ * the remote shell passes each through literally. Under sudo the quoted
+ * vector follows `sudo -n --` directly — it carries no shell syntax for an
+ * unprivileged shell to act on, so the `sh -c` wrapping applySudo needs for
+ * free-form commands is unnecessary, and sudoers rules scoped to the binary
+ * keep matching.
+ */
+export function argvRemoteCommand(
+  argv: readonly string[],
+  sudo: boolean | undefined,
+): string {
+  const joined = argv.map(posixQuote).join(" ");
+  return sudo ? `sudo -n -- ${joined}` : joined;
+}
+
+// ---------------------------------------------------------------------------
+// atomic copy
+// ---------------------------------------------------------------------------
+
+/**
+ * Hidden staging path next to `dst`, so the final `mv` is a same-directory
+ * rename (atomic). `token` must be unpredictable — the name lands in a
+ * directory other users may be able to list.
+ */
+export function stagingPath(dst: string, token: string): string {
+  const slash = dst.lastIndexOf("/");
+  const dir = slash >= 0 ? dst.slice(0, slash + 1) : "";
+  const base = slash >= 0 ? dst.slice(slash + 1) : dst;
+  return `${dir}.${base}.swamp-${token}`;
+}
+
+export interface AtomicFinalize {
+  staging: string;
+  dst: string;
+  mode?: string;
+  owner?: string;
+  sha256?: string;
+  /** Mode for a dst that does not exist yet (the local source's mode). */
+  defaultMode?: string;
+}
+
+// Positional args keep every caller-supplied value out of the script text.
+// The EXIT trap removes the staging file on any failure; after a successful
+// mv it is already gone and `rm -f` is a no-op.
+//
+// The rename replaces dst's inode, so unlike a plain scp (which writes into
+// the existing file) nothing carries over by itself. Finalize therefore:
+// refuses a symlink or directory at dst (mv would replace the link, or move
+// the file into the directory); keeps an existing dst's owner unless `owner`
+// is given — warning on stderr, not failing, when the ssh user may not chown;
+// and keeps an existing dst's mode unless `mode` is given, falling back to
+// the local source's mode for a new file. chown runs before chmod because
+// chown clears setuid/setgid. `stat` is tried GNU-style, then BSD-style.
+const ATOMIC_FINALIZE_SCRIPT = [
+  "set -e",
+  "s=$1; d=$2; m=$3; o=$4; h=$5; dm=$6",
+  `trap 'rm -f -- "$s"' EXIT`,
+  'if [ -L "$d" ]; then echo "swamp-copy: destination is a symlink: $d" >&2; exit 5; fi',
+  'if [ -d "$d" ]; then echo "swamp-copy: destination is a directory: $d" >&2; exit 4; fi',
+  'if [ -n "$h" ]; then',
+  '  if command -v sha256sum >/dev/null 2>&1; then a=$(sha256sum < "$s");' +
+  ' else a=$(shasum -a 256 < "$s"); fi',
+  "  a=${a%% *}",
+  '  if [ "$a" != "$h" ]; then echo "swamp-copy: sha256 mismatch: expected $h, got $a" >&2; exit 3; fi',
+  "fi",
+  'if [ -n "$o" ]; then chown -- "$o" "$s"',
+  'elif [ -e "$d" ]; then',
+  '  eo=$(stat -c %u:%g -- "$d" 2>/dev/null || stat -f %u:%g -- "$d")',
+  '  chown -- "$eo" "$s" 2>/dev/null ||' +
+  ' echo "swamp-copy: warning: could not keep owner $eo of $d; pass owner to set it" >&2',
+  "fi",
+  'if [ -z "$m" ] && [ -e "$d" ]; then',
+  '  m=$(stat -c %a -- "$d" 2>/dev/null || stat -f %Mp%Lp -- "$d")',
+  "fi",
+  'if [ -z "$m" ]; then m=$dm; fi',
+  'if [ -n "$m" ]; then chmod -- "$m" "$s"; fi',
+  'mv -f -- "$s" "$d"',
+].join("\n");
+
+/**
+ * Remote command that creates the empty staging file as 0600 before the
+ * upload, so its content is never readable by others while in flight (scp
+ * writes into the existing file and keeps its mode). `set -C` refuses to
+ * reuse anything already at the path.
+ */
+export function atomicPrepareCommand(staging: string): string {
+  return `sh -c ${posixQuote('umask 077; set -C; : > "$1"')} swamp-copy ${
+    posixQuote(staging)
+  }`;
+}
+
+/** Remote command that chowns/chmods/verifies the staging file and renames it. */
+export function atomicFinalizeCommand(f: AtomicFinalize): string {
+  return [
+    "sh",
+    "-c",
+    ATOMIC_FINALIZE_SCRIPT,
+    "swamp-copy",
+    f.staging,
+    f.dst,
+    f.mode ?? "",
+    f.owner ?? "",
+    f.sha256 ?? "",
+    f.defaultMode ?? "",
+  ].map((w, i) => (i < 2 ? w : posixQuote(w))).join(" ");
+}
+
+/** Best-effort removal of a staging file whose upload failed. */
+export function atomicCleanupCommand(staging: string): string {
+  return `rm -f -- ${posixQuote(staging)}`;
+}
+
 // ---------------------------------------------------------------------------
 // exec / script argv
 // ---------------------------------------------------------------------------
@@ -340,6 +539,12 @@ export interface CopySpec {
   direction: "to" | "from";
   recursive?: boolean;
   useRsync?: boolean;
+  /**
+   * Keep the uploaded file private to its owner (atomic staging). scp keeps
+   * the mode of the pre-created staging file; rsync replaces the file, so
+   * it gets `--chmod=go=`.
+   */
+  privateUpload?: boolean;
 }
 
 /** Build the remote-qualified and local endpoints for a copy. */
@@ -392,6 +597,7 @@ function buildRsyncArgv(
 
   const argv = [ctx.binaries.rsync];
   argv.push(spec.recursive ? "-az" : "-a");
+  if (spec.privateUpload) argv.push("--chmod=go=");
   argv.push("-e", sshParts.map(rsyncQuoteArg).join(" "));
   argv.push("--", from, to);
   return maybeWrapSshpass(host, argv, ctx);
@@ -676,6 +882,14 @@ export function setCommandExecutor(executor: CommandExecutor): void {
 /** Restore the production Deno.Command executor. */
 export function resetCommandExecutor(): void {
   activeExecutor = denoExecutor;
+}
+
+/**
+ * Run one local helper process (ssh-agent, ssh-add) through the
+ * active executor, so tests intercept it like every other spawn.
+ */
+export function executeCommand(req: ExecRequest): Promise<ExecOutcome> {
+  return activeExecutor(req);
 }
 
 export const TAILSCALE_AUTH_RE = /To authenticate, visit:\s*(https?:\/\/\S+)/i;

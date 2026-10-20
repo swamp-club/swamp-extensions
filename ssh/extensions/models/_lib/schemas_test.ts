@@ -555,3 +555,152 @@ Deno.test("CollectHostPublicKeyArgsSchema: rejects empty hostKeyPath", () => {
 Deno.test("CollectHostPublicKeyArgsSchema: hosts is required", () => {
   assert(!CollectHostPublicKeyArgsSchema.safeParse({}).success);
 });
+
+// ---------------------------------------------------------------------------
+// Host-key policy (swamp-club #3581)
+// ---------------------------------------------------------------------------
+
+const HOST_KEY = `ssh-ed25519 ${btoa("host-key-bytes")} root@web-1`;
+
+function fleetWith(
+  transport: Record<string, unknown>,
+  hostTransport?: Record<string, unknown>,
+) {
+  return {
+    name: "f",
+    transport: { kind: "ssh", ...transport },
+    hosts: [
+      { name: "a", address: "10.0.0.1" },
+      {
+        name: "b",
+        address: "10.0.0.2",
+        ...(hostTransport ? { transport: hostTransport } : {}),
+      },
+    ],
+  };
+}
+
+Deno.test("GlobalArgsSchema: hostKeys + pinned validates; legacy fleet unchanged", () => {
+  assert(
+    GlobalArgsSchema.safeParse(fleetWith({ hostKeys: [HOST_KEY] })).success,
+  );
+  assert(
+    GlobalArgsSchema.safeParse(fleetWith({ hostKeyPolicy: "tofu" })).success,
+  );
+  assert(
+    GlobalArgsSchema.safeParse(fleetWith({ strictHostKeyChecking: "yes" }))
+      .success,
+  );
+});
+
+Deno.test("GlobalArgsSchema: host-key conflict reports the merged host's path", () => {
+  // Fleet sets a policy; host b re-introduces strictHostKeyChecking.
+  const r = GlobalArgsSchema.safeParse(
+    fleetWith({ hostKeyPolicy: "tofu" }, { strictHostKeyChecking: "no" }),
+  );
+  assert(!r.success);
+  const issue = r.error.issues.find((i) => i.message.includes("host 'b'"));
+  assert(issue !== undefined, JSON.stringify(r.error.issues));
+  assertEquals(issue.path, ["hosts", 1, "transport"]);
+  assert(issue.message.includes("mutually exclusive"));
+  // Host a merges cleanly — no issue for it.
+  assert(!r.error.issues.some((i) => i.message.includes("host 'a'")));
+});
+
+Deno.test("GlobalArgsSchema: pinned without hostKeys is rejected", () => {
+  const r = GlobalArgsSchema.safeParse(fleetWith({ hostKeyPolicy: "pinned" }));
+  assert(!r.success);
+  assert(r.error.issues.some((i) => i.message.includes("requires hostKeys")));
+});
+
+Deno.test("GlobalArgsSchema: host flipping to tailscale ignores fleet host-key policy", () => {
+  assert(
+    GlobalArgsSchema.safeParse(
+      fleetWith({ hostKeyPolicy: "pinned", hostKeys: [HOST_KEY] }, {
+        kind: "tailscale",
+      }),
+    ).success,
+  );
+});
+
+Deno.test("TransportSchema: hostKeys entries must be single valid key lines", () => {
+  const bad = [
+    "not-a-key",
+    `ssh-unknown ${btoa("x")}`,
+    `ssh-ed25519 ${btoa("x")}\nssh-ed25519 ${btoa("y")}`,
+    `ssh-ed25519 not base64!`,
+  ];
+  for (const k of bad) {
+    assert(
+      !TransportSchema.safeParse({ kind: "ssh", hostKeys: [k] }).success,
+      k,
+    );
+  }
+  assert(
+    !TransportSchema.safeParse({ kind: "ssh", hostKeys: [] }).success,
+    "empty list",
+  );
+});
+
+Deno.test("GlobalArgsSchema: identityContentMode defaults to auto", () => {
+  const g = GlobalArgsSchema.parse(fleetWith({}));
+  assertEquals(g.identityContentMode, "auto");
+  assertEquals(g.sshAgentBinary, "ssh-agent");
+  assertEquals(g.sshAddBinary, "ssh-add");
+});
+
+// ---------------------------------------------------------------------------
+// exec argv / atomic copy (swamp-club #3581)
+// ---------------------------------------------------------------------------
+
+Deno.test("ExecArgsSchema: exactly one of command or argv", () => {
+  assert(ExecArgsSchema.safeParse({ hosts: "all", command: "ls" }).success);
+  assert(
+    ExecArgsSchema.safeParse({ hosts: "all", argv: ["ls", "-l"] }).success,
+  );
+  assert(!ExecArgsSchema.safeParse({ hosts: "all" }).success);
+  assert(
+    !ExecArgsSchema.safeParse({ hosts: "all", command: "ls", argv: ["ls"] })
+      .success,
+  );
+  assert(!ExecArgsSchema.safeParse({ hosts: "all", argv: [] }).success);
+  assert(!ExecArgsSchema.safeParse({ hosts: "all", argv: ["a\0b"] }).success);
+});
+
+Deno.test("CopyArgsSchema: atomic accepts mode/owner/verifySha256", () => {
+  assert(
+    CopyArgsSchema.safeParse({
+      hosts: "all",
+      src: "./f",
+      dst: "/etc/f.conf",
+      direction: "to",
+      atomic: true,
+      mode: "0644",
+      owner: "root:root",
+      verifySha256: true,
+    }).success,
+  );
+});
+
+Deno.test("CopyArgsSchema: atomic-only options and atomic constraints", () => {
+  const base = { hosts: "all", src: "./f", dst: "/etc/f", direction: "to" };
+  const rejected: Record<string, unknown>[] = [
+    { mode: "0644" },
+    { owner: "root" },
+    { verifySha256: true },
+    { atomic: true, direction: "from" },
+    { atomic: true, recursive: true },
+    { atomic: true, dst: "/etc/" },
+    { atomic: true, dst: "~/app.conf" },
+    { atomic: true, mode: "644x" },
+    { atomic: true, owner: "root;rm" },
+  ];
+  for (const over of rejected) {
+    assert(
+      !CopyArgsSchema.safeParse({ ...base, ...over }).success,
+      JSON.stringify(over),
+    );
+  }
+  // verifySha256: false without atomic is harmless.
+  assert(CopyArgsSchema.safeParse({ ...base, verifySha256: false }).success);
+});

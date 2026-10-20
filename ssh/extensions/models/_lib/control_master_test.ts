@@ -23,8 +23,10 @@ import {
   exitMasterArgv,
   openMasterArgv,
   safeFleetDir,
+  sha1Hex,
 } from "./control_master.ts";
-import type { EffectiveHost } from "./hosts.ts";
+import { type EffectiveHost, effectiveHosts } from "./hosts.ts";
+import { GlobalArgsSchema } from "./schemas.ts";
 
 function sshHost(over: Partial<{
   name: string;
@@ -397,4 +399,89 @@ Deno.test("exitMasterArgv: -O exit shape", () => {
     "ControlPath=/x.sock",
     "host",
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Host-key policy on the master (swamp-club #3581)
+// ---------------------------------------------------------------------------
+
+const KEY_1 = `ssh-ed25519 ${btoa("pinned-key-one")}`;
+const KEY_2 = `ssh-ed25519 ${btoa("pinned-key-two")}`;
+
+function policyHost(transport: Record<string, unknown>): EffectiveHost {
+  const g = GlobalArgsSchema.parse({
+    name: "f",
+    transport: { kind: "ssh", user: "deploy", ...transport },
+    hosts: [{ name: "web-1", address: "web-1.prod.example.com" }],
+  });
+  return effectiveHosts(g)[0];
+}
+
+Deno.test("openMasterArgv: carries host-key options, timeouts and extraOptions", () => {
+  const argv = openMasterArgv("ssh", {
+    controlPath: "/tmp/x.sock",
+    persistSec: 600,
+    address: "h",
+    port: 22,
+    connectTimeoutSec: 7,
+    serverAliveIntervalSec: 15,
+    hostKeyOpts: ["-o", "StrictHostKeyChecking=yes", "-o", "HostKeyAlias=a"],
+    extraOptions: ["LogLevel=ERROR"],
+  });
+  const joined = argv.join(" ");
+  for (
+    const o of [
+      "-o ConnectTimeout=7",
+      "-o ServerAliveInterval=15",
+      "-o StrictHostKeyChecking=yes",
+      "-o HostKeyAlias=a",
+      "-o LogLevel=ERROR",
+    ]
+  ) {
+    assert(joined.includes(o), `missing '${o}' in ${joined}`);
+  }
+  // Host-key options come before extraOptions (first value wins in ssh).
+  assert(
+    argv.indexOf("StrictHostKeyChecking=yes") < argv.indexOf("LogLevel=ERROR"),
+  );
+  assertEquals(argv.slice(-2), ["-fN", "h"]);
+});
+
+Deno.test("controlPath: legacy host keeps the historical socket path", async () => {
+  const env = { XDG_RUNTIME_DIR: "/run/user/1000", TMPDIR: "" };
+  const h = policyHost({});
+  const digest = (await sha1Hex("deploy@web-1.prod.example.com:22")).slice(
+    0,
+    12,
+  );
+  assertEquals(
+    await controlPath("f", h, env),
+    `/run/user/1000/swamp-ssh/f/${digest}.sock`,
+  );
+});
+
+Deno.test("controlPath: differs per host-key policy and per pinned key set", async () => {
+  const env = { XDG_RUNTIME_DIR: "/run/user/1000", TMPDIR: "" };
+  const paths = await Promise.all([
+    controlPath("f", policyHost({}), env),
+    controlPath("f", policyHost({ hostKeyPolicy: "tofu" }), env),
+    controlPath("f", policyHost({ hostKeyPolicy: "accept-new" }), env),
+    controlPath(
+      "f",
+      policyHost({ hostKeyPolicy: "accept-new", knownHostsFile: "/kh" }),
+      env,
+    ),
+    controlPath("f", policyHost({ hostKeyPolicy: "insecure" }), env),
+    controlPath("f", policyHost({ hostKeys: [KEY_1] }), env),
+    controlPath("f", policyHost({ hostKeys: [KEY_2] }), env),
+  ]);
+  assertEquals(new Set(paths).size, paths.length, JSON.stringify(paths));
+});
+
+Deno.test("controlPath: pinned key order does not change the socket", async () => {
+  const env = { XDG_RUNTIME_DIR: "/run/user/1000", TMPDIR: "" };
+  assertEquals(
+    await controlPath("f", policyHost({ hostKeys: [KEY_1, KEY_2] }), env),
+    await controlPath("f", policyHost({ hostKeys: [KEY_2, KEY_1] }), env),
+  );
 });

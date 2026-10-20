@@ -24,6 +24,8 @@
  */
 
 import { z } from "npm:zod@4.3.6";
+import { hostKeyPolicyIssues } from "./host_keys.ts";
+import { mergeTransport } from "./hosts.ts";
 
 // ---------------------------------------------------------------------------
 // Primitive guards
@@ -68,6 +70,74 @@ export type Auth = z.infer<typeof AuthSchema>;
 
 const StrictHostKeyChecking = z.enum(["yes", "accept-new", "no", "off"]);
 
+/** SSH public-key algorithms accepted for host keys and collected keys. */
+export const KNOWN_KEY_ALGORITHMS: ReadonlySet<string> = new Set([
+  "ssh-ed25519",
+  "ssh-rsa",
+  "ecdsa-sha2-nistp256",
+  "ecdsa-sha2-nistp384",
+  "ecdsa-sha2-nistp521",
+  "sk-ssh-ed25519@openssh.com",
+  "sk-ecdsa-sha2-nistp256@openssh.com",
+  "ssh-dss",
+]);
+
+export const HostKeyPolicySchema = z.enum([
+  "pinned",
+  "tofu",
+  "accept-new",
+  "insecure",
+]).describe(
+  "How the host key is verified. 'pinned': only the keys in `hostKeys` are " +
+    "accepted. 'tofu': the key seen on first contact is pinned as a " +
+    "hostKeyPin resource and required from then on (`repin` replaces it). " +
+    "'accept-new': OpenSSH accept-new against `knownHostsFile` or the " +
+    "runner's known_hosts. 'insecure': no verification. Unset (and no " +
+    "`hostKeys`) leaves the decision to the runner's ssh_config.",
+);
+export type HostKeyPolicy = z.infer<typeof HostKeyPolicySchema>;
+
+// deno-lint-ignore no-control-regex
+const HostKeyLinePattern = /^(\S+) [A-Za-z0-9+/]+={0,3}( [^\x00\r\n]*)?$/;
+
+/**
+ * One OpenSSH public-key line (`<algorithm> <base64> [comment]`), as written
+ * in a `.pub` file or emitted by `collect-host-public-key`. Public data, so
+ * no sensitive marking.
+ */
+const HostKeyLineSchema = z.string().regex(
+  HostKeyLinePattern,
+  "hostKeys[] entries must be '<algorithm> <base64> [comment]' on one line",
+).refine(
+  (s) => KNOWN_KEY_ALGORITHMS.has(s.split(" ")[0]),
+  {
+    message: `hostKeys[] algorithm must be one of: ${
+      [...KNOWN_KEY_ALGORITHMS].join(", ")
+    }`,
+  },
+).refine(
+  // OpenSSH key blobs are always padded base64; atob alone is lenient about
+  // missing padding, so check the length too. Zod runs this even when the
+  // regex above failed, so the field may be missing.
+  (s) => {
+    const data = s.split(" ")[1] ?? "";
+    if (data === "" || data.length % 4 !== 0) return false;
+    try {
+      atob(data);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "hostKeys[] key data must be valid base64" },
+);
+
+const hostKeysField = z.array(HostKeyLineSchema).min(1).describe(
+  "Expected host public keys, one OpenSSH public-key line each (e.g. the " +
+    "`publicKey` of a hostPublicKey resource). Setting this without " +
+    "`hostKeyPolicy` implies 'pinned'.",
+);
+
 const ControlMasterSchema = z.object({
   enabled: z.boolean().default(true),
   persistSec: z.number().int().positive().default(600),
@@ -82,13 +152,18 @@ const SshTransportSchema = z.object({
   identityContent: z.string().min(1).meta({ sensitive: true }).optional()
     .describe(
       "PEM private key content — supply via `${{ vault.get('<vault>', '<key>') }}`. " +
-        "Mutually exclusive with `identityFile`. The key is written to a " +
-        "temporary file (mode 0600) for the SSH session and removed afterward.",
+        "Mutually exclusive with `identityFile`. By default " +
+        "(`identityContentMode: auto`) the key is loaded over stdin into a " +
+        "short-lived per-call ssh-agent and never written to disk; if no " +
+        "agent can be started it falls back to a temporary file (mode " +
+        "0600) removed after the call.",
     ),
   identityAgent: safeOptionValue("identityAgent").optional(),
   identitiesOnly: z.boolean().optional(),
   knownHostsFile: safeOptionValue("knownHostsFile").optional(),
   strictHostKeyChecking: StrictHostKeyChecking.optional(),
+  hostKeyPolicy: HostKeyPolicySchema.optional(),
+  hostKeys: hostKeysField.optional(),
   connectTimeoutSec: z.number().int().positive().default(10),
   serverAliveIntervalSec: z.number().int().positive().optional(),
   proxyJump: safeOptionValue("proxyJump").optional(),
@@ -145,6 +220,8 @@ export const TransportOverrideSchema = z.object({
   identitiesOnly: z.boolean().optional(),
   knownHostsFile: safeOptionValue("knownHostsFile").optional(),
   strictHostKeyChecking: StrictHostKeyChecking.optional(),
+  hostKeyPolicy: HostKeyPolicySchema.optional(),
+  hostKeys: hostKeysField.optional(),
   connectTimeoutSec: z.number().int().positive().optional(),
   serverAliveIntervalSec: z.number().int().positive().optional(),
   proxyJump: safeOptionValue("proxyJump").optional(),
@@ -231,6 +308,31 @@ export const GlobalArgsSchema = z.object({
   rsyncBinary: z.string().min(1).default("rsync"),
   tailscaleBinary: z.string().min(1).default("tailscale"),
   sshpassBinary: z.string().min(1).default("sshpass"),
+  identityContentMode: z.enum(["auto", "agent", "file"]).default("auto")
+    .describe(
+      "How `identityContent` keys reach ssh. 'auto': load into a per-call " +
+        "ssh-agent over stdin, falling back to a 0600 temp file when no " +
+        "agent can be started. 'agent': agent only — fail the call rather " +
+        "than write the key to disk. 'file': always use the temp file.",
+    ),
+  sshAgentBinary: z.string().min(1).default("ssh-agent"),
+  sshAddBinary: z.string().min(1).default("ssh-add"),
+}).superRefine((g, ctx) => {
+  // Host-key settings are validated on each host's MERGED transport: a fleet
+  // default and a per-host override can only be judged together, and only
+  // GlobalArgs sees both. Reusing mergeTransport keeps the precedence here
+  // identical to what the runner builds argv from.
+  g.hosts.forEach((host, i) => {
+    const t = mergeTransport(g.transport, host.transport);
+    if (t.kind !== "ssh") return;
+    for (const message of hostKeyPolicyIssues(t)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `host '${host.name}': ${message}`,
+        path: ["hosts", i, "transport"],
+      });
+    }
+  });
 });
 
 export type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -270,11 +372,26 @@ const okExitCodesArg = OkExitCodesSchema.optional().describe(
 );
 
 export const ExecArgsSchema = TargetingSchema.extend({
-  command: z.string().min(1),
+  command: z.string().min(1).optional().describe(
+    "Command line handed to the remote login shell as-is. Exactly one of " +
+      "`command` or `argv` is required.",
+  ),
+  argv: z.array(
+    z.string().refine((s) => !s.includes("\0"), {
+      message: "argv[] elements must not contain NUL bytes",
+    }),
+  ).min(1).optional().describe(
+    "Command as an argument vector. Each element is POSIX single-quoted " +
+      "before the remote shell sees it, so it is passed literally — no " +
+      "expansion, globbing, or operators. Alternative to `command`.",
+  ),
   stdin: z.string().optional(),
   sudo: z.boolean().optional(),
   okExitCodes: okExitCodesArg,
-});
+}).refine(
+  (a) => (a.command === undefined) !== (a.argv === undefined),
+  { message: "exactly one of `command` or `argv` is required" },
+);
 export type ExecArgs = z.infer<typeof ExecArgsSchema>;
 
 export const ScriptArgsSchema = TargetingSchema.extend({
@@ -291,6 +408,70 @@ export const CopyArgsSchema = TargetingSchema.extend({
   direction: z.enum(["to", "from"]),
   recursive: z.boolean().optional(),
   useRsync: z.boolean().optional(),
+  atomic: z.boolean().optional().describe(
+    "Upload to a hidden staging file next to `dst`, apply mode/owner, " +
+      "verify, then rename into place — readers never see a partial file. " +
+      "`direction: to` and single files only. The ssh user needs write " +
+      "access to dst's directory.",
+  ),
+  mode: z.string().regex(
+    /^[0-7]{3,4}$/,
+    "mode must be 3 or 4 octal digits (e.g. 0644)",
+  ).optional().describe("chmod mode applied before the rename (atomic only)."),
+  owner: z.string().regex(
+    /^[A-Za-z0-9_][A-Za-z0-9_.-]*(:[A-Za-z0-9_][A-Za-z0-9_.-]*)?$/,
+    "owner must be 'user' or 'user:group'",
+  ).optional().describe("chown owner applied before the rename (atomic only)."),
+  verifySha256: z.boolean().optional().describe(
+    "Compare the uploaded file's sha256 with the local source before the " +
+      "rename (atomic only).",
+  ),
+}).superRefine((a, ctx) => {
+  const atomicOnly = (["mode", "owner", "verifySha256"] as const).filter(
+    (k) => a[k] !== undefined && a[k] !== false,
+  );
+  if (!a.atomic) {
+    for (const k of atomicOnly) {
+      ctx.addIssue({
+        code: "custom",
+        message: `\`${k}\` requires \`atomic: true\``,
+        path: [k],
+      });
+    }
+    return;
+  }
+  if (a.direction !== "to") {
+    ctx.addIssue({
+      code: "custom",
+      message: "`atomic` requires `direction: to`",
+      path: ["atomic"],
+    });
+  }
+  if (a.recursive) {
+    ctx.addIssue({
+      code: "custom",
+      message: "`atomic` copies a single file; it cannot be `recursive`",
+      path: ["atomic"],
+    });
+  }
+  if (a.dst.endsWith("/")) {
+    ctx.addIssue({
+      code: "custom",
+      message: "`atomic` needs a file path for `dst`, not a directory",
+      path: ["dst"],
+    });
+  }
+  // scp expands a leading `~` but the finalize step quotes dst, so the
+  // remote shell would not — the rename would target a literal `~` path.
+  if (a.dst.startsWith("~")) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "`atomic` dst cannot start with `~` — use an absolute path, or a " +
+        "path relative to the login directory without `~/`",
+      path: ["dst"],
+    });
+  }
 });
 export type CopyArgs = z.infer<typeof CopyArgsSchema>;
 
@@ -418,3 +599,25 @@ export const HostPublicKeySchema = z.object({
   observedAt: z.string(),
 });
 export type HostPublicKey = z.infer<typeof HostPublicKeySchema>;
+
+/**
+ * A trust-on-first-use host-key pin. Keyed by `address:port` (not host name)
+ * so several sshd on one address stay distinct and a host rename keeps its
+ * pin. Public key material only.
+ */
+export const HostKeyPinSchema = z.object({
+  fleet: z.string(),
+  address: z.string(),
+  port: z.number().int(),
+  // publicKey uses the same validation as hostKeys: a pin whose key cannot
+  // be parsed must fail readPin (closed), never become an empty key list.
+  keys: z.array(z.object({
+    algorithm: z.string(),
+    publicKey: HostKeyLineSchema,
+    fingerprint: z.string(),
+  })).min(1),
+  firstSeenAt: z.string(),
+  pinnedAt: z.string(),
+  previousFingerprints: z.array(z.string()).optional(),
+});
+export type HostKeyPin = z.infer<typeof HostKeyPinSchema>;

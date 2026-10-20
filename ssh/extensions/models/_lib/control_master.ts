@@ -30,6 +30,7 @@
  */
 
 import type { EffectiveHost } from "./hosts.ts";
+import { hostKeyPolicyDigest } from "./host_keys.ts";
 
 // macOS sockaddr_un.sun_path is 104 bytes including the null terminator;
 // the max usable string length is 103. Linux is 108 (107 usable). Use the
@@ -119,7 +120,12 @@ export async function controlPath(
     );
   }
   const user = host.transport.user ?? "";
-  const handle = `${user}@${host.address}:${host.transport.port}`;
+  // A host-key policy is part of the master's identity: a master opened
+  // under one policy (or none) must not serve a call made under another.
+  // Legacy hosts keep the historical handle so existing sockets still match.
+  const policy = hostKeyPolicyDigest(host.transport);
+  const handle = `${user}@${host.address}:${host.transport.port}` +
+    (policy === undefined ? "" : `|hostkey=${policy}`);
   const digest = (await sha1Hex(handle)).slice(0, HASH_CHARS);
   const dir = await safeFleetDir(fleetName, envSource);
   return `${dir}/${digest}${SOCK_SUFFIX}`;
@@ -214,6 +220,15 @@ export interface MasterArgvOptions {
   port: number;
   proxyJump?: string;
   proxyCommand?: string;
+  connectTimeoutSec?: number;
+  serverAliveIntervalSec?: number;
+  /**
+   * Host-key options from `hostKeyOpts`. The master is the connection that
+   * verifies the host key — later exec/script/copy calls multiplex over it
+   * without re-checking — so it must carry the declared policy.
+   */
+  hostKeyOpts?: string[];
+  extraOptions?: string[];
 }
 
 /** Argv for `ssh -fN ...` to open a master in the background. */
@@ -230,6 +245,13 @@ export function openMasterArgv(
     "-o",
     `ControlPersist=${opts.persistSec}`,
   ];
+  if (opts.connectTimeoutSec !== undefined) {
+    argv.push("-o", `ConnectTimeout=${opts.connectTimeoutSec}`);
+  }
+  if (opts.serverAliveIntervalSec !== undefined) {
+    argv.push("-o", `ServerAliveInterval=${opts.serverAliveIntervalSec}`);
+  }
+  argv.push(...(opts.hostKeyOpts ?? []));
   if (opts.identitiesOnly !== undefined) {
     argv.push("-o", `IdentitiesOnly=${opts.identitiesOnly ? "yes" : "no"}`);
   }
@@ -239,6 +261,7 @@ export function openMasterArgv(
   if (opts.proxyCommand) {
     argv.push("-o", `ProxyCommand=${opts.proxyCommand}`);
   }
+  for (const extra of opts.extraOptions ?? []) argv.push("-o", extra);
   if (opts.proxyJump) argv.push("-J", opts.proxyJump);
   if (opts.identityFile) argv.push("-i", opts.identityFile);
   argv.push("-p", String(opts.port));

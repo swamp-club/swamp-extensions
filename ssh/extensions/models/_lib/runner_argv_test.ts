@@ -13,20 +13,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.19";
 import {
   applySudo,
   type ArgvContext,
+  argvRemoteCommand,
+  atomicCleanupCommand,
+  atomicFinalizeCommand,
+  atomicPrepareCommand,
   buildCopyArgv,
   buildExecArgv,
   forwardedEnv,
+  hostKeyOpts,
   posixQuote,
   rsyncQuoteArg,
   scriptRemoteCommand,
   sendEnvKeys,
   spawnEnv,
+  stagingPath,
 } from "./runner.ts";
-import type { EffectiveHost } from "./hosts.ts";
+import { type EffectiveHost, effectiveHosts } from "./hosts.ts";
+import { GlobalArgsSchema } from "./schemas.ts";
 
 const BINARIES = {
   ssh: "ssh",
@@ -898,4 +910,352 @@ Deno.test("forwardedEnv: method env wins over host env", () => {
   const host = sshHost();
   host.env = { K: "host" };
   assertEquals(forwardedEnv(host, { K: "method" }).K, "method");
+});
+
+// ---------------------------------------------------------------------------
+// Host-key options, argv exec, atomic copy (swamp-club #3581)
+// ---------------------------------------------------------------------------
+
+const PINNED_KEY = `ssh-ed25519 ${btoa("pinned-host-key")}`;
+
+/** An EffectiveHost built through the real schema + merge path. */
+function hostFrom(transport: Record<string, unknown>): EffectiveHost {
+  const g = GlobalArgsSchema.parse({
+    name: "f",
+    transport: { kind: "ssh", ...transport },
+    hosts: [{ name: "h", address: "10.0.0.1" }],
+  });
+  return effectiveHosts(g)[0];
+}
+
+function optValues(argv: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < argv.length - 1; i++) {
+    if (argv[i] === "-o") out.push(argv[i + 1]);
+  }
+  return out;
+}
+
+const HOST_KEY_ARGV = {
+  strict: true,
+  knownHostsFile: "/tmp/kh",
+  alias: "swamp-0123456789abcdef",
+};
+
+Deno.test("hostKeyOpts: pinned emits the full per-call option set", () => {
+  const h = hostFrom({ hostKeys: [PINNED_KEY] });
+  const opts = optValues(
+    buildExecArgv(h, "true", { ...ctx(), hostKey: HOST_KEY_ARGV }),
+  );
+  for (
+    const o of [
+      "StrictHostKeyChecking=yes",
+      "UserKnownHostsFile=/tmp/kh",
+      "GlobalKnownHostsFile=/dev/null",
+      "UpdateHostKeys=no",
+      "CheckHostIP=no",
+      "HostKeyAlias=swamp-0123456789abcdef",
+      "VerifyHostKeyDNS=no",
+    ]
+  ) {
+    assert(opts.includes(o), `missing ${o} in ${JSON.stringify(opts)}`);
+  }
+});
+
+Deno.test("hostKeyOpts: tofu first contact uses accept-new on the per-call file", () => {
+  const h = hostFrom({ hostKeyPolicy: "tofu" });
+  const opts = optValues(
+    buildExecArgv(h, "true", {
+      ...ctx(),
+      hostKey: { ...HOST_KEY_ARGV, strict: false },
+    }),
+  );
+  assert(opts.includes("StrictHostKeyChecking=accept-new"));
+  assert(opts.includes("UserKnownHostsFile=/tmp/kh"));
+});
+
+Deno.test("hostKeyOpts: pinned/tofu refuse to build without a per-call file", () => {
+  for (const t of [{ hostKeys: [PINNED_KEY] }, { hostKeyPolicy: "tofu" }]) {
+    assertThrows(
+      () => buildExecArgv(hostFrom(t), "true", ctx()),
+      Error,
+      "per-call known_hosts",
+    );
+  }
+});
+
+Deno.test("hostKeyOpts: accept-new and insecure policies", () => {
+  assertEquals(
+    hostKeyOpts(
+      hostFrom({ hostKeyPolicy: "accept-new", knownHostsFile: "/kh" })
+        .transport as never,
+      undefined,
+    ),
+    [
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "UserKnownHostsFile=/kh",
+    ],
+  );
+  assertEquals(
+    hostKeyOpts(
+      hostFrom({ hostKeyPolicy: "insecure" }).transport as never,
+      undefined,
+    ),
+    [
+      "-o",
+      "StrictHostKeyChecking=no",
+      "-o",
+      "UserKnownHostsFile=/dev/null",
+    ],
+  );
+});
+
+Deno.test("hostKeyOpts: legacy fields emitted exactly as before", () => {
+  assertEquals(
+    hostKeyOpts(
+      hostFrom({ strictHostKeyChecking: "yes", knownHostsFile: "/kh" })
+        .transport as never,
+      undefined,
+    ),
+    ["-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile=/kh"],
+  );
+  assertEquals(hostKeyOpts(hostFrom({}).transport as never, undefined), []);
+});
+
+Deno.test("hostKeyOpts: precede extraOptions so they cannot loosen the policy", () => {
+  const h = hostFrom({
+    hostKeys: [PINNED_KEY],
+    extraOptions: ["StrictHostKeyChecking=no"],
+  });
+  const opts = optValues(
+    buildExecArgv(h, "true", { ...ctx(), hostKey: HOST_KEY_ARGV }),
+  );
+  // ssh keeps the first value it sees for an option.
+  assert(
+    opts.indexOf("StrictHostKeyChecking=yes") <
+      opts.indexOf("StrictHostKeyChecking=no"),
+  );
+});
+
+Deno.test("hostKeyOpts: scp and rsync carry the policy too", () => {
+  const h = hostFrom({ hostKeys: [PINNED_KEY] });
+  const actx = { ...ctx(), hostKey: HOST_KEY_ARGV };
+  const scp = buildCopyArgv(h, { src: "a", dst: "b", direction: "to" }, actx);
+  assert(optValues(scp).includes("HostKeyAlias=swamp-0123456789abcdef"));
+  const rsync = buildCopyArgv(h, {
+    src: "a",
+    dst: "b",
+    direction: "to",
+    useRsync: true,
+  }, actx);
+  const e = rsync[rsync.indexOf("-e") + 1];
+  assert(e.includes("HostKeyAlias=swamp-0123456789abcdef"), e);
+});
+
+Deno.test("noMultiplex: forces a fresh connection", () => {
+  const opts = optValues(
+    buildExecArgv(hostFrom({}), "true", {
+      ...ctx({ controlPath: "/tmp/cp.sock" }),
+      noMultiplex: true,
+    }),
+  );
+  assert(opts.includes("ControlMaster=no"));
+  assert(opts.includes("ControlPath=none"));
+  assert(!opts.includes("ControlPath=/tmp/cp.sock"));
+});
+
+Deno.test("argvRemoteCommand: quotes every element", () => {
+  assertEquals(
+    argvRemoteCommand(
+      ["printf", "%s\\n", "it's", "", "-n", "$HOME", "a b"],
+      false,
+    ),
+    `'printf' '%s\\n' 'it'\\''s' '' '-n' '$HOME' 'a b'`,
+  );
+});
+
+Deno.test("argvRemoteCommand: sudo prefixes the quoted vector without sh -c", () => {
+  assertEquals(
+    argvRemoteCommand(["systemctl", "restart", "nginx"], true),
+    "sudo -n -- 'systemctl' 'restart' 'nginx'",
+  );
+});
+
+Deno.test("argvRemoteCommand: a real shell passes each element literally", async () => {
+  const cmd = argvRemoteCommand(
+    ["printf", "[%s]", "a b", "$HOME", "*", "x;y"],
+    false,
+  );
+  const out = await new Deno.Command("sh", { args: ["-c", cmd] }).output();
+  assertEquals(new TextDecoder().decode(out.stdout), "[a b][$HOME][*][x;y]");
+});
+
+Deno.test("stagingPath: hidden sibling of dst", () => {
+  assertEquals(
+    stagingPath("/etc/app/app.conf", "t0k"),
+    "/etc/app/.app.conf.swamp-t0k",
+  );
+  assertEquals(stagingPath("app.conf", "t0k"), ".app.conf.swamp-t0k");
+});
+
+async function runFinalize(
+  f: Parameters<typeof atomicFinalizeCommand>[0],
+): Promise<{ code: number; stderr: string }> {
+  const out = await new Deno.Command("sh", {
+    args: ["-c", atomicFinalizeCommand(f)],
+    stderr: "piped",
+  }).output();
+  return { code: out.code, stderr: new TextDecoder().decode(out.stderr) };
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const d = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
+  return Array.from(new Uint8Array(d)).map((b) =>
+    b.toString(16).padStart(2, "0")
+  )
+    .join("");
+}
+
+Deno.test("atomicFinalizeCommand: chmods, verifies and renames into place", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.it's here.swamp-x`;
+    const dst = `${dir}/it's here`;
+    await Deno.writeTextFile(staging, "payload");
+    const r = await runFinalize({
+      staging,
+      dst,
+      mode: "0640",
+      sha256: await sha256Hex("payload"),
+    });
+    assertEquals(r.code, 0, r.stderr);
+    assertEquals(await Deno.readTextFile(dst), "payload");
+    assertEquals((await Deno.stat(dst)).mode! & 0o777, 0o640);
+    await assertRejects(() => Deno.stat(staging));
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicFinalizeCommand: sha256 mismatch fails and removes staging", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.f.swamp-x`;
+    await Deno.writeTextFile(staging, "tampered");
+    await Deno.writeTextFile(`${dir}/f`, "original");
+    const r = await runFinalize({
+      staging,
+      dst: `${dir}/f`,
+      sha256: await sha256Hex("payload"),
+    });
+    assertEquals(r.code, 3);
+    assert(r.stderr.includes("sha256 mismatch"), r.stderr);
+    assertEquals(await Deno.readTextFile(`${dir}/f`), "original");
+    await assertRejects(() => Deno.stat(staging));
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicFinalizeCommand: refuses a directory at dst", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.d.swamp-x`;
+    await Deno.writeTextFile(staging, "payload");
+    await Deno.mkdir(`${dir}/d`);
+    const r = await runFinalize({ staging, dst: `${dir}/d` });
+    assertEquals(r.code, 4);
+    assert(r.stderr.includes("is a directory"), r.stderr);
+    // Nothing was moved into the directory.
+    assertEquals([...Deno.readDirSync(`${dir}/d`)].length, 0);
+    await assertRejects(() => Deno.stat(staging));
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicCleanupCommand: quotes the staging path", () => {
+  assertEquals(
+    atomicCleanupCommand("/a/.b c.swamp-x"),
+    "rm -f -- '/a/.b c.swamp-x'",
+  );
+});
+
+Deno.test("atomicFinalizeCommand: keeps an existing dst's mode when mode is not given", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.f.swamp-x`;
+    const dst = `${dir}/f`;
+    await Deno.writeTextFile(dst, "old");
+    await Deno.chmod(dst, 0o640);
+    await Deno.writeTextFile(staging, "new");
+    await Deno.chmod(staging, 0o600);
+    const r = await runFinalize({ staging, dst, defaultMode: "644" });
+    assertEquals(r.code, 0, r.stderr);
+    assertEquals(await Deno.readTextFile(dst), "new");
+    assertEquals((await Deno.stat(dst)).mode! & 0o777, 0o640);
+    // Same owner, so keeping it needs no privilege and prints no warning.
+    assert(!r.stderr.includes("warning"), r.stderr);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicFinalizeCommand: a new dst gets the default (source) mode", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.f.swamp-x`;
+    await Deno.writeTextFile(staging, "new");
+    await Deno.chmod(staging, 0o600);
+    const r = await runFinalize({
+      staging,
+      dst: `${dir}/f`,
+      defaultMode: "644",
+    });
+    assertEquals(r.code, 0, r.stderr);
+    assertEquals((await Deno.stat(`${dir}/f`)).mode! & 0o777, 0o644);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicFinalizeCommand: refuses a symlink at dst", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.l.swamp-x`;
+    await Deno.writeTextFile(`${dir}/target`, "original");
+    await Deno.symlink(`${dir}/target`, `${dir}/l`);
+    await Deno.writeTextFile(staging, "new");
+    const r = await runFinalize({ staging, dst: `${dir}/l` });
+    assertEquals(r.code, 5);
+    assert(r.stderr.includes("is a symlink"), r.stderr);
+    assert((await Deno.lstat(`${dir}/l`)).isSymlink, "link untouched");
+    assertEquals(await Deno.readTextFile(`${dir}/target`), "original");
+    await assertRejects(() => Deno.stat(staging));
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("atomicPrepareCommand: creates an empty 0600 file and refuses an existing one", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const staging = `${dir}/.it's.swamp-x`;
+    const sh = (cmd: string) =>
+      new Deno.Command("sh", { args: ["-c", cmd], stderr: "piped" }).output();
+    assertEquals((await sh(atomicPrepareCommand(staging))).code, 0);
+    const st = await Deno.stat(staging);
+    assertEquals(st.size, 0);
+    assertEquals(st.mode! & 0o777, 0o600);
+    await Deno.writeTextFile(staging, "someone else's");
+    assert((await sh(atomicPrepareCommand(staging))).code !== 0);
+    assertEquals(await Deno.readTextFile(staging), "someone else's");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });

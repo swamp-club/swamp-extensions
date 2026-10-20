@@ -65,21 +65,24 @@ workflow step.
 
 ### `globalArguments`
 
-| Field               | Default        | Notes                                                                                |
-| ------------------- | -------------- | ------------------------------------------------------------------------------------ |
-| `name`              | (required)     | Model instance name.                                                                 |
-| `transport`         | (required)     | Fleet-default transport. Discriminated on `kind`.                                    |
-| `hosts`             | (required, ≥1) | Array of host records. Each may shallow-override `transport` and supply `attrs`.     |
-| `defaultParallel`   | `8`            | Max concurrent hosts per method call. Per-call override available.                   |
-| `defaultTimeoutSec` | `300`          | Per-host timeout. Per-call override available.                                       |
-| `failFast`          | `false`        | Stop scheduling new hosts on first failure (in-flight processes complete).           |
-| `captureOutput`     | `true`         | Buffer stdout/stderr into the `run-*` resource. No cap. Per-call override available. |
-| `runHistory`        | `50`           | gc setting for `runResult` resources.                                                |
-| `sshBinary`         | `"ssh"`        | Test seam — point at a fake script in tests.                                         |
-| `scpBinary`         | `"scp"`        | Same.                                                                                |
-| `rsyncBinary`       | `"rsync"`      | Same.                                                                                |
-| `tailscaleBinary`   | `"tailscale"`  | Same.                                                                                |
-| `sshpassBinary`     | `"sshpass"`    | Only consulted for `auth.kind: password`.                                            |
+| Field                 | Default        | Notes                                                                                |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `name`                | (required)     | Model instance name.                                                                 |
+| `transport`           | (required)     | Fleet-default transport. Discriminated on `kind`.                                    |
+| `hosts`               | (required, ≥1) | Array of host records. Each may shallow-override `transport` and supply `attrs`.     |
+| `defaultParallel`     | `8`            | Max concurrent hosts per method call. Per-call override available.                   |
+| `defaultTimeoutSec`   | `300`          | Per-host timeout. Per-call override available.                                       |
+| `failFast`            | `false`        | Stop scheduling new hosts on first failure (in-flight processes complete).           |
+| `captureOutput`       | `true`         | Buffer stdout/stderr into the `run-*` resource. No cap. Per-call override available. |
+| `runHistory`          | `50`           | gc setting for `runResult` resources.                                                |
+| `sshBinary`           | `"ssh"`        | Test seam — point at a fake script in tests.                                         |
+| `scpBinary`           | `"scp"`        | Same.                                                                                |
+| `rsyncBinary`         | `"rsync"`      | Same.                                                                                |
+| `tailscaleBinary`     | `"tailscale"`  | Same.                                                                                |
+| `sshpassBinary`       | `"sshpass"`    | Only consulted for `auth.kind: password`.                                            |
+| `identityContentMode` | `"auto"`       | How `identityContent` reaches ssh — see [Authentication](#authkind-key-default).     |
+| `sshAgentBinary`      | `"ssh-agent"`  | Used to load `identityContent` into a per-call agent.                                |
+| `sshAddBinary`        | `"ssh-add"`    | Same.                                                                                |
 
 ### Transport — `kind: ssh`
 
@@ -89,11 +92,13 @@ workflow step.
 | `port`                   | TCP port. Defaults to 22.                                                                                                                                               |
 | `auth`                   | `{kind:"key"}` (default) or `{kind:"password", password: …}`. See [Authentication](#authentication).                                                                    |
 | `identityFile`           | Path to a private key. Passed as `-i <file>` whenever set. Mutually exclusive with `identityContent`.                                                                   |
-| `identityContent`        | PEM private key content (e.g. from `vault.get()`). Written to a temp file (mode 0600) for the session and removed afterward. Mutually exclusive with `identityFile`.    |
+| `identityContent`        | PEM private key content (e.g. from `vault.get()`). Loaded into a per-call ssh-agent by default (see `identityContentMode`). Mutually exclusive with `identityFile`.     |
 | `identityAgent`          | Path to an SSH agent socket (e.g. `~/.1password/agent.sock`).                                                                                                           |
 | `identitiesOnly`         | If `true`, sets `IdentitiesOnly=yes` (refuse agent fallback).                                                                                                           |
-| `knownHostsFile`         | Path to `known_hosts`.                                                                                                                                                  |
-| `strictHostKeyChecking`  | One of `"yes"`, `"accept-new"`, `"no"`, `"off"`.                                                                                                                        |
+| `hostKeyPolicy`          | `"pinned"`, `"tofu"`, `"accept-new"` or `"insecure"`. See [Host-key policy](#host-key-policy).                                                                          |
+| `hostKeys`               | OpenSSH public-key lines the host must present. Implies `hostKeyPolicy: pinned`.                                                                                        |
+| `knownHostsFile`         | Path to `known_hosts`. With a `hostKeyPolicy`, only allowed for `accept-new`.                                                                                           |
+| `strictHostKeyChecking`  | One of `"yes"`, `"accept-new"`, `"no"`, `"off"`. Legacy; mutually exclusive with `hostKeyPolicy`.                                                                       |
 | `connectTimeoutSec`      | Sets `ConnectTimeout`. Default 10s.                                                                                                                                     |
 | `serverAliveIntervalSec` | Sets `ServerAliveInterval`.                                                                                                                                             |
 | `proxyJump`              | `-J <user@bastion[,user@bastion2]>`.                                                                                                                                    |
@@ -204,14 +209,123 @@ transport:
   identitiesOnly: true
 ```
 
-When `identityContent` is set, the runner writes the PEM body to a temporary
-file (mode 0600), passes it as `-i <tmpfile>` for the SSH session, and removes
-the file when the method completes. The key never appears in argv or persisted
-resources. This is the recommended approach for vault-stored private keys — no
-external scripting or pre-loaded ssh-agent required.
+When `identityContent` is set, the key never appears in argv or persisted
+resources, and no external scripting or pre-loaded ssh-agent is required. How it
+reaches ssh depends on the global `identityContentMode`:
+
+| Mode             | Behavior                                                                                                                                                                                                                                                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto` (default) | Start a private `ssh-agent` for the call, load the key with `ssh-add -t <lifetime> -` over stdin, and point ssh at it (`IdentityAgent`, plus `-i` on the derived public key with `IdentitiesOnly=yes` so exactly that key is offered). The key never touches disk; the agent is killed afterwards. Falls back to `file` if no agent can be started. |
+| `agent`          | As `auto`, but fail the call instead of falling back — for fleets that must never write key material to disk.                                                                                                                                                                                                                                       |
+| `file`           | Write the key to a temporary file (mode 0600), pass `-i <tmpfile>`, and remove the file when the method completes.                                                                                                                                                                                                                                  |
+
+The agent path needs `ssh-agent` and `ssh-add` from OpenSSH 8.x or newer
+(`ssh-add -` reads the key from stdin). Each key's agent lifetime is
+`4 × timeoutSec × ⌈hosts / parallel⌉ + 60s` — enough for every batch of the call
+— so a key left behind by a crashed runner expires on its own; on a large fleet
+with long timeouts that bound can be hours. The agent holds every
+`identityContent` key in the call, so agent-loaded hosts always use
+`IdentitiesOnly=yes` (whatever `identitiesOnly` says) and offer only their own
+key; a configured `identityAgent` is replaced for the call, with a warning. The
+per-call agent is never forwarded: agent-loaded hosts get `ForwardAgent=no`,
+which overrides `extraOptions` and `ForwardAgent yes` in the runner's
+`ssh_config` (otherwise a target could sign as any other host in the call).
 
 `identityFile` and `identityContent` are mutually exclusive. Setting both is a
 validation error. Setting neither is fine — the SSH agent is consulted.
+
+### Host-key policy
+
+By default the runner's own `ssh_config` decides whether and how host keys are
+checked. Set `hostKeyPolicy` (fleet-wide or per host) to make the posture
+explicit in the definition:
+
+| Policy       | Behavior                                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pinned`     | Only the keys in `hostKeys` are accepted. Setting `hostKeys` alone implies `pinned`.                                                                                                |
+| `tofu`       | Trust on first use. The first connection accepts the presented key and records it as a `hostKeyPin` resource; every later connection requires that key. A changed key fails closed. |
+| `accept-new` | OpenSSH `StrictHostKeyChecking=accept-new` against `knownHostsFile` (or the runner's known_hosts).                                                                                  |
+| `insecure`   | No verification (`StrictHostKeyChecking=no`, `UserKnownHostsFile=/dev/null`). For throwaway lab hosts only.                                                                         |
+
+`pinned` and `tofu` verify against a per-call known_hosts file written for the
+call and removed afterwards, with `StrictHostKeyChecking=yes`,
+`GlobalKnownHostsFile=/dev/null`, `UpdateHostKeys=no`, `CheckHostIP=no` and
+`VerifyHostKeyDNS=no`. A `KnownHostsCommand` in `extraOptions` is rejected for
+these policies; one in the runner's own `ssh_config` (OpenSSH 8.5+) is outside
+the model's reach — keep it out of the runner's config. The key is looked up
+under a fixed `HostKeyAlias` derived from the host's address and port, so
+`HostName` mappings in the runner's `ssh_config`, `ProxyCommand`, and keys
+already in `~/.ssh/known_hosts` neither help nor hurt — the declared policy is
+the only source. These options are emitted before `extraOptions`, so
+`extraOptions` cannot loosen them. `open` applies the same options to the
+ControlMaster connection, and a host with a policy gets its own ControlPath, so
+a master opened under a different policy is never reused. After changing a
+host's policy or `hostKeys`, a master still running on the old path is not
+reused, but `close` only addresses the new path, so the old one lingers until
+its `persistSec` expires.
+
+```yaml
+# Pin from collect-host-public-key output (or any .pub line)
+transport:
+  kind: ssh
+  user: deploy
+  hostKeys:
+    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... root@web-1
+
+# Rebuilt-often hosts: trust on first use
+transport:
+  kind: ssh
+  user: deploy
+  hostKeyPolicy: tofu
+```
+
+**tofu pins.** A pin is keyed by `address:port` (instance `hostKeyPin-<hash>`),
+so several sshd instances on one address keep separate pins and renaming a host
+keeps its pin. When a key does not match, the host fails with:
+
+```
+host key changed for 10.0.0.1:22: pinned SHA256:<pinned>, presented SHA256:<presented>
+```
+
+A normal call never replaces a pin, and a pin resource that exists but cannot be
+read fails the call before connecting rather than being treated as first
+contact. The typed `host key changed` message is built from ssh's stderr, so
+with `captureOutput: false` a mismatch still fails the host but reports as a
+plain exit 255. After a deliberate rebuild, run `repin` — the only way a pin
+changes:
+
+```bash
+swamp model method run awesome repin --input hosts=web-1 --json
+```
+
+`repin` connects over a fresh connection (bypassing ControlMaster) and, only if
+that probe succeeds (key exchange and authentication), records the presented key
+as a new `hostKeyPin` version with `previousFingerprints`, logs old and new
+fingerprints, and closes the host's existing ControlMaster so no later call
+multiplexes over a connection authenticated under the old key. It also replaces
+an unreadable pin.
+
+**First contact is trust-on-first-use.** The call that pins a host runs its
+command against whatever key the host presented — that is what tofu means; use
+`pinned` when that is not acceptable. Two first-contact calls racing on the same
+host each pin the key they saw; the pin is re-read before writing, so a
+differing key fails the later call, but the store has no compare-and-swap and
+two writes in the same instant cannot be ordered. A tofu call that reuses an
+existing ControlMaster while no pin exists logs a warning: nothing was verified
+on that call. It refuses hosts whose policy is not `tofu`.
+
+**Combinations.** `hostKeyPolicy` and `strictHostKeyChecking` are mutually
+exclusive; `hostKeys` is only for `pinned`; `knownHostsFile` is only for
+`accept-new`. Violations are reported at validation time against the host
+(`hosts[i].transport`), after merging fleet defaults with the host override.
+Hosts with no policy and no `hostKeys` behave exactly as before.
+
+**Limits.** The policy covers the target host. A `proxyJump` bastion is
+authenticated by a separate ssh process that does not receive these options —
+declare the bastion as its own fleet host with a policy, or use `proxyCommand`
+with explicit options, if it must be pinned too. Tailscale hosts authenticate
+with tailnet identity and ignore host-key settings; tailscale `copy` (scp over
+`tailscale nc`) checks keys under the runner's defaults.
 
 ### `auth.kind: "password"`
 
@@ -387,6 +501,26 @@ exits non-zero, is killed by a signal, or fails to spawn — RunResult resources
 are written before the error is raised. `okExitCodes` widens which exit codes
 count as success.
 
+#### `argv`
+
+Pass `argv` instead of `command` when the command is built from data. Each
+element is POSIX single-quoted before the remote shell sees it, so it arrives
+literally — no expansion, globbing, or operators, and no quoting for the caller
+to get wrong. Exactly one of `command` or `argv` is required.
+
+```yaml
+arguments:
+  hosts: tag:web
+  argv: ["install", "-m", "0644", "/tmp/my file", "/etc/app/app.conf"]
+  sudo: true # → sudo -n -- 'install' '-m' ... (no sh -c wrapper)
+```
+
+Because the vector carries no shell syntax, `sudo` prefixes it directly, so
+sudoers rules scoped to the binary keep matching. Unlike `command`, nothing is
+re-exported across sudo: variables forwarded with `env` are reset by sudo's
+`env_reset` under `argv` + `sudo`. `$VAR` inside an element is passed literally;
+use `command` when you need the remote shell to expand it.
+
 #### sudo
 
 `sudo: true` runs the entire command as root, non-interactively (`sudo -n`):
@@ -479,6 +613,50 @@ arguments:
 Fails the method on non-zero exit (same semantics as `exec`). There is no
 `okExitCodes` here — a transfer either moved the bytes or it did not.
 
+#### Atomic copy
+
+```yaml
+arguments:
+  hosts: tag:web
+  src: ./nginx.conf
+  dst: /etc/nginx/nginx.conf
+  direction: to
+  atomic: true
+  mode: "0644" # optional chmod
+  owner: root:root # optional chown
+  verifySha256: true # optional: compare with the local file
+```
+
+With `atomic: true`, each host first creates an empty, owner-only (0600) staging
+file next to `dst` (`.nginx.conf.swamp-<random>`) and receives the upload into
+it, so the content is never readable by other users while in flight. One remote
+step then checks its sha256 against the local source, sets owner and mode, and
+renames it over `dst` — readers never see a partial file, and a failed check
+leaves `dst` untouched. The staging file is removed on any later failure,
+including a failed upload or a finalize step that could not connect.
+
+The rename replaces `dst` with a new file, so attributes are set explicitly
+rather than inherited:
+
+| Attribute | With the option               | Without it, existing `dst`                                                                                    | Without it, new `dst`                                   |
+| --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| mode      | `mode` (setuid/setgid kept)   | the existing file's mode                                                                                      | the local source file's mode (0600 on a Windows runner) |
+| owner     | `owner` (needs the privilege) | the existing owner when the ssh user may set it; otherwise the ssh user, with a warning in the run's `stderr` | the ssh user                                            |
+
+A `dst` that is a directory or a symlink is refused rather than having the file
+moved into the directory or replacing the link — point `dst` at the link's
+target to update it.
+
+Constraints: `direction: to`, a single file (not `recursive`), and a file path
+for `dst` that does not start with `~` (use an absolute path, or one relative to
+the login directory without `~/`). `mode`, `owner` and `verifySha256` require
+`atomic`. The rename needs the ssh user to have write access to `dst`'s
+directory, and `owner` usually needs root — there is no sudo for copy. The
+remote needs a POSIX `sh`, and `sha256sum` or `shasum` for `verifySha256`;
+`verifySha256` reads the whole local file into the runner's memory to hash it.
+Each host still records one `run-copy-<host>`; a failure's `error` names the
+stage (`prepare failed`, `upload failed` or `finalize failed`).
+
 ### `forward`
 
 ```yaml
@@ -531,6 +709,16 @@ Output resource fields:
 | `algorithm`   | Key algorithm (e.g. `ssh-ed25519`, `ssh-rsa`).                  |
 | `fingerprint` | `SHA256:<base64>` fingerprint matching `ssh-keygen -lf` output. |
 | `observedAt`  | ISO 8601 timestamp of collection.                               |
+
+### `repin`
+
+```yaml
+arguments:
+  hosts: web-1
+```
+
+Replaces the tofu host-key pin of each selected host with the key it presents
+now. See [Host-key policy](#host-key-policy).
 
 ## Exit codes
 
@@ -720,6 +908,7 @@ timing reach the resource.
 | `masterAudit`   | append per host              | 100               | `open` / `check` / `exit` events.                                                                                               |
 | `hostPublicKey` | one per host                 | 10                | Written by `collect-host-public-key`. Raw key, algorithm, fingerprint.                                                          |
 | `selection`     | one per distinct selector    | 10                | Written by `resolve`. Instance `resolve-<hash>`, stable per selector. Tagged `{fleet, method, count}`; no credential material.  |
+| `hostKeyPin`    | one per tofu `address:port`  | 20                | Written on tofu first contact and by `repin`. Instance `hostKeyPin-<hash>`. Keys, fingerprints, `previousFingerprints`.         |
 
 ## License
 
