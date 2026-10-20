@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
     tokenClaims: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
   importKey: z.string().meta({ sensitive: true }).describe(
-    "The PEM-encoded private key to use for the issuer.",
+    "The PEM-encoded private key to use for the issuer. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   importKeyId: z.string().max(128).regex(new RegExp("^[A-Za-z0-9._-]+$"))
     .describe(
@@ -163,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.10.20.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -202,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

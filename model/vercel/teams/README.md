@@ -51,6 +51,19 @@ globalArgs:
   # or: slug: my-team
 ```
 
+## Sensitive values
+
+These fields hold secrets and are marked sensitive:
+
+| Model                       | Global arguments                                          | Stored state |
+| --------------------------- | --------------------------------------------------------- | ------------ |
+| `@swamp/vercel/teams/teams` | `defaultDeploymentProtection.passwordProtection.password` | —            |
+
+Set a sensitive global argument with a `vault.get(...)` expression, as for
+`token`. swamp refuses a literal value in one when it saves the model
+definition, so a definition that already holds a literal value fails on its next
+save until the value is moved to a vault.
+
 ## Quick start
 
 ```bash

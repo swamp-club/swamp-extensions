@@ -15,7 +15,10 @@ import {
   generateLicense,
 } from "../shared/licenseGenerator.ts";
 import { generateVercelDenoConfig } from "../shared/denoConfigGenerator.ts";
-import { generateVercelReadme } from "../shared/readmeGenerator.ts";
+import {
+  generateVercelReadme,
+  type VercelSensitiveFields,
+} from "../shared/readmeGenerator.ts";
 import {
   computeManifestVersion,
   computeModelVersion,
@@ -43,6 +46,8 @@ export interface VercelProperty {
   format?: string;
   /** A secret request-body field; emitted with `.meta({ sensitive: true })` */
   sensitive?: boolean;
+  /** A stored field only the create response returns, so no read restores it */
+  createOnly?: boolean;
 }
 
 export interface VercelResource {
@@ -197,6 +202,35 @@ const SECRET_NAME_PATTERN =
  * so: a KMS issuer's importKey is a PEM-encoded private key.
  */
 const SENSITIVE_FIELDS = new Set(["importKey"]);
+
+/**
+ * Secret fields that no name rule can catch, by `<service>/<modelSlug>`.
+ * `args` paths are request-body fields (global args and inputs), `resource`
+ * paths are stored state. Segments are dot-separated; `[]` steps into array
+ * items. `createOnly` names top-level stored fields only the create response
+ * returns: the GET response lacks them, so they are declared as optional
+ * strings, since passthrough would otherwise store them in clear. See
+ * applySensitivePaths.
+ */
+export const SENSITIVE_PATHS: Record<
+  string,
+  { args?: string[]; resource?: string[]; createOnly?: string[] }
+> = {
+  "environment/env": { args: ["evs[].value"], resource: ["value"] },
+  "projects/env": { args: ["value"], resource: ["value"] },
+  "projects/projects": {
+    args: ["environmentVariables[].value"],
+    resource: ["env[].value", "protectionBypass"],
+  },
+  "aliases/aliases": { resource: ["protectionBypass"] },
+  "edge-config/token": { resource: ["token"] },
+  "webhooks/webhooks": { createOnly: ["secret"] },
+  "feature-flags/sdk-keys": { createOnly: ["keyValue", "tokenValue"] },
+  // The name rule covers request bodies only; the read response returns the
+  // signing secret too. Not a stored-state name rule, which would also mark
+  // Edge Config's partialToken, a truncated preview.
+  "drains/drains": { resource: ["delivery.secret"] },
+};
 
 /** Tags to skip — not manageable infrastructure resources. */
 const SKIP_TAGS = new Set([
@@ -373,6 +407,7 @@ export async function generateVercelModels(options: {
   console.log(
     `Parsed ${resources.length} resources, skipped ${skipped.length}`,
   );
+  applySensitivePaths(resources);
 
   // Group resources by service
   const serviceResources = new Map<string, VercelResource[]>();
@@ -467,6 +502,9 @@ export async function generateVercelModels(options: {
       extensionName,
       firstSlug,
       firstType,
+      svcResources
+        .map((r) => sensitiveFields(r, `${extensionName}/${r.modelSlug}`))
+        .filter((f) => f.args.length > 0 || f.stored.length > 0),
     );
     const readmePath = `${serviceOutputDir}/README.md`;
     try {
@@ -1437,6 +1475,7 @@ function extractRequestBody(
     if (isSensitive(name, resolveSchema(propSchema, spec))) {
       properties[name].sensitive = true;
     }
+    markNestedSecrets(properties[name]);
   }
 
   return {
@@ -1447,13 +1486,150 @@ function extractRequestBody(
 
 /**
  * Whether a top-level request-body field holds a secret, mirroring the
- * tailscale pipeline's rule. Nested fields are not inspected (e.g. a drain's
- * delivery.secret); see codegen/designs/vercel.md.
+ * tailscale pipeline's rule. Nested fields are marked by markNestedSecrets.
  */
 function isSensitive(name: string, schema: OApiSchema): boolean {
   return !!schema.writeOnly || schema.format === "password" ||
     (schema.type === "string" && SECRET_NAME_PATTERN.test(name)) ||
     SENSITIVE_FIELDS.has(name);
+}
+
+/**
+ * Mark nested request-body string fields named like a secret (or formatted
+ * as a password), in objects and array items at any depth: a drain's
+ * delivery.secret, a project's passwordProtection.password.
+ */
+export function markNestedSecrets(prop: VercelProperty): void {
+  if (prop.items) markNestedSecrets(prop.items);
+  for (const [name, child] of Object.entries(prop.properties ?? {})) {
+    if (
+      child.type === "string" &&
+      (SECRET_NAME_PATTERN.test(name) || child.format === "password")
+    ) {
+      child.sensitive = true;
+    }
+    markNestedSecrets(child);
+  }
+}
+
+/** Paths of the sensitive properties under `props`, `[]` marking array items. */
+function sensitivePaths(
+  props: Record<string, VercelProperty>,
+  prefix = "",
+): string[] {
+  const result: string[] = [];
+  for (const [name, prop] of Object.entries(props)) {
+    const path = prefix + name;
+    if (prop.sensitive) result.push(path);
+    const items = prop.items ? `${path}[]` : path;
+    const children = prop.items?.properties ?? prop.properties ?? {};
+    result.push(...sensitivePaths(children, `${items}.`));
+  }
+  return result;
+}
+
+/**
+ * A resource's sensitive global args (under their global arg names, parent
+ * params excluded) and stored fields, for its package README.
+ */
+export function sensitiveFields(
+  resource: VercelResource,
+  modelType: string,
+): VercelSensitiveFields {
+  const parents = new Set(resource.parentParams.map((pp) => pp.paramName));
+  const argProps: Record<string, VercelProperty> = {};
+  const merged = { ...resource.updateProperties, ...resource.createProperties };
+  for (const [name, prop] of Object.entries(merged)) {
+    if (parents.has(name)) continue;
+    const sensitive = prop.sensitive ||
+      resource.updateProperties[name]?.sensitive;
+    argProps[globalArgName(resource, name)] = { ...prop, sensitive };
+  }
+  const stored = sensitivePaths(resource.resourceProperties);
+  return {
+    modelType,
+    args: sensitivePaths(argProps),
+    stored,
+    storedObjects: stored.filter((p) =>
+      propertyAtPath(resource.resourceProperties, p)?.type === "object"
+    ),
+    storedCreateOnly: stored.filter((p) =>
+      propertyAtPath(resource.resourceProperties, p)?.createOnly
+    ),
+  };
+}
+
+/**
+ * The property a SENSITIVE_PATHS path names under `props`, or undefined.
+ * `a[].b` is property b of the items of array a.
+ */
+function propertyAtPath(
+  props: Record<string, VercelProperty>,
+  path: string,
+): VercelProperty | undefined {
+  let current: VercelProperty | undefined;
+  let scope: Record<string, VercelProperty> | undefined = props;
+  for (const segment of path.split(".")) {
+    const isArray = segment.endsWith("[]");
+    current = scope?.[isArray ? segment.slice(0, -2) : segment];
+    if (isArray) current = current?.items;
+    scope = current?.properties;
+  }
+  return current;
+}
+
+/**
+ * Mark the SENSITIVE_PATHS fields on parsed resources, declaring each
+ * `createOnly` field as an optional string. Throws when a key names no
+ * resource, a path resolves to nothing, or a `createOnly` field is already in
+ * the GET response, so spec drift cannot silently drop or misplace a marking.
+ */
+export function applySensitivePaths(
+  resources: VercelResource[],
+  paths: typeof SENSITIVE_PATHS = SENSITIVE_PATHS,
+): void {
+  const byKey = new Map(
+    resources.map((r) => [`${r.service}/${r.modelSlug}`, r]),
+  );
+  for (
+    const [key, { args = [], resource: stored = [], createOnly = [] }] of Object
+      .entries(paths)
+  ) {
+    const resource = byKey.get(key);
+    if (!resource) {
+      throw new Error(`SENSITIVE_PATHS: no Vercel resource ${key}`);
+    }
+    for (const path of args) {
+      const found = [resource.createProperties, resource.updateProperties]
+        .map((props) => propertyAtPath(props, path))
+        .filter((p): p is VercelProperty => p !== undefined);
+      if (found.length === 0) {
+        throw new Error(`SENSITIVE_PATHS: ${key} has no request field ${path}`);
+      }
+      for (const prop of found) prop.sensitive = true;
+    }
+    for (const name of createOnly) {
+      if (resource.resourceProperties[name]) {
+        throw new Error(
+          `SENSITIVE_PATHS: ${key} createOnly ${name} is in the GET response`,
+        );
+      }
+      resource.resourceProperties[name] = {
+        type: "string",
+        createOnly: true,
+        sensitive: true,
+      };
+    }
+    for (const path of stored) {
+      const prop = propertyAtPath(resource.resourceProperties, path);
+      if (!prop) {
+        throw new Error(
+          `SENSITIVE_PATHS: ${key} has no resource field ${path}`,
+        );
+      }
+      prop.sensitive = true;
+    }
+  }
 }
 
 /**
@@ -1560,6 +1736,7 @@ function extractArrayBodyItems(
     if (isSensitive(name, resolveSchema(propSchema, spec))) {
       properties[name].sensitive = true;
     }
+    markNestedSecrets(properties[name]);
   }
 
   return {

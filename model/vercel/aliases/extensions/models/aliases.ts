@@ -76,7 +76,8 @@ const ResourceSchema = z.object({
     }).optional(),
   }).nullable().optional(),
   projectId: z.string().nullable().optional(),
-  protectionBypass: z.record(z.string(), z.unknown()).nullable().optional(),
+  protectionBypass: z.record(z.string(), z.unknown()).meta({ sensitive: true })
+    .nullable().optional(),
   redirect: z.string().nullable().optional(),
   redirectStatusCode: z.number().nullable().optional(),
   uid: z.string(),
@@ -98,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Aliases. Registered at `@swamp/vercel/aliases/aliases`. */
 export const model = {
   type: "@swamp/vercel/aliases/aliases",
-  version: "2026.10.20.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -147,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -58,8 +58,9 @@ const GlobalArgsSchema = z.object({
   type: z.enum(["system", "encrypted", "plain", "sensitive"]).describe(
     "The type of environment variable",
   ).optional(),
-  value: z.string().describe("The value of the environment variable")
-    .optional(),
+  value: z.string().meta({ sensitive: true }).describe(
+    "The value of the environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
   customEnvironmentIds: z.array(z.string()).describe(
     "The custom environment IDs associated with the environment variable",
   ).optional(),
@@ -93,7 +94,7 @@ const ResourceSchema = z.object({
   updatedAt: z.number().nullable().optional(),
   updatedBy: z.string().nullable().optional(),
   visibility: z.string().nullable().optional(),
-  value: z.string().nullable().optional(),
+  value: z.string().meta({ sensitive: true }).nullable().optional(),
   internalContentHint: z.object({
     encryptedValue: z.string().optional(),
     type: z.string().optional(),
@@ -112,7 +113,7 @@ const InputsSchema = z.object({
   target: z.array(z.enum(["production", "preview", "development"])).optional(),
   gitBranch: z.string().max(250).optional(),
   type: z.enum(["system", "encrypted", "plain", "sensitive"]).optional(),
-  value: z.string().optional(),
+  value: z.string().meta({ sensitive: true }).optional(),
   customEnvironmentIds: z.array(z.string()).optional(),
   comment: z.string().max(500).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
@@ -121,7 +122,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/projects/env`. */
 export const model = {
   type: "@swamp/vercel/projects/env",
-  version: "2026.10.20.2",
+  version: "2026.10.20.3",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -175,6 +176,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -290,7 +296,6 @@ export const model = {
           filters.push(["gitBranch", String(g.gitBranch)]);
         }
         if (g.type !== undefined) filters.push(["type", String(g.type)]);
-        if (g.value !== undefined) filters.push(["value", String(g.value)]);
         if (g.comment !== undefined) {
           filters.push(["comment", String(g.comment)]);
         }

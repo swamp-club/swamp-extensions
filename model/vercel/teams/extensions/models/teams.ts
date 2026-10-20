@@ -103,7 +103,9 @@ const GlobalArgsSchema = z.object({
         "prod_deployment_urls_and_all_previews",
         "all_except_custom_domains",
       ]),
-      password: z.string().max(72).optional(),
+      password: z.string().max(72).meta({ sensitive: true }).describe(
+        "The password that will be used to protect Project Deployments. Wire with a vault.get(...) expression to source it from a vault.",
+      ).optional(),
     }).optional(),
     ssoProtection: z.object({
       deploymentType: z.enum([
@@ -494,7 +496,9 @@ const InputsSchema = z.object({
         "prod_deployment_urls_and_all_previews",
         "all_except_custom_domains",
       ]),
-      password: z.string().max(72).optional(),
+      password: z.string().max(72).meta({ sensitive: true }).describe(
+        "The password that will be used to protect Project Deployments. Wire with a vault.get(...) expression to source it from a vault.",
+      ).optional(),
     }).optional(),
     ssoProtection: z.object({
       deploymentType: z.enum([
@@ -636,7 +640,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.20.2",
+  version: "2026.10.20.3",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -755,6 +759,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

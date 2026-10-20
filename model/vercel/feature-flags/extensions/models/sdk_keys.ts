@@ -55,6 +55,8 @@ const ResourceSchema = z.object({
   projectId: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
+  keyValue: z.string().meta({ sensitive: true }).nullable().optional(),
+  tokenValue: z.string().meta({ sensitive: true }).nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -72,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Sdk Keys. Registered at `@swamp/vercel/feature-flags/sdk-keys`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/sdk-keys",
-  version: "2026.10.20.3",
+  version: "2026.10.20.4",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -131,6 +133,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.4",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

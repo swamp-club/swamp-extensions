@@ -52,7 +52,7 @@ const GlobalArgsSchema = z.object({
     "The files to include in the deployment. Each entry is either an inlined file (with `data` and `encoding`) or a reference to a previously uploaded file (with `sha` and `size`). Required for non-git deployments. Cannot be used together with `gitSource`.",
   ).optional(),
   gitAccessToken: z.string().max(1024).meta({ sensitive: true }).describe(
-    "Available only to Vercel platform accounts. A read-only GitHub access token scoped to the requested repository. Use a token with a lifetime of 24 hours or less that remains valid until source retrieval completes.",
+    "Available only to Vercel platform accounts. A read-only GitHub access token scoped to the requested repository. Use a token with a lifetime of 24 hours or less that remains valid until source retrieval completes. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   gitMetadata: z.object({
     remoteUrl: z.string().optional(),
@@ -809,7 +809,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.20.2",
+  version: "2026.10.20.3",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -898,6 +898,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

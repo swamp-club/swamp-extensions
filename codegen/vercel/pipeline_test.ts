@@ -1,5 +1,12 @@
-import { assertEquals } from "@std/assert";
-import { generateVercelModels, parseResources } from "./pipeline.ts";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import {
+  applySensitivePaths,
+  generateVercelModels,
+  parseResources,
+  sensitiveFields,
+  type VercelProperty,
+} from "./pipeline.ts";
+import { generateVercelReadme } from "../shared/readmeGenerator.ts";
 
 const SCHEMA_PATH = new URL("../schemas/vercel.json", import.meta.url)
   .pathname;
@@ -218,6 +225,25 @@ function deploymentsSpec(listProperties: Record<string, unknown>) {
                     hookSecret: { type: "string" },
                     hasSecret: { type: "boolean" },
                     buildMachine: { type: "string" },
+                    delivery: {
+                      type: "object",
+                      properties: {
+                        endpoint: { type: "string" },
+                        secret: { type: "string" },
+                        hasSecret: { type: "boolean" },
+                      },
+                    },
+                    envs: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          key: { type: "string" },
+                          value: { type: "string" },
+                          password: { type: "string" },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -451,4 +477,166 @@ Deno.test("parseResources keys a hashKey resource by hashKey without a synthetic
   ]);
   assertEquals(r.identifyingField, "hashKey");
   assertEquals(r.listIdentifyingField, "hashKey");
+});
+
+Deno.test("parseResources marks nested secret request-body fields sensitive", () => {
+  const { resources } = parseResources(deploymentsSpec({}));
+  const { delivery, envs } = resources[0].createProperties;
+
+  // Named like a secret inside an object or array items; not the boolean
+  // hasSecret, nor a plain value, which only SENSITIVE_PATHS can mark.
+  assertEquals(delivery.properties?.secret.sensitive, true);
+  assertEquals(delivery.properties?.hasSecret.sensitive, undefined);
+  assertEquals(delivery.properties?.endpoint.sensitive, undefined);
+  assertEquals(envs.items?.properties?.password.sensitive, true);
+  assertEquals(envs.items?.properties?.value.sensitive, undefined);
+  assertEquals(delivery.sensitive, undefined);
+});
+
+function gadgets() {
+  const { resources } = parseResources(deploymentsSpec({}));
+  const resource = resources[0];
+  resource.updateProperties = {
+    envs: structuredClone(resource.createProperties.envs),
+  };
+  resource.resourceProperties = {
+    id: { type: "string" },
+    env: {
+      type: "array",
+      items: { type: "object", properties: { value: { type: "string" } } },
+    },
+    bypass: { type: "object" },
+  };
+  return resource;
+}
+
+Deno.test("applySensitivePaths marks request and stored fields by path", () => {
+  const resource = gadgets();
+  applySensitivePaths([resource], {
+    "gadgets/gadgets": {
+      args: ["envs[].value"],
+      resource: ["env[].value", "bypass"],
+    },
+  });
+
+  const value = (p: VercelProperty) => p.items?.properties?.value.sensitive;
+  assertEquals(value(resource.createProperties.envs), true);
+  assertEquals(value(resource.updateProperties.envs), true);
+  assertEquals(value(resource.resourceProperties.env), true);
+  assertEquals(resource.resourceProperties.bypass.sensitive, true);
+  assertEquals(resource.createProperties.envs.sensitive, undefined);
+});
+
+Deno.test("applySensitivePaths declares a createOnly stored secret", () => {
+  const resource = gadgets();
+  applySensitivePaths([resource], {
+    "gadgets/gadgets": { createOnly: ["secret"] },
+  });
+  assertEquals(resource.resourceProperties.secret, {
+    type: "string",
+    createOnly: true,
+    sensitive: true,
+  });
+});
+
+Deno.test("applySensitivePaths throws on a path or resource that does not resolve", () => {
+  const cases: [
+    Record<
+      string,
+      { args?: string[]; resource?: string[]; createOnly?: string[] }
+    >,
+    string,
+  ][] = [
+    [{ "gadgets/missing": { args: ["name"] } }, "no Vercel resource"],
+    [{ "gadgets/gadgets": { args: ["envs[].ghost"] } }, "no request field"],
+    [{ "gadgets/gadgets": { resource: ["env[].ghost"] } }, "no resource field"],
+    // A renamed top-level field fails rather than being declared.
+    [{ "gadgets/gadgets": { resource: ["ghost"] } }, "no resource field"],
+    [
+      { "gadgets/gadgets": { createOnly: ["bypass"] } },
+      "createOnly bypass is in the GET response",
+    ],
+  ];
+  for (const [paths, message] of cases) {
+    assertThrows(
+      () => applySensitivePaths([gadgets()], paths),
+      Error,
+      message,
+    );
+  }
+});
+
+Deno.test("sensitiveFields lists secret args and stored fields by path", () => {
+  const resource = gadgets();
+  applySensitivePaths([resource], {
+    "gadgets/gadgets": {
+      args: ["envs[].value"],
+      resource: ["env[].value", "bypass"],
+      createOnly: ["secret"],
+    },
+  });
+  const fields = sensitiveFields(resource, "@swamp/vercel/gadgets/gadgets");
+
+  // In GlobalArgsSchema order: update-body fields first.
+  assertEquals(fields.args, [
+    "envs[].value",
+    "envs[].password",
+    "gitAccessToken",
+    "importKey",
+    "hookSecret",
+    "delivery.secret",
+  ]);
+  assertEquals(fields.stored, ["env[].value", "bypass", "secret"]);
+  assertEquals(fields.storedObjects, ["bypass"]);
+  assertEquals(fields.storedCreateOnly, ["secret"]);
+});
+
+Deno.test("generateVercelReadme documents sensitive fields only when a model has some", () => {
+  const readme = (
+    stored: string[],
+    storedObjects: string[] = [],
+    storedCreateOnly: string[] = [],
+  ) =>
+    generateVercelReadme("gadgets", "@swamp/vercel/gadgets", "gadgets", "t", [
+      {
+        modelType: "@swamp/vercel/gadgets/gadgets",
+        args: ["envs[].value"],
+        stored,
+        storedObjects,
+        storedCreateOnly,
+      },
+    ]);
+
+  const full = readme(["env[].value", "bypass", "secret"], ["bypass"], [
+    "secret",
+  ]);
+  assertStringIncludes(full, "## Sensitive values");
+  assertStringIncludes(
+    full,
+    "| `@swamp/vercel/gadgets/gadgets` | `envs[].value` | `env[].value`, `bypass`, `secret` |",
+  );
+  assertStringIncludes(full, "fails in\na repository with no vault");
+  assertStringIncludes(
+    full,
+    "An object field (`bypass`) is vaulted as a whole",
+  );
+  assertStringIncludes(full, "Fields inside array items (`env[].value`)");
+  assertStringIncludes(
+    full,
+    "swamp data delete <model> <data-name> --version <n>",
+  );
+  assertStringIncludes(full, "Vercel returns `secret` only when the resource");
+  assertStringIncludes(full, "swamp vault put <vault> <key>");
+  assertEquals(readme(["bypass"]).includes("swamp vault put"), false);
+
+  const argsOnly = readme([]);
+  assertStringIncludes(argsOnly, "swamp refuses a literal value");
+  assertEquals(argsOnly.includes("no vault"), false);
+  assertEquals(argsOnly.includes("upgrading"), false);
+
+  assertEquals(
+    generateVercelReadme("gadgets", "@swamp/vercel/gadgets", "gadgets", "t")
+      .includes("## Sensitive values"),
+    false,
+  );
 });

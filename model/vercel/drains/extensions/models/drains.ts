@@ -77,7 +77,9 @@ const GlobalArgsSchema = z.object({
     compression: z.enum(["gzip", "none"]).optional(),
     encoding: z.enum(["json", "ndjson"]),
     headers: z.record(z.string(), z.unknown()),
-    secret: z.string().optional(),
+    secret: z.string().meta({ sensitive: true }).describe(
+      "Wire with a vault.get(...) expression to source it from a vault.",
+    ).optional(),
   }).optional(),
   sampling: z.array(z.object({
     type: z.string(),
@@ -102,7 +104,7 @@ const ResourceSchema = z.object({
     encoding: z.string().optional(),
     endpoint: z.string().optional(),
     headers: z.record(z.string(), z.unknown()).optional(),
-    secret: z.string().optional(),
+    secret: z.string().meta({ sensitive: true }).optional(),
     type: z.string().optional(),
   }).nullable().optional(),
   disabledAt: z.number().nullable().optional(),
@@ -200,7 +202,9 @@ const InputsSchema = z.object({
     compression: z.enum(["gzip", "none"]).optional(),
     encoding: z.enum(["json", "ndjson"]),
     headers: z.record(z.string(), z.unknown()),
-    secret: z.string().optional(),
+    secret: z.string().meta({ sensitive: true }).describe(
+      "Wire with a vault.get(...) expression to source it from a vault.",
+    ).optional(),
   }).optional(),
   sampling: z.array(z.object({
     type: z.string(),
@@ -219,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Drains. Registered at `@swamp/vercel/drains/drains`. */
 export const model = {
   type: "@swamp/vercel/drains/drains",
-  version: "2026.10.20.2",
+  version: "2026.10.20.3",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -268,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -40,7 +40,9 @@ const GlobalArgsSchema = z.object({
   ),
   evs: z.array(z.object({
     key: z.string(),
-    value: z.string(),
+    value: z.string().meta({ sensitive: true }).describe(
+      "The value of the Shared Environment Variable. Wire with a vault.get(...) expression to source it from a vault.",
+    ),
     comment: z.string().max(500).optional(),
   })).optional(),
   type: z.enum(["encrypted", "sensitive"]).describe(
@@ -83,7 +85,7 @@ const ResourceSchema = z.object({
   type: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
   updatedBy: z.string().nullable().optional(),
-  value: z.string().nullable().optional(),
+  value: z.string().meta({ sensitive: true }).nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -94,7 +96,9 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   evs: z.array(z.object({
     key: z.string(),
-    value: z.string(),
+    value: z.string().meta({ sensitive: true }).describe(
+      "The value of the Shared Environment Variable. Wire with a vault.get(...) expression to source it from a vault.",
+    ),
     comment: z.string().max(500).optional(),
   })).optional(),
   type: z.enum(["encrypted", "sensitive"]).optional(),
@@ -106,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/environment/env`. */
 export const model = {
   type: "@swamp/vercel/environment/env",
-  version: "2026.10.20.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -165,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -310,7 +319,6 @@ export const model = {
         if (g.updatedBy !== undefined) {
           filters.push(["updatedBy", String(g.updatedBy)]);
         }
-        if (g.value !== undefined) filters.push(["value", String(g.value)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

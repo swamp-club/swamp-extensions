@@ -51,6 +51,30 @@ globalArgs:
   # or: slug: my-team
 ```
 
+## Sensitive values
+
+These fields hold secrets and are marked sensitive:
+
+| Model                           | Global arguments | Stored state |
+| ------------------------------- | ---------------- | ------------ |
+| `@swamp/vercel/environment/env` | `evs[].value`    | `value`      |
+
+Set a sensitive global argument with a `vault.get(...)` expression, as for
+`token`. swamp refuses a literal value in one when it saves the model
+definition, so a definition that already holds a literal value fails on its next
+save until the value is moved to a vault.
+
+swamp writes sensitive stored values to a vault and keeps a `vault.get(...)`
+reference in the model's data. It uses the repository's default vault, or the
+first vault configured, so a method that writes state for these models fails in
+a repository with no vault: create one with `swamp vault create` first.
+
+Earlier versions of these models stored these values in clear, and upgrading
+does not rewrite data already written. Run `sync` to write a version with the
+values vaulted, then list the earlier versions with
+`swamp data versions <model> <data-name>` and remove them with
+`swamp data delete <model> <data-name> --version <n>`.
+
 ## Quick start
 
 ```bash

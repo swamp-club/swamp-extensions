@@ -489,7 +489,7 @@ Deno.test("generateVercelExtensionModel - sensitive fields carry sensitive meta 
   const code = generate(uidListResource());
   assertStringIncludes(
     globalArgsBlock(code),
-    "gitAccessToken: z.string().meta({ sensitive: true }).optional(),",
+    `gitAccessToken: z.string().meta({ sensitive: true }).describe("${VAULT_HINT}").optional(),`,
   );
   assertStringIncludes(
     block(code, "const InputsSchema", "});"),
@@ -499,6 +499,97 @@ Deno.test("generateVercelExtensionModel - sensitive fields carry sensitive meta 
     globalArgsBlock(code).includes("project: z.string().meta"),
     false,
   );
+});
+
+const VAULT_HINT =
+  "Wire with a vault.get(...) expression to source it from a vault.";
+
+// Like environment/env: secret values inside array items and nested objects,
+// and a secret stored value.
+function envVarResource(overrides: Partial<VercelResource> = {}) {
+  const evs: VercelProperty = {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        key: stringProp,
+        value: { type: "string", description: "The value", sensitive: true },
+      },
+      requiredProperties: ["key", "value"],
+    },
+  };
+  return makeResource({
+    createProperties: {
+      name: stringProp,
+      evs,
+      protection: {
+        type: "object",
+        properties: { password: { type: "string", sensitive: true } },
+      },
+      note: { type: "string", description: "A note", sensitive: true },
+    },
+    updateProperties: { name: stringProp },
+    updateMethod: "PATCH",
+    resourceProperties: {
+      id: stringProp,
+      key: stringProp,
+      value: { type: "string", sensitive: true },
+      bypass: { type: "object", sensitive: true },
+    },
+    ...overrides,
+  });
+}
+
+Deno.test("generateVercelExtensionModel - nested sensitive fields carry the meta and the vault hint in args and inputs", () => {
+  const code = generate(envVarResource());
+  const nestedValue =
+    `value: z.string().meta({ sensitive: true }).describe("The value. ${VAULT_HINT}"),`;
+  const nestedPassword =
+    `password: z.string().meta({ sensitive: true }).describe("${VAULT_HINT}").optional(),`;
+  for (
+    const schema of [
+      globalArgsBlock(code),
+      block(code, "const InputsSchema", "/** Swamp extension model"),
+    ]
+  ) {
+    assertStringIncludes(schema, nestedValue);
+    assertStringIncludes(schema, nestedPassword);
+    assertEquals(schema.includes("key: z.string().meta"), false);
+  }
+});
+
+Deno.test("generateVercelExtensionModel - a sensitive top-level arg's description ends with the vault hint", () => {
+  assertStringIncludes(
+    globalArgsBlock(generate(envVarResource())),
+    `note: z.string().meta({ sensitive: true }).describe("A note. ${VAULT_HINT}").optional(),`,
+  );
+});
+
+Deno.test("generateVercelExtensionModel - sensitive stored fields carry the meta in ResourceSchema", () => {
+  const resource = block(
+    generate(envVarResource()),
+    "const ResourceSchema",
+    "type ResourceData",
+  );
+  assertStringIncludes(
+    resource,
+    "value: z.string().meta({ sensitive: true }).nullable().optional(),",
+  );
+  assertStringIncludes(
+    resource,
+    "bypass: z.record(z.string(), z.unknown()).meta({ sensitive: true }).nullable().optional(),",
+  );
+  assertStringIncludes(resource, "key: z.string().nullable().optional(),");
+});
+
+Deno.test("generateVercelExtensionModel - a sensitive stored field is not a lookup filter", () => {
+  const lookup = block(
+    generate(envVarResource()),
+    "    lookup: {",
+    "    adopt: {",
+  );
+  assertStringIncludes(lookup, `filters.push(["key", String(g.key)]);`);
+  assertEquals(lookup.includes("g.value"), false);
 });
 
 Deno.test("generated model and lib import only explicit or relative specifiers", () => {

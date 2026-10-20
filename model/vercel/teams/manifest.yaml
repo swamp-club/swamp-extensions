@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/vercel/teams"
-version: "2026.10.20.2"
+version: "2026.10.20.3"
 license: "AGPL-3.0-or-later"
 description: "Vercel teams infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,6 @@ labels:
   - infrastructure
 releaseNotes: |
   - Updated: teams
-  - Updated: members
 models:
   - members.ts
   - request.ts

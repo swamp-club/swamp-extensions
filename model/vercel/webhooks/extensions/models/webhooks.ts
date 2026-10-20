@@ -171,6 +171,7 @@ const ResourceSchema = z.object({
   projectIds: z.array(z.string()).nullable().optional(),
   updatedAt: z.number().nullable().optional(),
   url: z.string().nullable().optional(),
+  secret: z.string().meta({ sensitive: true }).nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -304,7 +305,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Webhooks. Registered at `@swamp/vercel/webhooks/webhooks`. */
 export const model = {
   type: "@swamp/vercel/webhooks/webhooks",
-  version: "2026.10.20.1",
+  version: "2026.10.20.2",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -358,6 +359,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

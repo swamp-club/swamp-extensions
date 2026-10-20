@@ -847,6 +847,17 @@ export function globalArgName(resource: VercelResource, name: string): string {
   return renamed;
 }
 
+/** Description suffix on a sensitive global arg, as on the token arg. */
+const VAULT_HINT =
+  "Wire with a vault.get(...) expression to source it from a vault.";
+
+/** A description with the vault hint appended. */
+function withVaultHint(description: string | undefined): string {
+  const text = description?.trimEnd();
+  if (!text) return VAULT_HINT;
+  return `${text}${/[.!?]$/.test(text) ? "" : "."} ${VAULT_HINT}`;
+}
+
 /** A request-body field that holds a secret, in either the create or update body. */
 function isSensitiveProperty(resource: VercelResource, name: string): boolean {
   return !!(resource.createProperties[name]?.sensitive ||
@@ -912,15 +923,16 @@ function buildGlobalArgsProperties(
 
   for (const [name, prop] of Object.entries(allProps)) {
     if (injectedFields.has(name)) continue;
-    const sensitive = isSensitiveProperty(resource, name)
-      ? `.meta({ sensitive: true })`
-      : "";
-    const baseExpr = `${generateFullFidelityZod(prop)}${sensitive}`;
+    const sensitive = isSensitiveProperty(resource, name);
+    const baseExpr = generateFullFidelityZod({ ...prop, sensitive });
     const qName = quoteProp(globalArgName(resource, name));
     let line = `${qName}: ${baseExpr}`;
 
-    if (prop.description) {
-      line += `.describe(${JSON.stringify(prop.description)})`;
+    const description = sensitive
+      ? withVaultHint(prop.description)
+      : prop.description;
+    if (description) {
+      line += `.describe(${JSON.stringify(description)})`;
     }
 
     // Every resource field is optional: create-required ones are enforced by
@@ -933,7 +945,24 @@ function buildGlobalArgsProperties(
   return result;
 }
 
-function generateFullFidelityZod(prop: VercelProperty): string {
+/**
+ * Full-fidelity Zod for a request-body property. A sensitive property gets
+ * `.meta({ sensitive: true })`; a nested one also gets the vault hint as its
+ * description (a top-level arg's description is emitted by the caller).
+ */
+function generateFullFidelityZod(
+  prop: VercelProperty,
+  nested = false,
+): string {
+  const expr = fullFidelityZodType(prop);
+  if (!prop.sensitive) return expr;
+  const meta = `${expr}.meta({ sensitive: true })`;
+  return nested
+    ? `${meta}.describe(${JSON.stringify(withVaultHint(prop.description))})`
+    : meta;
+}
+
+function fullFidelityZodType(prop: VercelProperty): string {
   switch (prop.type) {
     case "boolean":
       return "z.boolean()";
@@ -971,7 +1000,7 @@ function generateFullFidelityZod(prop: VercelProperty): string {
 
     case "array": {
       if (prop.items) {
-        const itemExpr = generateFullFidelityZod(prop.items);
+        const itemExpr = generateFullFidelityZod(prop.items, true);
         return `z.array(${itemExpr})`;
       }
       return "z.array(z.unknown())";
@@ -984,7 +1013,7 @@ function generateFullFidelityZod(prop: VercelProperty): string {
           ([k, v]) => {
             const suffix = requiredSet.has(k) ? "" : ".optional()";
             return `    ${quoteProp(k)}: ${
-              generateFullFidelityZod(v)
+              generateFullFidelityZod(v, true)
             }${suffix}`;
           },
         );
@@ -998,7 +1027,13 @@ function generateFullFidelityZod(prop: VercelProperty): string {
   }
 }
 
+/** Simplified Zod for a response property, with the sensitive meta at any depth. */
 function generateSimplifiedZod(prop: VercelProperty): string {
+  const expr = simplifiedZodType(prop);
+  return prop.sensitive ? `${expr}.meta({ sensitive: true })` : expr;
+}
+
+function simplifiedZodType(prop: VercelProperty): string {
   switch (prop.type) {
     case "boolean":
       return "z.boolean()";
@@ -1056,6 +1091,7 @@ function collectResponseFilterableFields(
   for (const [name, prop] of Object.entries(resource.resourceProperties)) {
     if (skipFields.has(name)) continue;
     if (alreadyCollected.has(name)) continue;
+    if (prop.sensitive) continue;
     if (!SCALAR_TYPES.has(prop.type)) continue;
     result.push(name);
   }

@@ -484,11 +484,101 @@ AGPLv3 — see [LICENSE.txt](./LICENSE.txt).
 `;
 }
 
+/** A Vercel model's sensitive fields, by path, for its package README. */
+export interface VercelSensitiveFields {
+  modelType: string;
+  /** Global argument paths, e.g. `evs[].value` */
+  args: string[];
+  /** Stored state paths, e.g. `value` */
+  stored: string[];
+  /** Stored paths whose value is an object, vaulted whole */
+  storedObjects: string[];
+  /** Stored paths only the create response returns, so `sync` cannot restore them */
+  storedCreateOnly: string[];
+}
+
+/** Inline code list for a README table cell, or an em dash when empty. */
+function codeList(paths: string[]): string {
+  return paths.length > 0 ? paths.map((p) => `\`${p}\``).join(", ") : "—";
+}
+
+/**
+ * The README section on a Vercel package's sensitive fields, or "" when no
+ * model has one beyond the token arg.
+ */
+function vercelSensitiveSection(models: VercelSensitiveFields[]): string {
+  if (models.length === 0) return "";
+  const rows = models.map((m) =>
+    `| \`${m.modelType}\` | ${codeList(m.args)} | ${codeList(m.stored)} |`
+  );
+  const stored = models.flatMap((m) => m.stored);
+  const arrayItems = stored.filter((p) => p.includes("[]"));
+  const objects = models.flatMap((m) => m.storedObjects);
+  const createOnly = models.flatMap((m) => m.storedCreateOnly);
+
+  let section = `## Sensitive values
+
+These fields hold secrets and are marked sensitive:
+
+| Model | Global arguments | Stored state |
+| ----- | ---------------- | ------------ |
+${rows.join("\n")}
+
+Set a sensitive global argument with a \`vault.get(...)\` expression, as for
+\`token\`. swamp refuses a literal value in one when it saves the model
+definition, so a definition that already holds a literal value fails on its
+next save until the value is moved to a vault.
+`;
+  if (stored.length > 0) {
+    section += `
+swamp writes sensitive stored values to a vault and keeps a \`vault.get(...)\`
+reference in the model's data. It uses the repository's default vault, or the
+first vault configured, so a method that writes state for these models fails in
+a repository with no vault: create one with \`swamp vault create\` first.
+`;
+  }
+  if (objects.length > 0) {
+    section += `
+An object field (${codeList(objects)}) is vaulted as a whole and reads back
+from stored data as a JSON string.
+`;
+  }
+  if (arrayItems.length > 0) {
+    section += `
+Fields inside array items (${codeList(arrayItems)}) are marked, but swamp does
+not yet vault values inside arrays, so they are still stored in clear until a
+swamp release that does.
+`;
+  }
+  if (stored.length > 0) {
+    section += `
+Earlier versions of these models stored these values in clear, and upgrading
+does not rewrite data already written. Run \`sync\` to write a version with the
+values vaulted, then list the earlier versions with
+\`swamp data versions <model> <data-name>\` and remove them with
+\`swamp data delete <model> <data-name> --version <n>\`.
+`;
+  }
+  if (createOnly.length > 0) {
+    const [them, value] = createOnly.length > 1
+      ? ["them", "each value"]
+      : ["it", "the value"];
+    section += `
+Vercel returns ${codeList(createOnly)} only when the resource is created.
+\`sync\` writes a version without ${them}, so the earlier versions hold the only
+stored copy. Before removing those versions, save ${value} to a vault with
+\`swamp vault put <vault> <key>\`, or it is lost.
+`;
+  }
+  return section + "\n";
+}
+
 export function generateVercelReadme(
   serviceName: string,
   extensionName: string,
   modelSlug: string,
   modelType: string,
+  sensitiveFields: VercelSensitiveFields[] = [],
 ): string {
   return `# ${extensionName}
 
@@ -542,7 +632,7 @@ globalArgs:
   # or: slug: my-team
 \`\`\`
 
-## Quick start
+${vercelSensitiveSection(sensitiveFields)}## Quick start
 
 \`\`\`bash
 # Install the extension

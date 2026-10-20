@@ -278,7 +278,9 @@ const GlobalArgsSchema = z.object({
       "prod_deployment_urls_and_all_previews",
       "all_except_custom_domains",
     ]),
-    password: z.string().max(72).optional(),
+    password: z.string().max(72).meta({ sensitive: true }).describe(
+      "The password that will be used to protect Project Deployments. Wire with a vault.get(...) expression to source it from a vault.",
+    ).optional(),
   }).describe("Allows to protect project deployments with a password")
     .optional(),
   passport: z.object({
@@ -417,7 +419,9 @@ const GlobalArgsSchema = z.object({
     target: z.array(z.enum(["production", "preview", "development"])),
     gitBranch: z.string().max(250).optional(),
     type: z.enum(["system", "encrypted", "plain", "sensitive"]).optional(),
-    value: z.string(),
+    value: z.string().meta({ sensitive: true }).describe(
+      "Value for the ENV variable. Wire with a vault.get(...) expression to source it from a vault.",
+    ),
   })).describe("Collection of ENV Variables the Project will use").optional(),
   gitRepository: z.object({
     repo: z.string(),
@@ -713,7 +717,7 @@ const ResourceSchema = z.object({
     type: z.string().optional(),
     updatedAt: z.number().optional(),
     updatedBy: z.string().optional(),
-    value: z.string().optional(),
+    value: z.string().meta({ sensitive: true }).optional(),
     visibility: z.string().optional(),
     vsmValue: z.string().optional(),
   })).nullable().optional(),
@@ -1195,7 +1199,8 @@ const ResourceSchema = z.object({
   }).nullable().optional(),
   productionDeploymentsFastLane: z.boolean().nullable().optional(),
   protectedSourcemaps: z.boolean().nullable().optional(),
-  protectionBypass: z.record(z.string(), z.unknown()).nullable().optional(),
+  protectionBypass: z.record(z.string(), z.unknown()).meta({ sensitive: true })
+    .nullable().optional(),
   protectionConfig: z.object({
     sandboxUrls: z.object({
       inheritDeploymentProtection: z.boolean().optional(),
@@ -1572,7 +1577,9 @@ const InputsSchema = z.object({
       "prod_deployment_urls_and_all_previews",
       "all_except_custom_domains",
     ]),
-    password: z.string().max(72).optional(),
+    password: z.string().max(72).meta({ sensitive: true }).describe(
+      "The password that will be used to protect Project Deployments. Wire with a vault.get(...) expression to source it from a vault.",
+    ).optional(),
   }).optional(),
   passport: z.object({
     connectorId: z.string(),
@@ -1696,7 +1703,9 @@ const InputsSchema = z.object({
     target: z.array(z.enum(["production", "preview", "development"])),
     gitBranch: z.string().max(250).optional(),
     type: z.enum(["system", "encrypted", "plain", "sensitive"]).optional(),
-    value: z.string(),
+    value: z.string().meta({ sensitive: true }).describe(
+      "Value for the ENV variable. Wire with a vault.get(...) expression to source it from a vault.",
+    ),
   })).optional(),
   gitRepository: z.object({
     repo: z.string(),
@@ -1715,7 +1724,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.20.3",
+  version: "2026.10.20.4",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1939,6 +1948,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.20.4",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

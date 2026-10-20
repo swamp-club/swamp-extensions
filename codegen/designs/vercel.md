@@ -440,18 +440,56 @@ list endpoint have no `lookup`, so they get no `lookupResult` spec either.
 
 ### Sensitive fields
 
-A top-level request-body field is emitted with `.meta({ sensitive: true })` in
-`GlobalArgsSchema` and `InputsSchema` when the spec marks it `writeOnly` or
-`format: password`, when it is a string whose name ends in `secret`, `password`,
-`token`, `credential(s)`, `privatekey` or `apikey` (the tailscale pipeline's
-rule), or when it is listed in `SENSITIVE_FIELDS` (`importKey`, a KMS issuer's
-PEM-encoded private key). Sensitive fields are never `lookup` filters, so a
-no-match error cannot print them.
+A sensitive field is emitted with `.meta({ sensitive: true })`, at any depth, in
+`GlobalArgsSchema`, `InputsSchema` and `ResourceSchema`. Three rules mark one:
 
-**Known gap:** only top-level fields are inspected. Nested secrets — notably the
-drains model's `delivery.secret` — are not marked sensitive. The DigitalOcean
-generator does mark nested fields; swamp core acts on those reached through
-plain objects, but not through arrays, records or unions (swamp-club#3038).
+- **Top-level request-body field.** The spec marks it `writeOnly` or
+  `format: password`, it is a string whose name ends in `secret`, `password`,
+  `token`, `credential(s)`, `privatekey` or `apikey` (the tailscale pipeline's
+  rule), or it is listed in `SENSITIVE_FIELDS` (`importKey`, a KMS issuer's
+  PEM-encoded private key).
+- **Nested request-body field.** A string inside an object or array items whose
+  name matches the same pattern, or formatted as a password
+  (`markNestedSecrets`): the drains model's `delivery.secret`, a project's
+  `passwordProtection.password`.
+- **`SENSITIVE_PATHS`.** Secrets no name rule can catch, by
+  `<service>/<modelSlug>` and path (`[]` steps into array items). `args` paths
+  are request-body fields; `resource` paths are stored state. Environment
+  variable values (`environment/env` `evs[].value` and `value`, `projects/env`
+  `value`, `projects/projects` `environmentVariables[].value` and `env[].value`)
+  are the main case: the env models' `get`, `adopt` and `sync` call Vercel's
+  decrypting read endpoints, so stored values are plaintext for `encrypted` and
+  `plain` variables. The map also covers `protectionBypass` (the bypass secrets
+  are the record's keys, so the whole record is marked), an Edge Config token's
+  `token`, a webhook's `secret`, an SDK key's `keyValue` and `tokenValue`, and a
+  drain's stored `delivery.secret` (the nested name rule covers request bodies
+  only, and a stored-state name rule would also mark Edge Config's
+  `partialToken`, a truncated preview). The webhook and SDK key secrets come
+  only from the create response, so they are listed under `createOnly` and
+  declared as optional strings, since passthrough would otherwise store them in
+  clear. A key or path that resolves to nothing fails generation, and so does a
+  `createOnly` field the GET response already has, so spec drift cannot silently
+  drop or misplace a marking.
+
+A sensitive global arg's description ends with the same `vault.get(...)` hint as
+`token`. Sensitive fields — global args and stored fields alike — are never
+`lookup` filters, so a no-match error cannot print them.
+
+Each package README with a sensitive field other than `token` gets a "Sensitive
+values" section listing them and stating the consequences: swamp refuses a
+literal value in a sensitive global arg when it saves a definition; a sensitive
+stored value is written to a vault, so writing state fails in a repository with
+no vault; a record such as `protectionBypass` is vaulted whole and reads back as
+a JSON string; and data versions written before a field became sensitive stay in
+clear until removed, since model upgrades only rewrite global arguments. For a
+declared create-only field (webhook `secret`, SDK key `keyValue`/`tokenValue`)
+it also warns that `sync` cannot restore the value, so it must be saved to a
+vault before the earlier versions are removed.
+
+**Known gap:** swamp core vaults stored fields reached through plain objects,
+but not through arrays, records or unions (swamp-club#3038). Fields inside array
+items (`projects/projects` `env[].value`) are marked, and stay in clear until
+that lands. Global args inside arrays are guarded and redacted already.
 
 ---
 
