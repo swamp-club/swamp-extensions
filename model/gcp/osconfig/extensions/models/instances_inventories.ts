@@ -180,7 +180,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud OS Config Instances.Inventories. Registered at `@swamp/gcp/osconfig/instances-inventories`. */
 export const model = {
   type: "@swamp/gcp/osconfig/instances-inventories",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -194,6 +194,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -314,13 +319,13 @@ export const model = {
       description: "List inventories resources",
       arguments: z.object({
         filter: z.string().describe(
-          "If provided, this field specifies the criteria that must be met by a `Inventory` API resource to be included in the response.",
+          "Optional. If provided, this field specifies the criteria that must be met by a `Inventory` API resource to be included in the response.",
         ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of results to return.",
+          "Optional. The maximum number of results to return.",
         ).optional(),
         view: z.string().describe(
-          "Inventory view indicating what information should be included in the inventory resource. If unspecified, the default view is BASIC.",
+          "Optional. Inventory view indicating what information should be included in the inventory resource. If unspecified, the default view is BASIC.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

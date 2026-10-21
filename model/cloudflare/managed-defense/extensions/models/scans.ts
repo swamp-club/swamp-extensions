@@ -35,10 +35,17 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  repo_hosts: z.record(z.string(), z.unknown()).describe(
-    "Explicit hostname scopes. Every hostname must be authorized for its repository before review admission; rejected scopes return 422 and do not persist a scan request.",
-  ).optional(),
-  repos: z.array(z.string()).optional(),
+  repos: z.array(z.object({
+    branch: z.string().min(1).max(255).regex(
+      new RegExp("^[A-Za-z0-9][A-Za-z0-9._/-]*$"),
+    ).optional(),
+    hosts: z.array(
+      z.string().min(1).max(253).regex(
+        new RegExp("^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$"),
+      ),
+    ).optional(),
+    name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9_.-]+$")),
+  })).describe("Repository names must be unique within a request.").optional(),
   telemetry_window: z.object({
     end: z.string(),
     start: z.string(),
@@ -82,8 +89,17 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
-  repo_hosts: z.record(z.string(), z.unknown()).optional(),
-  repos: z.array(z.string()).optional(),
+  repos: z.array(z.object({
+    branch: z.string().min(1).max(255).regex(
+      new RegExp("^[A-Za-z0-9][A-Za-z0-9._/-]*$"),
+    ).optional(),
+    hosts: z.array(
+      z.string().min(1).max(253).regex(
+        new RegExp("^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$"),
+      ),
+    ).optional(),
+    name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9_.-]+$")),
+  })).optional(),
   telemetry_window: z.object({
     end: z.string(),
     start: z.string(),
@@ -96,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scans. Registered at `@swamp/cloudflare/managed-defense/scans`. */
 export const model = {
   type: "@swamp/cloudflare/managed-defense/scans",
-  version: "2026.10.20.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -112,6 +128,14 @@ export const model = {
       toVersion: "2026.10.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
+      description: "Removed: repo_hosts",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { repo_hosts: _repo_hosts, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -149,7 +173,6 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/managed-defense/vulnerability-discovery/scans";
         const body: Record<string, unknown> = {};
-        if (g.repo_hosts !== undefined) body.repo_hosts = g.repo_hosts;
         if (g.repos !== undefined) body.repos = g.repos;
         if (g.telemetry_window !== undefined) {
           body.telemetry_window = g.telemetry_window;

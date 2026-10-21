@@ -170,10 +170,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   resourceConfig: z.object({
     buildMachineType: z.enum([
+      "standard",
       "basic",
       "enhanced",
       "turbo",
-      "standard",
       "elastic",
     ]).optional(),
     fluid: z.boolean().optional(),
@@ -1042,7 +1042,7 @@ const ResourceSchema = z.object({
     marketplaceInvoice: z.array(z.string()).optional(),
     marketplaceSettings: z.array(z.string()).optional(),
     messageboard: z.array(z.string()).optional(),
-    messageboardSpace: z.array(z.string()).optional(),
+    messageboardChannel: z.array(z.string()).optional(),
     messageboardTask: z.array(z.string()).optional(),
     Monitoring: z.array(z.string()).optional(),
     monitoringAlert: z.array(z.string()).optional(),
@@ -1495,10 +1495,10 @@ const InputsSchema = z.object({
   previewDeploymentSuffix: z.string().max(253).optional(),
   resourceConfig: z.object({
     buildMachineType: z.enum([
+      "standard",
       "basic",
       "enhanced",
       "turbo",
-      "standard",
       "elastic",
     ]).optional(),
     fluid: z.boolean().optional(),
@@ -1724,7 +1724,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.20.4",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1953,6 +1953,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

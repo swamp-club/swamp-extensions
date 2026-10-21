@@ -38,31 +38,31 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const ClaimMatchValueTypeSchema = z.object({
-  MatchValueString: z.string().min(1).max(255).regex(
-    new RegExp("^[A-Za-z0-9_.-]+$"),
-  ).optional(),
-  MatchValueStringList: z.array(
-    z.string().min(1).max(255).regex(new RegExp("^[A-Za-z0-9_.-]+$")),
-  ).optional(),
-});
-
-const AuthorizingClaimMatchValueTypeSchema = z.object({
-  ClaimMatchValue: ClaimMatchValueTypeSchema,
+const AuthorizingClaimMatchValueSchema = z.object({
+  ClaimMatchValue: z.object({
+    MatchValueString: z.string().min(1).max(255).regex(
+      new RegExp("^[A-Za-z0-9_.:/-]+$"),
+    ).optional(),
+    MatchValueStringList: z.array(
+      z.string().min(1).max(255).regex(new RegExp("^[A-Za-z0-9_.:/-]+$")),
+    ).optional(),
+  }),
   ClaimMatchOperator: z.enum(["EQUALS", "CONTAINS", "CONTAINS_ANY"]),
 });
 
 const CustomClaimValidationTypeSchema = z.object({
   InboundTokenClaimName: z.string().min(1).max(255).regex(
-    new RegExp("^[A-Za-z0-9_.:/-]+$"),
+    new RegExp("^[A-Za-z0-9_.-:]+$"),
   ),
   InboundTokenClaimValueType: z.enum(["STRING", "STRING_ARRAY"]),
-  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema,
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueSchema,
 });
 
-const CustomJWTAuthorizerConfigurationSchema = z.object({
+const CustomJWTAuthorizerSchema = z.object({
   DiscoveryUrl: z.string().regex(
-    new RegExp("^.+/\\.well-known/openid-configuration$"),
+    new RegExp(
+      "^[^\\s?#]+/\\.well-known/(openid-configuration|oauth-authorization-server)(/[^\\s?#]+)?$",
+    ),
   ),
   AllowedAudience: z.array(z.string()).optional(),
   AllowedClients: z.array(z.string()).optional(),
@@ -75,8 +75,8 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128),
-  Value: z.string().min(0).max(256),
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -95,42 +95,47 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$")).describe(
-    "The name of the payment manager",
-  ),
+  Name: z.string().min(1).max(48).regex(
+    new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$"),
+  ).describe("The name of the payment manager"),
   Description: z.string().min(1).max(4096).regex(
-    new RegExp("^[a-zA-Z0-9\\s]+$"),
+    new RegExp("^[^\\p{C}]*$", "u"),
   ).describe("A description of the payment manager").optional(),
-  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).describe(
+    "The type of authorizer for the payment manager",
+  ),
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
-  }).optional(),
+    CustomJWTAuthorizer: CustomJWTAuthorizerSchema.optional(),
+  }).describe("The authorizer configuration for the payment manager")
+    .optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
   ).describe("The ARN of the IAM role for the payment manager"),
   WorkloadIdentityDetails: z.object({
-    WorkloadIdentityArn: z.string().min(1).max(1024),
-  }).optional(),
-  Tags: z.array(TagSchema).describe("Tags to assign to the payment manager")
+    WorkloadIdentityArn: z.string().min(1).max(1024).optional(),
+  }).describe("The workload identity details for the payment manager")
     .optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  PaymentManagerArn: z.string(),
-  PaymentManagerId: z.string().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
   AuthorizerType: z.string().optional(),
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
+    CustomJWTAuthorizer: CustomJWTAuthorizerSchema,
   }).optional(),
   RoleArn: z.string().optional(),
+  PaymentManagerId: z.string().optional(),
   WorkloadIdentityDetails: z.object({
     WorkloadIdentityArn: z.string(),
   }).optional(),
   CreatedAt: z.string().optional(),
-  LastUpdatedAt: z.string().optional(),
   Status: z.string().optional(),
+  LastUpdatedAt: z.string().optional(),
+  PaymentManagerArn: z.string(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -142,24 +147,29 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$")).describe(
-    "The name of the payment manager",
-  ).optional(),
+  Name: z.string().min(1).max(48).regex(
+    new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$"),
+  ).describe("The name of the payment manager").optional(),
   Description: z.string().min(1).max(4096).regex(
-    new RegExp("^[a-zA-Z0-9\\s]+$"),
+    new RegExp("^[^\\p{C}]*$", "u"),
   ).describe("A description of the payment manager").optional(),
-  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).optional(),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).describe(
+    "The type of authorizer for the payment manager",
+  ).optional(),
   AuthorizerConfiguration: z.object({
-    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema.optional(),
-  }).optional(),
+    CustomJWTAuthorizer: CustomJWTAuthorizerSchema.optional(),
+  }).describe("The authorizer configuration for the payment manager")
+    .optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
   ).describe("The ARN of the IAM role for the payment manager").optional(),
   WorkloadIdentityDetails: z.object({
     WorkloadIdentityArn: z.string().min(1).max(1024).optional(),
-  }).optional(),
-  Tags: z.array(TagSchema).describe("Tags to assign to the payment manager")
+  }).describe("The workload identity details for the payment manager")
     .optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -181,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore PaymentManager. Registered at `@swamp/aws/bedrockagentcore/payment-manager`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-manager",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -210,6 +220,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

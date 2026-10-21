@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const INSERT_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.assignedInventorySources.create",
   "path":
-    "v4/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources",
+    "v2/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources",
   "httpMethod": "POST",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -67,7 +67,7 @@ const INSERT_CONFIG = {
 const DELETE_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.assignedInventorySources.delete",
   "path":
-    "v4/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources/{+assignedInventorySourceId}",
+    "v2/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources/{+assignedInventorySourceId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -94,7 +94,7 @@ const DELETE_CONFIG = {
 const LIST_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.assignedInventorySources.list",
   "path":
-    "v4/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources",
+    "v2/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources",
   "httpMethod": "GET",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -225,7 +225,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/inventorysourcegroups-assignedinventorysources",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -344,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -672,7 +677,7 @@ export const model = {
             "id":
               "displayvideo.inventorySourceGroups.assignedInventorySources.bulkEdit",
             "path":
-              "v4/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources:bulkEdit",
+              "v2/inventorySourceGroups/{+inventorySourceGroupId}/assignedInventorySources:bulkEdit",
             "httpMethod": "POST",
             "parameterOrder": ["inventorySourceGroupId"],
             "parameters": {

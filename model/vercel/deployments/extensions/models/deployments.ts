@@ -612,6 +612,9 @@ const ResourceSchema = z.object({
           outputDirectory: z.string().optional(),
           rootDirectory: z.string().optional(),
           sourceFilesOutsideRootDirectory: z.boolean().optional(),
+          vercelFlags: z.object({
+            enabledAt: z.number().optional(),
+          }).optional(),
         }).optional(),
         rust: z.string().optional(),
         scheduleFunction: z.object({
@@ -809,7 +812,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.20.3",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -903,6 +906,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

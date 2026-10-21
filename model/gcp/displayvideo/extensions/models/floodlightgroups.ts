@@ -42,7 +42,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.floodlightGroups.get",
-  "path": "v4/floodlightGroups/{+floodlightGroupId}",
+  "path": "v2/floodlightGroups/{+floodlightGroupId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "floodlightGroupId",
@@ -60,7 +60,7 @@ const GET_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.floodlightGroups.patch",
-  "path": "v4/floodlightGroups/{floodlightGroupId}",
+  "path": "v2/floodlightGroups/{floodlightGroupId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "floodlightGroupId",
@@ -345,7 +345,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups. Registered at `@swamp/gcp/displayvideo/floodlightgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -479,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.campaigns.get",
-  "path": "v4/advertisers/{+advertiserId}/campaigns/{+campaignId}",
+  "path": "v2/advertisers/{+advertiserId}/campaigns/{+campaignId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.campaigns.create",
-  "path": "v4/advertisers/{+advertiserId}/campaigns",
+  "path": "v2/advertisers/{+advertiserId}/campaigns",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.campaigns.patch",
-  "path": "v4/advertisers/{+advertiserId}/campaigns/{+campaignId}",
+  "path": "v2/advertisers/{+advertiserId}/campaigns/{+campaignId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.campaigns.delete",
-  "path": "v4/advertisers/{+advertiserId}/campaigns/{+campaignId}",
+  "path": "v2/advertisers/{+advertiserId}/campaigns/{+campaignId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.campaigns.list",
-  "path": "v4/advertisers/{+advertiserId}/campaigns",
+  "path": "v2/advertisers/{+advertiserId}/campaigns",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -699,7 +699,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Campaigns. Registered at `@swamp/gcp/displayvideo/advertisers-campaigns`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-campaigns",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -823,6 +823,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

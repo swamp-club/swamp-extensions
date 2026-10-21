@@ -43,7 +43,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const GET_CONFIG = {
   "id": "displayvideo.floodlightGroups.floodlightActivities.get",
   "path":
-    "v4/floodlightGroups/{+floodlightGroupId}/floodlightActivities/{+floodlightActivityId}",
+    "v2/floodlightGroups/{+floodlightGroupId}/floodlightActivities/{+floodlightActivityId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "floodlightGroupId",
@@ -66,7 +66,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.floodlightGroups.floodlightActivities.list",
-  "path": "v4/floodlightGroups/{+floodlightGroupId}/floodlightActivities",
+  "path": "v2/floodlightGroups/{+floodlightGroupId}/floodlightActivities",
   "httpMethod": "GET",
   "parameterOrder": [
     "floodlightGroupId",
@@ -180,7 +180,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups.FloodlightActivities. Registered at `@swamp/gcp/displayvideo/floodlightgroups-floodlightactivities`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups-floodlightactivities",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -299,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

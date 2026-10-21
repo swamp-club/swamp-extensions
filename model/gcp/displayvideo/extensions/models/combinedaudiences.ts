@@ -42,7 +42,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.combinedAudiences.get",
-  "path": "v4/combinedAudiences/{+combinedAudienceId}",
+  "path": "v2/combinedAudiences/{+combinedAudienceId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "combinedAudienceId",
@@ -63,7 +63,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.combinedAudiences.list",
-  "path": "v4/combinedAudiences",
+  "path": "v2/combinedAudiences",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -163,7 +163,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CombinedAudiences. Registered at `@swamp/gcp/displayvideo/combinedaudiences`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/combinedaudiences",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -282,6 +282,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

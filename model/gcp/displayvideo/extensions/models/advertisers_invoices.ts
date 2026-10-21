@@ -43,7 +43,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.invoices.list",
-  "path": "v4/advertisers/{+advertiserId}/invoices",
+  "path": "v2/advertisers/{+advertiserId}/invoices",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -195,7 +195,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Invoices. Registered at `@swamp/gcp/displayvideo/advertisers-invoices`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-invoices",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -314,6 +314,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -515,7 +520,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.invoices.lookupInvoiceCurrency",
             "path":
-              "v4/advertisers/{+advertiserId}/invoices:lookupInvoiceCurrency",
+              "v2/advertisers/{+advertiserId}/invoices:lookupInvoiceCurrency",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {

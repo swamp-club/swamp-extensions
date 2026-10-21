@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.partners.channels.get",
-  "path": "v4/partners/{+partnerId}/channels/{+channelId}",
+  "path": "v2/partners/{+partnerId}/channels/{+channelId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "partnerId",
@@ -67,7 +67,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.partners.channels.create",
-  "path": "v4/partners/{+partnerId}/channels",
+  "path": "v2/partners/{+partnerId}/channels",
   "httpMethod": "POST",
   "parameterOrder": [
     "partnerId",
@@ -85,7 +85,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.partners.channels.patch",
-  "path": "v4/partners/{+partnerId}/channels/{channelId}",
+  "path": "v2/partners/{+partnerId}/channels/{channelId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "partnerId",
@@ -111,7 +111,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.partners.channels.list",
-  "path": "v4/partners/{+partnerId}/channels",
+  "path": "v2/partners/{+partnerId}/channels",
   "httpMethod": "GET",
   "parameterOrder": [
     "partnerId",
@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Partners.Channels. Registered at `@swamp/gcp/displayvideo/partners-channels`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/partners-channels",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,6 +363,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

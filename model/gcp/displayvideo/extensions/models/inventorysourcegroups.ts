@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.get",
-  "path": "v4/inventorySourceGroups/{+inventorySourceGroupId}",
+  "path": "v2/inventorySourceGroups/{+inventorySourceGroupId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -66,7 +66,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.create",
-  "path": "v4/inventorySourceGroups",
+  "path": "v2/inventorySourceGroups",
   "httpMethod": "POST",
   "parameterOrder": [],
   "parameters": {
@@ -81,7 +81,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.patch",
-  "path": "v4/inventorySourceGroups/{inventorySourceGroupId}",
+  "path": "v2/inventorySourceGroups/{inventorySourceGroupId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -105,7 +105,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.delete",
-  "path": "v4/inventorySourceGroups/{+inventorySourceGroupId}",
+  "path": "v2/inventorySourceGroups/{+inventorySourceGroupId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "inventorySourceGroupId",
@@ -126,7 +126,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.inventorySourceGroups.list",
-  "path": "v4/inventorySourceGroups",
+  "path": "v2/inventorySourceGroups",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -244,7 +244,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 InventorySourceGroups. Registered at `@swamp/gcp/displayvideo/inventorysourcegroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/inventorysourcegroups",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +373,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

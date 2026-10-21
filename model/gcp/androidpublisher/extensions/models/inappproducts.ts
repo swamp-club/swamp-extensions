@@ -196,14 +196,11 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Default price. Cannot be zero, as in-app products are never free. Always in the developer's Checkout merchant currency.",
   ).optional(),
-  gracePeriod: z.string().describe(
-    "Grace period of the subscription, specified in ISO 8601 format. Allows developers to give their subscribers a grace period when the payment for the new recurrence period is declined. Acceptable values are P0D (zero days), P3D (three days), P7D (seven days), P14D (14 days), and P30D (30 days).",
-  ).optional(),
   listings: z.record(
     z.string(),
     z.object({
       benefits: z.array(z.string()).describe(
-        "Localized entitlement benefits for a subscription.",
+        "Deprecated: Subscriptions are no longer supported in the InAppProducts API. Use the Subscriptions API instead.",
       ).optional(),
       description: z.string().describe("Description for the store listing.")
         .optional(),
@@ -302,9 +299,6 @@ const GlobalArgsSchema = z.object({
   status: z.enum(["statusUnspecified", "active", "inactive"]).describe(
     "The status of the product, e.g. whether it's active.",
   ).optional(),
-  subscriptionPeriod: z.string().describe(
-    "Subscription period, specified in ISO 8601 format. Acceptable values are P1W (one week), P1M (one month), P3M (three months), P6M (six months), and P1Y (one year).",
-  ).optional(),
   subscriptionTaxesAndComplianceSettings: z.object({
     eeaWithdrawalRightType: z.enum([
       "WITHDRAWAL_RIGHT_TYPE_UNSPECIFIED",
@@ -366,10 +360,7 @@ const GlobalArgsSchema = z.object({
       'A mapping from region code to tax rate details. The keys are region codes as defined by Unicode\'s "CLDR".',
     ).optional(),
   }).describe(
-    "Details about taxes and legal compliance. Only applicable to subscription products.",
-  ).optional(),
-  trialPeriod: z.string().describe(
-    "Trial period, specified in ISO 8601 format. Acceptable values are anything between P7D (seven days) and P999D (999 days).",
+    "Deprecated: Subscriptions are no longer supported in the InAppProducts API. Use the Subscriptions API instead.",
   ).optional(),
   autoConvertMissingPrices: z.string().describe(
     "If true the prices for all regions targeted by the parent app that don't have a price specified for this in-app product will be auto converted to the target currency based on the default price. Defaults to false.",
@@ -442,14 +433,11 @@ const InputsSchema = z.object({
   }).describe(
     "Default price. Cannot be zero, as in-app products are never free. Always in the developer's Checkout merchant currency.",
   ).optional(),
-  gracePeriod: z.string().describe(
-    "Grace period of the subscription, specified in ISO 8601 format. Allows developers to give their subscribers a grace period when the payment for the new recurrence period is declined. Acceptable values are P0D (zero days), P3D (three days), P7D (seven days), P14D (14 days), and P30D (30 days).",
-  ).optional(),
   listings: z.record(
     z.string(),
     z.object({
       benefits: z.array(z.string()).describe(
-        "Localized entitlement benefits for a subscription.",
+        "Deprecated: Subscriptions are no longer supported in the InAppProducts API. Use the Subscriptions API instead.",
       ).optional(),
       description: z.string().describe("Description for the store listing.")
         .optional(),
@@ -548,9 +536,6 @@ const InputsSchema = z.object({
   status: z.enum(["statusUnspecified", "active", "inactive"]).describe(
     "The status of the product, e.g. whether it's active.",
   ).optional(),
-  subscriptionPeriod: z.string().describe(
-    "Subscription period, specified in ISO 8601 format. Acceptable values are P1W (one week), P1M (one month), P3M (three months), P6M (six months), and P1Y (one year).",
-  ).optional(),
   subscriptionTaxesAndComplianceSettings: z.object({
     eeaWithdrawalRightType: z.enum([
       "WITHDRAWAL_RIGHT_TYPE_UNSPECIFIED",
@@ -612,10 +597,7 @@ const InputsSchema = z.object({
       'A mapping from region code to tax rate details. The keys are region codes as defined by Unicode\'s "CLDR".',
     ).optional(),
   }).describe(
-    "Details about taxes and legal compliance. Only applicable to subscription products.",
-  ).optional(),
-  trialPeriod: z.string().describe(
-    "Trial period, specified in ISO 8601 format. Acceptable values are anything between P7D (seven days) and P999D (999 days).",
+    "Deprecated: Subscriptions are no longer supported in the InAppProducts API. Use the Subscriptions API instead.",
   ).optional(),
   autoConvertMissingPrices: z.string().describe(
     "If true the prices for all regions targeted by the parent app that don't have a price specified for this in-app product will be auto converted to the target currency based on the default price. Defaults to false.",
@@ -654,7 +636,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play Android Developer Inappproducts. Registered at `@swamp/gcp/androidpublisher/inappproducts`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/inappproducts",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -796,6 +778,19 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.21.1",
+      description: "Removed: gracePeriod, subscriptionPeriod, trialPeriod",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          gracePeriod: _gracePeriod,
+          subscriptionPeriod: _subscriptionPeriod,
+          trialPeriod: _trialPeriod,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -828,9 +823,6 @@ export const model = {
         if (g["defaultPrice"] !== undefined) {
           body["defaultPrice"] = g["defaultPrice"];
         }
-        if (g["gracePeriod"] !== undefined) {
-          body["gracePeriod"] = g["gracePeriod"];
-        }
         if (g["listings"] !== undefined) body["listings"] = g["listings"];
         if (g["managedProductTaxesAndComplianceSettings"] !== undefined) {
           body["managedProductTaxesAndComplianceSettings"] =
@@ -842,15 +834,9 @@ export const model = {
         }
         if (g["sku"] !== undefined) body["sku"] = g["sku"];
         if (g["status"] !== undefined) body["status"] = g["status"];
-        if (g["subscriptionPeriod"] !== undefined) {
-          body["subscriptionPeriod"] = g["subscriptionPeriod"];
-        }
         if (g["subscriptionTaxesAndComplianceSettings"] !== undefined) {
           body["subscriptionTaxesAndComplianceSettings"] =
             g["subscriptionTaxesAndComplianceSettings"];
-        }
-        if (g["trialPeriod"] !== undefined) {
-          body["trialPeriod"] = g["trialPeriod"];
         }
         if (g["autoConvertMissingPrices"] !== undefined) {
           params["autoConvertMissingPrices"] = String(
@@ -963,9 +949,6 @@ export const model = {
         if (g["defaultPrice"] !== undefined) {
           body["defaultPrice"] = g["defaultPrice"];
         }
-        if (g["gracePeriod"] !== undefined) {
-          body["gracePeriod"] = g["gracePeriod"];
-        }
         if (g["listings"] !== undefined) body["listings"] = g["listings"];
         if (g["managedProductTaxesAndComplianceSettings"] !== undefined) {
           body["managedProductTaxesAndComplianceSettings"] =
@@ -976,15 +959,9 @@ export const model = {
           body["purchaseType"] = g["purchaseType"];
         }
         if (g["status"] !== undefined) body["status"] = g["status"];
-        if (g["subscriptionPeriod"] !== undefined) {
-          body["subscriptionPeriod"] = g["subscriptionPeriod"];
-        }
         if (g["subscriptionTaxesAndComplianceSettings"] !== undefined) {
           body["subscriptionTaxesAndComplianceSettings"] =
             g["subscriptionTaxesAndComplianceSettings"];
-        }
-        if (g["trialPeriod"] !== undefined) {
-          body["trialPeriod"] = g["trialPeriod"];
         }
         if (g["allowMissing"] !== undefined) {
           params["allowMissing"] = String(g["allowMissing"]);
@@ -1000,15 +977,12 @@ export const model = {
         const unset = [
           "defaultLanguage",
           "defaultPrice",
-          "gracePeriod",
           "listings",
           "managedProductTaxesAndComplianceSettings",
           "prices",
           "purchaseType",
           "status",
-          "subscriptionPeriod",
           "subscriptionTaxesAndComplianceSettings",
-          "trialPeriod",
         ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           live = await readResource(

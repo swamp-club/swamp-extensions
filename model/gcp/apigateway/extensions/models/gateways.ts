@@ -174,7 +174,7 @@ const GlobalArgsSchema = z.object({
     "STREAMING_MODE_UNSPECIFIED",
     "STREAMING_MODE_ENABLED",
   ]).describe(
-    "Optional. Immutable. Requests response streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
+    "Optional. Immutable. Requests streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
   ).optional(),
   gatewayId: z.string().describe(
     "Required. Identifier to assign to the Gateway. Must be unique within scope of the parent resource.",
@@ -218,7 +218,7 @@ const InputsSchema = z.object({
     "STREAMING_MODE_UNSPECIFIED",
     "STREAMING_MODE_ENABLED",
   ]).describe(
-    "Optional. Immutable. Requests response streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
+    "Optional. Immutable. Requests streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
   ).optional(),
   gatewayId: z.string().describe(
     "Required. Identifier to assign to the Gateway. Must be unique within scope of the parent resource.",
@@ -254,7 +254,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Gateways. Registered at `@swamp/gcp/apigateway/gateways`. */
 export const model = {
   type: "@swamp/gcp/apigateway/gateways",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

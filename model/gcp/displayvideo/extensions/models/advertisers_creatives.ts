@@ -46,7 +46,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.creatives.get",
-  "path": "v4/advertisers/{+advertiserId}/creatives/{+creativeId}",
+  "path": "v2/advertisers/{+advertiserId}/creatives/{+creativeId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -66,7 +66,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.creatives.create",
-  "path": "v4/advertisers/{+advertiserId}/creatives",
+  "path": "v2/advertisers/{+advertiserId}/creatives",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -81,7 +81,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.creatives.patch",
-  "path": "v4/advertisers/{+advertiserId}/creatives/{+creativeId}",
+  "path": "v2/advertisers/{+advertiserId}/creatives/{+creativeId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -104,7 +104,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.creatives.delete",
-  "path": "v4/advertisers/{+advertiserId}/creatives/{+creativeId}",
+  "path": "v2/advertisers/{+advertiserId}/creatives/{+creativeId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -124,7 +124,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.creatives.list",
-  "path": "v4/advertisers/{+advertiserId}/creatives",
+  "path": "v2/advertisers/{+advertiserId}/creatives",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -550,6 +550,10 @@ const StateSchema = z.object({
       exchange: z.string(),
       status: z.string(),
     })),
+    publisherReviewStatuses: z.array(z.object({
+      publisherName: z.string(),
+      status: z.string(),
+    })),
   }).optional(),
   skipOffset: z.object({
     percentage: z.string(),
@@ -915,7 +919,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Creatives. Registered at `@swamp/gcp/displayvideo/advertisers-creatives`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-creatives",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1066,6 +1070,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

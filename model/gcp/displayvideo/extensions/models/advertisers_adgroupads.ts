@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.get",
-  "path": "v4/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.create",
-  "path": "v4/advertisers/{+advertiserId}/adGroupAds",
+  "path": "v3/advertisers/{+advertiserId}/adGroupAds",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.patch",
-  "path": "v4/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.delete",
-  "path": "v4/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.list",
-  "path": "v4/advertisers/{+advertiserId}/adGroupAds",
+  "path": "v3/advertisers/{+advertiserId}/adGroupAds",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -1926,7 +1926,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.10.14.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2117,6 +2117,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

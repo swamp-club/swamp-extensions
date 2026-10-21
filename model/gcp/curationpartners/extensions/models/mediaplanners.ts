@@ -31,6 +31,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  createResource,
   type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
@@ -131,10 +132,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Curation Partners MediaPlanners. Registered at `@swamp/gcp/curationpartners/mediaplanners`. */
 export const model = {
   type: "@swamp/gcp/curationpartners/mediaplanners",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -294,6 +300,52 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    search: {
+      description: "search",
+      arguments: z.object({
+        dspSeatId: z.any().optional(),
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (args["dspSeatId"] !== undefined) {
+          params["dspSeatId"] = String(args["dspSeatId"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "curationpartners.mediaPlanners.search",
+            "path": "v1/mediaPlanners:search",
+            "httpMethod": "GET",
+            "parameterOrder": [],
+            "parameters": {
+              "dspSeatId": { "location": "query" },
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
   },

@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.get",
-  "path": "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.create",
-  "path": "v4/advertisers/{+advertiserId}/adGroups",
+  "path": "v3/advertisers/{+advertiserId}/adGroups",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.patch",
-  "path": "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.delete",
-  "path": "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.list",
-  "path": "v4/advertisers/{+advertiserId}/adGroups",
+  "path": "v3/advertisers/{+advertiserId}/adGroups",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -271,7 +271,6 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
-        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -300,7 +299,6 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
-        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -386,18 +384,6 @@ const GlobalArgsSchema = z.object({
   }).describe("Optional. The settings of the product feed in this ad group.")
     .optional(),
   targetingExpansion: z.object({
-    audienceExpansionLevel: z.enum([
-      "UNKNOWN",
-      "NO_REACH",
-      "LEAST_REACH",
-      "MID_REACH",
-      "MOST_REACH",
-    ]).describe(
-      "Output only. Magnitude of expansion for eligible first-party user lists under this ad group. This field only applies to YouTube and Partners line item and ad group resources.",
-    ).optional(),
-    audienceExpansionSeedListExcluded: z.boolean().describe(
-      "Output only. Whether to exclude seed list for audience expansion. This field only applies to YouTube and Partners line item and ad group resources.",
-    ).optional(),
     enableOptimizedTargeting: z.boolean().describe(
       "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
     ).optional(),
@@ -469,8 +455,6 @@ const StateSchema = z.object({
     productMatchType: z.string(),
   }).optional(),
   targetingExpansion: z.object({
-    audienceExpansionLevel: z.string(),
-    audienceExpansionSeedListExcluded: z.boolean(),
     enableOptimizedTargeting: z.boolean(),
     excludeDemographicExpansion: z.boolean(),
   }).optional(),
@@ -580,7 +564,6 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
-        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -609,7 +592,6 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
-        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -695,18 +677,6 @@ const InputsSchema = z.object({
   }).describe("Optional. The settings of the product feed in this ad group.")
     .optional(),
   targetingExpansion: z.object({
-    audienceExpansionLevel: z.enum([
-      "UNKNOWN",
-      "NO_REACH",
-      "LEAST_REACH",
-      "MID_REACH",
-      "MOST_REACH",
-    ]).describe(
-      "Output only. Magnitude of expansion for eligible first-party user lists under this ad group. This field only applies to YouTube and Partners line item and ad group resources.",
-    ).optional(),
-    audienceExpansionSeedListExcluded: z.boolean().describe(
-      "Output only. Whether to exclude seed list for audience expansion. This field only applies to YouTube and Partners line item and ad group resources.",
-    ).optional(),
     enableOptimizedTargeting: z.boolean().describe(
       "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
     ).optional(),
@@ -744,7 +714,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroups. Registered at `@swamp/gcp/displayvideo/advertisers-adgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroups",
-  version: "2026.10.14.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -943,6 +913,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1344,7 +1319,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.adGroups.bulkEditAssignedTargetingOptions",
             "path":
-              "v4/advertisers/{+advertiserId}/adGroups:bulkEditAssignedTargetingOptions",
+              "v3/advertisers/{+advertiserId}/adGroups:bulkEditAssignedTargetingOptions",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -1361,8 +1336,8 @@ export const model = {
         return { result };
       },
     },
-    bulk_list_assigned_targeting_options: {
-      description: "bulk list assigned targeting options",
+    bulk_list_ad_group_assigned_targeting_options: {
+      description: "bulk list ad group assigned targeting options",
       arguments: z.object({
         adGroupIds: z.any().optional(),
         filter: z.any().optional(),
@@ -1399,9 +1374,9 @@ export const model = {
           baseUrl,
           {
             "id":
-              "displayvideo.advertisers.adGroups.bulkListAssignedTargetingOptions",
+              "displayvideo.advertisers.adGroups.bulkListAdGroupAssignedTargetingOptions",
             "path":
-              "v4/advertisers/{+advertiserId}/adGroups:bulkListAssignedTargetingOptions",
+              "v3/advertisers/{+advertiserId}/adGroups:bulkListAdGroupAssignedTargetingOptions",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {

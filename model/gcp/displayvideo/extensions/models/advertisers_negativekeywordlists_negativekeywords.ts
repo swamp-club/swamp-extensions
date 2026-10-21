@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.negativeKeywordLists.negativeKeywords.create",
   "path":
-    "v4/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords",
+    "v2/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -66,7 +66,7 @@ const INSERT_CONFIG = {
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.negativeKeywordLists.negativeKeywords.delete",
   "path":
-    "v4/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords/{+keywordValue}",
+    "v2/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords/{+keywordValue}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -92,7 +92,7 @@ const DELETE_CONFIG = {
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.negativeKeywordLists.negativeKeywords.list",
   "path":
-    "v4/advertisers/{+advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords",
+    "v2/advertisers/{+advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -215,7 +215,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-negativekeywordlists-negativekeywords",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -635,7 +640,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.negativeKeywordLists.negativeKeywords.bulkEdit",
             "path":
-              "v4/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords:bulkEdit",
+              "v2/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords:bulkEdit",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId", "negativeKeywordListId"],
             "parameters": {
@@ -681,7 +686,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.negativeKeywordLists.negativeKeywords.replace",
             "path":
-              "v4/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords:replace",
+              "v2/advertisers/{advertiserId}/negativeKeywordLists/{+negativeKeywordListId}/negativeKeywords:replace",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId", "negativeKeywordListId"],
             "parameters": {

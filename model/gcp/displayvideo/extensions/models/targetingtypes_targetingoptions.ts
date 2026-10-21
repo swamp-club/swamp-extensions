@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const GET_CONFIG = {
   "id": "displayvideo.targetingTypes.targetingOptions.get",
   "path":
-    "v4/targetingTypes/{+targetingType}/targetingOptions/{+targetingOptionId}",
+    "v2/targetingTypes/{+targetingType}/targetingOptions/{+targetingOptionId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "targetingType",
@@ -67,7 +67,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.targetingTypes.targetingOptions.list",
-  "path": "v4/targetingTypes/{+targetingType}/targetingOptions",
+  "path": "v2/targetingTypes/{+targetingType}/targetingOptions",
   "httpMethod": "GET",
   "parameterOrder": [
     "targetingType",
@@ -171,9 +171,6 @@ const StateSchema = z.object({
   }).optional(),
   contentStreamTypeDetails: z.object({
     contentStreamType: z.string(),
-  }).optional(),
-  contentThemeDetails: z.object({
-    contentTheme: z.string(),
   }).optional(),
   deviceMakeModelDetails: z.object({
     displayName: z.string(),
@@ -284,7 +281,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 TargetingTypes.TargetingOptions. Registered at `@swamp/gcp/displayvideo/targetingtypes-targetingoptions`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/targetingtypes-targetingoptions",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +400,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -629,7 +631,7 @@ export const model = {
           {
             "id": "displayvideo.targetingTypes.targetingOptions.search",
             "path":
-              "v4/targetingTypes/{+targetingType}/targetingOptions:search",
+              "v2/targetingTypes/{+targetingType}/targetingOptions:search",
             "httpMethod": "POST",
             "parameterOrder": ["targetingType"],
             "parameters": {

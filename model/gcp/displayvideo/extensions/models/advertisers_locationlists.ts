@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.locationLists.get",
-  "path": "v4/advertisers/{+advertiserId}/locationLists/{+locationListId}",
+  "path": "v2/advertisers/{+advertiserId}/locationLists/{+locationListId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -64,7 +64,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.locationLists.create",
-  "path": "v4/advertisers/{+advertiserId}/locationLists",
+  "path": "v2/advertisers/{+advertiserId}/locationLists",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -79,7 +79,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.locationLists.patch",
-  "path": "v4/advertisers/{+advertiserId}/locationLists/{locationListId}",
+  "path": "v2/advertisers/{+advertiserId}/locationLists/{locationListId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -102,7 +102,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.locationLists.list",
-  "path": "v4/advertisers/{+advertiserId}/locationLists",
+  "path": "v2/advertisers/{+advertiserId}/locationLists",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -230,7 +230,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.LocationLists. Registered at `@swamp/gcp/displayvideo/advertisers-locationlists`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-locationlists",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

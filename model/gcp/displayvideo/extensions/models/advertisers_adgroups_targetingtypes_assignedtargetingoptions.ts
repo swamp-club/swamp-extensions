@@ -46,7 +46,7 @@ const GET_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.targetingTypes.assignedTargetingOptions.get",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
+    "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -78,7 +78,7 @@ const INSERT_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.targetingTypes.assignedTargetingOptions.create",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
+    "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -105,7 +105,7 @@ const DELETE_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.targetingTypes.assignedTargetingOptions.delete",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
+    "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -137,7 +137,7 @@ const LIST_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.targetingTypes.assignedTargetingOptions.list",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
+    "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -272,10 +272,10 @@ const GlobalArgsSchema = z.object({
     "App details. This field will be populated when the targeting_type is `TARGETING_TYPE_APP`.",
   ).optional(),
   audienceGroupDetails: z.object({
-    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+    excludedFirstAndThirdPartyAudienceGroup: z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.string().describe(
-          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        firstAndThirdPartyAudienceId: z.string().describe(
+          "Required. First and third party audience id of the first and third party audience targeting setting. This id is first_and_third_party_audience_id.",
         ).optional(),
         recency: z.enum([
           "RECENCY_NO_LIMIT",
@@ -309,13 +309,13 @@ const GlobalArgsSchema = z.object({
           "RECENCY_270_DAYS",
           "RECENCY_365_DAYS",
         ]).describe(
-          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+          "Optional. The recency of the first and third party audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
         ).optional(),
       })).describe(
-        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+        "Required. All first and third party audience targeting settings in first and third party audience group. Repeated settings with the same id are not allowed.",
       ).optional(),
     }).describe(
-      "Optional. The first party and partner audience ids and recencies of the excluded first party and partner audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
+      "Optional. The first and third party audience ids and recencies of the excluded first and third party audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
     ).optional(),
     excludedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -350,19 +350,19 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Optional. The custom list ids of the included custom list group. Contains custom list ids only.",
     ).optional(),
-    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+    includedFirstAndThirdPartyAudienceGroups: z.array(z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.unknown().describe(
-          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        firstAndThirdPartyAudienceId: z.unknown().describe(
+          "Required. First and third party audience id of the first and third party audience targeting setting. This id is first_and_third_party_audience_id.",
         ).optional(),
         recency: z.unknown().describe(
-          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+          "Optional. The recency of the first and third party audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
         ).optional(),
       })).describe(
-        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+        "Required. All first and third party audience targeting settings in first and third party audience group. Repeated settings with the same id are not allowed.",
       ).optional(),
     })).describe(
-      "Optional. The first party and partner audience ids and recencies of included first party and partner audience groups. Each first party and partner audience group contains first party and partner audience ids only. The relation between each first party and partner audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
+      "Optional. The first and third party audience ids and recencies of included first and third party audience groups. Each first and third party audience group contains first and third party audience ids only. The relation between each first and third party audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
     ).optional(),
     includedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -644,7 +644,7 @@ const GlobalArgsSchema = z.object({
       "DEVICE_TYPE_CONNECTED_DEVICE",
     ]).describe("Required. The display name of the device type.").optional(),
     youtubeAndPartnersBidMultiplier: z.number().describe(
-      "Optional. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
+      "Output only. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
     ).optional(),
   }).describe(
     "Device Type details. This field will be populated when the targeting_type is `TARGETING_TYPE_DEVICE_TYPE`.",
@@ -653,11 +653,6 @@ const GlobalArgsSchema = z.object({
     excludedContentRatingTier: z.enum([
       "CONTENT_RATING_TIER_UNSPECIFIED",
       "CONTENT_RATING_TIER_UNRATED",
-      "CONTENT_RATING_TIER_GENERAL",
-      "CONTENT_RATING_TIER_PARENTAL_GUIDANCE",
-      "CONTENT_RATING_TIER_TEENS",
-      "CONTENT_RATING_TIER_MATURE",
-      "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
       "Required. The display name of the digital content label rating tier to be EXCLUDED. This field only accepts the value `CONTENT_RATING_TIER_UNRATED`.",
     ).optional(),
@@ -855,7 +850,7 @@ const GlobalArgsSchema = z.object({
       "Required. ID of the inventory source. Should refer to the inventory_source_id field of an InventorySource resource.",
     ).optional(),
   }).describe(
-    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE` or `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
+    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
   ).optional(),
   inventorySourceGroupDetails: z.object({
     inventorySourceGroupId: z.string().describe(
@@ -1014,23 +1009,6 @@ const GlobalArgsSchema = z.object({
   sensitiveCategoryExclusionDetails: z.object({
     excludedSensitiveCategory: z.enum([
       "SENSITIVE_CATEGORY_UNSPECIFIED",
-      "SENSITIVE_CATEGORY_ADULT",
-      "SENSITIVE_CATEGORY_DEROGATORY",
-      "SENSITIVE_CATEGORY_DOWNLOADS_SHARING",
-      "SENSITIVE_CATEGORY_WEAPONS",
-      "SENSITIVE_CATEGORY_GAMBLING",
-      "SENSITIVE_CATEGORY_VIOLENCE",
-      "SENSITIVE_CATEGORY_SUGGESTIVE",
-      "SENSITIVE_CATEGORY_PROFANITY",
-      "SENSITIVE_CATEGORY_ALCOHOL",
-      "SENSITIVE_CATEGORY_DRUGS",
-      "SENSITIVE_CATEGORY_TOBACCO",
-      "SENSITIVE_CATEGORY_POLITICS",
-      "SENSITIVE_CATEGORY_RELIGION",
-      "SENSITIVE_CATEGORY_TRAGEDY",
-      "SENSITIVE_CATEGORY_TRANSPORTATION_ACCIDENTS",
-      "SENSITIVE_CATEGORY_SENSITIVE_SOCIAL_ISSUES",
-      "SENSITIVE_CATEGORY_SHOCKING",
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
@@ -1086,7 +1064,6 @@ const GlobalArgsSchema = z.object({
     "TARGETING_TYPE_NEGATIVE_KEYWORD_LIST",
     "TARGETING_TYPE_VIEWABILITY",
     "TARGETING_TYPE_CATEGORY",
-    "TARGETING_TYPE_INVENTORY_SOURCE",
     "TARGETING_TYPE_LANGUAGE",
     "TARGETING_TYPE_AUTHORIZED_SELLER_STATUS",
     "TARGETING_TYPE_GEO_REGION",
@@ -1602,9 +1579,9 @@ const StateSchema = z.object({
   assignedTargetingOptionId: z.string().optional(),
   assignedTargetingOptionIdAlias: z.string().optional(),
   audienceGroupDetails: z.object({
-    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+    excludedFirstAndThirdPartyAudienceGroup: z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.string(),
+        firstAndThirdPartyAudienceId: z.string(),
         recency: z.string(),
       })),
     }),
@@ -1623,9 +1600,9 @@ const StateSchema = z.object({
         customListId: z.string(),
       })),
     }),
-    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+    includedFirstAndThirdPartyAudienceGroups: z.array(z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.unknown(),
+        firstAndThirdPartyAudienceId: z.unknown(),
         recency: z.unknown(),
       })),
     })),
@@ -1969,10 +1946,10 @@ const InputsSchema = z.object({
     "App details. This field will be populated when the targeting_type is `TARGETING_TYPE_APP`.",
   ).optional(),
   audienceGroupDetails: z.object({
-    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+    excludedFirstAndThirdPartyAudienceGroup: z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.string().describe(
-          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        firstAndThirdPartyAudienceId: z.string().describe(
+          "Required. First and third party audience id of the first and third party audience targeting setting. This id is first_and_third_party_audience_id.",
         ).optional(),
         recency: z.enum([
           "RECENCY_NO_LIMIT",
@@ -2006,13 +1983,13 @@ const InputsSchema = z.object({
           "RECENCY_270_DAYS",
           "RECENCY_365_DAYS",
         ]).describe(
-          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+          "Optional. The recency of the first and third party audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
         ).optional(),
       })).describe(
-        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+        "Required. All first and third party audience targeting settings in first and third party audience group. Repeated settings with the same id are not allowed.",
       ).optional(),
     }).describe(
-      "Optional. The first party and partner audience ids and recencies of the excluded first party and partner audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
+      "Optional. The first and third party audience ids and recencies of the excluded first and third party audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
     ).optional(),
     excludedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -2047,19 +2024,19 @@ const InputsSchema = z.object({
     }).describe(
       "Optional. The custom list ids of the included custom list group. Contains custom list ids only.",
     ).optional(),
-    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+    includedFirstAndThirdPartyAudienceGroups: z.array(z.object({
       settings: z.array(z.object({
-        firstPartyAndPartnerAudienceId: z.unknown().describe(
-          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        firstAndThirdPartyAudienceId: z.unknown().describe(
+          "Required. First and third party audience id of the first and third party audience targeting setting. This id is first_and_third_party_audience_id.",
         ).optional(),
         recency: z.unknown().describe(
-          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+          "Optional. The recency of the first and third party audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
         ).optional(),
       })).describe(
-        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+        "Required. All first and third party audience targeting settings in first and third party audience group. Repeated settings with the same id are not allowed.",
       ).optional(),
     })).describe(
-      "Optional. The first party and partner audience ids and recencies of included first party and partner audience groups. Each first party and partner audience group contains first party and partner audience ids only. The relation between each first party and partner audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
+      "Optional. The first and third party audience ids and recencies of included first and third party audience groups. Each first and third party audience group contains first and third party audience ids only. The relation between each first and third party audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
     ).optional(),
     includedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -2341,7 +2318,7 @@ const InputsSchema = z.object({
       "DEVICE_TYPE_CONNECTED_DEVICE",
     ]).describe("Required. The display name of the device type.").optional(),
     youtubeAndPartnersBidMultiplier: z.number().describe(
-      "Optional. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
+      "Output only. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
     ).optional(),
   }).describe(
     "Device Type details. This field will be populated when the targeting_type is `TARGETING_TYPE_DEVICE_TYPE`.",
@@ -2350,11 +2327,6 @@ const InputsSchema = z.object({
     excludedContentRatingTier: z.enum([
       "CONTENT_RATING_TIER_UNSPECIFIED",
       "CONTENT_RATING_TIER_UNRATED",
-      "CONTENT_RATING_TIER_GENERAL",
-      "CONTENT_RATING_TIER_PARENTAL_GUIDANCE",
-      "CONTENT_RATING_TIER_TEENS",
-      "CONTENT_RATING_TIER_MATURE",
-      "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
       "Required. The display name of the digital content label rating tier to be EXCLUDED. This field only accepts the value `CONTENT_RATING_TIER_UNRATED`.",
     ).optional(),
@@ -2552,7 +2524,7 @@ const InputsSchema = z.object({
       "Required. ID of the inventory source. Should refer to the inventory_source_id field of an InventorySource resource.",
     ).optional(),
   }).describe(
-    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE` or `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
+    "Inventory source details. This field will be populated when the targeting_type is `TARGETING_TYPE_INVENTORY_SOURCE_DEAL`.",
   ).optional(),
   inventorySourceGroupDetails: z.object({
     inventorySourceGroupId: z.string().describe(
@@ -2711,23 +2683,6 @@ const InputsSchema = z.object({
   sensitiveCategoryExclusionDetails: z.object({
     excludedSensitiveCategory: z.enum([
       "SENSITIVE_CATEGORY_UNSPECIFIED",
-      "SENSITIVE_CATEGORY_ADULT",
-      "SENSITIVE_CATEGORY_DEROGATORY",
-      "SENSITIVE_CATEGORY_DOWNLOADS_SHARING",
-      "SENSITIVE_CATEGORY_WEAPONS",
-      "SENSITIVE_CATEGORY_GAMBLING",
-      "SENSITIVE_CATEGORY_VIOLENCE",
-      "SENSITIVE_CATEGORY_SUGGESTIVE",
-      "SENSITIVE_CATEGORY_PROFANITY",
-      "SENSITIVE_CATEGORY_ALCOHOL",
-      "SENSITIVE_CATEGORY_DRUGS",
-      "SENSITIVE_CATEGORY_TOBACCO",
-      "SENSITIVE_CATEGORY_POLITICS",
-      "SENSITIVE_CATEGORY_RELIGION",
-      "SENSITIVE_CATEGORY_TRAGEDY",
-      "SENSITIVE_CATEGORY_TRANSPORTATION_ACCIDENTS",
-      "SENSITIVE_CATEGORY_SENSITIVE_SOCIAL_ISSUES",
-      "SENSITIVE_CATEGORY_SHOCKING",
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
@@ -2783,7 +2738,6 @@ const InputsSchema = z.object({
     "TARGETING_TYPE_NEGATIVE_KEYWORD_LIST",
     "TARGETING_TYPE_VIEWABILITY",
     "TARGETING_TYPE_CATEGORY",
-    "TARGETING_TYPE_INVENTORY_SOURCE",
     "TARGETING_TYPE_LANGUAGE",
     "TARGETING_TYPE_AUTHORIZED_SELLER_STATUS",
     "TARGETING_TYPE_GEO_REGION",
@@ -3308,7 +3262,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-adgroups-targetingtypes-assignedtargetingoptions",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3487,6 +3441,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

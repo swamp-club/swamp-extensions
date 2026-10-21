@@ -306,6 +306,19 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Optional. Gemini Enterprise only. Specifies whether the workforce identity pool provider uses SCIM-managed groups instead of the `google.groups` attribute mapping for authorization checks. The `scim_usage` and `extended_attributes_oauth2_client` fields are mutually exclusive. A request that enables both fields on the same workforce identity pool provider will produce an error.",
   ).optional(),
+  vendorType: z.enum([
+    "VENDOR_TYPE_UNSPECIFIED",
+    "ENTRA_ID",
+    "OKTA",
+    "PING_FEDERATE",
+    "ADFS",
+    "KEYCLOAK",
+    "FORGE_ROCK",
+    "JUMP_CLOUD",
+    "ONE_LOGIN",
+    "GENERIC",
+  ]).describe("Optional. The vendor type of the third-party identity provider.")
+    .optional(),
   workforcePoolProviderId: z.string().describe(
     "Required. The ID for the provider, which becomes the final component of the resource name. This value must be 4-32 characters, and may contain the characters `[a-z0-9-]`. The prefix `gcp-` is reserved for use by Google, and may not be specified.",
   ).optional(),
@@ -372,6 +385,7 @@ const StateSchema = z.object({
   }).optional(),
   scimUsage: z.string().optional(),
   state: z.string().optional(),
+  vendorType: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -532,6 +546,19 @@ const InputsSchema = z.object({
   ]).describe(
     "Optional. Gemini Enterprise only. Specifies whether the workforce identity pool provider uses SCIM-managed groups instead of the `google.groups` attribute mapping for authorization checks. The `scim_usage` and `extended_attributes_oauth2_client` fields are mutually exclusive. A request that enables both fields on the same workforce identity pool provider will produce an error.",
   ).optional(),
+  vendorType: z.enum([
+    "VENDOR_TYPE_UNSPECIFIED",
+    "ENTRA_ID",
+    "OKTA",
+    "PING_FEDERATE",
+    "ADFS",
+    "KEYCLOAK",
+    "FORGE_ROCK",
+    "JUMP_CLOUD",
+    "ONE_LOGIN",
+    "GENERIC",
+  ]).describe("Optional. The vendor type of the third-party identity provider.")
+    .optional(),
   workforcePoolProviderId: z.string().describe(
     "Required. The ID for the provider, which becomes the final component of the resource name. This value must be 4-32 characters, and may contain the characters `[a-z0-9-]`. The prefix `gcp-` is reserved for use by Google, and may not be specified.",
   ).optional(),
@@ -566,7 +593,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkforcePools.Providers. Registered at `@swamp/gcp/iam/workforcepools-providers`. */
 export const model = {
   type: "@swamp/gcp/iam/workforcepools-providers",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -586,6 +613,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
+      description: "Added: vendorType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -644,6 +676,7 @@ export const model = {
         if (g["oidc"] !== undefined) body["oidc"] = g["oidc"];
         if (g["saml"] !== undefined) body["saml"] = g["saml"];
         if (g["scimUsage"] !== undefined) body["scimUsage"] = g["scimUsage"];
+        if (g["vendorType"] !== undefined) body["vendorType"] = g["vendorType"];
         if (g["workforcePoolProviderId"] !== undefined) {
           params["workforcePoolProviderId"] = String(
             g["workforcePoolProviderId"],
@@ -796,6 +829,7 @@ export const model = {
         if (g["oidc"] !== undefined) body["oidc"] = g["oidc"];
         if (g["saml"] !== undefined) body["saml"] = g["saml"];
         if (g["scimUsage"] !== undefined) body["scimUsage"] = g["scimUsage"];
+        if (g["vendorType"] !== undefined) body["vendorType"] = g["vendorType"];
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {
           params["updateMask"] = updateMaskKeys.join(",");

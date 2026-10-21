@@ -54,7 +54,6 @@ const ResourceSchema = z.object({
   createdAt: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   organizationId: z.string().nullable().optional(),
-  ownerId: z.string().nullable().optional(),
   slug: z.string().nullable().optional(),
   teamCount: z.number().nullable().optional(),
   teamId: z.string().nullable().optional(),
@@ -78,10 +77,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Organizations. Registered at `@swamp/vercel/organizations/organizations`. */
 export const model = {
   type: "@swamp/vercel/organizations/organizations",
-  version: "2026.10.20.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -185,9 +189,6 @@ export const model = {
         }
         if (g.organizationId !== undefined) {
           filters.push(["organizationId", String(g.organizationId)]);
-        }
-        if (g.ownerId !== undefined) {
-          filters.push(["ownerId", String(g.ownerId)]);
         }
         if (g.teamCount !== undefined) {
           filters.push(["teamCount", String(g.teamCount)]);

@@ -138,6 +138,7 @@ const ReplicaSpecificationSchema = z.object({
     .optional(),
   PointInTimeRecoverySpecification: PointInTimeRecoverySpecificationSchema
     .optional(),
+  DisassociationProtectionEnabled: z.boolean().optional(),
   ReplicaStreamSpecification: ReplicaStreamSpecificationSchema.optional(),
   GlobalSecondaryIndexes: z.array(
     ReplicaGlobalSecondaryIndexSpecificationSchema,
@@ -224,6 +225,7 @@ const GlobalArgsSchema = z.object({
     SSEEnabled: z.boolean(),
     SSEType: z.string().optional(),
   }).optional(),
+  TableType: z.enum(["GlobalTableReplica", "Regional"]).optional(),
   StreamSpecification: z.object({
     StreamViewType: z.string(),
   }).optional(),
@@ -267,6 +269,7 @@ const StateSchema = z.object({
     SSEEnabled: z.boolean(),
     SSEType: z.string(),
   }).optional(),
+  TableType: z.string().optional(),
   StreamSpecification: z.object({
     StreamViewType: z.string(),
   }).optional(),
@@ -309,6 +312,7 @@ const InputsSchema = z.object({
     SSEEnabled: z.boolean().optional(),
     SSEType: z.string().optional(),
   }).optional(),
+  TableType: z.enum(["GlobalTableReplica", "Regional"]).optional(),
   StreamSpecification: z.object({
     StreamViewType: z.string().optional(),
   }).optional(),
@@ -364,7 +368,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DynamoDB GlobalTable. Registered at `@swamp/aws/dynamodb/global-table`. */
 export const model = {
   type: "@swamp/aws/dynamodb/global-table",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -449,6 +453,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
+      description: "Added: TableType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

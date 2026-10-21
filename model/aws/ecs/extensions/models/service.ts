@@ -274,6 +274,10 @@ const ServiceConnectServiceSchema = z.object({
   ),
 });
 
+const ServiceConnectContainerConfigurationSchema = z.object({
+  LogLevel: z.enum(["debug", "info"]).optional(),
+});
+
 const ServiceConnectAccessLogConfigurationSchema = z.object({
   Format: z.enum(["TEXT", "JSON"]).describe(
     "The format for Service Connect access log output. Choose TEXT for human-readable logs or JSON for structured data that integrates well with log analysis tools.",
@@ -430,6 +434,32 @@ const LinearConfigurationSchema = z.object({
   ).optional(),
 });
 
+const GatewayConnectorFiltersSchema = z.object({
+  AccessTypes: z.array(z.enum(["PUBLIC", "PRIVATE"])).optional(),
+});
+
+const GatewayConnectorHealthCheckMatcherSchema = z.object({
+  GrpcCode: z.string().optional(),
+  HttpCode: z.string().optional(),
+});
+
+const GatewayConnectorHealthCheckSchema = z.object({
+  HealthCheckIntervalSeconds: z.number().int().optional(),
+  Matcher: GatewayConnectorHealthCheckMatcherSchema.optional(),
+  HealthyThresholdCount: z.number().int().optional(),
+  HealthCheckPath: z.string().optional(),
+  HealthCheckProtocol: z.enum(["HTTP", "HTTPS"]).optional(),
+  HealthCheckPort: z.number().int().optional(),
+  UnhealthyThresholdCount: z.number().int().optional(),
+  HealthCheckTimeoutSeconds: z.number().int().optional(),
+});
+
+const GatewayConnectorSchema = z.object({
+  Filters: GatewayConnectorFiltersSchema.optional(),
+  HealthCheck: GatewayConnectorHealthCheckSchema.optional(),
+  PortName: z.string(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -523,6 +553,8 @@ const GlobalArgsSchema = z.object({
     Services: z.array(ServiceConnectServiceSchema).describe(
       "The list of Service Connect service objects. These are names and aliases (also known as endpoints) that are used by other Amazon ECS services to connect to this service. This field is not required for a \"client\" Amazon ECS service that's a member of a namespace only to connect to other services within the namespace. An example of this would be a frontend application that accepts incoming requests from either a load balancer that's attached to the service or by other means. An object selects a port from the task definition, assigns a name for the CMAPlong service, and a list of aliases (endpoints) and ports for client applications to refer to this service.",
     ).optional(),
+    ContainerConfigurations: z.array(ServiceConnectContainerConfigurationSchema)
+      .optional(),
     AccessLogConfiguration: ServiceConnectAccessLogConfigurationSchema.describe(
       "The configuration for Service Connect access logging. Access logs capture detailed information about requests made to your service, including request patterns, response codes, and timing data. They can be useful for debugging connectivity issues, monitoring service performance, and auditing service-to-service communication for security and compliance purposes. To enable access logs, you must also specify a logConfiguration in the serviceConnectConfiguration.",
     ).optional(),
@@ -592,6 +624,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional deployment parameters that control how many tasks run during the deployment and the ordering of stopping and starting tasks.",
   ).optional(),
+  GatewayConnectors: z.array(GatewayConnectorSchema).optional(),
 });
 
 const StateSchema = z.object({
@@ -626,6 +659,9 @@ const StateSchema = z.object({
   LoadBalancers: z.array(LoadBalancerSchema).optional(),
   ServiceConnectConfiguration: z.object({
     Services: z.array(ServiceConnectServiceSchema),
+    ContainerConfigurations: z.array(
+      ServiceConnectContainerConfigurationSchema,
+    ),
     AccessLogConfiguration: ServiceConnectAccessLogConfigurationSchema,
     Enabled: z.boolean(),
     LogConfiguration: LogConfigurationSchema,
@@ -651,6 +687,7 @@ const StateSchema = z.object({
     MinimumHealthyPercent: z.number(),
     LinearConfiguration: LinearConfigurationSchema,
   }).optional(),
+  GatewayConnectors: z.array(GatewayConnectorSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -738,6 +775,8 @@ const InputsSchema = z.object({
     Services: z.array(ServiceConnectServiceSchema).describe(
       "The list of Service Connect service objects. These are names and aliases (also known as endpoints) that are used by other Amazon ECS services to connect to this service. This field is not required for a \"client\" Amazon ECS service that's a member of a namespace only to connect to other services within the namespace. An example of this would be a frontend application that accepts incoming requests from either a load balancer that's attached to the service or by other means. An object selects a port from the task definition, assigns a name for the CMAPlong service, and a list of aliases (endpoints) and ports for client applications to refer to this service.",
     ).optional(),
+    ContainerConfigurations: z.array(ServiceConnectContainerConfigurationSchema)
+      .optional(),
     AccessLogConfiguration: ServiceConnectAccessLogConfigurationSchema.describe(
       "The configuration for Service Connect access logging. Access logs capture detailed information about requests made to your service, including request patterns, response codes, and timing data. They can be useful for debugging connectivity issues, monitoring service performance, and auditing service-to-service communication for security and compliance purposes. To enable access logs, you must also specify a logConfiguration in the serviceConnectConfiguration.",
     ).optional(),
@@ -807,6 +846,7 @@ const InputsSchema = z.object({
   }).describe(
     "Optional deployment parameters that control how many tasks run during the deployment and the ordering of stopping and starting tasks.",
   ).optional(),
+  GatewayConnectors: z.array(GatewayConnectorSchema).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -828,7 +868,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.10.20.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -943,6 +983,11 @@ export const model = {
     {
       toVersion: "2026.10.20.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
+      description: "Added: GatewayConnectors",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

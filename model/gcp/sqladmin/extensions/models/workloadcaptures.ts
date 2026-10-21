@@ -140,7 +140,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin WorkloadCaptures. Registered at `@swamp/gcp/sqladmin/workloadcaptures`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/workloadcaptures",
-  version: "2026.10.14.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.10.06.1",
@@ -154,6 +154,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -473,20 +478,6 @@ export const model = {
         if (g["instance"] !== undefined) {
           params["instance"] = String(g["instance"]);
         }
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["workloadId"] = existing["workloadId"]?.toString() ??
-          g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["stopWorkloadReplayContext"] !== undefined) {
           body["stopWorkloadReplayContext"] = args["stopWorkloadReplayContext"];
@@ -496,13 +487,12 @@ export const model = {
           {
             "id": "sql.workloadCaptures.stopReplay",
             "path":
-              "v1/projects/{project}/instances/{instance}/workloadCaptures/{workloadId}:stopReplay",
+              "v1/projects/{project}/instances/{instance}/workloadCaptures:stopReplay",
             "httpMethod": "POST",
-            "parameterOrder": ["project", "instance", "workloadId"],
+            "parameterOrder": ["project", "instance"],
             "parameters": {
               "instance": { "location": "path", "required": true },
               "project": { "location": "path", "required": true },
-              "workloadId": { "location": "path", "required": true },
             },
           },
           params,

@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.users.get",
-  "path": "v4/users/{+userId}",
+  "path": "v2/users/{+userId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "userId",
@@ -60,7 +60,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.users.create",
-  "path": "v4/users",
+  "path": "v2/users",
   "httpMethod": "POST",
   "parameterOrder": [],
   "parameters": {},
@@ -68,7 +68,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.users.patch",
-  "path": "v4/users/{+userId}",
+  "path": "v2/users/{+userId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "userId",
@@ -86,7 +86,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.users.delete",
-  "path": "v4/users/{+userId}",
+  "path": "v2/users/{+userId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "userId",
@@ -101,7 +101,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.users.list",
-  "path": "v4/users",
+  "path": "v2/users",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -215,7 +215,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Users. Registered at `@swamp/gcp/displayvideo/users`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/users",
-  version: "2026.10.13.1",
+  version: "2026.10.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +339,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -689,7 +694,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.users.bulkEditAssignedUserRoles",
-            "path": "v4/users/{+userId}:bulkEditAssignedUserRoles",
+            "path": "v2/users/{+userId}:bulkEditAssignedUserRoles",
             "httpMethod": "POST",
             "parameterOrder": ["userId"],
             "parameters": {
