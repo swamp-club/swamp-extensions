@@ -30,7 +30,6 @@ export interface AgentOutput {
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
   const provider = getProvider(opts.globalArgs.provider);
-  const apiKey = resolveAuthKey(provider, opts.globalArgs);
   const platform = detectPlatform();
   const cacheDir = `${opts.workingDir}/${CACHE_DIR_NAME}`;
 
@@ -45,6 +44,26 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
     }
 
     try {
+      const request: AgentRunRequest = {
+        prompt: opts.prompt,
+        model: opts.model,
+        effort: opts.effort,
+        auth: opts.globalArgs.auth,
+        workingDir: opts.workingDir,
+        additionalDirs: opts.additionalDirs,
+        outputPath: opts.outputPath,
+        readOnly: opts.readOnly,
+      };
+
+      // Arguments are built first so a bad provider config fails before the
+      // key lookup and the binary download.
+      const providerSpecificConfig = extractProviderConfig(
+        provider.name,
+        opts.providerConfig,
+      );
+      const args = provider.buildArgs(request, providerSpecificConfig);
+      const apiKey = resolveAuthKey(provider, opts.globalArgs);
+
       opts.logger.info(
         `Ensuring ${provider.name} CLI v${opts.globalArgs.version} for ${platform}`,
       );
@@ -54,22 +73,6 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
         platform,
         opts.signal,
       );
-
-      const request: AgentRunRequest = {
-        prompt: opts.prompt,
-        model: opts.model,
-        effort: opts.effort,
-        workingDir: opts.workingDir,
-        additionalDirs: opts.additionalDirs,
-        outputPath: opts.outputPath,
-        readOnly: opts.readOnly,
-      };
-
-      const providerSpecificConfig = extractProviderConfig(
-        provider.name,
-        opts.providerConfig,
-      );
-      const args = provider.buildArgs(request, providerSpecificConfig);
 
       const envVarName = provider.apiKeyEnvName(providerSpecificConfig);
 

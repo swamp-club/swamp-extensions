@@ -1,7 +1,7 @@
-import { assertEquals } from "jsr:@std/assert@1.0.19";
+import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import { ReviewResultSchema } from "./schemas.ts";
 import { buildReviewPrompt, extractJsonResult } from "./review.ts";
-import { buildSubprocessEnv } from "./runner.ts";
+import { buildSubprocessEnv, runAgent } from "./runner.ts";
 
 // ---------------------------------------------------------------------------
 // Mock agent binary execution
@@ -309,5 +309,56 @@ Deno.test("runner: subprocess env forwards the Windows profile variables", () =>
         Deno.env.delete(name);
       }
     }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Run order
+// ---------------------------------------------------------------------------
+
+Deno.test("runner: a bad provider config fails before the key lookup and download", async () => {
+  const tmpDir = await Deno.makeTempDir({ prefix: "runner-test-" });
+  const original = Deno.env.get("CODEX_API_KEY");
+  try {
+    Deno.env.delete("CODEX_API_KEY");
+    // With no CODEX_API_KEY, a key lookup first would fail with "No API key
+    // found"; the authCommand error proves the arguments are built first.
+    await assertRejects(
+      () =>
+        runAgent({
+          globalArgs: { provider: "codex", version: "0.163.0", auth: "apiKey" },
+          prompt: "test",
+          model: undefined,
+          workingDir: tmpDir,
+          additionalDirs: [],
+          outputPath: `${tmpDir}/result.json`,
+          readOnly: true,
+          providerConfig: {
+            codex: {
+              modelProvider: {
+                id: "gw",
+                baseUrl: "https://gateway.example/v1",
+                authCommand: "token-helper",
+              },
+            },
+          },
+          logger: {
+            debug: () => {},
+            info: () => {},
+            warn: () => {},
+            error: () => {},
+          },
+          signal: new AbortController().signal,
+        }),
+      Error,
+      "set auth to 'cli'",
+    );
+    // Nothing was downloaded.
+    await assertRejects(() => Deno.stat(`${tmpDir}/.swamp`));
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("CODEX_API_KEY", original);
+    }
+    await Deno.remove(tmpDir, { recursive: true });
   }
 });

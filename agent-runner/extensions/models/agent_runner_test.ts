@@ -310,6 +310,8 @@ Deno.test("codex provider builds correct args for read-only", () => {
   assertEquals(args.includes("--skip-git-repo-check"), true);
   assertEquals(args.includes("--sandbox"), true);
   assertEquals(args.includes("read-only"), true);
+  assertEquals(args.includes("approval_policy=never"), true);
+  assertEquals(args.includes("--ask-for-approval"), false);
   assertEquals(args.includes("-m"), true);
   assertEquals(args.includes("o4-mini"), true);
   assertEquals(args.includes("-o"), true);
@@ -488,12 +490,27 @@ Deno.test("auth cli mode ignores a key present in the environment", () => {
   }
 });
 
-Deno.test("auth cli mode is rejected for codex", () => {
+Deno.test("auth cli mode returns no key for codex", () => {
+  const original = Deno.env.get("CODEX_API_KEY");
+  try {
+    Deno.env.set("CODEX_API_KEY", "sk-from-default");
+    const provider = getProvider("codex");
+    assertEquals(resolveAuthKey(provider, { auth: "cli" }), undefined);
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("CODEX_API_KEY", original);
+    } else {
+      Deno.env.delete("CODEX_API_KEY");
+    }
+  }
+});
+
+Deno.test("auth cli mode rejects an explicit apiKey for codex", () => {
   const provider = getProvider("codex");
   assertThrows(
-    () => resolveAuthKey(provider, { auth: "cli" }),
+    () => resolveAuthKey(provider, { auth: "cli", apiKey: "sk-test-123" }),
     Error,
-    "does not support auth 'cli'",
+    "cannot be combined",
   );
 });
 

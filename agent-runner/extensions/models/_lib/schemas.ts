@@ -8,7 +8,8 @@ export const GlobalArgsSchema = z.object({
   auth: z.enum(["apiKey", "cli"]).default("apiKey")
     .describe(
       "How the agent authenticates: 'apiKey' (default) passes an API key; " +
-        "'cli' uses the provider CLI's own stored login (claude only)",
+        "'cli' passes none and lets the provider CLI authenticate itself " +
+        "(its stored login, or a codex modelProvider authCommand)",
     ),
   apiKey: z.string().optional().meta({ sensitive: true })
     .describe("API key for the provider (prefer apiKeyEnvVar or vault)"),

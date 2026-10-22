@@ -24,7 +24,7 @@ import type { AgentRunnerContext } from "./_lib/types.ts";
 /** Agent runner model — providers, review profiles, and execution methods. */
 export const model = {
   type: "@swamp/agent-runner",
-  version: "2026.10.17.1",
+  version: "2026.10.22.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -45,6 +45,12 @@ export const model = {
       toVersion: "2026.10.17.1",
       description:
         "Add optional effort argument to run and review (claude --effort, codex model_reasoning_effort)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Allow auth=cli for codex, add a codex modelProvider config for custom gateways, and send the codex approval policy as -c approval_policy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

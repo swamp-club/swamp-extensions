@@ -1,12 +1,12 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.10.17.3"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
   integration. Manages agent CLI binaries, resolves API tokens from
-  environment variables or vaults (or, for Claude, uses the CLI's stored
-  login), and returns machine-readable verdicts that CI pipelines can gate on.
+  environment variables or vaults (or uses the CLI's stored login), and
+  returns machine-readable verdicts that CI pipelines can gate on.
 
   Provider-agnostic: each agent backend (Claude Code CLI, OpenAI Codex CLI)
   is a pluggable provider with its own binary management and CLI flag
@@ -28,6 +28,8 @@ description: |
   @openai/codex platform package from npm and keeps its bundled sandbox
   helpers; the Claude binary is verified against the checksum in its release
   manifest.
+  Codex can run through an OpenAI-compatible gateway with a `modelProvider`
+  provider config.
 
   ## Providers
 

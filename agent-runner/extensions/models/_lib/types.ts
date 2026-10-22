@@ -1,5 +1,5 @@
 import type { z } from "npm:zod@4.3.6";
-import type { Effort } from "./schemas.ts";
+import type { Effort, GlobalArgs } from "./schemas.ts";
 
 export type Platform =
   | "linux-x64"
@@ -36,6 +36,8 @@ export interface AgentRunRequest {
   readonly prompt: string;
   readonly model: string | undefined;
   readonly effort?: Effort;
+  /** How the agent authenticates; absent means 'apiKey'. */
+  readonly auth?: GlobalArgs["auth"];
   readonly workingDir: string;
   readonly additionalDirs: string[];
   readonly outputPath: string;

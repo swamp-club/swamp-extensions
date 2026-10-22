@@ -1,6 +1,16 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
+import {
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.19";
 import { TarStream } from "jsr:@std/tar@0.1.10/tar-stream";
-import { codexProvider, extractTarball } from "./codex.ts";
+import {
+  CodexConfigSchema,
+  codexProvider,
+  extractTarball,
+  tomlString,
+} from "./codex.ts";
+import type { AgentRunRequest } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Arg building
@@ -54,8 +64,9 @@ Deno.test("codex: buildArgs defaults approval to never", () => {
     {},
   );
 
-  const approvalIdx = args.indexOf("--ask-for-approval");
-  assertEquals(args[approvalIdx + 1], "never");
+  const idx = args.indexOf("approval_policy=never");
+  assertEquals(args[idx - 1], "-c");
+  assertEquals(args.includes("--ask-for-approval"), false);
 });
 
 Deno.test("codex: buildArgs respects explicit approval policy", () => {
@@ -71,8 +82,9 @@ Deno.test("codex: buildArgs respects explicit approval policy", () => {
     { approvalPolicy: "on-request" },
   );
 
-  const approvalIdx = args.indexOf("--ask-for-approval");
-  assertEquals(args[approvalIdx + 1], "on-request");
+  const idx = args.indexOf("approval_policy=on-request");
+  assertEquals(args[idx - 1], "-c");
+  assertEquals(args.includes("--ask-for-approval"), false);
 });
 
 Deno.test("codex: buildArgs includes output flag", () => {
@@ -403,7 +415,6 @@ Deno.test("codex: buildArgs omits model_reasoning_effort when unset", () => {
     {},
   );
 
-  assertEquals(args.includes("-c"), false);
   assertEquals(
     args.some((a) => a.startsWith("model_reasoning_effort=")),
     false,
@@ -456,4 +467,228 @@ Deno.test("codex: ensureBinary replaces a vendor directory that has no binary", 
   } finally {
     await Deno.remove(tmpDir, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Custom model provider
+// ---------------------------------------------------------------------------
+
+const BASE_REQUEST: AgentRunRequest = {
+  prompt: "test",
+  model: undefined,
+  workingDir: "/repo",
+  additionalDirs: [],
+  outputPath: "/out/result.json",
+  readOnly: true,
+};
+
+/** The values passed with -c, in order. */
+function configOverrides(args: string[]): string[] {
+  return args.flatMap((arg, i) => (args[i - 1] === "-c" ? [arg] : []));
+}
+
+Deno.test("codex: modelProvider with authCommand emits the provider overrides", () => {
+  const args = codexProvider.buildArgs(
+    { ...BASE_REQUEST, auth: "cli" },
+    {
+      modelProvider: {
+        id: "gw",
+        name: "Gateway",
+        baseUrl: "https://gateway.example/v1",
+        wireApi: "responses",
+        authCommand: "/usr/local/bin/token-helper",
+        authArgs: ["--audience", "codex"],
+      },
+    },
+  );
+
+  assertEquals(configOverrides(args), [
+    "approval_policy=never",
+    'model_provider="gw"',
+    'model_providers.gw.name="Gateway"',
+    'model_providers.gw.base_url="https://gateway.example/v1"',
+    'model_providers.gw.wire_api="responses"',
+    'model_providers.gw.auth.command="/usr/local/bin/token-helper"',
+    'model_providers.gw.auth.args=["--audience", "codex"]',
+  ]);
+  assertEquals(args[args.length - 1], "test");
+});
+
+Deno.test("codex: modelProvider name defaults to id and wire_api is omitted", () => {
+  const args = codexProvider.buildArgs(
+    { ...BASE_REQUEST, auth: "cli" },
+    { modelProvider: { id: "local-gw", baseUrl: "http://127.0.0.1:4000/v1" } },
+  );
+
+  assertEquals(configOverrides(args), [
+    "approval_policy=never",
+    'model_provider="local-gw"',
+    'model_providers.local-gw.name="local-gw"',
+    'model_providers.local-gw.base_url="http://127.0.0.1:4000/v1"',
+  ]);
+});
+
+Deno.test("codex: modelProvider under auth apiKey sends CODEX_API_KEY via env_key", () => {
+  for (const auth of ["apiKey", undefined] as const) {
+    const args = codexProvider.buildArgs(
+      { ...BASE_REQUEST, auth },
+      { modelProvider: { id: "gw", baseUrl: "https://gateway.example/v1" } },
+    );
+
+    assertEquals(
+      configOverrides(args).includes(
+        'model_providers.gw.env_key="CODEX_API_KEY"',
+      ),
+      true,
+    );
+  }
+});
+
+Deno.test("codex: modelProvider under auth cli without authCommand sends no credential", () => {
+  const args = codexProvider.buildArgs(
+    { ...BASE_REQUEST, auth: "cli" },
+    { modelProvider: { id: "gw", baseUrl: "https://gateway.example/v1" } },
+  );
+
+  assertEquals(
+    configOverrides(args).some((o) =>
+      o.includes(".env_key=") || o.includes(".auth.")
+    ),
+    false,
+  );
+});
+
+Deno.test("codex: modelProvider authCommand under auth apiKey is rejected", () => {
+  assertThrows(
+    () =>
+      codexProvider.buildArgs(
+        { ...BASE_REQUEST, auth: "apiKey" },
+        {
+          modelProvider: {
+            id: "gw",
+            baseUrl: "https://gateway.example/v1",
+            authCommand: "token-helper",
+          },
+        },
+      ),
+    Error,
+    "set auth to 'cli'",
+  );
+});
+
+Deno.test("codex: modelProvider values are escaped as TOML strings", () => {
+  const args = codexProvider.buildArgs(
+    { ...BASE_REQUEST, auth: "cli" },
+    {
+      modelProvider: {
+        id: "gw",
+        name: 'My "gw" \\ prod',
+        baseUrl: "https://gateway.example/v1",
+        authCommand: "C:\\tools\\token.exe",
+        authArgs: ['a"b'],
+      },
+    },
+  );
+
+  const overrides = configOverrides(args);
+  assertEquals(
+    overrides.includes('model_providers.gw.name="My \\"gw\\" \\\\ prod"'),
+    true,
+  );
+  assertEquals(
+    overrides.includes(
+      'model_providers.gw.auth.command="C:\\\\tools\\\\token.exe"',
+    ),
+    true,
+  );
+  assertEquals(
+    overrides.includes('model_providers.gw.auth.args=["a\\"b"]'),
+    true,
+  );
+});
+
+Deno.test("codex: tomlString escapes control characters and DEL", () => {
+  assertEquals(tomlString("a\nb\tc"), '"a\\nb\\tc"');
+  assertEquals(tomlString("x\x7fy"), '"x\\u007Fy"');
+});
+
+Deno.test("codex: modelProvider schema rejects an id that is not a bare TOML key", () => {
+  for (const id of ["gw.prod", "gw prod", "", 'gw"']) {
+    assertEquals(
+      CodexConfigSchema.safeParse({
+        modelProvider: { id, baseUrl: "https://gateway.example/v1" },
+      }).success,
+      false,
+      `id ${JSON.stringify(id)} should be rejected`,
+    );
+  }
+});
+
+Deno.test("codex: modelProvider schema only accepts http and https base URLs", () => {
+  for (const baseUrl of ["file:///etc/passwd", "ftp://gateway.example/v1"]) {
+    assertEquals(
+      CodexConfigSchema.safeParse({ modelProvider: { id: "gw", baseUrl } })
+        .success,
+      false,
+      `${baseUrl} should be rejected`,
+    );
+  }
+  for (
+    const baseUrl of ["https://gateway.example/v1", "http://localhost:4000"]
+  ) {
+    assertEquals(
+      CodexConfigSchema.safeParse({ modelProvider: { id: "gw", baseUrl } })
+        .success,
+      true,
+      `${baseUrl} should be accepted`,
+    );
+  }
+});
+
+Deno.test("codex: modelProvider schema rejects authArgs without authCommand", () => {
+  const result = CodexConfigSchema.safeParse({
+    modelProvider: {
+      id: "gw",
+      baseUrl: "https://gateway.example/v1",
+      authArgs: ["--audience", "codex"],
+    },
+  });
+  assertEquals(result.success, false);
+});
+
+Deno.test("codex: modelProvider schema rejects built-in codex provider ids", () => {
+  for (const id of ["openai", "oss", "ollama", "lmstudio"]) {
+    const result = CodexConfigSchema.safeParse({
+      modelProvider: { id, baseUrl: "https://gateway.example/v1" },
+    });
+    assertEquals(result.success, false, `id ${id} should be rejected`);
+    assertEquals(
+      result.error?.issues[0].message.includes("built-in codex provider id"),
+      true,
+    );
+  }
+});
+
+Deno.test("codex: modelProvider schema rejects strings with lone surrogates", () => {
+  const base = { id: "gw", baseUrl: "https://gateway.example/v1" };
+  for (
+    const modelProvider of [
+      { ...base, name: "gw\uD800" },
+      { ...base, authCommand: "token\uDC00" },
+      { ...base, authCommand: "token", authArgs: ["ok", "\uD800x"] },
+      { ...base, baseUrl: "https://gateway.example/v1\uD800" },
+    ]
+  ) {
+    assertEquals(
+      CodexConfigSchema.safeParse({ modelProvider }).success,
+      false,
+      `${JSON.stringify(modelProvider)} should be rejected`,
+    );
+  }
+  assertEquals(
+    CodexConfigSchema.safeParse({
+      modelProvider: { ...base, name: "Gateway \u{1F680}" },
+    }).success,
+    true,
+  );
 });

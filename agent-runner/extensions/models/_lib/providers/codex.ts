@@ -5,12 +5,62 @@ import { binaryFileName, isWindows } from "../platform.ts";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
+const CODEX_API_KEY_ENV = "CODEX_API_KEY";
+
+// Codex's built-in provider ids. Codex keeps its own entry when a configured
+// provider reuses one, so a gateway under such an id would be silently
+// replaced by the built-in provider (and its credentials sent there).
+const RESERVED_PROVIDER_IDS = ["openai", "oss", "ollama", "lmstudio"];
+
+// A lone UTF-16 surrogate has no TOML encoding.
+function tomlSafe<T extends z.ZodType<string>>(schema: T) {
+  return schema.refine((s) => s.isWellFormed(), {
+    message: "must not contain unpaired UTF-16 surrogates",
+  });
+}
+
+export const CodexModelProviderSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/)
+    .refine((id) => !RESERVED_PROVIDER_IDS.includes(id), {
+      message: `must not be a built-in codex provider id (${
+        RESERVED_PROVIDER_IDS.join(", ")
+      })`,
+    })
+    .describe(
+      "Provider id, used as the model_providers key " +
+        "(letters, digits, '_' and '-'; not a built-in codex provider id)",
+    ),
+  name: tomlSafe(z.string().min(1)).optional()
+    .describe("Display name of the provider (defaults to id)"),
+  baseUrl: tomlSafe(z.url({ protocol: /^https?$/ }))
+    .describe("Base URL of the OpenAI-compatible API (http or https)"),
+  wireApi: z.enum(["responses", "chat"]).optional()
+    .describe("Wire protocol the provider speaks (the CLI's default if unset)"),
+  authCommand: tomlSafe(z.string().min(1)).optional()
+    .describe(
+      "Command the CLI runs to get a bearer token for the provider. " +
+        "Requires auth 'cli'",
+    ),
+  authArgs: z.array(tomlSafe(z.string())).optional()
+    .describe("Arguments for authCommand"),
+}).refine((p) => p.authArgs === undefined || p.authCommand !== undefined, {
+  message: "authArgs requires authCommand",
+  path: ["authArgs"],
+});
+
+export type CodexModelProvider = z.infer<typeof CodexModelProviderSchema>;
+
 export const CodexConfigSchema = z.object({
   sandbox: z.enum(["read-only", "workspace-write", "danger-full-access"])
     .optional()
     .describe("Codex sandbox policy (defaults based on readOnly flag)"),
   approvalPolicy: z.enum(["untrusted", "on-request", "never"]).optional()
     .describe("Codex approval policy (defaults to 'never' for CI)"),
+  modelProvider: CodexModelProviderSchema.optional()
+    .describe(
+      "Custom model provider (e.g. an OpenAI-compatible gateway), passed " +
+        "to the CLI as -c overrides",
+    ),
 });
 
 // The platform builds are published as versions of @openai/codex itself
@@ -21,8 +71,8 @@ function npmTarballUrl(platform: Platform, version: string): string {
 
 export const codexProvider: AgentProvider = {
   name: "codex",
-  defaultApiKeyEnvVar: "CODEX_API_KEY",
-  supportsCliAuth: false,
+  defaultApiKeyEnvVar: CODEX_API_KEY_ENV,
+  supportsCliAuth: true,
   configSchema: CodexConfigSchema,
 
   async ensureBinary(
@@ -121,8 +171,10 @@ export const codexProvider: AgentProvider = {
       "--skip-git-repo-check",
       "--sandbox",
       sandbox,
-      "--ask-for-approval",
-      approval,
+      // --ask-for-approval is a top-level codex flag that `codex exec`
+      // rejects, so the policy goes in as a config override.
+      "-c",
+      `approval_policy=${approval}`,
     ];
 
     if (request.outputPath) {
@@ -137,6 +189,12 @@ export const codexProvider: AgentProvider = {
       args.push("-c", `model_reasoning_effort=${request.effort}`);
     }
 
+    if (config.modelProvider) {
+      args.push(
+        ...modelProviderArgs(config.modelProvider, request.auth ?? "apiKey"),
+      );
+    }
+
     for (const dir of request.additionalDirs) {
       args.push("--add-dir", dir);
     }
@@ -147,7 +205,7 @@ export const codexProvider: AgentProvider = {
   },
 
   apiKeyEnvName(_providerConfig: Record<string, unknown>): string {
-    return "CODEX_API_KEY";
+    return CODEX_API_KEY_ENV;
   },
 
   outputInstructions(_outputPath: string): string {
@@ -157,6 +215,56 @@ export const codexProvider: AgentProvider = {
     ].join("\n");
   },
 };
+
+/**
+ * Builds the -c overrides that select a custom model provider. The provider
+ * authenticates with authCommand (auth 'cli'), with the injected
+ * CODEX_API_KEY via env_key (auth 'apiKey'), or not at all (auth 'cli'
+ * without authCommand).
+ */
+function modelProviderArgs(
+  provider: CodexModelProvider,
+  auth: "apiKey" | "cli",
+): string[] {
+  if (provider.authCommand !== undefined && auth !== "cli") {
+    throw new Error(
+      `modelProvider.authCommand supplies the credentials for provider ` +
+        `'${provider.id}', so set auth to 'cli'. Under auth 'apiKey' the ` +
+        `injected ${CODEX_API_KEY_ENV} would go unused.`,
+    );
+  }
+
+  const key = `model_providers.${provider.id}`;
+  const overrides = [
+    `model_provider=${tomlString(provider.id)}`,
+    `${key}.name=${tomlString(provider.name ?? provider.id)}`,
+    `${key}.base_url=${tomlString(provider.baseUrl)}`,
+  ];
+  if (provider.wireApi) {
+    overrides.push(`${key}.wire_api=${tomlString(provider.wireApi)}`);
+  }
+  if (provider.authCommand !== undefined) {
+    overrides.push(`${key}.auth.command=${tomlString(provider.authCommand)}`);
+    if (provider.authArgs) {
+      overrides.push(
+        `${key}.auth.args=[${provider.authArgs.map(tomlString).join(", ")}]`,
+      );
+    }
+  } else if (auth === "apiKey") {
+    // A custom provider only sends the key held in the variable env_key names.
+    overrides.push(`${key}.env_key=${tomlString(CODEX_API_KEY_ENV)}`);
+  }
+
+  return overrides.flatMap((override) => ["-c", override]);
+}
+
+/**
+ * Encodes a TOML basic string. A JSON string literal is one, except that TOML
+ * also forbids a raw DEL character.
+ */
+export function tomlString(value: string): string {
+  return JSON.stringify(value).replaceAll("\x7f", "\\u007F");
+}
 
 async function findBinary(
   dir: string,

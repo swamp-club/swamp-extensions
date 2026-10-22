@@ -50,11 +50,12 @@ swamp model create @swamp/agent-runner reviewer \
   --global-arg apiKeyEnvVar=MY_CLAUDE_KEY
 ```
 
-### Using the Claude CLI's stored login
+### Using the CLI's stored login
 
 By default (`auth=apiKey`) an API key is required. For interactive or
-human-gated use on a machine where you have already logged in with the `claude`
-CLI, set `auth=cli` to use that stored login instead:
+human-gated use on a machine where you have already logged in with the provider
+CLI (`claude` or `codex login`), set `auth=cli` to use that stored login
+instead:
 
 ```bash
 swamp model create @swamp/agent-runner reviewer \
@@ -63,11 +64,15 @@ swamp model create @swamp/agent-runner reviewer \
   --global-arg auth=cli
 ```
 
-Under `auth=cli` no API key is resolved and `ANTHROPIC_API_KEY` is left out of
-the agent's environment entirely, since any set key takes precedence over the
-stored login. The agent must run as the same user that logged in. `auth=cli` is
-only supported by the `claude` provider, and cannot be combined with `apiKey` or
-`apiKeyEnvVar`. Use API keys for CI.
+Under `auth=cli` no API key is resolved and the provider's key variable
+(`ANTHROPIC_API_KEY` or `CODEX_API_KEY`) is left out of the agent's environment
+entirely, since any set key takes precedence over the stored login. The agent
+must run as the same user that logged in. Codex reads its login from `~/.codex`;
+a custom `CODEX_HOME` is not passed to the agent. `auth=cli` cannot be combined
+with `apiKey` or `apiKeyEnvVar`. Use API keys for CI.
+
+For Codex, `auth=cli` is also how a custom model provider authenticates with its
+own token command; see [Custom model provider](#custom-model-provider).
 
 ## Usage
 
@@ -283,7 +288,73 @@ swamp data query reviewer 'tags.verdict == "fail"'
 ```
 
 Codex `sandbox` options: `read-only`, `workspace-write`, `danger-full-access`.
-Defaults to `read-only` when the review has `readOnly: true`.
+Defaults to `read-only` when the review has `readOnly: true`. `approvalPolicy`
+(`untrusted`, `on-request`, `never`; default `never`) is sent as
+`-c approval_policy=<policy>`.
+
+Codex runs are hermetic: the extension passes `--ephemeral`,
+`--ignore-user-config` and `--ignore-rules`, so the host's
+`~/.codex/config.toml`, execpolicy rules and session history cannot change what
+a CI run does. Everything the run needs comes from the model's arguments and
+provider config.
+
+#### Custom model provider
+
+To send Codex through an OpenAI-compatible gateway (a self-hosted proxy or
+router), set `modelProvider`. The extension passes it to Codex as
+`-c model_provider=...` and `-c model_providers.<id>.*` overrides, which work
+alongside `--ignore-user-config`:
+
+```json
+{
+  "codex": {
+    "modelProvider": {
+      "id": "gateway",
+      "name": "Internal gateway",
+      "baseUrl": "https://gateway.example.com/v1",
+      "wireApi": "responses",
+      "authCommand": "/usr/local/bin/gateway-token",
+      "authArgs": ["--audience", "codex"]
+    }
+  }
+}
+```
+
+| Field         | Required | Description                                                                          |
+| ------------- | -------- | ------------------------------------------------------------------------------------ |
+| `id`          | yes      | Provider id: letters, digits, `_` and `-`; not `openai`, `oss`, `ollama`, `lmstudio` |
+| `name`        | no       | Display name (defaults to `id`)                                                      |
+| `baseUrl`     | yes      | `http` or `https` base URL of the OpenAI-compatible API                              |
+| `wireApi`     | no       | `responses` or `chat` (the CLI's default if unset)                                   |
+| `authCommand` | no       | Command Codex runs to get a bearer token; requires `auth=cli`                        |
+| `authArgs`    | no       | Arguments for `authCommand`                                                          |
+
+How the gateway is authenticated depends on `auth` and `authCommand`:
+
+| `auth`   | `authCommand` | Gateway credential                                                        |
+| -------- | ------------- | ------------------------------------------------------------------------- |
+| `cli`    | set           | Codex runs the command and sends its output as the bearer token           |
+| `apiKey` | unset         | The resolved API key (env var or vault), sent via `env_key=CODEX_API_KEY` |
+| `cli`    | unset         | None — for a gateway that needs no auth                                   |
+| `apiKey` | set           | Rejected: set `auth=cli`, since the command supplies the credential       |
+
+Codex's stored login (`codex login`) only authenticates OpenAI's own provider;
+it is never sent to a custom gateway.
+
+Under `auth=apiKey` the gateway receives whatever key is resolved, and by
+default that is `CODEX_API_KEY`. If that variable holds an OpenAI key, the
+gateway gets the OpenAI key. Give the gateway its own variable with
+`apiKeyEnvVar` (or a vault `apiKey`), and prefer an `https` `baseUrl`.
+
+The token command runs with the agent's filtered environment (`PATH`, `HOME`,
+locale and the other forwarded variables only), so it must find its own
+credentials, for example in a file under `HOME`. `authCommand` and `authArgs`
+are passed on the Codex command line, where other users on the host can see them
+in the process list, and are stored as plain provider config. Never put a token
+in `authArgs`; have the command fetch it.
+
+The `authCommand` and `authArgs` keys need a Codex CLI version that supports
+`model_providers.<id>.auth`; pin a recent `version` when using them.
 
 ## Binary Management
 
