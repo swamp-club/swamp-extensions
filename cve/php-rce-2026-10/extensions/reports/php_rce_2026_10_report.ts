@@ -36,6 +36,7 @@ type ReportContext = {
   modelType: string;
   modelId: string;
   methodName: string;
+  definition?: { name?: string };
   dataHandles: DataHandle[];
   dataRepository: {
     getContent: (
@@ -91,7 +92,6 @@ type Status = {
   } | null;
 };
 
-const MODEL_NAME = "php-rce-scanner";
 const FIXED = "8.2.35, 8.3.36, 8.4.27 and 8.5.12";
 const VERDICT_ORDER = [
   "vulnerable",
@@ -120,14 +120,19 @@ function uniq(values: (string | null)[]): string {
   return u.length > 0 ? u.join(", ") : "—";
 }
 
-function command(method: string, hosts: string[], extra = ""): string {
+function command(
+  name: string,
+  method: string,
+  hosts: string[],
+  extra = "",
+): string {
   // Leave hosts out only when every target is local; dropping just the
   // local ones would skip them.
   const hostArg = hosts.every(isLocal)
     ? ""
     : ` --input hosts=${hosts.join(",")}`;
-  return "```\nswamp model method run " + MODEL_NAME + " " + method + hostArg +
-    extra + "\n```\n";
+  return "```\nswamp behavior run " + name + " " + method + hostArg + extra +
+    "\n```\n";
 }
 
 /** Hosts mitigate can act on; Windows hosts are scanned only. */
@@ -168,12 +173,16 @@ export const report = {
     }
     if (results.length === 0) return { markdown: "", json: {} };
 
-    if (context.methodName === "mitigate") return mitigateReport(results);
-    return scanReport(results);
+    // The behavior the user ran, so suggested commands work as printed.
+    const name = context.definition?.name ?? context.modelId;
+    if (context.methodName === "mitigate") {
+      return mitigateReport(results, name);
+    }
+    return scanReport(results, name);
   },
 };
 
-function scanReport(results: Status[]) {
+function scanReport(results: Status[], name: string) {
   const errors = results.filter((r) => r.error).length;
   const affected = results.filter((r) => !r.error && r.vulnerable).length;
   const check = results.filter((r) =>
@@ -231,7 +240,7 @@ function scanReport(results: Status[]) {
   if (actionable.length > 0) {
     md += `\n## Next Step\n\n`;
     md += "Run mitigate as a dry run first on the hosts that need it:\n\n";
-    md += command("mitigate", actionable);
+    md += command(name, "mitigate", actionable);
   }
 
   md +=
@@ -255,7 +264,7 @@ function scanReport(results: Status[]) {
   };
 }
 
-function mitigateReport(results: Status[]) {
+function mitigateReport(results: Status[], name: string) {
   const isDryRun = results.some((r) => r.mitigation?.dryRun);
   let md = `# PHP RCE Mitigation: ${isDryRun ? "DRY RUN" : "APPLIED"}\n\n`;
   md += `| Host | Outcome | Privilege | Risk now | Action |\n`;
@@ -263,12 +272,16 @@ function mitigateReport(results: Status[]) {
   for (const r of results) {
     const m = r.mitigation;
     md += `| ${r.target} | ${r.error ? "ERROR" : m?.outcome ?? "—"} | ${
-      m?.privilege ?? "—"
+      r.error ? "—" : m?.privilege ?? "—"
     } | ${r.riskLevel.toUpperCase()} | ${r.action} |\n`;
   }
 
   for (const r of results) {
     const m = r.mitigation;
+    if (r.error) {
+      md += `\n## ${r.target}\n\n- ${r.error}\n`;
+      continue;
+    }
     if (!m || (m.steps.length === 0 && m.notes.length === 0)) continue;
     md += `\n## ${r.target}\n\n`;
     if (m.steps.length > 0) {
@@ -286,7 +299,8 @@ function mitigateReport(results: Status[]) {
       "\nSome hosts need root or passwordless sudo for the commands above. See the README's sudoers example.\n";
   }
 
-  const targets = results.map((r) => r.target);
+  // A target that failed has nothing to verify; scan it again instead.
+  const reached = results.filter((r) => !r.error);
   // Only hosts with planned commands; Windows and no-fix hosts have none.
   const applyHosts = results.filter((r) =>
     (r.mitigation?.steps.length ?? 0) > 0
@@ -302,14 +316,20 @@ function mitigateReport(results: Status[]) {
         if (m.postMaxSize) extra += ` --input postMaxSize=${m.postMaxSize}`;
       }
       md += "\nTo apply:\n\n";
-      md += command("mitigate", applyHosts.map((r) => r.target), extra);
+      md += command(
+        name,
+        "mitigate",
+        applyHosts.map((r) => r.target),
+        extra,
+      );
     }
-  } else {
+  } else if (reached.length > 0) {
+    const targets = reached.map((r) => r.target);
     md += "\nVerify with:\n\n";
     // A container or image target is the model's own; it has no SSH host.
-    md += targets.every(isLocal) || results.every((r) => r.inContainer)
-      ? "```\nswamp model method run " + MODEL_NAME + " scan\n```\n"
-      : command("scanFleet", targets);
+    md += targets.every(isLocal) || reached.every((r) => r.inContainer)
+      ? command(name, "scan", [])
+      : command(name, "scanFleet", targets);
   }
 
   return {

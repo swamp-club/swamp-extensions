@@ -32,17 +32,20 @@ PHP-FPM, Apache mod_php, php-cgi, FrankenPHP and LiteSpeed.
 Distributions backport the fix without changing the upstream version number,
 so a distro package below these versions may still be fixed. The extension
 knows the distro builds that a security tracker marked fixed as of
-**2026-10-21 15:16 UTC**:
+**2026-10-22 13:47 UTC**:
 
 | Distro | Package | Fixed build | Reference |
 | --- | --- | --- | --- |
+| Debian 12 (bookworm) | php8.2 | 8.2.35-1~deb12u1 | DLA-4848-1 |
 | Debian 13 (trixie) | php8.4 | 8.4.27-1~deb13u1 | DSA-6574-1 |
 | Ubuntu 22.04 | php8.1 | 8.1.2-1ubuntu2.28 | USN-8948-1 |
 | Ubuntu 24.04 | php8.3 | 8.3.6-0ubuntu0.24.04.13 | USN-8948-1 |
 | Ubuntu 26.04 | php8.5 | 8.5.4-0ubuntu1.5 | USN-8948-1 |
 | Ubuntu 26.10 | php8.5 | 8.5.9-0ubuntu2.1 | USN-8948-1 |
 
-At that time Debian 12 (bookworm) php8.2 had no fix yet. A tracker entry only
+Debian fixed bookworm and trixie with new upstream releases (8.2.35, 8.4.27),
+so an older Debian build such as `8.2.34-1~deb12u1` is reported as
+`update-available` with the advisory that fixes it. A tracker entry only
 vouches for builds of its own upstream version: a package from another
 repository, such as `ppa:ondrej/php` (`8.3.35-1+ubuntu24.04.1+deb.sury.org+1`),
 sorts above the Ubuntu backport without containing the fix. Sury builds follow
@@ -160,14 +163,14 @@ upstream fixed releases. `mitigate` does not change Windows hosts: it reports
 
 ## Usage
 
-Targets and SSH credentials are set as global arguments when the model is
+Targets and SSH credentials are set as global arguments when the behavior is
 created. Methods take `hosts`, `dryRun` and the mitigation options as inputs.
 
 ### Setup
 
 ```bash
 swamp repo init
-swamp model create @swamp/cve/php-rce-2026-10 php-rce-scanner \
+swamp behavior create @swamp/cve/php-rce-2026-10 php-rce-scanner \
   --global-arg sshUser=ubuntu \
   --global-arg sshKey=~/.ssh/my-key.pem
 ```
@@ -175,13 +178,13 @@ swamp model create @swamp/cve/php-rce-2026-10 php-rce-scanner \
 ### Scan the local machine
 
 ```bash
-swamp model method run php-rce-scanner scan
+swamp behavior run php-rce-scanner scan
 ```
 
 ### Scan a fleet
 
 ```bash
-swamp model method run php-rce-scanner scanFleet \
+swamp behavior run php-rce-scanner scanFleet \
   --input hosts=192.0.2.10,192.0.2.11
 ```
 
@@ -197,53 +200,58 @@ and a host without PHP:
 ```
 # PHP RCE Scan Results (CVE-2026-109618, CVE-2026-109619)
 
-**2** host(s) scanned: **0** affected, **1** to check with the vendor, **1** patched or without PHP
+**2** host(s) scanned: **1** affected, **0** to check with the vendor, **1** patched or without PHP
 
 | Host | PHP | SAPIs | Verdict | Public | Risk | Action |
 | ---- | --- | ----- | ------- | ------ | ---- | ------ |
-| 192.0.2.10 | 8.2.34 | fpm, cli | check-vendor | yes | HIGH | check-vendor |
+| 192.0.2.10 | 8.2.34 | fpm, cli | update-available | yes | CRITICAL | upgrade |
 | 192.0.2.11 | — | — | no PHP | no | NONE | none |
 
 ## Installs needing attention
 
 | Host | Install | SAPI | Version | Package | Verdict | Action |
 | ---- | ------- | ---- | ------- | ------- | ------- | ------ |
-| 192.0.2.10 | /usr/sbin/php-fpm8.2 | fpm | 8.2.34 | php8.2-fpm 8.2.34-1~deb12u1 | check-vendor | check-vendor |
-| 192.0.2.10 | /usr/bin/php8.2 | cli | 8.2.34 | php8.2-cli 8.2.34-1~deb12u1 | check-vendor | check-vendor |
+| 192.0.2.10 | /usr/sbin/php-fpm8.2 | fpm | 8.2.34 | php8.2-fpm 8.2.34-1~deb12u1 | update-available | upgrade |
+| 192.0.2.10 | /usr/bin/php8.2 | cli | 8.2.34 | php8.2-cli 8.2.34-1~deb12u1 | update-available | upgrade |
 
 ## Recommendations
 
-- php8.2-fpm, php8.2-cli 8.2.34-1~deb12u1: distro build below the upstream fix with no tracker entry in the 2026-10-21T15:16Z snapshot; your vendor may have backported the fix. Check your vendor's advisory.
-- Until upgraded, the advisories' partial mitigations for debian:8.2:fpm are session.upload_progress.enabled=0, memory_limit=-1 (mitigate with applyConfigMitigations=true writes them). They do not make PHP safe.
+- Upgrade php8.2-fpm, php8.2-cli through the package manager and restart PHP workers: run mitigate (dry run first).
+- Until upgraded, the advisories' partial mitigations for the PHP configured in /etc/php/8.2/fpm/conf.d are session.upload_progress.enabled=0, memory_limit=-1 (mitigate with applyConfigMitigations=true writes them). They do not make PHP safe.
 - No PHP installation found — no action required.
 
 ## Next Step
 
 Run mitigate as a dry run first on the hosts that need it:
 
-    swamp model method run php-rce-scanner mitigate --input hosts=192.0.2.10
+    swamp behavior run php-rce-scanner mitigate --input hosts=192.0.2.10
 
-Fixed upstream releases: 8.2.35, 8.3.36, 8.4.27 and 8.5.12. Distro verdicts use the tracker snapshot from 2026-10-21T15:16Z. No indicators of compromise have been published; log counts are hints only.
+Fixed upstream releases: 8.2.35, 8.3.36, 8.4.27 and 8.5.12. Distro verdicts use the tracker snapshot from 2026-10-22T13:47Z. No indicators of compromise have been published; log counts are hints only.
 ```
 
 ### Scan a Docker container or image
 
-Create a model per container or image:
+Create a behavior per container or image:
 
 ```bash
 # A running container
-swamp model create @swamp/cve/php-rce-2026-10 shop-web-scan \
+swamp behavior create @swamp/cve/php-rce-2026-10 shop-web-scan \
   --global-arg dockerContainer=shop-web
-swamp model method run shop-web-scan scan
+swamp behavior run shop-web-scan scan
 
 # Start an image, scan it, then stop it
-swamp model create @swamp/cve/php-rce-2026-10 php-image-scan \
+swamp behavior create @swamp/cve/php-rce-2026-10 php-image-scan \
   --global-arg dockerImage=php:8.2.34-apache
-swamp model method run php-image-scan scan
+swamp behavior run php-image-scan scan
 ```
 
 The official `php:8.2.34-apache` image reports both installs as `vulnerable`,
 `critical` (mod_php), with the action `rebuild-image`.
+
+The image's scan container runs with `--pids-limit=256`. Rootless podman
+otherwise applies the docker CLI's default of 0 literally, and the container
+cannot start a single process. If the container exits before the scan, the
+error gives its exit code and last log lines.
 
 Scanning a Docker host with `scan` or `scanFleet` also lists its running php
 containers, from `docker ps` and `docker inspect` only. If the SSH user cannot
@@ -260,14 +268,14 @@ swamp data list php-rce-scanner --json
 
 ```bash
 # Dry run (default): scans, checks sudo, prints the commands
-swamp model method run php-rce-scanner mitigate --input hosts=192.0.2.10
+swamp behavior run php-rce-scanner mitigate --input hosts=192.0.2.10
 
 # Apply
-swamp model method run php-rce-scanner mitigate \
+swamp behavior run php-rce-scanner mitigate \
   --input hosts=192.0.2.10 --input dryRun=false
 
 # Also write php.net's partial ini mitigations where no fixed package exists
-swamp model method run php-rce-scanner mitigate \
+swamp behavior run php-rce-scanner mitigate \
   --input hosts=192.0.2.10 --input applyConfigMitigations=true
 ```
 
@@ -332,7 +340,7 @@ Example dry run for the same Debian 12 host, as a user with scoped sudo and
 
 | Host | Outcome | Privilege | Risk now | Action |
 | ---- | ------- | --------- | -------- | ------ |
-| 192.0.2.10 | dry-run | sudo | HIGH | check-vendor |
+| 192.0.2.10 | dry-run | sudo | CRITICAL | upgrade |
 
 ## 192.0.2.10
 
@@ -391,7 +399,7 @@ Hosts without sudo (for example Alpine with doas) are reported as
 
 ## Inputs
 
-### Global arguments (set with `swamp model create --global-arg`)
+### Global arguments (set with `swamp behavior create --global-arg`)
 
 | Argument | Default | Description |
 | --- | --- | --- |
@@ -419,9 +427,10 @@ Hosts without sudo (for example Alpine with doas) are reported as
   attention, deduplicated recommendations, and the mitigate command for the
   hosts that need it.
 - After `mitigate`, it shows each host's outcome and commands, and the apply or
-  verify command.
+  verify command. A host that could not be reached shows its error, and the
+  heading still says whether the run was a dry run.
 
-The report's commands assume the model is named `php-rce-scanner`.
+The report's commands name the behavior that ran, so they work as printed.
 
 ## Limits
 

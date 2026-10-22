@@ -78,7 +78,7 @@ export const FIXED_VERSIONS: Record<string, string> = {
 export const ADVISORY_PUBLISHED_AT = "2026-10-21T13:34:00Z";
 
 /** When the distro tracker entries below were read. */
-export const TRACKER_SNAPSHOT = "2026-10-21T15:16Z";
+export const TRACKER_SNAPSHOT = "2026-10-22T13:47Z";
 
 export type TrackerEntry = {
   distro: string;
@@ -93,6 +93,13 @@ export type TrackerEntry = {
  * tracker itself lists as fixed belong here; anything else is check-vendor.
  */
 export const DISTRO_FIXES: TrackerEntry[] = [
+  {
+    distro: "debian",
+    release: "12",
+    sourcePackage: "php8.2",
+    fixedVersion: "8.2.35-1~deb12u1",
+    reference: "DLA-4848-1",
+  },
   {
     distro: "debian",
     release: "13",
@@ -260,6 +267,7 @@ const MitigationSchema = z.object({
     "needs-privilege",
     "not-needed",
     "no-automatic-fix",
+    "error",
   ]),
   steps: z.array(z.object({
     phase: z.enum(["upgrade", "harden", "restart"]),
@@ -1341,12 +1349,16 @@ export function verdictFor(
     const src = d.packageName ? debSourcePackage(d.packageName) : null;
     // A backport keeps the distro's old upstream number (8.3.6); a build
     // from another repo (ppa:ondrej/php, 8.3.35-1+deb.sury.org) sorts above
-    // it without the fix, so the tracker only speaks for its own upstream.
+    // it without the fix, so the tracker vouches only for its own upstream.
+    // A distro build below the fixed one (8.2.34-1~deb12u1 when the fix is
+    // the 8.2.35 rebase) still gets the fix from the same suite.
+    const sury = /deb\.sury\.org/.test(d.packageVersion ?? "");
     const entry = DISTRO_FIXES.find((e) =>
       e.distro === ctx.osId && e.release === ctx.osVersionId &&
       e.sourcePackage === src &&
       (!d.packageVersion ||
-        debUpstream(d.packageVersion) === debUpstream(e.fixedVersion))
+        debUpstream(d.packageVersion) === debUpstream(e.fixedVersion) ||
+        (!sury && compareDebVersions(d.packageVersion, e.fixedVersion) < 0))
     );
     if (
       entry && d.packageVersion &&
@@ -1377,7 +1389,7 @@ export function verdictFor(
       };
     }
     // Sury's packages follow upstream releases and backport nothing.
-    if (!/deb\.sury\.org/.test(d.packageVersion ?? "")) {
+    if (!sury) {
       return {
         verdict: "check-vendor",
         branch: c.branch,
@@ -1684,9 +1696,9 @@ function buildRecommendations(
           ? "set them in php.ini and restart the web server"
           : "mitigate with applyConfigMitigations=true writes them";
         recs.push(
-          `Until upgraded, the advisories' partial mitigations for ${s.scope} are ${
-            partial.join(", ")
-          } (${how}). They do not make PHP safe.`,
+          `Until upgraded, the advisories' partial mitigations for the PHP configured in ${
+            s.confDir ?? s.scope
+          } are ${partial.join(", ")} (${how}). They do not make PHP safe.`,
         );
       }
     }
@@ -1927,16 +1939,22 @@ export function makeRunner(transport: Transport, logger: Logger): Runner {
   };
 }
 
+/** Process limit for the scan container; the probe needs only a few. */
+export const SCAN_CONTAINER_PIDS_LIMIT = 256;
+
 async function startDockerImage(
   image: string,
   logger: Logger,
 ): Promise<string> {
+  // No --rm: a container that exits at once must stay inspectable.
+  // The explicit pids limit stands in for the docker CLI's 0, which rootless
+  // podman applies literally, so sh cannot fork.
   // swamp-quality-ignore deno-command
   const output = await new Deno.Command("docker", {
     args: [
       "run",
       "-d",
-      "--rm",
+      `--pids-limit=${SCAN_CONTAINER_PIDS_LIMIT}`,
       "--entrypoint",
       "sh",
       image,
@@ -1952,17 +1970,92 @@ async function startDockerImage(
     throw new Error(`Failed to start container from ${image}: ${stderr}`);
   }
   logger.info(`Started container ${containerId.slice(0, 12)} from ${image}`);
+  const exited = await containerExit(containerId, image);
+  if (exited) {
+    await stopContainer(containerId, logger);
+    throw new Error(exited);
+  }
   return containerId;
+}
+
+/**
+ * Why a scan container is not running, from `docker inspect` State output
+ * ("<running> <exit code>") and its log tail; null while it runs.
+ */
+export function containerExitMessage(
+  image: string,
+  state: string,
+  logs: string,
+): string | null {
+  const [running, exitCode] = state.trim().split(/\s+/);
+  if (running === "true") return null;
+  const tail = logs.trim().split("\n").slice(-5).join("; ");
+  let msg = `The container started from ${image} exited${
+    exitCode ? ` with code ${exitCode}` : ""
+  }${tail ? `: ${tail}` : ""}`;
+  if (
+    /cannot fork|fork: (retry|resource temporarily unavailable)/i.test(tail)
+  ) {
+    msg +=
+      `. It ran out of processes: check the container engine's pids limit (rootless podman with the docker CLI)`;
+  }
+  return msg;
+}
+
+async function containerExit(
+  containerId: string,
+  image: string,
+): Promise<string | null> {
+  const text = (b: Uint8Array) => new TextDecoder().decode(b);
+  // swamp-quality-ignore deno-command
+  const state = await new Deno.Command("docker", {
+    args: [
+      "inspect",
+      "--format",
+      "{{.State.Running}} {{.State.ExitCode}}",
+      containerId,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (state.code !== 0) {
+    return `The container started from ${image} is gone: ${
+      text(state.stderr).trim()
+    }`;
+  }
+  // swamp-quality-ignore deno-command
+  const logs = await new Deno.Command("docker", {
+    args: ["logs", "--tail", "20", containerId],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  return containerExitMessage(
+    image,
+    text(state.stdout),
+    text(logs.stdout) + text(logs.stderr),
+  );
+}
+
+/** Adds why the image's container stopped to a scan or mitigate failure. */
+async function withContainerExit(
+  err: unknown,
+  containerId: string,
+  image: string,
+): Promise<unknown> {
+  const exited = await containerExit(containerId, image);
+  if (!exited) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  return new Error(`${message}. ${exited}`);
 }
 
 async function stopContainer(containerId: string, logger: Logger) {
   // swamp-quality-ignore deno-command
   await new Deno.Command("docker", {
-    args: ["stop", "-t", "1", containerId],
+    args: ["rm", "-f", containerId],
     stdout: "piped",
     stderr: "piped",
   }).output();
-  logger.info(`Stopped container ${containerId.slice(0, 12)}`);
+  logger.info(`Removed container ${containerId.slice(0, 12)}`);
 }
 
 // --- Scanning ----------------------------------------------------------------
@@ -2033,14 +2126,18 @@ async function writeScanLog(log: FileWriter, status: Status) {
   await log.writeLine(`${status.summary}\n`);
 }
 
-function errorStatus(target: string, err: unknown): Status {
+function errorStatus(
+  target: string,
+  err: unknown,
+  inContainer = false,
+): Status {
   const message = err instanceof Error ? err.message : String(err);
   return {
     scanTimestamp: new Date().toISOString(),
     target,
     hostname: target,
     os: { id: "", versionId: "", prettyName: "" },
-    inContainer: false,
+    inContainer,
     runAsRoot: false,
     vulnerable: false,
     riskLevel: "unknown",
@@ -2068,6 +2165,34 @@ function errorStatus(target: string, err: unknown): Status {
     recommendations: [`Fix connectivity to ${target} and scan again.`],
     trackerSnapshot: TRACKER_SNAPSHOT,
     mitigation: null,
+  };
+}
+
+/**
+ * A mitigate target that failed keeps the options it was run with, so its
+ * report still reads as the dry run (or apply) that was asked for.
+ */
+export function failedMitigation(
+  status: Status,
+  opts: {
+    dryRun: boolean;
+    applyConfigMitigations: boolean;
+    postMaxSize: string;
+  },
+): Status {
+  return {
+    ...status,
+    mitigation: {
+      dryRun: opts.dryRun,
+      applyConfigMitigations: opts.applyConfigMitigations,
+      postMaxSize: opts.postMaxSize,
+      // Never checked: the target failed before the privilege preflight.
+      privilege: "unavailable",
+      missingPrivileges: [],
+      outcome: "error",
+      steps: [],
+      notes: [],
+    },
   };
 }
 
@@ -2261,23 +2386,24 @@ export function planMitigation(
         phase: "harden",
         argv: ["tee", `${scope.confDir}/${DROP_IN_NAME}`],
         privileged: true,
-        purpose: `Write the advisory's partial mitigations for ${scope.scope}`,
+        purpose:
+          `Write the advisory's partial mitigations for ${scope.confDir}`,
         conditional: steps.some((s) => s.phase === "upgrade"),
         content: dropIn.content,
       });
       if (!dropIn.postMaxSizeWritten) {
         notes.push(
-          `${scope.scope}: post_max_size is already ${scope.postMaxSize}, at or below ${opts.postMaxSize}; left unchanged.`,
+          `${scope.confDir}: post_max_size is already ${scope.postMaxSize}, at or below ${opts.postMaxSize}; left unchanged.`,
         );
       } else if (
         sizeBytes(scope.uploadMaxFilesize) >= sizeBytes(opts.postMaxSize)
       ) {
         notes.push(
-          `${scope.scope}: post_max_size drops from ${scope.postMaxSize} to ${opts.postMaxSize}, but upload_max_filesize=${scope.uploadMaxFilesize} is not below it; uploads that size will fail until you lower upload_max_filesize or pass a larger postMaxSize.`,
+          `${scope.confDir}: post_max_size drops from ${scope.postMaxSize} to ${opts.postMaxSize}, but upload_max_filesize=${scope.uploadMaxFilesize} is not below it; uploads that size will fail until you lower upload_max_filesize or pass a larger postMaxSize.`,
         );
       } else {
         notes.push(
-          `${scope.scope}: post_max_size drops from ${scope.postMaxSize} to ${opts.postMaxSize}; larger uploads will be rejected.`,
+          `${scope.confDir}: post_max_size drops from ${scope.postMaxSize} to ${opts.postMaxSize}; larger uploads will be rejected.`,
         );
       }
     }
@@ -2714,7 +2840,15 @@ export async function mitigateTarget(
 
 export const model = {
   type: "@swamp/cve/php-rce-2026-10",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.22.1",
+      description: "Debian 12 tracker fix; a failed mitigate target keeps " +
+        "its options (outcome error); the report names the running behavior.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   reports: ["@swamp/cve/php-rce-2026-10-report"],
@@ -2776,6 +2910,10 @@ export const model = {
             status,
           );
           return { dataHandles: [handle] };
+        } catch (err) {
+          throw autoContainer
+            ? await withContainerExit(err, autoContainer, g.dockerImage!)
+            : err;
         } finally {
           if (autoContainer) await stopContainer(autoContainer, logger);
           await log.finalize();
@@ -2939,6 +3077,10 @@ export const model = {
               },
               log,
             );
+          } catch (err) {
+            throw autoContainer
+              ? await withContainerExit(err, autoContainer, g.dockerImage!)
+              : err;
           } finally {
             await log.finalize();
           }
@@ -2950,7 +3092,14 @@ export const model = {
           const outcome = settled[i];
           const status = outcome.status === "fulfilled"
             ? outcome.value.status
-            : errorStatus(targets[i].label, outcome.reason);
+            : failedMitigation(
+              errorStatus(
+                targets[i].label,
+                outcome.reason,
+                targets[i].transport.kind === "docker",
+              ),
+              args,
+            );
           handles.push(
             await context.writeResource(
               "status",

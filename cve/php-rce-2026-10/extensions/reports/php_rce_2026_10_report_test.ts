@@ -33,6 +33,19 @@ const UPGRADABLE = [
   "PENDING|apt|php8.2-fpm/bookworm-security 8.2.35-1~deb12u1 amd64 [upgradable from: 8.2.34-1~deb12u1]",
 ];
 
+// A distro build with no tracker entry: the vendor's to confirm.
+const RHEL = [
+  "HOSTNAME|app-02",
+  "UID|0",
+  "OS|ID=rhel",
+  "OS|VERSION_ID=9.6",
+  "BIN|/usr/sbin/php-fpm|php-fpm|PHP 8.2.30 (fpm-fcgi)",
+  "PKG|rpm|php-fpm|8.2.30-1.el9|installed",
+  "LISTEN|LISTEN 0 511 0.0.0.0:80 0.0.0.0:*",
+  "PROC|nginx",
+  "HANDOFF|/etc/nginx/conf.d/default.conf",
+];
+
 const PATCHED = [
   "HOSTNAME|web-02",
   "UID|0",
@@ -45,6 +58,7 @@ function makeContext(
   methodName: string,
   results: unknown[],
   modelType = "@swamp/cve/php-rce-2026-10",
+  definitionName?: string,
 ) {
   const encoded = results.map((r) =>
     new TextEncoder().encode(JSON.stringify(r))
@@ -53,6 +67,7 @@ function makeContext(
     modelType,
     modelId: "php-rce-scanner",
     methodName,
+    definition: definitionName ? { name: definitionName } : undefined,
     dataHandles: results.map((_, i) => ({
       specName: "status",
       name: `result-${i}`,
@@ -87,7 +102,7 @@ Deno.test("report returns empty without status handles", async () => {
 Deno.test("scan report: counts and fleet table", async () => {
   const r = await report.execute(makeContext("scanFleet", [
     status("10.0.1.50", UPGRADABLE),
-    status("10.0.1.51", BOOKWORM),
+    status("10.0.1.51", RHEL),
     status("10.0.1.52", PATCHED),
     status("10.0.1.53", NO_PHP),
   ]));
@@ -101,7 +116,7 @@ Deno.test("scan report: counts and fleet table", async () => {
   );
   assertStringIncludes(
     r.markdown,
-    "| 10.0.1.51 | 8.2.34 | fpm | check-vendor | yes | HIGH | check-vendor |",
+    "| 10.0.1.51 | 8.2.30 | fpm | check-vendor | yes | HIGH | check-vendor |",
   );
   assertStringIncludes(
     r.markdown,
@@ -137,7 +152,7 @@ Deno.test("scan report: next step targets remote hosts that need action", async 
   ]));
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner mitigate --input hosts=10.0.1.50,10.0.1.51\n",
+    "swamp behavior run php-rce-scanner mitigate --input hosts=10.0.1.50,10.0.1.51\n",
   );
 });
 
@@ -147,7 +162,7 @@ Deno.test("scan report: next step omits hosts for localhost", async () => {
   );
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner mitigate\n",
+    "swamp behavior run php-rce-scanner mitigate\n",
   );
 });
 
@@ -232,7 +247,7 @@ Deno.test("mitigate dry run report: header, commands and apply command", async (
   assertStringIncludes(r.markdown, "sudo -n -- /usr/bin/apt-get update\n");
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner mitigate --input hosts=10.0.1.50 --input dryRun=false",
+    "swamp behavior run php-rce-scanner mitigate --input hosts=10.0.1.50 --input dryRun=false",
   );
 });
 
@@ -273,7 +288,7 @@ Deno.test("mitigate applied report: step status and verify command", async () =>
   );
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner scanFleet --input hosts=10.0.1.52",
+    "swamp behavior run php-rce-scanner scanFleet --input hosts=10.0.1.52",
   );
 });
 
@@ -285,7 +300,7 @@ Deno.test("mitigate applied report: localhost verifies with scan", async () => {
   const r = await report.execute(makeContext("mitigate", [s]));
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner scan\n",
+    "swamp behavior run php-rce-scanner scan\n",
   );
 });
 
@@ -360,7 +375,69 @@ Deno.test("mitigate report on a container verifies with scan, not scanFleet", as
   ]));
   assertStringIncludes(
     r.markdown,
-    "swamp model method run php-rce-scanner scan\n",
+    "swamp behavior run php-rce-scanner scan\n",
   );
   assert(!r.markdown.includes("scanFleet"));
+});
+
+Deno.test("mitigate report: a failed dry run says DRY RUN, not APPLIED", async () => {
+  // A dockerContainer target that was removed: unreachable, still a dry run.
+  const gone = withMitigation({
+    ...status("php-web", NO_PHP),
+    inContainer: true,
+    error: "Cannot execute commands on php-web: no such container",
+    riskLevel: "unknown",
+    action: "unreachable",
+  }, { outcome: "error", privilege: "unavailable" });
+  const r = await report.execute(makeContext("mitigate", [gone]));
+  assertStringIncludes(r.markdown, "# PHP RCE Mitigation: DRY RUN");
+  assertStringIncludes(
+    r.markdown,
+    "| php-web | ERROR | — | UNKNOWN | unreachable |",
+  );
+  assertStringIncludes(
+    r.markdown,
+    "## php-web\n\n- Cannot execute commands on php-web: no such container\n",
+  );
+  assert(!r.markdown.includes("Verify with"));
+  assert(!r.markdown.includes("To apply"));
+  assert(!r.markdown.includes("scanFleet"));
+  const json = r.json as { dryRun: boolean; outcome: string }[];
+  assertEquals(json[0].dryRun, true);
+  assertEquals(json[0].outcome, "error");
+});
+
+Deno.test("mitigate report: an applied run verifies only the hosts it reached", async () => {
+  const done = withMitigation(status("10.0.1.52", PATCHED), {
+    dryRun: false,
+    outcome: "applied",
+  });
+  const gone = withMitigation({
+    ...status("10.0.1.99", NO_PHP),
+    error: "Cannot execute commands on 10.0.1.99: timed out",
+    riskLevel: "unknown",
+    action: "unreachable",
+  }, { dryRun: false, outcome: "error" });
+  const r = await report.execute(makeContext("mitigate", [done, gone]));
+  assertStringIncludes(r.markdown, "# PHP RCE Mitigation: APPLIED");
+  assertStringIncludes(
+    r.markdown,
+    "swamp behavior run php-rce-scanner scanFleet --input hosts=10.0.1.52\n",
+  );
+});
+
+Deno.test("report commands use the running behavior's name", async () => {
+  const r = await report.execute(
+    makeContext(
+      "scanFleet",
+      [status("10.0.1.50", UPGRADABLE)],
+      "@swamp/cve/php-rce-2026-10",
+      "shop-web-scan",
+    ),
+  );
+  assertStringIncludes(
+    r.markdown,
+    "swamp behavior run shop-web-scan mitigate --input hosts=10.0.1.50",
+  );
+  assert(!r.markdown.includes("php-rce-scanner"));
 });

@@ -8,8 +8,10 @@ import {
   analyze,
   classifyVersion,
   compareDebVersions,
+  containerExitMessage,
   DROP_IN_NAME,
   dropInContent,
+  failedMitigation,
   fpmListenKind,
   hostList,
   type IniScope,
@@ -288,10 +290,43 @@ Deno.test("verdictFor: distro build below the fix is check-vendor, never vulnera
   const v = verdictFor({
     version: "8.2.34",
     source: "distro",
+    packageName: "php-fpm",
+    packageVersion: "8.2.34-1.fc41",
+  }, { osId: "fedora", osVersionId: "41", pendingPackages: new Set() });
+  assertEquals(v.verdict, "check-vendor");
+});
+
+Deno.test("verdictFor: Debian build below a rebased tracker fix is update-available", () => {
+  // Debian fixed bookworm and trixie with new upstream releases, so the
+  // installed build's upstream differs from the fixed build's.
+  const deb12 = verdictFor({
+    version: "8.2.34",
+    source: "distro",
     packageName: "php8.2-fpm",
     packageVersion: "8.2.34-1~deb12u1",
   }, ctx);
-  assertEquals(v.verdict, "check-vendor");
+  assertEquals(deb12.verdict, "update-available");
+  assertEquals(deb12.fixedVersion, "8.2.35-1~deb12u1");
+  assertStringIncludes(deb12.note, "DLA-4848-1");
+  const deb13 = verdictFor({
+    version: "8.4.24",
+    source: "distro",
+    packageName: "libapache2-mod-php8.4",
+    packageVersion: "8.4.24-1~deb13u1",
+  }, { osId: "debian", osVersionId: "13", pendingPackages: new Set() });
+  assertEquals(deb13.verdict, "update-available");
+  assertStringIncludes(deb13.note, "DSA-6574-1");
+});
+
+Deno.test("verdictFor: a Sury build below the tracker fix is not given the distro's fix", () => {
+  const below = verdictFor({
+    version: "8.3.5",
+    source: "distro",
+    packageName: "php8.3-fpm",
+    packageVersion: "8.3.5-1+ubuntu24.04.1+deb.sury.org+1",
+  }, { osId: "ubuntu", osVersionId: "24.04", pendingPackages: new Set() });
+  assertEquals(below.verdict, "vulnerable");
+  assertEquals(below.fixedVersion, "8.3.36");
 });
 
 Deno.test("verdictFor: distro build at the upstream fix is patched", () => {
@@ -410,6 +445,13 @@ Deno.test("official apache image: mod_php is critical and needs a rebuild", () =
   assertEquals(mod.fixedVersion, "8.2.35");
   assert(s.recommendations.some((r) => r.includes("8.2.35 or newer")));
   assert(s.recommendations.some((r) => r.includes("image's php.ini")));
+  // The ini layout key ("official") is internal; name the directory.
+  assert(
+    s.recommendations.some((r) =>
+      r.includes("for the PHP configured in /usr/local/etc/php/conf.d are")
+    ),
+  );
+  assert(!s.recommendations.some((r) => r.includes("for official")));
 });
 
 Deno.test("official fpm-alpine image: FPM on all interfaces is publicly reachable", () => {
@@ -426,16 +468,15 @@ Deno.test("official fpm-alpine image: FPM on all interfaces is publicly reachabl
   assertEquals(s.exposure.iniScopes[0].confDir, "/usr/local/etc/php/conf.d");
 });
 
-Deno.test("bookworm VM: distro FPM behind public nginx is check-vendor and high", () => {
+Deno.test("bookworm VM: distro FPM below DLA-4848-1 behind public nginx is upgrade and critical", () => {
   const s = analyze(parseProbe(bookwormVm()), "web-01", { inContainer: false });
-  assertEquals(s.riskLevel, "high");
-  assertEquals(s.action, "check-vendor");
-  assertEquals(s.vulnerable, false);
+  assertEquals(s.riskLevel, "critical");
+  assertEquals(s.action, "upgrade");
   assert(s.exposure.publiclyListening);
   assert(s.exposure.evidence.some((e) => e.includes("0.0.0.0:80")));
   const fpm = s.installs.find((i) => i.sapi === "fpm")!;
   assertEquals(fpm.packageName, "php8.2-fpm");
-  assertEquals(fpm.verdict, "check-vendor");
+  assertEquals(fpm.verdict, "update-available");
   const scope = s.exposure.iniScopes.find((x) => x.scope === "debian:8.2:fpm")!;
   assertEquals(scope.sessionUploadProgress, true);
   assertEquals(scope.memoryLimitFinite, true);
@@ -946,9 +987,15 @@ Deno.test("lowering post_max_size is reported, with upload_max_filesize clashes"
   const p = plan(vm, true);
   assert(
     p.notes.some((n) =>
+      n.startsWith("/etc/php/8.2/fpm/conf.d: post_max_size drops") &&
       n.includes("drops from 100M to 32M") &&
       n.includes("upload_max_filesize=64M")
     ),
+  );
+  const harden = p.steps.find((s) => s.phase === "harden")!;
+  assertEquals(
+    harden.purpose,
+    "Write the advisory's partial mitigations for /etc/php/8.2/fpm/conf.d",
   );
 });
 
@@ -1436,4 +1483,39 @@ Deno.test("a Windows php-cgi.exe nothing runs or hands off to is not serving", (
 
 Deno.test("the probe's stale-worker pattern reaches sh with escaped parentheses", () => {
   assertStringIncludes(PROBE_SCRIPT, String.raw`[^/ ]*) \(deleted\)$'`);
+});
+
+Deno.test("containerExitMessage: running is null, an exit names code and log tail", () => {
+  assertEquals(containerExitMessage("php:8.2.34-apache", "true 0\n", ""), null);
+  const forked = containerExitMessage(
+    "php:8.2.34-apache",
+    "false 2\n",
+    "sh: 1: Cannot fork\n",
+  )!;
+  assertStringIncludes(
+    forked,
+    "The container started from php:8.2.34-apache exited with code 2: sh: 1: Cannot fork",
+  );
+  assertStringIncludes(forked, "pids limit");
+  const plain = containerExitMessage("php:8.3", "false 127", "")!;
+  assertEquals(
+    plain,
+    "The container started from php:8.3 exited with code 127",
+  );
+});
+
+Deno.test("failedMitigation keeps the options the run was asked for", () => {
+  const s = analyze(parseProbe(OFFICIAL_APACHE), "php:8.2.34-apache", {
+    inContainer: true,
+  });
+  const f = failedMitigation(s, {
+    dryRun: true,
+    applyConfigMitigations: true,
+    postMaxSize: "8M",
+  });
+  assertEquals(f.mitigation!.dryRun, true);
+  assertEquals(f.mitigation!.applyConfigMitigations, true);
+  assertEquals(f.mitigation!.postMaxSize, "8M");
+  assertEquals(f.mitigation!.outcome, "error");
+  assertEquals(f.mitigation!.steps, []);
 });
