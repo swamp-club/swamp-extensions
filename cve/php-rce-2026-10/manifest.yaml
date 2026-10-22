@@ -1,0 +1,77 @@
+manifestVersion: 1
+name: "@swamp/cve/php-rce-2026-10"
+version: "2026.10.21.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Finds and patches PHP installs exposed to the critical PHP remote code
+  execution vulnerabilities fixed on 2026-10-21 (CERT-EU advisory 2026-018,
+  CVSS 9.2 each):
+
+  - **CVE-2026-109618**, RCE via OOM corruption (GHSA-w8hw-w9fx-j79w).
+    php.net demonstrated an unauthenticated exploit against Apache mod_php
+    that runs before any application code.
+  - **CVE-2026-109619**, RCE via stale global state (GHSA-6wmf-4rv5-p3rp).
+
+  Fixed upstream in PHP **8.2.35, 8.3.36, 8.4.27 and 8.5.12**. PHP 8.1 and
+  older get no upstream fix.
+
+  ## Methods
+
+  - `scan` scans one host (local, SSH, or Docker container or image).
+    Windows hosts are scanned over SSH with a PowerShell probe.
+  - `scanFleet` scans many hosts in parallel over SSH, Linux and Windows.
+  - `mitigate` scans first, then upgrades PHP packages through the host's
+    package manager and restarts PHP-FPM or Apache. `dryRun` defaults to
+    true. Containers are reported for an image rebuild, never changed in
+    place, and Windows hosts are scanned only. Hosts with no fixed package
+    are reported as `isolate`; with `applyConfigMitigations=true` it also
+    writes php.net's partial ini mitigations.
+
+  ## What it reports
+
+  Every PHP binary, php-fpm, Apache mod_php, php-cgi, FrankenPHP and
+  LiteSpeed install, distro package and running php container, with a
+  verdict:
+
+  - `patched`
+  - `vulnerable`
+  - `unsupported`
+  - `update-available`
+  - `check-vendor`: a distro build below the upstream fix that no tracker
+    marks fixed yet
+  - `unknown`
+
+  It also reports whether PHP is publicly listening, and the exposure
+  settings from the ini files of the SAPI that serves requests.
+
+  The advisories publish no indicators of compromise, so log counts of
+  worker crashes and memory exhaustion are hints, not proof either way.
+
+  Scanning needs no root. mitigate needs root, or passwordless sudo for the
+  exact commands it runs (`sudo -n`, checked per command before anything
+  changes).
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - php_rce_2026_10.ts
+
+reports:
+  - php_rce_2026_10_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+
+labels:
+  - security
+  - vulnerability
+  - cve
+  - php
+  - rce
