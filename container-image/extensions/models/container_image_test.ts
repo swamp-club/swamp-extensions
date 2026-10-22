@@ -28,7 +28,11 @@ import {
   resetCommandExecutor,
   setCommandExecutor,
 } from "./_lib/runner.ts";
-import { checkBuildxAvailable, checkRuntimeAvailable } from "./_lib/checks.ts";
+import {
+  checkBuildxAvailable,
+  checkRuntimeAvailable,
+  defaultBuildxProbe,
+} from "./_lib/checks.ts";
 
 // ---------------------------------------------------------------------------
 // Test harness
@@ -150,6 +154,57 @@ Deno.test("build - exports when exportFormat and exportPath set", async () => {
   assertEquals(h.execRequests[1].args.includes("oci-archive"), true);
   assertEquals(h.writes[0].data.exportFormat, "oci");
   assertEquals(h.writes[0].data.exportPath, "/tmp/myapp-oci.tar");
+});
+
+Deno.test("build - records platform and passes it to the build", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  installMockExecutor(h);
+
+  try {
+    await runBuild(
+      {
+        context: ".",
+        tag: "myapp:amd64",
+        noCache: false,
+        platform: "linux/amd64",
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 1);
+  assertEquals(h.execRequests[0].bin, "container");
+  const args = h.execRequests[0].args;
+  assertEquals(args[args.indexOf("--platform") + 1], "linux/amd64");
+  assertEquals(h.writes[0].data.platform, "linux/amd64");
+});
+
+Deno.test("build - docker oci export passes platform to the re-export", async () => {
+  const h = makeHarness({ name: "myapp", binary: "docker" });
+  installMockExecutor(h);
+
+  try {
+    await runBuild(
+      {
+        context: ".",
+        tag: "myapp:amd64",
+        noCache: false,
+        platform: "linux/amd64",
+        exportFormat: "oci",
+        exportPath: "/tmp/myapp-oci.tar",
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 2);
+  const exportArgs = h.execRequests[1].args;
+  assertEquals(exportArgs.slice(0, 2), ["buildx", "build"]);
+  assertEquals(exportArgs[exportArgs.indexOf("--platform") + 1], "linux/amd64");
 });
 
 Deno.test("build - errors when exportFormat set without tag", async () => {
@@ -433,6 +488,149 @@ Deno.test("multi-platform-build - podman issues manifest rm, build, then manifes
   assertEquals(h.execRequests[3].args[1], "push");
 });
 
+const INDEX_DIGEST =
+  "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const OTHER_DIGEST =
+  "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+
+Deno.test("multi-platform-build - container builds then pushes each tag", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  let pushes = 0;
+  setCommandExecutor((req: ExecRequest) => {
+    h.execRequests.push(req);
+    if (req.args[0] === "image" && req.args[1] === "push") {
+      pushes++;
+      return Promise.resolve({
+        exitCode: 0,
+        stdout: pushes === 1 ? INDEX_DIGEST : OTHER_DIGEST,
+        stderr: "",
+      });
+    }
+    return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+  });
+
+  try {
+    await runBuildxBuild(
+      {
+        context: ".",
+        platforms: ["linux/amd64", "linux/arm64"],
+        tags: [
+          "registry.example.com/app:latest",
+          "registry.example.com/app:1.0",
+        ],
+        push: true,
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 3);
+  assertEquals(h.execRequests[0].bin, "container");
+  assertEquals(h.execRequests[0].args[0], "build");
+  assertEquals(
+    h.execRequests[0].args.filter((a) => a === "--platform").length,
+    2,
+  );
+  assertEquals(h.execRequests[1].args, [
+    "image",
+    "push",
+    "registry.example.com/app:latest",
+  ]);
+  assertEquals(h.execRequests[2].args, [
+    "image",
+    "push",
+    "registry.example.com/app:1.0",
+  ]);
+  assertEquals(h.writes[0].specName, "multiPlatformBuildResult");
+  assertEquals(h.writes[0].data.digest, INDEX_DIGEST);
+  assertEquals(h.writes[0].data.binary, "container");
+});
+
+Deno.test("multi-platform-build - container with push=false only builds", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  installMockExecutor(h);
+
+  try {
+    await runBuildxBuild(
+      {
+        context: ".",
+        platforms: ["linux/amd64", "linux/arm64"],
+        tags: ["app:latest"],
+        push: false,
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 1);
+  assertEquals(h.execRequests[0].args[0], "build");
+});
+
+Deno.test("multi-platform-build - container throws when a push fails", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  setCommandExecutor((req: ExecRequest) => {
+    h.execRequests.push(req);
+    if (req.args[0] === "image" && req.args[1] === "push") {
+      return Promise.resolve({ exitCode: 1, stdout: "", stderr: "denied" });
+    }
+    return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+  });
+
+  try {
+    await assertRejects(
+      () =>
+        runBuildxBuild(
+          {
+            context: ".",
+            platforms: ["linux/amd64", "linux/arm64"],
+            tags: ["app:latest", "app:1.0"],
+            push: true,
+          },
+          h.ctx,
+        ),
+      Error,
+      "denied",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  // build + first push; stops before the second tag
+  assertEquals(h.execRequests.length, 2);
+  assertEquals(h.writes[0].data.exitCode, 1);
+});
+
+Deno.test("multi-platform-build - container rejects cacheFrom before exec", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  installMockExecutor(h);
+
+  try {
+    await assertRejects(
+      () =>
+        runBuildxBuild(
+          {
+            context: ".",
+            platforms: ["linux/amd64"],
+            tags: ["app:latest"],
+            push: false,
+            cacheFrom: ["type=registry,ref=app:cache"],
+          },
+          h.ctx,
+        ),
+      Error,
+      "--cache-from",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 0);
+});
+
 Deno.test("multi-platform-build - throws on non-zero exit", async () => {
   const h = makeHarness({ name: "myapp", binary: "docker" });
   installMockExecutor(h, { exitCode: 1, stdout: "", stderr: "buildx error" });
@@ -515,14 +713,16 @@ Deno.test("checkBuildxAvailable - passes for podman (native support)", async () 
   assertEquals(result.pass, true);
 });
 
-Deno.test("checkBuildxAvailable - fails for Apple Containers", async () => {
+Deno.test("checkBuildxAvailable - passes for Apple Containers", async () => {
   const result = await checkBuildxAvailable(
     { globalArgs: { name: "test", binary: "container" } },
     () => Promise.resolve(true),
   );
-  assertEquals(result.pass, false);
-  assert(result.errors![0].includes("Apple Containers"));
-  assert(result.errors![0].includes("host architecture"));
+  assertEquals(result.pass, true);
+});
+
+Deno.test("defaultBuildxProbe - Apple Containers needs no buildx", async () => {
+  assertEquals(await defaultBuildxProbe("container"), true);
 });
 
 // ---------------------------------------------------------------------------

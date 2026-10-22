@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/container-image"
-version: "2026.10.13.1"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: |
   Build, run, and push container images via Docker, Podman, or Apple
@@ -16,7 +16,7 @@ description: |
   | `run`                  | `docker run --rm`  | `podman run --rm`               | `container run --rm`              |
   | `login`                | `docker login`     | `podman login`                  | `container registry login`        |
   | `push`                 | `docker push`      | `podman push`                   | `container image push`            |
-  | `multi-platform-build` | `docker buildx build` | `podman build --platform` + push | Not supported (host arch only) |
+  | `multi-platform-build` | `docker buildx build` | `podman build --platform` + push | `container build --platform` + push |
 
   ## Methods
 

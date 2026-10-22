@@ -18,8 +18,8 @@
  *
  * Two checks, both computable from globalArgs alone:
  *   - runtime-available — configured binary is on PATH
- *   - buildx-available — docker needs buildx plugin; podman has native
- *     support; Apple Containers is single-platform only
+ *   - buildx-available — docker needs buildx plugin; podman and Apple
+ *     Containers have native support
  *
  * All three runtimes (docker, podman, container) support login via
  * --password-stdin — Apple Containers routes through
@@ -66,7 +66,8 @@ export const defaultBinaryProbe: BinaryProbe = async (binary) => {
 export type BuildxProbe = (binary: Binary) => Promise<boolean>;
 
 export const defaultBuildxProbe: BuildxProbe = async (binary) => {
-  if (binary === "podman") return true;
+  // podman and Apple Containers build multi-platform natively, no buildx
+  if (binary === "podman" || binary === "container") return true;
   try {
     const cmd = new Deno.Command(binary, {
       args: ["buildx", "inspect"],
@@ -101,20 +102,6 @@ export async function checkBuildxAvailable(
   probe: BuildxProbe = defaultBuildxProbe,
 ): Promise<CheckResult> {
   const g = GlobalArgsSchema.parse(ctx.globalArgs);
-
-  if (g.binary === "container") {
-    return {
-      pass: false,
-      errors: [
-        "Apple Containers ('container') can only build for the host " +
-        "architecture (arm64) — it has no cross-compilation support for " +
-        "multi-platform manifests. Use the 'build' method for " +
-        "single-platform builds, or set globalArguments.binary to 'docker' " +
-        "or 'podman' to use multi-platform-build.",
-      ],
-    };
-  }
-
   const available = await probe(g.binary);
   if (available) return { pass: true };
   return {

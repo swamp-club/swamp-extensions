@@ -65,7 +65,7 @@ import {
 
 export const model = {
   type: "@swamp/container-image",
-  version: "2026.08.25.2",
+  version: "2026.10.22.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -77,6 +77,12 @@ export const model = {
     {
       toVersion: "2026.08.25.2",
       description: "Fix missing upgradeAttributes that prevented installation.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Add platform input to build; support Apple Containers in " +
+        "multi-platform-build.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -142,8 +148,8 @@ export const model = {
     "multi-platform-available": {
       description:
         "Ensures multi-platform build support is available. Docker needs " +
-        "the buildx plugin; podman has native support; Apple Containers " +
-        "is single-platform only.",
+        "the buildx plugin; podman and Apple Containers have native " +
+        "support.",
       labels: ["policy"],
       appliesTo: ["multi-platform-build"],
       execute: (ctx: CheckContext, probe?: BuildxProbe) =>
@@ -192,8 +198,9 @@ export const model = {
     "multi-platform-build": {
       description:
         "Multi-platform build and optional push. Docker uses buildx; Podman " +
-        "uses native --platform + manifest push. Captures the pushed digest. " +
-        "Not available for Apple Containers (single-platform only).",
+        "uses native --platform + manifest push; Apple Containers uses " +
+        "repeated --platform + image push per tag. Captures the pushed " +
+        "digest.",
       arguments: BuildxBuildArgsSchema,
       execute: (args: BuildxBuildArgs, ctx: ContainerContext) =>
         runBuildxBuild(args, ctx),

@@ -56,11 +56,12 @@ globalArguments:
 | `run`                  | `docker run --rm`     | `podman run --rm`                | `container run --rm`       |
 | `login`                | `docker login`        | `podman login`                   | `container registry login` |
 | `push`                 | `docker push`         | `podman push`                    | `container image push`     |
-| `multi-platform-build` | `docker buildx build` | `podman build --platform` + push | Not supported              |
+| `multi-platform-build` | `docker buildx build` | `podman build --platform` + push | `container build --platform` + `container image push` |
 
-Apple Containers can only build for the host architecture (arm64 on Apple
-Silicon), so `multi-platform-build` is blocked by a pre-flight check with a
-clear error message.
+Apple Containers builds non-host and multi-platform images with
+`--platform` (Rosetta for `linux/amd64` on Apple Silicon). This needs
+`container` 1.5.0 or later; older releases pass the pre-flight check but
+fail at build time.
 
 ## Methods
 
@@ -78,6 +79,7 @@ image as an OCI or Docker archive.
 | `buildArgs`    | Record<string,string> | No       | Build arguments (`--build-arg`) |
 | `labels`       | Record<string,string> | No       | Image labels (`--label`) |
 | `noCache`      | boolean               | No       | Disable build cache (default: `false`) |
+| `platform`     | string                | No       | Target platform, e.g. `linux/amd64` (default: host platform) |
 | `exportFormat` | `"oci"` \| `"docker"` | No       | Export the image as a tar archive |
 | `exportPath`   | string                | No       | Destination path for the archive |
 
@@ -94,6 +96,11 @@ swamp model method run myapp build \
   --input dockerfile=Dockerfile.prod \
   --input target=release \
   --input buildArgs='{"NODE_ENV":"production"}' --json
+
+# Build a linux/amd64 image on an Apple Silicon host
+swamp model method run myapp build \
+  --input tag=myapp:amd64 \
+  --input platform=linux/amd64 --json
 
 # Build and export as OCI archive
 swamp model method run myapp build \
@@ -230,8 +237,7 @@ Each runtime routes through its own push subcommand:
 ### `multi-platform-build`
 
 Build for multiple platforms in a single pass, with optional push.
-**Docker and Podman only** — Apple Containers can only build for the host
-architecture.
+All three runtimes are supported.
 
 | Argument     | Type                  | Required | Description |
 | ------------ | --------------------- | -------- | ----------- |
@@ -250,6 +256,10 @@ The implementation differs by runtime:
 - **Docker**: `docker buildx build --platform linux/amd64,linux/arm64 --push`
 - **Podman**: `podman build --platform linux/amd64,linux/arm64 --manifest <tag>`,
   then `podman manifest push <tag>` if `push: true`
+- **Apple Containers**: `container build --platform linux/amd64 --platform linux/arm64 -t <tag>`,
+  then `container image push <tag>` for each tag if `push: true`.
+  `cacheFrom` and `cacheTo` are rejected — `container build` has no cache
+  import/export flags. Requires `container` 1.5.0 or later.
 
 **Examples:**
 

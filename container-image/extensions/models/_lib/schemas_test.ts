@@ -76,6 +76,20 @@ Deno.test("BuildArgsSchema - rejects NUL bytes in dockerfile", () => {
   });
 });
 
+Deno.test("BuildArgsSchema - platform is optional", () => {
+  assertEquals(BuildArgsSchema.parse({}).platform, undefined);
+  assertEquals(
+    BuildArgsSchema.parse({ platform: "linux/amd64" }).platform,
+    "linux/amd64",
+  );
+});
+
+Deno.test("BuildArgsSchema - rejects newlines in platform", () => {
+  assertThrows(() => {
+    BuildArgsSchema.parse({ platform: "linux/amd64\nevil" });
+  });
+});
+
 Deno.test("RunArgsSchema - parses minimal input", () => {
   const result = RunArgsSchema.parse({ image: "alpine:latest" });
   assertEquals(result.image, "alpine:latest");

@@ -22,7 +22,7 @@
  *              + podman manifest push
  *   container → container build, container run (Apple Containers, macOS only)
  *               login supported via 'registry login'; multi-platform-build
- *               blocked by pre-flight checks.
+ *               via repeated --platform + container image push per tag.
  *
  * Every spawn goes through `Deno.Command(bin, { args })` — never `sh -c`.
  * Option values are guarded against newlines/NUL at schema time.
@@ -124,6 +124,7 @@ export function buildBuildArgv(binary: Binary, args: BuildArgs): string[] {
   if (args.dockerfile) argv.push("-f", args.dockerfile);
   if (args.target) argv.push("--target", args.target);
   if (args.noCache) argv.push("--no-cache");
+  if (args.platform) argv.push("--platform", args.platform);
   argv.push(...buildArgFlags(args.buildArgs));
   argv.push(...labelFlags(args.labels));
   argv.push(args.context);
@@ -240,6 +241,19 @@ export function buildBuildxArgv(
     return argv;
   }
 
+  if (binary === "container") {
+    // Apple Containers: one --platform per target builds a single image
+    // index. Pushing is a separate 'container image push' per tag.
+    const argv: string[] = ["container", "build"];
+    for (const platform of args.platforms) argv.push("--platform", platform);
+    for (const tag of args.tags) argv.push("-t", tag);
+    if (args.dockerfile) argv.push("-f", args.dockerfile);
+    argv.push(...buildArgFlags(args.buildArgs));
+    argv.push(...labelFlags(args.labels));
+    argv.push(args.context);
+    return argv;
+  }
+
   // docker (and any future runtime that uses buildx)
   const argv: string[] = [binary, "buildx", "build", "--platform", platformStr];
   for (const tag of args.tags) argv.push("-t", tag);
@@ -307,6 +321,28 @@ export async function runBuildxCommand(
     };
   }
 
+  if (binary === "container" && args.push) {
+    // Every tag names the same index, so the first push's digest is the
+    // index digest.
+    let stdout = result.stdout;
+    let stderr = result.stderr;
+    let digest: string | undefined;
+    for (const tag of args.tags) {
+      const [pushBin, ...pushRest] = buildPushArgv(binary, {
+        image: tag,
+        tlsVerify: true,
+      });
+      const pushResult = await exec({ bin: pushBin, args: pushRest, signal });
+      stdout += pushResult.stdout;
+      stderr += pushResult.stderr;
+      if (pushResult.exitCode !== 0) {
+        return { exitCode: pushResult.exitCode, stdout, stderr };
+      }
+      digest ??= parseDigest(pushResult.stdout + pushResult.stderr);
+    }
+    return { ...result, stdout, stderr, digest };
+  }
+
   const digest = parseDigest(result.stdout + result.stderr);
   return { ...result, digest };
 }
@@ -349,20 +385,19 @@ export function buildExportArgv(
   tag: string,
   format: ExportFormat,
   dest: string,
+  platform?: string,
 ): string[] {
   if (binary === "docker") {
     if (format === "oci") {
       // docker save only produces docker-archive; for OCI we re-export
       // via buildx with a trivial FROM that references the already-built
-      // image — no actual rebuild, just a format conversion.
-      return [
-        "docker",
-        "buildx",
-        "build",
-        "--output",
-        `type=oci,dest=${dest}`,
-        "-",
-      ];
+      // image — no actual rebuild, just a format conversion. A non-host
+      // image needs --platform, or the FROM resolves the host platform
+      // and fails with "no match for platform in manifest".
+      const argv = ["docker", "buildx", "build"];
+      if (platform) argv.push("--platform", platform);
+      argv.push("--output", `type=oci,dest=${dest}`, "-");
+      return argv;
     }
     return ["docker", "save", "-o", dest, tag];
   }
@@ -380,6 +415,7 @@ export function runExportCommand(
   format: ExportFormat,
   dest: string,
   signal?: AbortSignal,
+  platform?: string,
 ): Promise<ExecResult> {
   if (binary === "container" && format === "docker") {
     return Promise.resolve({
@@ -389,7 +425,7 @@ export function runExportCommand(
         "Set exportFormat to 'oci' or use Docker/Podman for Docker-format export.",
     });
   }
-  const argv = buildExportArgv(binary, tag, format, dest);
+  const argv = buildExportArgv(binary, tag, format, dest, platform);
   const [bin, ...rest] = argv;
   // Docker OCI: pipe "FROM <tag>" as stdin Dockerfile via "-"
   const stdin = binary === "docker" && format === "oci"

@@ -72,6 +72,26 @@ Deno.test("buildBuildArgv - container (Apple) uses same subcommand", () => {
   assertEquals(argv, ["container", "build", "."]);
 });
 
+for (const binary of ["docker", "podman", "container"] as const) {
+  Deno.test(`buildBuildArgv - ${binary} passes --platform when set`, () => {
+    const argv = buildBuildArgv(binary, {
+      context: ".",
+      tag: "app:amd64",
+      noCache: false,
+      platform: "linux/amd64",
+    });
+    assertEquals(argv, [
+      binary,
+      "build",
+      "-t",
+      "app:amd64",
+      "--platform",
+      "linux/amd64",
+      ".",
+    ]);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Run argv
 // ---------------------------------------------------------------------------
@@ -383,6 +403,37 @@ Deno.test("buildBuildxArgv - podman maps to build --platform + --manifest", () =
   assertEquals(argv.includes("-t"), false);
 });
 
+Deno.test("buildBuildxArgv - container repeats --platform and -t", () => {
+  const argv = buildBuildxArgv("container", {
+    context: "./app",
+    dockerfile: "Containerfile",
+    platforms: ["linux/amd64", "linux/arm64"],
+    tags: ["registry.example.com/app:latest", "registry.example.com/app:1.0"],
+    push: true,
+    buildArgs: { VERSION: "1.0" },
+    labels: { team: "infra" },
+  });
+  assertEquals(argv, [
+    "container",
+    "build",
+    "--platform",
+    "linux/amd64",
+    "--platform",
+    "linux/arm64",
+    "-t",
+    "registry.example.com/app:latest",
+    "-t",
+    "registry.example.com/app:1.0",
+    "-f",
+    "Containerfile",
+    "--build-arg",
+    "VERSION=1.0",
+    "--label",
+    "team=infra",
+    "./app",
+  ]);
+});
+
 Deno.test("buildPodmanManifestPushArgv - correct shape", () => {
   const argv = buildPodmanManifestPushArgv("registry.example.com/app:latest");
   assertEquals(argv, [
@@ -434,6 +485,26 @@ Deno.test("buildExportArgv - docker oci uses buildx re-export", () => {
     "docker",
     "buildx",
     "build",
+    "--output",
+    "type=oci,dest=/tmp/out.tar",
+    "-",
+  ]);
+});
+
+Deno.test("buildExportArgv - docker oci passes --platform when set", () => {
+  const argv = buildExportArgv(
+    "docker",
+    "app:amd64",
+    "oci",
+    "/tmp/out.tar",
+    "linux/amd64",
+  );
+  assertEquals(argv, [
+    "docker",
+    "buildx",
+    "build",
+    "--platform",
+    "linux/amd64",
     "--output",
     "type=oci,dest=/tmp/out.tar",
     "-",

@@ -228,6 +228,7 @@ export async function runBuild(
       tag: args.tag,
       context: args.context,
       dockerfile: args.dockerfile,
+      platform: args.platform,
       exitCode: result.exitCode,
       stdout: result.stdout,
       stderr: result.stderr,
@@ -254,6 +255,7 @@ export async function runBuild(
       args.exportFormat,
       args.exportPath,
       ctx.signal,
+      args.platform,
     );
     if (exportResult.exitCode !== 0) {
       throw new Error(
@@ -266,6 +268,7 @@ export async function runBuild(
     tag: args.tag,
     context: args.context,
     dockerfile: args.dockerfile,
+    platform: args.platform,
     exitCode: result.exitCode,
     stdout: result.stdout,
     stderr: result.stderr,
@@ -352,6 +355,14 @@ export async function runBuildxBuild(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = GlobalArgsSchema.parse(ctx.globalArgs);
   const platformStr = args.platforms.join(",");
+
+  if (g.binary === "container" && (args.cacheFrom || args.cacheTo)) {
+    throw new Error(
+      "Apple Containers ('container build') has no --cache-from or " +
+        "--cache-to support. Remove cacheFrom/cacheTo, or set " +
+        "globalArguments.binary to 'docker' or 'podman'.",
+    );
+  }
 
   if (g.binary === "podman" && args.tags.length > 1) {
     ctx.logger.warn(

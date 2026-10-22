@@ -107,6 +107,9 @@ export const BuildArgsSchema = z.object({
   noCache: z.boolean().default(false).describe(
     "Disable build cache.",
   ),
+  platform: safeOptionValue("platform").optional().describe(
+    "Target platform (e.g. 'linux/amd64'). Defaults to the host platform.",
+  ),
   exportFormat: ExportFormatEnum.optional().describe(
     "Export the built image as a tar archive in the given format: " +
       "'oci' (OCI archive) or 'docker' (Docker archive). Requires 'tag'. " +
@@ -231,6 +234,7 @@ export const BuildResultSchema = z.object({
   tag: z.string().optional(),
   context: z.string(),
   dockerfile: z.string().optional(),
+  platform: z.string().optional(),
   exitCode: z.number().int(),
   stdout: z.string(),
   stderr: z.string(),
