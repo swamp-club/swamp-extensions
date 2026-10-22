@@ -237,3 +237,4 @@ groups:
             scripts/validate_attestation.ts scripts/validate_attestation_test.ts
             scripts/post_pr_comment.ts scripts/post_pr_comment_test.ts
             scripts/verification_harness_test.ts
+            scripts/audit_deps.ts scripts/audit_deps_test.ts

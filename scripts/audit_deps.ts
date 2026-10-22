@@ -2,9 +2,10 @@
  * Dependency audit script that checks npm packages in all deno.lock files
  * for known vulnerabilities using the OSV.dev API (https://osv.dev/).
  *
- * Discovers deno.lock files by walking vault/, datastore/, model/, codegen/,
- * issue-lifecycle/ and stagecraft/ — no hardcoded list of lockfiles, so new
- * extensions under those roots are picked up automatically.
+ * Discovers deno.lock files by walking the whole repository (skipping
+ * dot-directories and node_modules) — no hardcoded list of lockfiles or
+ * directories, so a new extension anywhere in the repo is audited
+ * automatically.
  *
  * Direct dependency vulnerabilities fail the build. Transitive dependency
  * vulnerabilities are reported as warnings with their full dependency chain.
@@ -53,41 +54,29 @@ interface VulnFinding {
   chain: string[];
 }
 
-/** Directories to scan for deno.lock files. */
-const SCAN_ROOTS = [
-  "vault",
-  "datastore",
-  "model",
-  "codegen",
-  "issue-lifecycle",
-  "stagecraft",
-];
-
 /**
- * Recursively discover all deno.lock files under the given root directories.
+ * Recursively discover all deno.lock files under `root`, returned as paths
+ * relative to it. Dot-directories (.git, .swamp, .claude) and node_modules
+ * are skipped.
  */
-async function discoverLockfiles(roots: string[]): Promise<string[]> {
+export async function discoverLockfiles(root: string): Promise<string[]> {
   const lockfiles: string[] = [];
 
-  async function walk(dir: string): Promise<void> {
-    try {
-      for await (const entry of Deno.readDir(dir)) {
-        const path = `${dir}/${entry.name}`;
-        if (entry.isFile && entry.name === "deno.lock") {
-          lockfiles.push(path);
-        } else if (entry.isDirectory && !entry.name.startsWith(".")) {
-          await walk(path);
-        }
+  async function walk(rel: string): Promise<void> {
+    for await (const entry of Deno.readDir(rel ? `${root}/${rel}` : root)) {
+      const path = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isFile && entry.name === "deno.lock") {
+        lockfiles.push(path);
+      } else if (
+        entry.isDirectory && !entry.name.startsWith(".") &&
+        entry.name !== "node_modules"
+      ) {
+        await walk(path);
       }
-    } catch {
-      // Directory doesn't exist yet — skip
     }
   }
 
-  for (const root of roots) {
-    await walk(root);
-  }
-
+  await walk("");
   return lockfiles.sort();
 }
 
@@ -352,7 +341,7 @@ function auditLockfile(
 }
 
 async function main(): Promise<void> {
-  const lockfiles = await discoverLockfiles(SCAN_ROOTS);
+  const lockfiles = await discoverLockfiles(".");
 
   if (lockfiles.length === 0) {
     console.error("No deno.lock files found.");
@@ -437,4 +426,6 @@ async function main(): Promise<void> {
   Deno.exit(allDirect.length > 0 ? 1 : 0);
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

@@ -136,7 +136,6 @@ is silently uncovered unless verification is updated:
 
 - `verification/checks.yaml` has a target for the new directory,
   with the right check targets and `deno test` permissions.
-- `scripts/audit_deps.ts` scans the new directory's lockfile.
 - The review guards in `verification/workflow-verify-reviews.yaml` match
   the new path where they should.
 - `publish.yml` has a push step for the new extension.
