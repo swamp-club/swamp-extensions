@@ -12,10 +12,13 @@ Deno.test("report export has expected shape", () => {
   assert(report.labels.includes("security"));
 });
 
+// Fixtures are scanned at the address named by their hostname unless they
+// override targetHost.
 function makeScanResult(overrides: Record<string, unknown> = {}) {
   return {
     scanTimestamp: "2026-05-08T12:00:00.000Z",
     hostname: "web-01",
+    targetHost: overrides.hostname ?? "web-01",
     kernelVersion: "6.8.0-40-generic",
     vulnerable: true,
     riskLevel: "critical",
@@ -61,6 +64,8 @@ function makeContext(
 ): {
   modelType: string;
   modelId: string;
+  definition: { name: string };
+  globalArgs: Record<string, unknown>;
   methodName: string;
   dataHandles: { specName: string; name: string; version: string }[];
   dataRepository: {
@@ -77,7 +82,9 @@ function makeContext(
   );
   return {
     modelType: "@swamp/cve/dirtyfrag",
-    modelId: "dirtyfrag-scanner",
+    modelId: "3f1c2a9e-0000-4000-8000-000000000000",
+    definition: { name: "dirtyfrag-scanner" },
+    globalArgs: {},
     methodName,
     dataHandles: results.map((_, i) => ({
       specName: "status",
@@ -481,4 +488,102 @@ Deno.test("mitigate report: command table shows non-interactive sudo", async () 
   assertStringIncludes(result.markdown, "sudo -n -- tee /etc/modprobe.d/");
   assertStringIncludes(result.markdown, "sudo -n -- rmmod esp4");
   assert(!result.markdown.includes("sh -c"));
+});
+
+// --- Suggested commands follow the running model and the scanned address ---
+
+Deno.test("scan report: next step names the model that ran", async () => {
+  const ctx = makeContext("scanFleet", [
+    makeScanResult({ hostname: "10.0.0.1", vulnerable: true }),
+  ]);
+  ctx.definition.name = "dirtyfrag-fleet";
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "swamp model method run dirtyfrag-fleet mitigate --input hosts=10.0.0.1\n",
+  );
+  assert(!result.markdown.includes("dirtyfrag-scanner"));
+});
+
+Deno.test("mitigate report: apply and verify name the model that ran", async () => {
+  const dryRun = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "10.0.0.1",
+      summary: "Dry run complete. Review commands",
+    }),
+  ]);
+  dryRun.definition.name = "dirtyfrag-web";
+  assertStringIncludes(
+    (await report.execute(dryRun)).markdown,
+    "swamp model method run dirtyfrag-web mitigate --input hosts=10.0.0.1 --input dryRun=false\n",
+  );
+
+  const applied = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "10.0.0.1",
+      summary: "Mitigations applied: modules blocklisted",
+    }),
+  ]);
+  applied.definition.name = "dirtyfrag-web";
+  assertStringIncludes(
+    (await report.execute(applied)).markdown,
+    "swamp model method run dirtyfrag-web scanFleet --input hosts=10.0.0.1\n",
+  );
+});
+
+Deno.test("scan report: hosts are the scanned addresses, not remote hostnames", async () => {
+  const ctx = makeContext("scanFleet", [
+    makeScanResult({ hostname: "ip-172-31-35-99", targetHost: "54.1.2.3" }),
+    makeScanResult({ hostname: "ip-172-31-35-98", targetHost: "54.1.2.4" }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(result.markdown, "--input hosts=54.1.2.3,54.1.2.4\n");
+  assertStringIncludes(result.markdown, "| ip-172-31-35-99 |");
+  assert(!result.markdown.includes("hosts=ip-172"));
+});
+
+Deno.test("scan report: a local scan of a named machine omits --input hosts", async () => {
+  const ctx = makeContext("scan", [
+    makeScanResult({ hostname: "build-box", targetHost: "localhost" }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "swamp model method run dirtyfrag-scanner mitigate\n",
+  );
+  assert(!result.markdown.includes("--input hosts="));
+});
+
+for (const docker of ["dockerContainer", "dockerImage"]) {
+  Deno.test(`scan report: a scan with ${docker} points at the Docker host, no command`, async () => {
+    const ctx = makeContext("scan", [
+      makeScanResult({ hostname: "4f2a9c1b7d3e", targetHost: undefined }),
+    ]);
+    ctx.globalArgs = { [docker]: "4f2a9c1b7d3e" };
+    const result = await report.execute(ctx);
+    assertStringIncludes(result.markdown, "## Next Step");
+    assertStringIncludes(result.markdown, "on the Docker host itself");
+    assert(!result.markdown.includes("swamp model method run"));
+  });
+}
+
+Deno.test("scan report: a status without targetHost falls back to its hostname", async () => {
+  const ctx = makeContext("scanFleet", [
+    makeScanResult({ hostname: "10.0.0.7", targetHost: undefined }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(result.markdown, "mitigate --input hosts=10.0.0.7\n");
+  assert(!result.markdown.includes("Docker host"));
+});
+
+Deno.test("scan report: without a definition, commands name the model id", async () => {
+  const ctx = makeContext("scan", [
+    makeScanResult({ hostname: "localhost" }),
+  ]);
+  const { definition: _definition, ...rest } = ctx;
+  const result = await report.execute(rest);
+  assertStringIncludes(
+    result.markdown,
+    `swamp model method run ${ctx.modelId} mitigate\n`,
+  );
 });

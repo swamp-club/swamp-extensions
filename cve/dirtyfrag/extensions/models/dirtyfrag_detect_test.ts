@@ -511,3 +511,52 @@ Deno.test("mitigate: missing sudo is reported as missing, not as a password", as
   assertEquals(escalated(ran), []);
   assertStringIncludes(status.summary, "sudo is not installed on localhost");
 });
+
+// --- status records the address each host was scanned at ---
+
+const targetOf = (status: Status | undefined) =>
+  (status as { targetHost?: string } | undefined)?.targetHost;
+
+Deno.test("scan: a local scan records localhost as its target", async () => {
+  const { context, statuses } = fakeContext();
+  await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    () => model.methods.scan.execute({}, context),
+  );
+  assertEquals(targetOf(statuses.get("localhost")), "localhost");
+});
+
+Deno.test("scan: a Docker scan records no target", async () => {
+  const { context, statuses } = fakeContext();
+  context.globalArgs.dockerContainer = "4f2a9c1b7d3e";
+  await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    () => model.methods.scan.execute({}, context),
+  );
+  const status = statuses.get("docker-4f2a9c1b7d3e");
+  assert(status, "docker scan should write a status");
+  assertEquals(targetOf(status), undefined);
+});
+
+Deno.test("scanFleet: each host records its own address, not its hostname", async () => {
+  const { context, statuses } = fakeContext();
+  await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    () =>
+      model.methods.scanFleet.execute({ hosts: "10.0.0.5,10.0.0.6" }, context),
+  );
+  assertEquals(targetOf(statuses.get("10.0.0.5")), "10.0.0.5");
+  assertEquals(targetOf(statuses.get("10.0.0.6")), "10.0.0.6");
+  assertEquals(
+    (statuses.get("10.0.0.5") as unknown as { hostname: string }).hostname,
+    "web-01",
+  );
+});
+
+Deno.test("mitigate: status records the host it was given", async () => {
+  const { status } = await mitigate(
+    (cmd) => vulnerableHost(cmd, "root"),
+    true,
+  );
+  assertEquals(targetOf(status), "localhost");
+});

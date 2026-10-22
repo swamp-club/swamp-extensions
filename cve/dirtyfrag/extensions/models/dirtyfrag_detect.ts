@@ -82,6 +82,9 @@ const InputsSchema = z.object({
 const VulnStatusSchema = z.object({
   scanTimestamp: z.string(),
   hostname: z.string(),
+  targetHost: z.string().optional().describe(
+    "Address the scan connected to; absent for Docker scans",
+  ),
   kernelVersion: z.string(),
   vulnerable: z.boolean(),
   riskLevel: z.enum(["critical", "high", "medium", "low", "none"]),
@@ -625,6 +628,8 @@ async function scanHost(
   return {
     scanTimestamp: new Date().toISOString(),
     hostname,
+    // A Docker scan is given the model's targetHost, not what it scanned.
+    targetHost: transport.kind === "docker" ? undefined : host,
     kernelVersion,
     vulnerable,
     riskLevel,
@@ -667,7 +672,7 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.10.22.1",
+  version: "2026.10.22.2",
   upgrades: [
     {
       toVersion: "2026.05.08.4",
@@ -716,6 +721,12 @@ export const model = {
       toVersion: "2026.10.22.1",
       description: "mitigate uses sudo -n and reports failed commands; " +
         "logs are saved as <host>-log. No schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.2",
+      description: "status records the scanned address as optional " +
+        "targetHost; the report suggests commands for the running model.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1128,6 +1139,7 @@ export const model = {
           const handle = await context.writeResource("status", host, {
             scanTimestamp: new Date().toISOString(),
             hostname: host,
+            targetHost: host,
             kernelVersion: succeeded ? outcome.value.kernelVersion : "unknown",
             vulnerable,
             riskLevel,

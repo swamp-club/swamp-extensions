@@ -34,6 +34,8 @@ type DataHandle = {
 type ReportContext = {
   modelType: string;
   modelId: string;
+  definition?: { name?: string };
+  globalArgs?: Record<string, unknown>;
   methodName: string;
   dataHandles: DataHandle[];
   dataRepository: {
@@ -45,6 +47,53 @@ type ReportContext = {
     ) => Promise<Uint8Array | null>;
   };
 };
+
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1"];
+
+/** The model that ran, which is what the suggested commands must target. */
+function modelNameOf(context: ReportContext): string {
+  return context.definition?.name ?? context.modelId;
+}
+
+/** Only scan reaches a container; scanFleet and mitigate always use SSH. */
+function scannedDocker(context: ReportContext): boolean {
+  const g = context.globalArgs ?? {};
+  return context.methodName === "scan" &&
+    [g.dockerContainer, g.dockerImage].some((v) =>
+      typeof v === "string" && v.length > 0
+    );
+}
+
+/** The address a host was scanned at; status written before 2026.10.22.2
+ * carries only the hostname. */
+function addressOf(r: { targetHost?: string; hostname: string }): string {
+  return r.targetHost ?? r.hostname;
+}
+
+/**
+ * A copy-pasteable command for the model that ran, against the addresses its
+ * results were scanned at. mitigate cannot reach into a container, so a
+ * Docker scan gets a note instead of a command.
+ */
+function suggestCommand(
+  context: ReportContext,
+  hosts: string[],
+  localMethod: string,
+  remoteMethod: string,
+  extraInputs = "",
+): string {
+  if (scannedDocker(context)) {
+    return "Containers share the Docker host's kernel: apply the mitigation " +
+      "on the Docker host itself, not the container.\n";
+  }
+  const modelName = modelNameOf(context);
+  const command = hosts.every((h) => LOCAL_HOSTS.includes(h))
+    ? `swamp model method run ${modelName} ${localMethod}${extraInputs}`
+    : `swamp model method run ${modelName} ${remoteMethod} --input hosts=${
+      hosts.join(",")
+    }${extraInputs}`;
+  return "```\n" + command + "\n```\n";
+}
 
 export const report = {
   name: "@swamp/cve/dirtyfrag-report",
@@ -121,23 +170,20 @@ export const report = {
       md +=
         `Commands run as root directly, or through \`sudo -n\` (never prompts) for other users.\n\n`;
 
-      const allHosts = allResults.map((r) => r.hostname);
-      const isLocal = allHosts.every((h) =>
-        h === "localhost" || h === "127.0.0.1" || h === "::1"
-      );
+      const allHosts = allResults.map(addressOf);
 
       if (isDryRun) {
         md += "To apply:\n\n";
-        md += isLocal
-          ? "```\nswamp model method run dirtyfrag-scanner mitigate --input dryRun=false\n```\n"
-          : "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
-            allHosts.join(",") + " --input dryRun=false\n```\n";
+        md += suggestCommand(
+          context,
+          allHosts,
+          "mitigate",
+          "mitigate",
+          " --input dryRun=false",
+        );
       } else {
         md += "Verify with:\n\n";
-        md += isLocal
-          ? "```\nswamp model method run dirtyfrag-scanner scan\n```\n"
-          : "```\nswamp model method run dirtyfrag-scanner scanFleet --input hosts=" +
-            allHosts.join(",") + "\n```\n";
+        md += suggestCommand(context, allHosts, "scan", "scanFleet");
       }
 
       return {
@@ -212,16 +258,13 @@ export const report = {
     if (vulnCount > 0) {
       md += `\n## Next Step\n\n`;
       md += "Run mitigate (dry run first) on vulnerable hosts:\n\n";
-      const vulnHosts = allResults.filter((r) => r.vulnerable).map((r) =>
-        r.hostname
+      const vulnHosts = allResults.filter((r) => r.vulnerable).map(addressOf);
+      md += suggestCommand(
+        context,
+        vulnHosts,
+        "mitigate",
+        "mitigate",
       );
-      const vulnLocal = vulnHosts.every((h) =>
-        h === "localhost" || h === "127.0.0.1" || h === "::1"
-      );
-      md += vulnLocal
-        ? "```\nswamp model method run dirtyfrag-scanner mitigate\n```\n"
-        : "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
-          vulnHosts.join(",") + "\n```\n";
     }
 
     return {

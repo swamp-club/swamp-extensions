@@ -243,6 +243,12 @@ A custom report runs after each method and renders directly in the terminal:
 - **Mitigate**: Host status table (APPLIED/SKIPPED/FAILED), commands table with
   descriptions, plus apply/verify instructions.
 
+Suggested commands name the model that ran (`dirtyfrag-web`,
+`dirtyfrag-fleet`, ...) and pass `--input hosts` the addresses that were
+scanned, which each status records as `targetHost`; the table shows the name
+each host reports for itself. A Docker scan suggests no command: containers
+share the Docker host's kernel, so mitigate the Docker host itself.
+
 ## Prerequisites
 
 - **Linux host** -- the vulnerability is Linux-kernel specific (macOS/Windows
