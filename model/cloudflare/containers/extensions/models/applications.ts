@@ -89,7 +89,7 @@ const GlobalArgsSchema = z.object({
     "The initial number of deployments to create.",
   ).optional(),
   name: z.string().describe("The name for this application.").optional(),
-  scheduling_policy: z.enum(["default", "durable_object"]).describe(
+  scheduling_policy: z.string().describe(
     "Selects a scheduler-backed application. Use `default` when the Containers\nscheduler should maintain the requested number of instances and manage deployment\nconfiguration, placement, scaling, versions, and rollouts.\n",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -231,7 +231,7 @@ const InputsSchema = z.object({
   durable_objects: z.string().optional(),
   instances: z.number().int().min(0).optional(),
   name: z.string().optional(),
-  scheduling_policy: z.enum(["default", "durable_object"]).optional(),
+  scheduling_policy: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -240,7 +240,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/containers/applications`. */
 export const model = {
   type: "@swamp/cloudflare/containers/applications",
-  version: "2026.10.20.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.06.08.2",
@@ -327,6 +327,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -717,7 +717,7 @@ const GlobalArgsSchema = z.object({
       "DISALLOW_ADD_WIFI_CONFIG",
       "DISALLOW_CONFIGURING_WIFI",
     ]).describe(
-      "Controls Wi-Fi configuring privileges. Based on the option set, user will have either full or limited or no control in configuring Wi-Fi networks.",
+      "Optional. Controls Wi-Fi configuring privileges. Based on the option set, user will have either full or limited or no control in configuring Wi-Fi networks.",
     ).optional(),
     preferentialNetworkServiceSettings: z.object({
       defaultPreferentialNetworkId: z.enum([
@@ -782,7 +782,7 @@ const GlobalArgsSchema = z.object({
       "DISALLOW_WIFI_TETHERING",
       "DISALLOW_ALL_TETHERING",
     ]).describe(
-      "Controls tethering settings. Based on the value set, the user is partially or fully disallowed from using different forms of tethering.",
+      "Optional. Controls tethering settings. Based on the value set, the user is partially or fully disallowed from using different forms of tethering.",
     ).optional(),
     usbDataAccess: z.enum([
       "USB_DATA_ACCESS_UNSPECIFIED",
@@ -790,14 +790,14 @@ const GlobalArgsSchema = z.object({
       "DISALLOW_USB_FILE_TRANSFER",
       "DISALLOW_USB_DATA_TRANSFER",
     ]).describe(
-      "Controls what files and/or data can be transferred via USB. Supported only on company-owned devices.",
+      "Optional. Controls what files and/or data can be transferred via USB. Supported only on company-owned devices.",
     ).optional(),
     wifiDirectSettings: z.enum([
       "WIFI_DIRECT_SETTINGS_UNSPECIFIED",
       "ALLOW_WIFI_DIRECT",
       "DISALLOW_WIFI_DIRECT",
     ]).describe(
-      "Controls configuring and using Wi-Fi direct settings. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Controls configuring and using Wi-Fi direct settings. Supported on company-owned devices running Android 13 and above.",
     ).optional(),
     wifiRoamingPolicy: z.object({
       wifiRoamingSettings: z.array(z.object({
@@ -819,7 +819,8 @@ const GlobalArgsSchema = z.object({
         "WIFI_SSID_POLICY_TYPE_UNSPECIFIED",
         "WIFI_SSID_DENYLIST",
         "WIFI_SSID_ALLOWLIST",
-      ]).describe("Type of the Wi-Fi SSID policy to be applied.").optional(),
+      ]).describe("Optional. Type of the Wi-Fi SSID policy to be applied.")
+        .optional(),
       wifiSsids: z.array(z.object({
         wifiSsid: z.string().describe(
           "Required. Wi-Fi SSID represented as a string.",
@@ -828,10 +829,10 @@ const GlobalArgsSchema = z.object({
         "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when WifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST. If this is set to a non-empty list, then a NonComplianceDetail detail with API_LEVEL is reported if the Android version is less than 13 and a NonComplianceDetail with MANAGEMENT_MODE is reported for non-company-owned devices.",
       ).optional(),
     }).describe(
-      "Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
     ).optional(),
   }).describe(
-    "Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
+    "Optional. Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
   ).optional(),
   deviceOwnerLockScreenInfo: z.object({
     defaultMessage: z.string().describe(
@@ -840,8 +841,9 @@ const GlobalArgsSchema = z.object({
     localizedMessages: z.record(z.string(), z.string()).describe(
       "A map containing pairs, where locale is a well-formed BCP 47 language (https://www.w3.org/International/articles/language-tags/) code, such as en-US, es-ES, or fr.",
     ).optional(),
-  }).describe("The device owner information to be shown on the lock screen.")
-    .optional(),
+  }).describe(
+    "Optional. The device owner information to be shown on the lock screen.",
+  ).optional(),
   deviceRadioState: z.object({
     airplaneModeState: z.enum([
       "AIRPLANE_MODE_STATE_UNSPECIFIED",
@@ -2562,7 +2564,7 @@ const InputsSchema = z.object({
       "DISALLOW_ADD_WIFI_CONFIG",
       "DISALLOW_CONFIGURING_WIFI",
     ]).describe(
-      "Controls Wi-Fi configuring privileges. Based on the option set, user will have either full or limited or no control in configuring Wi-Fi networks.",
+      "Optional. Controls Wi-Fi configuring privileges. Based on the option set, user will have either full or limited or no control in configuring Wi-Fi networks.",
     ).optional(),
     preferentialNetworkServiceSettings: z.object({
       defaultPreferentialNetworkId: z.enum([
@@ -2627,7 +2629,7 @@ const InputsSchema = z.object({
       "DISALLOW_WIFI_TETHERING",
       "DISALLOW_ALL_TETHERING",
     ]).describe(
-      "Controls tethering settings. Based on the value set, the user is partially or fully disallowed from using different forms of tethering.",
+      "Optional. Controls tethering settings. Based on the value set, the user is partially or fully disallowed from using different forms of tethering.",
     ).optional(),
     usbDataAccess: z.enum([
       "USB_DATA_ACCESS_UNSPECIFIED",
@@ -2635,14 +2637,14 @@ const InputsSchema = z.object({
       "DISALLOW_USB_FILE_TRANSFER",
       "DISALLOW_USB_DATA_TRANSFER",
     ]).describe(
-      "Controls what files and/or data can be transferred via USB. Supported only on company-owned devices.",
+      "Optional. Controls what files and/or data can be transferred via USB. Supported only on company-owned devices.",
     ).optional(),
     wifiDirectSettings: z.enum([
       "WIFI_DIRECT_SETTINGS_UNSPECIFIED",
       "ALLOW_WIFI_DIRECT",
       "DISALLOW_WIFI_DIRECT",
     ]).describe(
-      "Controls configuring and using Wi-Fi direct settings. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Controls configuring and using Wi-Fi direct settings. Supported on company-owned devices running Android 13 and above.",
     ).optional(),
     wifiRoamingPolicy: z.object({
       wifiRoamingSettings: z.array(z.object({
@@ -2664,7 +2666,8 @@ const InputsSchema = z.object({
         "WIFI_SSID_POLICY_TYPE_UNSPECIFIED",
         "WIFI_SSID_DENYLIST",
         "WIFI_SSID_ALLOWLIST",
-      ]).describe("Type of the Wi-Fi SSID policy to be applied.").optional(),
+      ]).describe("Optional. Type of the Wi-Fi SSID policy to be applied.")
+        .optional(),
       wifiSsids: z.array(z.object({
         wifiSsid: z.string().describe(
           "Required. Wi-Fi SSID represented as a string.",
@@ -2673,10 +2676,10 @@ const InputsSchema = z.object({
         "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when WifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST. If this is set to a non-empty list, then a NonComplianceDetail detail with API_LEVEL is reported if the Android version is less than 13 and a NonComplianceDetail with MANAGEMENT_MODE is reported for non-company-owned devices.",
       ).optional(),
     }).describe(
-      "Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
     ).optional(),
   }).describe(
-    "Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
+    "Optional. Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
   ).optional(),
   deviceOwnerLockScreenInfo: z.object({
     defaultMessage: z.string().describe(
@@ -2685,8 +2688,9 @@ const InputsSchema = z.object({
     localizedMessages: z.record(z.string(), z.string()).describe(
       "A map containing pairs, where locale is a well-formed BCP 47 language (https://www.w3.org/International/articles/language-tags/) code, such as en-US, es-ES, or fr.",
     ).optional(),
-  }).describe("The device owner information to be shown on the lock screen.")
-    .optional(),
+  }).describe(
+    "Optional. The device owner information to be shown on the lock screen.",
+  ).optional(),
   deviceRadioState: z.object({
     airplaneModeState: z.enum([
       "AIRPLANE_MODE_STATE_UNSPECIFIED",
@@ -3440,7 +3444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3644,6 +3648,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

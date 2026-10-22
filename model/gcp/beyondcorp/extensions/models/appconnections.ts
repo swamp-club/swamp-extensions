@@ -38,7 +38,6 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
-  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -59,57 +58,6 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
-    },
-  },
-} as const;
-
-const INSERT_CONFIG = {
-  "id": "beyondcorp.projects.locations.appConnections.create",
-  "path": "v1/{+parent}/appConnections",
-  "httpMethod": "POST",
-  "parameterOrder": [
-    "parent",
-  ],
-  "parameters": {
-    "appConnectionId": {
-      "location": "query",
-    },
-    "parent": {
-      "location": "path",
-      "required": true,
-    },
-    "requestId": {
-      "location": "query",
-    },
-    "validateOnly": {
-      "location": "query",
-    },
-  },
-} as const;
-
-const PATCH_CONFIG = {
-  "id": "beyondcorp.projects.locations.appConnections.patch",
-  "path": "v1/{+name}",
-  "httpMethod": "PATCH",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "allowMissing": {
-      "location": "query",
-    },
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-    "requestId": {
-      "location": "query",
-    },
-    "updateMask": {
-      "location": "query",
-    },
-    "validateOnly": {
-      "location": "query",
     },
   },
 } as const;
@@ -163,6 +111,9 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -180,57 +131,6 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
-  ).optional(),
-  applicationEndpoint: z.object({
-    host: z.string().describe(
-      "Required. Hostname or IP address of the remote application endpoint.",
-    ).optional(),
-    port: z.number().int().describe(
-      "Required. Port of the remote application endpoint.",
-    ).optional(),
-  }).describe(
-    "Required. Address of the remote application endpoint for the BeyondCorp AppConnection.",
-  ).optional(),
-  connectors: z.array(z.string()).describe(
-    "Optional. List of [google.cloud.beyondcorp.v1main.Connector.name] that are authorized to be associated with this AppConnection.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. An arbitrary user-provided name for the AppConnection. Cannot exceed 64 characters.",
-  ).optional(),
-  gateway: z.object({
-    appGateway: z.string().describe(
-      "Required. AppGateway name in following format: `projects/{project_id}/locations/{location_id}/appgateways/{gateway_id}`",
-    ).optional(),
-    ingressPort: z.number().int().describe(
-      "Output only. Ingress port reserved on the gateways for this AppConnection, if not specified or zero, the default port is 19443.",
-    ).optional(),
-    l7psc: z.string().describe(
-      "Output only. L7 private service connection for this resource.",
-    ).optional(),
-    type: z.enum(["TYPE_UNSPECIFIED", "GCP_REGIONAL_MIG"]).describe(
-      "Required. The type of hosting used by the gateway.",
-    ).optional(),
-    uri: z.string().describe(
-      "Output only. Server-defined URI for this resource.",
-    ).optional(),
-  }).describe("Optional. Gateway used by the AppConnection.").optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels to represent user provided metadata.",
-  ).optional(),
-  name: z.string().describe(
-    "Required. Unique resource name of the AppConnection. The name is ignored when creating a AppConnection.",
-  ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "TCP_PROXY"]).describe(
-    "Required. The type of network connectivity used by the AppConnection.",
-  ).optional(),
-  appConnectionId: z.string().describe(
-    "Optional. User-settable AppConnection resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
-  ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
-  ).optional(),
-  allowMissing: z.string().describe(
-    "Optional. If set as true, will create the resource if it is not found.",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -265,63 +165,13 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  applicationEndpoint: z.object({
-    host: z.string().describe(
-      "Required. Hostname or IP address of the remote application endpoint.",
-    ).optional(),
-    port: z.number().int().describe(
-      "Required. Port of the remote application endpoint.",
-    ).optional(),
-  }).describe(
-    "Required. Address of the remote application endpoint for the BeyondCorp AppConnection.",
-  ).optional(),
-  connectors: z.array(z.string()).describe(
-    "Optional. List of [google.cloud.beyondcorp.v1main.Connector.name] that are authorized to be associated with this AppConnection.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. An arbitrary user-provided name for the AppConnection. Cannot exceed 64 characters.",
-  ).optional(),
-  gateway: z.object({
-    appGateway: z.string().describe(
-      "Required. AppGateway name in following format: `projects/{project_id}/locations/{location_id}/appgateways/{gateway_id}`",
-    ).optional(),
-    ingressPort: z.number().int().describe(
-      "Output only. Ingress port reserved on the gateways for this AppConnection, if not specified or zero, the default port is 19443.",
-    ).optional(),
-    l7psc: z.string().describe(
-      "Output only. L7 private service connection for this resource.",
-    ).optional(),
-    type: z.enum(["TYPE_UNSPECIFIED", "GCP_REGIONAL_MIG"]).describe(
-      "Required. The type of hosting used by the gateway.",
-    ).optional(),
-    uri: z.string().describe(
-      "Output only. Server-defined URI for this resource.",
-    ).optional(),
-  }).describe("Optional. Gateway used by the AppConnection.").optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels to represent user provided metadata.",
-  ).optional(),
-  name: z.string().describe(
-    "Required. Unique resource name of the AppConnection. The name is ignored when creating a AppConnection.",
-  ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "TCP_PROXY"]).describe(
-    "Required. The type of network connectivity used by the AppConnection.",
-  ).optional(),
-  appConnectionId: z.string().describe(
-    "Optional. User-settable AppConnection resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
-  ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
-  ).optional(),
-  allowMissing: z.string().describe(
-    "Optional. If set as true, will create the resource if it is not found.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -353,7 +203,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp AppConnections. Registered at `@swamp/gcp/beyondcorp/appconnections`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appconnections",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +386,26 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Removed: applicationEndpoint, connectors, displayName, gateway, labels, type, appConnectionId, requestId, allowMissing",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          applicationEndpoint: _applicationEndpoint,
+          connectors: _connectors,
+          displayName: _displayName,
+          gateway: _gateway,
+          labels: _labels,
+          type: _type,
+          appConnectionId: _appConnectionId,
+          requestId: _requestId,
+          allowMissing: _allowMissing,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -549,72 +419,6 @@ export const model = {
     },
   },
   methods: {
-    create: {
-      description: "Create a appConnections",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
-        const body: Record<string, unknown> = {};
-        if (g["applicationEndpoint"] !== undefined) {
-          body["applicationEndpoint"] = g["applicationEndpoint"];
-        }
-        if (g["connectors"] !== undefined) body["connectors"] = g["connectors"];
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["type"] !== undefined) body["type"] = g["type"];
-        if (g["appConnectionId"] !== undefined) {
-          params["appConnectionId"] = String(g["appConnectionId"]);
-        }
-        if (g["requestId"] !== undefined) {
-          params["requestId"] = String(g["requestId"]);
-        }
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const result = await createResource(
-          baseUrl,
-          INSERT_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
-            },
-            matchField: "displayName",
-            matchValue: String(g["displayName"] ?? ""),
-          },
-          credentials,
-        ) as StateData;
-        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     get: {
       description: "Get a appConnections",
       arguments: z.object({
@@ -637,95 +441,10 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName =
-          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
-    update: {
-      description: "Update appConnections attributes",
-      arguments: z.object({
-        identifier: z.string().describe(
-          "Target a specific appConnections by name (e.g. one discovered by list)",
-        ).optional(),
-      }),
-      execute: async (args: { identifier?: string }, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const instanceName =
-          (g.name?.toString() ?? args.identifier ?? "current").replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error(
-            "No existing state found - run create, get, or list first",
-          );
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const params: Record<string, string> = { project: projectId };
-        const existingName = existing["name"]?.toString();
-        if (existingName && existingName.includes("/")) {
-          params["name"] = existingName;
-        } else {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            existingName ?? g["name"]?.toString() ?? "",
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (g["applicationEndpoint"] !== undefined) {
-          body["applicationEndpoint"] = g["applicationEndpoint"];
-        }
-        if (g["connectors"] !== undefined) body["connectors"] = g["connectors"];
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["type"] !== undefined) body["type"] = g["type"];
-        if (g["allowMissing"] !== undefined) {
-          params["allowMissing"] = String(g["allowMissing"]);
-        } else if (existing["allowMissing"] !== undefined) {
-          params["allowMissing"] = String(existing["allowMissing"]);
-        }
-        const updateMaskKeys = Object.keys(body);
-        if (updateMaskKeys.length > 0) {
-          params["updateMask"] = updateMaskKeys.join(",");
-        }
-        for (const key of Object.keys(existing)) {
-          if (
-            key === "fingerprint" || key === "labelFingerprint" ||
-            key === "etag" || key.endsWith("Fingerprint")
-          ) {
-            body[key] = existing[key];
-          }
-        }
-        const result = await updateResource(
-          baseUrl,
-          PATCH_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          credentials,
-        ) as StateData;
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

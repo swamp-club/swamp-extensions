@@ -170,8 +170,9 @@ const GlobalArgsSchema = z.object({
     "Optional. Description of the repository, which cannot exceed 500 characters.",
   ).optional(),
   initialConfig: z.object({
-    defaultBranch: z.string().describe("Default branch name of the repository.")
-      .optional(),
+    defaultBranch: z.string().describe(
+      "Default branch name of the repository. When creating a repository, this field or top-level `default_branch` can be used to set the initial default branch. It is an error to specify both.",
+    ).optional(),
     gitignores: z.array(z.string()).describe(
       "List of gitignore template names user can choose from. Valid values: actionscript, ada, agda, android, anjuta, ansible, appcelerator-titanium, app-engine, archives, arch-linux-packages, atmel-studio, autotools, backup, bazaar, bazel, bitrix, bricx-cc, c, cake-php, calabash, cf-wheels, chef-cookbook, clojure, cloud9, c-make, code-igniter, code-kit, code-sniffer, common-lisp, composer, concrete5, coq, cordova, cpp, craft-cms, cuda, cvs, d, dart, dart-editor, delphi, diff, dm, dreamweaver, dropbox, drupal, drupal-7, eagle, eclipse, eiffel-studio, elisp, elixir, elm, emacs, ensime, epi-server, erlang, esp-idf, espresso, exercism, expression-engine, ext-js, fancy, finale, flex-builder, force-dot-com, fortran, fuel-php, gcov, git-book, gnome-shell-extension, go, godot, gpg, gradle, grails, gwt, haskell, hugo, iar-ewarm, idris, igor-pro, images, infor-cms, java, jboss, jboss-4, jboss-6, jdeveloper, jekyll, jenkins-home, jenv, jet-brains, jigsaw, joomla, julia, jupyter-notebooks, kate, kdevelop4, kentico, ki-cad, kohana, kotlin, lab-view, laravel, lazarus, leiningen, lemon-stand, libre-office, lilypond, linux, lithium, logtalk, lua, lyx, mac-os, magento, magento-1, magento-2, matlab, maven, mercurial, mercury, metals, meta-programming-system, meteor, microsoft-office, model-sim, momentics, mono-develop, nanoc, net-beans, nikola, nim, ninja, node, notepad-pp, nwjs, objective--c, ocaml, octave, opa, open-cart, openssl, oracle-forms, otto, packer, patch, perl, perl6, phalcon, phoenix, pimcore, play-framework, plone, prestashop, processing, psoc-creator, puppet, pure-script, putty, python, qooxdoo, qt, r, racket, rails, raku, red, redcar, redis, rhodes-rhomobile, ros, ruby, rust, sam, sass, sbt, scala, scheme, scons, scrivener, sdcc, seam-gen, sketch-up, slick-edit, smalltalk, snap, splunk, stata, stella, sublime-text, sugar-crm, svn, swift, symfony, symphony-cms, synopsys-vcs, tags, terraform, tex, text-mate, textpattern, think-php, tortoise-git, turbo-gears-2, typo3, umbraco, unity, unreal-engine, vagrant, vim, virtual-env, virtuoso, visual-studio, visual-studio-code, vue, vvvv, waf, web-methods, windows, word-press, xcode, xilinx, xilinx-ise, xojo, yeoman, yii, zend-framework, zephir.",
     ).optional(),
@@ -195,6 +196,12 @@ const GlobalArgsSchema = z.object({
         "Optional. The DLP inspect template to use for secret scanning.",
       ).optional(),
     }).describe("Optional. Configuration for secret scanning.").optional(),
+    vulnerabilityScanConfig: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Enables vulnerability scanning for the repository.",
+      ).optional(),
+    }).describe("Optional. Configuration for vulnerability scanning.")
+      .optional(),
   }).describe("Optional. Provides configuration for scanning.").optional(),
   serviceAccount: z.string().describe(
     "Optional. Repository level service account (BYOSA).",
@@ -224,6 +231,9 @@ const StateSchema = z.object({
       enabled: z.boolean(),
       inspectTemplate: z.string(),
     }),
+    vulnerabilityScanConfig: z.object({
+      enabled: z.boolean(),
+    }),
   }).optional(),
   serviceAccount: z.string().optional(),
   uid: z.string().optional(),
@@ -248,8 +258,9 @@ const InputsSchema = z.object({
     "Optional. Description of the repository, which cannot exceed 500 characters.",
   ).optional(),
   initialConfig: z.object({
-    defaultBranch: z.string().describe("Default branch name of the repository.")
-      .optional(),
+    defaultBranch: z.string().describe(
+      "Default branch name of the repository. When creating a repository, this field or top-level `default_branch` can be used to set the initial default branch. It is an error to specify both.",
+    ).optional(),
     gitignores: z.array(z.string()).describe(
       "List of gitignore template names user can choose from. Valid values: actionscript, ada, agda, android, anjuta, ansible, appcelerator-titanium, app-engine, archives, arch-linux-packages, atmel-studio, autotools, backup, bazaar, bazel, bitrix, bricx-cc, c, cake-php, calabash, cf-wheels, chef-cookbook, clojure, cloud9, c-make, code-igniter, code-kit, code-sniffer, common-lisp, composer, concrete5, coq, cordova, cpp, craft-cms, cuda, cvs, d, dart, dart-editor, delphi, diff, dm, dreamweaver, dropbox, drupal, drupal-7, eagle, eclipse, eiffel-studio, elisp, elixir, elm, emacs, ensime, epi-server, erlang, esp-idf, espresso, exercism, expression-engine, ext-js, fancy, finale, flex-builder, force-dot-com, fortran, fuel-php, gcov, git-book, gnome-shell-extension, go, godot, gpg, gradle, grails, gwt, haskell, hugo, iar-ewarm, idris, igor-pro, images, infor-cms, java, jboss, jboss-4, jboss-6, jdeveloper, jekyll, jenkins-home, jenv, jet-brains, jigsaw, joomla, julia, jupyter-notebooks, kate, kdevelop4, kentico, ki-cad, kohana, kotlin, lab-view, laravel, lazarus, leiningen, lemon-stand, libre-office, lilypond, linux, lithium, logtalk, lua, lyx, mac-os, magento, magento-1, magento-2, matlab, maven, mercurial, mercury, metals, meta-programming-system, meteor, microsoft-office, model-sim, momentics, mono-develop, nanoc, net-beans, nikola, nim, ninja, node, notepad-pp, nwjs, objective--c, ocaml, octave, opa, open-cart, openssl, oracle-forms, otto, packer, patch, perl, perl6, phalcon, phoenix, pimcore, play-framework, plone, prestashop, processing, psoc-creator, puppet, pure-script, putty, python, qooxdoo, qt, r, racket, rails, raku, red, redcar, redis, rhodes-rhomobile, ros, ruby, rust, sam, sass, sbt, scala, scheme, scons, scrivener, sdcc, seam-gen, sketch-up, slick-edit, smalltalk, snap, splunk, stata, stella, sublime-text, sugar-crm, svn, swift, symfony, symphony-cms, synopsys-vcs, tags, terraform, tex, text-mate, textpattern, think-php, tortoise-git, turbo-gears-2, typo3, umbraco, unity, unreal-engine, vagrant, vim, virtual-env, virtuoso, visual-studio, visual-studio-code, vue, vvvv, waf, web-methods, windows, word-press, xcode, xilinx, xilinx-ise, xojo, yeoman, yii, zend-framework, zephir.",
     ).optional(),
@@ -273,6 +284,12 @@ const InputsSchema = z.object({
         "Optional. The DLP inspect template to use for secret scanning.",
       ).optional(),
     }).describe("Optional. Configuration for secret scanning.").optional(),
+    vulnerabilityScanConfig: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Enables vulnerability scanning for the repository.",
+      ).optional(),
+    }).describe("Optional. Configuration for vulnerability scanning.")
+      .optional(),
   }).describe("Optional. Provides configuration for scanning.").optional(),
   serviceAccount: z.string().describe(
     "Optional. Repository level service account (BYOSA).",
@@ -311,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secure Source Manager Repositories. Registered at `@swamp/gcp/securesourcemanager/repositories`. */
 export const model = {
   type: "@swamp/gcp/securesourcemanager/repositories",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -481,6 +498,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

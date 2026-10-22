@@ -936,7 +936,6 @@ const GlobalArgsSchema = z.object({
       optionalComponents: z.array(
         z.enum([
           "COMPONENT_UNSPECIFIED",
-          "ALLOYDB_CONNECTOR",
           "ANACONDA",
           "DELTA",
           "DOCKER",
@@ -2361,7 +2360,6 @@ const InputsSchema = z.object({
       optionalComponents: z.array(
         z.enum([
           "COMPONENT_UNSPECIFIED",
-          "ALLOYDB_CONNECTOR",
           "ANACONDA",
           "DELTA",
           "DOCKER",
@@ -2689,7 +2687,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2991,6 +2989,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

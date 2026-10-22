@@ -13,7 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/backupdr/backupplanassociations` to
+Use
+`swamp model type describe @swamp/gcp/backupdr/appliedautoprotectionpolicies` to
 see the full list of configurable properties and available methods for this
 model.
 
@@ -66,17 +67,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new backupplanassociations model
-swamp model create @swamp/gcp/backupdr/backupplanassociations my-backupplanassociations
+# Create a new appliedautoprotectionpolicies model
+swamp model create @swamp/gcp/backupdr/appliedautoprotectionpolicies my-appliedautoprotectionpolicies
 
 # Edit the model to configure its properties
-swamp model edit my-backupplanassociations
+swamp model edit my-appliedautoprotectionpolicies
 
 # Create the resource in GCP
-swamp model method run my-backupplanassociations create
+swamp model method run my-appliedautoprotectionpolicies create
 
 # Sync current state from GCP
-swamp model method run my-backupplanassociations sync
+swamp model method run my-appliedautoprotectionpolicies sync
 ```
 
 ## License

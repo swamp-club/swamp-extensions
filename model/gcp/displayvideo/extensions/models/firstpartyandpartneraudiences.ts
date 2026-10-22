@@ -31,20 +31,18 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  createResource,
   type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
   readResource,
-  updateResource,
 } from "./_lib/gcp.ts";
 
 const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.firstPartyAndPartnerAudiences.get",
-  "path": "v4/firstPartyAndPartnerAudiences/{+firstPartyAndPartnerAudienceId}",
+  "path": "v5/firstPartyAndPartnerAudiences/{+firstPartyAndPartnerAudienceId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "firstPartyAndPartnerAudienceId",
@@ -63,42 +61,9 @@ const GET_CONFIG = {
   },
 } as const;
 
-const INSERT_CONFIG = {
-  "id": "displayvideo.firstPartyAndPartnerAudiences.create",
-  "path": "v4/firstPartyAndPartnerAudiences",
-  "httpMethod": "POST",
-  "parameterOrder": [],
-  "parameters": {
-    "advertiserId": {
-      "location": "query",
-    },
-  },
-} as const;
-
-const PATCH_CONFIG = {
-  "id": "displayvideo.firstPartyAndPartnerAudiences.patch",
-  "path": "v4/firstPartyAndPartnerAudiences/{+firstPartyAndPartnerAudienceId}",
-  "httpMethod": "PATCH",
-  "parameterOrder": [
-    "firstPartyAndPartnerAudienceId",
-  ],
-  "parameters": {
-    "advertiserId": {
-      "location": "query",
-    },
-    "firstPartyAndPartnerAudienceId": {
-      "location": "path",
-      "required": true,
-    },
-    "updateMask": {
-      "location": "query",
-    },
-  },
-} as const;
-
 const LIST_CONFIG = {
   "id": "displayvideo.firstPartyAndPartnerAudiences.list",
-  "path": "v4/firstPartyAndPartnerAudiences",
+  "path": "v5/firstPartyAndPartnerAudiences",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -152,99 +117,6 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  appId: z.string().describe(
-    "Optional. The app_id matches with the type of the mobile_device_ids being uploaded. Only applicable to audience_type `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  audienceType: z.enum([
-    "AUDIENCE_TYPE_UNSPECIFIED",
-    "CUSTOMER_MATCH_CONTACT_INFO",
-    "CUSTOMER_MATCH_DEVICE_ID",
-    "CUSTOMER_MATCH_USER_ID",
-    "ACTIVITY_BASED",
-    "FREQUENCY_CAP",
-    "TAG_BASED",
-    "YOUTUBE_USERS",
-    "THIRD_PARTY",
-    "COMMERCE",
-    "LINEAR",
-    "AGENCY",
-  ]).describe("Immutable. The type of the audience.").optional(),
-  contactInfoList: z.object({
-    consent: z.object({
-      adPersonalization: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad personalization.").optional(),
-      adUserData: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad user data.").optional(),
-    }).describe(
-      "Input only. The consent setting for the users in contact_infos. Leaving this field unset indicates that consent is not specified. If ad_user_data or ad_personalization fields are set to `CONSENT_STATUS_DENIED`, the request will return an error.",
-    ).optional(),
-    contactInfos: z.array(z.object({
-      countryCode: z.string().describe(
-        "Optional. Country code of the member. Must also be set with the following fields: * hashed_first_name * hashed_last_name * zip_codes",
-      ).optional(),
-      hashedEmails: z.array(z.string()).describe(
-        "Optional. A list of SHA256 hashed email of the member. Before hashing, remove all whitespace and make sure the string is all lowercase.",
-      ).optional(),
-      hashedFirstName: z.string().describe(
-        "Optional. SHA256 hashed first name of the member. Before hashing, remove all whitespace and make sure the string is all lowercase. Must also be set with the following fields: * country_code * hashed_last_name * zip_codes",
-      ).optional(),
-      hashedLastName: z.string().describe(
-        "Optional. SHA256 hashed last name of the member. Before hashing, remove all whitespace and make sure the string is all lowercase. Must also be set with the following fields: * country_code * hashed_first_name * zip_codes",
-      ).optional(),
-      hashedPhoneNumbers: z.array(z.string()).describe(
-        "Optional. A list of SHA256 hashed phone numbers of the member. Before hashing, all phone numbers must be formatted using the [E.164 format](https://en.wikipedia.org/wiki/E.164) and include the country calling code.",
-      ).optional(),
-      zipCodes: z.array(z.string()).describe(
-        "Optional. A list of zip codes of the member. Must also be set with the following fields: * country_code * hashed_first_name * hashed_last_name",
-      ).optional(),
-    })).describe(
-      "Optional. A list of ContactInfo objects defining Customer Match audience members. The size of members after splitting the contact_infos mustn't be greater than 500,000.",
-    ).optional(),
-  }).describe(
-    "Input only. A list of contact information to define the initial audience members. Only applicable to audience_type `CUSTOMER_MATCH_CONTACT_INFO`",
-  ).optional(),
-  description: z.string().describe(
-    "Optional. The user-provided description of the audience. Only applicable to first party audiences.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. The display name of the first party and partner audience.",
-  ).optional(),
-  firstPartyAndPartnerAudienceId: z.string().describe(
-    "Identifier. The unique ID of the first party and partner audience. Assigned by the system.",
-  ).optional(),
-  membershipDurationDays: z.string().describe(
-    "Optional. The duration in days that an entry remains in the audience after the qualifying event. The set value must be greater than 0 and less than or equal to 540. Only applicable to first party audiences. This field is required if one of the following audience_type is used: * `CUSTOMER_MATCH_CONTACT_INFO` * `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  mobileDeviceIdList: z.object({
-    consent: z.object({
-      adPersonalization: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad personalization.").optional(),
-      adUserData: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad user data.").optional(),
-    }).describe(
-      "Input only. The consent setting for the users in mobile_device_ids. Leaving this field unset indicates that consent is not specified. If ad_user_data or ad_personalization fields are set to `CONSENT_STATUS_DENIED`, the request will return an error.",
-    ).optional(),
-    mobileDeviceIds: z.array(z.string()).describe(
-      "Optional. A list of mobile device IDs defining Customer Match audience members. The size of mobile_device_ids mustn't be greater than 500,000.",
-    ).optional(),
-  }).describe(
-    "Input only. A list of mobile device IDs to define the initial audience members. Only applicable to audience_type `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  advertiserId: z.string().describe(
-    "Required. The ID of the advertiser under whom the FirstPartyAndPartnerAudience will be created.",
-  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -252,20 +124,6 @@ const StateSchema = z.object({
   appId: z.string().optional(),
   audienceSource: z.string().optional(),
   audienceType: z.string().optional(),
-  contactInfoList: z.object({
-    consent: z.object({
-      adPersonalization: z.string(),
-      adUserData: z.string(),
-    }),
-    contactInfos: z.array(z.object({
-      countryCode: z.string(),
-      hashedEmails: z.array(z.string()),
-      hashedFirstName: z.string(),
-      hashedLastName: z.string(),
-      hashedPhoneNumbers: z.array(z.string()),
-      zipCodes: z.array(z.string()),
-    })),
-  }).optional(),
   description: z.string().optional(),
   displayAudienceSize: z.string().optional(),
   displayDesktopAudienceSize: z.string().optional(),
@@ -276,13 +134,6 @@ const StateSchema = z.object({
   firstPartyAndPartnerAudienceType: z.string().optional(),
   gmailAudienceSize: z.string().optional(),
   membershipDurationDays: z.string().optional(),
-  mobileDeviceIdList: z.object({
-    consent: z.object({
-      adPersonalization: z.string(),
-      adUserData: z.string(),
-    }),
-    mobileDeviceIds: z.array(z.string()),
-  }).optional(),
   name: z.string(),
   youtubeAudienceSize: z.string().optional(),
 }).passthrough();
@@ -297,99 +148,6 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  appId: z.string().describe(
-    "Optional. The app_id matches with the type of the mobile_device_ids being uploaded. Only applicable to audience_type `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  audienceType: z.enum([
-    "AUDIENCE_TYPE_UNSPECIFIED",
-    "CUSTOMER_MATCH_CONTACT_INFO",
-    "CUSTOMER_MATCH_DEVICE_ID",
-    "CUSTOMER_MATCH_USER_ID",
-    "ACTIVITY_BASED",
-    "FREQUENCY_CAP",
-    "TAG_BASED",
-    "YOUTUBE_USERS",
-    "THIRD_PARTY",
-    "COMMERCE",
-    "LINEAR",
-    "AGENCY",
-  ]).describe("Immutable. The type of the audience.").optional(),
-  contactInfoList: z.object({
-    consent: z.object({
-      adPersonalization: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad personalization.").optional(),
-      adUserData: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad user data.").optional(),
-    }).describe(
-      "Input only. The consent setting for the users in contact_infos. Leaving this field unset indicates that consent is not specified. If ad_user_data or ad_personalization fields are set to `CONSENT_STATUS_DENIED`, the request will return an error.",
-    ).optional(),
-    contactInfos: z.array(z.object({
-      countryCode: z.string().describe(
-        "Optional. Country code of the member. Must also be set with the following fields: * hashed_first_name * hashed_last_name * zip_codes",
-      ).optional(),
-      hashedEmails: z.array(z.string()).describe(
-        "Optional. A list of SHA256 hashed email of the member. Before hashing, remove all whitespace and make sure the string is all lowercase.",
-      ).optional(),
-      hashedFirstName: z.string().describe(
-        "Optional. SHA256 hashed first name of the member. Before hashing, remove all whitespace and make sure the string is all lowercase. Must also be set with the following fields: * country_code * hashed_last_name * zip_codes",
-      ).optional(),
-      hashedLastName: z.string().describe(
-        "Optional. SHA256 hashed last name of the member. Before hashing, remove all whitespace and make sure the string is all lowercase. Must also be set with the following fields: * country_code * hashed_first_name * zip_codes",
-      ).optional(),
-      hashedPhoneNumbers: z.array(z.string()).describe(
-        "Optional. A list of SHA256 hashed phone numbers of the member. Before hashing, all phone numbers must be formatted using the [E.164 format](https://en.wikipedia.org/wiki/E.164) and include the country calling code.",
-      ).optional(),
-      zipCodes: z.array(z.string()).describe(
-        "Optional. A list of zip codes of the member. Must also be set with the following fields: * country_code * hashed_first_name * hashed_last_name",
-      ).optional(),
-    })).describe(
-      "Optional. A list of ContactInfo objects defining Customer Match audience members. The size of members after splitting the contact_infos mustn't be greater than 500,000.",
-    ).optional(),
-  }).describe(
-    "Input only. A list of contact information to define the initial audience members. Only applicable to audience_type `CUSTOMER_MATCH_CONTACT_INFO`",
-  ).optional(),
-  description: z.string().describe(
-    "Optional. The user-provided description of the audience. Only applicable to first party audiences.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. The display name of the first party and partner audience.",
-  ).optional(),
-  firstPartyAndPartnerAudienceId: z.string().describe(
-    "Identifier. The unique ID of the first party and partner audience. Assigned by the system.",
-  ).optional(),
-  membershipDurationDays: z.string().describe(
-    "Optional. The duration in days that an entry remains in the audience after the qualifying event. The set value must be greater than 0 and less than or equal to 540. Only applicable to first party audiences. This field is required if one of the following audience_type is used: * `CUSTOMER_MATCH_CONTACT_INFO` * `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  mobileDeviceIdList: z.object({
-    consent: z.object({
-      adPersonalization: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad personalization.").optional(),
-      adUserData: z.enum([
-        "CONSENT_STATUS_UNSPECIFIED",
-        "CONSENT_STATUS_GRANTED",
-        "CONSENT_STATUS_DENIED",
-      ]).describe("Represents consent for ad user data.").optional(),
-    }).describe(
-      "Input only. The consent setting for the users in mobile_device_ids. Leaving this field unset indicates that consent is not specified. If ad_user_data or ad_personalization fields are set to `CONSENT_STATUS_DENIED`, the request will return an error.",
-    ).optional(),
-    mobileDeviceIds: z.array(z.string()).describe(
-      "Optional. A list of mobile device IDs defining Customer Match audience members. The size of mobile_device_ids mustn't be greater than 500,000.",
-    ).optional(),
-  }).describe(
-    "Input only. A list of mobile device IDs to define the initial audience members. Only applicable to audience_type `CUSTOMER_MATCH_DEVICE_ID`",
-  ).optional(),
-  advertiserId: z.string().describe(
-    "Required. The ID of the advertiser under whom the FirstPartyAndPartnerAudience will be created.",
-  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -418,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FirstPartyAndPartnerAudiences. Registered at `@swamp/gcp/displayvideo/firstpartyandpartneraudiences`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/firstpartyandpartneraudiences",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -575,6 +333,26 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Removed: appId, audienceType, contactInfoList, description, displayName, firstPartyAndPartnerAudienceId, membershipDurationDays, mobileDeviceIdList, advertiserId",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          appId: _appId,
+          audienceType: _audienceType,
+          contactInfoList: _contactInfoList,
+          description: _description,
+          displayName: _displayName,
+          firstPartyAndPartnerAudienceId: _firstPartyAndPartnerAudienceId,
+          membershipDurationDays: _membershipDurationDays,
+          mobileDeviceIdList: _mobileDeviceIdList,
+          advertiserId: _advertiserId,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -588,73 +366,6 @@ export const model = {
     },
   },
   methods: {
-    create: {
-      description: "Create a firstPartyAndPartnerAudiences",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        const body: Record<string, unknown> = {};
-        if (g["appId"] !== undefined) body["appId"] = g["appId"];
-        if (g["audienceType"] !== undefined) {
-          body["audienceType"] = g["audienceType"];
-        }
-        if (g["contactInfoList"] !== undefined) {
-          body["contactInfoList"] = g["contactInfoList"];
-        }
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["firstPartyAndPartnerAudienceId"] !== undefined) {
-          body["firstPartyAndPartnerAudienceId"] =
-            g["firstPartyAndPartnerAudienceId"];
-        }
-        if (g["membershipDurationDays"] !== undefined) {
-          body["membershipDurationDays"] = g["membershipDurationDays"];
-        }
-        if (g["mobileDeviceIdList"] !== undefined) {
-          body["mobileDeviceIdList"] = g["mobileDeviceIdList"];
-        }
-        if (g["advertiserId"] !== undefined) {
-          params["advertiserId"] = String(g["advertiserId"]);
-        }
-        if (g["name"] !== undefined) {
-          params["firstPartyAndPartnerAudienceId"] = String(g["name"]);
-        }
-        const result = await createResource(
-          baseUrl,
-          INSERT_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {},
-            matchField: "displayName",
-            matchValue: String(g["displayName"] ?? ""),
-          },
-          credentials,
-        ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     get: {
       description: "Get a firstPartyAndPartnerAudiences",
       arguments: z.object({
@@ -680,91 +391,6 @@ export const model = {
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
-    update: {
-      description: "Update firstPartyAndPartnerAudiences attributes",
-      arguments: z.object({
-        identifier: z.string().describe(
-          "Target a specific firstPartyAndPartnerAudiences by name (e.g. one discovered by list)",
-        ).optional(),
-      }),
-      execute: async (args: { identifier?: string }, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const instanceName =
-          (g.name?.toString() ?? args.identifier ?? "current").replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error(
-            "No existing state found - run create, get, or list first",
-          );
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const params: Record<string, string> = { project: projectId };
-        const resourceId =
-          existing["firstPartyAndPartnerAudienceId"]?.toString() ??
-            g["firstPartyAndPartnerAudienceId"]?.toString();
-        if (!resourceId) {
-          throw new Error(
-            "No identifier found in existing state or globalArgs",
-          );
-        }
-        params["firstPartyAndPartnerAudienceId"] = resourceId;
-        const body: Record<string, unknown> = {};
-        if (g["appId"] !== undefined) body["appId"] = g["appId"];
-        if (g["contactInfoList"] !== undefined) {
-          body["contactInfoList"] = g["contactInfoList"];
-        }
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["membershipDurationDays"] !== undefined) {
-          body["membershipDurationDays"] = g["membershipDurationDays"];
-        }
-        if (g["mobileDeviceIdList"] !== undefined) {
-          body["mobileDeviceIdList"] = g["mobileDeviceIdList"];
-        }
-        const updateMaskKeys = Object.keys(body);
-        if (updateMaskKeys.length > 0) {
-          params["updateMask"] = updateMaskKeys.join(",");
-        }
-        for (const key of Object.keys(existing)) {
-          if (
-            key === "fingerprint" || key === "labelFingerprint" ||
-            key === "etag" || key.endsWith("Fingerprint")
-          ) {
-            body[key] = existing[key];
-          }
-        }
-        const result = await updateResource(
-          baseUrl,
-          PATCH_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          credentials,
-        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -904,69 +530,6 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
-      },
-    },
-    edit_customer_match_members: {
-      description: "edit customer match members",
-      arguments: z.object({
-        addedContactInfoList: z.any().optional(),
-        addedMobileDeviceIdList: z.any().optional(),
-        advertiserId: z.any().optional(),
-        removedContactInfoList: z.any().optional(),
-        removedMobileDeviceIdList: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        if (g["firstPartyAndPartnerAudienceId"] !== undefined) {
-          params["firstPartyAndPartnerAudienceId"] = String(
-            g["firstPartyAndPartnerAudienceId"],
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["addedContactInfoList"] !== undefined) {
-          body["addedContactInfoList"] = args["addedContactInfoList"];
-        }
-        if (args["addedMobileDeviceIdList"] !== undefined) {
-          body["addedMobileDeviceIdList"] = args["addedMobileDeviceIdList"];
-        }
-        if (args["advertiserId"] !== undefined) {
-          body["advertiserId"] = args["advertiserId"];
-        }
-        if (args["removedContactInfoList"] !== undefined) {
-          body["removedContactInfoList"] = args["removedContactInfoList"];
-        }
-        if (args["removedMobileDeviceIdList"] !== undefined) {
-          body["removedMobileDeviceIdList"] = args["removedMobileDeviceIdList"];
-        }
-        const result = await createResource(
-          baseUrl,
-          {
-            "id":
-              "displayvideo.firstPartyAndPartnerAudiences.editCustomerMatchMembers",
-            "path":
-              "v4/firstPartyAndPartnerAudiences/{+firstPartyAndPartnerAudienceId}:editCustomerMatchMembers",
-            "httpMethod": "POST",
-            "parameterOrder": ["firstPartyAndPartnerAudienceId"],
-            "parameters": {
-              "firstPartyAndPartnerAudienceId": {
-                "location": "path",
-                "required": true,
-              },
-            },
-          },
-          params,
-          body,
-          undefined,
-          undefined,
-          undefined,
-          credentials,
-        );
-        return { result };
       },
     },
   },

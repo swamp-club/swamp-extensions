@@ -296,6 +296,18 @@ const GlobalArgsSchema = z.object({
     "Optional. Enables SSH access to the Service.",
   ).optional(),
   template: z.object({
+    ambientNetworking: z.object({
+      ambientScope: z.enum([
+        "AMBIENT_SCOPE_UNSPECIFIED",
+        "AMBIENT_SCOPE_REGIONAL",
+        "AMBIENT_SCOPE_GLOBAL",
+      ]).describe("The ambient networking scope of the instance.").optional(),
+      enabled: z.boolean().describe(
+        "Optional. Whether ambient networking is enabled.",
+      ).optional(),
+    }).describe(
+      "Optional. The ambient networking configuration for this revision.",
+    ).optional(),
     annotations: z.record(z.string(), z.string()).describe(
       "Optional. Unstructured key value map that may be set by external tools to store and arbitrary metadata. They are not queryable and should be preserved when modifying objects. Cloud Run API v2 does not support annotations with `run.googleapis.com`, `cloud.googleapis.com`, `serving.knative.dev`, or `autoscaling.knative.dev` namespaces, and they will be rejected. All system annotations in v1 now have a corresponding field in v2 RevisionTemplate. This field follows Kubernetes annotations' namespacing, limits, and rules.",
     ).optional(),
@@ -806,6 +818,10 @@ const StateSchema = z.object({
   }).optional(),
   sshEnabled: z.boolean().optional(),
   template: z.object({
+    ambientNetworking: z.object({
+      ambientScope: z.string(),
+      enabled: z.boolean(),
+    }),
     annotations: z.record(z.string(), z.unknown()),
     client: z.string(),
     clientVersion: z.string(),
@@ -1131,6 +1147,18 @@ const InputsSchema = z.object({
     "Optional. Enables SSH access to the Service.",
   ).optional(),
   template: z.object({
+    ambientNetworking: z.object({
+      ambientScope: z.enum([
+        "AMBIENT_SCOPE_UNSPECIFIED",
+        "AMBIENT_SCOPE_REGIONAL",
+        "AMBIENT_SCOPE_GLOBAL",
+      ]).describe("The ambient networking scope of the instance.").optional(),
+      enabled: z.boolean().describe(
+        "Optional. Whether ambient networking is enabled.",
+      ).optional(),
+    }).describe(
+      "Optional. The ambient networking configuration for this revision.",
+    ).optional(),
     annotations: z.record(z.string(), z.string()).describe(
       "Optional. Unstructured key value map that may be set by external tools to store and arbitrary metadata. They are not queryable and should be preserved when modifying objects. Cloud Run API v2 does not support annotations with `run.googleapis.com`, `cloud.googleapis.com`, `serving.knative.dev`, or `autoscaling.knative.dev` namespaces, and they will be rejected. All system annotations in v1 now have a corresponding field in v2 RevisionTemplate. This field follows Kubernetes annotations' namespacing, limits, and rules.",
     ).optional(),
@@ -1602,7 +1630,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Services. Registered at `@swamp/gcp/run/services`. */
 export const model = {
   type: "@swamp/gcp/run/services",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1917,6 +1945,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

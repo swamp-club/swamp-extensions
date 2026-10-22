@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.get",
-  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.create",
-  "path": "v3/advertisers/{+advertiserId}/adGroups",
+  "path": "v5/advertisers/{+advertiserId}/adGroups",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.patch",
-  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.delete",
-  "path": "v3/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.adGroups.list",
-  "path": "v3/advertisers/{+advertiserId}/adGroups",
+  "path": "v5/advertisers/{+advertiserId}/adGroups",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -219,6 +219,10 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Required for Demand Gen ad groups. Specifies the inventory control of the ad group.",
   ).optional(),
+  adSource: z.enum(["AD_SOURCE_UNSPECIFIED", "AD_SOURCE_DV360_CREATIVE"])
+    .describe(
+      "Optional. The source of the ads under this ad group. This field is only used when ads are generated automatically from a given source.",
+    ).optional(),
   advertiserId: z.string().describe(
     "Output only. The unique ID of the advertiser the ad group belongs to.",
   ).optional(),
@@ -271,6 +275,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -299,6 +304,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -337,6 +343,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. The bidding strategy used by the ad group. Only the youtubeAndPartnersBid and demandGenBid field can be used in the bidding strategy.",
+  ).optional(),
+  creativeAssignments: z.array(z.object({
+    creativeId: z.string().describe(
+      "Required. The ID of the Display & Video 360 creative assigned to the ad group.",
+    ).optional(),
+  })).describe(
+    "Optional. The creatives used to generate ads under the ad group. This field can only be assigned if ad_source is `AD_SOURCE_DV360_CREATIVE`.",
   ).optional(),
   displayName: z.string().describe(
     "Required. The display name of the ad group. Must be UTF-8 encoded with a maximum size of 255 bytes.",
@@ -409,6 +422,7 @@ const StateSchema = z.object({
       allowYoutubeStream: z.boolean(),
     }),
   }).optional(),
+  adSource: z.string().optional(),
   advertiserId: z.string().optional(),
   bidStrategy: z.object({
     demandGenBid: z.object({
@@ -439,6 +453,9 @@ const StateSchema = z.object({
       value: z.string(),
     }),
   }).optional(),
+  creativeAssignments: z.array(z.object({
+    creativeId: z.string(),
+  })).optional(),
   displayName: z.string().optional(),
   entityStatus: z.string().optional(),
   lineItemId: z.string().optional(),
@@ -512,6 +529,10 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. Required for Demand Gen ad groups. Specifies the inventory control of the ad group.",
   ).optional(),
+  adSource: z.enum(["AD_SOURCE_UNSPECIFIED", "AD_SOURCE_DV360_CREATIVE"])
+    .describe(
+      "Optional. The source of the ads under this ad group. This field is only used when ads are generated automatically from a given source.",
+    ).optional(),
   advertiserId: z.string().describe(
     "Output only. The unique ID of the advertiser the ad group belongs to.",
   ).optional(),
@@ -564,6 +585,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -592,6 +614,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -630,6 +653,13 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. The bidding strategy used by the ad group. Only the youtubeAndPartnersBid and demandGenBid field can be used in the bidding strategy.",
+  ).optional(),
+  creativeAssignments: z.array(z.object({
+    creativeId: z.string().describe(
+      "Required. The ID of the Display & Video 360 creative assigned to the ad group.",
+    ).optional(),
+  })).describe(
+    "Optional. The creatives used to generate ads under the ad group. This field can only be assigned if ad_source is `AD_SOURCE_DV360_CREATIVE`.",
   ).optional(),
   displayName: z.string().describe(
     "Required. The display name of the ad group. Must be UTF-8 encoded with a maximum size of 255 bytes.",
@@ -714,7 +744,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroups. Registered at `@swamp/gcp/displayvideo/advertisers-adgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroups",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -921,6 +951,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Added: adSource, creativeAssignments",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -954,8 +989,12 @@ export const model = {
         if (g["adGroupInventoryControl"] !== undefined) {
           body["adGroupInventoryControl"] = g["adGroupInventoryControl"];
         }
+        if (g["adSource"] !== undefined) body["adSource"] = g["adSource"];
         if (g["bidStrategy"] !== undefined) {
           body["bidStrategy"] = g["bidStrategy"];
+        }
+        if (g["creativeAssignments"] !== undefined) {
+          body["creativeAssignments"] = g["creativeAssignments"];
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -1079,8 +1118,12 @@ export const model = {
         if (g["adGroupInventoryControl"] !== undefined) {
           body["adGroupInventoryControl"] = g["adGroupInventoryControl"];
         }
+        if (g["adSource"] !== undefined) body["adSource"] = g["adSource"];
         if (g["bidStrategy"] !== undefined) {
           body["bidStrategy"] = g["bidStrategy"];
+        }
+        if (g["creativeAssignments"] !== undefined) {
+          body["creativeAssignments"] = g["creativeAssignments"];
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -1319,7 +1362,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.adGroups.bulkEditAssignedTargetingOptions",
             "path":
-              "v3/advertisers/{+advertiserId}/adGroups:bulkEditAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}/adGroups:bulkEditAssignedTargetingOptions",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -1336,8 +1379,8 @@ export const model = {
         return { result };
       },
     },
-    bulk_list_ad_group_assigned_targeting_options: {
-      description: "bulk list ad group assigned targeting options",
+    bulk_list_assigned_targeting_options: {
+      description: "bulk list assigned targeting options",
       arguments: z.object({
         adGroupIds: z.any().optional(),
         filter: z.any().optional(),
@@ -1374,9 +1417,9 @@ export const model = {
           baseUrl,
           {
             "id":
-              "displayvideo.advertisers.adGroups.bulkListAdGroupAssignedTargetingOptions",
+              "displayvideo.advertisers.adGroups.bulkListAssignedTargetingOptions",
             "path":
-              "v3/advertisers/{+advertiserId}/adGroups:bulkListAdGroupAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}/adGroups:bulkListAssignedTargetingOptions",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {

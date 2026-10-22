@@ -500,11 +500,11 @@ const ResourceSchema = z.object({
   regions: z.array(z.string()).nullable().optional(),
   resourceConfig: z.object({
     buildMachine: z.object({
+      machineSelectionType: z.string().optional(),
+      purchaseType: z.string().optional(),
       cores: z.number().optional(),
       defaultPurchaseType: z.string().optional(),
-      machineSelectionType: z.string().optional(),
       memory: z.number().optional(),
-      purchaseType: z.string().optional(),
       selectionSource: z.string().optional(),
     }).optional(),
   }).nullable().optional(),
@@ -568,6 +568,12 @@ const ResourceSchema = z.object({
         bundle: z.boolean().optional(),
         bunVersion: z.string().optional(),
         daemon: z.object({
+          bindings: z.array(z.object({
+            env: z.string().optional(),
+            format: z.string().optional(),
+            service: z.string().optional(),
+            type: z.string().optional(),
+          })).optional(),
           command: z.array(z.string()).optional(),
           entrypoint: z.string().optional(),
           instances: z.record(z.string(), z.unknown()).optional(),
@@ -812,7 +818,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -911,6 +917,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

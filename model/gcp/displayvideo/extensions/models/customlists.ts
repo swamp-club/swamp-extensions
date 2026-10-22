@@ -42,7 +42,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.customLists.get",
-  "path": "v2/customLists/{+customListId}",
+  "path": "v5/customLists/{+customListId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "customListId",
@@ -60,7 +60,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.customLists.list",
-  "path": "v2/customLists",
+  "path": "v5/customLists",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -157,7 +157,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomLists. Registered at `@swamp/gcp/displayvideo/customlists`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/customlists",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +281,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -62,30 +62,6 @@ const GET_CONFIG = {
   },
 } as const;
 
-const INSERT_CONFIG = {
-  "id": "beyondcorp.projects.locations.appGateways.create",
-  "path": "v1/{+parent}/appGateways",
-  "httpMethod": "POST",
-  "parameterOrder": [
-    "parent",
-  ],
-  "parameters": {
-    "appGatewayId": {
-      "location": "query",
-    },
-    "parent": {
-      "location": "path",
-      "required": true,
-    },
-    "requestId": {
-      "location": "query",
-    },
-    "validateOnly": {
-      "location": "query",
-    },
-  },
-} as const;
-
 const DELETE_CONFIG = {
   "id": "beyondcorp.projects.locations.appGateways.delete",
   "path": "v1/{+name}",
@@ -135,6 +111,9 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -152,27 +131,6 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. An arbitrary user-provided name for the AppGateway. Cannot exceed 64 characters.",
-  ).optional(),
-  hostType: z.enum(["HOST_TYPE_UNSPECIFIED", "GCP_REGIONAL_MIG"]).describe(
-    "Required. The type of hosting used by the AppGateway.",
-  ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels to represent user provided metadata.",
-  ).optional(),
-  name: z.string().describe(
-    "Required. Unique resource name of the AppGateway. The name is ignored when creating an AppGateway.",
-  ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "TCP_PROXY"]).describe(
-    "Required. The type of network connectivity used by the AppGateway.",
-  ).optional(),
-  appGatewayId: z.string().describe(
-    "Optional. User-settable AppGateway resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
-  ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -201,33 +159,13 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  displayName: z.string().describe(
-    "Optional. An arbitrary user-provided name for the AppGateway. Cannot exceed 64 characters.",
-  ).optional(),
-  hostType: z.enum(["HOST_TYPE_UNSPECIFIED", "GCP_REGIONAL_MIG"]).describe(
-    "Required. The type of hosting used by the AppGateway.",
-  ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels to represent user provided metadata.",
-  ).optional(),
-  name: z.string().describe(
-    "Required. Unique resource name of the AppGateway. The name is ignored when creating an AppGateway.",
-  ).optional(),
-  type: z.enum(["TYPE_UNSPECIFIED", "TCP_PROXY"]).describe(
-    "Required. The type of network connectivity used by the AppGateway.",
-  ).optional(),
-  appGatewayId: z.string().describe(
-    "Optional. User-settable AppGateway resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
-  ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -259,7 +197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BeyondCorp AppGateways. Registered at `@swamp/gcp/beyondcorp/appgateways`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appgateways",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -401,6 +339,23 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Removed: displayName, hostType, labels, type, appGatewayId, requestId",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          displayName: _displayName,
+          hostType: _hostType,
+          labels: _labels,
+          type: _type,
+          appGatewayId: _appGatewayId,
+          requestId: _requestId,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -414,68 +369,6 @@ export const model = {
     },
   },
   methods: {
-    create: {
-      description: "Create a appGateways",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
-        const body: Record<string, unknown> = {};
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["hostType"] !== undefined) body["hostType"] = g["hostType"];
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["type"] !== undefined) body["type"] = g["type"];
-        if (g["appGatewayId"] !== undefined) {
-          params["appGatewayId"] = String(g["appGatewayId"]);
-        }
-        if (g["requestId"] !== undefined) {
-          params["requestId"] = String(g["requestId"]);
-        }
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const result = await createResource(
-          baseUrl,
-          INSERT_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
-            },
-            matchField: "displayName",
-            matchValue: String(g["displayName"] ?? ""),
-          },
-          credentials,
-        ) as StateData;
-        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     get: {
       description: "Get a appGateways",
       arguments: z.object({
@@ -498,11 +391,10 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName =
-          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

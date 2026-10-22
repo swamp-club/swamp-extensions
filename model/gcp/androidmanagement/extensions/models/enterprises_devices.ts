@@ -693,6 +693,7 @@ const GlobalArgsSchema = z.object({
       "DEFAULT_APPLICATION_SETTING_UNSUPPORTED_SCOPES",
       "DEFAULT_APPLICATION_SETTING_FAILED_FOR_SCOPE",
       "PRIVATE_DNS_HOST_NOT_SERVING",
+      "USER_NOT_UNLOCKED",
     ]).describe(
       "The policy-specific reason the device is not in compliance with the setting.",
     ).optional(),
@@ -1603,6 +1604,7 @@ const InputsSchema = z.object({
       "DEFAULT_APPLICATION_SETTING_UNSUPPORTED_SCOPES",
       "DEFAULT_APPLICATION_SETTING_FAILED_FOR_SCOPE",
       "PRIVATE_DNS_HOST_NOT_SERVING",
+      "USER_NOT_UNLOCKED",
     ]).describe(
       "The policy-specific reason the device is not in compliance with the setting.",
     ).optional(),
@@ -1775,7 +1777,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1929,6 +1931,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

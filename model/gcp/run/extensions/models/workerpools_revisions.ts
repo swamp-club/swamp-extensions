@@ -137,6 +137,10 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  ambientNetworking: z.object({
+    ambientScope: z.string(),
+    enabled: z.boolean(),
+  }).optional(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   client: z.string().optional(),
   clientVersion: z.string().optional(),
@@ -379,7 +383,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin WorkerPools.Revisions. Registered at `@swamp/gcp/run/workerpools-revisions`. */
 export const model = {
   type: "@swamp/gcp/run/workerpools-revisions",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +542,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

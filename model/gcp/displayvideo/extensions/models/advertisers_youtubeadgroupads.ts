@@ -251,6 +251,7 @@ const StateSchema = z.object({
   }).optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()),
+    businessName: z.string(),
     companionBanners: z.array(z.object({
       assetId: z.string(),
       fileSize: z.string(),
@@ -267,6 +268,15 @@ const StateSchema = z.object({
     domain: z.string(),
     finalUrl: z.string(),
     headlines: z.array(z.string()),
+    logo: z.object({
+      assetId: z.string(),
+      fileSize: z.string(),
+      fullSize: z.object({
+        heightPixels: z.number(),
+        widthPixels: z.number(),
+      }),
+      mimeType: z.string(),
+    }),
     longHeadlines: z.array(z.string()),
     trackingUrl: z.string(),
     videos: z.array(z.object({
@@ -318,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.YoutubeAdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-youtubeadgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-youtubeadgroupads",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -332,6 +342,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.get",
-  "path": "v2/advertisers/{+advertiserId}",
+  "path": "v5/advertisers/{+advertiserId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -60,7 +60,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.create",
-  "path": "v2/advertisers",
+  "path": "v5/advertisers",
   "httpMethod": "POST",
   "parameterOrder": [],
   "parameters": {},
@@ -68,7 +68,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.patch",
-  "path": "v2/advertisers/{+advertiserId}",
+  "path": "v5/advertisers/{+advertiserId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -86,7 +86,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.delete",
-  "path": "v2/advertisers/{+advertiserId}",
+  "path": "v5/advertisers/{+advertiserId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -101,7 +101,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.list",
-  "path": "v2/advertisers",
+  "path": "v5/advertisers",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -188,6 +188,12 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Required. Immutable. Ad server related settings of the advertiser.",
   ).optional(),
+  billingConfig: z.object({
+    billingProfileId: z.string().describe(
+      "Required. The ID of a billing profile assigned to the advertiser.",
+    ).optional(),
+  }).describe("Required. Billing related settings of the advertiser.")
+    .optional(),
   containsEuPoliticalAds: z.enum([
     "EU_POLITICAL_ADVERTISING_STATUS_UNKNOWN",
     "CONTAINS_EU_POLITICAL_ADVERTISING",
@@ -305,6 +311,9 @@ const StateSchema = z.object({
     }),
   }).optional(),
   advertiserId: z.string().optional(),
+  billingConfig: z.object({
+    billingProfileId: z.string(),
+  }).optional(),
   containsEuPoliticalAds: z.string().optional(),
   creativeConfig: z.object({
     dynamicCreativeEnabled: z.boolean(),
@@ -389,6 +398,12 @@ const InputsSchema = z.object({
   }).describe(
     "Required. Immutable. Ad server related settings of the advertiser.",
   ).optional(),
+  billingConfig: z.object({
+    billingProfileId: z.string().describe(
+      "Required. The ID of a billing profile assigned to the advertiser.",
+    ).optional(),
+  }).describe("Required. Billing related settings of the advertiser.")
+    .optional(),
   containsEuPoliticalAds: z.enum([
     "EU_POLITICAL_ADVERTISING_STATUS_UNKNOWN",
     "CONTAINS_EU_POLITICAL_ADVERTISING",
@@ -516,7 +531,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers. Registered at `@swamp/gcp/displayvideo/advertisers`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -671,6 +686,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Added: billingConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -696,6 +716,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["adServerConfig"] !== undefined) {
           body["adServerConfig"] = g["adServerConfig"];
+        }
+        if (g["billingConfig"] !== undefined) {
+          body["billingConfig"] = g["billingConfig"];
         }
         if (g["containsEuPoliticalAds"] !== undefined) {
           body["containsEuPoliticalAds"] = g["containsEuPoliticalAds"];
@@ -829,6 +852,9 @@ export const model = {
         }
         params["advertiserId"] = resourceId;
         const body: Record<string, unknown> = {};
+        if (g["billingConfig"] !== undefined) {
+          body["billingConfig"] = g["billingConfig"];
+        }
         if (g["containsEuPoliticalAds"] !== undefined) {
           body["containsEuPoliticalAds"] = g["containsEuPoliticalAds"];
         }
@@ -1082,7 +1108,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.advertisers.audit",
-            "path": "v2/advertisers/{+advertiserId}:audit",
+            "path": "v5/advertisers/{+advertiserId}:audit",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -1139,7 +1165,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.editAssignedTargetingOptions",
             "path":
-              "v2/advertisers/{+advertiserId}:editAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}:editAssignedTargetingOptions",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -1202,7 +1228,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.listAssignedTargetingOptions",
             "path":
-              "v2/advertisers/{+advertiserId}:listAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}:listAssignedTargetingOptions",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {

@@ -188,8 +188,19 @@ const GlobalArgsSchema = z.object({
       "CLIENT_VALIDATION_MODE_UNSPECIFIED",
       "ALLOW_INVALID_OR_MISSING_CLIENT_CERT",
       "REJECT_INVALID",
+      "ALLOW_VALIDATION_RELAXATIONS",
     ]).describe(
       "When the client presents an invalid certificate or no certificate to the load balancer, the `client_validation_mode` specifies how the client connection is handled. Required if the policy is to be used with the Application Load Balancers. For Traffic Director it must be empty.",
+    ).optional(),
+    clientValidationRelaxations: z.array(
+      z.enum([
+        "CLIENT_VALIDATION_RELAXATION_UNSPECIFIED",
+        "ALLOW_MISSING_EKU",
+        "ALLOW_SHA1_HASHING",
+        "ALLOW_EXPIRED_LEAF_CERTIFICATE",
+      ]),
+    ).describe(
+      "A list of validation relaxations to apply when `client_validation_mode` is set to ALLOW_VALIDATION_RELAXATIONS.",
     ).optional(),
     clientValidationTrustConfig: z.string().describe(
       "Reference to the TrustConfig from certificatemanager.googleapis.com namespace. If specified, the chain validation will be performed against certificates configured in the given TrustConfig. Allowed only if the policy is to be used with Application Load Balancers.",
@@ -241,6 +252,7 @@ const StateSchema = z.object({
       }),
     })),
     clientValidationMode: z.string(),
+    clientValidationRelaxations: z.array(z.string()),
     clientValidationTrustConfig: z.string(),
   }).optional(),
   name: z.string(),
@@ -295,8 +307,19 @@ const InputsSchema = z.object({
       "CLIENT_VALIDATION_MODE_UNSPECIFIED",
       "ALLOW_INVALID_OR_MISSING_CLIENT_CERT",
       "REJECT_INVALID",
+      "ALLOW_VALIDATION_RELAXATIONS",
     ]).describe(
       "When the client presents an invalid certificate or no certificate to the load balancer, the `client_validation_mode` specifies how the client connection is handled. Required if the policy is to be used with the Application Load Balancers. For Traffic Director it must be empty.",
+    ).optional(),
+    clientValidationRelaxations: z.array(
+      z.enum([
+        "CLIENT_VALIDATION_RELAXATION_UNSPECIFIED",
+        "ALLOW_MISSING_EKU",
+        "ALLOW_SHA1_HASHING",
+        "ALLOW_EXPIRED_LEAF_CERTIFICATE",
+      ]),
+    ).describe(
+      "A list of validation relaxations to apply when `client_validation_mode` is set to ALLOW_VALIDATION_RELAXATIONS.",
     ).optional(),
     clientValidationTrustConfig: z.string().describe(
       "Reference to the TrustConfig from certificatemanager.googleapis.com namespace. If specified, the chain validation will be performed against certificates configured in the given TrustConfig. Allowed only if the policy is to be used with Application Load Balancers.",
@@ -359,7 +382,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security ServerTlsPolicies. Registered at `@swamp/gcp/networksecurity/servertlspolicies`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/servertlspolicies",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -516,6 +539,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

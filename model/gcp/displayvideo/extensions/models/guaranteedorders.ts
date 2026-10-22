@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.guaranteedOrders.get",
-  "path": "v2/guaranteedOrders/{+guaranteedOrderId}",
+  "path": "v5/guaranteedOrders/{+guaranteedOrderId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "guaranteedOrderId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.guaranteedOrders.create",
-  "path": "v2/guaranteedOrders",
+  "path": "v5/guaranteedOrders",
   "httpMethod": "POST",
   "parameterOrder": [],
   "parameters": {
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.guaranteedOrders.patch",
-  "path": "v2/guaranteedOrders/{+guaranteedOrderId}",
+  "path": "v5/guaranteedOrders/{+guaranteedOrderId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "guaranteedOrderId",
@@ -104,7 +104,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.guaranteedOrders.list",
-  "path": "v2/guaranteedOrders",
+  "path": "v5/guaranteedOrders",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -505,7 +505,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 GuaranteedOrders. Registered at `@swamp/gcp/displayvideo/guaranteedorders`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/guaranteedorders",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -654,6 +654,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1042,7 +1047,7 @@ export const model = {
             "id":
               "displayvideo.guaranteedOrders.editGuaranteedOrderReadAccessors",
             "path":
-              "v2/guaranteedOrders/{+guaranteedOrderId}:editGuaranteedOrderReadAccessors",
+              "v5/guaranteedOrders/{+guaranteedOrderId}:editGuaranteedOrderReadAccessors",
             "httpMethod": "POST",
             "parameterOrder": ["guaranteedOrderId"],
             "parameters": {

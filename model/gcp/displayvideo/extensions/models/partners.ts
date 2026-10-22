@@ -43,7 +43,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.partners.get",
-  "path": "v2/partners/{+partnerId}",
+  "path": "v5/partners/{+partnerId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "partnerId",
@@ -58,7 +58,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.partners.list",
-  "path": "v2/partners",
+  "path": "v5/partners",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -114,6 +114,9 @@ const StateSchema = z.object({
       dv360ToCmCostReportingEnabled: z.boolean(),
       dv360ToCmDataSharingEnabled: z.boolean(),
     }),
+  }).optional(),
+  billingConfig: z.object({
+    billingProfileId: z.string(),
   }).optional(),
   dataAccessConfig: z.object({
     sdfConfig: z.object({
@@ -178,7 +181,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Partners. Registered at `@swamp/gcp/displayvideo/partners`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/partners",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -302,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -506,7 +514,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.partners.editAssignedTargetingOptions",
-            "path": "v2/partners/{+partnerId}:editAssignedTargetingOptions",
+            "path": "v5/partners/{+partnerId}:editAssignedTargetingOptions",
             "httpMethod": "POST",
             "parameterOrder": ["partnerId"],
             "parameters": {

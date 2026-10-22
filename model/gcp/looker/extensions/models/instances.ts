@@ -168,9 +168,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()).describe(
-      "Email domain allowlist for the instance.",
+      "Optional. Email domain allowlist for the instance.",
     ).optional(),
-  }).describe("Looker Instance Admin settings.").optional(),
+  }).describe("Optional. Looker Instance Admin settings.").optional(),
   authType: z.object({
     googleAuthEnabled: z.boolean().describe(
       "Optional. Whether google auth is enabled on the Looker instance.",
@@ -186,7 +186,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Storage class of the instance.",
   ).optional(),
   consumerNetwork: z.string().describe(
-    "Network name in the consumer project. Format: `projects/{project}/global/networks/{network}`. Note that the consumer network may be in a different GCP project than the consumer project that is hosting the Looker Instance.",
+    "Optional. Network name in the consumer project. Format: `projects/{project}/global/networks/{network}`. Note that the consumer network may be in a different GCP project than the consumer project that is hosting the Looker Instance.",
   ).optional(),
   controlledEgressConfig: z.object({
     egressFqdns: z.array(z.string()).describe(
@@ -203,7 +203,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Whether controlled egress is enabled on the Looker instance.",
   ).optional(),
   customDomain: z.object({
-    domain: z.string().describe("Domain name.").optional(),
+    domain: z.string().describe("Optional. Domain name.").optional(),
     state: z.enum([
       "CUSTOM_DOMAIN_STATE_UNSPECIFIED",
       "UNVERIFIED",
@@ -212,8 +212,9 @@ const GlobalArgsSchema = z.object({
       "AVAILABLE",
       "UNAVAILABLE",
       "UNKNOWN",
-    ]).describe("Domain state.").optional(),
-  }).describe("Custom domain configuration for the instance.").optional(),
+    ]).describe("Output only. Domain state.").optional(),
+  }).describe("Optional. Custom domain configuration for the instance.")
+    .optional(),
   denyMaintenancePeriod: z.object({
     endDate: z.object({
       day: z.number().int().describe(
@@ -254,10 +255,11 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Required. Time in UTC when the period starts and ends.")
       .optional(),
-  }).describe("Maintenance denial period for this instance.").optional(),
+  }).describe("Optional. Maintenance denial period for this instance.")
+    .optional(),
   encryptionConfig: z.object({
     kmsKeyName: z.string().describe(
-      "Name of the CMEK key in KMS (input parameter).",
+      "Optional. Immutable. Name of the CMEK key in KMS (input parameter).",
     ).optional(),
     kmsKeyNameVersion: z.string().describe(
       "Output only. Full name and version of the CMEK key currently in use to encrypt Looker data. Format: `projects/{project}/locations/{location}/keyRings/{ring}/cryptoKeys/{key}/cryptoKeyVersions/{version}`. Empty if CMEK is not configured in this instance.",
@@ -265,7 +267,7 @@ const GlobalArgsSchema = z.object({
     kmsKeyState: z.enum(["KMS_KEY_STATE_UNSPECIFIED", "VALID", "REVOKED"])
       .describe("Output only. Status of the CMEK key.").optional(),
   }).describe(
-    "Encryption configuration (CMEK). Only set if CMEK has been enabled on the instance.",
+    "Optional. Encryption configuration (CMEK). Only set if CMEK has been enabled on the instance.",
   ).optional(),
   fipsEnabled: z.boolean().describe(
     "Optional. Whether FIPS is enabled on the Looker instance.",
@@ -295,13 +297,6 @@ const GlobalArgsSchema = z.object({
   linkedLspProjectNumber: z.string().describe(
     "Optional. Linked Google Cloud Project Number for Looker Studio Pro.",
   ).optional(),
-  maintenanceSchedule: z.object({
-    endTime: z.string().describe("The scheduled end time for the maintenance.")
-      .optional(),
-    startTime: z.string().describe(
-      "The scheduled start time for the maintenance.",
-    ).optional(),
-  }).describe("Maintenance schedule for this instance.").optional(),
   maintenanceWindow: z.object({
     dayOfWeek: z.enum([
       "DAY_OF_WEEK_UNSPECIFIED",
@@ -331,7 +326,7 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Required. Time in UTC when the period starts. Maintenance will be scheduled within 60 minutes.",
     ).optional(),
-  }).describe("Maintenance window for this instance.").optional(),
+  }).describe("Optional. Maintenance window for this instance.").optional(),
   oauthConfig: z.object({
     clientId: z.string().describe(
       "Input only. Client ID from an external OAuth application. This is an input-only field, and thus will not be set in any responses.",
@@ -342,7 +337,7 @@ const GlobalArgsSchema = z.object({
     sharedOauthClientEnabled: z.boolean().describe(
       "Optional. Whether to use the shared OAuth client. Instances specifying this field do not need to provide client_id and client_secret.",
     ).optional(),
-  }).describe("Looker instance OAuth login settings.").optional(),
+  }).describe("Optional. Looker instance OAuth login settings.").optional(),
   periodicExportConfig: z.object({
     gcsUri: z.string().describe(
       "Required. Cloud Storage bucket URI for periodic export. Format: gs://{bucket_name}",
@@ -379,9 +374,11 @@ const GlobalArgsSchema = z.object({
     "LOOKER_CORE_TRIAL_STANDARD",
     "LOOKER_CORE_TRIAL_ENTERPRISE",
     "LOOKER_CORE_TRIAL_EMBED",
-  ]).describe("Platform edition.").optional(),
+  ]).describe(
+    "Optional. Platform edition. Marked as OPTIONAL for backward compatibility, though it is required during instance creation.",
+  ).optional(),
   privateIpEnabled: z.boolean().describe(
-    "Whether private IP is enabled on the Looker instance.",
+    "Optional. Whether private IP is enabled on the Looker instance.",
   ).optional(),
   pscConfig: z.object({
     allowedVpcs: z.array(z.string()).describe(
@@ -419,7 +416,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Whether to use Private Service Connect (PSC) for private IP connectivity. If true, neither `public_ip_enabled` nor `private_ip_enabled` can be true.",
   ).optional(),
   publicIpEnabled: z.boolean().describe(
-    "Whether public IP is enabled on the Looker instance.",
+    "Optional. Whether public IP is enabled on the Looker instance.",
   ).optional(),
   releaseChannel: z.enum([
     "RELEASE_CHANNEL_UNSPECIFIED",
@@ -429,7 +426,7 @@ const GlobalArgsSchema = z.object({
   ]).describe("Optional. The selected release channel for the instance.")
     .optional(),
   reservedRange: z.string().describe(
-    "Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
+    "Optional. Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
   ).optional(),
   userMetadata: z.object({
     additionalDeveloperUserCount: z.number().int().describe(
@@ -604,9 +601,9 @@ const InputsSchema = z.object({
   ).optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()).describe(
-      "Email domain allowlist for the instance.",
+      "Optional. Email domain allowlist for the instance.",
     ).optional(),
-  }).describe("Looker Instance Admin settings.").optional(),
+  }).describe("Optional. Looker Instance Admin settings.").optional(),
   authType: z.object({
     googleAuthEnabled: z.boolean().describe(
       "Optional. Whether google auth is enabled on the Looker instance.",
@@ -622,7 +619,7 @@ const InputsSchema = z.object({
     "Optional. Storage class of the instance.",
   ).optional(),
   consumerNetwork: z.string().describe(
-    "Network name in the consumer project. Format: `projects/{project}/global/networks/{network}`. Note that the consumer network may be in a different GCP project than the consumer project that is hosting the Looker Instance.",
+    "Optional. Network name in the consumer project. Format: `projects/{project}/global/networks/{network}`. Note that the consumer network may be in a different GCP project than the consumer project that is hosting the Looker Instance.",
   ).optional(),
   controlledEgressConfig: z.object({
     egressFqdns: z.array(z.string()).describe(
@@ -639,7 +636,7 @@ const InputsSchema = z.object({
     "Optional. Whether controlled egress is enabled on the Looker instance.",
   ).optional(),
   customDomain: z.object({
-    domain: z.string().describe("Domain name.").optional(),
+    domain: z.string().describe("Optional. Domain name.").optional(),
     state: z.enum([
       "CUSTOM_DOMAIN_STATE_UNSPECIFIED",
       "UNVERIFIED",
@@ -648,8 +645,9 @@ const InputsSchema = z.object({
       "AVAILABLE",
       "UNAVAILABLE",
       "UNKNOWN",
-    ]).describe("Domain state.").optional(),
-  }).describe("Custom domain configuration for the instance.").optional(),
+    ]).describe("Output only. Domain state.").optional(),
+  }).describe("Optional. Custom domain configuration for the instance.")
+    .optional(),
   denyMaintenancePeriod: z.object({
     endDate: z.object({
       day: z.number().int().describe(
@@ -690,10 +688,11 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Required. Time in UTC when the period starts and ends.")
       .optional(),
-  }).describe("Maintenance denial period for this instance.").optional(),
+  }).describe("Optional. Maintenance denial period for this instance.")
+    .optional(),
   encryptionConfig: z.object({
     kmsKeyName: z.string().describe(
-      "Name of the CMEK key in KMS (input parameter).",
+      "Optional. Immutable. Name of the CMEK key in KMS (input parameter).",
     ).optional(),
     kmsKeyNameVersion: z.string().describe(
       "Output only. Full name and version of the CMEK key currently in use to encrypt Looker data. Format: `projects/{project}/locations/{location}/keyRings/{ring}/cryptoKeys/{key}/cryptoKeyVersions/{version}`. Empty if CMEK is not configured in this instance.",
@@ -701,7 +700,7 @@ const InputsSchema = z.object({
     kmsKeyState: z.enum(["KMS_KEY_STATE_UNSPECIFIED", "VALID", "REVOKED"])
       .describe("Output only. Status of the CMEK key.").optional(),
   }).describe(
-    "Encryption configuration (CMEK). Only set if CMEK has been enabled on the instance.",
+    "Optional. Encryption configuration (CMEK). Only set if CMEK has been enabled on the instance.",
   ).optional(),
   fipsEnabled: z.boolean().describe(
     "Optional. Whether FIPS is enabled on the Looker instance.",
@@ -731,13 +730,6 @@ const InputsSchema = z.object({
   linkedLspProjectNumber: z.string().describe(
     "Optional. Linked Google Cloud Project Number for Looker Studio Pro.",
   ).optional(),
-  maintenanceSchedule: z.object({
-    endTime: z.string().describe("The scheduled end time for the maintenance.")
-      .optional(),
-    startTime: z.string().describe(
-      "The scheduled start time for the maintenance.",
-    ).optional(),
-  }).describe("Maintenance schedule for this instance.").optional(),
   maintenanceWindow: z.object({
     dayOfWeek: z.enum([
       "DAY_OF_WEEK_UNSPECIFIED",
@@ -767,7 +759,7 @@ const InputsSchema = z.object({
     }).describe(
       "Required. Time in UTC when the period starts. Maintenance will be scheduled within 60 minutes.",
     ).optional(),
-  }).describe("Maintenance window for this instance.").optional(),
+  }).describe("Optional. Maintenance window for this instance.").optional(),
   oauthConfig: z.object({
     clientId: z.string().describe(
       "Input only. Client ID from an external OAuth application. This is an input-only field, and thus will not be set in any responses.",
@@ -778,7 +770,7 @@ const InputsSchema = z.object({
     sharedOauthClientEnabled: z.boolean().describe(
       "Optional. Whether to use the shared OAuth client. Instances specifying this field do not need to provide client_id and client_secret.",
     ).optional(),
-  }).describe("Looker instance OAuth login settings.").optional(),
+  }).describe("Optional. Looker instance OAuth login settings.").optional(),
   periodicExportConfig: z.object({
     gcsUri: z.string().describe(
       "Required. Cloud Storage bucket URI for periodic export. Format: gs://{bucket_name}",
@@ -815,9 +807,11 @@ const InputsSchema = z.object({
     "LOOKER_CORE_TRIAL_STANDARD",
     "LOOKER_CORE_TRIAL_ENTERPRISE",
     "LOOKER_CORE_TRIAL_EMBED",
-  ]).describe("Platform edition.").optional(),
+  ]).describe(
+    "Optional. Platform edition. Marked as OPTIONAL for backward compatibility, though it is required during instance creation.",
+  ).optional(),
   privateIpEnabled: z.boolean().describe(
-    "Whether private IP is enabled on the Looker instance.",
+    "Optional. Whether private IP is enabled on the Looker instance.",
   ).optional(),
   pscConfig: z.object({
     allowedVpcs: z.array(z.string()).describe(
@@ -855,7 +849,7 @@ const InputsSchema = z.object({
     "Optional. Whether to use Private Service Connect (PSC) for private IP connectivity. If true, neither `public_ip_enabled` nor `private_ip_enabled` can be true.",
   ).optional(),
   publicIpEnabled: z.boolean().describe(
-    "Whether public IP is enabled on the Looker instance.",
+    "Optional. Whether public IP is enabled on the Looker instance.",
   ).optional(),
   releaseChannel: z.enum([
     "RELEASE_CHANNEL_UNSPECIFIED",
@@ -865,7 +859,7 @@ const InputsSchema = z.object({
   ]).describe("Optional. The selected release channel for the instance.")
     .optional(),
   reservedRange: z.string().describe(
-    "Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
+    "Optional. Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
   ).optional(),
   userMetadata: z.object({
     additionalDeveloperUserCount: z.number().int().describe(
@@ -912,7 +906,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Looker (Google Cloud core) Instances. Registered at `@swamp/gcp/looker/instances`. */
 export const model = {
   type: "@swamp/gcp/looker/instances",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1067,6 +1061,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Removed: maintenanceSchedule",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { maintenanceSchedule: _maintenanceSchedule, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1138,9 +1140,6 @@ export const model = {
         }
         if (g["linkedLspProjectNumber"] !== undefined) {
           body["linkedLspProjectNumber"] = g["linkedLspProjectNumber"];
-        }
-        if (g["maintenanceSchedule"] !== undefined) {
-          body["maintenanceSchedule"] = g["maintenanceSchedule"];
         }
         if (g["maintenanceWindow"] !== undefined) {
           body["maintenanceWindow"] = g["maintenanceWindow"];
@@ -1329,9 +1328,6 @@ export const model = {
         }
         if (g["linkedLspProjectNumber"] !== undefined) {
           body["linkedLspProjectNumber"] = g["linkedLspProjectNumber"];
-        }
-        if (g["maintenanceSchedule"] !== undefined) {
-          body["maintenanceSchedule"] = g["maintenanceSchedule"];
         }
         if (g["maintenanceWindow"] !== undefined) {
           body["maintenanceWindow"] = g["maintenanceWindow"];

@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.lineItems.get",
-  "path": "v2/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
+  "path": "v5/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.lineItems.create",
-  "path": "v2/advertisers/{+advertiserId}/lineItems",
+  "path": "v5/advertisers/{+advertiserId}/lineItems",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.lineItems.patch",
-  "path": "v2/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
+  "path": "v5/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.lineItems.delete",
-  "path": "v2/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
+  "path": "v5/advertisers/{+advertiserId}/lineItems/{+lineItemId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.lineItems.list",
-  "path": "v2/advertisers/{+advertiserId}/lineItems",
+  "path": "v5/advertisers/{+advertiserId}/lineItems",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -229,6 +229,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -257,6 +258,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -645,8 +647,6 @@ const GlobalArgsSchema = z.object({
   partnerCosts: z.array(z.object({
     costType: z.enum([
       "PARTNER_COST_TYPE_UNSPECIFIED",
-      "PARTNER_COST_TYPE_ADLOOX",
-      "PARTNER_COST_TYPE_ADLOOX_PREBID",
       "PARTNER_COST_TYPE_ADSAFE",
       "PARTNER_COST_TYPE_ADXPOSE",
       "PARTNER_COST_TYPE_AGGREGATE_KNOWLEDGE",
@@ -674,6 +674,8 @@ const GlobalArgsSchema = z.object({
       "PARTNER_COST_TYPE_CUSTOM_FEE_4",
       "PARTNER_COST_TYPE_CUSTOM_FEE_5",
       "PARTNER_COST_TYPE_SCIBIDS_FEE",
+      "PARTNER_COST_TYPE_PEER39",
+      "PARTNER_COST_TYPE_PEER39_PREBID",
     ]).describe("Required. The type of the partner cost.").optional(),
     feeAmount: z.string().describe(
       "The CPM fee amount in micros of advertiser's currency. Applicable when the fee_type is `PARTNER_FEE_TYPE_CPM_FEE`. Must be greater than or equal to 0. For example, for 1.5 standard unit of the advertiser's currency, set this field to 1500000.",
@@ -711,57 +713,16 @@ const GlobalArgsSchema = z.object({
   }).describe("Required. The partner revenue model setting of the line item.")
     .optional(),
   targetingExpansion: z.object({
+    enableOptimizedTargeting: z.boolean().describe(
+      "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
+    ).optional(),
     excludeDemographicExpansion: z.boolean().describe(
       "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field can only be set for Demand Gen ad groups.",
-    ).optional(),
-    excludeFirstPartyAudience: z.boolean().describe(
-      "Whether to exclude first-party audiences from use in targeting expansion. This field was deprecated with the launch of [optimized targeting](//support.google.com/displayvideo/answer/12060859). This field will be set to `false`. If this field is set to `true` when deprecated, all positive first-party audience targeting assigned to this line item will be replaced with negative targeting of the same first-party audiences to ensure the continued exclusion of those audiences.",
-    ).optional(),
-    targetingExpansionLevel: z.enum([
-      "TARGETING_EXPANSION_LEVEL_UNSPECIFIED",
-      "NO_EXPANSION",
-      "LEAST_EXPANSION",
-      "SOME_EXPANSION",
-      "BALANCED_EXPANSION",
-      "MORE_EXPANSION",
-      "MOST_EXPANSION",
-    ]).describe(
-      "Required. Whether optimized targeting is turned on. This field supports the following values: * `NO_EXPANSION`: optimized targeting is turned off * `LEAST_EXPANSION`: optimized targeting is turned on If this field is set to any other value, it will automatically be set to `LEAST_EXPANSION`. `NO_EXPANSION` will be the default value for the field and will be automatically assigned if you do not set the field.",
     ).optional(),
   }).describe(
     "The [optimized targeting](//support.google.com/displayvideo/answer/12060859) settings of the line item. This config is only applicable for display, video, or audio line items that use automated bidding and positively target eligible audience lists.",
   ).optional(),
   youtubeAndPartnersSettings: z.object({
-    biddingStrategy: z.object({
-      adGroupEffectiveTargetCpaSource: z.enum([
-        "BIDDING_SOURCE_UNSPECIFIED",
-        "BIDDING_SOURCE_LINE_ITEM",
-        "BIDDING_SOURCE_AD_GROUP",
-      ]).describe(
-        "Output only. Source of the effective target CPA value for ad group.",
-      ).optional(),
-      adGroupEffectiveTargetCpaValue: z.string().describe(
-        "Output only. The effective target CPA for ad group, in micros of advertiser's currency.",
-      ).optional(),
-      type: z.enum([
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_UNSPECIFIED",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_LIFT",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSIONS",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPV",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
-      ]).describe("The type of the bidding strategy.").optional(),
-      value: z.string().describe(
-        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
-      ).optional(),
-    }).describe(
-      "Required. The bidding strategy of the YouTube and Partners line item.",
-    ).optional(),
     contentCategory: z.enum([
       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_UNSPECIFIED",
       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_STANDARD",
@@ -782,14 +743,11 @@ const GlobalArgsSchema = z.object({
       includeGoogleTv: z.boolean().describe(
         "Optional. Whether to target inventory in video apps available with Google TV.",
       ).optional(),
-      includeYoutubeSearch: z.boolean().describe(
-        "Whether to target inventory on the YouTube search results page.",
+      includeYoutube: z.boolean().describe(
+        "Optional. Whether to target inventory on YouTube. This includes both search, channels and videos.",
       ).optional(),
       includeYoutubeVideoPartners: z.boolean().describe(
         "Whether to target inventory on a collection of partner sites and apps that follow the same brand safety standards as YouTube.",
-      ).optional(),
-      includeYoutubeVideos: z.boolean().describe(
-        "Whether to target inventory of channels and videos on YouTube and YouTube videos embedded on other sites.",
       ).optional(),
     }).describe(
       "Settings that control what YouTube and Partners inventories the line item will target.",
@@ -800,8 +758,15 @@ const GlobalArgsSchema = z.object({
     linkedMerchantId: z.string().describe(
       "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
-    relatedVideoIds: z.array(z.string()).describe(
-      "Optional. The IDs of the videos appear below the primary video ad when the ad is playing in the YouTube app on mobile devices.",
+    relatedVideos: z.array(z.object({
+      videoAssetId: z.string().describe(
+        "Required. The adAssetId of the AdAsset resource for the YouTube video.",
+      ).optional(),
+      videoId: z.string().describe(
+        "Output only. The YouTube video ID of the related video.",
+      ).optional(),
+    })).describe(
+      "Optional. The related videos for the line item. These videos will appear below the primary video ad when playing in the YouTube app on mobile devices.",
     ).optional(),
     targetFrequency: z.object({
       targetCount: z.string().describe(
@@ -824,7 +789,7 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Optional. The average number of times you want ads from this line item to show to the same person over a certain period of time.",
     ).optional(),
-    thirdPartyMeasurementSettings: z.object({
+    thirdPartyMeasurementConfigs: z.object({
       brandLiftVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
           "The ID used by the platform of the third-party vendor to identify the line item.",
@@ -854,7 +819,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR`",
+        "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
       ).optional(),
       brandSafetyVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -885,7 +850,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -916,7 +881,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR`",
+        "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
       ).optional(),
       viewabilityVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -947,10 +912,10 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
+        "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
       ).optional(),
     }).describe(
-      "Optional. The third-party measurement settings of the line item.",
+      "Optional. The third-party measurement configs of the line item.",
     ).optional(),
     videoAdInventoryControl: z.object({
       allowInFeed: z.boolean().describe(
@@ -1156,36 +1121,31 @@ const StateSchema = z.object({
   }).optional(),
   reservationType: z.string().optional(),
   targetingExpansion: z.object({
+    enableOptimizedTargeting: z.boolean(),
     excludeDemographicExpansion: z.boolean(),
-    excludeFirstPartyAudience: z.boolean(),
-    targetingExpansionLevel: z.string(),
   }).optional(),
   updateTime: z.string().optional(),
   warningMessages: z.array(z.string()).optional(),
   youtubeAndPartnersSettings: z.object({
-    biddingStrategy: z.object({
-      adGroupEffectiveTargetCpaSource: z.string(),
-      adGroupEffectiveTargetCpaValue: z.string(),
-      type: z.string(),
-      value: z.string(),
-    }),
     contentCategory: z.string(),
     effectiveContentCategory: z.string(),
     inventorySourceSettings: z.object({
       includeGoogleTv: z.boolean(),
-      includeYoutubeSearch: z.boolean(),
+      includeYoutube: z.boolean(),
       includeYoutubeVideoPartners: z.boolean(),
-      includeYoutubeVideos: z.boolean(),
     }),
     leadFormId: z.string(),
     linkedMerchantId: z.string(),
-    relatedVideoIds: z.array(z.string()),
+    relatedVideos: z.array(z.object({
+      videoAssetId: z.string(),
+      videoId: z.string(),
+    })),
     targetFrequency: z.object({
       targetCount: z.string(),
       timeUnit: z.string(),
       timeUnitCount: z.number(),
     }),
-    thirdPartyMeasurementSettings: z.object({
+    thirdPartyMeasurementConfigs: z.object({
       brandLiftVendorConfigs: z.array(z.object({
         placementId: z.string(),
         vendor: z.string(),
@@ -1290,6 +1250,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -1318,6 +1279,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -1706,8 +1668,6 @@ const InputsSchema = z.object({
   partnerCosts: z.array(z.object({
     costType: z.enum([
       "PARTNER_COST_TYPE_UNSPECIFIED",
-      "PARTNER_COST_TYPE_ADLOOX",
-      "PARTNER_COST_TYPE_ADLOOX_PREBID",
       "PARTNER_COST_TYPE_ADSAFE",
       "PARTNER_COST_TYPE_ADXPOSE",
       "PARTNER_COST_TYPE_AGGREGATE_KNOWLEDGE",
@@ -1735,6 +1695,8 @@ const InputsSchema = z.object({
       "PARTNER_COST_TYPE_CUSTOM_FEE_4",
       "PARTNER_COST_TYPE_CUSTOM_FEE_5",
       "PARTNER_COST_TYPE_SCIBIDS_FEE",
+      "PARTNER_COST_TYPE_PEER39",
+      "PARTNER_COST_TYPE_PEER39_PREBID",
     ]).describe("Required. The type of the partner cost.").optional(),
     feeAmount: z.string().describe(
       "The CPM fee amount in micros of advertiser's currency. Applicable when the fee_type is `PARTNER_FEE_TYPE_CPM_FEE`. Must be greater than or equal to 0. For example, for 1.5 standard unit of the advertiser's currency, set this field to 1500000.",
@@ -1772,57 +1734,16 @@ const InputsSchema = z.object({
   }).describe("Required. The partner revenue model setting of the line item.")
     .optional(),
   targetingExpansion: z.object({
+    enableOptimizedTargeting: z.boolean().describe(
+      "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
+    ).optional(),
     excludeDemographicExpansion: z.boolean().describe(
       "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field can only be set for Demand Gen ad groups.",
-    ).optional(),
-    excludeFirstPartyAudience: z.boolean().describe(
-      "Whether to exclude first-party audiences from use in targeting expansion. This field was deprecated with the launch of [optimized targeting](//support.google.com/displayvideo/answer/12060859). This field will be set to `false`. If this field is set to `true` when deprecated, all positive first-party audience targeting assigned to this line item will be replaced with negative targeting of the same first-party audiences to ensure the continued exclusion of those audiences.",
-    ).optional(),
-    targetingExpansionLevel: z.enum([
-      "TARGETING_EXPANSION_LEVEL_UNSPECIFIED",
-      "NO_EXPANSION",
-      "LEAST_EXPANSION",
-      "SOME_EXPANSION",
-      "BALANCED_EXPANSION",
-      "MORE_EXPANSION",
-      "MOST_EXPANSION",
-    ]).describe(
-      "Required. Whether optimized targeting is turned on. This field supports the following values: * `NO_EXPANSION`: optimized targeting is turned off * `LEAST_EXPANSION`: optimized targeting is turned on If this field is set to any other value, it will automatically be set to `LEAST_EXPANSION`. `NO_EXPANSION` will be the default value for the field and will be automatically assigned if you do not set the field.",
     ).optional(),
   }).describe(
     "The [optimized targeting](//support.google.com/displayvideo/answer/12060859) settings of the line item. This config is only applicable for display, video, or audio line items that use automated bidding and positively target eligible audience lists.",
   ).optional(),
   youtubeAndPartnersSettings: z.object({
-    biddingStrategy: z.object({
-      adGroupEffectiveTargetCpaSource: z.enum([
-        "BIDDING_SOURCE_UNSPECIFIED",
-        "BIDDING_SOURCE_LINE_ITEM",
-        "BIDDING_SOURCE_AD_GROUP",
-      ]).describe(
-        "Output only. Source of the effective target CPA value for ad group.",
-      ).optional(),
-      adGroupEffectiveTargetCpaValue: z.string().describe(
-        "Output only. The effective target CPA for ad group, in micros of advertiser's currency.",
-      ).optional(),
-      type: z.enum([
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_UNSPECIFIED",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_LIFT",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSIONS",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPV",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS",
-        "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
-      ]).describe("The type of the bidding strategy.").optional(),
-      value: z.string().describe(
-        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
-      ).optional(),
-    }).describe(
-      "Required. The bidding strategy of the YouTube and Partners line item.",
-    ).optional(),
     contentCategory: z.enum([
       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_UNSPECIFIED",
       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_STANDARD",
@@ -1843,14 +1764,11 @@ const InputsSchema = z.object({
       includeGoogleTv: z.boolean().describe(
         "Optional. Whether to target inventory in video apps available with Google TV.",
       ).optional(),
-      includeYoutubeSearch: z.boolean().describe(
-        "Whether to target inventory on the YouTube search results page.",
+      includeYoutube: z.boolean().describe(
+        "Optional. Whether to target inventory on YouTube. This includes both search, channels and videos.",
       ).optional(),
       includeYoutubeVideoPartners: z.boolean().describe(
         "Whether to target inventory on a collection of partner sites and apps that follow the same brand safety standards as YouTube.",
-      ).optional(),
-      includeYoutubeVideos: z.boolean().describe(
-        "Whether to target inventory of channels and videos on YouTube and YouTube videos embedded on other sites.",
       ).optional(),
     }).describe(
       "Settings that control what YouTube and Partners inventories the line item will target.",
@@ -1861,8 +1779,15 @@ const InputsSchema = z.object({
     linkedMerchantId: z.string().describe(
       "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
-    relatedVideoIds: z.array(z.string()).describe(
-      "Optional. The IDs of the videos appear below the primary video ad when the ad is playing in the YouTube app on mobile devices.",
+    relatedVideos: z.array(z.object({
+      videoAssetId: z.string().describe(
+        "Required. The adAssetId of the AdAsset resource for the YouTube video.",
+      ).optional(),
+      videoId: z.string().describe(
+        "Output only. The YouTube video ID of the related video.",
+      ).optional(),
+    })).describe(
+      "Optional. The related videos for the line item. These videos will appear below the primary video ad when playing in the YouTube app on mobile devices.",
     ).optional(),
     targetFrequency: z.object({
       targetCount: z.string().describe(
@@ -1885,7 +1810,7 @@ const InputsSchema = z.object({
     }).describe(
       "Optional. The average number of times you want ads from this line item to show to the same person over a certain period of time.",
     ).optional(),
-    thirdPartyMeasurementSettings: z.object({
+    thirdPartyMeasurementConfigs: z.object({
       brandLiftVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
           "The ID used by the platform of the third-party vendor to identify the line item.",
@@ -1915,7 +1840,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR`",
+        "Optional. The third-party vendors measuring brand lift. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DYNATA` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_INTAGE` * `THIRD_PARTY_VENDOR_MACROMILL`",
       ).optional(),
       brandSafetyVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -1946,7 +1871,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -1977,7 +1902,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR`",
+        "Optional. The third-party vendors measuring reach. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_NIELSEN` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_KANTAR` * `THIRD_PARTY_VENDOR_VIDEO_RESEARCH` * `THIRD_PARTY_VENDOR_MEDIA_SCOPE` * `THIRD_PARTY_VENDOR_AUDIENCE_PROJECT` * `THIRD_PARTY_VENDOR_VIDEO_AMP` * `THIRD_PARTY_VENDOR_ISPOT_TV` * `THIRD_PARTY_VENDOR_GEMIUS`",
       ).optional(),
       viewabilityVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -2008,10 +1933,10 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_AQUILA",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
+        "Optional. The third-party vendors measuring viewability. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_MOAT` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_COMSCORE` * `THIRD_PARTY_VENDOR_TELEMETRY` * `THIRD_PARTY_VENDOR_MEETRICS`",
       ).optional(),
     }).describe(
-      "Optional. The third-party measurement settings of the line item.",
+      "Optional. The third-party measurement configs of the line item.",
     ).optional(),
     videoAdInventoryControl: z.object({
       allowInFeed: z.boolean().describe(
@@ -2114,7 +2039,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.LineItems. Registered at `@swamp/gcp/displayvideo/advertisers-lineitems`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-lineitems",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2293,6 +2218,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2754,7 +2684,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.lineItems.bulkEditAssignedTargetingOptions",
             "path":
-              "v2/advertisers/{+advertiserId}/lineItems:bulkEditAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}/lineItems:bulkEditAssignedTargetingOptions",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -2811,7 +2741,7 @@ export const model = {
             "id":
               "displayvideo.advertisers.lineItems.bulkListAssignedTargetingOptions",
             "path":
-              "v2/advertisers/{+advertiserId}/lineItems:bulkListAssignedTargetingOptions",
+              "v5/advertisers/{+advertiserId}/lineItems:bulkListAssignedTargetingOptions",
             "httpMethod": "GET",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -2864,7 +2794,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.advertisers.lineItems.bulkUpdate",
-            "path": "v2/advertisers/{+advertiserId}/lineItems:bulkUpdate",
+            "path": "v5/advertisers/{+advertiserId}/lineItems:bulkUpdate",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -2923,7 +2853,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.lineItems.duplicate",
             "path":
-              "v2/advertisers/{+advertiserId}/lineItems/{+lineItemId}:duplicate",
+              "v5/advertisers/{+advertiserId}/lineItems/{+lineItemId}:duplicate",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId", "lineItemId"],
             "parameters": {

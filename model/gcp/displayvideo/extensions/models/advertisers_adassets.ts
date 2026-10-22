@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.adAssets.get",
-  "path": "v4/advertisers/{+advertiserId}/adAssets/{+adAssetId}",
+  "path": "v5/advertisers/{+advertiserId}/adAssets/{+adAssetId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -64,7 +64,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.adAssets.create",
-  "path": "v4/advertisers/{+advertiserId}/adAssets",
+  "path": "v5/advertisers/{+advertiserId}/adAssets",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -79,7 +79,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.adAssets.patch",
-  "path": "v4/advertisers/{+advertiserId}/adAssets/{+adAssetId}",
+  "path": "v5/advertisers/{+advertiserId}/adAssets/{+adAssetId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -102,7 +102,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.adAssets.list",
-  "path": "v4/advertisers/{+advertiserId}/adAssets",
+  "path": "v5/advertisers/{+advertiserId}/adAssets",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -337,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdAssets. Registered at `@swamp/gcp/displayvideo/advertisers-adassets`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adassets",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -467,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -794,7 +799,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.advertisers.adAssets.bulkCreate",
-            "path": "v4/advertisers/{+advertiserId}/adAssets:bulkCreate",
+            "path": "v5/advertisers/{+advertiserId}/adAssets:bulkCreate",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {
@@ -841,7 +846,7 @@ export const model = {
           baseUrl,
           {
             "id": "displayvideo.advertisers.adAssets.upload",
-            "path": "v4/advertisers/{+advertiserId}/adAssets:uploadAdAsset",
+            "path": "v5/advertisers/{+advertiserId}/adAssets:uploadAdAsset",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId"],
             "parameters": {

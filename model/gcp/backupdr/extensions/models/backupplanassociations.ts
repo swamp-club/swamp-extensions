@@ -113,6 +113,9 @@ const DELETE_CONFIG = {
     "name",
   ],
   "parameters": {
+    "autoProtectionPolicyBinding": {
+      "location": "query",
+    },
     "name": {
       "location": "path",
       "required": true,
@@ -193,6 +196,7 @@ const StateSchema = z.object({
   alloydbClusterBackupPlanAssociationProperties: z.object({
     clusterUid: z.string(),
   }).optional(),
+  autoProtectionPolicyBinding: z.string().optional(),
   backupPlan: z.string().optional(),
   backupPlanRevisionId: z.string().optional(),
   backupPlanRevisionName: z.string().optional(),
@@ -280,7 +284,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlanAssociations. Registered at `@swamp/gcp/backupdr/backupplanassociations`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplanassociations",
-  version: "2026.10.15.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -436,6 +440,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

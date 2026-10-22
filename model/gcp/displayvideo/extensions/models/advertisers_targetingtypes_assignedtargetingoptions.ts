@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.targetingTypes.assignedTargetingOptions.get",
   "path":
-    "v2/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
+    "v5/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -72,7 +72,7 @@ const INSERT_CONFIG = {
   "id":
     "displayvideo.advertisers.targetingTypes.assignedTargetingOptions.create",
   "path":
-    "v2/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
+    "v5/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -94,7 +94,7 @@ const DELETE_CONFIG = {
   "id":
     "displayvideo.advertisers.targetingTypes.assignedTargetingOptions.delete",
   "path":
-    "v2/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
+    "v5/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -120,7 +120,7 @@ const DELETE_CONFIG = {
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.targetingTypes.assignedTargetingOptions.list",
   "path":
-    "v2/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
+    "v5/advertisers/{+advertiserId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -249,7 +249,62 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "App details. This field will be populated when the targeting_type is `TARGETING_TYPE_APP`.",
   ).optional(),
+  auctionPackageDetails: z.object({
+    displayName: z.string().describe(
+      "Output only. The display name of the auction package.",
+    ).optional(),
+    targetingOptionId: z.string().describe(
+      "Required. The targeting_option_id of a TargetingOption of type `TARGETING_TYPE_AUCTION_PACKAGE`.",
+    ).optional(),
+  }).describe(
+    "Auction package details. This field is populated when the targeting_type is `TARGETING_TYPE_AUCTION_PACKAGE`.",
+  ).optional(),
   audienceGroupDetails: z.object({
+    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.string().describe(
+          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        ).optional(),
+        recency: z.enum([
+          "RECENCY_NO_LIMIT",
+          "RECENCY_1_MINUTE",
+          "RECENCY_5_MINUTES",
+          "RECENCY_10_MINUTES",
+          "RECENCY_15_MINUTES",
+          "RECENCY_30_MINUTES",
+          "RECENCY_1_HOUR",
+          "RECENCY_2_HOURS",
+          "RECENCY_3_HOURS",
+          "RECENCY_6_HOURS",
+          "RECENCY_12_HOURS",
+          "RECENCY_1_DAY",
+          "RECENCY_2_DAYS",
+          "RECENCY_3_DAYS",
+          "RECENCY_5_DAYS",
+          "RECENCY_7_DAYS",
+          "RECENCY_10_DAYS",
+          "RECENCY_14_DAYS",
+          "RECENCY_15_DAYS",
+          "RECENCY_21_DAYS",
+          "RECENCY_28_DAYS",
+          "RECENCY_30_DAYS",
+          "RECENCY_40_DAYS",
+          "RECENCY_45_DAYS",
+          "RECENCY_60_DAYS",
+          "RECENCY_90_DAYS",
+          "RECENCY_120_DAYS",
+          "RECENCY_180_DAYS",
+          "RECENCY_270_DAYS",
+          "RECENCY_365_DAYS",
+        ]).describe(
+          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+        ).optional(),
+      })).describe(
+        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+      ).optional(),
+    }).describe(
+      "Optional. The first party and partner audience ids and recencies of the excluded first party and partner audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
+    ).optional(),
     excludedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
         googleAudienceId: z.string().describe(
@@ -282,6 +337,20 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. The custom list ids of the included custom list group. Contains custom list ids only.",
+    ).optional(),
+    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.unknown().describe(
+          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        ).optional(),
+        recency: z.unknown().describe(
+          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+        ).optional(),
+      })).describe(
+        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+      ).optional(),
+    })).describe(
+      "Optional. The first party and partner audience ids and recencies of included first party and partner audience groups. Each first party and partner audience group contains first party and partner audience ids only. The relation between each first party and partner audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
     ).optional(),
     includedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -394,6 +463,13 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Channel details. This field will be populated when the targeting_type is `TARGETING_TYPE_CHANNEL`.",
   ).optional(),
+  combinedAudienceDetails: z.object({
+    combinedAudienceId: z.string().describe(
+      "Required. Id of the combined audience.",
+    ).optional(),
+  }).describe(
+    "Combined audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_COMBINED_AUDIENCE`.",
+  ).optional(),
   contentDurationDetails: z.object({
     contentDuration: z.enum([
       "CONTENT_DURATION_UNSPECIFIED",
@@ -476,6 +552,51 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Content duration details. This field will be populated when the TargetingType is `TARGETING_TYPE_CONTENT_STREAM_TYPE`.",
+  ).optional(),
+  contentThemeExclusionDetails: z.object({
+    contentTheme: z.enum([
+      "CONTENT_THEME_UNSPECIFIED",
+      "CONTENT_THEME_FIGHTING_VIDEO_GAMES",
+      "CONTENT_THEME_MATURE_GAMES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_HEALTH_SOURCES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_NEWS_SOURCES",
+      "CONTENT_THEME_POLITICS",
+      "CONTENT_THEME_RECENT_NEWS",
+      "CONTENT_THEME_RELIGION",
+      "CONTENT_THEME_UNPLEASANT_HEALTH_CONTENT",
+      "CONTENT_THEME_UNPLEASANT_NEWS",
+    ]).describe("Output only. An enum for the DV360 content theme classifier.")
+      .optional(),
+    excludedContentTheme: z.enum([
+      "CONTENT_THEME_UNSPECIFIED",
+      "CONTENT_THEME_FIGHTING_VIDEO_GAMES",
+      "CONTENT_THEME_MATURE_GAMES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_HEALTH_SOURCES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_NEWS_SOURCES",
+      "CONTENT_THEME_POLITICS",
+      "CONTENT_THEME_RECENT_NEWS",
+      "CONTENT_THEME_RELIGION",
+      "CONTENT_THEME_UNPLEASANT_HEALTH_CONTENT",
+      "CONTENT_THEME_UNPLEASANT_NEWS",
+    ]).describe(
+      "Required. An enum for the DV360 content theme classified to be EXCLUDED.",
+    ).optional(),
+    excludedTargetingOptionId: z.string().describe(
+      "Required. ID of the content theme to be EXCLUDED.",
+    ).optional(),
+  }).describe(
+    "Content theme details. This field will be populated when the targeting_type is `TARGETING_TYPE_CONTENT_THEME_EXCLUSION`. Content theme are targeting exclusions. Advertiser level content theme exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content theme in addition to advertiser exclusions.",
+  ).optional(),
+  customListDetails: z.object({
+    customListId: z.string().describe("Required. Id of the custom list.")
+      .optional(),
+    customListType: z.enum([
+      "CUSTOM_LIST_TYPE_UNSPECIFIED",
+      "CUSTOM_LIST_TYPE_CUSTOM_AFFINITY",
+      "CUSTOM_LIST_TYPE_CUSTOM_INTENT",
+    ]).describe("Required. The type of the custom list.").optional(),
+  }).describe(
+    "Custom list details. This field will be populated when the targeting_type is `TARGETING_TYPE_CUSTOM_LIST`.",
   ).optional(),
   dayAndTimeDetails: z.object({
     dayOfWeek: z.enum([
@@ -650,6 +771,16 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Exchange details. This field will be populated when the targeting_type is `TARGETING_TYPE_EXCHANGE`.",
   ).optional(),
+  firstPartyAndPartnerAudienceDetails: z.object({
+    firstPartyAndPartnerAudienceId: z.string().describe(
+      "Required. Id of the first party or partner audience.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "First party and partner audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_FIRST_PARTY_AND_PARTNER_AUDIENCE`.",
+  ).optional(),
   genderDetails: z.object({
     gender: z.enum([
       "GENDER_UNSPECIFIED",
@@ -716,6 +847,23 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Geographic region details. This field will be populated when the targeting_type is `TARGETING_TYPE_GEO_REGION`.",
   ).optional(),
+  googleAudienceDetails: z.object({
+    googleAudienceId: z.string().describe(
+      "Required. Id of the Google audience.",
+    ).optional(),
+    googleAudienceType: z.enum([
+      "GOOGLE_AUDIENCE_TYPE_UNSPECIFIED",
+      "GOOGLE_AUDIENCE_TYPE_AFFINITY",
+      "GOOGLE_AUDIENCE_TYPE_IN_MARKET",
+      "GOOGLE_AUDIENCE_TYPE_LIFE_EVENT",
+      "GOOGLE_AUDIENCE_TYPE_EXTENDED_DEMOGRAPHIC",
+    ]).describe("Required. The type of the Google audience.").optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Google audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_GOOGLE_AUDIENCE`.",
+  ).optional(),
   householdIncomeDetails: z.object({
     householdIncome: z.enum([
       "HOUSEHOLD_INCOME_UNSPECIFIED",
@@ -769,6 +917,16 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Language details. This field will be populated when the targeting_type is `TARGETING_TYPE_LANGUAGE`.",
+  ).optional(),
+  lookalikeAudienceDetails: z.object({
+    lookalikeAudienceId: z.string().describe(
+      "Required. Id of the lookalike audience.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Lookalike audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_LOOKALIKE_AUDIENCE`.",
   ).optional(),
   nativeContentPositionDetails: z.object({
     contentPosition: z.enum([
@@ -966,28 +1124,19 @@ const GlobalArgsSchema = z.object({
     "TARGETING_TYPE_YOUTUBE_VIDEO",
     "TARGETING_TYPE_YOUTUBE_CHANNEL",
     "TARGETING_TYPE_SESSION_POSITION",
+    "TARGETING_TYPE_CONTENT_THEME_EXCLUSION",
+    "TARGETING_TYPE_LOOKALIKE_AUDIENCE",
+    "TARGETING_TYPE_GOOGLE_AUDIENCE",
+    "TARGETING_TYPE_CUSTOM_LIST",
+    "TARGETING_TYPE_COMBINED_AUDIENCE",
+    "TARGETING_TYPE_FIRST_PARTY_AND_PARTNER_AUDIENCE",
+    "TARGETING_TYPE_AUCTION_PACKAGE",
     "TARGETING_TYPE_YOUTUBE_CHANNEL_PACK",
+    "TARGETING_TYPE_INVENTORY_SOURCE_DEAL",
   ]).describe(
     "Output only. Identifies the type of this assigned targeting option.",
   ).optional(),
   thirdPartyVerifierDetails: z.object({
-    adloox: z.object({
-      excludedAdlooxCategories: z.array(
-        z.enum([
-          "ADLOOX_UNSPECIFIED",
-          "ADULT_CONTENT_HARD",
-          "ADULT_CONTENT_SOFT",
-          "ILLEGAL_CONTENT",
-          "BORDERLINE_CONTENT",
-          "DISCRIMINATORY_CONTENT",
-          "VIOLENT_CONTENT_WEAPONS",
-          "LOW_VIEWABILITY_DOMAINS",
-          "FRAUD",
-        ]),
-      ).describe("Scope3 categories to exclude.").optional(),
-    }).describe(
-      "Third party brand verifier -- Scope3 (previously known as Adloox).",
-    ).optional(),
     doubleVerify: z.object({
       appStarRating: z.object({
         avoidInsufficientStarRating: z.boolean().describe(
@@ -1095,6 +1244,7 @@ const GlobalArgsSchema = z.object({
         avoidedFraudOption: z.enum([
           "FRAUD_UNSPECIFIED",
           "AD_IMPRESSION_FRAUD_100",
+          "AD_IMPRESSION_FRAUD_75",
           "AD_IMPRESSION_FRAUD_50",
           "AD_IMPRESSION_FRAUD_25",
           "AD_IMPRESSION_FRAUD_10",
@@ -1198,6 +1348,9 @@ const GlobalArgsSchema = z.object({
         "VIOLENCE_HR",
         "VIOLENCE_HMR",
       ]).describe("Brand Safety - **Violence**.").optional(),
+      qualitySyncCustomSegmentId: z.array(z.string()).describe(
+        "Optional. The quality sync custom segment ID provided by Integral Ad Science. The ID must be between `3000000` and `4999999`, inclusive.",
+      ).optional(),
       traqScoreOption: z.enum([
         "TRAQ_UNSPECIFIED",
         "TRAQ_250",
@@ -1221,6 +1374,138 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Third party brand verifier -- Integral Ad Science.")
       .optional(),
+    peer39: z.object({
+      adultExplicitSexualContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Adult and Explicit Sexual Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      armsAmmunitionContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Arms and Ammunition Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      crimeHarmfulActsIndividualsSocietyHumanRightsViolationsContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Crime and Harmful Acts Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      deathInjuryMilitaryConflictContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Death, Injury, or Military Conflict Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      debatedSensitiveSocialIssueContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Debated Sensitive Social Issue Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      displayIabViewability: z.enum([
+        "DISPLAY_IAB_VIEWABILITY_UNSPECIFIED",
+        "DISPLAY_IAB_VIEWABILITY_10",
+        "DISPLAY_IAB_VIEWABILITY_20",
+        "DISPLAY_IAB_VIEWABILITY_35",
+        "DISPLAY_IAB_VIEWABILITY_50",
+        "DISPLAY_IAB_VIEWABILITY_75",
+      ]).describe("Optional. IAB viewability threshold for display ads.")
+        .optional(),
+      excludedFraudIvtMfaCategories: z.array(
+        z.enum(["FRAUD_IVT_MFA_CATEGORY_UNSPECIFIED", "FRAUD_IVT_MFA"]),
+      ).describe("Optional. Peer39's fraud IVT MFA categories to exclude.")
+        .optional(),
+      hateSpeechActsAggressionContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Hate Speech and Acts of Aggression Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      illegalDrugsTobaccoEcigarettesVapingAlcoholContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Illegal Drugs/Alcohol Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      misinformationContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Misinformation Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      obscenityProfanityContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Obscenity and Profanity Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      onlinePiracyContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Online Piracy Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      spamHarmfulContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Spam or Harmful Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      terrorismContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Terrorism Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      videoIabViewability: z.enum([
+        "VIDEO_IAB_VIEWABILITY_UNSPECIFIED",
+        "VIDEO_IAB_VIEWABILITY_10",
+        "VIDEO_IAB_VIEWABILITY_20",
+        "VIDEO_IAB_VIEWABILITY_35",
+        "VIDEO_IAB_VIEWABILITY_50",
+        "VIDEO_IAB_VIEWABILITY_75",
+      ]).describe("Optional. IAB viewability threshold for video ads.")
+        .optional(),
+    }).describe("Third party brand verifier -- Peer39.").optional(),
   }).describe(
     "Third party verification details. This field will be populated when the targeting_type is `TARGETING_TYPE_THIRD_PARTY_VERIFIER`.",
   ).optional(),
@@ -1324,7 +1609,17 @@ const StateSchema = z.object({
   }).optional(),
   assignedTargetingOptionId: z.string().optional(),
   assignedTargetingOptionIdAlias: z.string().optional(),
+  auctionPackageDetails: z.object({
+    displayName: z.string(),
+    targetingOptionId: z.string(),
+  }).optional(),
   audienceGroupDetails: z.object({
+    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.string(),
+        recency: z.string(),
+      })),
+    }),
     excludedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
         googleAudienceId: z.string(),
@@ -1340,6 +1635,12 @@ const StateSchema = z.object({
         customListId: z.string(),
       })),
     }),
+    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.unknown(),
+        recency: z.unknown(),
+      })),
+    })),
     includedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
         googleAudienceId: z.string(),
@@ -1378,6 +1679,9 @@ const StateSchema = z.object({
     channelId: z.string(),
     negative: z.boolean(),
   }).optional(),
+  combinedAudienceDetails: z.object({
+    combinedAudienceId: z.string(),
+  }).optional(),
   contentDurationDetails: z.object({
     contentDuration: z.string(),
     targetingOptionId: z.string(),
@@ -1398,6 +1702,15 @@ const StateSchema = z.object({
   contentStreamTypeDetails: z.object({
     contentStreamType: z.string(),
     targetingOptionId: z.string(),
+  }).optional(),
+  contentThemeExclusionDetails: z.object({
+    contentTheme: z.string(),
+    excludedContentTheme: z.string(),
+    excludedTargetingOptionId: z.string(),
+  }).optional(),
+  customListDetails: z.object({
+    customListId: z.string(),
+    customListType: z.string(),
   }).optional(),
   dayAndTimeDetails: z.object({
     dayOfWeek: z.string(),
@@ -1423,6 +1736,10 @@ const StateSchema = z.object({
   exchangeDetails: z.object({
     exchange: z.string(),
   }).optional(),
+  firstPartyAndPartnerAudienceDetails: z.object({
+    firstPartyAndPartnerAudienceId: z.string(),
+    negative: z.boolean(),
+  }).optional(),
   genderDetails: z.object({
     gender: z.string(),
   }).optional(),
@@ -1431,6 +1748,11 @@ const StateSchema = z.object({
     geoRegionType: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
+  }).optional(),
+  googleAudienceDetails: z.object({
+    googleAudienceId: z.string(),
+    googleAudienceType: z.string(),
+    negative: z.boolean(),
   }).optional(),
   householdIncomeDetails: z.object({
     householdIncome: z.string(),
@@ -1451,6 +1773,10 @@ const StateSchema = z.object({
     displayName: z.string(),
     negative: z.boolean(),
     targetingOptionId: z.string(),
+  }).optional(),
+  lookalikeAudienceDetails: z.object({
+    lookalikeAudienceId: z.string(),
+    negative: z.boolean(),
   }).optional(),
   name: z.string(),
   nativeContentPositionDetails: z.object({
@@ -1503,9 +1829,6 @@ const StateSchema = z.object({
   }).optional(),
   targetingType: z.string().optional(),
   thirdPartyVerifierDetails: z.object({
-    adloox: z.object({
-      excludedAdlooxCategories: z.array(z.string()),
-    }),
     doubleVerify: z.object({
       appStarRating: z.object({
         avoidInsufficientStarRating: z.boolean(),
@@ -1545,8 +1868,27 @@ const StateSchema = z.object({
       excludedIllegalDownloadsRisk: z.string(),
       excludedOffensiveLanguageRisk: z.string(),
       excludedViolenceRisk: z.string(),
+      qualitySyncCustomSegmentId: z.array(z.string()),
       traqScoreOption: z.string(),
       videoViewability: z.string(),
+    }),
+    peer39: z.object({
+      adultExplicitSexualContent: z.string(),
+      armsAmmunitionContent: z.string(),
+      crimeHarmfulActsIndividualsSocietyHumanRightsViolationsContent: z
+        .string(),
+      deathInjuryMilitaryConflictContent: z.string(),
+      debatedSensitiveSocialIssueContent: z.string(),
+      displayIabViewability: z.string(),
+      excludedFraudIvtMfaCategories: z.array(z.string()),
+      hateSpeechActsAggressionContent: z.string(),
+      illegalDrugsTobaccoEcigarettesVapingAlcoholContent: z.string(),
+      misinformationContent: z.string(),
+      obscenityProfanityContent: z.string(),
+      onlinePiracyContent: z.string(),
+      spamHarmfulContent: z.string(),
+      terrorismContent: z.string(),
+      videoIabViewability: z.string(),
     }),
   }).optional(),
   urlDetails: z.object({
@@ -1657,7 +1999,62 @@ const InputsSchema = z.object({
   }).describe(
     "App details. This field will be populated when the targeting_type is `TARGETING_TYPE_APP`.",
   ).optional(),
+  auctionPackageDetails: z.object({
+    displayName: z.string().describe(
+      "Output only. The display name of the auction package.",
+    ).optional(),
+    targetingOptionId: z.string().describe(
+      "Required. The targeting_option_id of a TargetingOption of type `TARGETING_TYPE_AUCTION_PACKAGE`.",
+    ).optional(),
+  }).describe(
+    "Auction package details. This field is populated when the targeting_type is `TARGETING_TYPE_AUCTION_PACKAGE`.",
+  ).optional(),
   audienceGroupDetails: z.object({
+    excludedFirstPartyAndPartnerAudienceGroup: z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.string().describe(
+          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        ).optional(),
+        recency: z.enum([
+          "RECENCY_NO_LIMIT",
+          "RECENCY_1_MINUTE",
+          "RECENCY_5_MINUTES",
+          "RECENCY_10_MINUTES",
+          "RECENCY_15_MINUTES",
+          "RECENCY_30_MINUTES",
+          "RECENCY_1_HOUR",
+          "RECENCY_2_HOURS",
+          "RECENCY_3_HOURS",
+          "RECENCY_6_HOURS",
+          "RECENCY_12_HOURS",
+          "RECENCY_1_DAY",
+          "RECENCY_2_DAYS",
+          "RECENCY_3_DAYS",
+          "RECENCY_5_DAYS",
+          "RECENCY_7_DAYS",
+          "RECENCY_10_DAYS",
+          "RECENCY_14_DAYS",
+          "RECENCY_15_DAYS",
+          "RECENCY_21_DAYS",
+          "RECENCY_28_DAYS",
+          "RECENCY_30_DAYS",
+          "RECENCY_40_DAYS",
+          "RECENCY_45_DAYS",
+          "RECENCY_60_DAYS",
+          "RECENCY_90_DAYS",
+          "RECENCY_120_DAYS",
+          "RECENCY_180_DAYS",
+          "RECENCY_270_DAYS",
+          "RECENCY_365_DAYS",
+        ]).describe(
+          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+        ).optional(),
+      })).describe(
+        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+      ).optional(),
+    }).describe(
+      "Optional. The first party and partner audience ids and recencies of the excluded first party and partner audience group. Used for negative targeting. The COMPLEMENT of the UNION of this group and other excluded audience groups is used as an INTERSECTION to any positive audience targeting. All items are logically ‘OR’ of each other.",
+    ).optional(),
     excludedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
         googleAudienceId: z.string().describe(
@@ -1690,6 +2087,20 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. The custom list ids of the included custom list group. Contains custom list ids only.",
+    ).optional(),
+    includedFirstPartyAndPartnerAudienceGroups: z.array(z.object({
+      settings: z.array(z.object({
+        firstPartyAndPartnerAudienceId: z.unknown().describe(
+          "Required. First party and partner audience id of the first party and partner audience targeting setting. This id is first_party_and_partner_audience_id.",
+        ).optional(),
+        recency: z.unknown().describe(
+          "Required. The recency of the first party and partner audience targeting setting. Only applicable to first party audiences, otherwise will be ignored. For more info, refer to https://support.google.com/displayvideo/answer/2949947#recency When unspecified, no recency limit will be used.",
+        ).optional(),
+      })).describe(
+        "Required. All first party and partner audience targeting settings in first party and partner audience group. Repeated settings with the same id are not allowed.",
+      ).optional(),
+    })).describe(
+      "Optional. The first party and partner audience ids and recencies of included first party and partner audience groups. Each first party and partner audience group contains first party and partner audience ids only. The relation between each first party and partner audience group is INTERSECTION, and the result is UNION'ed with other audience groups. Repeated groups with the same settings will be ignored.",
     ).optional(),
     includedGoogleAudienceGroup: z.object({
       settings: z.array(z.object({
@@ -1802,6 +2213,13 @@ const InputsSchema = z.object({
   }).describe(
     "Channel details. This field will be populated when the targeting_type is `TARGETING_TYPE_CHANNEL`.",
   ).optional(),
+  combinedAudienceDetails: z.object({
+    combinedAudienceId: z.string().describe(
+      "Required. Id of the combined audience.",
+    ).optional(),
+  }).describe(
+    "Combined audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_COMBINED_AUDIENCE`.",
+  ).optional(),
   contentDurationDetails: z.object({
     contentDuration: z.enum([
       "CONTENT_DURATION_UNSPECIFIED",
@@ -1884,6 +2302,51 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Content duration details. This field will be populated when the TargetingType is `TARGETING_TYPE_CONTENT_STREAM_TYPE`.",
+  ).optional(),
+  contentThemeExclusionDetails: z.object({
+    contentTheme: z.enum([
+      "CONTENT_THEME_UNSPECIFIED",
+      "CONTENT_THEME_FIGHTING_VIDEO_GAMES",
+      "CONTENT_THEME_MATURE_GAMES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_HEALTH_SOURCES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_NEWS_SOURCES",
+      "CONTENT_THEME_POLITICS",
+      "CONTENT_THEME_RECENT_NEWS",
+      "CONTENT_THEME_RELIGION",
+      "CONTENT_THEME_UNPLEASANT_HEALTH_CONTENT",
+      "CONTENT_THEME_UNPLEASANT_NEWS",
+    ]).describe("Output only. An enum for the DV360 content theme classifier.")
+      .optional(),
+    excludedContentTheme: z.enum([
+      "CONTENT_THEME_UNSPECIFIED",
+      "CONTENT_THEME_FIGHTING_VIDEO_GAMES",
+      "CONTENT_THEME_MATURE_GAMES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_HEALTH_SOURCES",
+      "CONTENT_THEME_NOT_YET_DETERMINED_NEWS_SOURCES",
+      "CONTENT_THEME_POLITICS",
+      "CONTENT_THEME_RECENT_NEWS",
+      "CONTENT_THEME_RELIGION",
+      "CONTENT_THEME_UNPLEASANT_HEALTH_CONTENT",
+      "CONTENT_THEME_UNPLEASANT_NEWS",
+    ]).describe(
+      "Required. An enum for the DV360 content theme classified to be EXCLUDED.",
+    ).optional(),
+    excludedTargetingOptionId: z.string().describe(
+      "Required. ID of the content theme to be EXCLUDED.",
+    ).optional(),
+  }).describe(
+    "Content theme details. This field will be populated when the targeting_type is `TARGETING_TYPE_CONTENT_THEME_EXCLUSION`. Content theme are targeting exclusions. Advertiser level content theme exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content theme in addition to advertiser exclusions.",
+  ).optional(),
+  customListDetails: z.object({
+    customListId: z.string().describe("Required. Id of the custom list.")
+      .optional(),
+    customListType: z.enum([
+      "CUSTOM_LIST_TYPE_UNSPECIFIED",
+      "CUSTOM_LIST_TYPE_CUSTOM_AFFINITY",
+      "CUSTOM_LIST_TYPE_CUSTOM_INTENT",
+    ]).describe("Required. The type of the custom list.").optional(),
+  }).describe(
+    "Custom list details. This field will be populated when the targeting_type is `TARGETING_TYPE_CUSTOM_LIST`.",
   ).optional(),
   dayAndTimeDetails: z.object({
     dayOfWeek: z.enum([
@@ -2058,6 +2521,16 @@ const InputsSchema = z.object({
   }).describe(
     "Exchange details. This field will be populated when the targeting_type is `TARGETING_TYPE_EXCHANGE`.",
   ).optional(),
+  firstPartyAndPartnerAudienceDetails: z.object({
+    firstPartyAndPartnerAudienceId: z.string().describe(
+      "Required. Id of the first party or partner audience.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "First party and partner audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_FIRST_PARTY_AND_PARTNER_AUDIENCE`.",
+  ).optional(),
   genderDetails: z.object({
     gender: z.enum([
       "GENDER_UNSPECIFIED",
@@ -2124,6 +2597,23 @@ const InputsSchema = z.object({
   }).describe(
     "Geographic region details. This field will be populated when the targeting_type is `TARGETING_TYPE_GEO_REGION`.",
   ).optional(),
+  googleAudienceDetails: z.object({
+    googleAudienceId: z.string().describe(
+      "Required. Id of the Google audience.",
+    ).optional(),
+    googleAudienceType: z.enum([
+      "GOOGLE_AUDIENCE_TYPE_UNSPECIFIED",
+      "GOOGLE_AUDIENCE_TYPE_AFFINITY",
+      "GOOGLE_AUDIENCE_TYPE_IN_MARKET",
+      "GOOGLE_AUDIENCE_TYPE_LIFE_EVENT",
+      "GOOGLE_AUDIENCE_TYPE_EXTENDED_DEMOGRAPHIC",
+    ]).describe("Required. The type of the Google audience.").optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Google audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_GOOGLE_AUDIENCE`.",
+  ).optional(),
   householdIncomeDetails: z.object({
     householdIncome: z.enum([
       "HOUSEHOLD_INCOME_UNSPECIFIED",
@@ -2177,6 +2667,16 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Language details. This field will be populated when the targeting_type is `TARGETING_TYPE_LANGUAGE`.",
+  ).optional(),
+  lookalikeAudienceDetails: z.object({
+    lookalikeAudienceId: z.string().describe(
+      "Required. Id of the lookalike audience.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Lookalike audience details. This field will be populated when the targeting_type is `TARGETING_TYPE_LOOKALIKE_AUDIENCE`.",
   ).optional(),
   nativeContentPositionDetails: z.object({
     contentPosition: z.enum([
@@ -2374,28 +2874,19 @@ const InputsSchema = z.object({
     "TARGETING_TYPE_YOUTUBE_VIDEO",
     "TARGETING_TYPE_YOUTUBE_CHANNEL",
     "TARGETING_TYPE_SESSION_POSITION",
+    "TARGETING_TYPE_CONTENT_THEME_EXCLUSION",
+    "TARGETING_TYPE_LOOKALIKE_AUDIENCE",
+    "TARGETING_TYPE_GOOGLE_AUDIENCE",
+    "TARGETING_TYPE_CUSTOM_LIST",
+    "TARGETING_TYPE_COMBINED_AUDIENCE",
+    "TARGETING_TYPE_FIRST_PARTY_AND_PARTNER_AUDIENCE",
+    "TARGETING_TYPE_AUCTION_PACKAGE",
     "TARGETING_TYPE_YOUTUBE_CHANNEL_PACK",
+    "TARGETING_TYPE_INVENTORY_SOURCE_DEAL",
   ]).describe(
     "Output only. Identifies the type of this assigned targeting option.",
   ).optional(),
   thirdPartyVerifierDetails: z.object({
-    adloox: z.object({
-      excludedAdlooxCategories: z.array(
-        z.enum([
-          "ADLOOX_UNSPECIFIED",
-          "ADULT_CONTENT_HARD",
-          "ADULT_CONTENT_SOFT",
-          "ILLEGAL_CONTENT",
-          "BORDERLINE_CONTENT",
-          "DISCRIMINATORY_CONTENT",
-          "VIOLENT_CONTENT_WEAPONS",
-          "LOW_VIEWABILITY_DOMAINS",
-          "FRAUD",
-        ]),
-      ).describe("Scope3 categories to exclude.").optional(),
-    }).describe(
-      "Third party brand verifier -- Scope3 (previously known as Adloox).",
-    ).optional(),
     doubleVerify: z.object({
       appStarRating: z.object({
         avoidInsufficientStarRating: z.boolean().describe(
@@ -2503,6 +2994,7 @@ const InputsSchema = z.object({
         avoidedFraudOption: z.enum([
           "FRAUD_UNSPECIFIED",
           "AD_IMPRESSION_FRAUD_100",
+          "AD_IMPRESSION_FRAUD_75",
           "AD_IMPRESSION_FRAUD_50",
           "AD_IMPRESSION_FRAUD_25",
           "AD_IMPRESSION_FRAUD_10",
@@ -2606,6 +3098,9 @@ const InputsSchema = z.object({
         "VIOLENCE_HR",
         "VIOLENCE_HMR",
       ]).describe("Brand Safety - **Violence**.").optional(),
+      qualitySyncCustomSegmentId: z.array(z.string()).describe(
+        "Optional. The quality sync custom segment ID provided by Integral Ad Science. The ID must be between `3000000` and `4999999`, inclusive.",
+      ).optional(),
       traqScoreOption: z.enum([
         "TRAQ_UNSPECIFIED",
         "TRAQ_250",
@@ -2629,6 +3124,138 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Third party brand verifier -- Integral Ad Science.")
       .optional(),
+    peer39: z.object({
+      adultExplicitSexualContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Adult and Explicit Sexual Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      armsAmmunitionContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Arms and Ammunition Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      crimeHarmfulActsIndividualsSocietyHumanRightsViolationsContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Crime and Harmful Acts Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      deathInjuryMilitaryConflictContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Death, Injury, or Military Conflict Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      debatedSensitiveSocialIssueContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Debated Sensitive Social Issue Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      displayIabViewability: z.enum([
+        "DISPLAY_IAB_VIEWABILITY_UNSPECIFIED",
+        "DISPLAY_IAB_VIEWABILITY_10",
+        "DISPLAY_IAB_VIEWABILITY_20",
+        "DISPLAY_IAB_VIEWABILITY_35",
+        "DISPLAY_IAB_VIEWABILITY_50",
+        "DISPLAY_IAB_VIEWABILITY_75",
+      ]).describe("Optional. IAB viewability threshold for display ads.")
+        .optional(),
+      excludedFraudIvtMfaCategories: z.array(
+        z.enum(["FRAUD_IVT_MFA_CATEGORY_UNSPECIFIED", "FRAUD_IVT_MFA"]),
+      ).describe("Optional. Peer39's fraud IVT MFA categories to exclude.")
+        .optional(),
+      hateSpeechActsAggressionContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Hate Speech and Acts of Aggression Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      illegalDrugsTobaccoEcigarettesVapingAlcoholContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Illegal Drugs/Alcohol Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      misinformationContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Misinformation Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      obscenityProfanityContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Obscenity and Profanity Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      onlinePiracyContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Online Piracy Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      spamHarmfulContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Spam or Harmful Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      terrorismContent: z.enum([
+        "GARM_RISK_EXCLUSION_UNSPECIFIED",
+        "GARM_RISK_EXCLUSION_FLOOR",
+        "GARM_RISK_EXCLUSION_HIGH",
+        "GARM_RISK_EXCLUSION_MEDIUM",
+        "GARM_RISK_EXCLUSION_LOW",
+      ]).describe(
+        "Optional. Terrorism Content [GARM](https://wfanet.org/leadership/garm/about-garm) risk ranges to exclude.",
+      ).optional(),
+      videoIabViewability: z.enum([
+        "VIDEO_IAB_VIEWABILITY_UNSPECIFIED",
+        "VIDEO_IAB_VIEWABILITY_10",
+        "VIDEO_IAB_VIEWABILITY_20",
+        "VIDEO_IAB_VIEWABILITY_35",
+        "VIDEO_IAB_VIEWABILITY_50",
+        "VIDEO_IAB_VIEWABILITY_75",
+      ]).describe("Optional. IAB viewability threshold for video ads.")
+        .optional(),
+    }).describe("Third party brand verifier -- Peer39.").optional(),
   }).describe(
     "Third party verification details. This field will be populated when the targeting_type is `TARGETING_TYPE_THIRD_PARTY_VERIFIER`.",
   ).optional(),
@@ -2743,7 +3370,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-targetingtypes-assignedtargetingoptions",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2936,6 +3563,12 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Added: auctionPackageDetails, combinedAudienceDetails, contentThemeExclusionDetails, customListDetails, firstPartyAndPartnerAudienceDetails, googleAudienceDetails, lookalikeAudienceDetails",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2973,6 +3606,9 @@ export const model = {
           body["appCategoryDetails"] = g["appCategoryDetails"];
         }
         if (g["appDetails"] !== undefined) body["appDetails"] = g["appDetails"];
+        if (g["auctionPackageDetails"] !== undefined) {
+          body["auctionPackageDetails"] = g["auctionPackageDetails"];
+        }
         if (g["audienceGroupDetails"] !== undefined) {
           body["audienceGroupDetails"] = g["audienceGroupDetails"];
         }
@@ -2998,6 +3634,9 @@ export const model = {
         if (g["channelDetails"] !== undefined) {
           body["channelDetails"] = g["channelDetails"];
         }
+        if (g["combinedAudienceDetails"] !== undefined) {
+          body["combinedAudienceDetails"] = g["combinedAudienceDetails"];
+        }
         if (g["contentDurationDetails"] !== undefined) {
           body["contentDurationDetails"] = g["contentDurationDetails"];
         }
@@ -3014,6 +3653,13 @@ export const model = {
         }
         if (g["contentStreamTypeDetails"] !== undefined) {
           body["contentStreamTypeDetails"] = g["contentStreamTypeDetails"];
+        }
+        if (g["contentThemeExclusionDetails"] !== undefined) {
+          body["contentThemeExclusionDetails"] =
+            g["contentThemeExclusionDetails"];
+        }
+        if (g["customListDetails"] !== undefined) {
+          body["customListDetails"] = g["customListDetails"];
         }
         if (g["dayAndTimeDetails"] !== undefined) {
           body["dayAndTimeDetails"] = g["dayAndTimeDetails"];
@@ -3034,11 +3680,18 @@ export const model = {
         if (g["exchangeDetails"] !== undefined) {
           body["exchangeDetails"] = g["exchangeDetails"];
         }
+        if (g["firstPartyAndPartnerAudienceDetails"] !== undefined) {
+          body["firstPartyAndPartnerAudienceDetails"] =
+            g["firstPartyAndPartnerAudienceDetails"];
+        }
         if (g["genderDetails"] !== undefined) {
           body["genderDetails"] = g["genderDetails"];
         }
         if (g["geoRegionDetails"] !== undefined) {
           body["geoRegionDetails"] = g["geoRegionDetails"];
+        }
+        if (g["googleAudienceDetails"] !== undefined) {
+          body["googleAudienceDetails"] = g["googleAudienceDetails"];
         }
         if (g["householdIncomeDetails"] !== undefined) {
           body["householdIncomeDetails"] = g["householdIncomeDetails"];
@@ -3055,6 +3708,9 @@ export const model = {
         }
         if (g["languageDetails"] !== undefined) {
           body["languageDetails"] = g["languageDetails"];
+        }
+        if (g["lookalikeAudienceDetails"] !== undefined) {
+          body["lookalikeAudienceDetails"] = g["lookalikeAudienceDetails"];
         }
         if (g["nativeContentPositionDetails"] !== undefined) {
           body["nativeContentPositionDetails"] =

@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.channels.get",
-  "path": "v2/advertisers/{+advertiserId}/channels/{+channelId}",
+  "path": "v5/advertisers/{+advertiserId}/channels/{+channelId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -67,7 +67,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.channels.create",
-  "path": "v2/advertisers/{+advertiserId}/channels",
+  "path": "v5/advertisers/{+advertiserId}/channels",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -85,7 +85,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.channels.patch",
-  "path": "v2/advertisers/{+advertiserId}/channels/{channelId}",
+  "path": "v5/advertisers/{+advertiserId}/channels/{channelId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -111,7 +111,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.channels.list",
-  "path": "v2/advertisers/{+advertiserId}/channels",
+  "path": "v5/advertisers/{+advertiserId}/channels",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Channels. Registered at `@swamp/gcp/displayvideo/advertisers-channels`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-channels",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -368,6 +368,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

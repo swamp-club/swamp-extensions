@@ -46,7 +46,7 @@ const INSERT_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.youtubeAssetTypes.youtubeAssetAssociations.create",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
+    "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -76,7 +76,7 @@ const DELETE_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.youtubeAssetTypes.youtubeAssetAssociations.delete",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations/{+youtubeAssetAssociationId}",
+    "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations/{+youtubeAssetAssociationId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -111,7 +111,7 @@ const LIST_CONFIG = {
   "id":
     "displayvideo.advertisers.adGroups.youtubeAssetTypes.youtubeAssetAssociations.list",
   "path":
-    "v4/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
+    "v5/advertisers/{+advertiserId}/adGroups/{+adGroupId}/youtubeAssetTypes/{+youtubeAssetType}/youtubeAssetAssociations",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -400,7 +400,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-adgroups-youtubeassettypes-youtubeassetassociations",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -524,6 +524,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

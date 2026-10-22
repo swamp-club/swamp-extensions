@@ -177,6 +177,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The configuration for agent access on the stack. If specified, agent access is enabled for the stack.",
   ).optional(),
+  StorageConnectorAuthentication: z.string().describe(
+    "Controls whether stored OneDrive and Google Drive authentication is retained between streaming sessions. Valid values: FORCE_REAUTHENTICATION | REUSE_CREDENTIALS.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -210,6 +213,7 @@ const StateSchema = z.object({
     ScreenshotsUploadEnabled: z.boolean(),
     UserControlMode: z.string(),
   }).optional(),
+  StorageConnectorAuthentication: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -293,6 +297,9 @@ const InputsSchema = z.object({
   }).describe(
     "The configuration for agent access on the stack. If specified, agent access is enabled for the stack.",
   ).optional(),
+  StorageConnectorAuthentication: z.string().describe(
+    "Controls whether stored OneDrive and Google Drive authentication is retained between streaming sessions. Valid values: FORCE_REAUTHENTICATION | REUSE_CREDENTIALS.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -314,7 +321,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Stack. Registered at `@swamp/aws/appstream/stack`. */
 export const model = {
   type: "@swamp/aws/appstream/stack",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -379,6 +386,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Added: StorageConnectorAuthentication",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -175,6 +175,9 @@ const GlobalArgsSchema = z.object({
       "Configuration for an application backed up by a Backup Appliance.",
     ).optional(),
     gcpBackupConfig: z.object({
+      autoProtectionPolicyBinding: z.string().describe(
+        "Output only. The resource name of the `AutoProtectionPolicyBinding` that manages this datasource, if any. Format: `projects/{project}/locations/{location}/autoProtectionPolicies/{policy}/bindings/{binding}`.",
+      ).optional(),
       backupPlan: z.string().describe("The name of the backup plan.")
         .optional(),
       backupPlanAssociation: z.string().describe(
@@ -397,6 +400,7 @@ const StateSchema = z.object({
       sltName: z.string(),
     }),
     gcpBackupConfig: z.object({
+      autoProtectionPolicyBinding: z.string(),
       backupPlan: z.string(),
       backupPlanAssociation: z.string(),
       backupPlanDescription: z.string(),
@@ -509,6 +513,9 @@ const InputsSchema = z.object({
       "Configuration for an application backed up by a Backup Appliance.",
     ).optional(),
     gcpBackupConfig: z.object({
+      autoProtectionPolicyBinding: z.string().describe(
+        "Output only. The resource name of the `AutoProtectionPolicyBinding` that manages this datasource, if any. Format: `projects/{project}/locations/{location}/autoProtectionPolicies/{policy}/bindings/{binding}`.",
+      ).optional(),
       backupPlan: z.string().describe("The name of the backup plan.")
         .optional(),
       backupPlanAssociation: z.string().describe(
@@ -744,7 +751,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service BackupVaults.DataSources. Registered at `@swamp/gcp/backupdr/backupvaults-datasources`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupvaults-datasources",
-  version: "2026.10.15.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -893,6 +900,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

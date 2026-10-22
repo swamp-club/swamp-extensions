@@ -741,7 +741,7 @@ const GlobalArgsSchema = z.object({
       ]).describe("Specifies the provisioning model of the instance.")
         .optional(),
       skipGuestOsShutdown: z.boolean().describe(
-        "Default is false and there will be 120 seconds between GCE ACPI G2 Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.",
+        "Defines whether GCE ACPI G2 Soft Off signal should be skipped during shutdown operation of VM. Default is false, meaning there will be 120 seconds between GCE ACPI G2 Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.",
       ).optional(),
       terminationTime: z.string().describe(
         "Specifies the timestamp, when the instance will be terminated, inRFC3339 text format. If specified, the instance termination action will be performed at the termination time.",
@@ -1660,7 +1660,7 @@ const InputsSchema = z.object({
       ]).describe("Specifies the provisioning model of the instance.")
         .optional(),
       skipGuestOsShutdown: z.boolean().describe(
-        "Default is false and there will be 120 seconds between GCE ACPI G2 Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.",
+        "Defines whether GCE ACPI G2 Soft Off signal should be skipped during shutdown operation of VM. Default is false, meaning there will be 120 seconds between GCE ACPI G2 Soft Off and ACPI G3 Mechanical Off for Standard VMs and 30 seconds for Spot VMs.",
       ).optional(),
       terminationTime: z.string().describe(
         "Specifies the timestamp, when the instance will be terminated, inRFC3339 text format. If specified, the instance termination action will be performed at the termination time.",
@@ -1766,7 +1766,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceTemplates. Registered at `@swamp/gcp/compute/instancetemplates`. */
 export const model = {
   type: "@swamp/gcp/compute/instancetemplates",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -2040,6 +2040,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 const GET_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.scripts.get",
   "path":
-    "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts/{+customBiddingScriptId}",
+    "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts/{+customBiddingScriptId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "customBiddingAlgorithmId",
@@ -70,7 +70,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.scripts.create",
-  "path": "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts",
+  "path": "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts",
   "httpMethod": "POST",
   "parameterOrder": [
     "customBiddingAlgorithmId",
@@ -91,7 +91,7 @@ const INSERT_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.scripts.list",
-  "path": "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts",
+  "path": "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}/scripts",
   "httpMethod": "GET",
   "parameterOrder": [
     "customBiddingAlgorithmId",
@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Scripts. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-scripts`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-scripts",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,6 +363,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

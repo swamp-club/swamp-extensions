@@ -237,6 +237,9 @@ const GlobalArgsSchema = z.object({
     catalogPublishingEnabled: z.boolean().describe(
       "Optional. Whether to publish result to Dataplex Catalog.",
     ).optional(),
+    customInstructions: z.string().describe(
+      "Optional. Custom instructions for generating data documentation. The maximum length is 2,048 characters.",
+    ).optional(),
     generationScopes: z.array(
       z.enum([
         "GENERATION_SCOPE_UNSPECIFIED",
@@ -632,6 +635,7 @@ const StateSchema = z.object({
   }).optional(),
   dataDocumentationSpec: z.object({
     catalogPublishingEnabled: z.boolean(),
+    customInstructions: z.string(),
     generationScopes: z.array(z.string()),
     sqlDialect: z.string(),
   }).optional(),
@@ -979,6 +983,9 @@ const InputsSchema = z.object({
     catalogPublishingEnabled: z.boolean().describe(
       "Optional. Whether to publish result to Dataplex Catalog.",
     ).optional(),
+    customInstructions: z.string().describe(
+      "Optional. Custom instructions for generating data documentation. The maximum length is 2,048 characters.",
+    ).optional(),
     generationScopes: z.array(
       z.enum([
         "GENERATION_SCOPE_UNSPECIFIED",
@@ -1314,7 +1321,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1631,6 +1638,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

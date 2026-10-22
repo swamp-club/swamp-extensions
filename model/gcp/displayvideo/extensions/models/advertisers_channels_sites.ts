@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.channels.sites.create",
-  "path": "v2/advertisers/{advertiserId}/channels/{+channelId}/sites",
+  "path": "v5/advertisers/{advertiserId}/channels/{+channelId}/sites",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -68,7 +68,7 @@ const INSERT_CONFIG = {
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.channels.sites.delete",
   "path":
-    "v2/advertisers/{advertiserId}/channels/{+channelId}/sites/{+urlOrAppId}",
+    "v5/advertisers/{advertiserId}/channels/{+channelId}/sites/{+urlOrAppId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -96,7 +96,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.channels.sites.list",
-  "path": "v2/advertisers/{+advertiserId}/channels/{+channelId}/sites",
+  "path": "v5/advertisers/{+advertiserId}/channels/{+channelId}/sites",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -227,7 +227,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Channels.Sites. Registered at `@swamp/gcp/displayvideo/advertisers-channels-sites`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-channels-sites",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -667,7 +672,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.channels.sites.bulkEdit",
             "path":
-              "v2/advertisers/{advertiserId}/channels/{+channelId}/sites:bulkEdit",
+              "v5/advertisers/{advertiserId}/channels/{+channelId}/sites:bulkEdit",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId", "channelId"],
             "parameters": {
@@ -718,7 +723,7 @@ export const model = {
           {
             "id": "displayvideo.advertisers.channels.sites.replace",
             "path":
-              "v2/advertisers/{advertiserId}/channels/{+channelId}/sites:replace",
+              "v5/advertisers/{advertiserId}/channels/{+channelId}/sites:replace",
             "httpMethod": "POST",
             "parameterOrder": ["advertiserId", "channelId"],
             "parameters": {

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/compute"
-version: "2026.10.13.1"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud compute infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: acceleratortypes, addresses, autoscalers, backendbuckets, backendservices, crosssitenetworks, disktypes, disks, externalvpngateways, firewallpolicies, firewalls, forwardingrules, futurereservations, globaladdresses, globalforwardingrules, globalfrontendsettings, globalnetworkendpointgroups, globalpublicdelegatedprefixes, globalvmextensionpolicies, healthchecks, hosts, httphealthchecks, httpshealthchecks, imagefamilyviews, imageviews, images, instancegroupmanagerresizerequests, instancegroupmanagers, instancegroups, instancesettings, instancetemplates, instances, instantsnapshotgroups, instantsnapshots, interconnectattachmentgroups, interconnectattachments, interconnectgroups, interconnectlocations, interconnectremotelocations, interconnects, licensecodes, licenses, machineimages, machinetypes, managedrulesets, networkattachments, networkedgesecurityservices, networkendpointgroups, networkfirewallpolicies, networkprofiles, networks, nodegroups, nodetemplates, nodetypes, organizationsecuritypolicies, packetmirrorings, previewfeatures, projectviews, projects, publicadvertisedprefixes, publicdelegatedprefixes, regionautoscalers, regionbackendbuckets, regionbackendservices, regioncommitments, regioncompositehealthchecks, regiondisktypes, regiondisks, regionhealthaggregationpolicies, regionhealthcheckservices, regionhealthchecks, regionhealthsources, regioninstancegroupmanagerresizerequests, regioninstancegroupmanagers, regioninstancegroups, regioninstancetemplates, regioninstantsnapshotgroups, regioninstantsnapshots, regionnetworkendpointgroups, regionnetworkfirewallpolicies, regionnotificationendpoints, regionsecuritypolicies, regionsnapshotsettings, regionsnapshots, regionsslcertificates, regionsslpolicies, regiontargethttpproxies, regiontargethttpsproxies, regiontargettcpproxies, regionurlmaps, regionzones, regions, reliabilityrisks, reservationblocks, reservationslots, reservationsubblocks, reservations, resourcepolicies, rolloutplans, rollouts, routers, routes, securitypolicies, serviceattachments, snapshotsettings, snapshots, sslcertificates, sslpolicies, storagepooltypes, storagepools, subnetworks, targetgrpcproxies, targethttpproxies, targethttpsproxies, targetinstances, targetpools, targetsslproxies, targettcpproxies, targetvpngateways, urlmaps, vpngateways, vpntunnels, wiregroups, zonevmextensionpolicies, zones
+  - Updated: backendservices, instancetemplates, instances, regionbackendservices, regioninstancetemplates, vpntunnels
 models:
   - acceleratortypes.ts
   - addresses.ts

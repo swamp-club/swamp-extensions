@@ -126,6 +126,12 @@ const LIST_CONFIG = {
     "projectId",
   ],
   "parameters": {
+    "createTimeRange.endTime": {
+      "location": "query",
+    },
+    "createTimeRange.startTime": {
+      "location": "query",
+    },
     "filter": {
       "location": "query",
     },
@@ -146,6 +152,12 @@ const LIST_CONFIG = {
       "required": true,
     },
     "regionalFanoutRequested": {
+      "location": "query",
+    },
+    "terminationTimeRange.endTime": {
+      "location": "query",
+    },
+    "terminationTimeRange.startTime": {
       "location": "query",
     },
     "view": {
@@ -1963,7 +1975,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.10.17.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2185,6 +2197,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2518,6 +2535,12 @@ export const model = {
     list: {
       description: "List jobs resources",
       arguments: z.object({
+        createTimeRange_endTime: z.string().describe(
+          "Optional. Exclusive end of the interval. If specified, a Timestamp matching this interval will have to be before the end.",
+        ).optional(),
+        createTimeRange_startTime: z.string().describe(
+          "Optional. Inclusive start of the interval. If specified, a Timestamp matching this interval will have to be the same or after the start.",
+        ).optional(),
         filter: z.string().describe("The kind of filter to use.").optional(),
         location: z.string().describe(
           "The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains this job.",
@@ -2527,6 +2550,12 @@ export const model = {
           "If there are many jobs, limit response to at most this many. The actual number of jobs returned will be the lesser of max_responses and an unspecified server-defined limit.",
         ).optional(),
         regionalFanoutRequested: z.boolean().describe("Optional.").optional(),
+        terminationTimeRange_endTime: z.string().describe(
+          "Optional. Exclusive end of the interval. If specified, a Timestamp matching this interval will have to be before the end.",
+        ).optional(),
+        terminationTimeRange_startTime: z.string().describe(
+          "Optional. Inclusive start of the interval. If specified, a Timestamp matching this interval will have to be the same or after the start.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -2538,6 +2567,16 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { projectId: projectId };
+        if (args["createTimeRange_endTime"] !== undefined) {
+          params["createTimeRange.endTime"] = String(
+            args["createTimeRange_endTime"],
+          );
+        }
+        if (args["createTimeRange_startTime"] !== undefined) {
+          params["createTimeRange.startTime"] = String(
+            args["createTimeRange_startTime"],
+          );
+        }
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
         }
@@ -2551,6 +2590,16 @@ export const model = {
         if (args["regionalFanoutRequested"] !== undefined) {
           params["regionalFanoutRequested"] = String(
             args["regionalFanoutRequested"],
+          );
+        }
+        if (args["terminationTimeRange_endTime"] !== undefined) {
+          params["terminationTimeRange.endTime"] = String(
+            args["terminationTimeRange_endTime"],
+          );
+        }
+        if (args["terminationTimeRange_startTime"] !== undefined) {
+          params["terminationTimeRange.startTime"] = String(
+            args["terminationTimeRange_startTime"],
           );
         }
         const { items, nextPageToken } = await listResources(
@@ -2581,12 +2630,16 @@ export const model = {
     aggregated: {
       description: "aggregated",
       arguments: z.object({
+        createTimeRange_endTime: z.any().optional(),
+        createTimeRange_startTime: z.any().optional(),
         filter: z.any().optional(),
         location: z.any().optional(),
         name: z.any().optional(),
         pageSize: z.any().optional(),
         pageToken: z.any().optional(),
         regionalFanoutRequested: z.any().optional(),
+        terminationTimeRange_endTime: z.any().optional(),
+        terminationTimeRange_startTime: z.any().optional(),
         view: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -2596,6 +2649,16 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { projectId: projectId };
+        if (args["createTimeRange_endTime"] !== undefined) {
+          params["createTimeRange.endTime"] = String(
+            args["createTimeRange_endTime"],
+          );
+        }
+        if (args["createTimeRange_startTime"] !== undefined) {
+          params["createTimeRange.startTime"] = String(
+            args["createTimeRange_startTime"],
+          );
+        }
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
         }
@@ -2614,6 +2677,16 @@ export const model = {
             args["regionalFanoutRequested"],
           );
         }
+        if (args["terminationTimeRange_endTime"] !== undefined) {
+          params["terminationTimeRange.endTime"] = String(
+            args["terminationTimeRange_endTime"],
+          );
+        }
+        if (args["terminationTimeRange_startTime"] !== undefined) {
+          params["terminationTimeRange.startTime"] = String(
+            args["terminationTimeRange_startTime"],
+          );
+        }
         if (args["view"] !== undefined) params["view"] = String(args["view"]);
         const result = await createResource(
           baseUrl,
@@ -2623,6 +2696,8 @@ export const model = {
             "httpMethod": "GET",
             "parameterOrder": ["projectId"],
             "parameters": {
+              "createTimeRange.endTime": { "location": "query" },
+              "createTimeRange.startTime": { "location": "query" },
               "filter": { "location": "query" },
               "location": { "location": "query" },
               "name": { "location": "query" },
@@ -2630,6 +2705,8 @@ export const model = {
               "pageToken": { "location": "query" },
               "projectId": { "location": "path", "required": true },
               "regionalFanoutRequested": { "location": "query" },
+              "terminationTimeRange.endTime": { "location": "query" },
+              "terminationTimeRange.startTime": { "location": "query" },
               "view": { "location": "query" },
             },
           },

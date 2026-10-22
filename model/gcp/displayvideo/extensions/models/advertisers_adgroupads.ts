@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.get",
-  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.create",
-  "path": "v3/advertisers/{+advertiserId}/adGroupAds",
+  "path": "v5/advertisers/{+advertiserId}/adGroupAds",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.patch",
-  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.delete",
-  "path": "v3/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
+  "path": "v5/advertisers/{+advertiserId}/adGroupAds/{+adGroupAdId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.adGroupAds.list",
-  "path": "v3/advertisers/{+advertiserId}/adGroupAds",
+  "path": "v5/advertisers/{+advertiserId}/adGroupAds",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -219,6 +219,9 @@ const GlobalArgsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -238,6 +241,9 @@ const GlobalArgsSchema = z.object({
     }).describe("Required. Common ad attributes.").optional(),
   }).describe(
     "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
+  ).optional(),
+  containsSyntheticMedia: z.boolean().describe(
+    "Optional. Indicates if the ad contains altered or synthetic media. Should only be set for ads made by verified election advertisers. Only valid for YouTube ads.",
   ).optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string().describe("Required. The DCM creative id.")
@@ -703,6 +709,9 @@ const GlobalArgsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -762,6 +771,9 @@ const GlobalArgsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -788,6 +800,9 @@ const GlobalArgsSchema = z.object({
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()).describe(
       "Optional. The list of text assets shown on the call-to-action button. Must be set if headlines is set.",
+    ).optional(),
+    businessName: z.string().describe(
+      "Optional. The business name shown on the ad. This setting is required unless a default value is set at the advertiser level. If left unset, the default value will be applied.",
     ).optional(),
     companionBanners: z.array(z.object({
       assetId: z.string().describe("Required. The unique ID of the asset.")
@@ -827,11 +842,33 @@ const GlobalArgsSchema = z.object({
     headlines: z.array(z.string()).describe(
       "Optional. The list of headlines shown on the call-to-action banner.",
     ).optional(),
+    logo: z.object({
+      assetId: z.string().describe("Required. The unique ID of the asset.")
+        .optional(),
+      fileSize: z.string().describe(
+        "Output only. File size of the image asset in bytes.",
+      ).optional(),
+      fullSize: z.object({
+        heightPixels: z.number().int().describe("The height in pixels.")
+          .optional(),
+        widthPixels: z.number().int().describe("The width in pixels.")
+          .optional(),
+      }).describe("Output only. Metadata for this image at its original size.")
+        .optional(),
+      mimeType: z.string().describe(
+        "Output only. MIME type of the image asset.",
+      ).optional(),
+    }).describe(
+      "Optional. The logo image used by this ad. This setting is required unless a default value is set at the advertiser level. If left unset, the default value will be applied.",
+    ).optional(),
     longHeadlines: z.array(z.string()).describe(
       "Optional. The list of long headlines shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     trackingUrl: z.string().describe(
       "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
+    ).optional(),
+    userSpecifiedTrackingUrl: z.string().describe(
+      "Optional. The tracking URL specified by the user manually.",
     ).optional(),
     videos: z.array(z.object({
       id: z.string().describe(
@@ -905,6 +942,7 @@ const StateSchema = z.object({
     displayUrl: z.string(),
     finalUrl: z.string(),
     trackingUrl: z.string(),
+    userSpecifiedTrackingUrl: z.string(),
     video: z.object({
       id: z.string(),
       unavailableReason: z.string(),
@@ -927,6 +965,7 @@ const StateSchema = z.object({
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
+      userSpecifiedTrackingUrl: z.string(),
       video: z.object({
         id: z.string(),
         unavailableReason: z.string(),
@@ -934,6 +973,7 @@ const StateSchema = z.object({
       }),
     }),
   }).optional(),
+  containsSyntheticMedia: z.boolean().optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string(),
     placementId: z.string(),
@@ -1120,6 +1160,7 @@ const StateSchema = z.object({
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
+      userSpecifiedTrackingUrl: z.string(),
       video: z.object({
         id: z.string(),
         unavailableReason: z.string(),
@@ -1166,6 +1207,7 @@ const StateSchema = z.object({
       displayUrl: z.string(),
       finalUrl: z.string(),
       trackingUrl: z.string(),
+      userSpecifiedTrackingUrl: z.string(),
       video: z.object({
         id: z.string(),
         unavailableReason: z.string(),
@@ -1174,6 +1216,7 @@ const StateSchema = z.object({
     }),
     customParameters: z.record(z.string(), z.unknown()),
   }).optional(),
+  parentCreativeId: z.string().optional(),
   videoDiscoverAd: z.object({
     description1: z.string(),
     description2: z.string(),
@@ -1187,6 +1230,7 @@ const StateSchema = z.object({
   }).optional(),
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()),
+    businessName: z.string(),
     companionBanners: z.array(z.object({
       assetId: z.string(),
       fileSize: z.string(),
@@ -1203,8 +1247,18 @@ const StateSchema = z.object({
     domain: z.string(),
     finalUrl: z.string(),
     headlines: z.array(z.string()),
+    logo: z.object({
+      assetId: z.string(),
+      fileSize: z.string(),
+      fullSize: z.object({
+        heightPixels: z.number(),
+        widthPixels: z.number(),
+      }),
+      mimeType: z.string(),
+    }),
     longHeadlines: z.array(z.string()),
     trackingUrl: z.string(),
+    userSpecifiedTrackingUrl: z.string(),
     videos: z.array(z.object({
       id: z.string(),
       unavailableReason: z.string(),
@@ -1265,6 +1319,9 @@ const InputsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -1284,6 +1341,9 @@ const InputsSchema = z.object({
     }).describe("Required. Common ad attributes.").optional(),
   }).describe(
     "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
+  ).optional(),
+  containsSyntheticMedia: z.boolean().describe(
+    "Optional. Indicates if the ad contains altered or synthetic media. Should only be set for ads made by verified election advertisers. Only valid for YouTube ads.",
   ).optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string().describe("Required. The DCM creative id.")
@@ -1749,6 +1809,9 @@ const InputsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -1808,6 +1871,9 @@ const InputsSchema = z.object({
       trackingUrl: z.string().describe(
         "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
       ).optional(),
+      userSpecifiedTrackingUrl: z.string().describe(
+        "Optional. The tracking URL specified by the user manually.",
+      ).optional(),
       video: z.object({
         id: z.string().describe(
           "Output only. The YouTube video ID which can be searched on YouTube webpage.",
@@ -1834,6 +1900,9 @@ const InputsSchema = z.object({
   videoPerformanceAd: z.object({
     actionButtonLabels: z.array(z.string()).describe(
       "Optional. The list of text assets shown on the call-to-action button. Must be set if headlines is set.",
+    ).optional(),
+    businessName: z.string().describe(
+      "Optional. The business name shown on the ad. This setting is required unless a default value is set at the advertiser level. If left unset, the default value will be applied.",
     ).optional(),
     companionBanners: z.array(z.object({
       assetId: z.string().describe("Required. The unique ID of the asset.")
@@ -1873,11 +1942,33 @@ const InputsSchema = z.object({
     headlines: z.array(z.string()).describe(
       "Optional. The list of headlines shown on the call-to-action banner.",
     ).optional(),
+    logo: z.object({
+      assetId: z.string().describe("Required. The unique ID of the asset.")
+        .optional(),
+      fileSize: z.string().describe(
+        "Output only. File size of the image asset in bytes.",
+      ).optional(),
+      fullSize: z.object({
+        heightPixels: z.number().int().describe("The height in pixels.")
+          .optional(),
+        widthPixels: z.number().int().describe("The width in pixels.")
+          .optional(),
+      }).describe("Output only. Metadata for this image at its original size.")
+        .optional(),
+      mimeType: z.string().describe(
+        "Output only. MIME type of the image asset.",
+      ).optional(),
+    }).describe(
+      "Optional. The logo image used by this ad. This setting is required unless a default value is set at the advertiser level. If left unset, the default value will be applied.",
+    ).optional(),
     longHeadlines: z.array(z.string()).describe(
       "Optional. The list of long headlines shown on the call-to-action banner. Must be set unless the parent line item's lineItemType is `LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE`, in which case this field cannot be set.",
     ).optional(),
     trackingUrl: z.string().describe(
       "Output only. The URL address loaded in the background for tracking purposes. In v4 and earlier, this field represents the tracking URL specified by the user manually. This can be found at userSpecifiedTrackingUrl in v5.",
+    ).optional(),
+    userSpecifiedTrackingUrl: z.string().describe(
+      "Optional. The tracking URL specified by the user manually.",
     ).optional(),
     videos: z.array(z.object({
       id: z.string().describe(
@@ -1926,7 +2017,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2125,6 +2216,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Added: containsSyntheticMedia",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2153,6 +2249,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["adGroupId"] !== undefined) body["adGroupId"] = g["adGroupId"];
         if (g["bumperAd"] !== undefined) body["bumperAd"] = g["bumperAd"];
+        if (g["containsSyntheticMedia"] !== undefined) {
+          body["containsSyntheticMedia"] = g["containsSyntheticMedia"];
+        }
         if (g["dcmTrackingInfo"] !== undefined) {
           body["dcmTrackingInfo"] = g["dcmTrackingInfo"];
         }
@@ -2288,6 +2387,9 @@ export const model = {
         params["adGroupAdId"] = resourceId;
         const body: Record<string, unknown> = {};
         if (g["bumperAd"] !== undefined) body["bumperAd"] = g["bumperAd"];
+        if (g["containsSyntheticMedia"] !== undefined) {
+          body["containsSyntheticMedia"] = g["containsSyntheticMedia"];
+        }
         if (g["dcmTrackingInfo"] !== undefined) {
           body["dcmTrackingInfo"] = g["dcmTrackingInfo"];
         }

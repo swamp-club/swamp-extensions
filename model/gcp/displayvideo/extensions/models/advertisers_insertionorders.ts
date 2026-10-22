@@ -45,7 +45,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.advertisers.insertionOrders.get",
-  "path": "v2/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
+  "path": "v5/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.advertisers.insertionOrders.create",
-  "path": "v2/advertisers/{+advertiserId}/insertionOrders",
+  "path": "v5/advertisers/{+advertiserId}/insertionOrders",
   "httpMethod": "POST",
   "parameterOrder": [
     "advertiserId",
@@ -80,7 +80,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.advertisers.insertionOrders.patch",
-  "path": "v2/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
+  "path": "v5/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "advertiserId",
@@ -103,7 +103,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "displayvideo.advertisers.insertionOrders.delete",
-  "path": "v2/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
+  "path": "v5/advertisers/{+advertiserId}/insertionOrders/{+insertionOrderId}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "advertiserId",
@@ -123,7 +123,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.advertisers.insertionOrders.list",
-  "path": "v2/advertisers/{+advertiserId}/insertionOrders",
+  "path": "v5/advertisers/{+advertiserId}/insertionOrders",
   "httpMethod": "GET",
   "parameterOrder": [
     "advertiserId",
@@ -229,6 +229,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -257,6 +258,7 @@ const GlobalArgsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -295,14 +297,6 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. The bidding strategy of the insertion order. By default, fixed_bid is set. If the budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`, the insertion order will impose this bidding strategy on its line items. If an imposed bidding strategy is not compatible with a line item's enableOptimizedTargeting setting, the optimized targeting setting will be updated.",
-  ).optional(),
-  billableOutcome: z.enum([
-    "BILLABLE_OUTCOME_UNSPECIFIED",
-    "BILLABLE_OUTCOME_PAY_PER_IMPRESSION",
-    "BILLABLE_OUTCOME_PAY_PER_CLICK",
-    "BILLABLE_OUTCOME_PAY_PER_VIEWABLE_IMPRESSION",
-  ]).describe(
-    "Immutable. The billable outcome of the insertion order. Outcome based buying is deprecated. `BILLABLE_OUTCOME_PAY_PER_IMPRESSION` is the only valid value.",
   ).optional(),
   budget: z.object({
     automationType: z.enum([
@@ -412,6 +406,7 @@ const GlobalArgsSchema = z.object({
     "INSERTION_ORDER_TYPE_UNSPECIFIED",
     "RTB",
     "OVER_THE_TOP",
+    "OUT_OF_HOME",
   ]).describe(
     "Optional. The type of insertion order. If this field is unspecified in creation, the value defaults to `RTB`.",
   ).optional(),
@@ -425,6 +420,54 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Additional integration details of the insertion order.",
   ).optional(),
+  kpi: z.object({
+    kpiAlgorithmId: z.string().describe(
+      "Optional. Custom Bidding Algorithm ID associated with KPI_CUSTOM_IMPRESSION_VALUE_OVER_COST. This field is ignored if the proper KPI is not selected.",
+    ).optional(),
+    kpiAmountMicros: z.string().describe(
+      "The goal amount, in micros of the advertiser's currency. Applicable when kpi_type is one of: * `KPI_TYPE_CPM` * `KPI_TYPE_CPC` * `KPI_TYPE_CPA` * `KPI_TYPE_CPIAVC` * `KPI_TYPE_VCPM` For example: 1500000 represents 1.5 standard units of the currency.",
+    ).optional(),
+    kpiPercentageMicros: z.string().describe(
+      "The decimal representation of the goal percentage in micros. Applicable when kpi_type is one of: * `KPI_TYPE_CTR` * `KPI_TYPE_VIEWABILITY` * `KPI_TYPE_CLICK_CVR` * `KPI_TYPE_IMPRESSION_CVR` * `KPI_TYPE_VTR` * `KPI_TYPE_AUDIO_COMPLETION_RATE` * `KPI_TYPE_VIDEO_COMPLETION_RATE` For example: 70000 represents 7% (decimal 0.07).",
+    ).optional(),
+    kpiString: z.string().describe(
+      "A KPI string, which can be empty. Must be UTF-8 encoded with a length of no more than 100 characters. Applicable when kpi_type is `KPI_TYPE_OTHER`.",
+    ).optional(),
+    kpiType: z.enum([
+      "KPI_TYPE_UNSPECIFIED",
+      "KPI_TYPE_CPM",
+      "KPI_TYPE_CPC",
+      "KPI_TYPE_CPA",
+      "KPI_TYPE_CTR",
+      "KPI_TYPE_VIEWABILITY",
+      "KPI_TYPE_CPIAVC",
+      "KPI_TYPE_CPE",
+      "KPI_TYPE_CPV",
+      "KPI_TYPE_CLICK_CVR",
+      "KPI_TYPE_IMPRESSION_CVR",
+      "KPI_TYPE_VCPM",
+      "KPI_TYPE_VTR",
+      "KPI_TYPE_AUDIO_COMPLETION_RATE",
+      "KPI_TYPE_VIDEO_COMPLETION_RATE",
+      "KPI_TYPE_CPCL",
+      "KPI_TYPE_CPCV",
+      "KPI_TYPE_TOS10",
+      "KPI_TYPE_MAXIMIZE_PACING",
+      "KPI_TYPE_CUSTOM_IMPRESSION_VALUE_OVER_COST",
+      "KPI_TYPE_OTHER",
+    ]).describe("Required. The type of KPI.").optional(),
+  }).describe(
+    'Required. The key performance indicator (KPI) of the insertion order. This is represented as referred to as the "Goal" in the Display & Video 360 interface.',
+  ).optional(),
+  optimizationObjective: z.enum([
+    "OPTIMIZATION_OBJECTIVE_UNSPECIFIED",
+    "CONVERSION",
+    "CLICK",
+    "BRAND_AWARENESS",
+    "CUSTOM",
+    "NO_OBJECTIVE",
+  ]).describe("Required. The optimization objective of the insertion order.")
+    .optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string().describe(
       "Maximum number of impressions to serve every day. Applicable when the budget is impression based. Must be greater than 0.",
@@ -453,8 +496,6 @@ const GlobalArgsSchema = z.object({
   partnerCosts: z.array(z.object({
     costType: z.enum([
       "PARTNER_COST_TYPE_UNSPECIFIED",
-      "PARTNER_COST_TYPE_ADLOOX",
-      "PARTNER_COST_TYPE_ADLOOX_PREBID",
       "PARTNER_COST_TYPE_ADSAFE",
       "PARTNER_COST_TYPE_ADXPOSE",
       "PARTNER_COST_TYPE_AGGREGATE_KNOWLEDGE",
@@ -482,6 +523,8 @@ const GlobalArgsSchema = z.object({
       "PARTNER_COST_TYPE_CUSTOM_FEE_4",
       "PARTNER_COST_TYPE_CUSTOM_FEE_5",
       "PARTNER_COST_TYPE_SCIBIDS_FEE",
+      "PARTNER_COST_TYPE_PEER39",
+      "PARTNER_COST_TYPE_PEER39_PREBID",
     ]).describe("Required. The type of the partner cost.").optional(),
     feeAmount: z.string().describe(
       "The CPM fee amount in micros of advertiser's currency. Applicable when the fee_type is `PARTNER_FEE_TYPE_CPM_FEE`. Must be greater than or equal to 0. For example, for 1.5 standard unit of the advertiser's currency, set this field to 1500000.",
@@ -504,35 +547,6 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "Optional. The partner costs associated with the insertion order. If absent or empty in CreateInsertionOrder method, the newly created insertion order will inherit partner costs from the partner settings.",
   ).optional(),
-  performanceGoal: z.object({
-    performanceGoalAmountMicros: z.string().describe(
-      "The goal amount, in micros of the advertiser's currency. Applicable when performance_goal_type is one of: * `PERFORMANCE_GOAL_TYPE_CPM` * `PERFORMANCE_GOAL_TYPE_CPC` * `PERFORMANCE_GOAL_TYPE_CPA` * `PERFORMANCE_GOAL_TYPE_CPIAVC` * `PERFORMANCE_GOAL_TYPE_VCPM` For example 1500000 represents 1.5 standard units of the currency.",
-    ).optional(),
-    performanceGoalPercentageMicros: z.string().describe(
-      "The decimal representation of the goal percentage in micros. Applicable when performance_goal_type is one of: * `PERFORMANCE_GOAL_TYPE_CTR` * `PERFORMANCE_GOAL_TYPE_VIEWABILITY` * `PERFORMANCE_GOAL_TYPE_CLICK_CVR` * `PERFORMANCE_GOAL_TYPE_IMPRESSION_CVR` * `PERFORMANCE_GOAL_TYPE_VTR` * `PERFORMANCE_GOAL_TYPE_AUDIO_COMPLETION_RATE` * `PERFORMANCE_GOAL_TYPE_VIDEO_COMPLETION_RATE` For example, 70000 represents 7% (decimal 0.07).",
-    ).optional(),
-    performanceGoalString: z.string().describe(
-      "A key performance indicator (KPI) string, which can be empty. Must be UTF-8 encoded with a length of no more than 100 characters. Applicable when performance_goal_type is set to `PERFORMANCE_GOAL_TYPE_OTHER`.",
-    ).optional(),
-    performanceGoalType: z.enum([
-      "PERFORMANCE_GOAL_TYPE_UNSPECIFIED",
-      "PERFORMANCE_GOAL_TYPE_CPM",
-      "PERFORMANCE_GOAL_TYPE_CPC",
-      "PERFORMANCE_GOAL_TYPE_CPA",
-      "PERFORMANCE_GOAL_TYPE_CTR",
-      "PERFORMANCE_GOAL_TYPE_VIEWABILITY",
-      "PERFORMANCE_GOAL_TYPE_CPIAVC",
-      "PERFORMANCE_GOAL_TYPE_CPE",
-      "PERFORMANCE_GOAL_TYPE_CPV",
-      "PERFORMANCE_GOAL_TYPE_CLICK_CVR",
-      "PERFORMANCE_GOAL_TYPE_IMPRESSION_CVR",
-      "PERFORMANCE_GOAL_TYPE_VCPM",
-      "PERFORMANCE_GOAL_TYPE_VTR",
-      "PERFORMANCE_GOAL_TYPE_AUDIO_COMPLETION_RATE",
-      "PERFORMANCE_GOAL_TYPE_VIDEO_COMPLETION_RATE",
-      "PERFORMANCE_GOAL_TYPE_OTHER",
-    ]).describe("Required. The type of the performance goal.").optional(),
-  }).describe("Required. Performance goal of the insertion order.").optional(),
 });
 
 const StateSchema = z.object({
@@ -566,7 +580,6 @@ const StateSchema = z.object({
       value: z.string(),
     }),
   }).optional(),
-  billableOutcome: z.string().optional(),
   budget: z.object({
     automationType: z.string(),
     budgetSegments: z.array(z.object({
@@ -604,7 +617,15 @@ const StateSchema = z.object({
     details: z.string(),
     integrationCode: z.string(),
   }).optional(),
+  kpi: z.object({
+    kpiAlgorithmId: z.string(),
+    kpiAmountMicros: z.string(),
+    kpiPercentageMicros: z.string(),
+    kpiString: z.string(),
+    kpiType: z.string(),
+  }).optional(),
   name: z.string(),
+  optimizationObjective: z.string().optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string(),
     dailyMaxMicros: z.string(),
@@ -618,12 +639,6 @@ const StateSchema = z.object({
     feeType: z.string(),
     invoiceType: z.string(),
   })).optional(),
-  performanceGoal: z.object({
-    performanceGoalAmountMicros: z.string(),
-    performanceGoalPercentageMicros: z.string(),
-    performanceGoalString: z.string(),
-    performanceGoalType: z.string(),
-  }).optional(),
   reservationType: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -690,6 +705,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy tries to minimize while spending the full budget. `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` is not supported for this strategy.",
       ).optional(),
@@ -718,6 +734,7 @@ const InputsSchema = z.object({
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN",
         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_REACH",
       ]).describe(
         "Required. The type of the performance goal that the bidding strategy will try to meet or beat. For line item level usage, the value must be one of: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM_ALGO`.",
       ).optional(),
@@ -756,14 +773,6 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. The bidding strategy of the insertion order. By default, fixed_bid is set. If the budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`, the insertion order will impose this bidding strategy on its line items. If an imposed bidding strategy is not compatible with a line item's enableOptimizedTargeting setting, the optimized targeting setting will be updated.",
-  ).optional(),
-  billableOutcome: z.enum([
-    "BILLABLE_OUTCOME_UNSPECIFIED",
-    "BILLABLE_OUTCOME_PAY_PER_IMPRESSION",
-    "BILLABLE_OUTCOME_PAY_PER_CLICK",
-    "BILLABLE_OUTCOME_PAY_PER_VIEWABLE_IMPRESSION",
-  ]).describe(
-    "Immutable. The billable outcome of the insertion order. Outcome based buying is deprecated. `BILLABLE_OUTCOME_PAY_PER_IMPRESSION` is the only valid value.",
   ).optional(),
   budget: z.object({
     automationType: z.enum([
@@ -873,6 +882,7 @@ const InputsSchema = z.object({
     "INSERTION_ORDER_TYPE_UNSPECIFIED",
     "RTB",
     "OVER_THE_TOP",
+    "OUT_OF_HOME",
   ]).describe(
     "Optional. The type of insertion order. If this field is unspecified in creation, the value defaults to `RTB`.",
   ).optional(),
@@ -886,6 +896,54 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. Additional integration details of the insertion order.",
   ).optional(),
+  kpi: z.object({
+    kpiAlgorithmId: z.string().describe(
+      "Optional. Custom Bidding Algorithm ID associated with KPI_CUSTOM_IMPRESSION_VALUE_OVER_COST. This field is ignored if the proper KPI is not selected.",
+    ).optional(),
+    kpiAmountMicros: z.string().describe(
+      "The goal amount, in micros of the advertiser's currency. Applicable when kpi_type is one of: * `KPI_TYPE_CPM` * `KPI_TYPE_CPC` * `KPI_TYPE_CPA` * `KPI_TYPE_CPIAVC` * `KPI_TYPE_VCPM` For example: 1500000 represents 1.5 standard units of the currency.",
+    ).optional(),
+    kpiPercentageMicros: z.string().describe(
+      "The decimal representation of the goal percentage in micros. Applicable when kpi_type is one of: * `KPI_TYPE_CTR` * `KPI_TYPE_VIEWABILITY` * `KPI_TYPE_CLICK_CVR` * `KPI_TYPE_IMPRESSION_CVR` * `KPI_TYPE_VTR` * `KPI_TYPE_AUDIO_COMPLETION_RATE` * `KPI_TYPE_VIDEO_COMPLETION_RATE` For example: 70000 represents 7% (decimal 0.07).",
+    ).optional(),
+    kpiString: z.string().describe(
+      "A KPI string, which can be empty. Must be UTF-8 encoded with a length of no more than 100 characters. Applicable when kpi_type is `KPI_TYPE_OTHER`.",
+    ).optional(),
+    kpiType: z.enum([
+      "KPI_TYPE_UNSPECIFIED",
+      "KPI_TYPE_CPM",
+      "KPI_TYPE_CPC",
+      "KPI_TYPE_CPA",
+      "KPI_TYPE_CTR",
+      "KPI_TYPE_VIEWABILITY",
+      "KPI_TYPE_CPIAVC",
+      "KPI_TYPE_CPE",
+      "KPI_TYPE_CPV",
+      "KPI_TYPE_CLICK_CVR",
+      "KPI_TYPE_IMPRESSION_CVR",
+      "KPI_TYPE_VCPM",
+      "KPI_TYPE_VTR",
+      "KPI_TYPE_AUDIO_COMPLETION_RATE",
+      "KPI_TYPE_VIDEO_COMPLETION_RATE",
+      "KPI_TYPE_CPCL",
+      "KPI_TYPE_CPCV",
+      "KPI_TYPE_TOS10",
+      "KPI_TYPE_MAXIMIZE_PACING",
+      "KPI_TYPE_CUSTOM_IMPRESSION_VALUE_OVER_COST",
+      "KPI_TYPE_OTHER",
+    ]).describe("Required. The type of KPI.").optional(),
+  }).describe(
+    'Required. The key performance indicator (KPI) of the insertion order. This is represented as referred to as the "Goal" in the Display & Video 360 interface.',
+  ).optional(),
+  optimizationObjective: z.enum([
+    "OPTIMIZATION_OBJECTIVE_UNSPECIFIED",
+    "CONVERSION",
+    "CLICK",
+    "BRAND_AWARENESS",
+    "CUSTOM",
+    "NO_OBJECTIVE",
+  ]).describe("Required. The optimization objective of the insertion order.")
+    .optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string().describe(
       "Maximum number of impressions to serve every day. Applicable when the budget is impression based. Must be greater than 0.",
@@ -914,8 +972,6 @@ const InputsSchema = z.object({
   partnerCosts: z.array(z.object({
     costType: z.enum([
       "PARTNER_COST_TYPE_UNSPECIFIED",
-      "PARTNER_COST_TYPE_ADLOOX",
-      "PARTNER_COST_TYPE_ADLOOX_PREBID",
       "PARTNER_COST_TYPE_ADSAFE",
       "PARTNER_COST_TYPE_ADXPOSE",
       "PARTNER_COST_TYPE_AGGREGATE_KNOWLEDGE",
@@ -943,6 +999,8 @@ const InputsSchema = z.object({
       "PARTNER_COST_TYPE_CUSTOM_FEE_4",
       "PARTNER_COST_TYPE_CUSTOM_FEE_5",
       "PARTNER_COST_TYPE_SCIBIDS_FEE",
+      "PARTNER_COST_TYPE_PEER39",
+      "PARTNER_COST_TYPE_PEER39_PREBID",
     ]).describe("Required. The type of the partner cost.").optional(),
     feeAmount: z.string().describe(
       "The CPM fee amount in micros of advertiser's currency. Applicable when the fee_type is `PARTNER_FEE_TYPE_CPM_FEE`. Must be greater than or equal to 0. For example, for 1.5 standard unit of the advertiser's currency, set this field to 1500000.",
@@ -965,35 +1023,6 @@ const InputsSchema = z.object({
   })).describe(
     "Optional. The partner costs associated with the insertion order. If absent or empty in CreateInsertionOrder method, the newly created insertion order will inherit partner costs from the partner settings.",
   ).optional(),
-  performanceGoal: z.object({
-    performanceGoalAmountMicros: z.string().describe(
-      "The goal amount, in micros of the advertiser's currency. Applicable when performance_goal_type is one of: * `PERFORMANCE_GOAL_TYPE_CPM` * `PERFORMANCE_GOAL_TYPE_CPC` * `PERFORMANCE_GOAL_TYPE_CPA` * `PERFORMANCE_GOAL_TYPE_CPIAVC` * `PERFORMANCE_GOAL_TYPE_VCPM` For example 1500000 represents 1.5 standard units of the currency.",
-    ).optional(),
-    performanceGoalPercentageMicros: z.string().describe(
-      "The decimal representation of the goal percentage in micros. Applicable when performance_goal_type is one of: * `PERFORMANCE_GOAL_TYPE_CTR` * `PERFORMANCE_GOAL_TYPE_VIEWABILITY` * `PERFORMANCE_GOAL_TYPE_CLICK_CVR` * `PERFORMANCE_GOAL_TYPE_IMPRESSION_CVR` * `PERFORMANCE_GOAL_TYPE_VTR` * `PERFORMANCE_GOAL_TYPE_AUDIO_COMPLETION_RATE` * `PERFORMANCE_GOAL_TYPE_VIDEO_COMPLETION_RATE` For example, 70000 represents 7% (decimal 0.07).",
-    ).optional(),
-    performanceGoalString: z.string().describe(
-      "A key performance indicator (KPI) string, which can be empty. Must be UTF-8 encoded with a length of no more than 100 characters. Applicable when performance_goal_type is set to `PERFORMANCE_GOAL_TYPE_OTHER`.",
-    ).optional(),
-    performanceGoalType: z.enum([
-      "PERFORMANCE_GOAL_TYPE_UNSPECIFIED",
-      "PERFORMANCE_GOAL_TYPE_CPM",
-      "PERFORMANCE_GOAL_TYPE_CPC",
-      "PERFORMANCE_GOAL_TYPE_CPA",
-      "PERFORMANCE_GOAL_TYPE_CTR",
-      "PERFORMANCE_GOAL_TYPE_VIEWABILITY",
-      "PERFORMANCE_GOAL_TYPE_CPIAVC",
-      "PERFORMANCE_GOAL_TYPE_CPE",
-      "PERFORMANCE_GOAL_TYPE_CPV",
-      "PERFORMANCE_GOAL_TYPE_CLICK_CVR",
-      "PERFORMANCE_GOAL_TYPE_IMPRESSION_CVR",
-      "PERFORMANCE_GOAL_TYPE_VCPM",
-      "PERFORMANCE_GOAL_TYPE_VTR",
-      "PERFORMANCE_GOAL_TYPE_AUDIO_COMPLETION_RATE",
-      "PERFORMANCE_GOAL_TYPE_VIDEO_COMPLETION_RATE",
-      "PERFORMANCE_GOAL_TYPE_OTHER",
-    ]).describe("Required. The type of the performance goal.").optional(),
-  }).describe("Required. Performance goal of the insertion order.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -1022,7 +1051,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.InsertionOrders. Registered at `@swamp/gcp/displayvideo/advertisers-insertionorders`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-insertionorders",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1217,6 +1246,19 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Added: kpi, optimizationObjective. Removed: billableOutcome, performanceGoal",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          billableOutcome: _billableOutcome,
+          performanceGoal: _performanceGoal,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1246,9 +1288,6 @@ export const model = {
         if (g["bidStrategy"] !== undefined) {
           body["bidStrategy"] = g["bidStrategy"];
         }
-        if (g["billableOutcome"] !== undefined) {
-          body["billableOutcome"] = g["billableOutcome"];
-        }
         if (g["budget"] !== undefined) body["budget"] = g["budget"];
         if (g["campaignId"] !== undefined) body["campaignId"] = g["campaignId"];
         if (g["displayName"] !== undefined) {
@@ -1266,12 +1305,13 @@ export const model = {
         if (g["integrationDetails"] !== undefined) {
           body["integrationDetails"] = g["integrationDetails"];
         }
+        if (g["kpi"] !== undefined) body["kpi"] = g["kpi"];
+        if (g["optimizationObjective"] !== undefined) {
+          body["optimizationObjective"] = g["optimizationObjective"];
+        }
         if (g["pacing"] !== undefined) body["pacing"] = g["pacing"];
         if (g["partnerCosts"] !== undefined) {
           body["partnerCosts"] = g["partnerCosts"];
-        }
-        if (g["performanceGoal"] !== undefined) {
-          body["performanceGoal"] = g["performanceGoal"];
         }
         if (g["name"] !== undefined) {
           params["insertionOrderId"] = String(g["name"]);
@@ -1397,12 +1437,13 @@ export const model = {
         if (g["integrationDetails"] !== undefined) {
           body["integrationDetails"] = g["integrationDetails"];
         }
+        if (g["kpi"] !== undefined) body["kpi"] = g["kpi"];
+        if (g["optimizationObjective"] !== undefined) {
+          body["optimizationObjective"] = g["optimizationObjective"];
+        }
         if (g["pacing"] !== undefined) body["pacing"] = g["pacing"];
         if (g["partnerCosts"] !== undefined) {
           body["partnerCosts"] = g["partnerCosts"];
-        }
-        if (g["performanceGoal"] !== undefined) {
-          body["performanceGoal"] = g["performanceGoal"];
         }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

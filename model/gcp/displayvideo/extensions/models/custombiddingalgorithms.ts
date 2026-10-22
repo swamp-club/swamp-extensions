@@ -44,7 +44,7 @@ const BASE_URL = "https://displayvideo.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.get",
-  "path": "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}",
+  "path": "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}",
   "httpMethod": "GET",
   "parameterOrder": [
     "customBiddingAlgorithmId",
@@ -65,7 +65,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.create",
-  "path": "v2/customBiddingAlgorithms",
+  "path": "v5/customBiddingAlgorithms",
   "httpMethod": "POST",
   "parameterOrder": [],
   "parameters": {},
@@ -73,7 +73,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.patch",
-  "path": "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}",
+  "path": "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "customBiddingAlgorithmId",
@@ -91,7 +91,7 @@ const PATCH_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "displayvideo.customBiddingAlgorithms.list",
-  "path": "v2/customBiddingAlgorithms",
+  "path": "v5/customBiddingAlgorithms",
   "httpMethod": "GET",
   "parameterOrder": [],
   "parameters": {
@@ -151,6 +151,7 @@ const GlobalArgsSchema = z.object({
   customBiddingAlgorithmType: z.enum([
     "CUSTOM_BIDDING_ALGORITHM_TYPE_UNSPECIFIED",
     "SCRIPT_BASED",
+    "RULE_BASED",
   ]).describe("Required. Immutable. The type of custom bidding algorithm.")
     .optional(),
   displayName: z.string().describe(
@@ -172,6 +173,10 @@ const GlobalArgsSchema = z.object({
   sharedAdvertiserIds: z.array(z.string()).describe(
     "The IDs of the advertisers who have access to this algorithm. If advertiser_id is set, this field will only consist of that value. This field will not be set if the algorithm [`owner`](/display-video/api/reference/rest/v1/customBiddingAlgorithms#CustomBiddingAlgorithm.FIELDS.oneof_owner) is a partner and is being retrieved using an advertiser [`accessor`](/display-video/api/reference/rest/v1/customBiddingAlgorithms/list#body.QUERY_PARAMETERS.oneof_accessor).",
   ).optional(),
+  thirdPartyOptimizationPartner: z.enum(["UNKNOWN", "SCIBIDS", "ADELAIDE"])
+    .describe(
+      "Optional. Immutable. Designates the third party optimization partner that manages this algorithm.",
+    ).optional(),
 });
 
 const StateSchema = z.object({
@@ -188,6 +193,7 @@ const StateSchema = z.object({
   name: z.string(),
   partnerId: z.string().optional(),
   sharedAdvertiserIds: z.array(z.string()).optional(),
+  thirdPartyOptimizationPartner: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -206,6 +212,7 @@ const InputsSchema = z.object({
   customBiddingAlgorithmType: z.enum([
     "CUSTOM_BIDDING_ALGORITHM_TYPE_UNSPECIFIED",
     "SCRIPT_BASED",
+    "RULE_BASED",
   ]).describe("Required. Immutable. The type of custom bidding algorithm.")
     .optional(),
   displayName: z.string().describe(
@@ -227,6 +234,10 @@ const InputsSchema = z.object({
   sharedAdvertiserIds: z.array(z.string()).describe(
     "The IDs of the advertisers who have access to this algorithm. If advertiser_id is set, this field will only consist of that value. This field will not be set if the algorithm [`owner`](/display-video/api/reference/rest/v1/customBiddingAlgorithms#CustomBiddingAlgorithm.FIELDS.oneof_owner) is a partner and is being retrieved using an advertiser [`accessor`](/display-video/api/reference/rest/v1/customBiddingAlgorithms/list#body.QUERY_PARAMETERS.oneof_accessor).",
   ).optional(),
+  thirdPartyOptimizationPartner: z.enum(["UNKNOWN", "SCIBIDS", "ADELAIDE"])
+    .describe(
+      "Optional. Immutable. Designates the third party optimization partner that manages this algorithm.",
+    ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -255,7 +266,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +409,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "Added: thirdPartyOptimizationPartner",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -436,6 +452,10 @@ export const model = {
         if (g["partnerId"] !== undefined) body["partnerId"] = g["partnerId"];
         if (g["sharedAdvertiserIds"] !== undefined) {
           body["sharedAdvertiserIds"] = g["sharedAdvertiserIds"];
+        }
+        if (g["thirdPartyOptimizationPartner"] !== undefined) {
+          body["thirdPartyOptimizationPartner"] =
+            g["thirdPartyOptimizationPartner"];
         }
         if (g["name"] !== undefined) {
           params["customBiddingAlgorithmId"] = String(g["name"]);
@@ -709,6 +729,67 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    upload_rules: {
+      description: "upload rules",
+      arguments: z.object({
+        advertiserId: z.any().optional(),
+        partnerId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["customBiddingAlgorithmId"] =
+          existing["customBiddingAlgorithmId"]?.toString() ??
+            g["name"]?.toString() ?? "";
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["partnerId"] !== undefined) {
+          params["partnerId"] = String(args["partnerId"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "displayvideo.customBiddingAlgorithms.uploadRules",
+            "path":
+              "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}:uploadRules",
+            "httpMethod": "GET",
+            "parameterOrder": ["customBiddingAlgorithmId"],
+            "parameters": {
+              "advertiserId": { "location": "query" },
+              "customBiddingAlgorithmId": {
+                "location": "path",
+                "required": true,
+              },
+              "partnerId": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     upload_script: {
       description: "upload script",
       arguments: z.object({
@@ -748,7 +829,7 @@ export const model = {
           {
             "id": "displayvideo.customBiddingAlgorithms.uploadScript",
             "path":
-              "v2/customBiddingAlgorithms/{+customBiddingAlgorithmId}:uploadScript",
+              "v5/customBiddingAlgorithms/{+customBiddingAlgorithmId}:uploadScript",
             "httpMethod": "GET",
             "parameterOrder": ["customBiddingAlgorithmId"],
             "parameters": {

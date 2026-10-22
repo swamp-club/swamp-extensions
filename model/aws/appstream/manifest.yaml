@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/appstream"
-version: "2026.10.13.1"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: "AWS APPSTREAM infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: app_block, app_block_builder, application, application_entitlement_association, application_fleet_association, directory_config, entitlement, fleet, image_builder, stack, stack_fleet_association, stack_user_association, user
+  - Updated: stack, stack_fleet_association
 models:
   - app_block.ts
   - app_block_builder.ts

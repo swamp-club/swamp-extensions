@@ -200,6 +200,7 @@ const StateSchema = z.object({
   }).optional(),
   dataDocumentationSpec: z.object({
     catalogPublishingEnabled: z.boolean(),
+    customInstructions: z.string(),
     generationScopes: z.array(z.string()),
     sqlDialect: z.string(),
   }).optional(),
@@ -495,7 +496,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans.Jobs. Registered at `@swamp/gcp/dataplex/datascans-jobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans-jobs",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -689,6 +690,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
