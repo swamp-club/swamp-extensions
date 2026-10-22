@@ -17,17 +17,31 @@ import {
   assert,
   assertEquals,
   assertMatch,
+  assertRejects,
   assertStringIncludes,
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
-import { failureLog, model, withTargetLog } from "./emudhra_detect.ts";
+import {
+  assertDistinctDataNames,
+  buildTransport,
+  dataName,
+  failureLog,
+  model,
+  parseOsDetection,
+  runCommand,
+  scriptCommand,
+  withTargetLog,
+} from "./emudhra_detect.ts";
 import {
   AAA_ROOT,
   COMPROMISED_CERTS,
   DISTRUST_ANCHOR,
   EMSIGN_TLS_G3_CROSS,
 } from "./_lib/emudhra_certs.ts";
+import { certSpki, pemCertificates, sha256Hex } from "./_lib/x509.ts";
+import { jks } from "./_lib/testing_keystores.ts";
 import {
+  analyzeStores,
   anchorMarker,
   assertSafeDockerRef,
   assertSafeSearchPaths,
@@ -42,6 +56,7 @@ import {
   p11kitBlocklistFile,
   parseProbe,
   parseSudoList,
+  parseTrustSettings,
   planMitigation,
   privilegedArgv,
   refusedCommands,
@@ -64,46 +79,7 @@ import {
 
 // --- helpers ---------------------------------------------------------------
 
-function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
-  const b64 = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-}
-
-async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0"))
-    .join("").toUpperCase();
-}
-
-/** Read one DER TLV at `off`; returns the tag, the header length and the body length. */
-function tlv(der: Uint8Array<ArrayBuffer>, off: number) {
-  const tag = der[off];
-  let len = der[off + 1];
-  let hdr = 2;
-  if (len & 0x80) {
-    const n = len & 0x7f;
-    len = 0;
-    for (let i = 0; i < n; i++) len = (len << 8) | der[off + 2 + i];
-    hdr += n;
-  }
-  return { tag, hdr, len };
-}
-
-/** subjectPublicKeyInfo of an X.509 certificate, as DER. */
-function spki(der: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-  const cert = tlv(der, 0);
-  let off = cert.hdr;
-  const tbs = tlv(der, off);
-  off += tbs.hdr;
-  // version [0] is optional; then serial, signature, issuer, validity, subject.
-  if (der[off] === 0xa0) off += tlv(der, off).hdr + tlv(der, off).len;
-  for (let i = 0; i < 5; i++) {
-    const f = tlv(der, off);
-    off += f.hdr + f.len;
-  }
-  const k = tlv(der, off);
-  return der.slice(off, off + k.hdr + k.len);
-}
+const pemToDer = (pem: string) => pemCertificates(pem)[0];
 
 type ProbeFixture = {
   uid?: string;
@@ -115,8 +91,8 @@ type ProbeFixture = {
   conf?: string[];
   blocklist?: string[];
   verify?: Record<"emsign-tls" | "aaa-tls" | "aaa-cs", string>;
-  java?: string[];
-  certifi?: string[];
+  stores?: string[];
+  electron?: string[];
   cargo?: string[];
   runtimes?: string[];
   agents?: string[];
@@ -177,11 +153,11 @@ function probeText(f: ProbeFixture): string {
     if (key) verify.push(`${c.sha256.slice(0, 16)} ${v[key]}`);
   }
   sec("verify", verify);
-  sec("java", f.java ?? []);
-  sec("certifi", f.certifi ?? []);
+  sec("stores", f.stores ?? []);
   sec("cargo", f.cargo ?? []);
   sec("runtimes", f.runtimes ?? []);
   sec("agents", f.agents ?? []);
+  sec("electron", f.electron ?? []);
   sec("processes", f.processes ?? []);
   sec("live", f.live ?? []);
   if (!f.truncated) out.push("@@ end");
@@ -189,6 +165,29 @@ function probeText(f: ProbeFixture): string {
 }
 
 const NOW = new Date("2026-10-21T12:00:00Z");
+
+/** A stores-section line for a file and its blob line, as the probe prints them. */
+async function storeLines(
+  kind: string,
+  extra: string,
+  path: string,
+  content: string | Uint8Array<ArrayBuffer>,
+): Promise<string[]> {
+  const bytes = typeof content === "string"
+    ? new TextEncoder().encode(content)
+    : content;
+  const sha = await sha256Hex(bytes);
+  return [
+    `${kind}|${sha}|${extra}|${path}`,
+    `blob ${sha} ${btoa(String.fromCharCode(...bytes))}`,
+  ];
+}
+
+/** Probe output assessed as the scan does, stores included. */
+async function assess(text: string, target = "h") {
+  const probe = parseProbe(text);
+  return assessHost(probe, target, NOW, await analyzeStores(probe));
+}
 
 // --- model shape -----------------------------------------------------------
 
@@ -233,7 +232,11 @@ Deno.test("embedded PEMs match their SHA-256 and SPKI SHA-256", async () => {
   for (const c of COMPROMISED_CERTS) {
     const der = pemToDer(c.pem);
     assertEquals(await sha256Hex(der), c.sha256, `${c.name} via ${c.path}`);
-    assertEquals(await sha256Hex(spki(der)), c.spkiSha256, `${c.name} SPKI`);
+    assertEquals(
+      await sha256Hex(certSpki(der)),
+      c.spkiSha256,
+      `${c.name} SPKI`,
+    );
   }
   assertEquals(
     await sha256Hex(pemToDer(DISTRUST_ANCHOR.pem)),
@@ -331,10 +334,21 @@ Deno.test("probe script is read-only and quotes search paths", () => {
   // No redirection writes to anything but /dev/null or a file descriptor.
   // rebar.lock's `<<"name">>` terms in the hex grep pattern are not redirects.
   const withoutErlangTerms = script.replace(/'[^']*<<[^']*'/g, "''");
+  // The one exception: on macOS, security verify-cert reads certificates from
+  // files, written to a private temporary directory that is removed after.
   for (const m of withoutErlangTerms.matchAll(/[^0-9&<]>\s*([^\s&|;)]+)/g)) {
-    assert(m[1] === "/dev/null" || m[1].startsWith("&"), `writes to ${m[1]}`);
+    assert(
+      m[1] === "/dev/null" || m[1].startsWith("&") ||
+        m[1].startsWith('"$emudhra_d/'),
+      `writes to ${m[1]}`,
+    );
   }
-  assert(!/\bmktemp\b|\btee\b|\bcp\b|\binstall\b -m/.test(script));
+  assertEquals(
+    [...script.matchAll(/\bmktemp\b[^;\n]*/g)].map((m) => m[0]),
+    ['mktemp -d "${TMPDIR:-/tmp}/emudhra.XXXXXX")'],
+  );
+  assertStringIncludes(script, 'rm -rf "$emudhra_d"');
+  assert(!/\btee\b|\bcp\b|\binstall\b -m/.test(script));
   assert(!script.includes("sudo -n"), "scan never uses sudo");
 });
 
@@ -499,37 +513,66 @@ Deno.test("settledPool keeps order, isolates failures and caps concurrency", asy
   );
 });
 
-Deno.test("components: runtimes, agents, java, certifi and cargo", () => {
-  const probe = parseProbe(probeText({
-    anchor: [],
-    verify: {
-      "emsign-tls": "error 20",
-      "aaa-tls": "error 20",
-      "aaa-cs": "error 20",
-    },
-    runtimes: [
-      "deno|/usr/local/bin/deno|2.9.7",
-      "swamp|/usr/local/bin/swamp|20261021.015131.0-sha.bfde0792",
-      "node|/usr/bin/node|v24.22.1",
-      "go|/usr/local/go/bin/go|1.26.9",
-    ],
-    agents: ["cloudflared|/usr/bin/cloudflared|2026.10.1"],
-    java: [
-      "file /etc/ssl/certs/java/cacerts",
-      `  SHA256: ${AAA_ROOT.sha256.match(/.{2}/g)!.join(":")}`,
-      "file /opt/jdk/lib/security/cacerts",
-      "  keytool error: java.io.IOException: Keystore was tampered with, or password was incorrect",
-    ],
-    certifi: [
-      "/srv/app/venv/lib/python3.12/site-packages/certifi/cacert.pem|2026.7.22|anchor",
-    ],
-    cargo: [
-      "/srv/rs/Cargo.lock|rustls-webpki|0.103.15",
-      "/srv/rs/Cargo.lock|webpki-roots|1.0.10",
-      "/srv/rs/Cargo.lock|webpki-roots|0.26.11",
-    ],
-  }));
-  const s = assessHost(probe, "app-1", NOW);
+Deno.test("components: runtimes, agents, java, certifi, electron and cargo", async () => {
+  // The AAA-path copy of EM DV TLS CA - G3B, the one this store reaches.
+  const blocked = `Algorithm=SHA-256\n${COMPROMISED_CERTS[1].sha256}\n`;
+  const blockedSha = await sha256Hex(new TextEncoder().encode(blocked));
+  const s = await assess(
+    probeText({
+      anchor: [],
+      verify: {
+        "emsign-tls": "error 20",
+        "aaa-tls": "error 20",
+        "aaa-cs": "error 20",
+      },
+      runtimes: [
+        "deno|/usr/local/bin/deno|2.9.7",
+        "swamp|/usr/local/bin/swamp|20261021.015131.0-sha.bfde0792",
+        "node|/usr/bin/node|v24.22.1",
+        "go|/usr/local/go/bin/go|1.26.9",
+      ],
+      agents: ["cloudflared|/usr/bin/cloudflared|2026.10.1"],
+      stores: [
+        ...(await storeLines(
+          "java-blocked",
+          "",
+          "/usr/lib/jvm/x/lib/security/blocked.certs",
+          blocked,
+        )),
+        ...(await storeLines(
+          "java",
+          blockedSha,
+          "/usr/lib/jvm/x/lib/security/cacerts",
+          jks([pemCertificates(AAA_ROOT.pem)[0]]),
+        )),
+        ...(await storeLines(
+          "java",
+          "",
+          "/opt/jdk/lib/security/cacerts",
+          new TextEncoder().encode("not a keystore"),
+        )),
+        ...(await storeLines(
+          "certifi",
+          "2026.7.22",
+          "/srv/app/venv/lib/python3.12/site-packages/certifi/cacert.pem",
+          DISTRUST_ANCHOR.pem,
+        )),
+        ...(await storeLines(
+          "pip",
+          "",
+          "/usr/lib/python3/dist-packages/pip/_vendor/certifi/cacert.pem",
+          "# empty\n",
+        )),
+      ],
+      electron: ["43.6.0|/opt/Slack", "44.9.1|/opt/Code", "|/opt/Odd"],
+      cargo: [
+        "/srv/rs/Cargo.lock|rustls-webpki|0.103.15",
+        "/srv/rs/Cargo.lock|webpki-roots|1.0.10",
+        "/srv/rs/Cargo.lock|webpki-roots|0.26.11",
+      ],
+    }),
+    "app-1",
+  );
   const by = (name: string) => s.components.filter((c) => c.name === name);
   assertEquals(by("deno")[0].status, "exposed");
   assertEquals(by("swamp")[0].status, "exposed");
@@ -554,6 +597,14 @@ Deno.test("components: runtimes, agents, java, certifi and cargo", () => {
   );
   assert(!s.recommendations.some((r) => r.includes("DENO_TLS_CA_STORE")));
   assert(s.unreadable.some((u) => u.includes("/opt/jdk")));
+  const java = by("java-cacerts")[0];
+  assertStringIncludes(java.note, "trusts AAA Certificate Services");
+  assertStringIncludes(java.note, "blocked.certs refuses EM DV TLS CA - G3B");
+  assertEquals(by("pip vendored certifi")[0].status, "unknown");
+  assertEquals(
+    s.components.filter((c) => c.kind === "electron").map((c) => c.status),
+    ["exposed", "fixed", "unknown"],
+  );
 });
 
 Deno.test("live check: curl 60 is rejected, 0 accepted, 6 unreachable", () => {
@@ -741,7 +792,16 @@ Deno.test("plan: p11-kit blocklists the anchor and rebuilds with update-ca-trust
   assertEquals(status.osStore.caCertificates.patched, "exposed");
   const plan = planMitigation(status, probe, { transport: "ssh" });
   assertEquals(plan.upgrade.length, 1);
-  const [file, extract] = plan.distrust;
+  // The fixture has no blocklist directory, so it is created first (3765).
+  const [mkdir, file, extract] = plan.distrust;
+  assert(mkdir.kind === "run");
+  assertEquals(mkdir.argv, [
+    "/usr/bin/install",
+    "-d",
+    "-m",
+    "0755",
+    "/etc/pki/ca-trust/source/blocklist",
+  ]);
   assert(file.kind === "install-file");
   assertEquals(
     file.dest,
@@ -801,9 +861,17 @@ Deno.test("plan: Arch blocks the root through p11-kit and leaves pacman -Syu to 
   const plan = planMitigation(status, arch, { transport: "ssh" });
   assertEquals(plan.action, "apply");
   assertEquals(plan.upgrade.length, 0);
-  // The fixture trusts both paths, so both roots are blocked.
-  assertEquals(plan.distrust.length, 3);
-  const [file, , extract] = plan.distrust;
+  // The fixture trusts both paths, so both roots are blocked, after the
+  // missing blocklist directory is created.
+  assertEquals(plan.distrust.length, 4);
+  const [mkdir, file, , extract] = plan.distrust;
+  assert(mkdir.kind === "run");
+  assertEquals(mkdir.argv.slice(1), [
+    "-d",
+    "-m",
+    "0755",
+    "/etc/ca-certificates/trust-source/blocklist",
+  ]);
   assert(file.kind === "install-file");
   assertEquals(
     file.dest,
@@ -1179,21 +1247,27 @@ Deno.test("assertSafeSshTarget refuses option-like or odd hosts and users", () =
   assertThrows(() => assertSafeSshTarget("root", ""));
 });
 
-Deno.test("Java store that keytool listed without fingerprints is unknown, not fixed", () => {
-  const probe = parseProbe(probeText({
+Deno.test("a Java store that cannot be read is unknown, not fixed", async () => {
+  const s = await assess(probeText({
     anchor: [],
     verify: {
       "emsign-tls": "error 20",
       "aaa-tls": "error 20",
       "aaa-cs": "error 20",
     },
-    java: [
-      "file /usr/lib/jvm/x/lib/security/cacerts",
-      "  keytool error: java.io.IOException: Invalid keystore format",
+    stores: [
+      ...(await storeLines(
+        "java",
+        "",
+        "/usr/lib/jvm/x/lib/security/cacerts",
+        new Uint8Array([0xfe, 0xed, 0xfe, 0xed, 0, 0, 0, 9]),
+      )),
+      "java|0000000000000000000000000000000000000000000000000000000000000000||/opt/big/cacerts",
+      "blob 0000000000000000000000000000000000000000000000000000000000000000 TOOBIG",
     ],
   }));
-  const s = assessHost(probe, "j", NOW);
-  assertEquals(s.components[0].status, "unknown");
+  assertEquals(s.components.map((c) => c.status), ["unknown", "unknown"]);
+  assert(s.unreadable.some((u) => u.includes("larger than")));
 });
 
 Deno.test("curl exit 35 is unreachable, not rejected", () => {
@@ -1484,8 +1558,8 @@ Deno.test("assertSafeDockerRef refuses option-like names", () => {
   assertThrows(() => assertSafeDockerRef("dockerImage", "a b"));
 });
 
-Deno.test("webpki-roots before 0.26 and certifi with AAA are exposed", () => {
-  const probe = parseProbe(probeText({
+Deno.test("webpki-roots before 0.26 and certifi with AAA are exposed", async () => {
+  const s = await assess(probeText({
     anchor: [],
     verify: {
       "emsign-tls": "error 20",
@@ -1493,9 +1567,13 @@ Deno.test("webpki-roots before 0.26 and certifi with AAA are exposed", () => {
       "aaa-cs": "error 20",
     },
     cargo: ["/srv/rs/Cargo.lock|webpki-roots|0.25.4"],
-    certifi: ["/srv/py/certifi/cacert.pem|2024.2.2|aaa"],
+    stores: await storeLines(
+      "certifi",
+      "2024.2.2",
+      "/srv/py/certifi/cacert.pem",
+      AAA_ROOT.pem,
+    ),
   }));
-  const s = assessHost(probe, "x", NOW);
   assertEquals(s.components.map((c) => [c.name, c.status]), [
     ["certifi", "exposed"],
     ["webpki-roots", "exposed"],
@@ -1575,4 +1653,471 @@ Deno.test("a target that throws still writes and finalizes its log", async () =>
   // On success the caller finalizes, so the wrapper must not.
   assertEquals(await withTargetLog(log, () => Promise.resolve(7)), 7);
   assertEquals(finalized, 1);
+});
+
+Deno.test("no openssl: the OS bundle is judged by public key", async () => {
+  const noOpenssl = ROOT_TOOLS.filter((t) => !t.startsWith("openssl "));
+  const exposed = await assess(probeText({
+    tools: noOpenssl,
+    verify: { "emsign-tls": "", "aaa-tls": "", "aaa-cs": "" },
+    stores: await storeLines(
+      "os-bundle",
+      "",
+      "/etc/ssl/certs/ca-certificates.crt",
+      `${DISTRUST_ANCHOR.pem}\n${AAA_ROOT.pem}\n`,
+    ),
+  }));
+  assertEquals(exposed.osStore.verdict, "trusted");
+  assertEquals(exposed.osStore.verdictMethod, "public-key");
+  assertEquals(exposed.osStore.trustedPaths, ["emsign", "aaa"]);
+  assert(!exposed.unreadable.some((u) => u.includes("openssl")));
+
+  const clean = await assess(probeText({
+    tools: noOpenssl,
+    anchor: [],
+    verify: { "emsign-tls": "", "aaa-tls": "", "aaa-cs": "" },
+    stores: await storeLines(
+      "os-bundle",
+      "",
+      "/etc/ssl/certs/ca-certificates.crt",
+      "# no CAs\n",
+    ),
+  }));
+  // A bundle with no certificates can't be judged: unreadable, not clean.
+  assertEquals(clean.osStore.verdict, "unknown");
+});
+
+Deno.test("probe script splits PATH without globbing and skips relative entries", () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(
+    script,
+    "set -f; IFS=:; set -- $PATH; unset IFS; set +f",
+  );
+  assertStringIncludes(script, 'case "$d" in /*) ;; *) continue;; esac');
+  assertStringIncludes(script, "@@ stores");
+  assertStringIncludes(script, "@@ electron");
+});
+
+Deno.test("parseProbe keeps pipes in store and electron paths", () => {
+  const sha = "A".repeat(64);
+  const probe = parseProbe(
+    `@@ stores\nbundle|${sha}||/srv/a|b/ca.pem\nblob ${sha} TOOBIG\n@@ electron\n44.9.1|/opt/x|y\n@@ end\n`,
+  );
+  assertEquals(probe.stores[0].path, "/srv/a|b/ca.pem");
+  assertEquals(probe.blobs.get(sha), undefined);
+  assert(probe.blobs.has(sha));
+  assertEquals(probe.electron[0].path, "/opt/x|y");
+});
+
+// --- macOS -----------------------------------------------------------------
+
+const MACOS = [
+  "ID=macos",
+  "VERSION_ID=15.7",
+  'PRETTY_NAME="macOS 15.7"',
+];
+
+/** Probe output from a Mac, with one security verify-cert line per certificate. */
+function macProbe(
+  verdict: (c: (typeof COMPROMISED_CERTS)[number]) => string,
+  trust: string[] = [],
+): string {
+  const text = probeText({
+    uid: "501",
+    os: MACOS,
+    tools: [
+      "sudo /usr/bin/sudo",
+      "openssl /usr/bin/openssl",
+      "curl /usr/bin/curl",
+    ],
+    packages: [],
+    bundle: "",
+    anchor: [],
+    conf: [],
+  });
+  const verify = COMPROMISED_CERTS.map((c) =>
+    `${c.sha256.slice(0, 16)} ${verdict(c)}`
+  );
+  return text.replace(
+    /@@ verify\n[\s\S]*?(?=@@ stores)/,
+    ["@@ macos-trust", ...trust, "@@ verify", ...verify, ""].join("\n"),
+  );
+}
+
+Deno.test("macOS: Apple's block list rejects the TLS intermediates; AAA code-signing cross-signs still verify", () => {
+  const s = assessHost(
+    parseProbe(
+      macProbe((c) =>
+        c.usage === "code-signing" && c.path === "aaa"
+          ? "OK"
+          : "rejected revoked"
+      ),
+    ),
+    "mac-1",
+    NOW,
+  );
+  assertEquals(s.os.storeFamily, "macos");
+  assertEquals(s.osStore.verdict, "not-trusted");
+  assertEquals(s.osStore.verdictMethod, "security-verify-cert");
+  assertEquals(s.osStore.codeSigningTrusted, "trusted");
+  assertEquals(s.osStore.certificates.length, 16);
+  assert(
+    !s.unreadable.some((u) => u.includes("bundle") || u.includes("openssl")),
+  );
+  assertEquals(s.osStore.macos, { denyTrust: [] });
+});
+
+Deno.test("macOS: an unpatched Mac is trusted and pointed at the update or mitigate", () => {
+  const s = assessHost(parseProbe(macProbe(() => "OK")), "mac-2", NOW);
+  assertEquals(s.osStore.verdict, "trusted");
+  assertEquals(s.riskLevel, "critical");
+  assert(s.recommendations.some((r) => r.includes("Apple blocked")));
+  assert(!s.recommendations.some((r) => r.includes("ca-certificates")));
+});
+
+Deno.test("macOS: a certificate security could not read is unknown, not rejected", () => {
+  const s = assessHost(
+    parseProbe(macProbe(() => "error unreadable")),
+    "mac-3",
+    NOW,
+  );
+  assertEquals(s.osStore.verdict, "unknown");
+});
+
+Deno.test("parseTrustSettings lists certificates with a deny result", () => {
+  const dump = [
+    "Number of trusted certs = 2",
+    "Cert 0: EM DV TLS CA - G3B",
+    "   Number of trust settings : 1",
+    "   Trust Setting 0:",
+    "      Policy OID            : Basic X.509",
+    "      Result Type           : kSecTrustSettingsResultDeny",
+    "Cert 1: Corp Root",
+    "   Trust Setting 0:",
+    "      Result Type           : kSecTrustSettingsResultTrustRoot",
+  ];
+  assertEquals(parseTrustSettings(dump), ["EM DV TLS CA - G3B"]);
+  const s = assessHost(
+    parseProbe(macProbe(() => "rejected untrusted", dump)),
+    "mac-4",
+    NOW,
+  );
+  assertEquals(s.osStore.macos, { denyTrust: ["EM DV TLS CA - G3B"] });
+});
+
+// --- transport -------------------------------------------------------------
+
+Deno.test("parseOsDetection: uname answers and Windows shells", () => {
+  const r = (stdout: string, stderr = "", exitCode = 0) => ({
+    stdout,
+    stderr,
+    exitCode,
+  });
+  assertEquals(parseOsDetection(r("Linux\n")), "linux");
+  assertEquals(parseOsDetection(r("Darwin\n")), "macos");
+  assertEquals(parseOsDetection(r("FreeBSD\n")), "linux");
+  assertEquals(parseOsDetection(r("MINGW64_NT-10.0-26200\n")), "windows");
+  assertEquals(parseOsDetection(r("MSYS_NT-10.0\n")), "windows");
+  assertEquals(parseOsDetection(r("CYGWIN_NT-10.0\n")), "windows");
+  // cmd.exe, Windows PowerShell 5.1 and pwsh 7 word it differently.
+  assertEquals(
+    parseOsDetection(
+      r(
+        "",
+        "'uname' is not recognized as an internal or external command,\r\noperable program or batch file.",
+        1,
+      ),
+    ),
+    "windows",
+  );
+  assertEquals(
+    parseOsDetection(
+      r(
+        "",
+        "uname : The term 'uname' is not recognized as the name of a cmdlet, function, script file, or operable program.",
+        1,
+      ),
+    ),
+    "windows",
+  );
+  assertEquals(
+    parseOsDetection(
+      r(
+        "",
+        "uname: The term 'uname' is not recognized as a name of a cmdlet",
+        1,
+      ),
+    ),
+    "windows",
+  );
+  assertThrows(
+    () => parseOsDetection(r("", "Permission denied", 1)),
+    Error,
+    "set targetOs",
+  );
+});
+
+Deno.test("scriptCommand: sh over each transport, PowerShell through the launcher", () => {
+  const sh = { shell: "sh" as const, text: "echo hi" };
+  const ps = { shell: "powershell" as const, text: "Say 'hi'" };
+  const ssh = scriptCommand(
+    { kind: "ssh", args: ["--", "u@h"], os: "linux" },
+    sh,
+  );
+  assertEquals(ssh.cmd, ["ssh", "--", "u@h", "sh -s"]);
+  assertStringIncludes(ssh.input, "emudhra_main()");
+  const win = scriptCommand(
+    { kind: "ssh", args: ["--", "u@h"], os: "windows" },
+    ps,
+  );
+  assertMatch(
+    win.cmd[3],
+    /^powershell\.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/,
+  );
+  assert(win.input.endsWith("# emudhra-probe-end\n"));
+  assertEquals(
+    scriptCommand({ kind: "docker", container: "c1", os: "linux" }, sh).cmd,
+    ["docker", "exec", "-i", "c1", "sh", "-s"],
+  );
+  assertEquals(
+    scriptCommand({ kind: "local", os: "windows" }, ps).cmd[0],
+    "powershell.exe",
+  );
+});
+
+const QUIET = { info: () => {}, debug: () => {} };
+
+Deno.test({
+  name: "runCommand returns when a background child keeps the pipes open",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    const t0 = Date.now();
+    const r = await runCommand(
+      ["sh", "-c", "sleep 20 & echo hi"],
+      undefined,
+      QUIET,
+      60_000,
+      // The grace after a normal exit, shortened from 30 s for the test.
+      1_000,
+    );
+    assertEquals(r.stdout.trim(), "hi");
+    assert(Date.now() - t0 < 10_000, "waited for the background child");
+  },
+  // The background sleep outlives the test by design.
+  sanitizeOps: false,
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "runCommand stops a command at its timeout",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await assertRejects(
+      () => runCommand(["sh", "-c", "sleep 30"], "", QUIET, 300),
+      Error,
+      "did not finish",
+    );
+  },
+});
+
+Deno.test("macOS mitigation: a manual script with deny trust settings, nothing applied remotely", () => {
+  const probe = parseProbe(
+    macProbe((c) =>
+      c.usage === "tls" && c.path === "aaa" ? "OK" : "rejected revoked"
+    ),
+  );
+  const status = assessHost(probe, "mac", NOW);
+  const plan = planMitigation(status, probe, { transport: "ssh" });
+  assertEquals(plan.action, "manual");
+  assertEquals([...plan.upgrade, ...plan.distrust, ...plan.after], []);
+  assert(plan.manualScript);
+  assertEquals(
+    (plan.manualScript.match(
+      /security add-trusted-cert -d -r deny -k \/Library\/Keychains\/System\.keychain/g,
+    ) ?? []).length,
+    6,
+  );
+  assertStringIncludes(plan.manualScript, "trap 'rm -rf \"$d\"' EXIT");
+  assert(plan.manual.some((m) => m.includes("MDM")));
+});
+
+// --- review findings carried from 3765 -------------------------------------
+
+Deno.test("sudoers: a negated item after ALL refuses; a bare command never passes", () => {
+  const list = {
+    defaults: [],
+    entries: [{
+      runAs: ["root"],
+      options: ["!authenticate"],
+      commands: ["ALL", "!/usr/bin/apt-get"],
+    }],
+  };
+  assertEquals(
+    runsWithoutPassword(["/usr/bin/apt-get", "update"], list),
+    false,
+  );
+  assertEquals(runsWithoutPassword(["/usr/bin/dnf", "upgrade"], list), true);
+  assertEquals(runsWithoutPassword(["apt-get", "update"], list), false);
+  // The last matching entry decides even when an earlier one allows.
+  const later = {
+    defaults: [],
+    entries: [
+      { runAs: ["root"], options: ["!authenticate"], commands: ["ALL"] },
+      { runAs: ["root"], options: [], commands: ["!/usr/bin/apt-get"] },
+    ],
+  };
+  assertEquals(runsWithoutPassword(["/usr/bin/apt-get"], later), false);
+});
+
+Deno.test("compareDottedVersions: a pre-release on a newer line is newer than the older fix", () => {
+  assert(compareDottedVersions("1.28rc1", "1.27.3") > 0);
+  assert(compareDottedVersions("1.27rc1", "1.27.3") < 0);
+  assert(compareDottedVersions("3.20.1-r10", "3.20.1-r3") > 0);
+});
+
+Deno.test("buildTransport: localhost in a hosts list is refused; mitigate requires a known host key", () => {
+  assertThrows(
+    () =>
+      buildTransport({ targetHost: "localhost", sshUser: "u", listed: true }),
+    Error,
+    "hosts list",
+  );
+  assertEquals(
+    buildTransport({ targetHost: "localhost", sshUser: "u" }).kind,
+    "local",
+  );
+  const scan = buildTransport({ targetHost: "h1", sshUser: "u" });
+  const mit = buildTransport({
+    targetHost: "h1",
+    sshUser: "u",
+    strictHostKeys: true,
+  });
+  assert(scan.kind === "ssh" && mit.kind === "ssh");
+  assert(scan.args.includes("StrictHostKeyChecking=accept-new"));
+  assert(mit.args.includes("StrictHostKeyChecking=yes"));
+});
+
+Deno.test("dataName makes IPv6 and odd hosts safe data names", () => {
+  assertEquals(dataName("fe80::1%eth0"), "fe80-1-eth0");
+  assertEquals(dataName("web-1.example.com"), "web-1.example.com");
+});
+
+Deno.test("parseProbe keeps pipes in runtime, agent and lockfile paths", () => {
+  const probe = parseProbe(
+    "@@ runtimes\nnode|/opt/a|b/node|v24.22.1\n@@ agents\ncloudflared|/x|y/cf|2026.10.2\n@@ cargo\n/srv/a|b/Cargo.lock|webpki-roots|1.0.10\n@@ end\n",
+  );
+  assertEquals(probe.runtimes[0], {
+    name: "node",
+    path: "/opt/a|b/node",
+    version: "24.22.1",
+  });
+  assertEquals(probe.agents[0].path, "/x|y/cf");
+  assertEquals(probe.cargo[0], {
+    file: "/srv/a|b/Cargo.lock",
+    crate: "webpki-roots",
+    version: "1.0.10",
+  });
+});
+
+Deno.test("live check ignores proxies and needs no timeout(1)", () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: true });
+  assertStringIncludes(script, "curl --noproxy '*'");
+  assert(!script.includes("timeout 15"));
+  assertStringIncludes(script, "( sleep 15; kill $p ) >/dev/null 2>&1 &");
+});
+
+Deno.test("assertDistinctDataNames refuses hosts that would share a data name", () => {
+  assertThrows(
+    () => assertDistinctDataNames(["a:b", "a-b"]),
+    Error,
+    "share the data name a-b",
+  );
+  assertDistinctDataNames(["a", "b", "a"]); // splitList drops repeats anyway
+});
+
+Deno.test("an empty blob (no base64 on the target) is reported as not sent", async () => {
+  const sha = "B".repeat(64);
+  const s = await assess(
+    probeText({
+      stores: [
+        `certifi|${sha}|2024.2.2|/srv/py/certifi/cacert.pem`,
+        `blob ${sha} `,
+      ],
+    }),
+  );
+  assertEquals(
+    s.components.find((c) => c.kind === "certifi")?.status,
+    "unknown",
+  );
+  assert(s.unreadable.some((u) => u.includes("no base64 or openssl")));
+});
+
+Deno.test("macOS probe: only security's not-trusted and revoked results reject", () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(script, 'echo "rejected revoked"');
+  assertStringIncludes(script, 'echo "rejected untrusted"');
+  assertStringIncludes(script, 'else echo "error $(');
+  assertStringIncludes(
+    script,
+    `trap 'rm -rf "$emudhra_d"; exit 129' HUP INT TERM`,
+  );
+  // Every certificate security could not judge leaves the verdict unknown.
+  const s = assessHost(
+    parseProbe(macProbe(() => "error User interaction is not allowed")),
+    "mac",
+    NOW,
+  );
+  assertEquals(s.osStore.verdict, "unknown");
+});
+
+Deno.test("compareDottedVersions: a tag after an equal prefix is a pre-release", () => {
+  assert(compareDottedVersions("2026.10.2rc1", "2026.10.2") < 0);
+  assert(compareDottedVersions("2026.10.2", "2026.10.2rc1") > 0);
+  assertEquals(
+    compareDottedVersions("20261021.223953", "20261021.223953.0"),
+    0,
+  );
+  // swamp's -sha.<hash> and apk's -r10 after the full version are newer.
+  assert(
+    compareDottedVersions(
+      "20261021.223953.0-sha.bfde0792",
+      "20261021.223953.0",
+    ) > 0,
+  );
+  assert(compareDottedVersions("3.20.1-r10", "3.20.1") > 0);
+  assert(compareDottedVersions("1.27-beta.2", "1.27") < 0);
+});
+
+Deno.test("a garbled blob makes its store unreadable, not the host fail", async () => {
+  const sha = "C".repeat(64);
+  const s = await assess(
+    probeText({
+      stores: [
+        `certifi|${sha}|2024.2.2|/srv/py/certifi/cacert.pem`,
+        `blob ${sha} !!notbase64`,
+      ],
+    }),
+  );
+  assertEquals(
+    s.components.find((c) => c.kind === "certifi")?.status,
+    "unknown",
+  );
+});
+
+Deno.test("compareDottedVersions: a bare letter suffix is a later release", () => {
+  assert(compareDottedVersions("1.0.2a", "1.0.2") > 0);
+});
+
+Deno.test("macOS with no verifier results says why under unreadable", () => {
+  const s = assessHost(parseProbe(macProbe(() => "")), "mac", NOW);
+  assertEquals(s.osStore.verdict, "unknown");
+  assert(s.unreadable.some((u) => u.includes("Security framework")));
+});
+
+Deno.test("probe lists a shared Java store once per JDK blocklist", () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(
+    script,
+    'case "$jseen" in *"|$r:$bh|"*) continue;; esac',
+  );
 });

@@ -77,7 +77,12 @@ type HostStatus = {
   target: string;
   hostname: string;
   dataAsOf: string;
-  os: { prettyName: string; id: string; versionId: string };
+  os: {
+    prettyName: string;
+    id: string;
+    versionId: string;
+    storeFamily?: string;
+  };
   exposed: boolean;
   riskLevel: string;
   summary: string;
@@ -86,6 +91,8 @@ type HostStatus = {
     trustedPaths: string[];
     verdictMethod: string;
     caCertificates: { installed: string; fixedIn: string; patched: string };
+    windows?: { disallowed: string[] };
+    macos?: { denyTrust: string[] };
   };
   components: Component[];
   liveCheck: { verifier: string; path: string; host: string; result: string }[];
@@ -94,12 +101,34 @@ type HostStatus = {
   mitigation?: Mitigation;
 };
 
+/**
+ * Text from a target (hostname, PRETTY_NAME, paths) as one markdown table
+ * cell or heading: no pipe, backtick or line break can change the table.
+ */
+export function cell(text: string): string {
+  return text.replace(/[\r\n]+/g, " ").replace(/`/g, "'").replace(
+    /\|/g,
+    "\\|",
+  );
+}
+
+/** Whether the host's OS store is judged by a platform verifier. */
+function platform(r: HostStatus): "windows" | "macos" | undefined {
+  const f = r.os.storeFamily;
+  return f === "windows" || f === "macos" ? f : undefined;
+}
+
 function storeCell(r: HostStatus): string {
   const s = r.osStore;
+  const local = (s.windows?.disallowed.length ?? 0) > 0
+    ? `; ${s.windows!.disallowed.length} in Disallowed`
+    : (s.macos?.denyTrust.length ?? 0) > 0
+    ? `; ${s.macos!.denyTrust.length} denied in trust settings`
+    : "";
   if (s.verdict === "trusted") {
-    return `TRUSTS (${s.trustedPaths.join(", ")} path)`;
+    return `TRUSTS (${s.trustedPaths.join(", ")} path)${local}`;
   }
-  return s.verdict === "not-trusted" ? "rejects" : "unknown";
+  return (s.verdict === "not-trusted" ? "rejects" : "unknown") + local;
 }
 
 function componentsCell(r: HostStatus): string {
@@ -171,22 +200,27 @@ export const report = {
           : m.succeeded
           ? "FIXED"
           : "FAILED";
-        md += `| ${r.hostname} | ${m.before.verdict} | ${m.action} | ${
+        md += `| ${cell(r.hostname)} | ${m.before.verdict} | ${m.action} | ${
           m.applied ? r.osStore.verdict : "-"
         } | ${result} |\n`;
       }
       for (const r of results) {
         const m = r.mitigation;
         if (!m) continue;
-        md += `\n## ${r.hostname}\n\n${m.summary}\n`;
+        md += `\n## ${cell(r.hostname)}\n\n${m.summary}\n`;
         if (m.steps.length > 0) {
           md += `\n${
             m.dryRun ? "Planned" : "Steps"
-          } (privilege: ${m.privilege}):\n\n\`\`\`sh\n`;
+          } (privilege: ${m.privilege}):\n\n\`\`\`${
+            platform(r) === "windows" ? "powershell" : "sh"
+          }\n`;
           for (const s of m.steps) md += `# ${s.why}\n${s.command}\n`;
           md += "```\n";
         }
-        if (m.action === "needs-privilege") {
+        if (m.action === "needs-privilege" && platform(r) === "windows") {
+          md +=
+            "\nNothing was changed. Run the `mitigationScript` file for this host (a .ps1) in an elevated PowerShell, or rerun mitigate as an administrator.\n";
+        } else if (m.action === "needs-privilege") {
           md +=
             "\nNothing was changed. Run the `mitigationScript` file for this host with sudo yourself, or allow passwordless sudo for exactly these binaries: " +
             m.missingPrivilege.map((b) => `\`${b}\``).join(", ") + ".\n";
@@ -201,10 +235,10 @@ export const report = {
         r.mitigation?.action === "needs-privilege"
       );
       md += dryRun && applicable
-        ? `\nTo apply:\n\n\`\`\`\nswamp model method run ${model} mitigate${
+        ? `\nTo apply:\n\n\`\`\`\nswamp behavior run ${model} mitigate${
           hostsArg(results)
         } --input dryRun=false\n\`\`\`\n`
-        : `\nVerify with:\n\n\`\`\`\nswamp model method run ${model} ${
+        : `\nVerify with:\n\n\`\`\`\nswamp behavior run ${model} ${
           hostsArg(results) ? `scanFleet${hostsArg(results)}` : "scan"
         }\n\`\`\`\n`;
       return {
@@ -241,11 +275,16 @@ export const report = {
         : r.liveCheck.map((l) => `${l.verifier} ${l.path}: ${l.result}`).join(
           ", ",
         );
-      md += `| ${r.hostname} | ${
-        r.os.prettyName || r.os.id
-      } | ${r.riskLevel.toUpperCase()} | ${storeCell(r)} | ${
-        pkg.installed || "?"
-      } (${pkg.patched}) | ${componentsCell(r)} | ${live} |\n`;
+      // Windows and macOS have no ca-certificates package; their verifier
+      // is named instead.
+      const pkgCell = platform(r)
+        ? `- (${r.osStore.verdictMethod})`
+        : `${pkg.installed || "?"} (${pkg.patched})`;
+      md += `| ${cell(r.hostname)} | ${
+        cell(r.os.prettyName || r.os.id)
+      } | ${r.riskLevel.toUpperCase()} | ${storeCell(r)} | ${cell(pkgCell)} | ${
+        cell(componentsCell(r))
+      } | ${live} |\n`;
     }
 
     const recs = new Set<string>();
@@ -263,7 +302,7 @@ export const report = {
     }
     if (exposed.some((r) => r.osStore.verdict === "trusted")) {
       md +=
-        `\n## Next Step\n\nRun mitigate (dry run first):\n\n\`\`\`\nswamp model method run ${model} mitigate${
+        `\n## Next Step\n\nRun mitigate (dry run first):\n\n\`\`\`\nswamp behavior run ${model} mitigate${
           hostsArg(exposed)
         }\n\`\`\`\n`;
     }

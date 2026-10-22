@@ -14,17 +14,18 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * eMudhra CA compromise scanner — finds Linux hosts and containers whose TLS
- * trust still accepts the eight eMudhra intermediates whose keys were found
- * to be recoverable (reported 2026-10-17, public 2026-10-20), and fixes the
- * OS store where it can. Runs over local, SSH, or
- * Docker transports.
+ * eMudhra CA compromise scanner — finds Linux, macOS and Windows hosts and
+ * Linux containers whose TLS trust still accepts the eight eMudhra
+ * intermediates whose keys were found to be recoverable (reported
+ * 2026-10-17, public 2026-10-20), and fixes the OS store where it can. Runs
+ * over local, SSH, or Docker transports.
  *
  * @module
  */
 
 import { z } from "npm:zod@4.3.6";
 import {
+  analyzeStores,
   assertSafeDockerRef,
   assertSafeSshTarget,
   assessHost,
@@ -38,6 +39,7 @@ import {
   refusedCommands,
   renderMitigationScript,
   renderStep,
+  renderWindowsMitigationScript,
   rootsToDistrust,
   settledPool,
   shQuote,
@@ -48,6 +50,16 @@ import {
   wrapScript,
 } from "./_lib/emudhra_logic.ts";
 import { DISTRUST_ANCHOR } from "./_lib/emudhra_certs.ts";
+import {
+  buildWindowsProbe,
+  launcherInput,
+  POWERSHELL_ARGV,
+} from "./_lib/windows_probe.ts";
+import {
+  cmdLine,
+  runOverWindowsSsh,
+  type SshSession,
+} from "./_lib/windows_ssh.ts";
 
 type FileWriter = {
   writeLine: (line: string) => Promise<void>;
@@ -135,6 +147,12 @@ const GlobalArgsSchema = z.object({
     .describe(
       "Also connect to the eMudhra test hosts with curl and openssl from the target",
     ),
+  targetOs: z
+    .enum(["auto", "linux", "macos", "windows"])
+    .default("auto")
+    .describe(
+      "The target's OS. auto asks an SSH target with uname -s first; set it to skip that round trip",
+    ),
 });
 
 const InputsSchema = z.object({
@@ -149,6 +167,8 @@ const InputsSchema = z.object({
     "Comma-separated directories to search for lockfiles and bundles",
   ),
   liveCheck: z.boolean().optional().describe("Run the live TLS check"),
+  targetOs: z.enum(["auto", "linux", "macos", "windows"]).optional()
+    .describe("The target's OS, or auto"),
 });
 
 const StatusEnum = z.enum(["fixed", "exposed", "no-fix-released", "unknown"]);
@@ -165,7 +185,15 @@ const HostStatusSchema = z.object({
     id: z.string(),
     versionId: z.string(),
     prettyName: z.string(),
-    storeFamily: z.enum(["debian-conf", "p11-kit", "alpine", "arch", "other"]),
+    storeFamily: z.enum([
+      "debian-conf",
+      "p11-kit",
+      "alpine",
+      "arch",
+      "macos",
+      "windows",
+      "other",
+    ]),
   }),
   exposed: z.boolean(),
   riskLevel: z.enum(["critical", "high", "medium", "low", "none"]),
@@ -192,9 +220,24 @@ const HostStatusSchema = z.object({
       result: z.enum(["trusted", "rejected", "not-checked"]),
       detail: z.string(),
     })),
+    macos: z.object({ denyTrust: z.array(z.string()) }).optional(),
+    windows: z.object({
+      disallowed: z.array(z.string()),
+      rootAutoUpdate: z.enum(["enabled", "disabled", "unknown"]),
+      disallowedAutoUpdate: z.enum(["enabled", "disabled", "unknown"]),
+    }).optional(),
   }),
   components: z.array(z.object({
-    kind: z.enum(["runtime", "agent", "java", "certifi", "cargo", "hex"]),
+    kind: z.enum([
+      "runtime",
+      "agent",
+      "java",
+      "certifi",
+      "bundle",
+      "electron",
+      "cargo",
+      "hex",
+    ]),
     name: z.string(),
     path: z.string(),
     version: z.string(),
@@ -222,7 +265,7 @@ const HostStatusSchema = z.object({
     ]),
     applied: z.boolean(),
     succeeded: z.boolean(),
-    privilege: z.enum(["root", "sudo", "none"]),
+    privilege: z.enum(["root", "sudo", "admin", "none"]),
     missingPrivilege: z.array(z.string()),
     steps: z.array(StepSchema),
     failedStep: z.string().optional(),
@@ -234,31 +277,57 @@ const HostStatusSchema = z.object({
   }).optional(),
 });
 
-type Transport =
-  | { kind: "local" }
-  | { kind: "ssh"; args: string[] }
-  | { kind: "docker"; container: string };
+/** The OS a probe is written for. Anything that is not macOS or Windows gets the POSIX probe. */
+export type TargetOs = "linux" | "macos" | "windows";
+
+export type Transport =
+  | { kind: "local"; os: TargetOs }
+  // os is filled in by resolveOs before the first script runs.
+  | { kind: "ssh"; args: string[]; os?: TargetOs }
+  | { kind: "docker"; container: string; os: TargetOs };
+
+/** A script and the shell that runs it. */
+export type Script = { shell: "sh" | "powershell"; text: string };
+
+/** The OS swamp itself runs on, as a target. */
+function localOs(): TargetOs {
+  return Deno.build.os === "windows"
+    ? "windows"
+    : Deno.build.os === "darwin"
+    ? "macos"
+    : "linux";
+}
 
 function present(val: string | undefined): string | undefined {
   return val && val.length > 0 ? val : undefined;
 }
 
-function buildTransport(g: {
+export function buildTransport(g: {
   targetHost: string;
   sshUser: string;
   sshKey?: string;
   dockerContainer?: string;
+  targetOs?: "auto" | TargetOs;
+  /** A host from a hosts list, where localhost is refused rather than run locally. */
+  listed?: boolean;
+  /** Refuse unknown host keys (mitigate) instead of accepting them on first contact. */
+  strictHostKeys?: boolean;
 }): Transport {
   const container = present(g.dockerContainer);
   if (container) {
     assertSafeDockerRef("dockerContainer", container);
-    return { kind: "docker", container };
+    return { kind: "docker", container, os: "linux" };
   }
   if (
     g.targetHost === "localhost" || g.targetHost === "127.0.0.1" ||
     g.targetHost === "::1"
   ) {
-    return { kind: "local" };
+    if (g.listed) {
+      throw new Error(
+        `${g.targetHost} in a hosts list would scan the machine swamp runs on, not an SSH host; run scan or mitigate without hosts (targetHost localhost) for that`,
+      );
+    }
+    return { kind: "local", os: localOs() };
   }
   assertSafeSshTarget(g.sshUser, g.targetHost);
   // BatchMode stops ssh falling back to a password prompt nobody can see;
@@ -267,7 +336,7 @@ function buildTransport(g: {
     "-o",
     "BatchMode=yes",
     "-o",
-    "StrictHostKeyChecking=accept-new",
+    `StrictHostKeyChecking=${g.strictHostKeys ? "yes" : "accept-new"}`,
     "-o",
     "ConnectTimeout=10",
     "-o",
@@ -277,7 +346,91 @@ function buildTransport(g: {
   ];
   if (present(g.sshKey)) args.push("-i", g.sshKey!);
   args.push("--", `${g.sshUser}@${g.targetHost}`);
-  return { kind: "ssh", args };
+  return g.targetOs && g.targetOs !== "auto"
+    ? { kind: "ssh", args, os: g.targetOs }
+    : { kind: "ssh", args };
+}
+
+/** How cmd.exe, Windows PowerShell and pwsh report a command they can't find. */
+const NOT_RECOGNIZED =
+  /is not recognized as (an internal or external command|(the|a) name of a cmdlet)/i;
+
+/**
+ * The OS behind an SSH login, from `uname -s` run by its login shell. A
+ * Windows host answers with cmd.exe's or PowerShell's "not recognized", or,
+ * with Git for Windows, MSYS2 or Cygwin on PATH, with MINGW, MSYS or CYGWIN:
+ * the POSIX probe would find nothing there and read as clean.
+ */
+export function parseOsDetection(
+  r: { stdout: string; stderr: string; exitCode: number },
+): TargetOs {
+  const out = r.stdout.trim();
+  if (/^Darwin\b/m.test(out)) return "macos";
+  if (/^(MINGW|MSYS|CYGWIN)/im.test(out)) return "windows";
+  if (NOT_RECOGNIZED.test(`${r.stdout}\n${r.stderr}`)) return "windows";
+  if (r.exitCode === 0 && /^[A-Za-z][\w./-]*$/m.test(out)) return "linux";
+  throw new Error(
+    `could not tell the target's OS from uname -s (exit ${r.exitCode}${
+      r.stderr.trim() ? `: ${r.stderr.trim().split("\n").slice(-1)[0]}` : ""
+    }); set targetOs`,
+  );
+}
+
+/** Fill in an SSH target's OS, asking it once. */
+async function resolveOs(
+  transport: Transport,
+  logger: Logger,
+): Promise<TargetOs> {
+  if (transport.kind !== "ssh") return transport.os;
+  if (!transport.os) {
+    const r = Deno.build.os === "windows"
+      ? await windowsSshSession(transport.args, logger, 60_000)("uname -s")
+        .then((x) => ({ ...x, stdout: new TextDecoder().decode(x.stdout) }))
+      : await runCommand(
+        ["ssh", ...transport.args, "uname -s"],
+        undefined,
+        logger,
+        60_000,
+      );
+    if (r.exitCode === 255) {
+      throw new Error(`ssh failed: ${sshHint(r.stderr) || "exit 255"}`);
+    }
+    transport.os = parseOsDetection(r);
+    logger.debug(`SSH target OS: ${transport.os}`);
+  }
+  return transport.os;
+}
+
+/** A host as a data name: IPv6 colons and anything else unsafe become "-". */
+export function dataName(host: string): string {
+  return host.replace(/[^A-Za-z0-9._-]+/g, "-");
+}
+
+/**
+ * Refuse a hosts list where two different hosts would share a data name
+ * (a:b and a-b), so neither overwrites the other's status and log.
+ */
+export function assertDistinctDataNames(hosts: string[]): void {
+  const seen = new Map<string, string>();
+  for (const h of hosts) {
+    const name = dataName(h);
+    const other = seen.get(name);
+    if (other !== undefined && other !== h) {
+      throw new Error(
+        `hosts ${JSON.stringify(other)} and ${
+          JSON.stringify(h)
+        } would share the data name ${name}; list them in separate runs`,
+      );
+    }
+    seen.set(name, h);
+  }
+}
+
+/** ssh's own error, with what to do when it is a host key refusal. */
+function sshHint(stderr: string): string {
+  return /Host key verification failed|No \S+ host key is known/i.test(stderr)
+    ? `${stderr} mitigate only connects to hosts whose key is already known: run scan first (it records the key on first contact) or add the key to known_hosts.`
+    : stderr;
 }
 
 /** Data name for a scan of an auto-started image: stable across runs. */
@@ -291,9 +444,9 @@ function targetLabel(g: {
 }): string {
   const container = present(g.dockerContainer);
   if (container) {
-    return `docker-${container.replace(/[^A-Za-z0-9._-]+/g, "-")}`;
+    return `docker-${dataName(container)}`;
   }
-  return g.targetHost;
+  return dataName(g.targetHost);
 }
 
 /**
@@ -313,83 +466,245 @@ const BUSY_PACKAGE_MANAGER =
 const FLEET_CONCURRENCY = 16;
 
 /**
- * Run a POSIX sh script on the target, passing it on stdin so neither its size
- * nor its quoting depends on the transport.
+ * How long to keep reading a finished command's pipes: briefly after a kill,
+ * when a process that inherited them (an ssh ControlMaster) can hold them
+ * open; longer after a normal exit, so a busy event loop during a fleet scan
+ * never cuts a probe's output short.
  */
-async function runScript(
-  transport: Transport,
-  script: string,
-  logger: Logger,
-  timeoutMs = SCRIPT_TIMEOUT_MS,
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  let cmd: string[];
-  switch (transport.kind) {
-    case "docker":
-      cmd = ["docker", "exec", "-i", transport.container, "sh", "-s"];
-      break;
-    case "ssh":
-      // Windows OpenSSH stalls on the pipes Deno gives it: it stops copying
-      // the probe's output partway and never exits. Fail fast instead.
-      if (Deno.build.os === "windows") {
-        throw new Error(
-          "SSH targets are not supported when swamp runs on Windows yet: Windows OpenSSH stalls partway through the probe. Run the scan from a Linux or macOS machine, or scan a container with dockerContainer or dockerImage.",
-        );
-      }
-      cmd = ["ssh", ...transport.args, "sh -s"];
-      break;
-    default:
-      // The probe is a POSIX sh script for Linux trust stores.
-      if (Deno.build.os === "windows") {
-        throw new Error(
-          "scanning localhost is not supported on Windows: this extension checks Linux trust stores. Scan a Linux host from a Linux or macOS machine, or scan a container with dockerContainer or dockerImage.",
-        );
-      }
-      cmd = ["sh", "-s"];
-  }
+const PIPE_GRACE_KILLED_MS = 2_000;
+const PIPE_GRACE_EXITED_MS = 30_000;
 
-  logger.debug(`Running script (${script.length} bytes) via ${cmd.join(" ")}`);
+/**
+ * Read a stream as it arrives. The returned function waits for its end, but
+ * at most graceMs: a killed command's pipes can stay open in a process that
+ * inherited them (an ssh ControlMaster), and output() would wait forever.
+ */
+function collect(
+  stream: ReadableStream<Uint8Array>,
+): (graceMs: number) => Promise<string> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  const finished = (async () => {
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) return;
+        chunks.push(value);
+      }
+    } catch {
+      // Cancelled below.
+    }
+  })();
+  return async (graceMs: number) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      finished,
+      new Promise((resolve) => (timer = setTimeout(resolve, graceMs))),
+    ]);
+    clearTimeout(timer);
+    await reader.cancel().catch(() => {});
+    const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+    let off = 0;
+    for (const c of chunks) {
+      bytes.set(c, off);
+      off += c.length;
+    }
+    return new TextDecoder().decode(bytes);
+  };
+}
+
+/** One command's result. */
+export type CommandResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+};
+
+/**
+ * Run a command with optional stdin, stopping it after timeoutMs. Output is
+ * read while the command runs, so a transport that exits early (refused
+ * connection, rejected key) reports its own error rather than a broken pipe.
+ */
+export async function runCommand(
+  cmd: string[],
+  input: string | undefined,
+  logger: Logger,
+  timeoutMs: number,
+  exitedGraceMs = PIPE_GRACE_EXITED_MS,
+): Promise<CommandResult> {
+  logger.debug(
+    `Running ${cmd[0]} (${input?.length ?? 0} bytes of input): ${
+      cmd.slice(1).join(" ").slice(0, 200)
+    }`,
+  );
   const timeout = AbortSignal.timeout(timeoutMs);
-  const proc = new Deno.Command(cmd[0], {
+  const child = new Deno.Command(cmd[0], {
     args: cmd.slice(1),
-    stdin: "piped",
+    stdin: input === undefined ? "null" : "piped",
     stdout: "piped",
     stderr: "piped",
     signal: timeout,
   }).spawn();
-  // Collect output while the script is written, so a transport that exits
-  // early (refused connection, rejected key) reports its own error rather
-  // than a broken pipe.
-  const outputPromise = proc.output();
-  // Wrapping the script in a function makes sh read all of it before running
-  // anything, so no command it starts can consume the rest of the script.
-  const wrapped = wrapScript(script);
-  const writer = proc.stdin.getWriter();
+  const stdout = collect(child.stdout);
+  const stderr = collect(child.stderr);
   let writeError: unknown;
-  try {
-    await writer.write(new TextEncoder().encode(wrapped));
-    await writer.close();
-  } catch (err) {
-    writeError = err;
+  if (input !== undefined) {
+    const writer = child.stdin.getWriter();
+    try {
+      await writer.write(new TextEncoder().encode(input));
+      await writer.close();
+    } catch (err) {
+      writeError = err;
+    }
   }
-  const output = await outputPromise;
-  const stderr = new TextDecoder().decode(output.stderr).trim();
+  const status = await child.status;
+  const grace = timeout.aborted ? PIPE_GRACE_KILLED_MS : exitedGraceMs;
+  const [out, err] = await Promise.all([stdout(grace), stderr(grace)]);
+  const errText = err.trim();
   if (timeout.aborted) {
     throw new Error(
       `${cmd[0]} did not finish within ${
         timeoutMs / 60000
-      } minutes and was stopped${stderr ? `: ${stderr}` : ""}`,
+      } minutes and was stopped${errText ? `: ${errText}` : ""}`,
     );
   }
-  if (writeError !== undefined && output.code === 0) {
+  if (writeError !== undefined && status.code === 0) {
     throw writeError instanceof Error
       ? writeError
       : new Error(String(writeError));
   }
-  return {
-    stdout: new TextDecoder().decode(output.stdout),
-    stderr,
-    exitCode: output.code,
+  return { stdout: out, stderr: errText, exitCode: status.code };
+}
+
+/**
+ * One ssh session on a Windows controller: ssh runs under cmd.exe with its
+ * stdio in temporary files, which is the only way Windows OpenSSH exits
+ * cleanly. A session that overruns has its whole process tree killed, so no
+ * orphaned ssh keeps the files open.
+ */
+function windowsSshSession(
+  sshArgs: string[],
+  logger: Logger,
+  timeoutMs: number,
+): SshSession {
+  return async (remote, input) => {
+    const dir = await Deno.makeTempDir({ prefix: "emudhra-ssh-" });
+    try {
+      const files = {
+        input: input === undefined ? undefined : `${dir}\\in`,
+        stdout: `${dir}\\out`,
+        stderr: `${dir}\\err`,
+      };
+      if (files.input) await Deno.writeTextFile(files.input, input!);
+      logger.debug(`ssh (via cmd.exe): ${remote.slice(0, 200)}`);
+      const child = new Deno.Command("cmd.exe", {
+        args: ["/d", "/s", "/c", cmdLine(sshArgs, remote, files)],
+        windowsRawArguments: true,
+        stdin: "null",
+        stdout: "null",
+        stderr: "null",
+      }).spawn();
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        new Deno.Command("taskkill", {
+          args: ["/T", "/F", "/PID", String(child.pid)],
+          stdout: "null",
+          stderr: "null",
+        }).output().catch(() => {});
+      }, timeoutMs);
+      const status = await child.status;
+      clearTimeout(timer);
+      const stderr = await Deno.readTextFile(files.stderr).catch(() => "");
+      if (timedOut) {
+        throw new Error(
+          `ssh did not finish within ${
+            timeoutMs / 60000
+          } minutes and was stopped${
+            stderr.trim() ? `: ${stderr.trim()}` : ""
+          }`,
+        );
+      }
+      return {
+        stdout: await Deno.readFile(files.stdout).catch(() => new Uint8Array()),
+        stderr: stderr.trim(),
+        exitCode: status.code,
+      };
+    } finally {
+      await Deno.remove(dir, { recursive: true }).catch(() => {});
+    }
   };
+}
+
+/** The command and stdin that run a script on the target. */
+export function scriptCommand(
+  transport: Transport & { os: TargetOs },
+  script: Script,
+): { cmd: string[]; input: string } {
+  const ps = script.shell === "powershell";
+  // Wrapping an sh script in a function makes sh read all of it before
+  // running anything, so no command it starts can consume the rest.
+  const input = ps ? launcherInput(script.text) : wrapScript(script.text);
+  switch (transport.kind) {
+    case "docker":
+      return {
+        cmd: ["docker", "exec", "-i", transport.container, "sh", "-s"],
+        input,
+      };
+    case "ssh":
+      return {
+        cmd: [
+          "ssh",
+          ...transport.args,
+          ps ? POWERSHELL_ARGV.join(" ") : "sh -s",
+        ],
+        input,
+      };
+    default:
+      return { cmd: ps ? [...POWERSHELL_ARGV] : ["sh", "-s"], input };
+  }
+}
+
+/**
+ * Test seam: when set, every script goes here instead of to the target, so
+ * the method sequences (scan, mitigate) are tested without hosts.
+ */
+export const testHooks: {
+  runScript?: (
+    transport: Transport,
+    script: Script,
+  ) => Promise<CommandResult>;
+} = {};
+
+/** Run a script on the target, passing it on stdin so its size and quoting never depend on the transport. */
+async function runScript(
+  transport: Transport,
+  script: Script | string,
+  logger: Logger,
+  timeoutMs = SCRIPT_TIMEOUT_MS,
+): Promise<CommandResult> {
+  const os = await resolveOs(transport, logger);
+  const s: Script = typeof script === "string"
+    ? { shell: "sh", text: script }
+    : script;
+  if ((s.shell === "powershell") !== (os === "windows")) {
+    throw new Error(`a ${s.shell} script cannot run on a ${os} target`);
+  }
+  if (testHooks.runScript) return await testHooks.runScript(transport, s);
+  if (transport.kind === "ssh" && Deno.build.os === "windows") {
+    if (os === "windows") {
+      throw new Error(
+        "Scanning a Windows host over SSH is not supported when swamp runs on Windows. Scan it with swamp running on that host (targetHost localhost), or over SSH from a Linux or macOS machine.",
+      );
+    }
+    // Windows OpenSSH can't carry the probe over pipes; see windows_ssh.ts.
+    return await runOverWindowsSsh(
+      windowsSshSession(transport.args, logger, timeoutMs),
+      wrapScript(s.text),
+    );
+  }
+  const { cmd, input } = scriptCommand({ ...transport, os }, s);
+  return await runCommand(cmd, input, logger, timeoutMs);
 }
 
 async function startDockerImage(
@@ -428,13 +743,20 @@ async function stopContainer(
   containerId: string,
   logger: { info: (msg: string) => void },
 ): Promise<void> {
-  const proc = new Deno.Command("docker", {
+  const out = await new Deno.Command("docker", {
     args: ["stop", containerId],
     stdout: "piped",
     stderr: "piped",
-  });
-  await proc.output();
-  logger.info(`Stopped container ${containerId.slice(0, 12)}`);
+  }).output();
+  logger.info(
+    out.code === 0
+      ? `Stopped container ${containerId.slice(0, 12)}`
+      : `Could not stop container ${
+        containerId.slice(0, 12)
+      } (it was started with --rm and sleeps for an hour at most): ${
+        new TextDecoder().decode(out.stderr).trim()
+      }`,
+  );
 }
 
 async function probeHost(
@@ -444,20 +766,29 @@ async function probeHost(
   log: { writeLine: (msg: string) => Promise<void> },
   logger: Logger,
 ): Promise<{ probe: ProbeData; status: HostStatus }> {
-  const script = buildProbeScript({
+  const os = await resolveOs(transport, logger);
+  const opts = {
     searchPaths: splitList(g.searchPaths),
     liveCheck: g.liveCheck,
-  });
+  };
+  const script: Script = os === "windows"
+    ? { shell: "powershell", text: buildWindowsProbe(opts) }
+    : { shell: "sh", text: buildProbeScript(opts) };
   const result = await runScript(transport, script, logger);
   if (!result.stdout.includes("@@ os-release")) {
-    const errMsg = result.stderr ||
+    const errMsg = sshHint(result.stderr) ||
       `exit code ${result.exitCode} after ${
         JSON.stringify(result.stdout.trim().split("\n").slice(-1)[0] ?? "")
       } (a container that cannot fork processes fails this way)`;
     throw new Error(`Cannot execute commands on ${host}: ${errMsg}`);
   }
   const probe = parseProbe(result.stdout);
-  const status = assessHost(probe, host);
+  const status = assessHost(
+    probe,
+    host,
+    new Date(),
+    await analyzeStores(probe),
+  );
   await log.writeLine(`Host: ${status.hostname} (${status.os.prettyName})\n`);
   await log.writeLine(
     `OS store ${status.osStore.bundle || "(none)"}: ${status.osStore.verdict}${
@@ -530,7 +861,7 @@ async function mitigateTarget(
 ): Promise<
   { status: HostStatus; mitigation: MitigationRecord; files: unknown[] }
 > {
-  const log = context.createFileWriter("log", `${host}-log`);
+  const log = context.createFileWriter("log", `${dataName(host)}-log`);
   return await withTargetLog(
     log,
     () => mitigateTargetWithLog(transport, host, g, dryRun, context, log),
@@ -559,7 +890,9 @@ async function mitigateTargetWithLog(
     transport: transport.kind,
     conf,
   });
-  const isRoot = probe.uid === 0;
+  const windows = status.os.storeFamily === "windows";
+  // On Windows an elevated administrator session plays root's part.
+  const isRoot = probe.uid === 0 || (windows && probe.admin);
   const installPath = tool(probe, "install");
   const steps: PlannedStep[] = [
     ...plan.upgrade,
@@ -576,7 +909,7 @@ async function mitigateTargetWithLog(
     action: plan.action,
     applied: false,
     succeeded: false,
-    privilege: isRoot ? "root" : "none",
+    privilege: isRoot ? (windows ? "admin" : "root") : "none",
     missingPrivilege: [],
     steps: steps.map(rendered),
     before: { verdict: status.osStore.verdict, riskLevel: status.riskLevel },
@@ -590,7 +923,13 @@ async function mitigateTargetWithLog(
   // what is new.
   const key = (argv: string[]) => argv.join("\0");
   const allowed = new Set<string>();
-  if (plan.action === "apply" && !isRoot) {
+  if (plan.action === "apply" && !isRoot && windows) {
+    // Windows has no sudo: the Disallowed store needs an elevated session.
+    record.action = "needs-privilege";
+    record.missingPrivilege = [
+      "an elevated administrator session (LocalMachine\\Disallowed)",
+    ];
+  } else if (plan.action === "apply" && !isRoot) {
     const required = new Set(plan.privilegedCommands.map(key));
     const toCheck = [
       ...plan.privilegedCommands,
@@ -623,19 +962,25 @@ async function mitigateTargetWithLog(
   }
 
   const files: unknown[] = [];
-  if (record.action === "apply" || record.action === "needs-privilege") {
+  if (
+    record.action === "apply" || record.action === "needs-privilege" ||
+    plan.manualScript
+  ) {
     const script = context.createFileWriter(
       "mitigationScript",
-      `${host}-mitigation-script`,
+      `${dataName(host)}-mitigation-script`,
     );
     files.push(
       await script.writeText(
-        renderMitigationScript(
-          host,
-          plan,
-          installPath,
-          rootsToDistrust(status),
-        ),
+        plan.manualScript ??
+          (windows
+            ? renderWindowsMitigationScript(host, plan)
+            : renderMitigationScript(
+              host,
+              plan,
+              installPath,
+              rootsToDistrust(status),
+            )),
       ),
     );
   }
@@ -648,7 +993,10 @@ async function mitigateTargetWithLog(
   for (const n of record.notes) await log.writeLine(`NOTE: ${n}\n`);
 
   let finalStatus = status;
-  if (record.action === "needs-privilege") {
+  if (record.action === "needs-privilege" && windows) {
+    record.summary =
+      `Needs privilege: ${host} is not an elevated administrator session, so nothing was changed. Run the mitigation-script file artifact (a .ps1) in an elevated PowerShell on ${host}, or rerun mitigate as an administrator.`;
+  } else if (record.action === "needs-privilege") {
     record.summary = `Needs privilege: ${
       record.missingPrivilege.join(", ")
     } not allowed by passwordless sudo for ${host}. Nothing was changed. Run the mitigation-script file artifact with sudo, or grant sudo for exactly those binaries (see the README).`;
@@ -664,6 +1012,8 @@ async function mitigateTargetWithLog(
         : `${host} does not trust the compromised intermediates; nothing to do.`
       : record.action === "rebuild-image"
       ? `${host} is a container; rebuild its image (containers are never modified).`
+      : plan.manualScript
+      ? `${host} needs manual action: run the mitigation-script file artifact locally with sudo (see the manual list).`
       : `${host} needs manual action; see the manual list.`;
   } else if (dryRun) {
     record.summary =
@@ -679,7 +1029,10 @@ async function mitigateTargetWithLog(
     let stepsRan = 0;
     const exec = async (s: PlannedStep): Promise<boolean> => {
       lastFailureOutput = "";
-      const text = renderStep(s, { sudo: !isRoot, installPath });
+      const text: string | { shell: "powershell"; text: string } =
+        s.kind === "ps"
+          ? { shell: "powershell", text: s.script }
+          : renderStep(s, { sudo: !isRoot, installPath });
       await log.writeLine(
         `\n$ ${renderStep(s, { sudo: !isRoot, installPath, brief: true })}\n`,
       );
@@ -749,7 +1102,12 @@ async function mitigateTargetWithLog(
         return undefined;
       }
     };
-    if (ok && plan.distrust.length > 0) {
+    if (ok && plan.distrust.length > 0 && plan.upgrade.length === 0) {
+      // Nothing ran that could have changed the store: no rescan to re-plan.
+      for (const s of plan.distrust) {
+        if (!(ok = await exec(s))) break;
+      }
+    } else if (ok && plan.distrust.length > 0) {
       // Reading the conf or re-checking sudo can hit a dropped connection or
       // the timeout after the host was changed; record that and carry on to
       // the final rescan, so the record is still written.
@@ -842,8 +1200,17 @@ async function mitigateTargetWithLog(
     const agentsLeft = finalStatus.components.filter((c) =>
       c.kind === "agent" && c.status === "exposed"
     );
-    record.succeeded = ok && finalStatus.osStore.verdict === "not-trusted" &&
-      agentsLeft.length === 0;
+    // A plan that only upgraded agents (the store was not trusted, or could
+    // not be judged) succeeds on the agents alone.
+    // Code-signing copies count where the platform verifier judged them.
+    const csTargeted = status.osStore.codeSigningTrusted === "trusted" &&
+      (status.os.storeFamily === "macos" || windows);
+    const storeTargeted = record.before.verdict === "trusted" || csTargeted;
+    record.succeeded = ok && agentsLeft.length === 0 &&
+      (!storeTargeted ||
+        (finalStatus.osStore.verdict === "not-trusted" &&
+          (!csTargeted ||
+            finalStatus.osStore.codeSigningTrusted === "not-trusted")));
     if (upgradeFailure) {
       record.notes.push(
         `The package upgrade failed: ${upgradeFailure.replace(/\.+$/, "")}.${
@@ -871,10 +1238,18 @@ async function mitigateTargetWithLog(
       ? `Mitigation stopped on ${host}: sudo asked for a password for ${refusedCmd} after ${stepsRan} step(s) had run. Run the mitigation-script file artifact with sudo to finish; it is safe to run again.`
       : !ok
       ? `Mitigation stopped on ${host}: ${record.failedStep}`
+      : record.succeeded && !storeTargeted
+      ? `Upgraded the agents on ${host}; the OS store was not changed (verdict ${finalStatus.osStore.verdict}${
+        finalStatus.osStore.verdict === "unknown" ? ", see unreadable" : ""
+      }).${record.restart.length > 0 ? " Restart the listed processes." : ""}`
       : record.succeeded
-      ? `Mitigated ${host}: OS store ${record.before.verdict} -> ${finalStatus.osStore.verdict}.${
-        upgradeFailure ? " The package upgrade failed; see notes." : ""
-      }${record.restart.length > 0 ? " Restart the listed processes." : ""}`
+      ? `Mitigated ${host}: OS store ${record.before.verdict} -> ${finalStatus.osStore.verdict}${
+        csTargeted
+          ? `, code signing trusted -> ${finalStatus.osStore.codeSigningTrusted}`
+          : ""
+      }.${upgradeFailure ? " The package upgrade failed; see notes." : ""}${
+        record.restart.length > 0 ? " Restart the listed processes." : ""
+      }`
       : upgradeFailure && finalStatus.osStore.verdict === "trusted"
       ? `Mitigation incomplete on ${host}: ${upgradeFailure}; the store still trusts the intermediates.`
       : agentsLeft.length > 0
@@ -892,7 +1267,15 @@ async function mitigateTargetWithLog(
 
 export const model = {
   type: "@swamp/cve/emudhra",
-  version: "2026.10.21.1",
+  version: "2026.10.22.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Adds macOS and Windows targets and the targetOs global argument (default auto). Existing arguments are unchanged. The scanFleet and mitigate summary logs are renamed fleet-summary and mitigate-summary, and hosts with characters outside A-Z, a-z, 0-9, '.', '_' and '-' (IPv6 addresses) get data names with those replaced by '-'.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   reports: [
@@ -935,11 +1318,14 @@ export const model = {
         let autoContainer: string | undefined;
         if (present(g.dockerImage) && !present(g.dockerContainer)) {
           autoContainer = await startDockerImage(g.dockerImage!, logger);
-          g.dockerContainer = autoContainer;
         }
 
         try {
-          const transport = buildTransport(g);
+          // The auto-started container is this run's alone: a copy, never
+          // written back into the shared global arguments.
+          const transport = buildTransport(
+            autoContainer ? { ...g, dockerContainer: autoContainer } : g,
+          );
           const label = autoContainer
             ? imageLabel(g.dockerImage!)
             : targetLabel(g);
@@ -973,7 +1359,9 @@ export const model = {
         const g = context.globalArgs;
         const logger = context.logger;
         const hosts = splitList(args.hosts);
-        const summaryLog = context.createFileWriter("log", "fleet-log");
+        assertDistinctDataNames(hosts);
+        // No per-host log ends in -summary, so no host name collides.
+        const summaryLog = context.createFileWriter("log", "fleet-summary");
         await summaryLog.writeLine(
           `[${
             new Date().toISOString()
@@ -988,8 +1376,13 @@ export const model = {
               targetHost: host,
               sshUser: g.sshUser,
               sshKey: present(g.sshKey),
+              targetOs: g.targetOs,
+              listed: true,
             });
-            const hostLog = context.createFileWriter("log", `${host}-log`);
+            const hostLog = context.createFileWriter(
+              "log",
+              `${dataName(host)}-log`,
+            );
             const { status } = await withTargetLog(
               hostLog,
               () => scanTarget(transport, host, g, hostLog, logger),
@@ -1008,7 +1401,9 @@ export const model = {
             const { host, status, logHandle } = outcome.value;
             if (status.exposed) exposed++;
             else if (status.riskLevel !== "none") unchecked++;
-            handles.push(await context.writeResource("status", host, status));
+            handles.push(
+              await context.writeResource("status", dataName(host), status),
+            );
             handles.push(logHandle);
             await summaryLog.writeLine(
               `${host}: ${status.riskLevel.toUpperCase()} — ${status.summary}\n`,
@@ -1065,12 +1460,12 @@ export const model = {
           !present(g.dockerContainer)
         ) {
           autoContainer = await startDockerImage(g.dockerImage!, logger);
-          g.dockerContainer = autoContainer;
         }
 
         if (present(args.hosts) && splitList(args.hosts).length === 0) {
           throw new Error("hosts lists no targets");
         }
+        if (present(args.hosts)) assertDistinctDataNames(splitList(args.hosts));
         // Transports are built per target inside allSettled, so one invalid
         // host fails alone, as in scanFleet.
         const targets: { host: string; transport: () => Transport }[] =
@@ -1082,11 +1477,20 @@ export const model = {
                   targetHost: host,
                   sshUser: g.sshUser,
                   sshKey: present(g.sshKey),
+                  targetOs: g.targetOs,
+                  listed: true,
+                  strictHostKeys: true,
                 }),
             }))
             : [{
               host: autoContainer ? imageLabel(g.dockerImage!) : targetLabel(g),
-              transport: () => buildTransport(g),
+              // The auto-started container is a copy, as in scan.
+              transport: () =>
+                buildTransport({
+                  ...g,
+                  ...(autoContainer ? { dockerContainer: autoContainer } : {}),
+                  strictHostKeys: true,
+                }),
             }];
 
         try {
@@ -1104,7 +1508,7 @@ export const model = {
           );
           // One line per target, so a host that failed outright is still
           // on record.
-          const runLog = context.createFileWriter("log", "mitigate-log");
+          const runLog = context.createFileWriter("log", "mitigate-summary");
           const handles = [];
           for (const [i, outcome] of settled.entries()) {
             if (outcome.status === "fulfilled") {
@@ -1113,10 +1517,14 @@ export const model = {
                 `${targets[i].host}: ${mitigation.summary}\n`,
               );
               handles.push(
-                await context.writeResource("status", targets[i].host, {
-                  ...status,
-                  mitigation,
-                }),
+                await context.writeResource(
+                  "status",
+                  dataName(targets[i].host),
+                  {
+                    ...status,
+                    mitigation,
+                  },
+                ),
                 ...files,
               );
             } else {

@@ -27,7 +27,7 @@
  */
 
 /** Date the embedded incident data was last checked against its sources. */
-export const DATA_AS_OF = "2026-10-21";
+export const DATA_AS_OF = "2026-10-22";
 
 /** One certificate whose private key was compromised. */
 export type CompromisedCert = {
@@ -243,8 +243,38 @@ export const COMPROMISED_CERTS: readonly CompromisedCert[] = [
  */
 export const EMSIGN_TLS_G3_CROSS = {
   sha256: "3094025792039A68AF6E553686410BDAB7C0D4A36B9084CBA64202E35D6EBBDD",
+  /** The same key as the self-signed EMSIGN_TLS_ROOT. */
+  spkiSha256:
+    "C619E4780ED8E0ABEDA24AD732567DE4383A7EA941338F6D1A7D1B49AC792FE9",
   pem:
     "-----BEGIN CERTIFICATE-----\nMIIDdDCCAvmgAwIBAgIQAJYaPvsTWVdu0EAFtGhKWzAKBggqhkjOPQQDAzBrMQsw\nCQYDVQQGEwJJTjETMBEGA1UECxMKZW1TaWduIFBLSTElMCMGA1UEChMcZU11ZGhy\nYSBUZWNobm9sb2dpZXMgTGltaXRlZDEgMB4GA1UEAxMXZW1TaWduIEVDQyBSb290\nIENBIC0gRzMwHhcNMjQwNzExMTU0MzM2WhcNMzkwNzA5MTgzMDAwWjBWMQswCQYD\nVQQGEwJJTjElMCMGA1UECgwcZU11ZGhyYSBUZWNobm9sb2dpZXMgTGltaXRlZDEg\nMB4GA1UEAwwXZW1TaWduIFJvb3QgVExTIENBIC0gRzMwdjAQBgcqhkjOPQIBBgUr\ngQQAIgNiAARfD9w/q1cWxL6D9bMGH6CQ4u+gAV6GN9s+PwQx9Bl4hC+0iU8QOk8m\nWO/RwXQy10DCSxT8vSIJClHKp+Ao4qJKdYeV0SwZ7LMQziyLfxIUOY6Grja/sQFw\nLKYf8EdDXAyjggF1MIIBcTAfBgNVHSMEGDAWgBR8XQKEE9TMipuBzhccLikenEhj\nQjAdBgNVHQ4EFgQU4TqrIXzx401UrtRyt/2LWUIgkFQwHQYDVR0lBBYwFAYIKwYB\nBQUHAwEGCCsGAQUFBwMCMD0GA1UdIAQ2MDQwMgYEVR0gADAqMCgGCCsGAQUFBwIB\nFhxodHRwOi8vcmVwb3NpdG9yeS5lbXNpZ24uY29tMHgGCCsGAQUFBwEBBGwwajAi\nBggrBgEFBQcwAYYWaHR0cDovL29jc3AuZW1zaWduLmNvbTBEBggrBgEFBQcwAoY4\naHR0cDovL3JlcG9zaXRvcnkuZW1zaWduLmNvbS9jZXJ0cy9lbVNpZ25FQ0NSb290\nQ0FHMy5jcnQwMwYDVR0fBCwwKjAooCagJIYiaHR0cDovL2NybC5lbXNpZ24uY29t\nP1Jvb3RDQUczLmNybDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgwBgEB/wIB\nATAKBggqhkjOPQQDAwNpADBmAjEAt9CIpRGp46QHQYDUBnLKw+vvK0/h9vmilEAg\nTroUl/anH4x2rXHqiCtBTBfgKDegAjEA8WpG1LTZdAIL0FSYqxXeREaeTSxEofM0\n1jJH3jGvCXC79LU9UPJ2o3TU+UIj2gMV\n-----END CERTIFICATE-----",
+};
+
+/**
+ * emSign Root TLS CA - G3, self-signed: the direct issuer of the six emSign-path TLS
+ * intermediates. Microsoft's root program includes it; Mozilla, Apple and
+ * Chrome do not, so elsewhere that path runs through EMSIGN_TLS_G3_CROSS.
+ */
+export const EMSIGN_TLS_ROOT = {
+  name: "emSign Root TLS CA - G3",
+  sha256: "7DD78D5F4F13459A83DFF9ABBBA62EDBAF6F2D102BF257FD712F4D9F2746ED8D",
+  spkiSha256:
+    "C619E4780ED8E0ABEDA24AD732567DE4383A7EA941338F6D1A7D1B49AC792FE9",
+  pem:
+    "-----BEGIN CERTIFICATE-----\nMIICKTCCAa+gAwIBAgIQDnYGcvFDRZ/I/gqwvAXjlDAKBggqhkjOPQQDAzBWMQsw\nCQYDVQQGEwJJTjElMCMGA1UECgwcZU11ZGhyYSBUZWNobm9sb2dpZXMgTGltaXRl\nZDEgMB4GA1UEAwwXZW1TaWduIFJvb3QgVExTIENBIC0gRzMwHhcNMjQwMjA4MDgx\nOTMyWhcNNDkwMjA3MDgxOTMyWjBWMQswCQYDVQQGEwJJTjElMCMGA1UECgwcZU11\nZGhyYSBUZWNobm9sb2dpZXMgTGltaXRlZDEgMB4GA1UEAwwXZW1TaWduIFJvb3Qg\nVExTIENBIC0gRzMwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAARfD9w/q1cWxL6D9bMG\nH6CQ4u+gAV6GN9s+PwQx9Bl4hC+0iU8QOk8mWO/RwXQy10DCSxT8vSIJClHKp+Ao\n4qJKdYeV0SwZ7LMQziyLfxIUOY6Grja/sQFwLKYf8EdDXAyjQjBAMB0GA1UdDgQW\nBBThOqshfPHjTVSu1HK3/YtZQiCQVDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/\nBAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjBhCFTkly7Yl7+s4hiw+k6ZJTXT2AiI\nrvmsmfqPr5E7ecwXb6kXA5LTFd6rjwTuV3sCMQC9w6ZSbVq1mveMO6dKFziOzClT\nKCT2RFT6yXtq6nzgRICgBmiXbJAXsmZ8yAwjyWc=\n-----END CERTIFICATE-----",
+};
+
+/**
+ * emSign Root CS CA - G3, self-signed: the direct issuer of the two emSign-path
+ * code-signing intermediates. Only Microsoft's root program includes it.
+ */
+export const EMSIGN_CS_ROOT = {
+  name: "emSign Root CS CA - G3",
+  sha256: "F2EDAAFF3D9B701FB4D14C9F285F8C0BAD90FC3BCC1FA07D47F4718EDABA34A5",
+  spkiSha256:
+    "0A6C2B2CA5B364207954171987AC9D2178561569D8205457E77CA90C32EDE282",
+  pem:
+    "-----BEGIN CERTIFICATE-----\nMIICKDCCAa2gAwIBAgIQAY/OySfBFvWcmX7cDM0uKzAKBggqhkjOPQQDAzBVMQsw\nCQYDVQQGEwJJTjElMCMGA1UECgwcZU11ZGhyYSBUZWNobm9sb2dpZXMgTGltaXRl\nZDEfMB0GA1UEAwwWZW1TaWduIFJvb3QgQ1MgQ0EgLSBHMzAeFw0yNDAyMDgwODMz\nMTRaFw00OTAyMDcwODMzMTRaMFUxCzAJBgNVBAYTAklOMSUwIwYDVQQKDBxlTXVk\naHJhIFRlY2hub2xvZ2llcyBMaW1pdGVkMR8wHQYDVQQDDBZlbVNpZ24gUm9vdCBD\nUyBDQSAtIEczMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAESl9kM5D0VA/Og76dz5Xz\nw1hnGQ4fSR9993/qBkkvI48pXQVKOdyHCgAZThgWejQ8OpFRiTISjpabn4tfRFOY\nuzhApR/XxGbkg9X+2cEtbyghF9CdoF91W22V/R2EVe4xo0IwQDAdBgNVHQ4EFgQU\naHQD+IXKjVRQVx0W4MjeRQ2rzS0wDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQF\nMAMBAf8wCgYIKoZIzj0EAwMDaQAwZgIxAK9OlACrFod3UgWY1ai+DF9sGFhahU59\nrv4jJyV01QaxGn0HErZ8gjHkngqe+tcFogIxAPTdW0hBmrGjhxBWdv9mZNdVFiJ4\nlrZ3ahvimsLhTQpnDBgiGKv6Ov1Fx/CE6yjIAg==\n-----END CERTIFICATE-----",
 };
 
 /**
@@ -254,6 +284,8 @@ export const EMSIGN_TLS_G3_CROSS = {
 export const DISTRUST_ANCHOR = {
   name: "emSign ECC Root CA - G3",
   sha256: "86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B",
+  spkiSha256:
+    "8D417DB2DD8BF5E3084D1E3F196D583849D81BDD4C00C70B9D39369E96B8C782",
   /** Entry name in Debian and Ubuntu /etc/ca-certificates.conf. */
   debianConfEntry: "mozilla/emSign_ECC_Root_CA_-_G3.crt",
   pem:
@@ -269,6 +301,8 @@ export const DISTRUST_ANCHOR = {
 export const AAA_ROOT = {
   name: "AAA Certificate Services",
   sha256: "D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4",
+  spkiSha256:
+    "BD153ED7B0434F6886B17BCE8BBE84ED340C7132D702A8F4FA318F756ECBD6F3",
   /** Entry name in Debian and Ubuntu /etc/ca-certificates.conf. */
   debianConfEntry: "mozilla/Comodo_AAA_Services_root.crt",
   pem:
@@ -329,6 +363,7 @@ export const NO_FIX_RUNTIMES: readonly string[] = ["bun"];
 /** Library versions that carry the fix. */
 export const FIXED_LIBRARIES = {
   certifi: "2026.10.19",
+  pip: "26.2.2",
   "rustls-webpki": "0.103.16",
   "webpki-roots": "1.0.10",
   castore: "1.0.22",
@@ -341,7 +376,21 @@ export const FIXED_LIBRARIES = {
  */
 export const NO_FIX_HEX_PACKAGES: readonly string[] = ["certifi"];
 
-/** Agents Cloudflare named, with their fixed Linux versions. */
+/**
+ * Electron releases with the fix, per major line (from the disclosure page).
+ * Electron bundles Chromium's verifier and roots, and an app does not get
+ * Chrome's updates, so it is exposed until it ships on one of these.
+ */
+export const FIXED_ELECTRON: readonly string[] = [
+  "42.11.16",
+  "43.8.1",
+  "44.9.1",
+];
+
+/**
+ * Agents Cloudflare named, with their fixed versions; the same on Linux,
+ * macOS and Windows.
+ */
 export const FIXED_AGENTS = {
   cloudflared: "2026.10.2",
   "warp-cli": "2026.8.2115.0",

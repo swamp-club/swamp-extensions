@@ -28,8 +28,10 @@ import {
   DENO_FIXED_VERSION,
   DISTRUST_ANCHOR,
   EMSIGN_TLS_G3_CROSS,
+  EMSIGN_TLS_ROOT,
   FIXED_AGENTS,
   FIXED_CA_CERTIFICATES,
+  FIXED_ELECTRON,
   FIXED_LIBRARIES,
   FIXED_RUNTIMES,
   NO_FIX_HEX_PACKAGES,
@@ -37,6 +39,14 @@ import {
   SWAMP_FIXED_VERSION,
   TEST_HOSTS,
 } from "./emudhra_certs.ts";
+import { readKeystore } from "./keystore.ts";
+import {
+  base64ToBytes,
+  matchStore,
+  parseBlockedCerts,
+  pemCertificates,
+  type StoreMatch,
+} from "./x509.ts";
 
 // ---------------------------------------------------------------------------
 // Shell quoting
@@ -200,9 +210,13 @@ export function compareDebVersions(a: string, b: string): number {
  * Good enough for semver, CalVer, rpm VERSION-RELEASE and apk -rN strings.
  */
 export function compareDottedVersions(a: string, b: string): number {
-  // Split letters from digits too, so apk's r10 sorts after r3.
+  // Split letters from digits both ways, so apk's r10 sorts after r3 and
+  // 1.27rc1 reads as a pre-release of 1.27, not as newer than 1.27.3.
   const parts = (v: string) =>
-    v.replace(/^v/, "").replace(/([A-Za-z])(\d)/g, "$1.$2").split(
+    v.replace(/^v/, "").replace(/([A-Za-z])(\d)/g, "$1.$2").replace(
+      /(\d)([A-Za-z])/g,
+      "$1.$2",
+    ).split(
       /[^0-9A-Za-z]+/,
     ).filter((s) => s !== "");
   const pa = parts(a);
@@ -213,8 +227,17 @@ export function compareDottedVersions(a: string, b: string): number {
     const y = pb[i];
     // A missing trailing zero is equal (20261021.223953 vs ...223953.0);
     // any other extra segment, swamp's -sha.<hash> included, is newer.
-    if (x === undefined) return pb.slice(i).every((p) => p === "0") ? 0 : -1;
-    if (y === undefined) return pa.slice(i).every((p) => p === "0") ? 0 : 1;
+    // A pre-release tag after an equal prefix (2026.10.2rc1 vs 2026.10.2)
+    // is older. Other trailing segments (swamp's -sha.<hash>, apk's -r10)
+    // are newer.
+    // Not a bare a or b: OpenSSL-style 1.0.2a is a later release.
+    const pre = /^(rc|alpha|beta|pre|dev|preview|canary|nightly)$/i;
+    if (x === undefined) {
+      return pb.slice(i).every((p) => p === "0") ? 0 : pre.test(pb[i]) ? 1 : -1;
+    }
+    if (y === undefined) {
+      return pa.slice(i).every((p) => p === "0") ? 0 : pre.test(pa[i]) ? -1 : 1;
+    }
     const nx = /^\d+$/.test(x);
     const ny = /^\d+$/.test(y);
     if (nx && ny) {
@@ -274,6 +297,103 @@ const BUNDLE_CANDIDATES = [
   "/etc/ssl/ca-bundle.pem",
 ];
 
+/**
+ * Largest store file sent back, most distinct files, and most bytes in all
+ * per probe. The total keeps a host with many JDKs or Python environments to
+ * a few hundred read-back sessions from a Windows controller.
+ */
+export const STORE_MAX_BYTES = 4 * 1024 * 1024;
+export const STORE_MAX_BLOBS = 64;
+export const STORE_MAX_TOTAL = 16 * 1024 * 1024;
+
+/**
+ * sh helpers for the stores section. emudhra_store prints `kind|sha256|extra|path`
+ * (the path last, so a `|` in it survives), then the file as one base64 line
+ * the first time its hash is seen, or TOOBIG past the limits.
+ */
+const STORE_FUNCTIONS = [
+  'emudhra_sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum < "$1" | cut -c1-64; elif command -v shasum >/dev/null 2>&1; then shasum -a 256 < "$1" | cut -c1-64; elif command -v openssl >/dev/null 2>&1; then openssl dgst -sha256 < "$1" | sed "s/.*= *//"; fi 2>/dev/null; }',
+  'emudhra_b64() { if command -v base64 >/dev/null 2>&1; then base64 < "$1" | tr -d "\\r\\n"; elif command -v openssl >/dev/null 2>&1; then openssl base64 -A < "$1"; fi 2>/dev/null; }',
+  'emudhra_seen=" "; emudhra_blobs=0; emudhra_total=0',
+  `emudhra_store() { [ -f "$3" ] && [ -r "$3" ] || return 0; h=$(emudhra_sha "$3"); [ -n "$h" ] || { echo "$1|-|$2|$3"; return 0; }; echo "$1|$h|$2|$3"; case "$emudhra_seen" in *" $h "*) return 0;; esac; emudhra_seen="$emudhra_seen$h "; n=$(wc -c < "$3" 2>/dev/null | tr -d " "); if [ "\${n:-0}" -gt ${STORE_MAX_BYTES} ] || [ "$emudhra_blobs" -ge ${STORE_MAX_BLOBS} ] || [ $((emudhra_total + \${n:-0})) -gt ${STORE_MAX_TOTAL} ]; then echo "blob $h TOOBIG"; return 0; fi; emudhra_blobs=$((emudhra_blobs + 1)); emudhra_total=$((emudhra_total + \${n:-0})); echo "blob $h $(emudhra_b64 "$3")"; }`,
+];
+
+/**
+ * Java trust stores: JDK homes first (so a home's blocked.certs goes with its
+ * cacerts), up to two levels under the usual install roots, including the
+ * runtimes apps bundle in jbr or jre, then the distribution's own stores.
+ */
+const JAVA_STORE_GLOBS = [
+  "/usr/lib/jvm/*/lib/security/cacerts",
+  "/usr/lib/jvm/*/jre/lib/security/cacerts",
+  "/opt/*/lib/security/cacerts",
+  "/opt/*/*/lib/security/cacerts",
+  "/opt/*/jbr/lib/security/cacerts",
+  "/opt/*/jre/lib/security/cacerts",
+  "/usr/local/*/lib/security/cacerts",
+  "/Library/Java/JavaVirtualMachines/*/Contents/Home/lib/security/cacerts",
+  "/Library/Java/JavaVirtualMachines/*/Contents/Home/jre/lib/security/cacerts",
+  '"$HOME"/Library/Java/JavaVirtualMachines/*/Contents/Home/lib/security/cacerts',
+  "/Applications/*.app/Contents/jbr/Contents/Home/lib/security/cacerts",
+  "/Applications/*.app/Contents/jre/Contents/Home/lib/security/cacerts",
+];
+const DISTRO_JAVA_STORES = [
+  "/etc/ssl/certs/java/cacerts",
+  "/etc/pki/ca-trust/extracted/java/cacerts",
+  "/etc/pki/java/cacerts",
+  "/var/lib/ca-certificates/java-cacerts",
+];
+
+/** CA bundles macOS tools read instead of the keychain. */
+const MACOS_BUNDLES = [
+  "/etc/ssl/cert.pem",
+  "/opt/homebrew/etc/ca-certificates/cert.pem",
+  "/usr/local/etc/ca-certificates/cert.pem",
+  "/opt/homebrew/etc/openssl@3/cert.pem",
+  "/usr/local/etc/openssl@3/cert.pem",
+];
+
+/**
+ * macOS: ask the Security framework about each of the 16 intermediates,
+ * which applies Apple's block list and the admin trust settings. The basic
+ * policy, because a CA certificate can't be checked against the TLS or
+ * code-signing policy without a leaf; -L keeps it offline. The certificates
+ * go through a private temporary directory, removed when the section ends.
+ * Lines use the same vocabulary as the Windows probe: OK, rejected <why>, or
+ * error <why>. Only security's own not-trusted and revoked results count as
+ * rejections; any other failure (trustd, the session) is an error, so a host
+ * security could not judge reads unknown, never clean.
+ */
+function macosVerify(): string[] {
+  const out = [
+    'if [ "$emudhra_os" = Darwin ] && command -v security >/dev/null 2>&1 && emudhra_d=$(mktemp -d "${TMPDIR:-/tmp}/emudhra.XXXXXX"); then',
+    // Also removed if the probe is stopped partway.
+    "trap 'rm -rf \"$emudhra_d\"' EXIT",
+    "trap 'rm -rf \"$emudhra_d\"; exit 129' HUP INT TERM",
+    `printf '%s\n' ${
+      shQuote(EMSIGN_TLS_G3_CROSS.pem)
+    } > "$emudhra_d/cross.pem"`,
+    'emudhra_mv() { r=$(security verify-cert "$@" -l -L -p basic -v 2>&1); c=$?; if [ $c -eq 0 ]; then echo OK; elif echo "$r" | grep -qiE "certificate is revoked|CERT_REVOKED"; then echo "rejected revoked"; elif echo "$r" | grep -qiE "certificate is not trusted|unable to build chain to root|CreateChainFailed|TP_NOT_TRUSTED"; then echo "rejected untrusted"; else echo "error $(echo "$r" | grep -v "^ *$" | head -1 | tr -cd "[:alnum:] _.:-" | cut -c1-80)"; fi; }',
+  ];
+  for (const cert of COMPROMISED_CERTS) {
+    const id = cert.sha256.slice(0, 16);
+    out.push(
+      `printf '%s\n' ${
+        shQuote(cert.pem)
+      } > "$emudhra_d/${id}.pem"; echo "${id} $(emudhra_mv -c "$emudhra_d/${id}.pem"${
+        cert.path === "emsign" && cert.usage === "tls"
+          ? ' -c "$emudhra_d/cross.pem"'
+          : ""
+      })"`,
+    );
+  }
+  out.push('rm -rf "$emudhra_d"', "fi");
+  return out;
+}
+
+/** Where Linux installs Electron apps. */
+const ELECTRON_ROOTS = ["/opt", "/usr/lib", "/usr/share"];
+
 /** A root mitigate can distrust. */
 export type DistrustRoot = {
   name: string;
@@ -309,12 +429,16 @@ export function buildProbeScript(opts: {
     // login user could have planted earlier in their PATH.
     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH",
   );
+  // One probe serves Linux and macOS; macOS sections branch on this.
+  s.push("emudhra_os=$(uname -s 2>/dev/null)");
   section("id");
   s.push(
     'echo "uid=$(id -u 2>/dev/null)"; echo "host=$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null)"',
   );
   section("os-release");
-  s.push("cat /etc/os-release 2>/dev/null");
+  s.push(
+    'if [ "$emudhra_os" = Darwin ]; then v=$(sw_vers -productVersion 2>/dev/null); echo "ID=macos"; echo "VERSION_ID=$v"; echo "PRETTY_NAME=\\"macOS $v\\""; else cat /etc/os-release 2>/dev/null; fi',
+  );
   section("tools");
   s.push(
     `for t in ${
@@ -338,17 +462,21 @@ export function buildProbeScript(opts: {
   s.push(
     `for b in ${
       BUNDLE_CANDIDATES.join(" ")
-    }; do [ -r "$b" ] && { echo "$b"; break; }; done`,
+    }; do [ "$emudhra_os" != Darwin ] && [ -r "$b" ] && { echo "$b"; break; }; done`,
   );
   section("anchor");
   s.push(
-    `for b in ${BUNDLE_CANDIDATES.join(" ")}; do [ -r "$b" ] && grep -qF ${
+    `[ "$emudhra_os" = Darwin ] || for b in ${
+      BUNDLE_CANDIDATES.join(" ")
+    }; do [ -r "$b" ] && grep -qF ${
       shQuote(anchorMarker())
     } "$b" && echo "$b"; done`,
   );
   // AAA too, so the no-openssl fallback can see the AAA path.
   s.push(
-    `for b in ${BUNDLE_CANDIDATES.join(" ")}; do [ -r "$b" ] && grep -qF ${
+    `[ "$emudhra_os" = Darwin ] || for b in ${
+      BUNDLE_CANDIDATES.join(" ")
+    }; do [ -r "$b" ] && grep -qF ${
       shQuote(anchorMarker(AAA_ROOT))
     } "$b" && echo "aaa $b"; done`,
   );
@@ -370,13 +498,21 @@ export function buildProbeScript(opts: {
   s.push(
     "for d in /etc/pki/ca-trust/source/blocklist /etc/pki/ca-trust/source/blacklist /etc/ca-certificates/trust-source/blocklist; do [ -d $d ] && echo $d && break; done",
   );
+  // Admin-domain trust settings: deny entries mitigate added, or anyone else.
+  section("macos-trust");
+  s.push(
+    '[ "$emudhra_os" = Darwin ] && security dump-trust-settings -d 2>/dev/null',
+  );
   section("verify");
   s.push(
     `B=''; for b in ${
       BUNDLE_CANDIDATES.join(" ")
     }; do [ -r "$b" ] && { B="$b"; break; }; done`,
   );
-  s.push(`if [ -n "$B" ] && command -v openssl >/dev/null 2>&1; then`);
+  s.push(...macosVerify());
+  s.push(
+    `if [ "$emudhra_os" != Darwin ] && [ -n "$B" ] && command -v openssl >/dev/null 2>&1; then`,
+  );
   for (const cert of COMPROMISED_CERTS) {
     const id = cert.sha256.slice(0, 16);
     if (cert.path === "emsign" && cert.usage === "tls") {
@@ -390,9 +526,29 @@ export function buildProbeScript(opts: {
     }
   }
   s.push("fi");
-  section("java");
+  section("stores");
+  // Non-OS bundles and Java trust stores go back whole, one base64 blob per
+  // distinct file, and are matched on the controller by public key. A Java
+  // store is listed once per blocked.certs that uses it: Debian links every
+  // JDK's cacerts to one file, but each JDK has its own blocklist. Lists are
+  // read through here-documents, not pipes, so the seen set survives.
+  s.push(...STORE_FUNCTIONS);
+  // Without openssl, the OS bundle itself is judged by public key. It goes
+  // first, so the store limits can never crowd it out.
   s.push(
-    'for f in /etc/ssl/certs/java/cacerts /usr/lib/jvm/*/lib/security/cacerts /usr/lib/jvm/*/jre/lib/security/cacerts ${JAVA_HOME:+"$JAVA_HOME/lib/security/cacerts"}; do [ -r "$f" ] || continue; if command -v keytool >/dev/null 2>&1; then echo "file $f"; keytool -list -v -keystore "$f" -storepass changeit 2>&1 | grep -E \'SHA256:|password was incorrect|Keystore was tampered\' | sed \'s/^/  /\'; else echo "nokeytool $f"; fi; done',
+    `if [ "$emudhra_os" != Darwin ] && ! command -v openssl >/dev/null 2>&1; then for b in ${
+      BUNDLE_CANDIDATES.join(" ")
+    }; do [ -r "$b" ] && { emudhra_store os-bundle "" "$b"; break; }; done; fi`,
+  );
+  s.push(
+    `emudhra_list=$(for f in ${
+      JAVA_STORE_GLOBS.join(" ")
+    } ${"$"}{JAVA_HOME:+"$JAVA_HOME/lib/security/cacerts" "$JAVA_HOME/jre/lib/security/cacerts"} ${
+      DISTRO_JAVA_STORES.join(" ")
+    }; do [ -f "$f" ] && echo "$f"; done)`,
+  );
+  s.push(
+    'jseen="|"; while IFS= read -r f; do [ -n "$f" ] || continue; r=$(readlink -f "$f" 2>/dev/null || echo "$f"); b="${f%/cacerts}/blocked.certs"; bh=-; if [ -f "$b" ]; then bh=$(emudhra_sha "$b"); [ -n "$bh" ] || bh=-; fi; case "$jseen" in *"|$r:$bh|"*) continue;; esac; jseen="$jseen$r:$bh|"; [ "$bh" != - ] && emudhra_store java-blocked "" "$b"; emudhra_store java "$bh" "$f"; done <<EMUDHRA_LIST\n$emudhra_list\nEMUDHRA_LIST',
   );
   const certifiRoots = [
     "/usr/lib/python3*/site-packages",
@@ -400,16 +556,24 @@ export function buildProbeScript(opts: {
     "/usr/local/lib/python3*/site-packages",
     "/usr/local/lib/python3*/dist-packages",
     "/usr/lib/python3/dist-packages",
+    "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework",
+    "/Library/Frameworks/Python.framework",
+    "/opt/homebrew/lib/python3*/site-packages",
   ];
-  section("certifi");
   s.push(
-    `for d in ${certifiRoots.join(" ")} ${
+    `emudhra_list=$(for d in ${certifiRoots.join(" ")} ${
       opts.searchPaths.map(shQuote).join(" ")
-    }; do [ -d "$d" ] || continue; find "$d" -maxdepth 6 -path '*certifi/cacert.pem' 2>/dev/null | head -50; done | sort -u | while read -r f; do v=$(ls -d "$(dirname "$(dirname "$f")")"/certifi-*.dist-info 2>/dev/null | head -1 | sed 's/.*certifi-\\(.*\\)\\.dist-info/\\1/'); if grep -qF ${
-      shQuote(anchorMarker())
-    } "$f"; then a=anchor; elif grep -qF ${
-      shQuote(anchorMarker(AAA_ROOT))
-    } "$f"; then a=aaa; else a=clean; fi; echo "$f|$v|$a"; done`,
+    }; do [ -d "$d" ] || continue; find "$d" -maxdepth 9 -path '*certifi/cacert.pem' 2>/dev/null | head -50; done | sort -u)`,
+  );
+  s.push(
+    `while IFS= read -r f; do [ -n "$f" ] || continue; case "$f" in */pip/_vendor/certifi/cacert.pem) emudhra_store pip "" "$f";; *) v=$(ls -d "$(dirname "$(dirname "$f")")"/certifi-*.dist-info 2>/dev/null | head -1 | sed 's/.*certifi-\\(.*\\)\\.dist-info/\\1/'); emudhra_store certifi "$v" "$f";; esac; done <<EMUDHRA_LIST\n$emudhra_list\nEMUDHRA_LIST`,
+  );
+  // macOS: the system LibreSSL bundle and Homebrew's, which curl, git and
+  // Homebrew's own tools read instead of the keychain.
+  s.push(
+    `if [ "$emudhra_os" = Darwin ]; then for b in ${
+      MACOS_BUNDLES.join(" ")
+    }; do emudhra_store bundle "" "$b"; done; fi`,
   );
   section("cargo");
   if (opts.searchPaths.length > 0) {
@@ -431,7 +595,7 @@ export function buildProbeScript(opts: {
   // Every distinct copy on PATH (by resolved path): the system-first PATH
   // above must not hide a user's own runtime, nor the reverse.
   s.push(
-    'seen=" "; for r in node deno swamp bun go; do IFS=:; set -- $PATH; unset IFS; for d in "$@"; do p="$d/$r"; [ -f "$p" ] && [ -x "$p" ] || continue; rp=$(readlink -f "$p" 2>/dev/null || echo "$p"); case "$seen" in *" $r:$rp "*) continue;; esac; seen="$seen$r:$rp "; case "$r" in go) v=$("$p" version 2>/dev/null | awk \'{print $3}\' | sed \'s/^go//\');; deno) v=$("$p" --version 2>/dev/null | head -1 | awk \'{print $2}\');; swamp) v=$("$p" --version 2>/dev/null | head -1 | awk \'{print $NF}\');; *) v=$("$p" --version 2>/dev/null | head -1);; esac; echo "$r|$p|$v"; done; done',
+    'seen=" "; set -f; IFS=:; set -- $PATH; unset IFS; set +f; for r in node deno swamp bun go; do for d in "$@"; do case "$d" in /*) ;; *) continue;; esac; p="$d/$r"; [ -f "$p" ] && [ -x "$p" ] || continue; rp=$(readlink -f "$p" 2>/dev/null || echo "$p"); case "$seen" in *" $r:$rp "*) continue;; esac; seen="$seen$r:$rp "; case "$r" in go) v=$("$p" version 2>/dev/null | awk \'{print $3}\' | sed \'s/^go//\');; deno) v=$("$p" --version 2>/dev/null | head -1 | awk \'{print $2}\');; swamp) v=$("$p" --version 2>/dev/null | head -1 | awk \'{print $NF}\');; *) v=$("$p" --version 2>/dev/null | head -1);; esac; echo "$r|$p|$v"; done; done',
   );
   section("agents");
   s.push(
@@ -440,18 +604,38 @@ export function buildProbeScript(opts: {
   s.push(
     "p=$(command -v warp-cli 2>/dev/null) && echo \"warp-cli|$p|$(warp-cli --version 2>/dev/null | grep -Eo '[0-9]{4}\\.[0-9]+\\.[0-9]+(\\.[0-9]+)?' | head -1)\"",
   );
+  s.push(
+    `[ "$emudhra_os" = Darwin ] && p="/Applications/Cloudflare WARP.app" && [ -d "$p" ] && echo "warp-cli|$p|$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$p/Contents/Info.plist" 2>/dev/null)"`,
+  );
+  section("electron");
+  // An Electron app is a directory with resources/app.asar or resources/app;
+  // its version is the Electron/x.y.z its executable builds into its user agent.
+  s.push(
+    `emudhra_list=$(for d in ${
+      ELECTRON_ROOTS.join(" ")
+    }; do [ -d "$d" ] && find "$d" -maxdepth 4 \\( -path '*/resources/app.asar' -o -path '*/resources/app' \\) 2>/dev/null; done | head -100)`,
+  );
+  s.push(
+    'eseen="|"; while IFS= read -r a; do [ -n "$a" ] || continue; app=$(dirname "$(dirname "$a")"); case "$eseen" in *"|$app|"*) continue;; esac; eseen="$eseen$app|"; v=""; for e in "$app"/*; do [ -f "$e" ] && [ -x "$e" ] || continue; v=$(grep -aoE -m1 "Electron/[0-9]+[.][0-9]+[.][0-9]+" "$e" 2>/dev/null | head -1 | cut -d/ -f2); [ -n "$v" ] && break; done; echo "$v|$app"; done <<EMUDHRA_LIST\n$emudhra_list\nEMUDHRA_LIST',
+  );
+  // macOS apps: Electron's framework version, and the WARP client.
+  s.push(
+    `if [ "$emudhra_os" = Darwin ]; then for app in /Applications/*.app "$HOME"/Applications/*.app; do p="$app/Contents/Frameworks/Electron Framework.framework/Resources/Info.plist"; [ -f "$p" ] || continue; echo "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$p" 2>/dev/null)|$app"; done; fi`,
+  );
   section("processes");
   s.push(
-    "ps -e -o comm= 2>/dev/null | grep -E '^(java|node|deno|swamp|bun|python[0-9.]*|cloudflared|warp-svc)$' | sort | uniq -c | awk '{print $2\"|\"$1}'",
+    "ps -A -o comm= 2>/dev/null | sed 's|.*/||' | grep -E '^(java|node|deno|swamp|bun|python[0-9.]*|cloudflared|warp-svc)$' | sort | uniq -c | awk '{print $2\"|\"$1}'",
   );
   section("live");
   if (opts.liveCheck) {
     for (const [path, host] of Object.entries(TEST_HOSTS)) {
       s.push(
-        `if command -v curl >/dev/null 2>&1; then curl -sS -o /dev/null -m 15 https://${host}/ >/dev/null 2>&1; echo "curl|${path}|$?"; fi`,
+        // --noproxy: the check is about the target's own verifier, not a proxy's.
+        `if command -v curl >/dev/null 2>&1; then curl --noproxy '*' -sS -o /dev/null -m 15 https://${host}/ >/dev/null 2>&1; echo "curl|${path}|$?"; fi`,
       );
       s.push(
-        `if command -v openssl >/dev/null 2>&1; then e=$(echo | timeout 15 openssl s_client -connect ${host}:443 -servername ${host} -verify_return_error 2>&1 >/dev/null); c=$?; if echo "$e" | grep -qiE 'verify error|certificate verify failed'; then c=60; fi; echo "openssl|${path}|$c"; fi`,
+        // A watchdog instead of timeout(1), which macOS lacks.
+        `if command -v openssl >/dev/null 2>&1; then e=$( { echo | openssl s_client -connect ${host}:443 -servername ${host} -verify_return_error 2>&1 >/dev/null & p=$!; ( sleep 15; kill $p ) >/dev/null 2>&1 & w=$!; wait $p; c=$?; kill $w 2>/dev/null; exit $c; } ); c=$?; if echo "$e" | grep -qiE 'verify error|certificate verify failed'; then c=60; fi; echo "openssl|${path}|$c"; fi`,
       );
     }
   }
@@ -479,13 +663,21 @@ export type ProbeData = {
   /** Existing p11-kit blocklist directory, under either name. */
   p11kitDir: string | undefined;
   verify: Record<string, string>;
-  java: { file: string; fingerprints: string[]; readable: boolean }[];
-  certifi: {
-    file: string;
-    version: string;
-    anchorPresent: boolean;
-    aaaPresent: boolean;
-  }[];
+  /** Bundles and trust stores found, for matching on the controller. */
+  stores: ProbeStore[];
+  /** File contents by SHA-256 (upper case): base64, or undefined past the limits. */
+  blobs: Map<string, string | undefined>;
+  electron: { path: string; version: string }[];
+  /** macOS: certificates with a deny entry in the admin trust settings. */
+  macosDeny: string[];
+  /** Things the probe could not check, in its own words. */
+  notices: string[];
+  /** Windows: an elevated administrator session. */
+  admin: boolean;
+  /** Windows: AuthRoot policy values, when the probe could read them. */
+  windowsPolicy: Record<string, string> | undefined;
+  /** Windows: SHA-256 of each certificate in a Disallowed store. */
+  windowsDisallowed: string[];
   cargo: { file: string; crate: string; version: string }[];
   hex: { file: string; pkg: string; version: string }[];
   runtimes: { name: string; path: string; version: string }[];
@@ -495,11 +687,31 @@ export type ProbeData = {
   complete: boolean;
 };
 
+/** Kinds of file the stores section reports. */
+export type StoreKind =
+  | "java"
+  | "java-blocked"
+  | "certifi"
+  | "pip"
+  | "os-bundle"
+  | "bundle";
+
+/** One file the stores section reported: `kind|sha256|extra|path`. */
+export type ProbeStore = {
+  kind: StoreKind;
+  /** Upper-case SHA-256, or "" when the target had no hashing tool. */
+  sha256: string;
+  /** certifi: its version; java: the blocked.certs hash, or "". */
+  extra: string;
+  path: string;
+};
+
 /** Split probe output into its `@@ name` sections. */
 export function splitSections(text: string): Map<string, string[]> {
   const sections = new Map<string, string[]>();
   let current: string[] | undefined;
-  for (const line of text.split("\n")) {
+  // Windows writes CRLF; a header must match without its \r.
+  for (const line of text.split(/\r?\n/)) {
     const m = line.match(/^@@ ([a-z0-9-]+)$/);
     if (m) {
       current = [];
@@ -523,6 +735,28 @@ export function parseOsRelease(lines: string[]): Record<string, string> {
 
 function pipeFields(lines: string[], n: number): string[][] {
   return lines.map((l) => l.split("|")).filter((f) => f.length >= n);
+}
+
+/**
+ * Names of certificates `security dump-trust-settings` lists with a deny
+ * result in any of their trust settings.
+ */
+export function parseTrustSettings(lines: string[]): string[] {
+  const out: string[] = [];
+  let name: string | undefined;
+  for (const line of lines) {
+    const m = line.match(/^Cert \d+:\s*(.*)$/);
+    if (m) {
+      name = m[1].trim();
+      continue;
+    }
+    if (
+      name && /kSecTrustSettingsResultDeny/.test(line) && !out.includes(name)
+    ) {
+      out.push(name);
+    }
+  }
+  return out;
 }
 
 /** Parse the probe's complete output. */
@@ -551,24 +785,35 @@ export function parseProbe(text: string): ProbeData {
     verify[id] = rest.join(" ").trim();
   }
 
-  const java: ProbeData["java"] = [];
-  for (const line of get("java")) {
-    if (line.startsWith("file ")) {
-      java.push({ file: line.slice(5), fingerprints: [], readable: true });
-    } else if (line.startsWith("nokeytool ")) {
-      java.push({ file: line.slice(10), fingerprints: [], readable: false });
-    } else if (java.length > 0) {
-      const last = java[java.length - 1];
-      const m = line.match(/SHA256:\s*([0-9A-F:]+)/i);
-      if (m) last.fingerprints.push(m[1].replace(/:/g, "").toUpperCase());
-      else if (/password was incorrect|tampered/i.test(line)) {
-        last.readable = false;
-      }
+  const stores: ProbeStore[] = [];
+  const blobs = new Map<string, string | undefined>();
+  const kinds = new Set([
+    "java",
+    "java-blocked",
+    "certifi",
+    "pip",
+    "os-bundle",
+    "bundle",
+  ]);
+  for (const line of get("stores")) {
+    const b = line.match(/^blob ([0-9A-Fa-f]{64}) (\S*)$/);
+    if (b) {
+      blobs.set(b[1].toUpperCase(), b[2] === "TOOBIG" ? undefined : b[2]);
+      continue;
     }
+    const f = line.split("|");
+    if (f.length < 4 || !kinds.has(f[0])) continue;
+    stores.push({
+      kind: f[0] as StoreKind,
+      sha256: /^[0-9A-Fa-f]{64}$/.test(f[1]) ? f[1].toUpperCase() : "",
+      extra: f[2] === "-"
+        ? ""
+        : /^[0-9A-Fa-f]{64}$/.test(f[2])
+        ? f[2].toUpperCase()
+        : f[2],
+      path: f.slice(3).join("|"),
+    });
   }
-  // keytool failures other than a bad password print no fingerprints at all;
-  // an empty listing is unreadable, not clean.
-  for (const j of java) if (j.fingerprints.length === 0) j.readable = false;
 
   return {
     uid,
@@ -585,32 +830,46 @@ export function parseProbe(text: string): ProbeData {
     p11kitBlocklist: get("p11-kit-blocklist"),
     p11kitDir: get("p11-kit-dir")[0],
     verify,
-    java,
-    certifi: pipeFields(get("certifi"), 3).map(([file, version, a]) => ({
-      file,
+    stores,
+    blobs,
+    macosDeny: parseTrustSettings(get("macos-trust")),
+    admin: idField("admin") === "1",
+    notices: get("notices"),
+    windowsPolicy: get("windows-policy").includes("policy-read=1")
+      ? Object.fromEntries(
+        get("windows-policy").map((l) => l.split("=")).filter((kv) =>
+          kv.length === 2
+        ),
+      )
+      : undefined,
+    windowsDisallowed: get("windows-disallowed").map((l) =>
+      (l.split("|")[1] ?? "").toUpperCase()
+    ).filter((h) => /^[0-9A-F]{64}$/.test(h)),
+    electron: pipeFields(get("electron"), 2).map(([version, ...path]) => ({
       version,
-      anchorPresent: a === "anchor",
-      aaaPresent: a === "aaa",
+      path: path.join("|"),
     })),
-    hex: pipeFields(get("hex"), 3).map(([file, pkg, version]) => ({
-      file,
-      pkg,
-      version,
+    hex: pipeFields(get("hex"), 3).map((f) => ({
+      file: f.slice(0, -2).join("|"),
+      pkg: f[f.length - 2],
+      version: f[f.length - 1],
     })),
-    cargo: pipeFields(get("cargo"), 3).map(([file, crate, version]) => ({
-      file,
-      crate,
-      version,
+    cargo: pipeFields(get("cargo"), 3).map((f) => ({
+      file: f.slice(0, -2).join("|"),
+      crate: f[f.length - 2],
+      version: f[f.length - 1],
     })),
-    runtimes: pipeFields(get("runtimes"), 3).map(([name, path, version]) => ({
-      name,
-      path,
-      version: version.replace(/^v/, "").trim(),
+    // The path sits between the name and the version, which has no |, so
+    // a | in the path survives.
+    runtimes: pipeFields(get("runtimes"), 3).map((f) => ({
+      name: f[0],
+      path: f.slice(1, -1).join("|"),
+      version: f[f.length - 1].replace(/^v/, "").trim(),
     })),
-    agents: pipeFields(get("agents"), 3).map(([name, path, version]) => ({
-      name,
-      path,
-      version,
+    agents: pipeFields(get("agents"), 3).map((f) => ({
+      name: f[0],
+      path: f.slice(1, -1).join("|"),
+      version: f[f.length - 1],
     })),
     processes: pipeFields(get("processes"), 2).map(([name, count]) => ({
       name,
@@ -634,6 +893,8 @@ export type StoreFamily =
   | "p11-kit"
   | "alpine"
   | "arch"
+  | "macos"
+  | "windows"
   | "other";
 export type ComponentStatus =
   | "fixed"
@@ -643,6 +904,8 @@ export type ComponentStatus =
 
 /** Classify the trust-store mechanism from os-release. */
 export function storeFamily(os: Record<string, string>): StoreFamily {
+  if (os.ID === "macos") return "macos";
+  if (os.ID === "windows") return "windows";
   const ids = [os.ID ?? "", ...(os.ID_LIKE ?? "").split(/\s+/)];
   if (ids.some((i) => i === "debian" || i === "ubuntu")) return "debian-conf";
   if (
@@ -711,9 +974,10 @@ export function verifyResults(probe: ProbeData): VerifyResult[] {
     const raw = probe.verify[c.sha256.slice(0, 16)];
     const result: VerifyResult["result"] = raw === undefined || raw === ""
       ? "not-checked"
-      : raw === "OK" || VERIFY_CHAIN_BUILT.test(raw)
+      : raw === "OK" || raw.startsWith("OK ") || VERIFY_CHAIN_BUILT.test(raw)
       ? "trusted"
-      : VERIFY_NO_TRUST_PATH.test(raw)
+      // openssl's no-trust-path errors, or a platform verifier's refusal.
+      : VERIFY_NO_TRUST_PATH.test(raw) || raw.startsWith("rejected")
       ? "rejected"
       : "not-checked";
     return {
@@ -735,9 +999,24 @@ export function tlsVerdict(
   anchorPresent: boolean,
   complete = true,
   aaaPresent = false,
+  bundleMatch?: StoreMatch,
 ): { verdict: Verdict; paths: ("emsign" | "aaa")[]; method: string } {
   const tls = results.filter((r) => r.usage === "tls");
   const checked = tls.filter((r) => r.result !== "not-checked");
+  if (checked.length === 0 && bundleMatch && complete) {
+    // No openssl: the bundle itself, matched by public key.
+    const paths: ("emsign" | "aaa")[] = [
+      ...(bundleMatch.roots.some((r) =>
+          r === DISTRUST_ANCHOR.name || r === EMSIGN_TLS_ROOT.name
+        )
+        ? ["emsign" as const]
+        : []),
+      ...(bundleMatch.roots.includes(AAA_ROOT.name) ? ["aaa" as const] : []),
+    ];
+    return bundleMatch.exposed.includes("tls")
+      ? { verdict: "trusted", paths, method: "public-key" }
+      : { verdict: "not-trusted", paths: [], method: "public-key" };
+  }
   if (checked.length === 0) {
     const paths: ("emsign" | "aaa")[] = [
       ...(anchorPresent ? ["emsign" as const] : []),
@@ -763,7 +1042,15 @@ export function tlsVerdict(
 }
 
 export type Component = {
-  kind: "runtime" | "agent" | "java" | "certifi" | "cargo" | "hex";
+  kind:
+    | "runtime"
+    | "agent"
+    | "java"
+    | "certifi"
+    | "bundle"
+    | "electron"
+    | "cargo"
+    | "hex";
   name: string;
   path: string;
   version: string;
@@ -799,13 +1086,125 @@ export function runtimeStatus(name: string, version: string): {
   };
 }
 
+/** One bundle or trust store, matched by public key. */
+export type StoreFinding = {
+  kind: Exclude<StoreKind, "java-blocked">;
+  path: string;
+  version: string;
+  /** False when the file could not be judged at all. */
+  readable: boolean;
+  /** Some certificates could not be read (an encrypted PKCS#12 bag). */
+  incomplete: boolean;
+  /** Why it could not be judged. */
+  reason: string;
+  match: StoreMatch | undefined;
+};
+
+/**
+ * Match every bundle and trust store the probe sent back. Java stores take
+ * their runtime's blocked.certs into account.
+ */
+export async function analyzeStores(
+  probe: ProbeData,
+): Promise<StoreFinding[]> {
+  const out: StoreFinding[] = [];
+  const blobText = (sha: string) => {
+    const b64 = sha ? probe.blobs.get(sha) : undefined;
+    // An empty body means the target had no base64 or openssl to send it;
+    // a body cut off or garbled in transit is unreadable, not an error.
+    if (!b64) return undefined;
+    try {
+      return base64ToBytes(b64);
+    } catch {
+      return undefined;
+    }
+  };
+  for (const s of probe.stores) {
+    if (s.kind === "java-blocked") continue;
+    const kind = s.kind;
+    const base = {
+      kind,
+      path: s.path,
+      version: kind === "certifi" ? s.extra : "",
+    };
+    const bytes = blobText(s.sha256);
+    if (!bytes) {
+      out.push({
+        ...base,
+        readable: false,
+        incomplete: true,
+        reason: !s.sha256
+          ? "no sha256sum, shasum or openssl on the target to send it"
+          : probe.blobs.get(s.sha256) === ""
+          ? "no base64 or openssl on the target to send it"
+          : probe.blobs.has(s.sha256)
+          ? `larger than ${STORE_MAX_BYTES} bytes, or past ${STORE_MAX_BLOBS} files or ${STORE_MAX_TOTAL} bytes in all`
+          : "its content was not sent",
+        match: undefined,
+      });
+      continue;
+    }
+    if (kind === "java") {
+      const ks = readKeystore(bytes);
+      const blockedBytes = s.extra ? blobText(s.extra) : undefined;
+      const blocked = blockedBytes
+        ? parseBlockedCerts(new TextDecoder().decode(blockedBytes))
+        : new Set<string>();
+      const match = await matchStore(ks.certs, blocked);
+      out.push({
+        ...base,
+        readable: ks.certs.length > 0,
+        incomplete: ks.incomplete,
+        reason: ks.error ??
+          (ks.incomplete
+            ? "some certificates are encrypted"
+            : ks.certs.length === 0
+            ? "no certificates in it"
+            : ""),
+        match,
+      });
+      continue;
+    }
+    const certs = pemCertificates(new TextDecoder().decode(bytes));
+    out.push({
+      ...base,
+      readable: certs.length > 0,
+      incomplete: false,
+      reason: certs.length === 0 ? "no PEM certificates in it" : "",
+      match: await matchStore(certs),
+    });
+  }
+  return out;
+}
+
+/** What a store match found, one phrase. */
+function describeMatch(m: StoreMatch): string {
+  return [
+    m.roots.length > 0 ? `trusts ${m.roots.join(", ")}` : "",
+    m.intermediates.length > 0
+      ? `holds ${m.intermediates.join(", ")} as trust anchors`
+      : "",
+    m.blocked.length > 0 ? `blocked.certs refuses ${m.blocked.join(", ")}` : "",
+    m.exposed.length > 0 ? `exposed for ${m.exposed.join(" and ")}` : "",
+  ].filter((p) => p).join("; ");
+}
+
+function storeStatus(f: StoreFinding): ComponentStatus {
+  if (!f.readable) return "unknown";
+  if (f.match && f.match.exposed.length > 0) return "exposed";
+  return f.incomplete ? "unknown" : "fixed";
+}
+
 function minVersionStatus(version: string, fixed: string): ComponentStatus {
   if (!version) return "unknown";
   return compareDottedVersions(version, fixed) >= 0 ? "fixed" : "exposed";
 }
 
 /** Every non-OS component the probe found, with a status. */
-export function components(probe: ProbeData): Component[] {
+export function components(
+  probe: ProbeData,
+  stores: StoreFinding[] = [],
+): Component[] {
   const out: Component[] = [];
   for (const r of probe.runtimes) {
     const { status, fixedIn } = runtimeStatus(r.name, r.version);
@@ -838,39 +1237,61 @@ export function components(probe: ProbeData): Component[] {
       note: "",
     });
   }
-  for (const j of probe.java) {
-    const anchor = j.fingerprints.includes(DISTRUST_ANCHOR.sha256);
-    const aaa = j.fingerprints.includes(AAA_ROOT.sha256);
-    out.push({
-      kind: "java",
-      name: "java-cacerts",
-      path: j.file,
-      version: "",
-      fixedIn: undefined,
-      status: !j.readable ? "unknown" : anchor || aaa ? "exposed" : "fixed",
-      note: !j.readable
-        ? "keytool missing or the store password is not the default; not inspected."
-        : [
-          anchor ? `trusts ${DISTRUST_ANCHOR.name}` : "",
-          aaa
-            ? `trusts ${AAA_ROOT.name}, which issued every compromised intermediate`
-            : "",
-        ].filter((s) => s).join("; "),
-    });
+  for (const f of stores) {
+    if (f.kind === "os-bundle") continue;
+    const status = storeStatus(f);
+    const what = f.match ? describeMatch(f.match) : "";
+    const note = !f.readable || (f.incomplete && status !== "exposed")
+      ? `not fully read: ${f.reason}${what ? `; ${what}` : ""}`
+      : what || "trusts none of the compromised roots or intermediates";
+    if (f.kind === "java") {
+      out.push({
+        kind: "java",
+        name: "java-cacerts",
+        path: f.path,
+        version: "",
+        fixedIn: undefined,
+        status,
+        note,
+      });
+    } else if (f.kind === "certifi") {
+      out.push({
+        kind: "certifi",
+        name: "certifi",
+        path: f.path,
+        version: f.version,
+        fixedIn: FIXED_LIBRARIES.certifi,
+        status,
+        note,
+      });
+    } else {
+      out.push({
+        kind: "bundle",
+        name: f.kind === "pip" ? "pip vendored certifi" : "CA bundle",
+        path: f.path,
+        version: "",
+        fixedIn: f.kind === "pip" ? FIXED_LIBRARIES.pip : undefined,
+        status,
+        note,
+      });
+    }
   }
-  for (const c of probe.certifi) {
+  for (const e of probe.electron) {
     out.push({
-      kind: "certifi",
-      name: "certifi",
-      path: c.file,
-      version: c.version,
-      fixedIn: FIXED_LIBRARIES.certifi,
-      status: c.anchorPresent || c.aaaPresent ? "exposed" : "fixed",
-      note: c.anchorPresent
-        ? `bundle contains ${DISTRUST_ANCHOR.name}`
-        : c.aaaPresent
-        ? `bundle contains ${AAA_ROOT.name}, which issued every compromised intermediate`
-        : "",
+      kind: "electron",
+      name: `electron app ${
+        e.path.split(/[\\/]/).filter((p) => p).pop() ?? e.path
+      }`,
+      path: e.path,
+      version: e.version,
+      fixedIn: FIXED_ELECTRON.join(", "),
+      status: !e.version
+        ? "unknown"
+        : isFixedOnBranches(e.version, FIXED_ELECTRON, 1)
+        ? "fixed"
+        : "exposed",
+      note:
+        "Electron bundles Chromium's verifier and roots and does not get Chrome's updates.",
     });
   }
   for (const c of probe.cargo) {
@@ -962,6 +1383,16 @@ export function liveResults(probe: ProbeData): LiveResult[] {
   }));
 }
 
+/** Windows trust settings that bear on the verdict. */
+export type WindowsStoreState = {
+  /** Compromised intermediates in a Disallowed store (LocalMachine or CurrentUser). */
+  disallowed: string[];
+  /** Automatic root updates (AuthRoot): enabled unless policy turns them off. */
+  rootAutoUpdate: "enabled" | "disabled" | "unknown";
+  /** Automatic disallowed-list updates, which deliver Microsoft's block. */
+  disallowedAutoUpdate: "enabled" | "disabled" | "unknown";
+};
+
 export type RiskLevel = "critical" | "high" | "medium" | "low" | "none";
 
 /** Assessment of one host, persisted as the `status` resource. */
@@ -996,6 +1427,10 @@ export type HostStatus = {
     /** Roots in the p11-kit blocklist through mitigate's files. */
     p11kitBlocklisted: string[];
     certificates: VerifyResult[];
+    /** macOS: compromised intermediates with a deny entry in the admin trust settings. */
+    macos?: { denyTrust: string[] };
+    /** Windows: the Disallowed store and the automatic update settings. */
+    windows?: WindowsStoreState;
   };
   components: Component[];
   liveCheck: LiveResult[];
@@ -1016,20 +1451,50 @@ function packagePatched(
   return cmp >= 0 ? "fixed" : "exposed";
 }
 
+/** The Windows store state the probe read. */
+export function windowsState(probe: ProbeData): WindowsStoreState {
+  const p = probe.windowsPolicy;
+  const flag = (value: string | undefined, enabledWhen: string) =>
+    !p
+      ? "unknown" as const
+      : value === undefined || value === enabledWhen
+      ? "enabled" as const
+      : "disabled" as const;
+  return {
+    disallowed: [
+      ...new Set(
+        COMPROMISED_CERTS.filter((c) =>
+          probe.windowsDisallowed.includes(c.sha256)
+        ).map((c) => c.name),
+      ),
+    ],
+    // DisableRootAutoUpdate=1 turns AuthRoot updates off; absent means on.
+    rootAutoUpdate: flag(
+      p?.DisableRootAutoUpdate === "1" ? "1" : undefined,
+      "0",
+    ),
+    // EnableDisallowedCertAutoUpdate=0 turns the disallowed list off.
+    disallowedAutoUpdate: flag(p?.EnableDisallowedCertAutoUpdate, "1"),
+  };
+}
+
 /** Turn a probe into the host's status. */
 export function assessHost(
   probe: ProbeData,
   target: string,
   now: Date = new Date(),
+  stores: StoreFinding[] = [],
 ): HostStatus {
   const family = storeFamily(probe.os);
   const results = verifyResults(probe);
   const anchorPresent = probe.anchorInBundles.length > 0;
+  const osBundle = stores.find((s) => s.kind === "os-bundle" && s.readable);
   const tls = tlsVerdict(
     results,
     anchorPresent,
     probe.complete,
     probe.aaaInBundles.length > 0,
+    osBundle?.match,
   );
   const cs = results.filter((r) =>
     r.usage === "code-signing" && r.result !== "not-checked"
@@ -1043,24 +1508,40 @@ export function assessHost(
   const installed = probe.packages["ca-certificates"] ??
     probe.packages["ca-certificates-bundle"];
   const fixedIn = fixedCaCertificates(probe.os);
-  const comps = components(probe);
+  const comps = components(probe, stores);
   const live = liveResults(probe);
   const unreadable: string[] = [];
-  if (!probe.bundle) {
+  // macOS and Windows judge the OS store with their own verifiers.
+  const platformVerifier = family === "macos" || family === "windows";
+  if (!probe.bundle && !platformVerifier) {
     unreadable.push(
       "system CA bundle (none of the standard paths is readable)",
     );
   }
-  if (!probe.tools.openssl) {
+  // With the bundle matched by public key the verdict stands without openssl.
+  if (!probe.tools.openssl && !osBundle && !platformVerifier) {
     unreadable.push("openssl not installed; verdict uses anchor presence only");
   }
-  for (const j of probe.java) {
-    if (!j.readable) unreadable.push(`java cacerts ${j.file}`);
+  for (const s of stores) {
+    if (!s.readable || (s.incomplete && storeStatus(s) !== "exposed")) {
+      unreadable.push(`${s.kind} ${s.path}: ${s.reason}`);
+    }
   }
   if (!probe.complete) unreadable.push("probe output was truncated");
+  if (platformVerifier && results.every((r) => r.result === "not-checked")) {
+    unreadable.push(
+      `the ${
+        family === "macos" ? "macOS Security framework" : "Windows CryptoAPI"
+      } check returned no results`,
+    );
+  }
+  unreadable.push(...probe.notices);
   // A component that could not be judged must not read as clean.
   for (const c of comps) {
-    if (c.status === "unknown" && c.kind !== "java") {
+    if (
+      c.status === "unknown" && c.kind !== "java" && c.kind !== "certifi" &&
+      c.kind !== "bundle"
+    ) {
       unreadable.push(
         `${c.name} at ${c.path}: status unknown${
           c.version ? ` (version ${c.version})` : " (no version read)"
@@ -1094,7 +1575,23 @@ export function assessHost(
 
   const recs: string[] = [];
   const pkgPatched = packagePatched(family, installed, fixedIn);
-  if (tls.verdict === "trusted") {
+  if (
+    codeSigningTrusted === "trusted" && tls.verdict !== "trusted" &&
+    (family === "macos" || family === "windows")
+  ) {
+    recs.push(
+      `The OS still trusts the code-signing intermediates through their AAA cross-signs, so code signed with the compromised keys verifies; run mitigate to distrust those copies.`,
+    );
+  }
+  if (tls.verdict === "trusted" && family === "macos") {
+    recs.push(
+      `Apple blocked these intermediates on 2026-10-19; update macOS, or run mitigate to add deny trust settings for the intermediates that still verify.`,
+    );
+  } else if (tls.verdict === "trusted" && family === "windows") {
+    recs.push(
+      `Microsoft blocked these intermediates on 2026-10-20 through the disallowed certificate list; let Windows Update refresh it, or run mitigate to add the intermediates that still verify to the Disallowed store.`,
+    );
+  } else if (tls.verdict === "trusted") {
     if (
       family === "arch" &&
       (pkgPatched === "exposed" || (fixedIn && pkgPatched === "unknown"))
@@ -1118,7 +1615,7 @@ export function assessHost(
       );
     }
   }
-  if (tls.paths.includes("aaa")) {
+  if (tls.paths.includes("aaa") && !platformVerifier) {
     recs.push(
       `This store trusts ${AAA_ROOT.name} for TLS, so the cross-signed intermediates verify; current stores no longer do. Upgrade ca-certificates, or distrust ${AAA_ROOT.name} as well (run mitigate).`,
     );
@@ -1208,7 +1705,11 @@ export function assessHost(
       bundle: probe.bundle ?? "",
       verdict: tls.verdict,
       trustedPaths: tls.paths,
-      verdictMethod: tls.method,
+      verdictMethod: tls.method === "openssl-verify" && family === "macos"
+        ? "security-verify-cert"
+        : tls.method === "openssl-verify" && family === "windows"
+        ? "cryptoapi"
+        : tls.method,
       anchorPresent,
       codeSigningTrusted,
       caCertificates: {
@@ -1223,6 +1724,20 @@ export function assessHost(
         .filter((r) => probe.p11kitBlocklist.includes(p11kitBlocklistFile(r)))
         .map((r) => r.name),
       certificates: results,
+      ...(family === "windows" ? { windows: windowsState(probe) } : {}),
+      ...(family === "macos"
+        ? {
+          macos: {
+            denyTrust: [
+              ...new Set(
+                COMPROMISED_CERTS.filter((c) =>
+                  probe.macosDeny.includes(c.name)
+                ).map((c) => c.name),
+              ),
+            ],
+          },
+        }
+        : {}),
     },
     components: comps,
     liveCheck: live,
@@ -1248,6 +1763,14 @@ export type PlannedStep =
     why: string;
     /** A failure is noted and the run continues (service restarts). */
     bestEffort?: boolean;
+  }
+  | {
+    /** A Windows PowerShell script, run elevated (Windows targets only). */
+    kind: "ps";
+    script: string;
+    /** One line for logs and reports. */
+    summary: string;
+    why: string;
   }
   | {
     kind: "install-file";
@@ -1289,6 +1812,11 @@ export type MitigationPlan = {
   manual: string[];
   restart: string[];
   notes: string[];
+  /**
+   * A script for the operator to run themselves, when mitigate can't apply
+   * the fix remotely (macOS admin trust settings).
+   */
+  manualScript?: string;
 };
 
 function run(
@@ -1338,6 +1866,88 @@ export function rootsToDistrust(status: HostStatus): DistrustRoot[] {
   return roots;
 }
 
+/** The compromised certificate copies the OS verifier still trusts. */
+function trustedCerts(status: HostStatus) {
+  const ids = new Set(
+    status.osStore.certificates.filter((c) => c.result === "trusted").map((
+      c,
+    ) => c.sha256),
+  );
+  return COMPROMISED_CERTS.filter((c) => ids.has(c.sha256));
+}
+
+/**
+ * PowerShell that adds certificates to the LocalMachine Disallowed store.
+ * Adding one already there is a no-op, so it is safe to run again.
+ */
+export function disallowScript(
+  certs: readonly { pem: string; name: string }[],
+): string {
+  const b64 = (pem: string) =>
+    pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    "$s = New-Object System.Security.Cryptography.X509Certificates.X509Store('Disallowed', 'LocalMachine')",
+    "$s.Open('ReadWrite')",
+    "try {",
+    ...certs.map((c) =>
+      `  $s.Add((New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList (,[Convert]::FromBase64String('${
+        b64(c.pem)
+      }'))))  # ${c.name.replace(/[^A-Za-z0-9 .-]/g, "")}`
+    ),
+    "} finally { $s.Close() }",
+    `Write-Output 'added ${certs.length} certificate(s) to LocalMachine\\Disallowed'`,
+  ].join("\n");
+}
+
+/**
+ * sh script for a Mac: deny trust in the admin domain for each certificate,
+ * from a private temporary directory. Run in a local Terminal with sudo.
+ */
+export function macosDenyScript(
+  certs: readonly { pem: string; name: string; sha256: string }[],
+): string {
+  return [
+    "#!/bin/sh",
+    "# eMudhra CA compromise mitigation for macOS, generated by @swamp/cve/emudhra.",
+    `# Data as of ${DATA_AS_OF}. Review it, then run in a local Terminal: sudo sh <this file>`,
+    "set -eu",
+    'd=$(mktemp -d "${TMPDIR:-/tmp}/emudhra.XXXXXX")',
+    "trap 'rm -rf \"$d\"' EXIT",
+    ...certs.flatMap((c) => [
+      `# ${c.name}`,
+      `printf '%s\\n' ${shQuote(c.pem)} > "$d/${c.sha256.slice(0, 16)}.pem"`,
+      `security add-trusted-cert -d -r deny -k /Library/Keychains/System.keychain "$d/${
+        c.sha256.slice(0, 16)
+      }.pem"`,
+    ]),
+    "",
+  ].join("\n");
+}
+
+/** A .ps1 a Windows administrator can review and run. */
+export function renderWindowsMitigationScript(
+  host: string,
+  plan: MitigationPlan,
+): string {
+  return [
+    "#Requires -RunAsAdministrator",
+    `# eMudhra CA compromise mitigation for ${
+      host.replace(/[\r\n]/g, " ")
+    }, generated by @swamp/cve/emudhra.`,
+    `# Data as of ${DATA_AS_OF}. Review it, then run in an elevated PowerShell: powershell -ExecutionPolicy Bypass -File <this file>`,
+    ...[...plan.upgrade, ...plan.distrust, ...plan.after].flatMap((s) => [
+      `# ${s.why}`,
+      s.kind === "ps"
+        ? s.script
+        : `# (not a Windows step) ${
+          renderStep(s, { sudo: false, installPath: "install", brief: true })
+        }`,
+      "",
+    ]),
+  ].join("\r\n");
+}
+
 /**
  * Plan mitigation for one host. `conf` is the current /etc/ca-certificates.conf
  * (Debian family only). The plan is the same in dryRun and for real.
@@ -1360,6 +1970,10 @@ export function planMitigation(
   };
   const family = status.os.storeFamily;
   const storeExposed = status.osStore.verdict === "trusted";
+  // The platform verifiers name the code-signing copies that still verify
+  // (on macOS 27 the AAA cross-signs do), so those are distrusted too.
+  const csExposed = (family === "macos" || family === "windows") &&
+    status.osStore.codeSigningTrusted === "trusted";
   const outdatedAgents = status.components.filter((c) =>
     c.kind === "agent" && c.status === "exposed"
   );
@@ -1388,7 +2002,7 @@ export function planMitigation(
     );
   }
 
-  if (!storeExposed && outdatedAgents.length === 0) {
+  if (!storeExposed && !csExposed && outdatedAgents.length === 0) {
     plan.action = plan.manual.length > 0 ? "manual" : "none";
     return plan;
   }
@@ -1428,7 +2042,7 @@ export function planMitigation(
     return plan;
   }
 
-  if (storeExposed) {
+  if (storeExposed || csExposed) {
     const roots = rootsToDistrust(status);
     const pkgs = probe.packages;
     switch (family) {
@@ -1514,6 +2128,20 @@ export function planMitigation(
             "upgrade ca-certificates",
           ),
         );
+        if (!probe.p11kitDir) {
+          plan.distrust.push(
+            run(
+              [
+                tool(probe, "install"),
+                "-d",
+                "-m",
+                "0755",
+                P11KIT_BLOCKLIST_DIR,
+              ],
+              "create the blocklist directory",
+            ),
+          );
+        }
         for (const root of roots) {
           plan.distrust.push({
             kind: "install-file",
@@ -1561,6 +2189,14 @@ export function planMitigation(
       case "arch":
         // Partial upgrades are unsupported on Arch, so mitigate only blocks
         // the root and leaves the system upgrade to the operator.
+        if (!probe.p11kitDir) {
+          plan.distrust.push(
+            run(
+              [tool(probe, "install"), "-d", "-m", "0755", ARCH_BLOCKLIST_DIR],
+              "create the blocklist directory",
+            ),
+          );
+        }
         for (const root of roots) {
           plan.distrust.push({
             kind: "install-file",
@@ -1584,10 +2220,46 @@ export function planMitigation(
           } or later; partial upgrades are unsupported on Arch.`,
         );
         break;
+      case "windows": {
+        // Only the copies that still build a chain; never a root, which
+        // would break unrelated sites.
+        const certs = trustedCerts(status);
+        plan.distrust.push({
+          kind: "ps",
+          script: disallowScript(certs),
+          summary:
+            `add ${certs.length} certificate(s) to LocalMachine\\Disallowed`,
+          why: `distrust ${
+            [...new Set(certs.map((c) => c.name))].join(", ")
+          } in the LocalMachine Disallowed store`,
+        });
+        plan.notes.push(
+          "Microsoft's own block arrives through the automatic disallowed-list update; the Disallowed entries only cover a machine that has not received it.",
+        );
+        break;
+      }
+      case "macos": {
+        const certs = trustedCerts(status);
+        plan.manualScript = macosDenyScript(certs);
+        plan.manual.push(
+          `macOS asks for user interaction to change admin trust settings, so mitigate does not apply them over SSH. Run the mitigation-script file artifact in a local Terminal with sudo (it adds deny trust settings for ${certs.length} certificate(s)), or deploy the same certificates as a Deny payload through your MDM. Updating macOS brings Apple's own block.`,
+        );
+        break;
+      }
       default:
         plan.manual.push(
           "Unknown trust-store layout: update the OS CA store by hand and rescan.",
         );
+    }
+  }
+  if (family === "windows" && status.osStore.windows) {
+    const w = status.osStore.windows;
+    if (
+      w.rootAutoUpdate === "disabled" || w.disallowedAutoUpdate === "disabled"
+    ) {
+      plan.manual.push(
+        "Turn automatic root and disallowed-list updates back on (Group Policy: Computer Configuration > Administrative Templates > System > Internet Communication Management > Turn off Automatic Root Certificates Update = Disabled), so Microsoft's block reaches this machine.",
+      );
     }
   }
 
@@ -1671,7 +2343,9 @@ export function planMitigation(
   const distrustCertain = status.osStore.caCertificates.patched !== "exposed" ||
     plan.upgrade.length === 0;
   const commandsOf = (s: PlannedStep): string[][] =>
-    s.kind === "run"
+    s.kind === "ps"
+      ? [] // elevation, not sudo
+      : s.kind === "run"
       ? (s.privileged ? [s.argv] : [])
       // The staged file's name is random, so ask about install itself: only a
       // rule that allows it with any arguments can match the real command.
@@ -1713,6 +2387,9 @@ export function renderStep(
     privileged && opts.sudo ? "sudo -n -- " : "";
   if (step.kind === "run") {
     return `${prefix(step.privileged)}${step.argv.map(shQuote).join(" ")}`;
+  }
+  if (step.kind === "ps") {
+    return opts.brief ? `PowerShell: ${step.summary}` : step.script;
   }
   if (opts.brief) {
     return `${prefix(true)}${
@@ -1920,10 +2597,15 @@ export function runsWithoutPassword(
   const asRoot = list.entries.filter((e) =>
     e.runAs.length === 0 || e.runAs.includes("ALL") || e.runAs.includes("root")
   );
-  const last = asRoot.filter((e) =>
-    e.commands.some((c) => sudoItemMatches(c, argv))
-  ).at(-1);
-  if (!last) return false;
+  // A command without an absolute path is resolved through sudo's
+  // secure_path, which this check can't see; it never passes.
+  if (!argv[0].startsWith("/")) return false;
+  // The last entry with a matching item decides, and within its command
+  // list the last matching item: a negated one (!cmd after ALL) refuses.
+  const lastHit = (e: SudoEntry) =>
+    e.commands.filter((c) => sudoItemMatches(c, argv)).at(-1);
+  const last = asRoot.filter((e) => lastHit(e) !== undefined).at(-1);
+  if (!last || lastHit(last)!.startsWith("!")) return false;
   if (last.options.includes("!authenticate")) return true;
   if (last.options.includes("authenticate")) return false;
   return list.defaults.includes("!authenticate");

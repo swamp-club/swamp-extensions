@@ -18,7 +18,7 @@ import {
   assertEquals,
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
-import { report } from "./emudhra_scan_report.ts";
+import { cell, report } from "./emudhra_scan_report.ts";
 
 function host(overrides: Record<string, unknown> = {}) {
   return {
@@ -229,7 +229,78 @@ Deno.test("suggested commands use the model's own name", async () => {
   );
   assertStringIncludes(
     out.markdown,
-    "swamp model method run image-scan mitigate",
+    "swamp behavior run image-scan mitigate",
   );
   assert(!out.markdown.includes("emudhra-scanner"));
+});
+
+Deno.test("cell keeps target text from breaking the table", () => {
+  assertEquals(cell("a|b\nc`d"), "a\\|b c'd");
+});
+
+Deno.test("scan report: Windows and macOS rows name their verifier; escaped cells", async () => {
+  const win = host({
+    target: "win-1",
+    hostname: "WIN|1",
+    os: {
+      prettyName: "Windows 11 Pro\n25H2",
+      id: "windows",
+      versionId: "26200.1",
+      storeFamily: "windows",
+    },
+    osStore: {
+      ...host().osStore,
+      verdict: "not-trusted",
+      trustedPaths: [],
+      verdictMethod: "cryptoapi",
+      windows: { disallowed: ["EM DV TLS CA - G3B"] },
+    },
+  });
+  const mac = host({
+    target: "mac-1",
+    hostname: "mac-1",
+    os: {
+      prettyName: "macOS 15.7",
+      id: "macos",
+      versionId: "15.7",
+      storeFamily: "macos",
+    },
+    osStore: {
+      ...host().osStore,
+      verdictMethod: "security-verify-cert",
+      macos: { denyTrust: [] },
+    },
+  });
+  const out = await report.execute(context("scanFleet", [win, mac]));
+  assertStringIncludes(
+    out.markdown,
+    "| WIN\\|1 | Windows 11 Pro 25H2 | CRITICAL | rejects; 1 in Disallowed | - (cryptoapi) |",
+  );
+  assertStringIncludes(out.markdown, "| - (security-verify-cert) |");
+});
+
+Deno.test("mitigate report: Windows needs-privilege points at the .ps1 and fences PowerShell", async () => {
+  const win = host({
+    hostname: "win-1",
+    os: {
+      prettyName: "Windows 11",
+      id: "windows",
+      versionId: "1",
+      storeFamily: "windows",
+    },
+    mitigation: {
+      ...mitigation,
+      missingPrivilege: ["an elevated administrator session"],
+      steps: [{
+        why: "distrust",
+        command: "PowerShell: add 8 certificate(s) to LocalMachine\\Disallowed",
+      }],
+    },
+  });
+  const out = await report.execute(context("mitigate", [win]));
+  assertStringIncludes(out.markdown, "```powershell");
+  assertStringIncludes(out.markdown, "elevated PowerShell");
+  assert(
+    !out.markdown.includes("passwordless sudo for exactly these binaries"),
+  );
 });

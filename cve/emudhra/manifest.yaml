@@ -1,13 +1,13 @@
 manifestVersion: 1
 name: "@swamp/cve/emudhra"
-version: "2026.10.21.1"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: |
-  Finds and fixes Linux hosts and containers that still trust the eight
-  eMudhra intermediate CAs whose private keys were compromised (reported
-  to the root programs 2026-10-17, public 2026-10-20). Anyone holding one
-  of those keys can issue a certificate for any domain that an unpatched
-  client accepts. No source reports misuse so far.
+  Finds and fixes Linux, macOS and Windows hosts and Linux containers that
+  still trust the eight eMudhra intermediate CAs whose private keys were
+  compromised (reported to the root programs 2026-10-17, public 2026-10-20).
+  Anyone holding one of those keys can issue a certificate for any domain
+  that an unpatched client accepts. No source reports misuse so far.
 
   ## Methods
 
@@ -18,16 +18,19 @@ description: |
 
   ## What It Checks
 
-  - **OS trust store**: runs `openssl verify` for each compromised
-    intermediate against the host's own bundle. That is the verdict, through
-    both paths: emSign ECC Root CA - G3 and Sectigo AAA Certificate Services.
-    Also reports the ca-certificates version against the fixed version.
+  - **OS trust store**: the verdict comes from each platform's own verifier,
+    for every compromised intermediate: `openssl verify` against the host's
+    bundle on Linux, `security verify-cert` on macOS, and CryptoAPI
+    (including Microsoft's disallowed list) on Windows. Also reports the
+    Linux ca-certificates version against the fixed version.
   - **Runtimes with bundled roots**: node, deno (fixed in 2.9.8), swamp
     (fixed from 20261021.223953, built on Deno 2.9.8), bun (no release yet),
-    go.
-  - **Language stores**: Java cacerts, Python certifi, and, under
-    `searchPaths`, Cargo.lock (`webpki-roots`, `rustls-webpki`), mix.lock and
-    rebar.lock (hex `certifi`, `castore`, `tls_certificate_check`).
+    go, and Electron apps.
+  - **Language stores and bundles**, matched by public key: Java trust
+    stores (read without keytool, honouring blocked.certs), Python certifi
+    and pip's copy, Homebrew and Git for Windows bundles, and, under
+    `searchPaths`, Cargo.lock (`webpki-roots`, `rustls-webpki`), mix.lock
+    and rebar.lock (hex `certifi`, `castore`, `tls_certificate_check`).
   - **Agents**: cloudflared (fixed in 2026.10.2) and Cloudflare One/WARP
     (2026.8.2115.0).
   - **Live check** (`liveCheck=true`): curl and openssl against the
@@ -35,20 +38,22 @@ description: |
 
   ## Verdicts
 
-  `trusted` (exposed), `not-trusted` (clean), or `unknown` (openssl missing
-  and the anchor is not in the bundle). Components are `fixed`, `exposed`,
-  `no-fix-released`, or `unknown`.
+  `trusted` (exposed), `not-trusted` (clean), or `unknown`. Components are
+  `fixed`, `exposed`, `no-fix-released`, or `unknown`.
 
   ## Privileges
 
-  `scan` needs no root, never uses sudo, and writes nothing to the target.
-  `mitigate` runs as root, or runs each command as `sudo -n -- <binary>` with
-  no shell wrapper, after checking with `sudo -n -l` that sudo allows each
-  full command. If it doesn't, the host is reported as `needs-privilege`,
-  nothing is changed, and a self-contained `mitigationScript` file is saved
-  to review and run with sudo yourself. Containers are never modified; mitigate reports
-  `rebuild-image` with the Dockerfile change. It never disables certificate
-  verification.
+  `scan` needs no root and never uses sudo. It writes nothing to the target
+  except temporary files it removes (macOS certificate files; the probe and
+  its output when swamp runs on Windows and scans over SSH). On Linux,
+  `mitigate` runs as root, or runs each command as `sudo -n -- <binary>` after
+  checking with `sudo -n -l` that sudo allows the full command; otherwise the
+  host is `needs-privilege`, nothing is changed, and a `mitigationScript` is
+  saved to run yourself. On Windows it adds the intermediates to the
+  Disallowed store in an elevated administrator session, or saves a .ps1.
+  On macOS it saves a deny-trust script to run locally. Containers are never
+  modified; mitigate reports `rebuild-image` with the Dockerfile change. It
+  never disables certificate verification.
 
 repository: "https://github.com/swamp-club/swamp-extensions"
 
@@ -65,6 +70,9 @@ additionalFiles:
 platforms:
   - linux-aarch64
   - linux-x86_64
+  - darwin-aarch64
+  - darwin-x86_64
+  - windows-x86_64
 
 labels:
   - security

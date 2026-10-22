@@ -1,7 +1,8 @@
 # @swamp/cve/emudhra
 
-Finds and fixes Linux hosts and containers whose TLS trust still accepts the
-eight **eMudhra intermediate CAs** whose private keys were compromised.
+Finds and fixes Linux, macOS and Windows hosts and Linux containers whose TLS
+trust still accepts the eight **eMudhra intermediate CAs** whose private keys
+were compromised.
 Anyone holding one of those keys can issue a certificate for any domain, and
 an unpatched client accepts it. Cloudflare's review found no exploitation on
 its own services, and no source reports misuse elsewhere.
@@ -13,7 +14,10 @@ Timeline (UTC):
   were created in April 2025). Chrome and Firefox block the TLS
   intermediates the same day.
 - **2026-10-18**: eMudhra revokes all eight intermediates.
-- **2026-10-19**: the issue is disclosed to downstream trust stores.
+- **2026-10-19**: the issue is disclosed to downstream trust stores. Apple
+  blocks the intermediates.
+- **2026-10-20**: Microsoft blocks them through its disallowed certificate
+  list.
 - **2026-10-20**: public disclosure.
 
 - [Cloudflare: eMudhra certificate compromise](https://blog.cloudflare.com/emudhra-certificate-compromise)
@@ -21,7 +25,7 @@ Timeline (UTC):
   test hosts, the impacted-intermediates list, and a crowdsourced list of
   patched packages
 
-The embedded certificate data was checked on 2026-10-21. Each certificate
+The embedded certificate data was checked on 2026-10-22. Each certificate
 was confirmed by verifying its signature against the real issuing root.
 
 ## Which trust paths matter
@@ -32,6 +36,10 @@ G3B/G3C) was issued twice:
 - under **emSign ECC Root CA - G3**, through emSign Root TLS/CS CA - G3
 - cross-signed by Sectigo's **AAA Certificate Services**
 
+emSign Root TLS CA - G3 and emSign Root CS CA - G3 are themselves in
+Microsoft's root program, so on Windows the emSign path needs no
+cross-certificate.
+
 The upstream fixes (webpki-roots 1.0.10, patched distro packages) remove the
 emSign ECC Root CA - G3 anchor. Current stores also no longer trust AAA
 Certificate Services for TLS. Older stores do: Debian 12's `20230311` bundle
@@ -39,9 +47,16 @@ trusts both paths.
 
 Blocklisting the intermediates themselves in p11-kit has **no effect on
 OpenSSL clients**: curl still connected after it on Fedora 43. So this
-extension never relies on that. It judges each host by running
-`openssl verify` for every compromised intermediate against the host's own
-CA bundle.
+extension never relies on that. It judges each host with the verifier its
+clients use:
+
+- **Linux**: `openssl verify` for every compromised intermediate against the
+  host's own CA bundle.
+- **macOS**: `security verify-cert`, the Security framework, which applies
+  Apple's block list and the admin trust settings.
+- **Windows**: CryptoAPI (.NET's `X509Chain`): the Root, AuthRoot and
+  Disallowed stores and Microsoft's automatic root and disallowed-list
+  updates.
 
 ## Installation
 
@@ -53,16 +68,32 @@ swamp extension pull @swamp/cve/emudhra
 
 | Check | How |
 |---|---|
-| OS trust store (the verdict) | `openssl verify -CAfile <system bundle>` for the 12 TLS and 2 AAA-issued code-signing certificates. Certificates are passed through here-documents; nothing is written to the target. Without openssl, it falls back to whether the anchor is in the bundle. |
-| ca-certificates version | `dpkg-query`, `rpm`, `apk` or `pacman`, compared against the fixed versions below |
-| Deselected or blocklisted roots | `/etc/ca-certificates.conf`, `/etc/pki/ca-trust/source/blocklist/` |
-| Runtimes with bundled roots | `node`, `deno`, `swamp`, `bun` and `go` on PATH and in standard directories |
-| Java | every `cacerts` under `/usr/lib/jvm`, `/etc/ssl/certs/java` and `$JAVA_HOME`, read with `keytool` (default store password) |
-| Python certifi | `certifi/cacert.pem` in system site-packages and under `searchPaths`, checked for the anchor |
+| OS trust store (the verdict) | **Linux**: `openssl verify -CAfile <system bundle>` for the 12 TLS and 2 AAA-issued code-signing certificates; certificates go through here-documents. Without openssl, the bundle is matched by public key. **macOS**: `security verify-cert -l -L -p basic` for all 16 (offline; the basic policy, because a CA certificate can't be checked against the TLS or code-signing policy without a leaf). **Windows**: an `X509Chain` for all 16, revocation not checked, so the verdict shows the block list rather than whether a CRL happened to be reachable. |
+| ca-certificates version (Linux) | `dpkg-query`, `rpm`, `apk` or `pacman`, compared against the fixed versions below |
+| Deselected, blocked or denied roots | `/etc/ca-certificates.conf` and the p11-kit blocklists (Linux); admin deny trust settings (macOS); the Disallowed stores and the AuthRoot update policy (Windows) |
+| Runtimes with bundled roots | `node`, `deno`, `swamp`, `bun` and `go` on PATH (absolute entries only). On Windows a version is read from the binary's version resource where it has one. |
+| Java | every `cacerts` in a Java home up to two levels under `/usr/lib/jvm`, `/opt` and `/usr/local` (Linux), `/Library/Java/JavaVirtualMachines` and apps' bundled `jbr` or `jre` (macOS), `Program Files`, `Program Files (x86)` and `%LOCALAPPDATA%\Programs` (Windows), plus `JAVA_HOME` and the distribution's stores. JKS and PKCS#12 are read directly, with no `keytool` and no password, matched by public key, honouring the runtime's `lib/security/blocked.certs`. |
+| Python certifi and pip | `certifi/cacert.pem` and pip's vendored copy in system site-packages, Python installs and under `searchPaths`, matched by public key |
+| Other CA bundles | `/etc/ssl/cert.pem` and Homebrew's `ca-certificates` and `openssl@3` bundles (macOS); Git for Windows' `ca-bundle.crt` |
+| Electron apps | apps with `resources/app.asar` under `/opt`, `/usr/lib` and `/usr/share` (Linux), `/Applications` (macOS, from the Electron Framework's version), `%LOCALAPPDATA%` and `Program Files` (Windows), against the patched Electron lines |
 | Rust | `Cargo.lock` under `searchPaths`, checked for `webpki-roots` and `rustls-webpki` versions |
 | Erlang / Elixir | `mix.lock` and `rebar.lock` under `searchPaths`, checked for hex `certifi`, `castore` and `tls_certificate_check` |
-| Cloudflare agents | `cloudflared --version`, `warp-cli --version` |
-| Live check (`liveCheck=true`) | `curl` and `openssl s_client` from the target to the emSign and AAA test hosts |
+| Cloudflare agents | `cloudflared --version`; `warp-cli --version` (Linux), the WARP app's version (macOS), the Uninstall registry (Windows) |
+| Live check (`liveCheck=true`) | `curl --noproxy '*'` and `openssl s_client` from the target to the emSign and AAA test hosts. On Windows `curl.exe` uses Schannel, so it tests the OS store; a certificate it refuses (exit 35 with a `CRYPT_E_` or `CERT_E_` code) counts as rejected. |
+
+Checked on macOS 27.0.1: the Security framework rejects all twelve TLS
+copies as revoked, but the AAA cross-signs of the two code-signing
+intermediates still verify, and `/etc/ssl/cert.pem` (which curl, git and
+other LibreSSL clients read) still carries AAA Certificate Services and
+emSign ECC Root CA - G3. A Mac with Apple's block can still be exposed
+through both. On macOS and Windows, `mitigate` distrusts code-signing copies
+the platform verifier still trusts, as well as TLS ones.
+
+Bundles and Java stores are sent back to swamp and matched there, by the
+SHA-256 of each certificate's public key, so any copy of a root or
+intermediate counts, whoever signed it. Each distinct file is sent once,
+up to 4 MB each, 64 files and 16 MB in all per target, with the OS bundle
+first; anything past that is listed under `unreadable`.
 
 Binaries are only run from PATH and standard directories, never from
 `searchPaths`. There, the scan only reads files.
@@ -88,7 +119,9 @@ Binaries are only run from PATH and standard directories, never from
 | Bun | no release yet: the fix is merged (oven-sh/bun#46300, #46159); 1.4.3 is exposed |
 | swamp | releases from 20261021.223953 on, built on Deno 2.9.8 (swamp-club #3699); upgrade with `swamp update` |
 | cloudflared | 2026.10.2 |
-| Cloudflare One / WARP (Linux) | 2026.8.2115.0 |
+| Cloudflare One / WARP | 2026.8.2115.0 (Linux, macOS and Windows) |
+| Electron | 42.11.16, 43.8.1, 44.9.1; earlier major lines have no fix |
+| pip (vendored certifi) | 26.2.2 |
 
 The verdict never depends on this table: a host with an unlisted package
 version is still judged by what its store trusts.
@@ -124,6 +157,12 @@ protection.
 | `dockerImage` | | Image to start, scan and remove |
 | `searchPaths` | | Comma-separated absolute directories to search for `Cargo.lock`, `mix.lock`, `rebar.lock` and certifi bundles |
 | `liveCheck` | `false` | Also connect to the test hosts from the target |
+| `targetOs` | `auto` | `linux`, `macos` or `windows`. `auto` asks an SSH target with `uname -s` first (a Windows login shell answers that it doesn't know `uname`); set it to skip that round trip |
+
+On a Windows target, `searchPaths` takes absolute Windows paths (`C:\srv` or
+`\\server\share\py`) and is searched for certifi bundles only; `Cargo.lock`,
+`mix.lock` and `rebar.lock` are not checked there, and the scan says so under
+`unreadable`.
 
 `scanFleet` takes `hosts` (comma-separated). `mitigate` takes `dryRun` and an
 optional `hosts`.
@@ -134,37 +173,54 @@ optional `hosts`.
 swamp repo init
 
 # This machine
-swamp model create @swamp/cve/emudhra emudhra-scanner
-swamp model method run emudhra-scanner scan
+swamp behavior create @swamp/cve/emudhra emudhra-scanner
+swamp behavior run emudhra-scanner scan
 
 # This machine, with the live check and a search for Rust and Python projects
-swamp model create @swamp/cve/emudhra emudhra-deep \
+swamp behavior create @swamp/cve/emudhra emudhra-deep \
   --global-arg liveCheck=true --global-arg searchPaths=/srv,/opt/apps
-swamp model method run emudhra-deep scan
+swamp behavior run emudhra-deep scan
 
 # A remote host
-swamp model create @swamp/cve/emudhra emudhra-remote \
+swamp behavior create @swamp/cve/emudhra emudhra-remote \
   --global-arg targetHost=10.0.1.50 --global-arg sshUser=ubuntu \
   --global-arg sshKey=~/.ssh/id_ed25519
-swamp model method run emudhra-remote scan
+swamp behavior run emudhra-remote scan
 
 # A fleet (each host uses the model's sshUser and sshKey)
-swamp model method run emudhra-remote scanFleet \
+swamp behavior run emudhra-remote scanFleet \
   --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
 
 # A container image
-swamp model create @swamp/cve/emudhra image-scan \
+swamp behavior create @swamp/cve/emudhra image-scan \
   --global-arg dockerImage=alpine:3.22
-swamp model method run image-scan scan
+swamp behavior run image-scan scan
 ```
 
-swamp on Windows can scan containers only: the probe is a POSIX shell
-script, so localhost is not supported, and SSH targets are refused because
-Windows OpenSSH stalls partway through the probe. Scan Linux hosts from a
-Linux or macOS machine.
+### Where swamp runs, and what it can scan
+
+| swamp runs on | localhost | SSH to Linux or macOS | SSH to Windows | Docker |
+|---|---|---|---|---|
+| Linux, macOS | yes | yes | yes | yes |
+| Windows | yes | yes, with temporary files (below) | no: scan it locally, or from Linux or macOS | untested |
+
+A Windows target over SSH gets a PowerShell probe (Windows PowerShell 5.1,
+which every supported Windows has), sent through a short launcher in
+`-EncodedCommand`, so the login shell can be cmd.exe, Windows PowerShell or
+pwsh. A Windows host whose login shell is Git for Windows', MSYS2's or
+Cygwin's sh is recognised too.
+
+From a Windows machine, Windows OpenSSH can't carry the probe over pipes: it
+never exits, and it stops delivering output partway past about 160 KB. So
+swamp runs each ssh through cmd.exe with its input and output in local
+temporary files, uploads the probe to a temporary file on the target, runs
+it with its output to two more, reads them back 64 KB at a time and removes
+all three. Those are the only files a scan writes to a target.
+
+Windows containers are not supported; the container probe is POSIX sh.
 
 The inputs in the table above are global arguments: set them with
-`--global-arg` when you create the model. Only `hosts` and `dryRun` are
+`--global-arg` when you create the behavior. Only `hosts` and `dryRun` are
 passed to a method with `--input`.
 
 ### Sample scan output
@@ -207,8 +263,21 @@ it plans:
      `update-ca-trust extract`. mitigate does not upgrade packages on Arch,
      where partial upgrades are unsupported; run `pacman -Syu` yourself.
    - **Alpine, others**: reported as manual (upgrade the OS).
-3. **Upgrade cloudflared or cloudflare-warp** when installed from a package,
-   and restart their units.
+   - **Windows**: add each intermediate CryptoAPI still trusts (never a
+     root) to the LocalMachine Disallowed store. Microsoft's own block
+     arrives through the automatic disallowed-list update; the entries
+     cover a machine that has not received it. If automatic root or
+     disallowed-list updates are turned off, turning them back on is listed
+     as a manual step.
+   - **macOS**: changing admin trust settings asks for user interaction, so
+     mitigate does not apply it over SSH. It saves a script that adds a deny
+     trust setting (`security add-trusted-cert -d -r deny`) for each
+     intermediate that still verifies, to run in a local Terminal with sudo,
+     or the same certificates can go out as an MDM Deny payload. Updating
+     macOS brings Apple's own block.
+3. **Upgrade cloudflared or cloudflare-warp** when installed from a Debian
+   or RHEL-family package, and restart their units. On macOS and Windows
+   they are listed as manual upgrades.
 4. **Rescan** and record the before and after verdicts.
 
 Distrusting emSign ECC Root CA - G3 also breaks legitimate sites that chain
@@ -220,21 +289,41 @@ Containers are never modified. For a Docker target, `mitigate` reports
 
 `mitigate` reports these as manual actions, without changing them: Deno
 (upgrade to 2.9.8 with `deno upgrade`), swamp (`swamp update`), Bun (no fixed
-release), Java
-stores, certifi bundles, and `Cargo.lock`, `mix.lock` and `rebar.lock`
-entries. It never disables certificate verification.
+release), Java stores, certifi and other bundles, Electron apps, and
+`Cargo.lock`, `mix.lock` and `rebar.lock` entries. It never disables certificate verification.
 
 ```bash
-swamp model method run emudhra-scanner mitigate                       # dry run
-swamp model method run emudhra-scanner mitigate --input dryRun=false  # apply
-swamp model method run emudhra-scanner mitigate \
+swamp behavior run emudhra-scanner mitigate                       # dry run
+swamp behavior run emudhra-scanner mitigate --input dryRun=false  # apply
+swamp behavior run emudhra-scanner mitigate \
   --input hosts=10.0.1.50,10.0.1.51 --input dryRun=false
 ```
 
 ## Privileges
 
-`scan` needs no root, never uses sudo, and writes nothing to the target.
+`scan` needs no root or administrator rights and never uses sudo. It writes
+nothing to the target, with two exceptions, both removed when it ends:
+
+- On macOS, `security verify-cert` reads certificates from files, so they
+  go to a private temporary directory.
+- From a Windows machine over SSH, the probe and its output go through
+  three temporary files (see above).
+
 Anything it can't read is listed under `unreadable`; it is never guessed.
+
+`mitigate` only connects to SSH hosts whose key is already known
+(`StrictHostKeyChecking=yes`); `scan` records a new host's key on first
+contact. Run `scan` first, or add the key to `known_hosts`.
+
+On **Windows**, `mitigate` changes the Disallowed store only in an elevated
+administrator session: an administrator logging in over Windows OpenSSH
+gets one, a standard user does not. Otherwise the host is
+**`needs-privilege`**, nothing is changed, and the `mitigationScript` file is
+a `.ps1` (`#Requires -RunAsAdministrator`) to review and run in an elevated
+PowerShell. On **macOS** the `mitigationScript` file is always the manual
+script described above.
+
+On Linux:
 
 `mitigate` runs as root, or as a user with passwordless sudo for the exact
 binaries it needs:
@@ -336,16 +425,30 @@ DENO_TLS_CA_STORE=system deno run ...
   that embed `webpki-roots` at build time. The scan checks the ones it can
   find; it can't see roots embedded in arbitrary binaries.
 - The live check proves only curl and openssl on that host.
-- The two emSign-issued code-signing intermediates are not verified: the
-  cross-certificate they need was unavailable while this was built. Their
-  AAA-issued copies are checked.
+- On Linux, the two emSign-issued code-signing intermediates are not
+  verified: their root, emSign Root CS CA - G3, is in no Linux store. Their
+  AAA-issued copies are checked. macOS and Windows check all 16.
+- The Windows verdict does not check revocation. A machine that rejects the
+  intermediates only because Schannel checks revocation (as browsers do)
+  still reads as trusting them, because many other clients don't check it.
+- Electron apps outside the install roots above (portable apps, Snap,
+  Flatpak) and Java homes deeper than two levels are not found; name their
+  directories in `searchPaths` where that applies.
+
+## Troubleshooting
+
+- **Windows: the probe fails at once.** Antivirus with AMSI scanning
+  (Defender) can block a PowerShell script run with `-ExecutionPolicy
+  Bypass` from stdin. The scan then fails with the launcher's error rather
+  than reporting a clean host.
+- **`could not tell the target's OS`.** Set `targetOs`.
 
 ## Risk levels
 
 | Level | Meaning |
 |---|---|
 | `critical` | The OS store trusts a compromised intermediate, or a live check accepted a test host |
-| `high` | A runtime, agent, Java store or certifi bundle is exposed or has no fix |
+| `high` | A runtime, agent, Electron app, Java store or CA bundle is exposed or has no fix |
 | `medium` | Only lockfile entries (`Cargo.lock`, `mix.lock`, `rebar.lock`) or an old Go are exposed; Go uses the OS store on Linux, so it matters only for builds that embed fallback roots |
 | `low` | Nothing exposed, but something could not be checked |
 | `none` | Nothing checked trusts the compromised intermediates |
@@ -355,3 +458,6 @@ DENO_TLS_CA_STORE=system deno run ...
 `@swamp/cve/emudhra-report` runs after each method. It renders a per-host table
 (scan and scanFleet), or the before/after, steps and privilege outcome
 (mitigate).
+
+Each host's log is `<host>-log`. `scanFleet` and `mitigate` also write a
+one-line-per-host `fleet-summary` and `mitigate-summary` log.

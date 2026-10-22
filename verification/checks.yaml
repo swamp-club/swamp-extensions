@@ -69,6 +69,13 @@ groups:
           check: extensions/models/*.ts extensions/reports/*.ts
           paths: extensions/models/ extensions/reports/
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run=sh
+      # The command-runner tests start sh to check the timeout and the pipe
+      # grace (swamp-club #3766); this replaces cve/*'s commands.
+      - dir: cve/emudhra
+        vars:
+          check: extensions/models/*.ts extensions/reports/*.ts
+          paths: extensions/models/ extensions/reports/
+          testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run=sh
       - dir: software-factory
         vars:
           check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts
