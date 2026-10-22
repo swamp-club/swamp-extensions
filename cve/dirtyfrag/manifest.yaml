@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/dirtyfrag"
-version: "2026.10.13.1"
+version: "2026.10.22.1"
 license: "AGPL-3.0-or-later"
 description: |
   Detects and mitigates the Dirty Frag Linux local privilege escalation

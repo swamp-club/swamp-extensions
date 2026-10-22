@@ -54,6 +54,12 @@ swamp repo init
 swamp model create @swamp/cve/dirtyfrag dirtyfrag-scanner
 ```
 
+The target (`targetHost`, `sshUser`, `sshKey`, `dockerContainer`,
+`dockerImage`, `suBinaryPath`) is set per model with `--global-arg` when you
+create it -- these are not method inputs, and `--input targetHost=...` is
+rejected. Create one model per target, as in the examples below. Only `hosts`
+and `dryRun` are passed at run time with `--input`.
+
 ### Scan the local machine
 
 ```bash
@@ -65,23 +71,28 @@ No inputs needed -- defaults to `localhost` and runs checks directly.
 ### Scan a remote host
 
 ```bash
-swamp model method run dirtyfrag-scanner scan \
-  --input targetHost=10.0.1.50 \
-  --input sshUser=ubuntu \
-  --input sshKey=~/.ssh/my-key.pem
+swamp model create @swamp/cve/dirtyfrag dirtyfrag-web \
+  --global-arg targetHost=10.0.1.50 \
+  --global-arg sshUser=ubuntu \
+  --global-arg sshKey=~/.ssh/my-key.pem
+
+swamp model method run dirtyfrag-web scan
 ```
 
 ### Scan a fleet
 
 ```bash
-swamp model method run dirtyfrag-scanner scanFleet \
-  --input hosts=10.0.1.50,10.0.1.51,10.0.1.52 \
-  --input sshUser=ubuntu \
-  --input sshKey=~/.ssh/my-key.pem
+swamp model create @swamp/cve/dirtyfrag dirtyfrag-fleet \
+  --global-arg sshUser=ubuntu \
+  --global-arg sshKey=~/.ssh/my-key.pem
+
+swamp model method run dirtyfrag-fleet scanFleet \
+  --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
 ```
 
-All hosts are scanned in parallel. Each host gets its own log and resource
-output. The report renders a table:
+All hosts are scanned in parallel with the model's `sshUser` and `sshKey`. Each
+host gets its own status resource (`<host>`) and log file (`<host>-log`), plus
+a `fleet-log` summary. The report renders a table:
 
 ```
 | Host            | Kernel         | Risk   | ESP (43284) | RxRPC (43500) | IOCs     | Status     |
@@ -98,12 +109,14 @@ Useful for checking the underlying host kernel from inside a container:
 
 ```bash
 # Existing container
-swamp model method run dirtyfrag-scanner scan \
-  --input dockerContainer=my-container
+swamp model create @swamp/cve/dirtyfrag dirtyfrag-container \
+  --global-arg dockerContainer=my-container
+swamp model method run dirtyfrag-container scan
 
 # Auto-start an image, scan, then stop
-swamp model method run dirtyfrag-scanner scan \
-  --input dockerImage=ubuntu:24.04
+swamp model create @swamp/cve/dirtyfrag dirtyfrag-image \
+  --global-arg dockerImage=ubuntu:24.04
+swamp model method run dirtyfrag-image scan
 ```
 
 ### View results
@@ -111,6 +124,9 @@ swamp model method run dirtyfrag-scanner scan \
 ```bash
 # Structured data for a specific host
 swamp data get dirtyfrag-scanner <host-or-label> --json | jq .content
+
+# The run log for that host
+swamp data get dirtyfrag-scanner <host-or-label>-log
 
 # List all data for the model
 swamp data list dirtyfrag-scanner --json
@@ -128,28 +144,23 @@ swamp model method run dirtyfrag-scanner mitigate --input dryRun=false
 
 ### Mitigate a remote host
 
+Uses the `dirtyfrag-web` model created above:
+
 ```bash
 # Dry run
-swamp model method run dirtyfrag-scanner mitigate \
-  --input targetHost=10.0.1.50 \
-  --input sshUser=ubuntu \
-  --input sshKey=~/.ssh/my-key.pem
+swamp model method run dirtyfrag-web mitigate
 
 # Apply
-swamp model method run dirtyfrag-scanner mitigate \
-  --input targetHost=10.0.1.50 \
-  --input sshUser=ubuntu \
-  --input sshKey=~/.ssh/my-key.pem \
-  --input dryRun=false
+swamp model method run dirtyfrag-web mitigate --input dryRun=false
 ```
 
 ### Mitigate multiple hosts
 
+Uses the `dirtyfrag-fleet` model created above:
+
 ```bash
-swamp model method run dirtyfrag-scanner mitigate \
-  --input hosts=10.0.1.50,10.0.1.51,10.0.1.52 \
-  --input sshUser=ubuntu \
-  --input sshKey=~/.ssh/my-key.pem
+swamp model method run dirtyfrag-fleet mitigate \
+  --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
 ```
 
 All hosts are scanned first -- only vulnerable hosts are mitigated, clean hosts
@@ -159,11 +170,26 @@ are skipped. Add `--input dryRun=false` to apply.
 
 | Step | Command | Purpose |
 |------|---------|---------|
-| 1 | `printf 'install esp4 /bin/false\n...' > /etc/modprobe.d/dirtyfrag.conf` | Blocklist esp4/esp6/rxrpc modules |
-| 2 | `rmmod esp4; rmmod esp6; rmmod rxrpc` | Unload modules from running kernel |
-| 3 | `echo 3 > /proc/sys/vm/drop_caches` | Flush page cache (clears corrupted entries) |
+| 1 | `printf 'install esp4 /bin/false\n...' \| sudo -n -- tee /etc/modprobe.d/dirtyfrag.conf` | Blocklist esp4/esp6/rxrpc modules |
+| 2 | `sudo -n -- rmmod esp4` (likewise esp6, rxrpc) -- only for modules listed in `/proc/modules` | Unload modules from running kernel |
+| 3 | `echo 3 \| sudo -n -- tee /proc/sys/vm/drop_caches` | Flush page cache (clears corrupted entries) |
 
-Auto-detects whether `sudo` is needed based on the connected user.
+As `root`, the commands run without `sudo`. Any other user needs
+**passwordless sudo** for `tee` and `rmmod`, with any arguments: only those
+binaries are escalated, with `sudo -n --` and no `sh -c` wrapper, so a sudoers
+rule scoped to them is enough (for example
+`ubuntu ALL=(root) NOPASSWD: /usr/bin/tee, /usr/sbin/rmmod`). A rule that also
+pins their arguments fails the check below.
+
+Before running anything, `mitigate` checks that `sudo -n -- tee /dev/null`
+works (dry runs too). If sudo would ask for a password, or is not installed, no
+command is run and the host is reported as failed instead of hanging on a
+prompt.
+
+A host is reported as mitigated only when every command exits 0. Otherwise its
+summary reads `Mitigation failed on <host>: ...` and names the failing command.
+If `rmmod` fails because a module is in use, the blocklist is still written;
+reboot or free the module to finish the mitigation.
 
 ## Risk Levels
 
@@ -177,20 +203,35 @@ Auto-detects whether `sudo` is needed based on the connected user.
 
 Hosts at `low` or `none` are reported as **CLEAN** and will not be mitigated.
 
-## Inputs
+## Global arguments
 
-All inputs are passed at runtime via `--input key=value`:
+Set when the model is created, with `--global-arg key=value`:
 
-| Input | Default | Description |
+| Argument | Default | Description |
 |---|---|---|
 | `targetHost` | `localhost` | SSH host to scan or mitigate |
-| `sshUser` | `root` | SSH user |
-| `sshKey` | | Path to SSH private key |
+| `sshUser` | `root` | SSH user (also used for every host in `hosts`) |
+| `sshKey` | | Path to SSH private key (also used for every host in `hosts`) |
 | `dockerContainer` | | Container name/ID (overrides SSH) |
 | `dockerImage` | | Image to auto-start and scan |
 | `suBinaryPath` | `/usr/bin/su` | Path to su binary to check |
-| `hosts` | | Comma-separated hosts (scanFleet and mitigate) |
+
+## Method inputs
+
+Passed at run time with `--input key=value`:
+
+| Input | Default | Description |
+|---|---|---|
+| `hosts` | | Comma-separated hosts (scanFleet and mitigate; overrides `targetHost`) |
 | `dryRun` | `true` | Preview mitigation commands without executing (mitigate only) |
+
+## Data
+
+| Data | Kind | Contents |
+|---|---|---|
+| `<host>` (or `docker-<id>`) | resource `status` | Assessment or mitigation result |
+| `<host>-log` (or `docker-<id>-log`) | file `log` | Run log for that host |
+| `fleet-log` | file `log` | scanFleet summary |
 
 ## Reports
 
@@ -209,6 +250,8 @@ A custom report runs after each method and renders directly in the terminal:
 - **SSH access** to remote hosts (key-based auth) -- not needed for local scans
 - **No packages required** on the target -- all checks use POSIX utilities
   (`od`, `grep`, `find`, `head`, `cat`, `test`) and procfs/sysfs
+- **For `mitigate`**: `root`, or passwordless sudo for `tee` and `rmmod` with
+  any arguments
 - **Docker** (optional) for container-based scanning
 
 ## License

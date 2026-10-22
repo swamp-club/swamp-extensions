@@ -448,3 +448,37 @@ Deno.test("mitigate report: json tracks dryRun and applied state", async () => {
   assertEquals(json[0].dryRun, true);
   assertEquals(json[0].applied, false);
 });
+
+Deno.test("mitigate report: dry run stays a dry run when the first host failed", async () => {
+  const ctx = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "no-sudo",
+      summary:
+        "Dry run: Mitigation failed on no-sudo: sudo needs a password or is not permitted",
+    }),
+    makeScanResult({
+      hostname: "ok-host",
+      summary: "Dry run complete. Review commands",
+    }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(result.markdown, "# Dirty Frag Mitigation: DRY RUN");
+  assertStringIncludes(
+    result.markdown,
+    "| no-sudo | 6.8.0-40-generic | FAILED |",
+  );
+  assertStringIncludes(
+    result.markdown,
+    "| ok-host | 6.8.0-40-generic | DRY RUN |",
+  );
+});
+
+Deno.test("mitigate report: command table shows non-interactive sudo", async () => {
+  const ctx = makeContext("mitigate", [
+    makeScanResult({ summary: "Dry run complete. Review commands" }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(result.markdown, "sudo -n -- tee /etc/modprobe.d/");
+  assertStringIncludes(result.markdown, "sudo -n -- rmmod esp4");
+  assert(!result.markdown.includes("sh -c"));
+});

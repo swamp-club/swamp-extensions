@@ -25,7 +25,7 @@ import { z } from "npm:zod@4.3.6";
 
 type FileWriter = {
   writeLine: (line: string) => Promise<void>;
-  finalize: () => Promise<void>;
+  finalize: () => Promise<unknown>;
 };
 
 type MethodContext = {
@@ -203,6 +203,7 @@ async function runCmd(
   logger.debug(`Running: ${cmd.join(" ")}`);
   const proc = new Deno.Command(cmd[0], {
     args: cmd.slice(1),
+    stdin: "null",
     stdout: "piped",
     stderr: "piped",
   });
@@ -213,6 +214,72 @@ async function runCmd(
     stderr: new TextDecoder().decode(output.stderr).trim(),
     exitCode: output.code,
   };
+}
+
+const BLOCKLIST_LINES = [
+  "install esp4 /bin/false",
+  "install esp6 /bin/false",
+  "install rxrpc /bin/false",
+] as const;
+
+/** Escalates tee, which writes nothing here, to check sudo -n will work. */
+export const PRIVILEGE_CHECK = "LC_ALL=C sudo -n -- tee /dev/null </dev/null";
+
+// What sudo -n prints when it would need a password or the rule denies it.
+// Commands run sudo with LC_ALL=C so these messages are not translated.
+const SUDO_REFUSED =
+  /a password is required|is not allowed to execute|not in the sudoers file/;
+
+/** One shell command mitigate runs on a host, and which step it belongs to. */
+export type MitigationCommand = {
+  step: "blocklist" | "unload" | "flush";
+  command: string;
+};
+
+/**
+ * Builds the commands mitigate runs. Unless the session is already root, only
+ * the binaries that need privilege (tee, rmmod) run under `sudo -n --` (with
+ * LC_ALL=C so refusals can be recognised), with no
+ * `sh -c` wrapper, so sudo never prompts and sudoers rules scoped to those
+ * binaries keep matching. A module is unloaded only if /proc/modules lists it:
+ * /sys/module also lists built-in modules, which rmmod can never remove.
+ */
+export function buildMitigationCommands(asRoot: boolean): MitigationCommand[] {
+  const sudo = asRoot ? "" : "LC_ALL=C sudo -n -- ";
+  return [
+    {
+      step: "blocklist",
+      command: `printf '${
+        BLOCKLIST_LINES.join("\\n")
+      }\\n' | ${sudo}tee /etc/modprobe.d/dirtyfrag.conf >/dev/null`,
+    },
+    ...["esp4", "esp6", "rxrpc"].map((mod) => ({
+      step: "unload" as const,
+      command: `! grep -q '^${mod} ' /proc/modules || ${sudo}rmmod ${mod}`,
+    })),
+    {
+      step: "flush",
+      command: `echo 3 | ${sudo}tee /proc/sys/vm/drop_caches >/dev/null`,
+    },
+  ];
+}
+
+/**
+ * Finalizes a log and returns its handle, or nothing if it could not be saved,
+ * so a log failure never turns a finished scan or mitigation into a failure.
+ */
+async function finalizeLog(
+  log: FileWriter,
+  logger: { info: (msg: string) => void },
+): Promise<unknown[]> {
+  try {
+    return [await log.finalize()];
+  } catch (err) {
+    logger.info(
+      `Could not save log: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
 }
 
 async function startDockerImage(
@@ -600,7 +667,7 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.06.04.2",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.05.08.4",
@@ -645,6 +712,12 @@ export const model = {
         "2026.06.04.1. No code, schema, or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.22.1",
+      description: "mitigate uses sudo -n and reports failed commands; " +
+        "logs are saved as <host>-log. No schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -686,7 +759,7 @@ export const model = {
 
         const transport = buildTransport(g);
         const label = targetLabel(g);
-        const log = context.createFileWriter("log", label);
+        const log = context.createFileWriter("log", `${label}-log`);
 
         await log.writeLine(
           `[${
@@ -710,10 +783,10 @@ export const model = {
           await stopContainer(autoContainer, logger);
         }
 
-        await log.finalize();
+        const logHandles = await finalizeLog(log, logger);
 
         const handle = await context.writeResource("status", label, result);
-        return { dataHandles: [handle] };
+        return { dataHandles: [handle, ...logHandles] };
       },
     },
 
@@ -733,7 +806,8 @@ export const model = {
         const logger = context.logger;
         const hosts = args.hosts.split(",").map((h: string) => h.trim())
           .filter((h: string) => h.length > 0);
-        const summaryLog = context.createFileWriter("log", "fleet");
+        const summaryLog = context.createFileWriter("log", "fleet-log");
+        const logHandles: unknown[] = [];
 
         await summaryLog.writeLine(
           `[${new Date().toISOString()}] Dirty Frag fleet scan\n`,
@@ -750,19 +824,22 @@ export const model = {
               sshUser: g.sshUser,
               sshKey: present(g.sshKey),
             });
-            const hostLog = context.createFileWriter("log", host);
-            await hostLog.writeLine(
-              `[${new Date().toISOString()}] Scanning ${host}\n\n`,
-            );
-            const result = await scanHost(
-              transport,
-              host,
-              g.suBinaryPath,
-              hostLog,
-              logger,
-            );
-            await hostLog.finalize();
-            return { host, result };
+            const hostLog = context.createFileWriter("log", `${host}-log`);
+            try {
+              await hostLog.writeLine(
+                `[${new Date().toISOString()}] Scanning ${host}\n\n`,
+              );
+              const result = await scanHost(
+                transport,
+                host,
+                g.suBinaryPath,
+                hostLog,
+                logger,
+              );
+              return { host, result };
+            } finally {
+              logHandles.push(...await finalizeLog(hostLog, logger));
+            }
           }),
         );
 
@@ -801,8 +878,8 @@ export const model = {
         await summaryLog.writeLine(`  Errors:     ${errors}\n`);
         await summaryLog.writeLine(`${"=".repeat(60)}\n`);
 
-        await summaryLog.finalize();
-        return { dataHandles: handles };
+        logHandles.push(...await finalizeLog(summaryLog, logger));
+        return { dataHandles: [...handles, ...logHandles] };
       },
     },
 
@@ -834,76 +911,135 @@ export const model = {
           )
           : [g.targetHost];
 
+        const logHandles: unknown[] = [];
+
         const mitigateHost = async (host: string) => {
           const transport = buildTransport({
             targetHost: host,
             sshUser: g.sshUser,
             sshKey: present(g.sshKey),
           });
-          const log = context.createFileWriter("log", host);
+          const log = context.createFileWriter("log", `${host}-log`);
 
-          await log.writeLine(`Scanning ${host} for vulnerability...\n`);
-          const scanResult = await scanHost(
-            transport,
-            host,
-            g.suBinaryPath,
-            log,
-            logger,
-          );
-
-          if (!scanResult.vulnerable) {
-            await log.writeLine(
-              `\n${host} is not vulnerable — skipping mitigation.\n`,
-            );
-            await log.finalize();
-            return {
+          try {
+            await log.writeLine(`Scanning ${host} for vulnerability...\n`);
+            const scanResult = await scanHost(
+              transport,
               host,
-              kernelVersion: scanResult.kernelVersion,
-              skipped: true,
-              results: ["Not vulnerable — no action taken"],
-            };
-          }
+              g.suBinaryPath,
+              log,
+              logger,
+            );
 
-          await log.writeLine(
-            `\n${host} is ${scanResult.riskLevel} risk — proceeding with mitigation${
-              args.dryRun ? " (DRY RUN)" : ""
-            }.\n\n`,
-          );
+            if (!scanResult.vulnerable) {
+              await log.writeLine(
+                `\n${host} is not vulnerable — skipping mitigation.\n`,
+              );
+              return {
+                host,
+                kernelVersion: scanResult.kernelVersion,
+                skipped: true,
+                results: ["Not vulnerable — no action taken"],
+                failures: [] as string[],
+                privilegeFailure: false,
+                blocklisted: false,
+              };
+            }
 
-          const whoami = await runCmd(transport, "whoami", logger);
-          const sudo = whoami.stdout === "root" ? "" : "sudo ";
+            await log.writeLine(
+              `\n${host} is ${scanResult.riskLevel} risk — proceeding with mitigation${
+                args.dryRun ? " (DRY RUN)" : ""
+              }.\n\n`,
+            );
 
-          const mitigationCommands = [
-            `${sudo}sh -c "printf 'install esp4 /bin/false\\ninstall esp6 /bin/false\\ninstall rxrpc /bin/false\\n' > /etc/modprobe.d/dirtyfrag.conf"`,
-            `${sudo}sh -c "rmmod esp4 2>/dev/null; rmmod esp6 2>/dev/null; rmmod rxrpc 2>/dev/null; true"`,
-            `${sudo}sh -c "echo 3 > /proc/sys/vm/drop_caches"`,
-          ];
+            const results: string[] = [];
+            const whoami = await runCmd(transport, "whoami", logger);
+            if (whoami.exitCode !== 0 || whoami.stdout.length === 0) {
+              throw new Error(
+                `Cannot run whoami on ${host}: ${whoami.stderr || "no output"}`,
+              );
+            }
+            const asRoot = whoami.stdout === "root";
 
-          const results: string[] = [];
+            // Non-interactive sudo never prompts, so it fails here instead of
+            // hanging on a password prompt or failing command by command. The
+            // check escalates tee itself, so a sudoers rule scoped to the
+            // binaries mitigate uses passes it.
+            if (!asRoot) {
+              const check = await runCmd(transport, PRIVILEGE_CHECK, logger);
+              await log.writeLine(
+                `Privilege check: ${PRIVILEGE_CHECK} exit=${check.exitCode}\n`,
+              );
+              results.push(
+                `Privilege check: ${PRIVILEGE_CHECK} (exit=${check.exitCode})`,
+              );
+              if (check.exitCode !== 0) {
+                const reason = check.exitCode === 127
+                  ? `sudo is not installed on ${host}`
+                  : `sudo needs a password or is not permitted for tee (${PRIVILEGE_CHECK} exited ${check.exitCode}${
+                    check.stderr ? `: ${check.stderr}` : ""
+                  })`;
+                await log.writeLine(`\n${reason}. No commands were run.\n`);
+                return {
+                  host,
+                  kernelVersion: scanResult.kernelVersion,
+                  skipped: false,
+                  results,
+                  failures: [reason],
+                  privilegeFailure: true,
+                  blocklisted: false,
+                };
+              }
+            }
 
-          for (const cmd of mitigationCommands) {
-            if (args.dryRun) {
-              await log.writeLine(`[DRY RUN] Would execute: ${cmd}\n`);
-              results.push(`DRY RUN: ${cmd}`);
-            } else {
-              await log.writeLine(`Executing: ${cmd}\n`);
-              const r = await runCmd(transport, cmd, logger);
+            const failures: string[] = [];
+            let privilegeFailure = false;
+            let blocklisted = false;
+            for (const { step, command } of buildMitigationCommands(asRoot)) {
+              if (args.dryRun) {
+                await log.writeLine(`[DRY RUN] Would execute: ${command}\n`);
+                results.push(`DRY RUN: ${command}`);
+                continue;
+              }
+              await log.writeLine(`Executing: ${command}\n`);
+              const r = await runCmd(transport, command, logger);
               await log.writeLine(
                 `  exit=${r.exitCode} stdout=${r.stdout} stderr=${r.stderr}\n`,
               );
-              results.push(`Executed: ${cmd} (exit=${r.exitCode})`);
+              results.push(`Executed: ${command} (exit=${r.exitCode})`);
+              if (r.exitCode !== 0) {
+                // e.g. sudoers allows tee but not rmmod
+                if (!asRoot && SUDO_REFUSED.test(r.stderr)) {
+                  privilegeFailure = true;
+                }
+                failures.push(
+                  `${command} exited ${r.exitCode}${
+                    r.stderr ? `: ${r.stderr}` : ""
+                  }`,
+                );
+              } else if (step === "blocklist") {
+                blocklisted = true;
+              }
             }
+
+            await log.writeLine(
+              failures.length > 0
+                ? `\nMitigation incomplete: ${failures.length} command(s) failed.\n`
+                : "\nMitigation steps complete.\n",
+            );
+
+            return {
+              host,
+              kernelVersion: scanResult.kernelVersion,
+              skipped: false,
+              results,
+              failures,
+              privilegeFailure,
+              blocklisted,
+            };
+          } finally {
+            logHandles.push(...await finalizeLog(log, logger));
           }
-
-          await log.writeLine("\nMitigation steps complete.\n");
-          await log.finalize();
-
-          return {
-            host,
-            kernelVersion: scanResult.kernelVersion,
-            skipped: false,
-            results,
-          };
         };
 
         const settled = await Promise.allSettled(
@@ -919,6 +1055,10 @@ export const model = {
           }),
         );
 
+        // Every dry-run summary starts with "Dry run" so the report can tell a
+        // dry run from an applied one whichever host comes first.
+        const dryRunPrefix = args.dryRun ? "Dry run: " : "";
+
         const handles = [];
         for (let i = 0; i < settled.length; i++) {
           const outcome = settled[i];
@@ -927,6 +1067,9 @@ export const model = {
             : (outcome.reason?.host || hostList[i]);
           const succeeded = outcome.status === "fulfilled";
           const skipped = succeeded && outcome.value.skipped;
+          const failures = succeeded ? outcome.value.failures : [];
+          const privilegeFailure = succeeded && outcome.value.privilegeFailure;
+          const blocklisted = succeeded && outcome.value.blocklisted;
           const results = succeeded
             ? outcome.value.results
             : [String(outcome.reason)];
@@ -934,28 +1077,53 @@ export const model = {
           let summary;
           let riskLevel: "critical" | "high" | "medium" | "low" | "none";
           let vulnerable;
+          let recommendations: string[];
 
           if (!succeeded) {
-            summary = `Mitigation failed on ${host}: ${outcome.reason}`;
+            summary =
+              `${dryRunPrefix}Mitigation failed on ${host}: ${outcome.reason}`;
             riskLevel = "high";
             vulnerable = true;
+            recommendations = [
+              "Fix the error above and re-run mitigate.",
+            ];
           } else if (skipped) {
-            summary = `${host} is not vulnerable — skipped.`;
+            summary = `${dryRunPrefix}${host} is not vulnerable — skipped.`;
             riskLevel = "none";
             vulnerable = false;
+            recommendations = ["No action required — host is not vulnerable."];
+          } else if (failures.length > 0) {
+            summary = `${dryRunPrefix}Mitigation failed on ${host}: ${
+              failures.join("; ")
+            }`;
+            riskLevel = "high";
+            vulnerable = true;
+            recommendations = privilegeFailure
+              ? [
+                "Allow the SSH user passwordless sudo for tee and rmmod with any arguments (or connect as root), then re-run mitigate.",
+              ]
+              : blocklisted
+              ? [
+                "The modprobe blocklist was written, but a later step failed. If rmmod failed because a module is in use, reboot or free the module to complete the mitigation.",
+              ]
+              : ["Fix the failing command and re-run mitigate."];
           } else if (args.dryRun) {
             summary =
               "Dry run complete. Review commands and re-run with dryRun=false to apply.";
             riskLevel = "high";
             vulnerable = true;
+            recommendations = [
+              "Review the dry-run output and re-run with dryRun=false to apply mitigations.",
+            ];
           } else {
             summary =
               "Mitigations applied: vulnerable modules blocklisted, page cache flushed.";
             riskLevel = "medium";
             vulnerable = true;
+            recommendations = [
+              "Mitigations applied. Monitor for kernel updates that include the upstream fix.",
+            ];
           }
-
-          const mitigated = succeeded && !skipped && !args.dryRun;
 
           const handle = await context.writeResource("status", host, {
             scanTimestamp: new Date().toISOString(),
@@ -982,16 +1150,10 @@ export const model = {
               modulesAvailable: [],
             },
             mitigations: {
-              espModulesBlocklisted: mitigated,
-              rxrpcModuleBlocklisted: mitigated,
+              espModulesBlocklisted: blocklisted,
+              rxrpcModuleBlocklisted: blocklisted,
               userNamespacesRestricted: false,
-              modprobeBlocklist: mitigated
-                ? [
-                  "install esp4 /bin/false",
-                  "install esp6 /bin/false",
-                  "install rxrpc /bin/false",
-                ]
-                : [],
+              modprobeBlocklist: blocklisted ? [...BLOCKLIST_LINES] : [],
             },
             indicators: {
               suPageCacheCorrupted: false,
@@ -1000,20 +1162,12 @@ export const model = {
               rxrpcKeysFound: false,
               details: results,
             },
-            recommendations: skipped
-              ? ["No action required — host is not vulnerable."]
-              : args.dryRun
-              ? [
-                "Review the dry-run output and re-run with dryRun=false to apply mitigations.",
-              ]
-              : [
-                "Mitigations applied. Monitor for kernel updates that include the upstream fix.",
-              ],
+            recommendations,
           });
           handles.push(handle);
         }
 
-        return { dataHandles: handles };
+        return { dataHandles: [...handles, ...logHandles] };
       },
     },
   },

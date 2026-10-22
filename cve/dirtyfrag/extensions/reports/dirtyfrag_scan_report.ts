@@ -85,7 +85,8 @@ export const report = {
 
     // --- Mitigate report ---
     if (context.methodName === "mitigate") {
-      const isDryRun = allResults[0].summary.includes("Dry run");
+      // Every dry-run summary starts with "Dry run", whichever host failed.
+      const isDryRun = allResults.some((r) => r.summary.startsWith("Dry run"));
 
       let md = "";
 
@@ -112,11 +113,13 @@ export const report = {
       md += `| Step | Command | Purpose |\n`;
       md += `| ---- | ------- | ------- |\n`;
       md +=
-        `| 1 | \`printf 'install esp4 /bin/false\\n...' > /etc/modprobe.d/dirtyfrag.conf\` | Blocklist esp4/esp6/rxrpc modules |\n`;
+        `| 1 | \`printf 'install esp4 /bin/false\\n...' \\| sudo -n -- tee /etc/modprobe.d/dirtyfrag.conf\` | Blocklist esp4/esp6/rxrpc modules |\n`;
       md +=
-        `| 2 | \`rmmod esp4; rmmod esp6; rmmod rxrpc\` | Unload modules from running kernel |\n`;
+        `| 2 | \`sudo -n -- rmmod esp4\` (likewise esp6, rxrpc; only if listed in /proc/modules) | Unload modules from running kernel |\n`;
       md +=
-        `| 3 | \`echo 3 > /proc/sys/vm/drop_caches\` | Flush page cache (clears corrupted entries) |\n\n`;
+        `| 3 | \`echo 3 \\| sudo -n -- tee /proc/sys/vm/drop_caches\` | Flush page cache (clears corrupted entries) |\n\n`;
+      md +=
+        `Commands run as root directly, or through \`sudo -n\` (never prompts) for other users.\n\n`;
 
       const allHosts = allResults.map((r) => r.hostname);
       const isLocal = allHosts.every((h) =>
