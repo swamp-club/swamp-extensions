@@ -1,0 +1,75 @@
+manifestVersion: 1
+name: "@swamp/cve/emudhra"
+version: "2026.10.21.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Finds and fixes Linux hosts and containers that still trust the eight
+  eMudhra intermediate CAs whose private keys were compromised (reported
+  to the root programs 2026-10-17, public 2026-10-20). Anyone holding one
+  of those keys can issue a certificate for any domain that an unpatched
+  client accepts. No source reports misuse so far.
+
+  ## Methods
+
+  - `scan` — scan one host (local, SSH, or Docker container or image)
+  - `scanFleet` — scan many SSH hosts in parallel
+  - `mitigate` — scan, then fix the OS trust store and upgrade affected
+    agents; `dryRun` defaults to true
+
+  ## What It Checks
+
+  - **OS trust store**: runs `openssl verify` for each compromised
+    intermediate against the host's own bundle. That is the verdict, through
+    both paths: emSign ECC Root CA - G3 and Sectigo AAA Certificate Services.
+    Also reports the ca-certificates version against the fixed version.
+  - **Runtimes with bundled roots**: node, deno (fixed in 2.9.8), swamp
+    (fixed from 20261021.223953, built on Deno 2.9.8), bun (no release yet),
+    go.
+  - **Language stores**: Java cacerts, Python certifi, and, under
+    `searchPaths`, Cargo.lock (`webpki-roots`, `rustls-webpki`), mix.lock and
+    rebar.lock (hex `certifi`, `castore`, `tls_certificate_check`).
+  - **Agents**: cloudflared (fixed in 2026.10.2) and Cloudflare One/WARP
+    (2026.8.2115.0).
+  - **Live check** (`liveCheck=true`): curl and openssl against the
+    eMudhra test hosts. It only proves those two verifiers.
+
+  ## Verdicts
+
+  `trusted` (exposed), `not-trusted` (clean), or `unknown` (openssl missing
+  and the anchor is not in the bundle). Components are `fixed`, `exposed`,
+  `no-fix-released`, or `unknown`.
+
+  ## Privileges
+
+  `scan` needs no root, never uses sudo, and writes nothing to the target.
+  `mitigate` runs as root, or runs each command as `sudo -n -- <binary>` with
+  no shell wrapper, after checking with `sudo -n -l` that sudo allows each
+  full command. If it doesn't, the host is reported as `needs-privilege`,
+  nothing is changed, and a self-contained `mitigationScript` file is saved
+  to review and run with sudo yourself. Containers are never modified; mitigate reports
+  `rebuild-image` with the Dockerfile change. It never disables certificate
+  verification.
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - emudhra_detect.ts
+
+reports:
+  - emudhra_scan_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - linux-aarch64
+  - linux-x86_64
+
+labels:
+  - security
+  - vulnerability
+  - cve
+  - tls
+  - pki
+  - emudhra

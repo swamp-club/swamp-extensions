@@ -33,6 +33,7 @@ end-to-end with a single `swamp workflow run`.
 | Extension                                        | Description                                                                                              | Dependencies |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------ |
 | [`@swamp/cve/dirtyfrag`](cve/dirtyfrag/) | Detects and mitigates the Dirty Frag Linux privilege escalation (CVE-2026-43284 + CVE-2026-43500) | None (POSIX utilities + procfs/sysfs) |
+| [`@swamp/cve/emudhra`](cve/emudhra/) | Finds and fixes hosts and containers that still trust the eMudhra intermediate CAs compromised on 2026-10-19 (OS store, runtimes, Java, certifi, Cargo, Cloudflare agents) | openssl on the target for the full verdict |
 | [`@swamp/cve/mini-shai-hulud`](cve/mini-shai-hulud/) | Scans deno.lock and package-lock.json for npm packages compromised in the May 2026 "Mini Shai-Hulud" supply chain attack (317 packages) | None |
 
 ## Container Image Extension
@@ -97,6 +98,7 @@ swamp extension pull @swamp/gcs-datastore-bootstrap
 
 # CVE extensions
 swamp extension pull @swamp/cve/dirtyfrag
+swamp extension pull @swamp/cve/emudhra
 swamp extension pull @swamp/cve/mini-shai-hulud
 
 # SSH
