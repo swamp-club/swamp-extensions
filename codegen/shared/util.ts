@@ -183,7 +183,7 @@ const BROKEN_REGEXES: Record<
   },
   "^(?! )[\\p{L}\\p{N}\\p{Z}-_]*(?<! )$": {
     pattern: "^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$",
-    flags: "",
+    flags: "u",
   },
   "^(?!(?i)aws)[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}$": {
     pattern: "^(?!aws)[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}$",

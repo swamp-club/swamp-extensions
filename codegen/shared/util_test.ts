@@ -67,6 +67,23 @@ Deno.test("pcreToRegexp - patterns that already compile are unchanged", () => {
   }
 });
 
+// AWS::Invoicing::InvoiceUnit Name: a BROKEN_REGEXES entry whose \p classes
+// need the u flag, or they match only the literal characters (swamp-club #3670).
+const INVOICING_INVOICE_UNIT_NAME = "^(?! )[\\p{L}\\p{N}\\p{Z}-_]*(?<! )$";
+
+Deno.test("pcreToRegexp - a BROKEN_REGEXES entry with \\p classes keeps the u flag", () => {
+  const result = pcreToRegexp(INVOICING_INVOICE_UNIT_NAME);
+  assertEquals(result, {
+    pattern: "^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$",
+    flags: "u",
+  });
+  const regex = new RegExp(result!.pattern, result!.flags);
+  assertEquals(regex.test("Billing"), true);
+  assertEquals(regex.test("Café 1"), true);
+  assertEquals(regex.test(" Billing"), false);
+  assertEquals(regex.test("Billing "), false);
+});
+
 Deno.test("pcreToRegexp - unsupported subpatterns are still skipped", () => {
   assertEquals(pcreToRegexp("^(?P<name>[a-z]+)$"), undefined);
 });

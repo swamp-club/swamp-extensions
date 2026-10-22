@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InvoiceReceiver: z.string().min(12).max(12).regex(new RegExp("^\\d{12}$")),
   Name: z.string().min(1).max(50).regex(
-    new RegExp("^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$"),
+    new RegExp("^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$", "u"),
   ),
   Description: z.string().min(0).max(500).regex(new RegExp("^[\\S\\s]*$"))
     .optional(),
@@ -98,7 +98,7 @@ const InputsSchema = z.object({
   InvoiceReceiver: z.string().min(12).max(12).regex(new RegExp("^\\d{12}$"))
     .optional(),
   Name: z.string().min(1).max(50).regex(
-    new RegExp("^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$"),
+    new RegExp("^(?! )[\\p{L}\\p{N}\\p{Z}\\-_]*(?<! )$", "u"),
   ).optional(),
   Description: z.string().min(0).max(500).regex(new RegExp("^[\\S\\s]*$"))
     .optional(),
@@ -130,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Invoicing InvoiceUnit. Registered at `@swamp/aws/invoicing/invoice-unit`. */
 export const model = {
   type: "@swamp/aws/invoicing/invoice-unit",
-  version: "2026.10.13.1",
+  version: "2026.10.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,6 +184,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
