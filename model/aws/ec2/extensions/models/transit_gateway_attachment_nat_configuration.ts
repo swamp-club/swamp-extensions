@@ -13,13 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/lookoutvision/project
+// Auto-generated extension model for @swamp/aws/ec2/transit-gateway-attachment-nat-configuration
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for LookoutVision Project (AWS::LookoutVision::Project).
+ * Swamp extension model for EC2 TransitGatewayAttachmentNatConfiguration (AWS::EC2::TransitGatewayAttachmentNatConfiguration).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -38,7 +38,20 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const NatRuleSchema = z.object({
+  RuleNumber: z.number().int().min(1).max(32766).describe("The rule number."),
+  MatchSourceCidr: z.string().min(1).max(18).describe(
+    "The source CIDR that the rule matches on.",
+  ),
+  NatCidr: z.string().min(1).max(18).describe(
+    "The CIDR that the matched source addresses are translated to.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -51,26 +64,49 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ProjectName: z.string().min(1).max(255).regex(
-    new RegExp("[a-zA-Z0-9][a-zA-Z0-9_\\-]*"),
-  ).describe("The name of the Amazon Lookout for Vision project"),
+  TransitGatewayAttachmentId: z.string().regex(
+    new RegExp("^tgw-attach-[0-9a-f]{8,34}$"),
+  ).describe("The ID of the transit gateway attachment to configure NAT on."),
+  NatGatewayRules: z.array(NatRuleSchema).describe(
+    "The complete set of NAT rules for the attachment. Updating this property replaces the entire rule set: rules omitted from the new value are removed.",
+  ),
+  NatGatewaySupport: z.enum(["enable", "disable"]).describe(
+    "Whether NAT gateway support is enabled on the attachment. Set to disable to stage NAT rules without activating them; the rules are retained and become active when this is later set to enable.",
+  ),
+  NatSystemRouteSupport: z.enum(["enable", "disable"]).describe(
+    "Whether routes for the NAT CIDRs are installed into the transit gateway route tables associated with the attachment. Whether this is configurable depends on the attachment; where the value is forced, supplying the opposite value is rejected. Omitting this property leaves the setting to the service: on a new configuration the service applies the attachment's default, but on an attachment where the value is configurable it keeps the value already in effect rather than reverting to that default. Removing this property from a template, or deleting this resource, therefore leaves the setting at its last value rather than restoring the default, and a resource later created on the same attachment without this property inherits that value.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  Arn: z.string().optional(),
-  ProjectName: z.string(),
+  Arn: z.string(),
+  TransitGatewayAttachmentId: z.string().optional(),
+  NatGatewayRules: z.array(NatRuleSchema).optional(),
+  NatGatewaySupport: z.string().optional(),
+  NatSystemRouteSupport: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  ProjectName: z.string().min(1).max(255).regex(
-    new RegExp("[a-zA-Z0-9][a-zA-Z0-9_\\-]*"),
-  ).describe("The name of the Amazon Lookout for Vision project").optional(),
+  TransitGatewayAttachmentId: z.string().regex(
+    new RegExp("^tgw-attach-[0-9a-f]{8,34}$"),
+  ).describe("The ID of the transit gateway attachment to configure NAT on.")
+    .optional(),
+  NatGatewayRules: z.array(NatRuleSchema).describe(
+    "The complete set of NAT rules for the attachment. Updating this property replaces the entire rule set: rules omitted from the new value are removed.",
+  ).optional(),
+  NatGatewaySupport: z.enum(["enable", "disable"]).describe(
+    "Whether NAT gateway support is enabled on the attachment. Set to disable to stage NAT rules without activating them; the rules are retained and become active when this is later set to enable.",
+  ).optional(),
+  NatSystemRouteSupport: z.enum(["enable", "disable"]).describe(
+    "Whether routes for the NAT CIDRs are installed into the transit gateway route tables associated with the attachment. Whether this is configurable depends on the attachment; where the value is forced, supplying the opposite value is rejected. Omitting this property leaves the setting to the service: on a new configuration the service applies the attachment's default, but on an attachment where the value is configurable it keeps the value already in effect rather than reverting to that default. Removing this property from a template, or deleting this resource, therefore leaves the setting at its last value rather than restoring the default, and a resource later created on the same attachment without this property inherits that value.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -89,72 +125,16 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for LookoutVision Project. Registered at `@swamp/aws/lookoutvision/project`. */
+/** Swamp extension model for EC2 TransitGatewayAttachmentNatConfiguration. Registered at `@swamp/aws/ec2/transit-gateway-attachment-nat-configuration`. */
 export const model = {
-  type: "@swamp/aws/lookoutvision/project",
-  version: "2026.10.13.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.10.13.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
+  type: "@swamp/aws/ec2/transit-gateway-attachment-nat-configuration",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "LookoutVision Project resource state",
+      description:
+        "EC2 TransitGatewayAttachmentNatConfiguration resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -162,24 +142,26 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a LookoutVision Project",
+      description: "Create a EC2 TransitGatewayAttachmentNatConfiguration",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
+          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName =
-          ((result.ProjectName ?? g.ProjectName)?.toString() ?? "current")
-            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -189,23 +171,24 @@ export const model = {
       },
     },
     get: {
-      description: "Get a LookoutVision Project",
+      description: "Get a EC2 TransitGatewayAttachmentNatConfiguration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the LookoutVision Project",
+          "The primary identifier of the EC2 TransitGatewayAttachmentNatConfiguration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           args.identifier,
           credentials,
         ) as StateData;
         const instanceName =
-          ((result.ProjectName ?? context.globalArgs.ProjectName)?.toString() ??
-            args.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
-            .replace(/\0/g, "");
+          (context.globalArgs.name?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -215,12 +198,12 @@ export const model = {
       },
     },
     update: {
-      description: "Update a LookoutVision Project",
+      description: "Update a EC2 TransitGatewayAttachmentNatConfiguration",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.ProjectName?.toString() ?? "current").replace(
+        const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -233,26 +216,27 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ProjectName?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           identifier,
           credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
+          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           identifier,
           currentState,
           desiredState,
-          ["ProjectName"],
+          ["TransitGatewayAttachmentId"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -264,22 +248,24 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a LookoutVision Project",
+      description: "Delete a EC2 TransitGatewayAttachmentNatConfiguration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the LookoutVision Project",
+          "The primary identifier of the EC2 TransitGatewayAttachmentNatConfiguration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           args.identifier,
           credentials,
         );
         const instanceName =
-          (context.globalArgs.ProjectName?.toString() ?? args.identifier)
-            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.name?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -290,12 +276,13 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync LookoutVision Project state from AWS",
+      description:
+        "Sync EC2 TransitGatewayAttachmentNatConfiguration state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.ProjectName?.toString() ?? "current").replace(
+        const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -308,13 +295,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ProjectName?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::LookoutVision::Project",
+            "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
             identifier,
             credentials,
           ) as StateData;
@@ -338,7 +325,8 @@ export const model = {
       },
     },
     list: {
-      description: "List LookoutVision Project resources",
+      description:
+        "List EC2 TransitGatewayAttachmentNatConfiguration resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -353,7 +341,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::LookoutVision::Project",
+          "AWS::EC2::TransitGatewayAttachmentNatConfiguration",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -364,8 +352,10 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.ProjectName?.toString() ?? item.identifier)
-              .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+            (item.properties?.Arn?.toString() ?? item.identifier).replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
           const handle = await context.writeResource("state", instanceName, {
             ...item.properties,
             _identifier: item.identifier,

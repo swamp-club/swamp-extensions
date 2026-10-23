@@ -3550,17 +3550,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.10.21.1",
-      description: "Removed: contentThemeExclusionDetails",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const {
-          contentThemeExclusionDetails: _contentThemeExclusionDetails,
-          ...rest
-        } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.10.22.1",
       description:
         "Added: auctionPackageDetails, combinedAudienceDetails, contentThemeExclusionDetails, customListDetails, firstPartyAndPartnerAudienceDetails, googleAudienceDetails, lookalikeAudienceDetails",

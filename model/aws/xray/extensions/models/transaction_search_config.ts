@@ -57,11 +57,23 @@ const GlobalArgsSchema = z.object({
   IndexingPercentage: z.number().min(0).max(100).describe(
     "Determines the percentage of traces indexed from CloudWatch Logs to X-Ray",
   ).optional(),
+  CloudWatchLogsConfiguration: z.object({
+    SpansLogGroupKmsKeyId: z.string().max(256).regex(
+      new RegExp("^arn:aws[a-z-]*:kms:[a-z0-9-]+:\\d{12}:key/[a-zA-Z0-9-]+$"),
+    ).describe(
+      "The ARN of a symmetric customer managed AWS KMS key in the same account and Region, used to encrypt the aws/spans log group. Key IDs and alias ARNs are not supported, so for an AWS::KMS::Key use Fn::GetAtt Arn, not Ref. X-Ray applies the key only when it creates aws/spans while enabling Transaction Search. If aws/spans already exists, for example from an earlier enablement or an earlier create that failed partway, the create fails and X-Ray does not enable Transaction Search or change the log group. Remove this property to use the existing log group with its current encryption, and use the CloudWatch Logs AssociateKmsKey API to change its key. The caller needs kms:DescribeKey on the key, and the key policy must allow CloudWatch Logs to use it. Adding, changing or removing this property replaces the resource, which fails while Transaction Search is enabled",
+    ).optional(),
+  }).describe(
+    "Configuration for the CloudWatch Logs log group that X-Ray creates when this resource enables Transaction Search. It is used only at that time and is never returned",
+  ).optional(),
 });
 
 const StateSchema = z.object({
   AccountId: z.string(),
   IndexingPercentage: z.number().optional(),
+  CloudWatchLogsConfiguration: z.object({
+    SpansLogGroupKmsKeyId: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -74,6 +86,15 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   IndexingPercentage: z.number().min(0).max(100).describe(
     "Determines the percentage of traces indexed from CloudWatch Logs to X-Ray",
+  ).optional(),
+  CloudWatchLogsConfiguration: z.object({
+    SpansLogGroupKmsKeyId: z.string().max(256).regex(
+      new RegExp("^arn:aws[a-z-]*:kms:[a-z0-9-]+:\\d{12}:key/[a-zA-Z0-9-]+$"),
+    ).describe(
+      "The ARN of a symmetric customer managed AWS KMS key in the same account and Region, used to encrypt the aws/spans log group. Key IDs and alias ARNs are not supported, so for an AWS::KMS::Key use Fn::GetAtt Arn, not Ref. X-Ray applies the key only when it creates aws/spans while enabling Transaction Search. If aws/spans already exists, for example from an earlier enablement or an earlier create that failed partway, the create fails and X-Ray does not enable Transaction Search or change the log group. Remove this property to use the existing log group with its current encryption, and use the CloudWatch Logs AssociateKmsKey API to change its key. The caller needs kms:DescribeKey on the key, and the key policy must allow CloudWatch Logs to use it. Adding, changing or removing this property replaces the resource, which fails while Transaction Search is enabled",
+    ).optional(),
+  }).describe(
+    "Configuration for the CloudWatch Logs log group that X-Ray creates when this resource enables Transaction Search. It is used only at that time and is never returned",
   ).optional(),
 });
 
@@ -96,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for XRay TransactionSearchConfig. Registered at `@swamp/aws/xray/transaction-search-config`. */
 export const model = {
   type: "@swamp/aws/xray/transaction-search-config",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -151,6 +172,11 @@ export const model = {
     {
       toVersion: "2026.10.13.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "Added: CloudWatchLogsConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -260,7 +286,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["CloudWatchLogsConfiguration"],
           credentials,
         );
         const handle = await context.writeResource(

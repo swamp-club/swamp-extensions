@@ -189,7 +189,7 @@ const GlobalArgsSchema = z.object({
   PolicyEngineConfiguration: z.object({
     Arn: z.string().min(1).max(170).regex(
       new RegExp(
-        "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
+        "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
       ),
     ),
     Mode: z.enum(["LOG_ONLY", "ENFORCE"]),
@@ -274,7 +274,7 @@ const InputsSchema = z.object({
   PolicyEngineConfiguration: z.object({
     Arn: z.string().min(1).max(170).regex(
       new RegExp(
-        "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
+        "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
       ),
     ).optional(),
     Mode: z.enum(["LOG_ONLY", "ENFORCE"]).optional(),
@@ -316,7 +316,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -423,6 +423,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

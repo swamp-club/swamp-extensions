@@ -294,7 +294,7 @@ const GlobalArgsSchema = z.object({
           "Required. Price in USD to use for any new locations Play may launch in.",
         ).optional(),
       }).describe(
-        "The absolute amount of money subtracted from the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for any new locations Play may launch in.",
+        "The absolute amount of money subtracted from the base plan price prorated over the phase duration. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for any new locations Play may launch in.",
       ).optional(),
       free: z.object({}).describe(
         "Set to specify this offer is free to obtain.",
@@ -330,7 +330,7 @@ const GlobalArgsSchema = z.object({
         "The absolute price the user pays for this offer phase. The price must not be smaller than the minimum price allowed for any new locations Play may launch in.",
       ).optional(),
       relativeDiscount: z.number().describe(
-        "The fraction of the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a 50% discount for a phase of a duration of 3 months would correspond to a price of $1.50. The discount must be specified as a fraction strictly larger than 0 and strictly smaller than 1. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in any new locations Play may launch in.",
+        "The percentage discount subtracted from the base plan price prorated over the phase duration, specified as a fraction strictly larger than `0` and strictly smaller than `1`. For example, a value of `0.8` represents an 80% discount, meaning that if the prorated base plan price is $100, the offer price will be $20. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in any new locations Play may launch in.",
       ).optional(),
     }).describe("Pricing information for any new locations Play may launch in.")
       .optional(),
@@ -349,7 +349,7 @@ const GlobalArgsSchema = z.object({
           'The whole units of the amount. For example if `currencyCode` is `"USD"`, then 1 unit is one US dollar.',
         ).optional(),
       }).describe(
-        "The absolute amount of money subtracted from the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for this region.",
+        "The absolute amount of money subtracted from the base plan price prorated over the phase duration. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for this region.",
       ).optional(),
       free: z.object({}).describe(
         "Set to specify this offer is free to obtain.",
@@ -371,7 +371,7 @@ const GlobalArgsSchema = z.object({
         "Required. Immutable. The region to which this config applies.",
       ).optional(),
       relativeDiscount: z.number().describe(
-        "The fraction of the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a 50% discount for a phase of a duration of 3 months would correspond to a price of $1.50. The discount must be specified as a fraction strictly larger than 0 and strictly smaller than 1. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in this region.",
+        "The percentage discount subtracted from the base plan price prorated over the phase duration, specified as a fraction strictly larger than `0` and strictly smaller than `1`. For example, a value of `0.8` represents an 80% discount, meaning that if the prorated base plan price is $100, the offer price will be $20. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in this region.",
       ).optional(),
     })).describe(
       "Required. The region-specific configuration of this offer phase. This list must contain exactly one entry for each region for which the subscription offer has a regional config.",
@@ -593,7 +593,7 @@ const InputsSchema = z.object({
           "Required. Price in USD to use for any new locations Play may launch in.",
         ).optional(),
       }).describe(
-        "The absolute amount of money subtracted from the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for any new locations Play may launch in.",
+        "The absolute amount of money subtracted from the base plan price prorated over the phase duration. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for any new locations Play may launch in.",
       ).optional(),
       free: z.object({}).describe(
         "Set to specify this offer is free to obtain.",
@@ -629,7 +629,7 @@ const InputsSchema = z.object({
         "The absolute price the user pays for this offer phase. The price must not be smaller than the minimum price allowed for any new locations Play may launch in.",
       ).optional(),
       relativeDiscount: z.number().describe(
-        "The fraction of the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a 50% discount for a phase of a duration of 3 months would correspond to a price of $1.50. The discount must be specified as a fraction strictly larger than 0 and strictly smaller than 1. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in any new locations Play may launch in.",
+        "The percentage discount subtracted from the base plan price prorated over the phase duration, specified as a fraction strictly larger than `0` and strictly smaller than `1`. For example, a value of `0.8` represents an 80% discount, meaning that if the prorated base plan price is $100, the offer price will be $20. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in any new locations Play may launch in.",
       ).optional(),
     }).describe("Pricing information for any new locations Play may launch in.")
       .optional(),
@@ -648,7 +648,7 @@ const InputsSchema = z.object({
           'The whole units of the amount. For example if `currencyCode` is `"USD"`, then 1 unit is one US dollar.',
         ).optional(),
       }).describe(
-        "The absolute amount of money subtracted from the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for this region.",
+        "The absolute amount of money subtracted from the base plan price prorated over the phase duration. For example, if the base plan price for this region is $12 for a period of 1 year, then a $1 absolute discount for a phase of a duration of 3 months would correspond to a price of $2. The resulting price may not be smaller than the minimum price allowed for this region.",
       ).optional(),
       free: z.object({}).describe(
         "Set to specify this offer is free to obtain.",
@@ -670,7 +670,7 @@ const InputsSchema = z.object({
         "Required. Immutable. The region to which this config applies.",
       ).optional(),
       relativeDiscount: z.number().describe(
-        "The fraction of the base plan price prorated over the phase duration that the user pays for this offer phase. For example, if the base plan price for this region is $12 for a period of 1 year, then a 50% discount for a phase of a duration of 3 months would correspond to a price of $1.50. The discount must be specified as a fraction strictly larger than 0 and strictly smaller than 1. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in this region.",
+        "The percentage discount subtracted from the base plan price prorated over the phase duration, specified as a fraction strictly larger than `0` and strictly smaller than `1`. For example, a value of `0.8` represents an 80% discount, meaning that if the prorated base plan price is $100, the offer price will be $20. The resulting price will be rounded to the nearest billable unit (e.g. cents for USD). The relative discount is considered invalid if the discounted price ends up being smaller than the minimum price allowed in this region.",
       ).optional(),
     })).describe(
       "Required. The region-specific configuration of this offer phase. This list must contain exactly one entry for each region for which the subscription offer has a regional config.",
@@ -770,7 +770,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/androidpublisher/monetization-subscriptions-baseplans-offers",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -914,6 +914,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

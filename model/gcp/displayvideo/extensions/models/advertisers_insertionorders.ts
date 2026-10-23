@@ -1235,16 +1235,8 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
-      description:
-        "Added: billableOutcome, performanceGoal. Removed: kpi, optimizationObjective",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const {
-          kpi: _kpi,
-          optimizationObjective: _optimizationObjective,
-          ...rest
-        } = old;
-        return rest;
-      },
+      description: "Added: billableOutcome, performanceGoal",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.22.1",

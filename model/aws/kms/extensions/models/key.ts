@@ -80,6 +80,7 @@ const GlobalArgsSchema = z.object({
     "SIGN_VERIFY",
     "GENERATE_VERIFY_MAC",
     "KEY_AGREEMENT",
+    "ENCAPSULATE_DECAPSULATE",
   ]).describe(
     "Determines the [cryptographic operations](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#cryptographic-operations) for which you can use the KMS key. The default value is ENCRYPT_DECRYPT. This property is required for asymmetric KMS keys and HMAC KMS keys. You can't change the KeyUsage value after the KMS key is created. If you change the value of the KeyUsage property on an existing KMS key, the update request fails, regardless of the value of the [UpdateReplacePolicy attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-updatereplacepolicy.html). This prevents you from accidentally deleting a KMS key by changing an immutable property value. Select only one valid value. For symmetric encryption KMS keys, omit the parameter or specify ENCRYPT_DECRYPT. For HMAC KMS keys (symmetric), specify GENERATE_VERIFY_MAC. For asymmetric KMS keys with RSA key pairs, specify ENCRYPT_DECRYPT or SIGN_VERIFY. For asymmetric KMS keys with NIST-recommended elliptic curve key pairs, specify SIGN_VERIFY or KEY_AGREEMENT. For asymmetric KMS keys with ECC_SECG_P256K1 key pairs, specify SIGN_VERIFY. For asymmetric KMS keys with ML-DSA key pairs, specify SIGN_VERIFY. For asymmetric KMS keys with SM2 key pairs (China Regions only), specify ENCRYPT_DECRYPT, SIGN_VERIFY, or KEY_AGREEMENT.",
   ).optional(),
@@ -104,6 +105,9 @@ const GlobalArgsSchema = z.object({
     "ML_DSA_65",
     "ML_DSA_87",
     "ECC_NIST_EDWARDS25519",
+    "ML_KEM_512",
+    "ML_KEM_768",
+    "ML_KEM_1024",
   ]).describe(
     "Specifies the type of KMS key to create. The default value, SYMMETRIC_DEFAULT, creates a KMS key with a 256-bit symmetric key for encryption and decryption. In China Regions, SYMMETRIC_DEFAULT creates a 128-bit symmetric key that uses SM4 encryption. You can't change the KeySpec value after the KMS key is created. For help choosing a key spec for your KMS key, see [Choosing a KMS key type](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose.html) in the *Developer Guide*. The KeySpec property determines the type of key material in the KMS key and the algorithms that the KMS key supports. To further restrict the algorithms that can be used with the KMS key, use a condition key in its key policy or IAM policy. For more information, see [condition keys](https://docs.aws.amazon.com/kms/latest/developerguide/policy-conditions.html#conditions-kms) in the *Developer Guide*. If you change the value of the KeySpec property on an existing KMS key, the update request fails, regardless of the value of the [UpdateReplacePolicy attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-updatereplacepolicy.html). This prevents you from accidentally deleting a KMS key by changing an immutable property value. [services that are integrated with](https://docs.aws.amazon.com/kms/features/#AWS_Service_Integration) use symmetric encryption KMS keys to protect your data. These services do not support encryption with asymmetric KMS keys. For help determining whether a KMS key is asymmetric, see [Identifying asymmetric KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/find-symm-asymm.html) in the *Developer Guide*. KMS supports the following key specs for KMS keys: Symmetric encryption key (default) SYMMETRIC_DEFAULT (AES-256-GCM) HMAC keys (symmetric) HMAC_224 HMAC_256 HMAC_384 HMAC_512 Asymmetric RSA key pairs (encryption and decryption *or* signing and verification) RSA_2048 RSA_3072 RSA_4096 Asymmetric NIST-recommended elliptic curve key pairs (signing and verification *or* deriving shared secrets) ECC_NIST_P256 (secp256r1) ECC_NIST_P384 (secp384r1) ECC_NIST_P521 (secp521r1) ECC_NIST_EDWARDS25519 (ed25519) - signing and verification only *Note:* For ECC_NIST_EDWARDS25519 KMS keys, the ED25519_SHA_512 signing algorithm requires [MessageType:RAW](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#KMS-Sign-request-MessageType), while ED25519_PH_SHA_512 requires [MessageType:DIGEST](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#KMS-Sign-request-MessageType). These message types cannot be used interchangeably. Other asymmetric elliptic curve key pairs (signing and verification) ECC_SECG_P256K1 (secp256k1), commonly used for cryptocurrencies. Asymmetric ML-DSA key pairs (signing and verification) ML_DSA_44 ML_DSA_65 ML_DSA_87 SM2 key pairs (encryption and decryption *or* signing and verification *or* deriving shared secrets) SM2 (China Regions only)",
   ).optional(),
@@ -167,6 +171,7 @@ const InputsSchema = z.object({
     "SIGN_VERIFY",
     "GENERATE_VERIFY_MAC",
     "KEY_AGREEMENT",
+    "ENCAPSULATE_DECAPSULATE",
   ]).describe(
     "Determines the [cryptographic operations](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#cryptographic-operations) for which you can use the KMS key. The default value is ENCRYPT_DECRYPT. This property is required for asymmetric KMS keys and HMAC KMS keys. You can't change the KeyUsage value after the KMS key is created. If you change the value of the KeyUsage property on an existing KMS key, the update request fails, regardless of the value of the [UpdateReplacePolicy attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-updatereplacepolicy.html). This prevents you from accidentally deleting a KMS key by changing an immutable property value. Select only one valid value. For symmetric encryption KMS keys, omit the parameter or specify ENCRYPT_DECRYPT. For HMAC KMS keys (symmetric), specify GENERATE_VERIFY_MAC. For asymmetric KMS keys with RSA key pairs, specify ENCRYPT_DECRYPT or SIGN_VERIFY. For asymmetric KMS keys with NIST-recommended elliptic curve key pairs, specify SIGN_VERIFY or KEY_AGREEMENT. For asymmetric KMS keys with ECC_SECG_P256K1 key pairs, specify SIGN_VERIFY. For asymmetric KMS keys with ML-DSA key pairs, specify SIGN_VERIFY. For asymmetric KMS keys with SM2 key pairs (China Regions only), specify ENCRYPT_DECRYPT, SIGN_VERIFY, or KEY_AGREEMENT.",
   ).optional(),
@@ -191,6 +196,9 @@ const InputsSchema = z.object({
     "ML_DSA_65",
     "ML_DSA_87",
     "ECC_NIST_EDWARDS25519",
+    "ML_KEM_512",
+    "ML_KEM_768",
+    "ML_KEM_1024",
   ]).describe(
     "Specifies the type of KMS key to create. The default value, SYMMETRIC_DEFAULT, creates a KMS key with a 256-bit symmetric key for encryption and decryption. In China Regions, SYMMETRIC_DEFAULT creates a 128-bit symmetric key that uses SM4 encryption. You can't change the KeySpec value after the KMS key is created. For help choosing a key spec for your KMS key, see [Choosing a KMS key type](https://docs.aws.amazon.com/kms/latest/developerguide/symm-asymm-choose.html) in the *Developer Guide*. The KeySpec property determines the type of key material in the KMS key and the algorithms that the KMS key supports. To further restrict the algorithms that can be used with the KMS key, use a condition key in its key policy or IAM policy. For more information, see [condition keys](https://docs.aws.amazon.com/kms/latest/developerguide/policy-conditions.html#conditions-kms) in the *Developer Guide*. If you change the value of the KeySpec property on an existing KMS key, the update request fails, regardless of the value of the [UpdateReplacePolicy attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-updatereplacepolicy.html). This prevents you from accidentally deleting a KMS key by changing an immutable property value. [services that are integrated with](https://docs.aws.amazon.com/kms/features/#AWS_Service_Integration) use symmetric encryption KMS keys to protect your data. These services do not support encryption with asymmetric KMS keys. For help determining whether a KMS key is asymmetric, see [Identifying asymmetric KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/find-symm-asymm.html) in the *Developer Guide*. KMS supports the following key specs for KMS keys: Symmetric encryption key (default) SYMMETRIC_DEFAULT (AES-256-GCM) HMAC keys (symmetric) HMAC_224 HMAC_256 HMAC_384 HMAC_512 Asymmetric RSA key pairs (encryption and decryption *or* signing and verification) RSA_2048 RSA_3072 RSA_4096 Asymmetric NIST-recommended elliptic curve key pairs (signing and verification *or* deriving shared secrets) ECC_NIST_P256 (secp256r1) ECC_NIST_P384 (secp384r1) ECC_NIST_P521 (secp521r1) ECC_NIST_EDWARDS25519 (ed25519) - signing and verification only *Note:* For ECC_NIST_EDWARDS25519 KMS keys, the ED25519_SHA_512 signing algorithm requires [MessageType:RAW](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#KMS-Sign-request-MessageType), while ED25519_PH_SHA_512 requires [MessageType:DIGEST](https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#KMS-Sign-request-MessageType). These message types cannot be used interchangeably. Other asymmetric elliptic curve key pairs (signing and verification) ECC_SECG_P256K1 (secp256k1), commonly used for cryptocurrencies. Asymmetric ML-DSA key pairs (signing and verification) ML_DSA_44 ML_DSA_65 ML_DSA_87 SM2 key pairs (encryption and decryption *or* signing and verification *or* deriving shared secrets) SM2 (China Regions only)",
   ).optional(),
@@ -230,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KMS Key. Registered at `@swamp/aws/kms/key`. */
 export const model = {
   type: "@swamp/aws/kms/key",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -294,6 +302,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

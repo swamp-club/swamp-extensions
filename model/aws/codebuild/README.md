@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/codebuild/fleet` to see the full list
-of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/codebuild/project` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new fleet model
-swamp model create @swamp/aws/codebuild/fleet my-fleet
+# Create a new project model
+swamp model create @swamp/aws/codebuild/project my-project
 
 # Edit the model to configure its properties
-swamp model edit my-fleet
+swamp model edit my-project
 
 # Create the resource in AWS
-swamp model method run my-fleet create
+swamp model method run my-project create
 
 # Sync current state from AWS
-swamp model method run my-fleet sync
+swamp model method run my-project sync
 ```
 
 ## License

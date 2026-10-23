@@ -242,6 +242,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  applicationProperties: z.object({
+    extendedMetadata: z.record(z.string(), z.unknown()),
+  }).optional(),
+  applicationType: z.object({
+    type: z.string(),
+  }).optional(),
   attributes: z.object({
     businessOwners: z.array(z.object({
       displayName: z.string(),
@@ -381,7 +387,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Hub Applications. Registered at `@swamp/gcp/apphub/applications`. */
 export const model = {
   type: "@swamp/gcp/apphub/applications",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +544,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -679,14 +679,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.10.21.1",
-      description: "Removed: billingConfig",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { billingConfig: _billingConfig, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.10.22.1",
       description: "Added: billingConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,

@@ -174,29 +174,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   cipherSuite: z.object({
     phase1: z.object({
-      dh: z.array(z.string()).describe("Diffie-Hellman groups for IKE phase 1.")
-        .optional(),
-      encryption: z.array(z.string()).describe(
-        "Encryption algorithms for IKE phase 1.",
-      ).optional(),
-      integrity: z.array(z.string()).describe(
-        "Integrity algorithms for IKE phase 1.",
-      ).optional(),
-      prf: z.array(z.string()).describe(
-        "Pseudo-random functions (PRF) for IKE phase 1.",
-      ).optional(),
-    }).describe("Cipher algorithms for IKE phase 1.").optional(),
+      dh: z.array(z.string()).optional(),
+      encryption: z.array(z.string()).optional(),
+      integrity: z.array(z.string()).optional(),
+      prf: z.array(z.string()).optional(),
+    }).optional(),
     phase2: z.object({
-      encryption: z.array(z.string()).describe(
-        "Encryption algorithms for IKE phase 2.",
-      ).optional(),
-      integrity: z.array(z.string()).describe(
-        "Integrity algorithms for IKE phase 2.",
-      ).optional(),
-      pfs: z.array(z.string()).describe(
-        "Perfect Forward Secrecy (PFS) groups for IKE phase 2.",
-      ).optional(),
-    }).describe("Cipher algorithms for IKE phase 2.").optional(),
+      encryption: z.array(z.string()).optional(),
+      integrity: z.array(z.string()).optional(),
+      pfs: z.array(z.string()).optional(),
+    }).optional(),
   }).describe(
     "User specified list of ciphers to use for the phase 1 and phase 2 of the IKE protocol.",
   ).optional(),
@@ -314,29 +301,16 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   cipherSuite: z.object({
     phase1: z.object({
-      dh: z.array(z.string()).describe("Diffie-Hellman groups for IKE phase 1.")
-        .optional(),
-      encryption: z.array(z.string()).describe(
-        "Encryption algorithms for IKE phase 1.",
-      ).optional(),
-      integrity: z.array(z.string()).describe(
-        "Integrity algorithms for IKE phase 1.",
-      ).optional(),
-      prf: z.array(z.string()).describe(
-        "Pseudo-random functions (PRF) for IKE phase 1.",
-      ).optional(),
-    }).describe("Cipher algorithms for IKE phase 1.").optional(),
+      dh: z.array(z.string()).optional(),
+      encryption: z.array(z.string()).optional(),
+      integrity: z.array(z.string()).optional(),
+      prf: z.array(z.string()).optional(),
+    }).optional(),
     phase2: z.object({
-      encryption: z.array(z.string()).describe(
-        "Encryption algorithms for IKE phase 2.",
-      ).optional(),
-      integrity: z.array(z.string()).describe(
-        "Integrity algorithms for IKE phase 2.",
-      ).optional(),
-      pfs: z.array(z.string()).describe(
-        "Perfect Forward Secrecy (PFS) groups for IKE phase 2.",
-      ).optional(),
-    }).describe("Cipher algorithms for IKE phase 2.").optional(),
+      encryption: z.array(z.string()).optional(),
+      integrity: z.array(z.string()).optional(),
+      pfs: z.array(z.string()).optional(),
+    }).optional(),
   }).describe(
     "User specified list of ciphers to use for the phase 1 and phase 2 of the IKE protocol.",
   ).optional(),
@@ -426,7 +400,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine VpnTunnels. Registered at `@swamp/gcp/compute/vpntunnels`. */
 export const model = {
   type: "@swamp/gcp/compute/vpntunnels",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -580,6 +554,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

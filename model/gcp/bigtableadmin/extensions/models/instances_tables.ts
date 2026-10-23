@@ -1817,7 +1817,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables. Registered at `@swamp/gcp/bigtableadmin/instances-tables`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables",
-  version: "2026.10.14.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2017,6 +2017,11 @@ export const model = {
     {
       toVersion: "2026.10.14.1",
       description: "Added: effectiveAutomatedBackupPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2607,9 +2612,7 @@ export const model = {
       description: "restore",
       arguments: z.object({
         backup: z.any().optional(),
-        table: z.any().optional(),
         tableId: z.any().optional(),
-        updateMask: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -2621,11 +2624,7 @@ export const model = {
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
         if (args["backup"] !== undefined) body["backup"] = args["backup"];
-        if (args["table"] !== undefined) body["table"] = args["table"];
         if (args["tableId"] !== undefined) body["tableId"] = args["tableId"];
-        if (args["updateMask"] !== undefined) {
-          body["updateMask"] = args["updateMask"];
-        }
         const result = await createResource(
           baseUrl,
           {

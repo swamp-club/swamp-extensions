@@ -365,7 +365,7 @@ const GlobalArgsSchema = z.object({
         "SATURDAY",
         "SUNDAY",
       ]).describe(
-        "Optional. Allows to define schedule that runs specified day of the week.",
+        "Optional. The day of the week for the maintenance window. This field is required. You can't use `DAY_OF_WEEK_UNSPECIFIED`.",
       ).optional(),
       startTime: z.object({
         hours: z.number().int().describe(
@@ -380,7 +380,9 @@ const GlobalArgsSchema = z.object({
         seconds: z.number().int().describe(
           "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
         ).optional(),
-      }).describe("Optional. Start time of the window in UTC.").optional(),
+      }).describe(
+        "Optional. The start time of the maintenance window in UTC. When you specify a maintenance window, `start_time` is required.",
+      ).optional(),
     })).describe(
       "Optional. Maintenance window that is applied to resources covered by this policy. Minimum 1. For the current version, the maximum number of weekly_maintenance_window is expected to be one.",
     ).optional(),
@@ -479,6 +481,9 @@ const GlobalArgsSchema = z.object({
     "Optional. The in-transit encryption for the Redis cluster. If not provided, encryption is disabled for the cluster.",
   ).optional(),
   zoneDistributionConfig: z.object({
+    activeZones: z.array(z.string()).describe(
+      "Output only. The exact list of zones where the cluster currently has active VMs.",
+    ).optional(),
     mode: z.enum([
       "ZONE_DISTRIBUTION_MODE_UNSPECIFIED",
       "MULTI_ZONE",
@@ -678,6 +683,7 @@ const StateSchema = z.object({
   transitEncryptionMode: z.string().optional(),
   uid: z.string().optional(),
   zoneDistributionConfig: z.object({
+    activeZones: z.array(z.string()),
     mode: z.string(),
     zone: z.string(),
     zones: z.array(z.string()),
@@ -895,7 +901,7 @@ const InputsSchema = z.object({
         "SATURDAY",
         "SUNDAY",
       ]).describe(
-        "Optional. Allows to define schedule that runs specified day of the week.",
+        "Optional. The day of the week for the maintenance window. This field is required. You can't use `DAY_OF_WEEK_UNSPECIFIED`.",
       ).optional(),
       startTime: z.object({
         hours: z.number().int().describe(
@@ -910,7 +916,9 @@ const InputsSchema = z.object({
         seconds: z.number().int().describe(
           "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
         ).optional(),
-      }).describe("Optional. Start time of the window in UTC.").optional(),
+      }).describe(
+        "Optional. The start time of the maintenance window in UTC. When you specify a maintenance window, `start_time` is required.",
+      ).optional(),
     })).describe(
       "Optional. Maintenance window that is applied to resources covered by this policy. Minimum 1. For the current version, the maximum number of weekly_maintenance_window is expected to be one.",
     ).optional(),
@@ -1009,6 +1017,9 @@ const InputsSchema = z.object({
     "Optional. The in-transit encryption for the Redis cluster. If not provided, encryption is disabled for the cluster.",
   ).optional(),
   zoneDistributionConfig: z.object({
+    activeZones: z.array(z.string()).describe(
+      "Output only. The exact list of zones where the cluster currently has active VMs.",
+    ).optional(),
     mode: z.enum([
       "ZONE_DISTRIBUTION_MODE_UNSPECIFIED",
       "MULTI_ZONE",
@@ -1061,7 +1072,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Clusters. Registered at `@swamp/gcp/redis/clusters`. */
 export const model = {
   type: "@swamp/gcp/redis/clusters",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1253,6 +1264,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

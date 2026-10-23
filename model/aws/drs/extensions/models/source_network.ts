@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
     .describe("The account ID containing the VPC to protect."),
   OriginRegion: z.string().max(255).regex(
     new RegExp(
-      "^(us(-gov)?|ap|ca|cn|eu|eusc|sa|af|me|il)-([a-z]{2}-)?(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-[0-9]$",
+      "^(us(-gov)?|ap|ca|cn|eu|eusc|sa|af|me|mx|il)-([a-z]{2}-)?(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-[0-9]$",
     ),
   ).describe("The region containing the VPC to protect."),
   Tags: z.array(TagSchema).describe(
@@ -96,7 +96,7 @@ const InputsSchema = z.object({
     .describe("The account ID containing the VPC to protect.").optional(),
   OriginRegion: z.string().max(255).regex(
     new RegExp(
-      "^(us(-gov)?|ap|ca|cn|eu|eusc|sa|af|me|il)-([a-z]{2}-)?(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-[0-9]$",
+      "^(us(-gov)?|ap|ca|cn|eu|eusc|sa|af|me|mx|il)-([a-z]{2}-)?(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-[0-9]$",
     ),
   ).describe("The region containing the VPC to protect.").optional(),
   Tags: z.array(TagSchema).describe(
@@ -123,10 +123,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DRS SourceNetwork. Registered at `@swamp/aws/drs/source-network`. */
 export const model = {
   type: "@swamp/aws/drs/source-network",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -137,6 +137,12 @@ const ResourceSchema = z.object({
   status: z.string().nullable().optional(),
   teamId: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
+  deliveryStats: z.object({
+    attempts: z.number().optional(),
+    failures: z.number().optional(),
+    state: z.string().optional(),
+    window: z.string().optional(),
+  }).nullable().optional(),
   filterV2: z.object({
     filter: z.object({
       deployment: z.object({
@@ -152,13 +158,6 @@ const ResourceSchema = z.object({
       type: z.string().optional(),
     }).optional(),
     version: z.string().optional(),
-  }).nullable().optional(),
-  integrationConfigurationUri: z.string().nullable().optional(),
-  integrationIcon: z.string().nullable().optional(),
-  integrationWebsite: z.string().nullable().optional(),
-  projectAccess: z.object({
-    access: z.string().optional(),
-    managedBy: z.string().optional(),
   }).nullable().optional(),
 }).passthrough();
 
@@ -223,7 +222,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Drains. Registered at `@swamp/vercel/drains/drains`. */
 export const model = {
   type: "@swamp/vercel/drains/drains",
-  version: "2026.10.20.3",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -277,6 +276,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -404,18 +408,6 @@ export const model = {
         }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.integrationConfigurationUri !== undefined) {
-          filters.push([
-            "integrationConfigurationUri",
-            String(g.integrationConfigurationUri),
-          ]);
-        }
-        if (g.integrationIcon !== undefined) {
-          filters.push(["integrationIcon", String(g.integrationIcon)]);
-        }
-        if (g.integrationWebsite !== undefined) {
-          filters.push(["integrationWebsite", String(g.integrationWebsite)]);
         }
         if (filters.length === 0) {
           throw new Error(

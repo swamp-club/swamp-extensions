@@ -88,7 +88,9 @@ const GlobalArgsSchema = z.object({
   PropagateTags: z.enum(["DAEMON", "NONE"]).describe(
     "Specifies whether tags are propagated from the daemon to the daemon tasks.",
   ).optional(),
-  Critical: z.boolean().optional(),
+  Critical: z.boolean().describe(
+    "If the critical parameter of this daemon revision is true, and the daemon task fails, stops, or becomes unhealthy, Amazon ECS drains the container instance and stops the other tasks running on it. If the parameter is false, the daemon task failure doesn't affect the other tasks on the instance, and doesn't block instance registration. The default value is true.",
+  ).optional(),
   CapacityProviderArns: z.array(z.string()).describe(
     "The Amazon Resource Names (ARNs) of the capacity providers associated with the daemon.",
   ).optional(),
@@ -153,7 +155,9 @@ const InputsSchema = z.object({
   PropagateTags: z.enum(["DAEMON", "NONE"]).describe(
     "Specifies whether tags are propagated from the daemon to the daemon tasks.",
   ).optional(),
-  Critical: z.boolean().optional(),
+  Critical: z.boolean().describe(
+    "If the critical parameter of this daemon revision is true, and the daemon task fails, stops, or becomes unhealthy, Amazon ECS drains the container instance and stops the other tasks running on it. If the parameter is false, the daemon task failure doesn't affect the other tasks on the instance, and doesn't block instance registration. The default value is true.",
+  ).optional(),
   CapacityProviderArns: z.array(z.string()).describe(
     "The Amazon Resource Names (ARNs) of the capacity providers associated with the daemon.",
   ).optional(),
@@ -191,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Daemon. Registered at `@swamp/aws/ecs/daemon`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -250,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

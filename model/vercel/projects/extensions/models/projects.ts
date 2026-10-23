@@ -1043,6 +1043,9 @@ const ResourceSchema = z.object({
     marketplaceSettings: z.array(z.string()).optional(),
     messageboard: z.array(z.string()).optional(),
     messageboardChannel: z.array(z.string()).optional(),
+    messageboardMessage: z.array(z.string()).optional(),
+    messageboardModeration: z.array(z.string()).optional(),
+    messageboardReaction: z.array(z.string()).optional(),
     messageboardTask: z.array(z.string()).optional(),
     Monitoring: z.array(z.string()).optional(),
     monitoringAlert: z.array(z.string()).optional(),
@@ -1724,7 +1727,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.21.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1958,6 +1961,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

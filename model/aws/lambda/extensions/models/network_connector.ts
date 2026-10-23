@@ -39,6 +39,14 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const VpcEgressConfigurationSchema = z.object({
+  ElasticIpConfiguration: z.unknown().optional(),
+  AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm", "WebFunction"]))
+    .describe(
+      "The types of Lambda compute resources that can use this connector. Supported values are MicroVm and WebFunction.",
+    ),
+  NetworkProtocol: z.enum(["IPv4", "DualStack"]).describe(
+    "The network protocol for the connector. Specify IPv4 for IPv4-only networking, or DualStack for both IPv4 and IPv6.",
+  ),
   SubnetIds: z.array(
     z.string().min(0).max(1024).regex(new RegExp("^subnet-[0-9a-z]*$")),
   ).describe(
@@ -49,19 +57,12 @@ const VpcEgressConfigurationSchema = z.object({
   ).describe(
     "The IDs of the VPC security groups to attach to the ENIs. All security groups must be in the same VPC as the subnets.",
   ),
-  NetworkProtocol: z.enum(["IPv4", "DualStack"]).describe(
-    "The network protocol for the connector. Specify IPv4 for IPv4-only networking, or DualStack for both IPv4 and IPv6.",
-  ),
-  AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm", "WebFunction"]))
-    .describe(
-      "The types of Lambda compute resources that can use this connector. Supported values are MicroVm and WebFunction.",
-    ),
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe("The key name of the tag."),
   Value: z.string().min(0).max(256).describe("The value for the tag.")
     .optional(),
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -80,13 +81,6 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().min(1).max(140).regex(
-    new RegExp(
-      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
-    ),
-  ).describe(
-    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
-  ).optional(),
   Configuration: z.object({
     VpcEgressConfiguration: VpcEgressConfigurationSchema.describe(
       "The VPC egress configuration for the network connector. Specifies the subnets, security groups, and network protocol for routing outbound traffic through your VPC.",
@@ -99,24 +93,31 @@ const GlobalArgsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
   ).describe(
-    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations. If ElasticIpConfiguration Type is ServiceManaged, this role must also have permissions for ec2:AllocateAddress and ec2:AssociateAddress.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
   ).optional(),
+  Name: z.string().min(1).max(140).regex(
+    new RegExp(
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
+    ),
+  ).describe(
+    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  Arn: z.string(),
-  Name: z.string().optional(),
   Configuration: z.object({
     VpcEgressConfiguration: VpcEgressConfigurationSchema,
   }).optional(),
   OperatorRole: z.string().optional(),
+  LatestVersion: z.number().optional(),
   State: z.string().optional(),
   LatestVersionArn: z.string().optional(),
-  LatestVersion: z.number().optional(),
+  Arn: z.string(),
   Tags: z.array(TagSchema).optional(),
+  Name: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -127,13 +128,6 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Name: z.string().min(1).max(140).regex(
-    new RegExp(
-      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
-    ),
-  ).describe(
-    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
-  ).optional(),
   Configuration: z.object({
     VpcEgressConfiguration: VpcEgressConfigurationSchema.describe(
       "The VPC egress configuration for the network connector. Specifies the subnets, security groups, and network protocol for routing outbound traffic through your VPC.",
@@ -146,10 +140,17 @@ const InputsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
   ).describe(
-    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations. If ElasticIpConfiguration Type is ServiceManaged, this role must also have permissions for ec2:AllocateAddress and ec2:AssociateAddress.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
+  ).optional(),
+  Name: z.string().min(1).max(140).regex(
+    new RegExp(
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9][0-9]*)?)|[a-zA-Z0-9_-]{1,64}$",
+    ),
+  ).describe(
+    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
   ).optional(),
 });
 
@@ -172,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
   type: "@swamp/aws/lambda/network-connector",
-  version: "2026.10.15.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -191,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
