@@ -234,7 +234,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Data from Cloud Storage will be interpreted in Avro format.",
       ).optional(),
       bucket: z.string().describe(
-        'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements] (https://cloud.google.com/storage/docs/buckets#naming).',
+        'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements]( https://cloud.google.com/storage/docs/buckets#naming).',
       ).optional(),
       matchGlob: z.string().describe(
         "Optional. Glob pattern used to match objects that will be ingested. If unset, all objects will be ingested. See the [supported patterns](https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-objects-and-prefixes-using-glob).",
@@ -312,7 +312,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The resource name of the Cloud KMS CryptoKey to be used to protect access to messages published on this topic. The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+    "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
   ).optional(),
   messageRetentionDuration: z.string().describe(
     "Optional. Indicates the minimum duration to retain a message after it is published to the topic. If this field is set, messages published to the topic in the last `message_retention_duration` are always available to subscribers. For instance, it allows any attached subscription to [seek to a timestamp](https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) that is up to `message_retention_duration` in the past. If this field is not set, message retention is controlled by settings on individual subscriptions. Cannot be more than 31 days or less than 10 minutes.",
@@ -495,7 +495,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Data from Cloud Storage will be interpreted in Avro format.",
         ).optional(),
         bucket: z.string().describe(
-          'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements] (https://cloud.google.com/storage/docs/buckets#naming).',
+          'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements]( https://cloud.google.com/storage/docs/buckets#naming).',
         ).optional(),
         matchGlob: z.string().describe(
           "Optional. Glob pattern used to match objects that will be ingested. If unset, all objects will be ingested. See the [supported patterns](https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-objects-and-prefixes-using-glob).",
@@ -573,7 +573,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The resource name of the Cloud KMS CryptoKey to be used to protect access to messages published on this topic. The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
     ).optional(),
     labels: z.record(z.string(), z.string()).describe(
-      "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+      "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
     ).optional(),
     messageRetentionDuration: z.string().describe(
       "Optional. Indicates the minimum duration to retain a message after it is published to the topic. If this field is set, messages published to the topic in the last `message_retention_duration` are always available to subscribers. For instance, it allows any attached subscription to [seek to a timestamp](https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) that is up to `message_retention_duration` in the past. If this field is not set, message retention is controlled by settings on individual subscriptions. Cannot be more than 31 days or less than 10 minutes.",
@@ -861,7 +861,7 @@ const InputsSchema = z.object({
         "Optional. Data from Cloud Storage will be interpreted in Avro format.",
       ).optional(),
       bucket: z.string().describe(
-        'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements] (https://cloud.google.com/storage/docs/buckets#naming).',
+        'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements]( https://cloud.google.com/storage/docs/buckets#naming).',
       ).optional(),
       matchGlob: z.string().describe(
         "Optional. Glob pattern used to match objects that will be ingested. If unset, all objects will be ingested. See the [supported patterns](https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-objects-and-prefixes-using-glob).",
@@ -939,7 +939,7 @@ const InputsSchema = z.object({
     "Optional. The resource name of the Cloud KMS CryptoKey to be used to protect access to messages published on this topic. The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+    "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
   ).optional(),
   messageRetentionDuration: z.string().describe(
     "Optional. Indicates the minimum duration to retain a message after it is published to the topic. If this field is set, messages published to the topic in the last `message_retention_duration` are always available to subscribers. For instance, it allows any attached subscription to [seek to a timestamp](https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) that is up to `message_retention_duration` in the past. If this field is not set, message retention is controlled by settings on individual subscriptions. Cannot be more than 31 days or less than 10 minutes.",
@@ -1122,7 +1122,7 @@ const InputsSchema = z.object({
           "Optional. Data from Cloud Storage will be interpreted in Avro format.",
         ).optional(),
         bucket: z.string().describe(
-          'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements] (https://cloud.google.com/storage/docs/buckets#naming).',
+          'Optional. Cloud Storage bucket. The bucket name must be without any prefix like "gs://". See the [bucket naming requirements]( https://cloud.google.com/storage/docs/buckets#naming).',
         ).optional(),
         matchGlob: z.string().describe(
           "Optional. Glob pattern used to match objects that will be ingested. If unset, all objects will be ingested. See the [supported patterns](https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-objects-and-prefixes-using-glob).",
@@ -1200,7 +1200,7 @@ const InputsSchema = z.object({
       "Optional. The resource name of the Cloud KMS CryptoKey to be used to protect access to messages published on this topic. The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
     ).optional(),
     labels: z.record(z.string(), z.string()).describe(
-      "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+      "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
     ).optional(),
     messageRetentionDuration: z.string().describe(
       "Optional. Indicates the minimum duration to retain a message after it is published to the topic. If this field is set, messages published to the topic in the last `message_retention_duration` are always available to subscribers. For instance, it allows any attached subscription to [seek to a timestamp](https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) that is up to `message_retention_duration` in the past. If this field is not set, message retention is controlled by settings on individual subscriptions. Cannot be more than 31 days or less than 10 minutes.",
@@ -1327,7 +1327,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1585,6 +1585,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

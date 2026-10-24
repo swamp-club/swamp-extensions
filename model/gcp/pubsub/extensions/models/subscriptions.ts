@@ -387,7 +387,7 @@ const GlobalArgsSchema = z.object({
       "Optional. If specified, Pub/Sub will generate and attach an OIDC JWT token as an `Authorization` header in the HTTP request for every pushed message.",
     ).optional(),
     pubsubWrapper: z.object({}).describe(
-      "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a PubsubMessage (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
+      "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a [PubsubMessage]( https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
     ).optional(),
     pushEndpoint: z.string().describe(
       "Optional. A URL locating the endpoint to which messages should be pushed. For example, a Webhook endpoint might use `https://example.com/push`.",
@@ -396,7 +396,7 @@ const GlobalArgsSchema = z.object({
     "Optional. If push delivery is used with this subscription, this field is used to configure it.",
   ).optional(),
   retainAckedMessages: z.boolean().describe(
-    "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp] (https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
+    "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp]( https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
   ).optional(),
   retryPolicy: z.object({
     maximumBackoff: z.string().describe(
@@ -669,7 +669,7 @@ const GlobalArgsSchema = z.object({
         "Optional. If specified, Pub/Sub will generate and attach an OIDC JWT token as an `Authorization` header in the HTTP request for every pushed message.",
       ).optional(),
       pubsubWrapper: z.object({}).describe(
-        "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a PubsubMessage (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
+        "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a [PubsubMessage]( https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
       ).optional(),
       pushEndpoint: z.string().describe(
         "Optional. A URL locating the endpoint to which messages should be pushed. For example, a Webhook endpoint might use `https://example.com/push`.",
@@ -678,7 +678,7 @@ const GlobalArgsSchema = z.object({
       "Optional. If push delivery is used with this subscription, this field is used to configure it.",
     ).optional(),
     retainAckedMessages: z.boolean().describe(
-      "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp] (https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
+      "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp]( https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
     ).optional(),
     retryPolicy: z.object({
       maximumBackoff: z.string().describe(
@@ -1062,7 +1062,7 @@ const InputsSchema = z.object({
       "Optional. If specified, Pub/Sub will generate and attach an OIDC JWT token as an `Authorization` header in the HTTP request for every pushed message.",
     ).optional(),
     pubsubWrapper: z.object({}).describe(
-      "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a PubsubMessage (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
+      "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a [PubsubMessage]( https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
     ).optional(),
     pushEndpoint: z.string().describe(
       "Optional. A URL locating the endpoint to which messages should be pushed. For example, a Webhook endpoint might use `https://example.com/push`.",
@@ -1071,7 +1071,7 @@ const InputsSchema = z.object({
     "Optional. If push delivery is used with this subscription, this field is used to configure it.",
   ).optional(),
   retainAckedMessages: z.boolean().describe(
-    "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp] (https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
+    "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp]( https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
   ).optional(),
   retryPolicy: z.object({
     maximumBackoff: z.string().describe(
@@ -1344,7 +1344,7 @@ const InputsSchema = z.object({
         "Optional. If specified, Pub/Sub will generate and attach an OIDC JWT token as an `Authorization` header in the HTTP request for every pushed message.",
       ).optional(),
       pubsubWrapper: z.object({}).describe(
-        "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a PubsubMessage (https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
+        "Optional. When set, the payload to the push endpoint is in the form of the JSON representation of a [PubsubMessage]( https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage).",
       ).optional(),
       pushEndpoint: z.string().describe(
         "Optional. A URL locating the endpoint to which messages should be pushed. For example, a Webhook endpoint might use `https://example.com/push`.",
@@ -1353,7 +1353,7 @@ const InputsSchema = z.object({
       "Optional. If push delivery is used with this subscription, this field is used to configure it.",
     ).optional(),
     retainAckedMessages: z.boolean().describe(
-      "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp] (https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
+      "Optional. Indicates whether to retain acknowledged messages. If true, then messages are not expunged from the subscription's backlog, even if they are acknowledged, until they fall out of the `message_retention_duration` window. This must be true if you would like to [`Seek` to a timestamp]( https://cloud.google.com/pubsub/docs/replay-overview#seek_to_a_time) in the past to replay previously-acknowledged messages.",
     ).optional(),
     retryPolicy: z.object({
       maximumBackoff: z.string().describe(
@@ -1409,7 +1409,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Subscriptions. Registered at `@swamp/gcp/pubsub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/pubsub/subscriptions",
-  version: "2026.10.23.3",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1698,6 +1698,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

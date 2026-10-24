@@ -157,7 +157,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The snapshot is guaranteed to exist up until this time. A newly-created snapshot expires no later than 7 days from the time of its creation. Its exact lifetime is determined at creation by the existing backlog in the source subscription. Specifically, the lifetime of the snapshot is `7 days - (age of oldest unacked message in the subscription)`. For example, consider a subscription whose oldest unacked message is 3 days old. If a snapshot is created from this subscription, the snapshot -- which will always capture this 3-day-old backlog as long as the snapshot exists -- will expire in 4 days. The service will refuse to create a snapshot that would expire in less than 1 hour after creation.",
     ).optional(),
     labels: z.record(z.string(), z.string()).describe(
-      "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+      "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
     ).optional(),
     name: z.string().describe("Optional. The name of the snapshot.").optional(),
     topic: z.string().describe(
@@ -202,7 +202,7 @@ const InputsSchema = z.object({
       "Optional. The snapshot is guaranteed to exist up until this time. A newly-created snapshot expires no later than 7 days from the time of its creation. Its exact lifetime is determined at creation by the existing backlog in the source subscription. Specifically, the lifetime of the snapshot is `7 days - (age of oldest unacked message in the subscription)`. For example, consider a subscription whose oldest unacked message is 3 days old. If a snapshot is created from this subscription, the snapshot -- which will always capture this 3-day-old backlog as long as the snapshot exists -- will expire in 4 days. The service will refuse to create a snapshot that would expire in less than 1 hour after creation.",
     ).optional(),
     labels: z.record(z.string(), z.string()).describe(
-      "Optional. See [Creating and managing labels] (https://cloud.google.com/pubsub/docs/labels).",
+      "Optional. See [Creating and managing labels]( https://cloud.google.com/pubsub/docs/labels).",
     ).optional(),
     name: z.string().describe("Optional. The name of the snapshot.").optional(),
     topic: z.string().describe(
@@ -243,7 +243,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Snapshots. Registered at `@swamp/gcp/pubsub/snapshots`. */
 export const model = {
   type: "@swamp/gcp/pubsub/snapshots",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -445,6 +445,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
