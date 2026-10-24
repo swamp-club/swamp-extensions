@@ -116,6 +116,8 @@ const VulnStatusSchema = z.object({
     suPageCacheCorrupted: z.boolean(),
     passwdPageCacheCorrupted: z.boolean(),
     suspiciousXfrmSAs: z.boolean(),
+    // false when ip xfrm state could not be read; absent before 2026.10.24.1
+    xfrmSAsChecked: z.boolean().optional(),
     rxrpcKeysFound: z.boolean(),
     details: z.array(z.string()),
   }),
@@ -224,6 +226,17 @@ const BLOCKLIST_LINES = [
   "install esp6 /bin/false",
   "install rxrpc /bin/false",
 ] as const;
+
+/** What XFRM_SA_CHECK prints when ip xfrm state cannot be read. */
+export const XFRM_UNREADABLE = "unreadable";
+
+/**
+ * Counts XFRM SAs whose SPI matches the dirtyfrag pattern (0xdeadbe1x). Only
+ * ip xfrm state lists SAs, and it needs CAP_NET_ADMIN (or iproute2 may be
+ * missing), so it prints XFRM_UNREADABLE rather than a count it cannot know.
+ */
+export const XFRM_SA_CHECK =
+  `if out=$(ip xfrm state list 2>/dev/null); then printf '%s\\n' "$out" | grep -ci 'spi 0xdeadbe1[0-9a-f]' || true; else echo ${XFRM_UNREADABLE}; fi`;
 
 /** Escalates tee, which writes nothing here, to check sudo -n will work. */
 export const PRIVILEGE_CHECK = "LC_ALL=C sudo -n -- tee /dev/null </dev/null";
@@ -519,12 +532,16 @@ async function scanHost(
     await log.writeLine(`${suBinaryPath} page cache appears clean\n`);
   }
 
-  const xfrmCheck = await runCmd(
-    transport,
-    "(ip xfrm state list 2>/dev/null || cat /proc/net/xfrm_stat 2>/dev/null || echo '') | grep -ci 'deadbe1\\|error' || echo 0",
-    logger,
-  );
-  const suspiciousXfrm = parseInt(xfrmCheck.stdout) > 2;
+  const xfrmCheck = await runCmd(transport, XFRM_SA_CHECK, logger);
+  // Only a count means ip xfrm state was read; XFRM_UNREADABLE, or nothing at
+  // all when the transport failed, means the SAs were not checked.
+  const xfrmChecked = /^\d+$/.test(xfrmCheck.stdout);
+  const suspiciousXfrm = xfrmChecked && parseInt(xfrmCheck.stdout) > 2;
+  if (!xfrmChecked) {
+    await log.writeLine(
+      "XFRM SA check skipped: ip xfrm state needs root (CAP_NET_ADMIN) and iproute2\n",
+    );
+  }
   if (suspiciousXfrm) {
     indicators.push(
       "WARNING: XFRM Security Associations with sequential SPIs matching dirtyfrag pattern (0xDEADBE1x) detected",
@@ -663,6 +680,7 @@ async function scanHost(
       suPageCacheCorrupted: suCorrupted,
       passwdPageCacheCorrupted: passwdCorrupted,
       suspiciousXfrmSAs: suspiciousXfrm,
+      xfrmSAsChecked: xfrmChecked,
       rxrpcKeysFound,
       details: indicators,
     },
@@ -672,7 +690,7 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.10.22.2",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.05.08.4",
@@ -727,6 +745,13 @@ export const model = {
       toVersion: "2026.10.22.2",
       description: "status records the scanned address as optional " +
         "targetHost; the report suggests commands for the running model.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description: "scan matches only dirtyfrag SPIs in ip xfrm state and " +
+        "records optional indicators.xfrmSAsChecked, false when SAs cannot " +
+        "be read without root.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

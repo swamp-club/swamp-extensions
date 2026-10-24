@@ -88,8 +88,8 @@ function suggestCommand(
   }
   const modelName = modelNameOf(context);
   const command = hosts.every((h) => LOCAL_HOSTS.includes(h))
-    ? `swamp model method run ${modelName} ${localMethod}${extraInputs}`
-    : `swamp model method run ${modelName} ${remoteMethod} --input hosts=${
+    ? `swamp behavior run ${modelName} ${localMethod}${extraInputs}`
+    : `swamp behavior run ${modelName} ${remoteMethod} --input hosts=${
       hosts.join(",")
     }${extraInputs}`;
   return "```\n" + command + "\n```\n";
@@ -240,6 +240,16 @@ export const report = {
 
       md +=
         `| ${r.hostname} | ${r.kernelVersion} | ${risk} | ${esp} | ${rxrpc} | ${iocStr} | ${status} |\n`;
+    }
+
+    // Status from before 2026.10.24.1 has no xfrmSAsChecked; say nothing.
+    const xfrmUnchecked = allResults
+      .filter((r) => r.indicators.xfrmSAsChecked === false)
+      .map((r) => r.hostname);
+    if (xfrmUnchecked.length > 0) {
+      md += `\nXFRM SAs not checked (needs root and iproute2): ${
+        xfrmUnchecked.join(", ")
+      }\n`;
     }
 
     if (allResults.some((r) => r.recommendations.length > 0)) {

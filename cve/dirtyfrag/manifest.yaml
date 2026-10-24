@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/dirtyfrag"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: |
   Detects and mitigates the Dirty Frag Linux local privilege escalation
@@ -22,7 +22,8 @@ description: |
   /etc/passwd, XFRM SA exploit patterns, and RxRPC key artifacts.
 
   No packages required on target hosts — all checks use POSIX utilities and
-  procfs/sysfs.
+  procfs/sysfs, except the XFRM SA check, which uses ip (iproute2) and needs
+  root; without them it is reported as not checked.
 
 repository: "https://github.com/swamp-club/swamp-extensions"
 

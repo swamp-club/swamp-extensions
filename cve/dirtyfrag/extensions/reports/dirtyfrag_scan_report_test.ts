@@ -173,7 +173,7 @@ Deno.test("scan report: next step omits --input hosts for localhost", async () =
   assertStringIncludes(result.markdown, "## Next Step");
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-scanner mitigate\n",
+    "swamp behavior run dirtyfrag-scanner mitigate\n",
   );
   assert(
     !result.markdown.includes("--input hosts=localhost"),
@@ -200,7 +200,7 @@ Deno.test("scan report: next step omits --input hosts for ::1", async () => {
   assertStringIncludes(result.markdown, "## Next Step");
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-scanner mitigate\n",
+    "swamp behavior run dirtyfrag-scanner mitigate\n",
   );
   assert(
     !result.markdown.includes("--input hosts=::1"),
@@ -317,7 +317,7 @@ Deno.test("mitigate dry run: omits --input hosts for localhost", async () => {
   assertStringIncludes(result.markdown, "To apply:");
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-scanner mitigate --input dryRun=false\n",
+    "swamp behavior run dirtyfrag-scanner mitigate --input dryRun=false\n",
   );
   assert(
     !result.markdown.includes("--input hosts=localhost"),
@@ -382,7 +382,7 @@ Deno.test("mitigate applied: verify command uses scan for localhost", async () =
   assertStringIncludes(result.markdown, "Verify with:");
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-scanner scan\n",
+    "swamp behavior run dirtyfrag-scanner scan\n",
   );
   assert(
     !result.markdown.includes("scanFleet"),
@@ -500,7 +500,7 @@ Deno.test("scan report: next step names the model that ran", async () => {
   const result = await report.execute(ctx);
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-fleet mitigate --input hosts=10.0.0.1\n",
+    "swamp behavior run dirtyfrag-fleet mitigate --input hosts=10.0.0.1\n",
   );
   assert(!result.markdown.includes("dirtyfrag-scanner"));
 });
@@ -515,7 +515,7 @@ Deno.test("mitigate report: apply and verify name the model that ran", async () 
   dryRun.definition.name = "dirtyfrag-web";
   assertStringIncludes(
     (await report.execute(dryRun)).markdown,
-    "swamp model method run dirtyfrag-web mitigate --input hosts=10.0.0.1 --input dryRun=false\n",
+    "swamp behavior run dirtyfrag-web mitigate --input hosts=10.0.0.1 --input dryRun=false\n",
   );
 
   const applied = makeContext("mitigate", [
@@ -527,7 +527,7 @@ Deno.test("mitigate report: apply and verify name the model that ran", async () 
   applied.definition.name = "dirtyfrag-web";
   assertStringIncludes(
     (await report.execute(applied)).markdown,
-    "swamp model method run dirtyfrag-web scanFleet --input hosts=10.0.0.1\n",
+    "swamp behavior run dirtyfrag-web scanFleet --input hosts=10.0.0.1\n",
   );
 });
 
@@ -549,7 +549,7 @@ Deno.test("scan report: a local scan of a named machine omits --input hosts", as
   const result = await report.execute(ctx);
   assertStringIncludes(
     result.markdown,
-    "swamp model method run dirtyfrag-scanner mitigate\n",
+    "swamp behavior run dirtyfrag-scanner mitigate\n",
   );
   assert(!result.markdown.includes("--input hosts="));
 });
@@ -563,7 +563,7 @@ for (const docker of ["dockerContainer", "dockerImage"]) {
     const result = await report.execute(ctx);
     assertStringIncludes(result.markdown, "## Next Step");
     assertStringIncludes(result.markdown, "on the Docker host itself");
-    assert(!result.markdown.includes("swamp model method run"));
+    assert(!result.markdown.includes("swamp behavior run"));
   });
 }
 
@@ -584,6 +584,43 @@ Deno.test("scan report: without a definition, commands name the model id", async
   const result = await report.execute(rest);
   assertStringIncludes(
     result.markdown,
-    `swamp model method run ${ctx.modelId} mitigate\n`,
+    `swamp behavior run ${ctx.modelId} mitigate\n`,
   );
+});
+
+// --- hosts whose XFRM SAs could not be read are named ---
+
+const withXfrmChecked = (hostname: string, checked: boolean | undefined) =>
+  makeScanResult({
+    hostname,
+    indicators: {
+      suPageCacheCorrupted: false,
+      passwdPageCacheCorrupted: false,
+      suspiciousXfrmSAs: false,
+      ...(checked === undefined ? {} : { xfrmSAsChecked: checked }),
+      rxrpcKeysFound: false,
+      details: [],
+    },
+  });
+
+Deno.test("scan report: names the hosts whose XFRM SAs were not checked", async () => {
+  const ctx = makeContext("scanFleet", [
+    withXfrmChecked("10.0.0.1", false),
+    withXfrmChecked("10.0.0.2", true),
+    withXfrmChecked("10.0.0.3", false),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "XFRM SAs not checked (needs root and iproute2): 10.0.0.1, 10.0.0.3\n",
+  );
+});
+
+Deno.test("scan report: checked and older status print no XFRM note", async () => {
+  const ctx = makeContext("scanFleet", [
+    withXfrmChecked("10.0.0.2", true),
+    withXfrmChecked("10.0.0.4", undefined),
+  ]);
+  const result = await report.execute(ctx);
+  assert(!result.markdown.includes("XFRM SAs not checked"));
 });

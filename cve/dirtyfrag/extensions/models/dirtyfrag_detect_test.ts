@@ -8,6 +8,8 @@ import {
   buildMitigationCommands,
   model,
   PRIVILEGE_CHECK,
+  XFRM_SA_CHECK,
+  XFRM_UNREADABLE,
 } from "./dirtyfrag_detect.ts";
 
 Deno.test("model export has expected shape", () => {
@@ -559,4 +561,62 @@ Deno.test("mitigate: status records the host it was given", async () => {
     true,
   );
   assertEquals(targetOf(status), "localhost");
+});
+
+// --- XFRM SAs: only ip xfrm state lists them, and it needs root ---
+
+type Indicators = {
+  suspiciousXfrmSAs: boolean;
+  xfrmSAsChecked?: boolean;
+  details: string[];
+};
+
+async function scanWithXfrm(xfrm: string): Promise<Indicators> {
+  const { context, statuses } = fakeContext();
+  await withCommands(
+    (cmd) =>
+      cmd === XFRM_SA_CHECK ? { stdout: xfrm } : vulnerableHost(cmd, "root"),
+    () => model.methods.scan.execute({}, context),
+  );
+  const status = statuses.get("localhost") as unknown as {
+    indicators: Indicators;
+  };
+  return status.indicators;
+}
+
+const xfrmWarning = (i: Indicators) =>
+  i.details.some((d) => d.includes("XFRM"));
+
+Deno.test("scan: XFRM SAs that cannot be read are not checked, not suspicious", async () => {
+  const indicators = await scanWithXfrm(XFRM_UNREADABLE);
+  assertEquals(indicators.suspiciousXfrmSAs, false);
+  assertEquals(indicators.xfrmSAsChecked, false);
+  assert(!xfrmWarning(indicators));
+});
+
+Deno.test("scan: an XFRM check that printed nothing is not checked", async () => {
+  const indicators = await scanWithXfrm("");
+  assertEquals(indicators.suspiciousXfrmSAs, false);
+  assertEquals(indicators.xfrmSAsChecked, false);
+});
+
+Deno.test("scan: three dirtyfrag SPIs are suspicious", async () => {
+  const indicators = await scanWithXfrm("3");
+  assertEquals(indicators.suspiciousXfrmSAs, true);
+  assertEquals(indicators.xfrmSAsChecked, true);
+  assert(xfrmWarning(indicators));
+});
+
+Deno.test("scan: no dirtyfrag SPIs is checked and clean", async () => {
+  const indicators = await scanWithXfrm("0");
+  assertEquals(indicators.suspiciousXfrmSAs, false);
+  assertEquals(indicators.xfrmSAsChecked, true);
+  assert(!xfrmWarning(indicators));
+});
+
+Deno.test("XFRM_SA_CHECK matches only SPIs and never reads xfrm_stat", () => {
+  assertStringIncludes(XFRM_SA_CHECK, "ip xfrm state list");
+  assertStringIncludes(XFRM_SA_CHECK, "spi 0xdeadbe1[0-9a-f]");
+  assert(!XFRM_SA_CHECK.includes("xfrm_stat"));
+  assert(!/error/i.test(XFRM_SA_CHECK));
 });

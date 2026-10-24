@@ -32,10 +32,11 @@ Or clone this repo and the model is discovered automatically from
 | Module blocklisting | `/etc/modprobe.d/` scan for esp4/esp6/rxrpc install/blocklist rules |
 | Page cache corruption (`/usr/bin/su`) | `od` hex dump of first 192 bytes, checks for shellcode signature `31ff31f631c0b06a` |
 | Page cache corruption (`/etc/passwd`) | Checks if root entry has empty password field (`root::`) |
-| XFRM SA exploit pattern | Looks for sequential SPIs matching `0xDEADBE1x` |
+| XFRM SA exploit pattern | `ip xfrm state` for sequential SPIs matching `0xDEADBE1x`; needs root (`CAP_NET_ADMIN`) and iproute2, otherwise reported as not checked. It sees only SAs in the scanning network namespace -- the exploit creates its SAs in its own user and network namespace, so a clean result does not rule them out |
 | RxRPC key artifacts | `/proc/keys` scan for rxrpc entries |
 
-No external tools required -- all checks use POSIX utilities and procfs/sysfs.
+No external tools required -- all checks use POSIX utilities and procfs/sysfs,
+except the XFRM SA check, which uses `ip` from iproute2.
 
 ## Methods
 
@@ -51,7 +52,7 @@ No external tools required -- all checks use POSIX utilities and procfs/sysfs.
 
 ```bash
 swamp repo init
-swamp model create @swamp/cve/dirtyfrag dirtyfrag-scanner
+swamp behavior create @swamp/cve/dirtyfrag dirtyfrag-scanner
 ```
 
 The target (`targetHost`, `sshUser`, `sshKey`, `dockerContainer`,
@@ -63,7 +64,7 @@ and `dryRun` are passed at run time with `--input`.
 ### Scan the local machine
 
 ```bash
-swamp model method run dirtyfrag-scanner scan
+swamp behavior run dirtyfrag-scanner scan
 ```
 
 No inputs needed -- defaults to `localhost` and runs checks directly.
@@ -71,22 +72,22 @@ No inputs needed -- defaults to `localhost` and runs checks directly.
 ### Scan a remote host
 
 ```bash
-swamp model create @swamp/cve/dirtyfrag dirtyfrag-web \
+swamp behavior create @swamp/cve/dirtyfrag dirtyfrag-web \
   --global-arg targetHost=10.0.1.50 \
   --global-arg sshUser=ubuntu \
   --global-arg sshKey=~/.ssh/my-key.pem
 
-swamp model method run dirtyfrag-web scan
+swamp behavior run dirtyfrag-web scan
 ```
 
 ### Scan a fleet
 
 ```bash
-swamp model create @swamp/cve/dirtyfrag dirtyfrag-fleet \
+swamp behavior create @swamp/cve/dirtyfrag dirtyfrag-fleet \
   --global-arg sshUser=ubuntu \
   --global-arg sshKey=~/.ssh/my-key.pem
 
-swamp model method run dirtyfrag-fleet scanFleet \
+swamp behavior run dirtyfrag-fleet scanFleet \
   --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
 ```
 
@@ -97,7 +98,7 @@ a `fleet-log` summary. The report renders a table:
 ```
 | Host            | Kernel         | Risk   | ESP (43284) | RxRPC (43500) | IOCs     | Status     |
 | --------------- | -------------- | ------ | ----------- | ------------- | -------- | ---------- |
-| ip-172-31-34-40 | 7.0.0-1004-aws | MEDIUM | Vulnerable  | Vulnerable    | XFRM SAs | VULNERABLE |
+| ip-172-31-34-40 | 7.0.0-1004-aws | MEDIUM | Vulnerable  | Vulnerable    | None     | VULNERABLE |
 | ip-172-31-50-12 | 7.0.0-1004-aws | NONE   | N/A         | N/A           | None     | CLEAN      |
 ```
 
@@ -109,14 +110,14 @@ Useful for checking the underlying host kernel from inside a container:
 
 ```bash
 # Existing container
-swamp model create @swamp/cve/dirtyfrag dirtyfrag-container \
+swamp behavior create @swamp/cve/dirtyfrag dirtyfrag-container \
   --global-arg dockerContainer=my-container
-swamp model method run dirtyfrag-container scan
+swamp behavior run dirtyfrag-container scan
 
 # Auto-start an image, scan, then stop
-swamp model create @swamp/cve/dirtyfrag dirtyfrag-image \
+swamp behavior create @swamp/cve/dirtyfrag dirtyfrag-image \
   --global-arg dockerImage=ubuntu:24.04
-swamp model method run dirtyfrag-image scan
+swamp behavior run dirtyfrag-image scan
 ```
 
 ### View results
@@ -136,10 +137,10 @@ swamp data list dirtyfrag-scanner --json
 
 ```bash
 # Dry run (default) -- shows what it would do
-swamp model method run dirtyfrag-scanner mitigate
+swamp behavior run dirtyfrag-scanner mitigate
 
 # Apply
-swamp model method run dirtyfrag-scanner mitigate --input dryRun=false
+swamp behavior run dirtyfrag-scanner mitigate --input dryRun=false
 ```
 
 ### Mitigate a remote host
@@ -148,10 +149,10 @@ Uses the `dirtyfrag-web` model created above:
 
 ```bash
 # Dry run
-swamp model method run dirtyfrag-web mitigate
+swamp behavior run dirtyfrag-web mitigate
 
 # Apply
-swamp model method run dirtyfrag-web mitigate --input dryRun=false
+swamp behavior run dirtyfrag-web mitigate --input dryRun=false
 ```
 
 ### Mitigate multiple hosts
@@ -159,7 +160,7 @@ swamp model method run dirtyfrag-web mitigate --input dryRun=false
 Uses the `dirtyfrag-fleet` model created above:
 
 ```bash
-swamp model method run dirtyfrag-fleet mitigate \
+swamp behavior run dirtyfrag-fleet mitigate \
   --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
 ```
 
@@ -238,8 +239,10 @@ Passed at run time with `--input key=value`:
 A custom report runs after each method and renders directly in the terminal:
 
 - **Scan/scanFleet**: Table showing each host's kernel, risk level, CVE
-  exposure (Vulnerable/Mitigated/Patched/N/A), IOCs, and status. Includes a
-  copy-pasteable `mitigate` command targeting all vulnerable hosts.
+  exposure (Vulnerable/Mitigated/Patched/N/A), IOCs, and status. Names the
+  hosts whose XFRM SAs were not checked (the scan was not root, or `ip` is
+  missing).
+  Includes a copy-pasteable `mitigate` command targeting all vulnerable hosts.
 - **Mitigate**: Host status table (APPLIED/SKIPPED/FAILED), commands table with
   descriptions, plus apply/verify instructions.
 
@@ -255,7 +258,9 @@ share the Docker host's kernel, so mitigate the Docker host itself.
   hosts are not affected)
 - **SSH access** to remote hosts (key-based auth) -- not needed for local scans
 - **No packages required** on the target -- all checks use POSIX utilities
-  (`od`, `grep`, `find`, `head`, `cat`, `test`) and procfs/sysfs
+  (`od`, `grep`, `find`, `head`, `cat`, `test`) and procfs/sysfs, except the
+  XFRM SA check, which uses `ip` (iproute2) and needs root; without them it is
+  reported as not checked
 - **For `mitigate`**: `root`, or passwordless sudo for `tee` and `rmmod` with
   any arguments
 - **Docker** (optional) for container-based scanning
