@@ -20,6 +20,7 @@ import {
   ENGINE_INPUTS,
   engineImports,
   importSpecifiers,
+  splitPoint,
   studioSourceDigest,
 } from "../../../../studio/build.ts";
 
@@ -89,4 +90,17 @@ Deno.test("studio assets: the import walk reads statements, not comments or stri
     "./model.ts",
     "./multi.ts",
   ]);
+});
+
+// The script is split across two modules; a split inside a surrogate pair
+// would leave each half with a lone surrogate.
+Deno.test("studio assets: the script splits halfway, never inside a surrogate pair", () => {
+  assertEquals(splitPoint("abcd"), 2);
+  assertEquals(splitPoint(""), 0);
+  // "a😀b" is a, high, low, b: halfway (2) is the low half, so step back.
+  const text = "a\u{1F600}b";
+  const at = splitPoint(text);
+  assertEquals(at, 1);
+  assertEquals(text.slice(0, at) + text.slice(at), text);
+  assert(text.slice(at).isWellFormed() && text.slice(0, at).isWellFormed());
 });

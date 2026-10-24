@@ -23,7 +23,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { hostKeyPolicyIssues } from "./host_keys.ts";
 import { mergeTransport } from "./hosts.ts";
 

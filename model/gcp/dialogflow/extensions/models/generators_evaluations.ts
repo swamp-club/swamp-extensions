@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -218,6 +218,13 @@ const GlobalArgsSchema = z.object({
         "REQUIRED",
         "NOT_REQUIRED",
       ]).optional(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown().optional(),
+        fieldPath: z.unknown().optional(),
+        parameterName: z.unknown().optional(),
+      })).optional(),
+      proactiveEnabled: z.boolean().optional(),
+      reactiveEnabled: z.boolean().optional(),
     })).optional(),
     createTime: z.string().optional(),
     description: z.string().optional(),
@@ -279,6 +286,13 @@ const GlobalArgsSchema = z.object({
         "NOT_REQUIRED",
       ]).optional(),
       operationId: z.string().optional(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown().optional(),
+        fieldPath: z.unknown().optional(),
+        parameterName: z.unknown().optional(),
+      })).optional(),
+      proactiveEnabled: z.boolean().optional(),
+      reactiveEnabled: z.boolean().optional(),
       toolset: z.string().optional(),
     })).optional(),
     triggerEvent: z.enum([
@@ -411,6 +425,13 @@ const StateSchema = z.object({
     cesToolSpecs: z.array(z.object({
       cesTool: z.string(),
       confirmationRequirement: z.string(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown(),
+        fieldPath: z.unknown(),
+        parameterName: z.unknown(),
+      })),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
     })),
     createTime: z.string(),
     description: z.string(),
@@ -457,6 +478,13 @@ const StateSchema = z.object({
     toolsetTools: z.array(z.object({
       confirmationRequirement: z.string(),
       operationId: z.string(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown(),
+        fieldPath: z.unknown(),
+        parameterName: z.unknown(),
+      })),
+      proactiveEnabled: z.boolean(),
+      reactiveEnabled: z.boolean(),
       toolset: z.string(),
     })),
     triggerEvent: z.string(),
@@ -609,6 +637,13 @@ const InputsSchema = z.object({
         "REQUIRED",
         "NOT_REQUIRED",
       ]).optional(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown().optional(),
+        fieldPath: z.unknown().optional(),
+        parameterName: z.unknown().optional(),
+      })).optional(),
+      proactiveEnabled: z.boolean().optional(),
+      reactiveEnabled: z.boolean().optional(),
     })).optional(),
     createTime: z.string().optional(),
     description: z.string().optional(),
@@ -670,6 +705,13 @@ const InputsSchema = z.object({
         "NOT_REQUIRED",
       ]).optional(),
       operationId: z.string().optional(),
+      parameterOverrides: z.array(z.object({
+        contextReferenceKey: z.unknown().optional(),
+        fieldPath: z.unknown().optional(),
+        parameterName: z.unknown().optional(),
+      })).optional(),
+      proactiveEnabled: z.boolean().optional(),
+      reactiveEnabled: z.boolean().optional(),
       toolset: z.string().optional(),
     })).optional(),
     triggerEvent: z.enum([
@@ -765,7 +807,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Generators.Evaluations. Registered at `@swamp/gcp/dialogflow/generators-evaluations`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/generators-evaluations",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -779,6 +821,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

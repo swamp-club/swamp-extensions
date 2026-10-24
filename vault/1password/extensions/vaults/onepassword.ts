@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { type Span, SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { Attr, getTracer } from "./_lib/tracing.ts";
 

@@ -4,7 +4,7 @@ import { typeNameToServiceName } from "../aws/extensionModelGenerator.ts";
 import { generateAwsModels } from "../aws/pipeline.ts";
 import { generateCloudflareModels } from "../cloudflare/pipeline.ts";
 import { generateDigitalOceanModels } from "../digitalocean/pipeline.ts";
-import { generateGcpModels } from "../gcp/pipeline.ts";
+import { generateGcpModels, SKIP_APIS } from "../gcp/pipeline.ts";
 import { generateHetznerModels } from "../hetzner/pipeline.ts";
 import { generateTailscaleModels } from "../tailscale/pipeline.ts";
 import { generateVercelModels } from "../vercel/pipeline.ts";
@@ -80,6 +80,41 @@ export async function pruneOrphanServices(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   return removed.sort();
+}
+
+/**
+ * Remove the generated GCP service directories of retired APIs (`retired`,
+ * the pipeline's SKIP_APIS), and name every other generated directory this
+ * run produced nothing for. A GCP service is never pruned just because its
+ * schema is missing: a fetch can fail for a moment, and a codegen failure
+ * must not silently unpublish a service. Retiring one is a deliberate entry
+ * in SKIP_APIS. Returns the removed and the stale directory names.
+ */
+export async function pruneRetiredGcpServices(
+  providerDir: string,
+  generated: Set<string>,
+  retired: Set<string>,
+): Promise<{ removed: string[]; stale: string[] }> {
+  const keep = new Set<string>();
+  const stale: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(providerDir)) {
+      if (!entry.isDirectory || retired.has(entry.name)) continue;
+      keep.add(entry.name);
+      if (generated.has(entry.name)) continue;
+      const manifest = await Deno.readTextFile(
+        `${providerDir}/${entry.name}/manifest.yaml`,
+      ).catch(() => "");
+      if (manifest.startsWith(GENERATED_MANIFEST_HEADER)) {
+        stale.push(entry.name);
+      }
+    }
+  } catch (error) {
+    // The provider directory doesn't exist yet — nothing to prune
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  const removed = await pruneOrphanServices(providerDir, keep, "gcp");
+  return { removed, stale: stale.sort() };
 }
 
 function modelFileNames(models: { filePath: string }[]): Set<string> {
@@ -684,6 +719,25 @@ async function generateGcpProvider(options: {
     }
   }
 
+  // Retire the services of dead APIs, and flag any other generated service
+  // that got no output, so a dead API is noticed rather than left pinned to
+  // old dependencies. Only on an unfiltered run.
+  let retiredServices: string[] = [];
+  if (!options.services || options.services.length === 0) {
+    const { removed, stale } = await pruneRetiredGcpServices(
+      `${options.outputDir}/gcp`,
+      new Set(services.keys()),
+      SKIP_APIS,
+    );
+    retiredServices = removed;
+    for (const name of stale) {
+      console.warn(
+        `  Warning: [${name}] generated nothing this run (no schema fetched); ` +
+          `add it to SKIP_APIS in gcp/pipeline.ts if the API is gone`,
+      );
+    }
+  }
+
   // Summarize skipped
   const skipsByReason = new Map<string, number>();
   for (const s of skipped) {
@@ -693,6 +747,7 @@ async function generateGcpProvider(options: {
 
   console.log(`\nGeneration complete!`);
   console.log(`  Services: ${services.size}`);
+  console.log(`  Retired services removed: ${retiredServices.length}`);
   console.log(
     `  Models: ${totalModelsChanged} changed, ${totalModelsUnchanged} unchanged`,
   );

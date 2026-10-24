@@ -62,12 +62,29 @@ export function extractGlobalArgsFieldNames(content: string): string[] {
 
   const bodyStart = startIdx + marker.length;
 
-  // Find the closing `});` by counting braces
+  // Find the closing `});` by counting braces, skipping string literals and
+  // comments: a regex pattern or description may hold an unbalanced brace
+  // (`\\$\\{`), and a comment an apostrophe, either of which would otherwise
+  // run the scan into the model object and read its keys as removed fields.
   let depth = 1;
   let i = bodyStart;
+  let quote: string | null = null;
   while (i < content.length && depth > 0) {
-    if (content[i] === "{") depth++;
-    else if (content[i] === "}") depth--;
+    const ch = content[i];
+    if (quote !== null) {
+      if (ch === "\\") i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === "/" && content[i + 1] === "/") {
+      const eol = content.indexOf("\n", i);
+      i = eol === -1 ? content.length : eol;
+      continue;
+    } else if (ch === "/" && content[i + 1] === "*") {
+      const close = content.indexOf("*/", i + 2);
+      i = close === -1 ? content.length : close + 2;
+      continue;
+    } else if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch === "{") depth++;
+    else if (ch === "}") depth--;
     i++;
   }
   const bodyEnd = i - 1;
@@ -193,6 +210,39 @@ export function generateUpgradeEntry(
 }
 
 /**
+ * Drop entries that repeat an earlier one exactly. swamp refuses to load a
+ * model whose upgrades are not strictly in order, and some files carry the
+ * same no-op entry twice from an old run (gcp dataproc and
+ * accesscontextmanager, 2026.04.02.2). Two different entries for one
+ * toVersion are an error: choosing either could drop a real transform.
+ */
+export function dedupeUpgradeEntries(entries: string[]): string[] {
+  const seen = new Map<string, string>();
+  const kept: string[] = [];
+  for (const entry of entries) {
+    const toVersion = entry.match(/toVersion:\s*"([^"]+)"/)?.[1];
+    if (toVersion === undefined) {
+      kept.push(entry);
+      continue;
+    }
+    // Compared without whitespace, so a copy that deno fmt wrapped
+    // differently still counts as the same entry.
+    const normalized = entry.replace(/\s+/g, "");
+    const earlier = seen.get(toVersion);
+    if (earlier === undefined) {
+      seen.set(toVersion, normalized);
+      kept.push(entry);
+    } else if (earlier !== normalized) {
+      throw new Error(
+        `two different upgrade entries for toVersion ${toVersion}; ` +
+          `decide which is right before regenerating`,
+      );
+    }
+  }
+  return kept;
+}
+
+/**
  * Build the complete `upgrades: [...]` block to insert into a model.
  *
  * @param existingEntries - Raw string blocks from extractExistingUpgrades
@@ -202,7 +252,7 @@ export function buildUpgradesBlock(
   existingEntries: string[],
   newEntry: string | null,
 ): string {
-  const allEntries = [...existingEntries];
+  const allEntries = dedupeUpgradeEntries([...existingEntries]);
   if (newEntry) {
     allEntries.push(newEntry);
   }

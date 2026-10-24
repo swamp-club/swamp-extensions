@@ -12,7 +12,7 @@
     }
   },
   "imports": {
-    "zod": "npm:zod@4.3.6",
+    "zod": "npm:zod@4.6.7",
     "@swamp-club/swamp-testing": "jsr:@swamp-club/swamp-testing@0.20260910.34"
   }
 }

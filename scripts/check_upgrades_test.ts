@@ -14,20 +14,37 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
+import { join } from "@std/path";
 import {
   checkChange,
   compareVersions,
+  DEFAULT_CONCURRENCY,
   extensionDirOf,
   firstDescribedMethod,
+  hostSwampDirs,
   isModelFile,
+  isNoOpBump,
+  laneCredential,
+  laneSharedFromHost,
+  type ModelChange,
   type ModelDefinition,
+  noOpVersions,
+  parseConcurrency,
   parseModel,
   pathTestTarget,
   registryTarget,
+  runPooled,
   runUpgradeMethod,
+  SHARED_DATA_SUBDIRS,
   unimportablePublish,
   unloadableModel,
+  withLane,
 } from "./check_upgrades.ts";
 
 const SOURCE = `
@@ -410,4 +427,329 @@ Deno.test("runUpgradeMethod: stops a method that never returns", async () => {
     },
   );
   assertEquals(calledWith, ["model", "method", "run", "upgrade-test", "serve"]);
+});
+
+// The upgrades block exactly as codegen writes it: two no-op entries, then
+// one that adds fields and one with a real transform.
+const GENERATED = `
+import { z } from "npm:zod@4.6.7";
+export const model = {
+  type: "@swamp/aws/s3/bucket",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.04.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.06.1",
+      description: "Added: region",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => ({ ...old, x: 1 }),
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
+  methods: { get: { description: "No schema changes" } },
+};
+`;
+
+Deno.test("noOpVersions: only entries with no schema changes and attributes passed through", () => {
+  assertEquals(noOpVersions(GENERATED), ["2026.04.01.1", "2026.10.23.1"]);
+  assertEquals(noOpVersions("export const x = 1;"), []);
+});
+
+function bump(
+  baseVersion: string | null,
+  toVersions: string[],
+  headNoOps: string[],
+): ModelChange {
+  return {
+    path: "model/aws/s3/extensions/models/bucket.ts",
+    base: baseVersion === null ? null : def(baseVersion, []),
+    head: def(toVersions.at(-1) ?? "2026.10.23.1", toVersions),
+    headNoOps,
+  };
+}
+
+Deno.test("isNoOpBump: a bump whose added entries are all no-ops", () => {
+  const head = parseModel(GENERATED)!;
+  assertEquals(
+    isNoOpBump({
+      path: "m.ts",
+      base: def("2026.07.01.1", []),
+      head,
+      headNoOps: noOpVersions(GENERATED),
+    }),
+    true,
+  );
+});
+
+Deno.test("isNoOpBump: an added entry that adds fields or transforms is not", () => {
+  const head = parseModel(GENERATED)!;
+  const headNoOps = noOpVersions(GENERATED);
+  // Past 2026.04.01.1 the bump adds "Added: region" and a real transform.
+  assertEquals(
+    isNoOpBump({
+      path: "m.ts",
+      base: def("2026.04.01.1", []),
+      head,
+      headNoOps,
+    }),
+    false,
+  );
+  // Past 2026.06.06.1 it adds the transforming entry.
+  assertEquals(
+    isNoOpBump({
+      path: "m.ts",
+      base: def("2026.06.06.1", []),
+      head,
+      headNoOps,
+    }),
+    false,
+  );
+});
+
+Deno.test("isNoOpBump: a new model, or one without parsed no-ops, is not", () => {
+  assertEquals(
+    isNoOpBump(bump(null, ["2026.10.23.1"], ["2026.10.23.1"])),
+    false,
+  );
+  assertEquals(
+    isNoOpBump({
+      path: "m.ts",
+      base: def("2026.01.01.1", []),
+      head: def("2026.10.23.1", ["2026.10.23.1"]),
+    }),
+    false,
+  );
+  assertEquals(
+    isNoOpBump(bump("2026.10.23.1", ["2026.10.23.1"], ["2026.10.23.1"])),
+    false,
+  );
+});
+
+Deno.test("parseConcurrency: a whole number from 1 to 16, default 8", () => {
+  assertEquals(parseConcurrency(undefined), DEFAULT_CONCURRENCY);
+  assertEquals(parseConcurrency("1"), 1);
+  assertEquals(parseConcurrency("16"), 16);
+  for (const bad of ["0", "17", "2.5", "eight", ""]) {
+    assertEquals(parseConcurrency(bad), undefined, bad);
+  }
+});
+
+/** A promise and the function that settles it. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+Deno.test("runPooled: results and emitted output follow input order, not finish order", async () => {
+  const gates = [0, 1, 2, 3, 4].map(deferred);
+  const emitted: number[] = [];
+  const run = runPooled(
+    [0, 1, 2, 3, 4],
+    3,
+    async (n) => {
+      await gates[n].promise;
+      return n * 10;
+    },
+    (result, index) => {
+      assertEquals(result, index * 10);
+      emitted.push(index);
+    },
+  );
+  // Finish out of order: nothing is emitted until item 0 is done.
+  gates[2].resolve();
+  gates[1].resolve();
+  await new Promise((r) => setTimeout(r, 0));
+  assertEquals(emitted, []);
+  gates[0].resolve();
+  await new Promise((r) => setTimeout(r, 0));
+  assertEquals(emitted, [0, 1, 2]);
+  gates[4].resolve();
+  gates[3].resolve();
+  assertEquals(await run, [0, 10, 20, 30, 40]);
+  assertEquals(emitted, [0, 1, 2, 3, 4]);
+});
+
+Deno.test("runPooled: never runs more than the limit at once", async () => {
+  let running = 0;
+  let peak = 0;
+  await runPooled(Array.from({ length: 20 }, (_, i) => i), 4, async () => {
+    running++;
+    peak = Math.max(peak, running);
+    await new Promise((r) => setTimeout(r, 1));
+    running--;
+  });
+  assertEquals(peak, 4);
+});
+
+Deno.test("runPooled: a throwing worker stops new items and is rethrown", async () => {
+  const started: number[] = [];
+  await assertRejects(
+    () =>
+      runPooled([0, 1, 2, 3, 4, 5], 2, async (n) => {
+        started.push(n);
+        await new Promise((r) => setTimeout(r, 1));
+        if (n === 1) throw new Error("boom");
+      }),
+    Error,
+    "boom",
+  );
+  // Items 0 and 1 ran together; at most one more started before 1 failed.
+  assertEquals(started.includes(5), false);
+});
+
+Deno.test("runPooled: no items, no work", async () => {
+  assertEquals(await runPooled([], 8, () => Promise.resolve(1)), []);
+});
+
+const envOf = (vars: Record<string, string>) => (name: string) => vars[name];
+
+Deno.test("hostSwampDirs: resolves the data and config dirs as swamp does", () => {
+  assertEquals(hostSwampDirs(envOf({ HOME: "/h" })), {
+    dataDir: "/h/.swamp",
+    configDir: "/h/.config/swamp",
+  });
+  assertEquals(hostSwampDirs(envOf({ HOME: "/h", XDG_CONFIG_HOME: "/x" })), {
+    dataDir: "/h/.swamp",
+    configDir: "/x/swamp",
+  });
+  assertEquals(hostSwampDirs(envOf({ HOME: "/h", SWAMP_HOME: "/s" })), {
+    dataDir: "/s",
+    configDir: "/s/config",
+  });
+  assertEquals(
+    hostSwampDirs(
+      envOf({ HOME: "/h", SWAMP_HOME: "/s", SWAMP_CONFIG_DIR: "/c" }),
+    ).configDir,
+    "/c",
+  );
+  assertThrows(() => hostSwampDirs(envOf({})), Error, "HOME is not set");
+});
+
+Deno.test("hostSwampDirs: an empty variable is unset, and a relative one is made absolute", () => {
+  assertEquals(
+    hostSwampDirs(envOf({ HOME: "/h", SWAMP_HOME: "", SWAMP_CONFIG_DIR: "" })),
+    { dataDir: "/h/.swamp", configDir: "/h/.config/swamp" },
+  );
+  const { dataDir, configDir } = hostSwampDirs(
+    envOf({ HOME: "/h", SWAMP_HOME: "rel" }),
+  );
+  assertEquals(dataDir, join(Deno.cwd(), "rel"));
+  assertEquals(configDir, join(Deno.cwd(), "rel", "config"));
+});
+
+Deno.test("laneCredential: a key the environment supplies is inherited, not copied", () => {
+  assertEquals(laneCredential(envOf({ SWAMP_API_KEY: "k" }), null), {});
+  assertEquals(laneCredential(envOf({ SWAMP_API_KEY_FILE: "/f" }), null), {});
+});
+
+Deno.test("laneCredential: otherwise the key and its server come from auth.json", () => {
+  const auth = JSON.stringify({ apiKey: "k", serverUrl: "https://club.test" });
+  assertEquals(laneCredential(envOf({}), auth), {
+    SWAMP_API_KEY: "k",
+    SWAMP_CLUB_URL: "https://club.test",
+  });
+  // An explicit SWAMP_CLUB_URL is left to win.
+  assertEquals(
+    laneCredential(envOf({ SWAMP_CLUB_URL: "https://other.test" }), auth),
+    { SWAMP_API_KEY: "k" },
+  );
+});
+
+Deno.test("laneCredential: no usable key is an error that says how to fix it", () => {
+  for (const auth of [null, "not json", "{}", JSON.stringify({ apiKey: "" })]) {
+    assertThrows(
+      () => laneCredential(envOf({}), auth),
+      Error,
+      "swamp auth login",
+    );
+  }
+});
+
+Deno.test("withLane: a repo, home and config of its own, sharing only the runtime and module cache", async () => {
+  const host = await Deno.makeTempDir();
+  let root = "";
+  try {
+    const shared = { dataDir: host, credential: { SWAMP_API_KEY: "k" } };
+    await withLane("lane-test-", shared, async (lane) => {
+      root = join(lane.repo, "..");
+      assertEquals(lane.env.SWAMP_API_KEY, "k");
+      assertEquals(lane.env.SWAMP_HOME, join(root, "home"));
+      assertEquals(lane.env.SWAMP_CONFIG_DIR, join(root, "config"));
+      assertEquals((await Deno.stat(lane.repo)).isDirectory, true);
+      assertEquals(
+        [...Deno.readDirSync(lane.env.SWAMP_CONFIG_DIR)],
+        [],
+        "the config dir starts empty",
+      );
+      for (const sub of SHARED_DATA_SUBDIRS) {
+        const link = join(lane.env.SWAMP_HOME, sub);
+        assertEquals((await Deno.lstat(link)).isSymlink, true);
+        assertEquals(await Deno.readLink(link), join(host, sub));
+      }
+      // Anything else swamp writes to its home stays in the lane.
+      await Deno.writeTextFile(join(lane.env.SWAMP_HOME, "cache.json"), "{}");
+    });
+    assertEquals(
+      [...Deno.readDirSync(host)].map((e) => e.name).sort(),
+      [...SHARED_DATA_SUBDIRS].sort(),
+    );
+    await assertRejects(() => Deno.stat(root), Deno.errors.NotFound);
+  } finally {
+    await Deno.remove(host, { recursive: true });
+  }
+});
+
+Deno.test("withLane: the lane is removed when its work throws", async () => {
+  const host = await Deno.makeTempDir();
+  let root = "";
+  try {
+    await assertRejects(
+      () =>
+        withLane("lane-test-", { dataDir: host, credential: {} }, (lane) => {
+          root = join(lane.repo, "..");
+          throw new Error("boom");
+        }),
+      Error,
+      "boom",
+    );
+    await assertRejects(() => Deno.stat(root), Deno.errors.NotFound);
+  } finally {
+    await Deno.remove(host, { recursive: true });
+  }
+});
+
+Deno.test("laneSharedFromHost: the host's data dir and the key from its auth.json", async () => {
+  const config = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      join(config, "auth.json"),
+      JSON.stringify({ apiKey: "k" }),
+    );
+    assertEquals(
+      await laneSharedFromHost(
+        envOf({ HOME: "/h", SWAMP_CONFIG_DIR: config }),
+      ),
+      { dataDir: "/h/.swamp", credential: { SWAMP_API_KEY: "k" } },
+    );
+    await assertRejects(
+      () => laneSharedFromHost(envOf({ HOME: "/h", SWAMP_CONFIG_DIR: "/no" })),
+      Error,
+      "swamp auth login",
+    );
+  } finally {
+    await Deno.remove(config, { recursive: true });
+  }
 });

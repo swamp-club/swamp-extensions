@@ -197,6 +197,7 @@ Deno.test("rename: only the generated studio assets are skipped", () => {
     const f of [
       "studio_assets.ts",
       "studio_asset_app.ts",
+      "studio_asset_app_2.ts",
       "studio_asset_fonts.ts",
     ]
   ) {

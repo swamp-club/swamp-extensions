@@ -214,8 +214,11 @@ Deno.test("studio ticket: a Linear ticket shows what fetch_issue recorded, with 
   try {
     await withRepo(async (repo) => {
       fake.issues[0].description = "The adapter, in *markdown*.";
+      // swamp refuses a literal value for a sensitive argument.
+      await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
+      await repo.swamp(["vault", "put", "secrets", "linear-token", FAKE_TOKEN]);
       await setArgs(repo, LINEAR_TYPE, "linear", {
-        apiToken: FAKE_TOKEN,
+        apiToken: "${{ vault.get(secrets, linear-token) }}",
         apiUrl: fake.url,
         statuses: {
           in_progress: "In Progress",
@@ -276,8 +279,11 @@ Deno.test("studio ticket: a Lab ticket shows its ripples and lifecycle entries, 
   const issue = String(LAB_ISSUE);
   try {
     await withRepo(async (repo) => {
+      // swamp refuses a literal value for a sensitive argument.
+      await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
+      await repo.swamp(["vault", "put", "secrets", "lab-key", ADMIN_KEY]);
       await setArgs(repo, SWAMP_CLUB_TYPE, "swamp-club", {
-        apiKey: ADMIN_KEY,
+        apiKey: "${{ vault.get(secrets, lab-key) }}",
         url: fake.url,
       });
       await repo.factory(

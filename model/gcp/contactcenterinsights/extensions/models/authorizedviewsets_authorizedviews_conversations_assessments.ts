@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -168,6 +168,12 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
+    studyArmId: z.string().describe(
+      "The study arm ID associated with the conversation. Only applicable to automated agents.",
+    ).optional(),
+    studyId: z.string().describe(
+      "The study ID associated with the conversation. Only applicable to automated agents.",
+    ).optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
     ).optional(),
@@ -203,6 +209,8 @@ const StateSchema = z.object({
     entrySubagentDisplayName: z.string(),
     entrySubagentId: z.string(),
     location: z.string(),
+    studyArmId: z.string(),
+    studyId: z.string(),
     team: z.string(),
     teams: z.array(z.string()),
     versionDisplayName: z.string(),
@@ -249,6 +257,12 @@ const InputsSchema = z.object({
     ).optional(),
     entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
+    studyArmId: z.string().describe(
+      "The study arm ID associated with the conversation. Only applicable to automated agents.",
+    ).optional(),
+    studyId: z.string().describe(
+      "The study ID associated with the conversation. Only applicable to automated agents.",
+    ).optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
     ).optional(),
@@ -300,7 +314,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews-conversations-assessments",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -464,6 +478,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

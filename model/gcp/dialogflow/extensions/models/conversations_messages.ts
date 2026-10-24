@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   type ExplicitGcpCredentials,
   getProjectId,
@@ -109,11 +109,37 @@ const StateSchema = z.object({
   name: z.string(),
   participant: z.string().optional(),
   participantRole: z.string().optional(),
+  responseMessages: z.array(z.object({
+    endInteraction: z.object({}),
+    liveAgentHandoff: z.object({
+      metadata: z.record(z.string(), z.unknown()),
+    }),
+    mixedAudio: z.object({
+      segments: z.array(z.object({
+        allowPlaybackInterruption: z.unknown(),
+        audio: z.unknown(),
+        uri: z.unknown(),
+      })),
+    }),
+    payload: z.record(z.string(), z.unknown()),
+    telephonyTransferCall: z.object({
+      phoneNumber: z.string(),
+      sipUri: z.string(),
+    }),
+    text: z.object({
+      text: z.array(z.string()),
+    }),
+  })).optional(),
   sendTime: z.string().optional(),
   sentimentAnalysis: z.object({
     queryTextSentiment: z.object({
       magnitude: z.number(),
       score: z.number(),
+    }),
+    status: z.object({
+      code: z.number(),
+      details: z.array(z.record(z.string(), z.unknown())),
+      message: z.string(),
     }),
   }).optional(),
 }).passthrough();
@@ -162,7 +188,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Conversations.Messages. Registered at `@swamp/gcp/dialogflow/conversations-messages`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversations-messages",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -176,6 +202,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

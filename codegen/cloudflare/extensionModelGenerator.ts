@@ -53,7 +53,7 @@ export function generateCloudflareExtensionModel(
   lines.push(` */`);
   lines.push("");
 
-  lines.push(`import { z } from "npm:zod@4.3.6";`);
+  lines.push(`import { z } from "npm:zod@4.6.7";`);
 
   const helperImports: string[] = ["create", "listAll", "read", "tryRead"];
   if (resource.handlers.delete) helperImports.push("remove");

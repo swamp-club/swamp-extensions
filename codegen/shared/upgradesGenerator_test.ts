@@ -1,8 +1,9 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import {
   buildUpgradesBlock,
   computeUpgradesBlock,
+  dedupeUpgradeEntries,
   extractExistingUpgrades,
   extractGlobalArgsFieldNames,
   generateUpgradeEntry,
@@ -244,4 +245,75 @@ Deno.test("computeUpgradesBlock - changed generates new entry for removed field"
   ]);
   assertEquals(result !== undefined, true);
   await assertSnapshot(t, result);
+});
+
+Deno.test("extractGlobalArgsFieldNames - braces inside string literals do not end or extend the schema", () => {
+  const content = `const GlobalArgsSchema = z.object({
+  name: z.string().regex(
+    new RegExp("^(?:(?!\\\\$\\\\{[a-zA-Z]+:)[\\\\P{C}])+$"),
+  ),
+  note: z.string().describe('a } and a { in quotes'),
+});
+
+export const model = {
+  type: "@x/y",
+  version: "2026.10.23.1",
+  methods: {},
+};
+`;
+  assertEquals(extractGlobalArgsFieldNames(content), ["name", "note"]);
+});
+
+Deno.test("dedupeUpgradeEntries - drops an entry that repeats an earlier one exactly", () => {
+  const noOp = (v: string) =>
+    `{\n      toVersion: "${v}",\n      description: "No schema changes",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    }`;
+  assertEquals(
+    dedupeUpgradeEntries([
+      noOp("2026.04.02.1"),
+      noOp("2026.04.02.2"),
+      noOp("2026.04.02.2"),
+      noOp("2026.04.03.1"),
+    ]),
+    [noOp("2026.04.02.1"), noOp("2026.04.02.2"), noOp("2026.04.03.1")],
+  );
+});
+
+Deno.test("dedupeUpgradeEntries - two different entries for one toVersion are an error", () => {
+  assertThrows(
+    () =>
+      dedupeUpgradeEntries([
+        `{ toVersion: "2026.04.02.2", description: "No schema changes", upgradeAttributes: (old) => old }`,
+        `{ toVersion: "2026.04.02.2", description: "Removed: x", upgradeAttributes: (old) => ({ ...old, x: undefined }) }`,
+      ]),
+    Error,
+    "2026.04.02.2",
+  );
+});
+
+Deno.test("buildUpgradesBlock - repeated existing entries are written once", () => {
+  const e =
+    `{ toVersion: "2026.04.02.2", description: "No schema changes", upgradeAttributes: (old: Record<string, unknown>) => old }`;
+  const block = buildUpgradesBlock([e, e], null);
+  assertEquals(block.split("2026.04.02.2").length - 1, 1);
+});
+
+Deno.test("dedupeUpgradeEntries - a copy wrapped differently is still the same entry", () => {
+  const oneLine =
+    `{ toVersion: "2026.04.02.2", description: "No schema changes", upgradeAttributes: (old: Record<string, unknown>) => old }`;
+  const wrapped =
+    `{\n  toVersion: "2026.04.02.2",\n  description: "No schema changes",\n  upgradeAttributes: (old: Record<string, unknown>) =>\n    old\n}`;
+  assertEquals(dedupeUpgradeEntries([oneLine, wrapped]), [oneLine]);
+});
+
+Deno.test("extractGlobalArgsFieldNames - comments do not end or extend the schema", () => {
+  const content = `const GlobalArgsSchema = z.object({
+  // don't read this apostrophe as a quote, nor this } as the end
+  name: z.string(),
+  /* a block comment's { and ' are skipped too */
+  note: z.string(),
+});
+
+export const model = { type: "@x/y", version: "2026.10.23.1" };
+`;
+  assertEquals(extractGlobalArgsFieldNames(content), ["name", "note"]);
 });

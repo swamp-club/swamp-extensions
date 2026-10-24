@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   type ExplicitGcpCredentials,
@@ -291,7 +291,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Resource Manager Organizations. Registered at `@swamp/gcp/cloudresourcemanager/organizations`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/organizations",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -433,6 +433,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -537,6 +547,36 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    get_boundary_config: {
+      description: "get boundary config",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "cloudresourcemanager.organizations.getBoundaryConfig",
+            "path": "v3/{+name}",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
     get_iam_policy: {
@@ -726,6 +766,55 @@ export const model = {
             "parameterOrder": ["resource"],
             "parameters": {
               "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    update_boundary_config: {
+      description: "update boundary config",
+      arguments: z.object({
+        etag: z.any().optional(),
+        name: z.any().optional(),
+        tagKey: z.any().optional(),
+        updateTime: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        if (args["updateMask"] !== undefined) {
+          params["updateMask"] = String(args["updateMask"]);
+        }
+        const body: Record<string, unknown> = {};
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["tagKey"] !== undefined) body["tagKey"] = args["tagKey"];
+        if (args["updateTime"] !== undefined) {
+          body["updateTime"] = args["updateTime"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "cloudresourcemanager.organizations.updateBoundaryConfig",
+            "path": "v3/{+name}",
+            "httpMethod": "PATCH",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "name": { "location": "path", "required": true },
+              "updateMask": { "location": "query" },
             },
           },
           params,

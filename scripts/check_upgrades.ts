@@ -38,12 +38,25 @@
  *   not load, no instance can be on it, so a fresh install stands in: an
  *   instance created from the local source alone must be at the new version.
  *
+ * An extension whose every bumped model only adds no-op upgrade entries
+ * (`No schema changes`, attributes passed through) skips the method run: the
+ * published version must still pull, and a fresh install from the local
+ * source must be at the new version.
+ *
+ * Extensions are path-tested `--concurrency` at a time (default 8), each in
+ * its own lane: a scratch repo, with a swamp home and config directory of its
+ * own, so concurrent tests share no swamp user-level state with each other or
+ * the host but the deno runtime and module cache (see {@link withLane}). Each
+ * extension's output is printed as one group, in the order a one-at-a-time
+ * run would print it.
+ *
  * Every model it examined is printed, so a run that checked nothing says so
  * rather than passing in silence.
  *
  * Usage (from the repository root):
  *   deno run --allow-read --allow-write --allow-env --allow-run \
- *     scripts/check_upgrades.ts --base origin/main [--path-test]
+ *     scripts/check_upgrades.ts --base origin/main [--path-test] \
+ *     [--concurrency <1-16>]
  */
 
 import { parseArgs } from "@std/cli/parse-args";
@@ -94,6 +107,93 @@ export interface ModelChange {
   path: string;
   base: ModelDefinition | null;
   head: ModelDefinition;
+  /** The `toVersion`s of the head's no-op upgrade entries ({@link noOpVersions}). */
+  headNoOps?: string[];
+}
+
+// An upgrades entry in exactly the shape codegen writes when nothing changed:
+// `No schema changes`, and attributes returned as they came in.
+const NO_OP_ENTRY_RE =
+  /\{\s*toVersion:\s*["']([^"']+)["'],\s*description:\s*["']No schema changes["'],\s*upgradeAttributes:\s*\(\s*(\w+)(?:\s*:[^)]*)?\)\s*=>\s*\2\s*,?\s*\}/g;
+
+/**
+ * The `toVersion`s of a model source's no-op upgrade entries: described as
+ * `No schema changes`, with an `upgradeAttributes` that returns its argument.
+ * Textual like {@link parseModel}; an entry in any other shape is not listed,
+ * so it is never mistaken for a no-op.
+ */
+export function noOpVersions(source: string): string[] {
+  const start = source.search(/export const model\s*=\s*\{/);
+  if (start < 0) return [];
+  return [...source.slice(start).matchAll(NO_OP_ENTRY_RE)].map((m) => m[1]);
+}
+
+/**
+ * Whether a bump adds only no-op upgrade entries: every entry past the base
+ * version is one {@link noOpVersions} lists. A new model is not a bump.
+ */
+export function isNoOpBump(change: ModelChange): boolean {
+  const { base, head, headNoOps = [] } = change;
+  if (!base) return false;
+  const added = head.toVersions.filter((v) =>
+    compareVersions(v, base.version) > 0
+  );
+  return added.length > 0 && added.every((v) => headNoOps.includes(v));
+}
+
+/** The default and largest number of extensions path-tested at once. */
+export const DEFAULT_CONCURRENCY = 8;
+export const MAX_CONCURRENCY = 16;
+
+/**
+ * The `--concurrency` value as a whole number from 1 to
+ * {@link MAX_CONCURRENCY}; undefined for anything else.
+ */
+export function parseConcurrency(value: unknown): number | undefined {
+  if (value === undefined) return DEFAULT_CONCURRENCY;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_CONCURRENCY ? n : undefined;
+}
+
+/**
+ * Runs `worker` on every item, at most `limit` at once, and resolves with the
+ * results in input order. `onResult` is called for each result in input
+ * order, as soon as it and every earlier one are done, so streamed output
+ * reads as a one-at-a-time run would. If a worker throws, no further item
+ * starts, the running ones finish, and the first error is rethrown.
+ */
+export async function runPooled<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+  onResult?: (result: R, index: number) => void,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  const done: boolean[] = new Array(items.length).fill(false);
+  let next = 0;
+  let emitted = 0;
+  let failure: { error: unknown } | undefined;
+  const lane = async () => {
+    while (failure === undefined && next < items.length) {
+      const index = next++;
+      try {
+        results[index] = await worker(items[index], index);
+      } catch (error) {
+        failure ??= { error };
+        return;
+      }
+      done[index] = true;
+      while (failure === undefined && emitted < items.length && done[emitted]) {
+        onResult?.(results[emitted], emitted);
+        emitted++;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, lane),
+  );
+  if (failure !== undefined) throw failure.error;
+  return results;
 }
 
 export type Verdict =
@@ -252,6 +352,7 @@ type Runner = (
   args: string[],
   cwd?: string,
   signal?: AbortSignal,
+  env?: Record<string, string>,
 ) => Promise<{ code: number; out: string; stdout: string; stderr: string }>;
 
 /**
@@ -264,12 +365,161 @@ export async function runUpgradeMethod(
   method: string,
   timeoutMs = METHOD_TIMEOUT_MS,
   exec: Runner = run,
+  env?: Record<string, string>,
 ): Promise<void> {
   await exec(
     "swamp",
     ["model", "method", "run", "upgrade-test", method],
     scratch,
     AbortSignal.timeout(timeoutMs),
+    env,
+  );
+}
+
+/**
+ * The swamp data and config directories of the host, resolved as swamp
+ * resolves them (SWAMP_HOME, then ~/.swamp; SWAMP_CONFIG_DIR, then
+ * SWAMP_HOME/config, then XDG_CONFIG_HOME/swamp, then ~/.config/swamp).
+ */
+export function hostSwampDirs(
+  env: (name: string) => string | undefined,
+): { dataDir: string; configDir: string } {
+  // An empty variable counts as unset, and every result is absolute: the
+  // lanes symlink into the data dir from elsewhere, where a relative path
+  // would point at the lane itself.
+  const get = (name: string) => env(name) || undefined;
+  const home = get("HOME") ?? get("USERPROFILE");
+  const swampHome = get("SWAMP_HOME");
+  if (!swampHome && !home) {
+    throw new Error("cannot find the swamp directories: HOME is not set");
+  }
+  const xdg = get("XDG_CONFIG_HOME");
+  return {
+    dataDir: resolve(swampHome ?? join(home!, ".swamp")),
+    configDir: resolve(
+      get("SWAMP_CONFIG_DIR") ??
+        (swampHome
+          ? join(swampHome, "config")
+          : xdg
+          ? join(xdg, "swamp")
+          : join(home!, ".config", "swamp")),
+    ),
+  };
+}
+
+/**
+ * The environment that gives an isolated swamp process the host's swamp-club
+ * credential, so it never reads or writes the host's config directory. A key
+ * the environment already supplies (SWAMP_API_KEY_FILE or SWAMP_API_KEY) is
+ * inherited as is; otherwise the key, and its server when swamp would not
+ * pick it by default, come from the host's auth.json. The key is only ever
+ * passed to swamp's own processes; nothing here prints or stores it.
+ */
+export function laneCredential(
+  env: (name: string) => string | undefined,
+  authJson: string | null,
+): Record<string, string> {
+  if (env("SWAMP_API_KEY_FILE") || env("SWAMP_API_KEY")) return {};
+  let stored: { apiKey?: unknown; serverUrl?: unknown } = {};
+  try {
+    stored = authJson === null ? {} : JSON.parse(authJson);
+  } catch {
+    // An unreadable auth.json is the same as none.
+  }
+  if (typeof stored.apiKey !== "string" || stored.apiKey === "") {
+    throw new Error(
+      "no swamp-club credential for the path test: run swamp auth login, " +
+        "or set SWAMP_API_KEY",
+    );
+  }
+  const credential: Record<string, string> = { SWAMP_API_KEY: stored.apiKey };
+  if (typeof stored.serverUrl === "string" && !env("SWAMP_CLUB_URL")) {
+    credential.SWAMP_CLUB_URL = stored.serverUrl;
+  }
+  return credential;
+}
+
+/**
+ * The host's {@link LaneShared}: its swamp data directory and the
+ * credential its lanes get. Rejects when neither is available.
+ */
+export async function laneSharedFromHost(
+  env: (name: string) => string | undefined = (name) => Deno.env.get(name),
+): Promise<LaneShared> {
+  const dirs = hostSwampDirs(env);
+  const authJson = await Deno.readTextFile(join(dirs.configDir, "auth.json"))
+    .catch(() => null);
+  return { dataDir: dirs.dataDir, credential: laneCredential(env, authJson) };
+}
+
+/** What every lane shares with the host. */
+export interface LaneShared {
+  /** The host's swamp data directory. */
+  dataDir: string;
+  /** From {@link laneCredential}. */
+  credential: Record<string, string>;
+}
+
+/**
+ * The parts of the swamp data directory a lane shares with the host: the
+ * embedded deno runtime (extracted atomically, by temp file and rename) and
+ * deno's module cache, both safe for many processes at once. Sharing them
+ * saves every lane extracting the runtime and fetching every dependency again.
+ */
+export const SHARED_DATA_SUBDIRS = ["deno", "deno-cache"];
+
+/**
+ * One path test's own swamp: a scratch repo, and a swamp data and config
+ * directory of its own, so concurrent lanes cannot race on swamp's user-level
+ * state (auth verification and refresh, identity and scope caches, telemetry,
+ * the update check, logs) and never touch the host's.
+ */
+export interface Lane {
+  repo: string;
+  env: Record<string, string>;
+}
+
+/** Makes a lane under a new temp directory, which `fn` gets to use. */
+export async function withLane<T>(
+  prefix: string,
+  shared: LaneShared,
+  fn: (lane: Lane) => Promise<T>,
+): Promise<T> {
+  const root = await Deno.makeTempDir({ prefix });
+  try {
+    const repo = join(root, "repo");
+    const home = join(root, "home");
+    const config = join(root, "config");
+    for (const dir of [repo, home, config]) await Deno.mkdir(dir);
+    for (const sub of SHARED_DATA_SUBDIRS) {
+      await Deno.mkdir(join(shared.dataDir, sub), { recursive: true });
+      await Deno.symlink(join(shared.dataDir, sub), join(home, sub));
+    }
+    return await fn({
+      repo,
+      env: {
+        ...shared.credential,
+        SWAMP_HOME: home,
+        SWAMP_CONFIG_DIR: config,
+      },
+    });
+  } finally {
+    await Deno.remove(root, { recursive: true }).catch(() => {});
+  }
+}
+
+/** Runs swamp in a lane: in its repo unless `inRepo` is false. */
+function laneSwamp(
+  lane: Lane,
+  args: string[],
+  inRepo = true,
+): ReturnType<Runner> {
+  return run(
+    "swamp",
+    args,
+    inRepo ? lane.repo : undefined,
+    undefined,
+    lane.env,
   );
 }
 
@@ -331,18 +581,23 @@ export function unloadableModel(
   );
 }
 
-/** Runs a command to completion, or until `signal` aborts it. */
+/**
+ * Runs a command to completion, or until `signal` aborts it. `env` is added
+ * to the inherited environment.
+ */
 async function run(
   cmd: string,
   args: string[],
   cwd?: string,
   signal?: AbortSignal,
+  env?: Record<string, string>,
 ): Promise<{ code: number; out: string; stdout: string; stderr: string }> {
   try {
     const { code, stdout, stderr } = await new Deno.Command(cmd, {
       args,
       cwd,
       signal,
+      env,
       stdout: "piped",
       stderr: "piped",
     }).output();
@@ -365,10 +620,16 @@ async function showAt(rev: string, path: string): Promise<string | null> {
   return code === 0 ? out : null;
 }
 
+/** Where an extension's path-test output is collected. */
+type Log = (line: string) => void;
+
 async function pathTest(
   extDir: string,
   change: ModelChange,
   mergeBase: string,
+  noOp: boolean,
+  shared: LaneShared,
+  log: Log,
 ): Promise<string | null> {
   const manifest = await Deno.readTextFile(join(extDir, "manifest.yaml"))
     .catch(() => null);
@@ -378,105 +639,163 @@ async function pathTest(
   );
   if (target.kind === "error") return `${extDir}: ${target.message}`;
   if (target.kind === "skip") {
-    console.log(`  ${extDir}: ${target.reason}, path test skipped`);
-    return null;
-  }
-  const info = await run("swamp", [
-    "extension",
-    "info",
-    target.name,
-    "--json",
-  ]);
-  const published = registryTarget(
-    target.name,
-    info.code,
-    info.stdout,
-    info.stderr,
-  );
-  if (published.kind === "error") return `${extDir}: ${published.message}`;
-  if (published.kind === "skip") {
-    console.log(`  ${extDir}: ${published.reason}, path test skipped`);
+    log(`  ${extDir}: ${target.reason}, path test skipped`);
     return null;
   }
   const { name } = target;
+  if (noOp) return await noOpTest(extDir, change, name, shared, log);
+  return await withLane(
+    "upgrade-path-",
+    shared,
+    (lane) => fullPathTest(extDir, change, name, lane, shared, log),
+  );
+}
 
-  const scratch = await Deno.makeTempDir({ prefix: "upgrade-path-" });
-  try {
-    const steps: Array<[string, string[]]> = [
-      ["init", ["init", scratch, "--tool", "none", "--force"]],
-      ["pull", ["extension", "pull", name]],
-      ["create", ["model", "create", change.head.type, "upgrade-test"]],
-      ["remove", ["extension", "rm", name, "--force"]],
-      [
-        "source",
-        ["extension", "source", "add", resolve(extDir), "--only", "models"],
-      ],
-    ];
-    // A pull whose code fails to import is only partly applied: swamp loads
-    // models file by file, so the bumped model may still load from it and
-    // carry instances, and its upgrade path is tested as usual.
-    let partialPull = false;
-    for (const [label, args] of steps) {
-      const { code, out } = await run(
-        "swamp",
-        args,
-        label === "init" ? undefined : scratch,
-      );
-      if (label === "pull" && unimportablePublish(name, code, out)) {
-        console.log(
-          `  ${extDir}: published ${name} fails to import in part; ` +
-            `trying ${change.head.type} from it anyway:\n${out}`,
-        );
-        partialPull = true;
-        continue;
-      }
-      if (
-        label === "create" && partialPull &&
-        unloadableModel(code, out, change.path)
-      ) {
-        console.log(
-          `  ${extDir}: ${change.head.type} does not load from the published ` +
-            `${name}, so no instance can be on it; the upgrade path from it ` +
-            `is not tested, checking a fresh install instead:\n${out}`,
-        );
-        return await freshInstallTest(extDir, change);
-      }
-      if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
-    }
-    // The upgrade chain runs before the method body; the method itself may
-    // fail for unrelated reasons (no credentials, no cluster) and that is fine.
-    // It must exist, though: an unknown method is refused before the upgrade.
-    let method = change.head.firstMethod;
-    if (method === undefined) {
-      const described = await run("swamp", [
-        "model",
-        "type",
-        "describe",
-        change.head.type,
-        "--json",
-      ], scratch);
-      method = firstDescribedMethod(described.stdout);
-      if (method === undefined) {
-        console.log(
-          `  ${extDir}: swamp model type describe named no method ` +
-            `(exit ${described.code}), trying get:\n${described.out}`,
-        );
-        method = "get";
-      }
-    }
-    await runUpgradeMethod(scratch, method);
-    const typeVersion = await readTypeVersion(scratch);
-    if (typeVersion !== change.head.version) {
-      return `${extDir}: published instance upgraded to ${
-        typeVersion ?? "nothing"
-      }, ` +
-        `expected ${change.head.version}`;
-    }
-    console.log(`  ${extDir}: published instance upgraded to ${typeVersion}`);
-    return null;
-  } finally {
-    await Deno.remove(scratch, { recursive: true }).catch(() => {});
+/**
+ * Whether the registry has `name` to pull, asked from `lane`: null when it
+ * does, or the skip line or error to report.
+ */
+async function publishedCheck(
+  extDir: string,
+  name: string,
+  lane: Lane,
+  log: Log,
+): Promise<string | null | "skip"> {
+  const info = await laneSwamp(
+    lane,
+    ["extension", "info", name, "--json"],
+    false,
+  );
+  const published = registryTarget(name, info.code, info.stdout, info.stderr);
+  if (published.kind === "error") return `${extDir}: ${published.message}`;
+  if (published.kind === "skip") {
+    log(`  ${extDir}: ${published.reason}, path test skipped`);
+    return "skip";
   }
+  return null;
+}
+
+async function fullPathTest(
+  extDir: string,
+  change: ModelChange,
+  name: string,
+  lane: Lane,
+  shared: LaneShared,
+  log: Log,
+): Promise<string | null> {
+  const checked = await publishedCheck(extDir, name, lane, log);
+  if (checked !== null) return checked === "skip" ? null : checked;
+  const steps: Array<[string, string[]]> = [
+    ["init", ["init", lane.repo, "--tool", "none", "--force"]],
+    ["pull", ["extension", "pull", name]],
+    ["create", ["model", "create", change.head.type, "upgrade-test"]],
+    ["remove", ["extension", "rm", name, "--force"]],
+    [
+      "source",
+      ["extension", "source", "add", resolve(extDir), "--only", "models"],
+    ],
+  ];
+  // A pull whose code fails to import is only partly applied: swamp loads
+  // models file by file, so the bumped model may still load from it and
+  // carry instances, and its upgrade path is tested as usual.
+  let partialPull = false;
+  for (const [label, args] of steps) {
+    const { code, out } = await laneSwamp(lane, args, label !== "init");
+    if (label === "pull" && unimportablePublish(name, code, out)) {
+      log(
+        `  ${extDir}: published ${name} fails to import in part; ` +
+          `trying ${change.head.type} from it anyway:\n${out}`,
+      );
+      partialPull = true;
+      continue;
+    }
+    if (
+      label === "create" && partialPull &&
+      unloadableModel(code, out, change.path)
+    ) {
+      log(
+        `  ${extDir}: ${change.head.type} does not load from the published ` +
+          `${name}, so no instance can be on it; the upgrade path from it ` +
+          `is not tested, checking a fresh install instead:\n${out}`,
+      );
+      return await freshInstallTest(extDir, change, shared, log);
+    }
+    if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
+  }
+  // The upgrade chain runs before the method body; the method itself may
+  // fail for unrelated reasons (no credentials, no cluster) and that is fine.
+  // It must exist, though: an unknown method is refused before the upgrade.
+  let method = change.head.firstMethod;
+  if (method === undefined) {
+    const described = await laneSwamp(lane, [
+      "model",
+      "type",
+      "describe",
+      change.head.type,
+      "--json",
+    ]);
+    method = firstDescribedMethod(described.stdout);
+    if (method === undefined) {
+      log(
+        `  ${extDir}: swamp model type describe named no method ` +
+          `(exit ${described.code}), trying get:\n${described.out}`,
+      );
+      method = "get";
+    }
+  }
+  await runUpgradeMethod(
+    lane.repo,
+    method,
+    METHOD_TIMEOUT_MS,
+    run,
+    lane.env,
+  );
+  const typeVersion = await readTypeVersion(lane);
+  if (typeVersion !== change.head.version) {
+    return `${extDir}: published instance upgraded to ${
+      typeVersion ?? "nothing"
+    }, ` +
+      `expected ${change.head.version}`;
+  }
+  log(`  ${extDir}: published instance upgraded to ${typeVersion}`);
+  return null;
+}
+
+/**
+ * Stands in for the path test when every bumped model in the extension only
+ * adds no-op upgrade entries, which leave an instance's attributes as they
+ * are: the published version must still pull (or fail only as an
+ * {@link unimportablePublish}, as the full path test allows), and a fresh
+ * install from the local source must be at the new version.
+ */
+async function noOpTest(
+  extDir: string,
+  change: ModelChange,
+  name: string,
+  shared: LaneShared,
+  log: Log,
+): Promise<string | null> {
+  const pulled = await withLane("upgrade-pull-", shared, async (lane) => {
+    const checked = await publishedCheck(extDir, name, lane, log);
+    if (checked !== null) return checked;
+    const init = await laneSwamp(
+      lane,
+      ["init", lane.repo, "--tool", "none", "--force"],
+      false,
+    );
+    if (init.code !== 0) return `${extDir}: swamp init failed:\n${init.out}`;
+    const { code, out } = await laneSwamp(lane, ["extension", "pull", name]);
+    if (unimportablePublish(name, code, out)) {
+      log(`  ${extDir}: published ${name} fails to import in part:\n${out}`);
+    } else if (code !== 0) {
+      return `${extDir}: swamp pull failed:\n${out}`;
+    } else {
+      log(`  ${extDir}: published ${name} pulls; only no-op upgrade entries`);
+    }
+    return null;
+  });
+  if (pulled !== null) return pulled === "skip" ? null : pulled;
+  return await freshInstallTest(extDir, change, shared, log);
 }
 
 /**
@@ -489,11 +808,12 @@ async function pathTest(
 async function freshInstallTest(
   extDir: string,
   change: ModelChange,
+  shared: LaneShared,
+  log: Log,
 ): Promise<string | null> {
-  const scratch = await Deno.makeTempDir({ prefix: "fresh-install-" });
-  try {
+  return await withLane("fresh-install-", shared, async (lane) => {
     const steps: Array<[string, string[]]> = [
-      ["init", ["init", scratch, "--tool", "none", "--force"]],
+      ["init", ["init", lane.repo, "--tool", "none", "--force"]],
       [
         "source",
         ["extension", "source", "add", resolve(extDir), "--only", "models"],
@@ -501,44 +821,40 @@ async function freshInstallTest(
       ["create", ["model", "create", change.head.type, "upgrade-test"]],
     ];
     for (const [label, args] of steps) {
-      const { code, out } = await run(
-        "swamp",
-        args,
-        label === "init" ? undefined : scratch,
-      );
+      const { code, out } = await laneSwamp(lane, args, label !== "init");
       if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
     }
-    const typeVersion = await readTypeVersion(scratch);
+    const typeVersion = await readTypeVersion(lane);
     if (typeVersion !== change.head.version) {
       return `${extDir}: fresh instance is at ${typeVersion ?? "nothing"}, ` +
         `expected ${change.head.version}`;
     }
-    console.log(`  ${extDir}: fresh instance created at ${typeVersion}`);
+    log(`  ${extDir}: fresh instance created at ${typeVersion}`);
     return null;
-  } finally {
-    await Deno.remove(scratch, { recursive: true }).catch(() => {});
-  }
+  });
 }
 
-async function readTypeVersion(scratch: string): Promise<string | undefined> {
-  const { out } = await run("swamp", [
+async function readTypeVersion(lane: Lane): Promise<string | undefined> {
+  const { out } = await laneSwamp(lane, [
     "model",
     "get",
     "upgrade-test",
     "--json",
-  ], scratch);
+  ]);
   return out.match(/"typeVersion"\s*:\s*"([^"]+)"/)?.[1];
 }
 
 async function main(): Promise<number> {
   const args = parseArgs(Deno.args, {
-    string: ["base", "head"],
+    string: ["base", "head", "concurrency"],
     boolean: ["path-test"],
     default: { head: "HEAD" },
   });
-  if (!args.base) {
+  const concurrency = parseConcurrency(args.concurrency);
+  if (!args.base || concurrency === undefined) {
     console.error(
-      "usage: check_upgrades.ts --base <rev> [--head <rev>] [--path-test]",
+      "usage: check_upgrades.ts --base <rev> [--head <rev>] [--path-test] " +
+        `[--concurrency <1-${MAX_CONCURRENCY}>]`,
     );
     return 2;
   }
@@ -559,12 +875,14 @@ async function main(): Promise<number> {
 
   const changes: ModelChange[] = [];
   for (const path of changed) {
-    const head = parseModel(await showAt(args.head, path) ?? "");
+    const source = await showAt(args.head, path) ?? "";
+    const head = parseModel(source);
     if (!head) continue;
     changes.push({
       path,
       base: parseModel(await showAt(mergeBase, path) ?? ""),
       head,
+      headNoOps: noOpVersions(source),
     });
   }
 
@@ -574,7 +892,7 @@ async function main(): Promise<number> {
   }
 
   const errors: string[] = [];
-  const bumpedByExtension = new Map<string, ModelChange>();
+  const bumpedByExtension = new Map<string, ModelChange[]>();
   console.log(`Examined ${changes.length} changed model definition(s):`);
   for (const change of changes) {
     const verdict = checkChange(change);
@@ -590,8 +908,11 @@ async function main(): Promise<number> {
           `  ${change.path}: ${verdict.from} → ${verdict.to}, upgrade entry present`,
         );
         const ext = extensionDirOf(change.path);
-        if (ext && !bumpedByExtension.has(ext)) {
-          bumpedByExtension.set(ext, change);
+        if (ext) {
+          bumpedByExtension.set(ext, [
+            ...bumpedByExtension.get(ext) ?? [],
+            change,
+          ]);
         }
         break;
       }
@@ -601,18 +922,68 @@ async function main(): Promise<number> {
     }
   }
 
+  let pathFailures = 0;
   if (args["path-test"] && errors.length === 0) {
+    const shared = bumpedByExtension.size === 0
+      ? undefined
+      : await laneSharedFromHost().catch((error: Error) => {
+        // Nothing can be path-tested without a credential; say why once,
+        // as an ordinary failure rather than a crash.
+        errors.push(error.message);
+        return undefined;
+      });
     if (bumpedByExtension.size === 0) {
       console.log("No model version bumped; no upgrade path to test.");
-    }
-    for (const [extDir, change] of bumpedByExtension) {
-      const failure = await pathTest(extDir, change, mergeBase);
-      if (failure) errors.push(failure);
+    } else if (shared) {
+      console.log(
+        `Path-testing ${bumpedByExtension.size} extension(s), ` +
+          `${concurrency} at a time, each with its own swamp home and config:`,
+      );
+      await runPooled(
+        [...bumpedByExtension],
+        concurrency,
+        async ([extDir, bumped]) => {
+          const lines: string[] = [];
+          // The path test exercises the extension's first bumped model, as it
+          // always has; the others only decide whether the bump is a no-op.
+          let failure: string | null;
+          try {
+            failure = await pathTest(
+              extDir,
+              bumped[0],
+              mergeBase,
+              bumped.every(isNoOpBump),
+              shared,
+              (line) => lines.push(line),
+            );
+          } catch (error) {
+            // A lane that cannot be set up (a symlink refused, a full disk)
+            // fails this extension, not the whole run.
+            failure = `${extDir}: path test could not run: ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+          }
+          return { lines, failure };
+        },
+        ({ lines, failure }) => {
+          for (const line of lines) console.log(line);
+          if (failure) {
+            errors.push(failure);
+            pathFailures++;
+          }
+        },
+      );
     }
   }
 
   if (errors.length > 0) {
     for (const e of errors) console.error(`::error::${e}`);
+    if (pathFailures > 0 && concurrency > 1) {
+      console.error(
+        `${pathFailures} path test failure(s) with --concurrency ${concurrency}; ` +
+          "rerun with --concurrency 1 to rule out a concurrency flake.",
+      );
+    }
     return 1;
   }
   return 0;

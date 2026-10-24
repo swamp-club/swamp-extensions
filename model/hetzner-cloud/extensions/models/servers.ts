@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   create,
   listAll,
@@ -208,7 +208,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud server. Registered at `@swamp/hetzner-cloud/servers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/servers",
-  version: "2026.10.20.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.02.1",
@@ -305,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

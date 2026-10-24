@@ -96,7 +96,7 @@ export function generateDigitalOceanExtensionModel(
 
   // Imports. The `npm:` prefix is required so `deno doc --lint` can resolve
   // zod standalone — it doesn't read the package's deno.json import map.
-  lines.push(`import { z } from "npm:zod@4.3.6";`);
+  lines.push(`import { z } from "npm:zod@4.6.7";`);
 
   // Determine the naming field for instance names (factory pattern).
   // This must be a user-provided field in globalArgs, not an API-generated value.

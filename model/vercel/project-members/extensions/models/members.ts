@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, remove } from "./_lib/vercel.ts";
 
 const GlobalArgsSchema = z.object({
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Members. Registered at `@swamp/vercel/project-members/members`. */
 export const model = {
   type: "@swamp/vercel/project-members/members",
-  version: "2026.10.20.2",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -129,6 +129,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

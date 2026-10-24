@@ -23,7 +23,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { DefaultAzureCredential } from "npm:@azure/identity@4.13.1";
 import {
   SecretClient,

@@ -62,6 +62,23 @@ or failed.
      runs if the bumped model loads from it. If that model does not load, no
      instance can be on it, so a fresh install stands in: an instance created
      from the local source alone must be at the new version.
+   - No-op bumps: when every bumped model in an extension adds only upgrade
+     entries in the shape codegen writes when nothing changed ("No schema
+     changes", attributes returned as they came in), the method run is
+     skipped. The published version must still pull (a partial import is
+     tolerated as above), and a fresh install from the local source must be at
+     the new version. Any other entry gets the full dynamic check.
+   - Extensions are path-tested 8 at a time (`--concurrency`, 1 to 16). Each
+     test runs its swamp processes with a `SWAMP_HOME` and `SWAMP_CONFIG_DIR`
+     of its own inside its scratch directory, so concurrent tests cannot race
+     on swamp's user-level state (auth verification, identity and scope
+     caches, telemetry, the update check, logs) and never write the host's.
+     Only the embedded deno runtime and deno's module cache are shared, by
+     symlink, as both are safe for concurrent use. The swamp-club key is
+     resolved once (`SWAMP_API_KEY` or `SWAMP_API_KEY_FILE` if set, otherwise
+     the host's `auth.json`) and passed to each test's processes. Each
+     extension's output prints as one group in the order a one-at-a-time run
+     would print it.
 
    Both steps list every model they examined, so a run that found nothing to
    check says so. Run it locally with

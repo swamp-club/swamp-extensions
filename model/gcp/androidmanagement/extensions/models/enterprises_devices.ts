@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -1777,7 +1777,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1936,6 +1936,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

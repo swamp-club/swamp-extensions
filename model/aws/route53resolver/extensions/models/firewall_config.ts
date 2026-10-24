@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -113,7 +113,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver FirewallConfig. Registered at `@swamp/aws/route53resolver/firewall-config`. */
 export const model = {
   type: "@swamp/aws/route53resolver/firewall-config",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

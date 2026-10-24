@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -302,7 +302,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch LogAlarm. Registered at `@swamp/aws/cloudwatch/log-alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/log-alarm",
-  version: "2026.10.16.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.06.16.1",
@@ -347,6 +347,11 @@ export const model = {
     {
       toVersion: "2026.10.16.1",
       description: "Added: ActionConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

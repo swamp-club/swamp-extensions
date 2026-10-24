@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -38,195 +38,20 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const EnvironmentSchema = z.object({
-  Name: z.string().optional(),
-  Value: z.string().optional(),
-});
-
-const MountPointSchema = z.object({
-  ContainerPath: z.string().optional(),
+const EksContainerVolumeMountSchema = z.object({
+  MountPath: z.string().optional(),
   ReadOnly: z.boolean().optional(),
-  SourceVolume: z.string().optional(),
-});
-
-const UlimitSchema = z.object({
-  HardLimit: z.number().int(),
-  Name: z.string(),
-  SoftLimit: z.number().int(),
-});
-
-const HostSchema = z.object({
-  SourcePath: z.string().optional(),
-});
-
-const EFSAuthorizationConfigSchema = z.object({
-  AccessPointId: z.string().optional(),
-  Iam: z.string().optional(),
-});
-
-const EFSVolumeConfigurationSchema = z.object({
-  FileSystemId: z.string(),
-  RootDirectory: z.string().optional(),
-  TransitEncryption: z.string().optional(),
-  TransitEncryptionPort: z.number().int().optional(),
-  AuthorizationConfig: EFSAuthorizationConfigSchema.optional(),
-});
-
-const S3FilesVolumeConfigurationSchema = z.object({
-  FileSystemArn: z.string(),
-  RootDirectory: z.string().optional(),
-  TransitEncryptionPort: z.number().int().optional(),
-  AccessPointArn: z.string().optional(),
-});
-
-const VolumeSchema = z.object({
-  Host: HostSchema.optional(),
-  EfsVolumeConfiguration: EFSVolumeConfigurationSchema.optional(),
-  S3FilesVolumeConfiguration: S3FilesVolumeConfigurationSchema.optional(),
+  SubPath: z.string().optional(),
   Name: z.string().optional(),
 });
 
-const ResourceRequirementSchema = z.object({
-  Type: z.string().optional(),
-  Value: z.string().optional(),
-});
-
-const DeviceSchema = z.object({
-  HostPath: z.string().optional(),
-  ContainerPath: z.string().optional(),
-  Permissions: z.array(z.string()).optional(),
-});
-
-const TmpfsSchema = z.object({
-  ContainerPath: z.string(),
-  Size: z.number().int(),
-  MountOptions: z.array(z.string()).optional(),
-});
-
-const LinuxParametersSchema = z.object({
-  Devices: z.array(DeviceSchema).optional(),
-  InitProcessEnabled: z.boolean().optional(),
-  MaxSwap: z.number().int().optional(),
-  Swappiness: z.number().int().optional(),
-  SharedMemorySize: z.number().int().optional(),
-  Tmpfs: z.array(TmpfsSchema).optional(),
-});
-
-const SecretSchema = z.object({
-  Name: z.string(),
-  ValueFrom: z.string(),
-});
-
-const LogConfigurationSchema = z.object({
-  LogDriver: z.string(),
-  Options: z.record(z.string(), z.string()).optional(),
-  SecretOptions: z.array(SecretSchema).optional(),
-});
-
-const NetworkConfigurationSchema = z.object({
-  AssignPublicIp: z.string().optional(),
-});
-
-const EphemeralStorageSchema = z.object({
-  SizeInGiB: z.number().int(),
-});
-
-const RuntimePlatformSchema = z.object({
-  OperatingSystemFamily: z.string().optional(),
-  CpuArchitecture: z.string().optional(),
-});
-
-const RepositoryCredentialsSchema = z.object({
-  CredentialsParameter: z.string(),
-});
-
-const TaskContainerDependencySchema = z.object({
-  ContainerName: z.string(),
-  Condition: z.string(),
-});
-
-const TaskContainerPropertiesSchema = z.object({
-  Command: z.array(z.string()).optional(),
-  Environment: z.array(EnvironmentSchema).optional(),
-  DependsOn: z.array(TaskContainerDependencySchema).optional(),
-  Name: z.string().optional(),
-  Image: z.string(),
-  LinuxParameters: LinuxParametersSchema.optional(),
-  LogConfiguration: LogConfigurationSchema.optional(),
-  MountPoints: z.array(MountPointSchema).optional(),
-  Essential: z.boolean().optional(),
+const EksContainerSecurityContextSchema = z.object({
+  RunAsUser: z.number().int().optional(),
+  AllowPrivilegeEscalation: z.boolean().optional(),
+  RunAsNonRoot: z.boolean().optional(),
   Privileged: z.boolean().optional(),
-  ReadonlyRootFilesystem: z.boolean().optional(),
-  Ulimits: z.array(UlimitSchema).optional(),
-  User: z.string().optional(),
-  Secrets: z.array(SecretSchema).optional(),
-  RepositoryCredentials: RepositoryCredentialsSchema.optional(),
-  ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
-  FirelensConfiguration: z.object({
-    Type: z.string(),
-    Options: z.record(z.string(), z.string()).optional(),
-  }).optional(),
-  StopTimeout: z.number().int().optional(),
-  StartTimeout: z.number().int().optional(),
-});
-
-const EcsTaskPropertiesSchema = z.object({
-  Containers: z.array(TaskContainerPropertiesSchema).optional(),
-  EphemeralStorage: EphemeralStorageSchema.optional(),
-  ExecutionRoleArn: z.string().optional(),
-  RuntimePlatform: RuntimePlatformSchema.optional(),
-  NetworkConfiguration: NetworkConfigurationSchema.optional(),
-  Volumes: z.array(VolumeSchema).optional(),
-  PidMode: z.string().optional(),
-  IpcMode: z.string().optional(),
-  PlatformVersion: z.string().optional(),
-  TaskRoleArn: z.string().optional(),
-  EnableExecuteCommand: z.boolean().optional(),
-  NetworkMode: z.string().optional(),
-});
-
-const MultiNodeContainerPropertiesSchema = z.object({
-  Command: z.array(z.string()).optional(),
-  Environment: z.array(EnvironmentSchema).optional(),
-  Image: z.string(),
-  JobRoleArn: z.string().optional(),
-  Memory: z.number().int().optional(),
-  MountPoints: z.array(MountPointSchema).optional(),
-  Privileged: z.boolean().optional(),
-  ReadonlyRootFilesystem: z.boolean().optional(),
-  Ulimits: z.array(UlimitSchema).optional(),
-  User: z.string().optional(),
-  Vcpus: z.number().int().optional(),
-  Volumes: z.array(VolumeSchema).optional(),
-  InstanceType: z.string().optional(),
-  ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
-  LinuxParameters: LinuxParametersSchema.optional(),
-  LogConfiguration: LogConfigurationSchema.optional(),
-  ExecutionRoleArn: z.string().optional(),
-  Secrets: z.array(SecretSchema).optional(),
-  EphemeralStorage: EphemeralStorageSchema.optional(),
-  RuntimePlatform: RuntimePlatformSchema.optional(),
-  RepositoryCredentials: RepositoryCredentialsSchema.optional(),
-  EnableExecuteCommand: z.boolean().optional(),
-});
-
-const MultiNodeEcsTaskPropertiesSchema = z.object({
-  Containers: z.array(TaskContainerPropertiesSchema).optional(),
-  ExecutionRoleArn: z.string().optional(),
-  Volumes: z.array(VolumeSchema).optional(),
-  PidMode: z.string().optional(),
-  IpcMode: z.string().optional(),
-  TaskRoleArn: z.string().optional(),
-  EnableExecuteCommand: z.boolean().optional(),
-});
-
-const MultiNodeEcsPropertiesSchema = z.object({
-  TaskProperties: z.array(MultiNodeEcsTaskPropertiesSchema),
-});
-
-const EksContainerEnvironmentVariableSchema = z.object({
-  Name: z.string(),
-  Value: z.string().optional(),
+  ReadOnlyRootFilesystem: z.boolean().optional(),
+  RunAsGroup: z.number().int().optional(),
 });
 
 const EksContainerResourceRequirementsSchema = z.object({
@@ -234,41 +59,21 @@ const EksContainerResourceRequirementsSchema = z.object({
   Requests: z.record(z.string(), z.string()).optional(),
 });
 
-const EksContainerVolumeMountSchema = z.object({
-  Name: z.string().optional(),
-  MountPath: z.string().optional(),
-  SubPath: z.string().optional(),
-  ReadOnly: z.boolean().optional(),
-});
-
-const EksContainerSecurityContextSchema = z.object({
-  RunAsUser: z.number().int().optional(),
-  RunAsGroup: z.number().int().optional(),
-  Privileged: z.boolean().optional(),
-  AllowPrivilegeEscalation: z.boolean().optional(),
-  ReadOnlyRootFilesystem: z.boolean().optional(),
-  RunAsNonRoot: z.boolean().optional(),
+const EksContainerEnvironmentVariableSchema = z.object({
+  Value: z.string().optional(),
+  Name: z.string(),
 });
 
 const EksContainerSchema = z.object({
-  Name: z.string().optional(),
-  Image: z.string(),
+  Args: z.array(z.string()).optional(),
+  VolumeMounts: z.array(EksContainerVolumeMountSchema).optional(),
   ImagePullPolicy: z.string().optional(),
   Command: z.array(z.string()).optional(),
-  Args: z.array(z.string()).optional(),
-  Env: z.array(EksContainerEnvironmentVariableSchema).optional(),
-  Resources: EksContainerResourceRequirementsSchema.optional(),
-  VolumeMounts: z.array(EksContainerVolumeMountSchema).optional(),
   SecurityContext: EksContainerSecurityContextSchema.optional(),
-});
-
-const EksHostPathSchema = z.object({
-  Path: z.string().optional(),
-});
-
-const EksEmptyDirSchema = z.object({
-  Medium: z.string().optional(),
-  SizeLimit: z.string().optional(),
+  Resources: EksContainerResourceRequirementsSchema.optional(),
+  Image: z.string(),
+  Env: z.array(EksContainerEnvironmentVariableSchema).optional(),
+  Name: z.string().optional(),
 });
 
 const EksSecretSchema = z.object({
@@ -276,43 +81,48 @@ const EksSecretSchema = z.object({
   Optional: z.boolean().optional(),
 });
 
+const EksEmptyDirSchema = z.object({
+  Medium: z.string().optional(),
+  SizeLimit: z.string().optional(),
+});
+
+const EksHostPathSchema = z.object({
+  Path: z.string().optional(),
+});
+
 const EksPersistentVolumeClaimSchema = z.object({
-  ClaimName: z.string(),
   ReadOnly: z.boolean().optional(),
+  ClaimName: z.string(),
 });
 
 const EksVolumeSchema = z.object({
-  Name: z.string(),
-  HostPath: EksHostPathSchema.optional(),
-  EmptyDir: EksEmptyDirSchema.optional(),
   Secret: EksSecretSchema.optional(),
+  EmptyDir: EksEmptyDirSchema.optional(),
+  HostPath: EksHostPathSchema.optional(),
   PersistentVolumeClaim: EksPersistentVolumeClaimSchema.optional(),
+  Name: z.string(),
+});
+
+const EksMetadataSchema = z.object({
+  Annotations: z.record(z.string(), z.string()).optional(),
+  Labels: z.record(z.string(), z.string()).optional(),
+  Namespace: z.string().optional(),
 });
 
 const ImagePullSecretSchema = z.object({
   Name: z.string().optional(),
 });
 
-const EksMetadataSchema = z.object({
-  Labels: z.record(z.string(), z.string()).optional(),
-  Annotations: z.record(z.string(), z.string()).optional(),
-  Namespace: z.string().optional(),
-});
-
 const EksPodPropertiesSchema = z.object({
-  ServiceAccountName: z.string().optional(),
-  HostNetwork: z.boolean().optional(),
-  DnsPolicy: z.string().optional(),
   InitContainers: z.array(EksContainerSchema).optional(),
-  Containers: z.array(EksContainerSchema).optional(),
   Volumes: z.array(EksVolumeSchema).optional(),
-  ImagePullSecrets: z.array(ImagePullSecretSchema).optional(),
+  DnsPolicy: z.string().optional(),
+  Containers: z.array(EksContainerSchema).optional(),
   Metadata: EksMetadataSchema.optional(),
+  ServiceAccountName: z.string().optional(),
+  ImagePullSecrets: z.array(ImagePullSecretSchema).optional(),
+  HostNetwork: z.boolean().optional(),
   ShareProcessNamespace: z.boolean().optional(),
-});
-
-const EksPropertiesSchema = z.object({
-  PodProperties: EksPodPropertiesSchema.optional(),
 });
 
 const ConsumableResourceRequirementSchema = z.object({
@@ -326,24 +136,214 @@ const ConsumableResourceRequirementSchema = z.object({
   Quantity: z.number().int(),
 });
 
+const RepositoryCredentialsSchema = z.object({
+  CredentialsParameter: z.string(),
+});
+
+const SecretSchema = z.object({
+  ValueFrom: z.string(),
+  Name: z.string(),
+});
+
+const TmpfsSchema = z.object({
+  Size: z.number().int(),
+  ContainerPath: z.string(),
+  MountOptions: z.array(z.string()).optional(),
+});
+
+const DeviceSchema = z.object({
+  HostPath: z.string().optional(),
+  Permissions: z.array(z.string()).optional(),
+  ContainerPath: z.string().optional(),
+});
+
+const LinuxParametersSchema = z.object({
+  Swappiness: z.number().int().optional(),
+  Tmpfs: z.array(TmpfsSchema).optional(),
+  SharedMemorySize: z.number().int().optional(),
+  Devices: z.array(DeviceSchema).optional(),
+  InitProcessEnabled: z.boolean().optional(),
+  MaxSwap: z.number().int().optional(),
+});
+
+const ResourceRequirementSchema = z.object({
+  Type: z.string().optional(),
+  Value: z.string().optional(),
+});
+
+const LogConfigurationSchema = z.object({
+  SecretOptions: z.array(SecretSchema).optional(),
+  Options: z.record(z.string(), z.string()).optional(),
+  LogDriver: z.string(),
+});
+
+const MountPointSchema = z.object({
+  ReadOnly: z.boolean().optional(),
+  SourceVolume: z.string().optional(),
+  ContainerPath: z.string().optional(),
+});
+
+const RuntimePlatformSchema = z.object({
+  OperatingSystemFamily: z.string().optional(),
+  CpuArchitecture: z.string().optional(),
+});
+
+const S3FilesVolumeConfigurationSchema = z.object({
+  FileSystemArn: z.string(),
+  AccessPointArn: z.string().optional(),
+  RootDirectory: z.string().optional(),
+  TransitEncryptionPort: z.number().int().optional(),
+});
+
+const HostSchema = z.object({
+  SourcePath: z.string().optional(),
+});
+
+const EFSAuthorizationConfigSchema = z.object({
+  Iam: z.string().optional(),
+  AccessPointId: z.string().optional(),
+});
+
+const EFSVolumeConfigurationSchema = z.object({
+  TransitEncryption: z.string().optional(),
+  AuthorizationConfig: EFSAuthorizationConfigSchema.optional(),
+  FileSystemId: z.string(),
+  RootDirectory: z.string().optional(),
+  TransitEncryptionPort: z.number().int().optional(),
+});
+
+const VolumeSchema = z.object({
+  S3FilesVolumeConfiguration: S3FilesVolumeConfigurationSchema.optional(),
+  Host: HostSchema.optional(),
+  EfsVolumeConfiguration: EFSVolumeConfigurationSchema.optional(),
+  Name: z.string().optional(),
+});
+
+const EnvironmentSchema = z.object({
+  Value: z.string().optional(),
+  Name: z.string().optional(),
+});
+
+const UlimitSchema = z.object({
+  SoftLimit: z.number().int(),
+  HardLimit: z.number().int(),
+  Name: z.string(),
+});
+
+const EphemeralStorageSchema = z.object({
+  SizeInGiB: z.number().int(),
+});
+
+const MultiNodeContainerPropertiesSchema = z.object({
+  RepositoryCredentials: RepositoryCredentialsSchema.optional(),
+  User: z.string().optional(),
+  Secrets: z.array(SecretSchema).optional(),
+  Memory: z.number().int().optional(),
+  Privileged: z.boolean().optional(),
+  EnableExecuteCommand: z.boolean().optional(),
+  LinuxParameters: LinuxParametersSchema.optional(),
+  JobRoleArn: z.string().optional(),
+  ReadonlyRootFilesystem: z.boolean().optional(),
+  Vcpus: z.number().int().optional(),
+  Image: z.string(),
+  ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
+  LogConfiguration: LogConfigurationSchema.optional(),
+  MountPoints: z.array(MountPointSchema).optional(),
+  ExecutionRoleArn: z.string().optional(),
+  RuntimePlatform: RuntimePlatformSchema.optional(),
+  Volumes: z.array(VolumeSchema).optional(),
+  Command: z.array(z.string()).optional(),
+  Environment: z.array(EnvironmentSchema).optional(),
+  Ulimits: z.array(UlimitSchema).optional(),
+  InstanceType: z.string().optional(),
+  EphemeralStorage: EphemeralStorageSchema.optional(),
+});
+
+const TaskContainerDependencySchema = z.object({
+  Condition: z.string(),
+  ContainerName: z.string(),
+});
+
+const TaskContainerPropertiesSchema = z.object({
+  RepositoryCredentials: RepositoryCredentialsSchema.optional(),
+  User: z.string().optional(),
+  Secrets: z.array(SecretSchema).optional(),
+  Privileged: z.boolean().optional(),
+  LinuxParameters: LinuxParametersSchema.optional(),
+  StartTimeout: z.number().int().optional(),
+  ReadonlyRootFilesystem: z.boolean().optional(),
+  Image: z.string(),
+  LogConfiguration: LogConfigurationSchema.optional(),
+  Essential: z.boolean().optional(),
+  ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
+  Name: z.string().optional(),
+  MountPoints: z.array(MountPointSchema).optional(),
+  FirelensConfiguration: z.object({
+    Options: z.record(z.string(), z.string()).optional(),
+    Type: z.string(),
+  }).optional(),
+  DependsOn: z.array(TaskContainerDependencySchema).optional(),
+  Command: z.array(z.string()).optional(),
+  Environment: z.array(EnvironmentSchema).optional(),
+  Ulimits: z.array(UlimitSchema).optional(),
+  StopTimeout: z.number().int().optional(),
+});
+
+const MultiNodeEcsTaskPropertiesSchema = z.object({
+  ExecutionRoleArn: z.string().optional(),
+  TaskRoleArn: z.string().optional(),
+  IpcMode: z.string().optional(),
+  Volumes: z.array(VolumeSchema).optional(),
+  EnableExecuteCommand: z.boolean().optional(),
+  Containers: z.array(TaskContainerPropertiesSchema).optional(),
+  PidMode: z.string().optional(),
+});
+
+const MultiNodeEcsPropertiesSchema = z.object({
+  TaskProperties: z.array(MultiNodeEcsTaskPropertiesSchema),
+});
+
+const EksPropertiesSchema = z.object({
+  PodProperties: EksPodPropertiesSchema.optional(),
+});
+
 const ConsumableResourcePropertiesSchema = z.object({
   ConsumableResourceList: z.array(ConsumableResourceRequirementSchema),
 });
 
 const NodeRangePropertySchema = z.object({
-  TargetNodes: z.string(),
   Container: MultiNodeContainerPropertiesSchema.optional(),
+  TargetNodes: z.string(),
   EcsProperties: MultiNodeEcsPropertiesSchema.optional(),
+  InstanceTypes: z.array(z.string()).optional(),
   EksProperties: EksPropertiesSchema.optional(),
   ConsumableResourceProperties: ConsumableResourcePropertiesSchema.optional(),
-  InstanceTypes: z.array(z.string()).optional(),
+});
+
+const NetworkConfigurationSchema = z.object({
+  AssignPublicIp: z.string().optional(),
+});
+
+const EcsTaskPropertiesSchema = z.object({
+  PlatformVersion: z.string().optional(),
+  ExecutionRoleArn: z.string().optional(),
+  RuntimePlatform: RuntimePlatformSchema.optional(),
+  TaskRoleArn: z.string().optional(),
+  IpcMode: z.string().optional(),
+  Volumes: z.array(VolumeSchema).optional(),
+  EnableExecuteCommand: z.boolean().optional(),
+  Containers: z.array(TaskContainerPropertiesSchema).optional(),
+  NetworkConfiguration: NetworkConfigurationSchema.optional(),
+  PidMode: z.string().optional(),
+  NetworkMode: z.string().optional(),
+  EphemeralStorage: EphemeralStorageSchema.optional(),
 });
 
 const EvaluateOnExitSchema = z.object({
-  OnExitCode: z.string().optional(),
-  OnStatusReason: z.string().optional(),
-  OnReason: z.string().optional(),
   Action: z.string(),
+  OnExitCode: z.string().optional(),
+  OnReason: z.string().optional(),
+  OnStatusReason: z.string().optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -359,124 +359,124 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ContainerProperties: z.object({
-    Command: z.array(z.string()).optional(),
-    Environment: z.array(EnvironmentSchema).optional(),
-    Image: z.string(),
-    JobRoleArn: z.string().optional(),
-    Memory: z.number().int().optional(),
-    MountPoints: z.array(MountPointSchema).optional(),
-    Privileged: z.boolean().optional(),
-    ReadonlyRootFilesystem: z.boolean().optional(),
-    Ulimits: z.array(UlimitSchema).optional(),
-    User: z.string().optional(),
-    Vcpus: z.number().int().optional(),
-    Volumes: z.array(VolumeSchema).optional(),
-    ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
-    LinuxParameters: LinuxParametersSchema.optional(),
-    LogConfiguration: LogConfigurationSchema.optional(),
-    ExecutionRoleArn: z.string().optional(),
-    Secrets: z.array(SecretSchema).optional(),
-    NetworkConfiguration: NetworkConfigurationSchema.optional(),
-    FargatePlatformConfiguration: z.object({
-      PlatformVersion: z.string().optional(),
-    }).optional(),
-    EphemeralStorage: EphemeralStorageSchema.optional(),
-    RuntimePlatform: RuntimePlatformSchema.optional(),
-    RepositoryCredentials: RepositoryCredentialsSchema.optional(),
-    EnableExecuteCommand: z.boolean().optional(),
-  }).optional(),
-  EcsProperties: z.object({
-    TaskProperties: z.array(EcsTaskPropertiesSchema),
-  }).optional(),
-  NodeProperties: z.object({
-    NumNodes: z.number().int(),
-    MainNode: z.number().int(),
-    NodeRangeProperties: z.array(NodeRangePropertySchema),
-  }).optional(),
-  JobDefinitionName: z.string().max(128).optional(),
-  SchedulingPriority: z.number().int().optional(),
   Parameters: z.record(z.string(), z.string()).optional(),
-  PlatformCapabilities: z.array(z.string()).optional(),
-  PropagateTags: z.boolean().optional(),
-  RetryStrategy: z.object({
-    Attempts: z.number().int().optional(),
-    EvaluateOnExit: z.array(EvaluateOnExitSchema).optional(),
-  }).optional(),
-  ResourceRetentionPolicy: z.object({
-    SkipDeregisterOnUpdate: z.boolean().optional(),
-  }).optional(),
   Timeout: z.object({
     AttemptDurationSeconds: z.number().int().optional(),
   }).optional(),
-  Type: z.string(),
-  Tags: z.record(z.string(), z.string()).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
+  JobDefinitionName: z.string().max(128).optional(),
+  PropagateTags: z.boolean().optional(),
+  PlatformCapabilities: z.array(z.string()).optional(),
   EksProperties: z.object({
     PodProperties: EksPodPropertiesSchema.optional(),
   }).optional(),
   ConsumableResourceProperties: z.object({
     ConsumableResourceList: z.array(ConsumableResourceRequirementSchema),
   }).optional(),
-});
-
-const StateSchema = z.object({
+  Type: z.string(),
+  NodeProperties: z.object({
+    MainNode: z.number().int(),
+    NodeRangeProperties: z.array(NodeRangePropertySchema),
+    NumNodes: z.number().int(),
+  }).optional(),
+  SchedulingPriority: z.number().int().optional(),
   ContainerProperties: z.object({
-    Command: z.array(z.string()),
-    Environment: z.array(EnvironmentSchema),
-    Image: z.string(),
-    JobRoleArn: z.string(),
-    Memory: z.number(),
-    MountPoints: z.array(MountPointSchema),
-    Privileged: z.boolean(),
-    ReadonlyRootFilesystem: z.boolean(),
-    Ulimits: z.array(UlimitSchema),
-    User: z.string(),
-    Vcpus: z.number(),
-    Volumes: z.array(VolumeSchema),
-    ResourceRequirements: z.array(ResourceRequirementSchema),
-    LinuxParameters: LinuxParametersSchema,
-    LogConfiguration: LogConfigurationSchema,
-    ExecutionRoleArn: z.string(),
-    Secrets: z.array(SecretSchema),
-    NetworkConfiguration: NetworkConfigurationSchema,
+    RepositoryCredentials: RepositoryCredentialsSchema.optional(),
+    User: z.string().optional(),
+    Secrets: z.array(SecretSchema).optional(),
+    Memory: z.number().int().optional(),
+    Privileged: z.boolean().optional(),
+    EnableExecuteCommand: z.boolean().optional(),
+    LinuxParameters: LinuxParametersSchema.optional(),
     FargatePlatformConfiguration: z.object({
-      PlatformVersion: z.string(),
-    }),
-    EphemeralStorage: EphemeralStorageSchema,
-    RuntimePlatform: RuntimePlatformSchema,
-    RepositoryCredentials: RepositoryCredentialsSchema,
-    EnableExecuteCommand: z.boolean(),
+      PlatformVersion: z.string().optional(),
+    }).optional(),
+    JobRoleArn: z.string().optional(),
+    ReadonlyRootFilesystem: z.boolean().optional(),
+    Vcpus: z.number().int().optional(),
+    Image: z.string(),
+    ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
+    LogConfiguration: LogConfigurationSchema.optional(),
+    MountPoints: z.array(MountPointSchema).optional(),
+    ExecutionRoleArn: z.string().optional(),
+    RuntimePlatform: RuntimePlatformSchema.optional(),
+    Volumes: z.array(VolumeSchema).optional(),
+    Command: z.array(z.string()).optional(),
+    Environment: z.array(EnvironmentSchema).optional(),
+    Ulimits: z.array(UlimitSchema).optional(),
+    NetworkConfiguration: NetworkConfigurationSchema.optional(),
+    EphemeralStorage: EphemeralStorageSchema.optional(),
   }).optional(),
   EcsProperties: z.object({
     TaskProperties: z.array(EcsTaskPropertiesSchema),
   }).optional(),
-  NodeProperties: z.object({
-    NumNodes: z.number(),
-    MainNode: z.number(),
-    NodeRangeProperties: z.array(NodeRangePropertySchema),
+  ResourceRetentionPolicy: z.object({
+    SkipDeregisterOnUpdate: z.boolean().optional(),
+  }).optional(),
+  RetryStrategy: z.object({
+    EvaluateOnExit: z.array(EvaluateOnExitSchema).optional(),
+    Attempts: z.number().int().optional(),
+  }).optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "A key-value pair to associate with a resource.",
+  ).optional(),
+});
+
+const StateSchema = z.object({
+  Parameters: z.record(z.string(), z.unknown()).optional(),
+  JobDefinitionArn: z.string().optional(),
+  Timeout: z.object({
+    AttemptDurationSeconds: z.number(),
   }).optional(),
   JobDefinitionName: z.string(),
-  JobDefinitionArn: z.string().optional(),
-  SchedulingPriority: z.number().optional(),
-  Parameters: z.record(z.string(), z.unknown()).optional(),
-  PlatformCapabilities: z.array(z.string()).optional(),
   PropagateTags: z.boolean().optional(),
-  RetryStrategy: z.object({
-    Attempts: z.number(),
-    EvaluateOnExit: z.array(EvaluateOnExitSchema),
+  PlatformCapabilities: z.array(z.string()).optional(),
+  EksProperties: EksPropertiesSchema.optional(),
+  ConsumableResourceProperties: ConsumableResourcePropertiesSchema.optional(),
+  Type: z.string().optional(),
+  NodeProperties: z.object({
+    MainNode: z.number(),
+    NodeRangeProperties: z.array(NodeRangePropertySchema),
+    NumNodes: z.number(),
+  }).optional(),
+  SchedulingPriority: z.number().optional(),
+  ContainerProperties: z.object({
+    RepositoryCredentials: RepositoryCredentialsSchema,
+    User: z.string(),
+    Secrets: z.array(SecretSchema),
+    Memory: z.number(),
+    Privileged: z.boolean(),
+    EnableExecuteCommand: z.boolean(),
+    LinuxParameters: LinuxParametersSchema,
+    FargatePlatformConfiguration: z.object({
+      PlatformVersion: z.string(),
+    }),
+    JobRoleArn: z.string(),
+    ReadonlyRootFilesystem: z.boolean(),
+    Vcpus: z.number(),
+    Image: z.string(),
+    ResourceRequirements: z.array(ResourceRequirementSchema),
+    LogConfiguration: LogConfigurationSchema,
+    MountPoints: z.array(MountPointSchema),
+    ExecutionRoleArn: z.string(),
+    RuntimePlatform: RuntimePlatformSchema,
+    Volumes: z.array(VolumeSchema),
+    Command: z.array(z.string()),
+    Environment: z.array(EnvironmentSchema),
+    Ulimits: z.array(UlimitSchema),
+    NetworkConfiguration: NetworkConfigurationSchema,
+    EphemeralStorage: EphemeralStorageSchema,
+  }).optional(),
+  EcsProperties: z.object({
+    TaskProperties: z.array(EcsTaskPropertiesSchema),
   }).optional(),
   ResourceRetentionPolicy: z.object({
     SkipDeregisterOnUpdate: z.boolean(),
   }).optional(),
-  Timeout: z.object({
-    AttemptDurationSeconds: z.number(),
+  RetryStrategy: z.object({
+    EvaluateOnExit: z.array(EvaluateOnExitSchema),
+    Attempts: z.number(),
   }).optional(),
-  Type: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  EksProperties: EksPropertiesSchema.optional(),
-  ConsumableResourceProperties: ConsumableResourcePropertiesSchema.optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -486,60 +486,13 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  ContainerProperties: z.object({
-    Command: z.array(z.string()).optional(),
-    Environment: z.array(EnvironmentSchema).optional(),
-    Image: z.string().optional(),
-    JobRoleArn: z.string().optional(),
-    Memory: z.number().int().optional(),
-    MountPoints: z.array(MountPointSchema).optional(),
-    Privileged: z.boolean().optional(),
-    ReadonlyRootFilesystem: z.boolean().optional(),
-    Ulimits: z.array(UlimitSchema).optional(),
-    User: z.string().optional(),
-    Vcpus: z.number().int().optional(),
-    Volumes: z.array(VolumeSchema).optional(),
-    ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
-    LinuxParameters: LinuxParametersSchema.optional(),
-    LogConfiguration: LogConfigurationSchema.optional(),
-    ExecutionRoleArn: z.string().optional(),
-    Secrets: z.array(SecretSchema).optional(),
-    NetworkConfiguration: NetworkConfigurationSchema.optional(),
-    FargatePlatformConfiguration: z.object({
-      PlatformVersion: z.string().optional(),
-    }).optional(),
-    EphemeralStorage: EphemeralStorageSchema.optional(),
-    RuntimePlatform: RuntimePlatformSchema.optional(),
-    RepositoryCredentials: RepositoryCredentialsSchema.optional(),
-    EnableExecuteCommand: z.boolean().optional(),
-  }).optional(),
-  EcsProperties: z.object({
-    TaskProperties: z.array(EcsTaskPropertiesSchema).optional(),
-  }).optional(),
-  NodeProperties: z.object({
-    NumNodes: z.number().int().optional(),
-    MainNode: z.number().int().optional(),
-    NodeRangeProperties: z.array(NodeRangePropertySchema).optional(),
-  }).optional(),
-  JobDefinitionName: z.string().max(128).optional(),
-  SchedulingPriority: z.number().int().optional(),
   Parameters: z.record(z.string(), z.string()).optional(),
-  PlatformCapabilities: z.array(z.string()).optional(),
-  PropagateTags: z.boolean().optional(),
-  RetryStrategy: z.object({
-    Attempts: z.number().int().optional(),
-    EvaluateOnExit: z.array(EvaluateOnExitSchema).optional(),
-  }).optional(),
-  ResourceRetentionPolicy: z.object({
-    SkipDeregisterOnUpdate: z.boolean().optional(),
-  }).optional(),
   Timeout: z.object({
     AttemptDurationSeconds: z.number().int().optional(),
   }).optional(),
-  Type: z.string().optional(),
-  Tags: z.record(z.string(), z.string()).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
+  JobDefinitionName: z.string().max(128).optional(),
+  PropagateTags: z.boolean().optional(),
+  PlatformCapabilities: z.array(z.string()).optional(),
   EksProperties: z.object({
     PodProperties: EksPodPropertiesSchema.optional(),
   }).optional(),
@@ -547,6 +500,53 @@ const InputsSchema = z.object({
     ConsumableResourceList: z.array(ConsumableResourceRequirementSchema)
       .optional(),
   }).optional(),
+  Type: z.string().optional(),
+  NodeProperties: z.object({
+    MainNode: z.number().int().optional(),
+    NodeRangeProperties: z.array(NodeRangePropertySchema).optional(),
+    NumNodes: z.number().int().optional(),
+  }).optional(),
+  SchedulingPriority: z.number().int().optional(),
+  ContainerProperties: z.object({
+    RepositoryCredentials: RepositoryCredentialsSchema.optional(),
+    User: z.string().optional(),
+    Secrets: z.array(SecretSchema).optional(),
+    Memory: z.number().int().optional(),
+    Privileged: z.boolean().optional(),
+    EnableExecuteCommand: z.boolean().optional(),
+    LinuxParameters: LinuxParametersSchema.optional(),
+    FargatePlatformConfiguration: z.object({
+      PlatformVersion: z.string().optional(),
+    }).optional(),
+    JobRoleArn: z.string().optional(),
+    ReadonlyRootFilesystem: z.boolean().optional(),
+    Vcpus: z.number().int().optional(),
+    Image: z.string().optional(),
+    ResourceRequirements: z.array(ResourceRequirementSchema).optional(),
+    LogConfiguration: LogConfigurationSchema.optional(),
+    MountPoints: z.array(MountPointSchema).optional(),
+    ExecutionRoleArn: z.string().optional(),
+    RuntimePlatform: RuntimePlatformSchema.optional(),
+    Volumes: z.array(VolumeSchema).optional(),
+    Command: z.array(z.string()).optional(),
+    Environment: z.array(EnvironmentSchema).optional(),
+    Ulimits: z.array(UlimitSchema).optional(),
+    NetworkConfiguration: NetworkConfigurationSchema.optional(),
+    EphemeralStorage: EphemeralStorageSchema.optional(),
+  }).optional(),
+  EcsProperties: z.object({
+    TaskProperties: z.array(EcsTaskPropertiesSchema).optional(),
+  }).optional(),
+  ResourceRetentionPolicy: z.object({
+    SkipDeregisterOnUpdate: z.boolean().optional(),
+  }).optional(),
+  RetryStrategy: z.object({
+    EvaluateOnExit: z.array(EvaluateOnExitSchema).optional(),
+    Attempts: z.number().int().optional(),
+  }).optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "A key-value pair to associate with a resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -568,7 +568,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch JobDefinition. Registered at `@swamp/aws/batch/job-definition`. */
 export const model = {
   type: "@swamp/aws/batch/job-definition",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -632,6 +632,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

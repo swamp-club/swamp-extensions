@@ -44,9 +44,10 @@ import {
 // The Linear adapter on the real engine: its token comes from a vault made
 // inside the temp repo (a local_encryption vault keeps its key there too, so
 // no vault of the host is touched), and it talks to the local Linear fake.
-// This is the only test of vault wiring: that swamp resolves the vault.get
+// This is the test of vault wiring: that swamp resolves the vault.get
 // expression at run time, and that the token stays out of the definition
-// and the run's output.
+// and the run's output. (swamp refuses a literal value for a sensitive
+// argument, so every test here takes its secret from a vault.)
 // ---------------------------------------------------------------------------
 
 Deno.test("tracker: the Linear adapter takes its token from a vault and delivers a keyed comment once", async () => {
@@ -239,6 +240,8 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
   const fake = linearFake();
   try {
     await withRepo(async (repo) => {
+      await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
+      await repo.swamp(["vault", "put", "secrets", "linear-token", FAKE_TOKEN]);
       const { stdout } = await repo.swamp([
         "model",
         "create",
@@ -252,7 +255,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
         unknown
       >;
       definition.globalArguments = {
-        apiToken: FAKE_TOKEN,
+        apiToken: "${{ vault.get(secrets, linear-token) }}",
         apiUrl: fake.url,
         statuses: {
           in_progress: "In Progress",
@@ -499,7 +502,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
 // against the auto-definition swamp writes.
 // ---------------------------------------------------------------------------
 
-const ISSUE_LIFECYCLE_STUB = `import { z } from "npm:zod@4.3.6";
+const ISSUE_LIFECYCLE_STUB = `import { z } from "npm:zod@4.6.7";
 
 export const model = {
   type: "@swamp/issue-lifecycle",

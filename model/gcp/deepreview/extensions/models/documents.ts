@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   deleteResource,
   type ExplicitGcpCredentials,
@@ -181,7 +181,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents. Registered at `@swamp/gcp/deepreview/documents`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents",
-  version: "2026.10.20.1",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

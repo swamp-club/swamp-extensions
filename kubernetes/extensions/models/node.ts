@@ -1,4 +1,4 @@
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { V1Node, V1Pod } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,

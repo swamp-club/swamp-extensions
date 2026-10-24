@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   type ExplicitGcpCredentials,
@@ -129,6 +129,13 @@ const GlobalArgsSchema = z.object({
       "REQUIRED",
       "NOT_REQUIRED",
     ]).optional(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string().optional(),
+      fieldPath: z.string().optional(),
+      parameterName: z.string().optional(),
+    })).optional(),
+    proactiveEnabled: z.boolean().optional(),
+    reactiveEnabled: z.boolean().optional(),
   })).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -198,6 +205,13 @@ const GlobalArgsSchema = z.object({
       "NOT_REQUIRED",
     ]).optional(),
     operationId: z.string().optional(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string().optional(),
+      fieldPath: z.string().optional(),
+      parameterName: z.string().optional(),
+    })).optional(),
+    proactiveEnabled: z.boolean().optional(),
+    reactiveEnabled: z.boolean().optional(),
     toolset: z.string().optional(),
   })).optional(),
   triggerEvent: z.enum([
@@ -241,6 +255,13 @@ const StateSchema = z.object({
   cesToolSpecs: z.array(z.object({
     cesTool: z.string(),
     confirmationRequirement: z.string(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string(),
+      fieldPath: z.string(),
+      parameterName: z.string(),
+    })),
+    proactiveEnabled: z.boolean(),
+    reactiveEnabled: z.boolean(),
   })).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -295,6 +316,13 @@ const StateSchema = z.object({
   toolsetTools: z.array(z.object({
     confirmationRequirement: z.string(),
     operationId: z.string(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string(),
+      fieldPath: z.string(),
+      parameterName: z.string(),
+    })),
+    proactiveEnabled: z.boolean(),
+    reactiveEnabled: z.boolean(),
     toolset: z.string(),
   })).optional(),
   triggerEvent: z.string().optional(),
@@ -340,6 +368,13 @@ const InputsSchema = z.object({
       "REQUIRED",
       "NOT_REQUIRED",
     ]).optional(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string().optional(),
+      fieldPath: z.string().optional(),
+      parameterName: z.string().optional(),
+    })).optional(),
+    proactiveEnabled: z.boolean().optional(),
+    reactiveEnabled: z.boolean().optional(),
   })).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
@@ -409,6 +444,13 @@ const InputsSchema = z.object({
       "NOT_REQUIRED",
     ]).optional(),
     operationId: z.string().optional(),
+    parameterOverrides: z.array(z.object({
+      contextReferenceKey: z.string().optional(),
+      fieldPath: z.string().optional(),
+      parameterName: z.string().optional(),
+    })).optional(),
+    proactiveEnabled: z.boolean().optional(),
+    reactiveEnabled: z.boolean().optional(),
     toolset: z.string().optional(),
   })).optional(),
   triggerEvent: z.enum([
@@ -452,7 +494,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Generators. Registered at `@swamp/gcp/dialogflow/generators`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/generators",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -479,6 +521,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -23,7 +23,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 // All character classes are intentionally strict: these values are interpolated
 // into a shell command + JSON blob in the workflow's `run-setup` step (see

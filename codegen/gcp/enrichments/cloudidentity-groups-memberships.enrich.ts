@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any no-import-prefix
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 // `request` is auto-imported by the generator for all enrichments; reference it
 // so the generated model's import isn't flagged as unused by deno lint.

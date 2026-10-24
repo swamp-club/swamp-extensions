@@ -19,10 +19,11 @@ import { extname, fromFileUrl, relative } from "@std/path";
 // Builds the studio page (deno task build:studio). It bundles src/app.tsx for
 // the browser into dist/ (a scratch directory git ignores), adds the page's
 // HTML, CSS and fonts, and writes every served file into generated modules
-// beside the engine, which the serve method serves from: the script in
-// studio_asset_app.ts, the fonts in studio_asset_fonts.ts, and the rest, with
-// the map of them all, in studio_assets.ts. One module each keeps every file
-// well under the registry's size limit. The page is embedded because a model
+// beside the engine, which the serve method serves from: the script split
+// across studio_asset_app.ts and studio_asset_app_2.ts, the fonts in
+// studio_asset_fonts.ts, and the rest, with the map of them all, in
+// studio_assets.ts. Splitting keeps every file well under the registry's size
+// limit. The page is embedded because a model
 // added as an extension source runs from swamp's bundle directory, where no
 // dist/ is beside it (DESIGN.md, "The studio server").
 //
@@ -42,9 +43,26 @@ const DIST = new URL("dist/", STUDIO);
 const ENGINE = new URL("../extensions/models/_lib/engine/", STUDIO);
 export const ASSETS_MODULE = new URL("studio_assets.ts", ENGINE);
 const APP_MODULE = new URL("studio_asset_app.ts", ENGINE);
+const APP_TAIL_MODULE = new URL("studio_asset_app_2.ts", ENGINE);
 const FONTS_MODULE = new URL("studio_asset_fonts.ts", ENGINE);
 /** Every generated module, for the size check. */
-export const ASSET_MODULES = [ASSETS_MODULE, APP_MODULE, FONTS_MODULE];
+export const ASSET_MODULES = [
+  ASSETS_MODULE,
+  APP_MODULE,
+  APP_TAIL_MODULE,
+  FONTS_MODULE,
+];
+
+/**
+ * Where to split the script between its two modules: halfway, moved back off
+ * the low half of a surrogate pair so neither half holds a lone surrogate.
+ */
+export function splitPoint(text: string): number {
+  let at = Math.floor(text.length / 2);
+  const code = text.charCodeAt(at);
+  if (code >= 0xdc00 && code <= 0xdfff) at--;
+  return at;
+}
 
 /**
  * The engine modules the page's bundle contains, by name in
@@ -300,12 +318,23 @@ async function build() {
   const importType =
     `import type { StudioAsset } from "./studio_server.ts";\n\n`;
 
+  const script = await Deno.readTextFile(new URL("app.js", DIST));
+  const at = splitPoint(script);
+  const appTailSize = await writeModule(
+    APP_TAIL_MODULE,
+    "",
+    `/** The second half of the page's script. */\nexport const STUDIO_APP_JS_TAIL = ${
+      JSON.stringify(script.slice(at))
+    };\n`,
+  );
   const appSize = await writeModule(
     APP_MODULE,
-    importType,
-    `/** The page's script. */\nexport const STUDIO_APP_JS: StudioAsset = ${await entryOf(
-      "app.js",
-    )};\n`,
+    `${importType.trimEnd()}\nimport { STUDIO_APP_JS_TAIL } from "./studio_asset_app_2.ts";\n\n`,
+    `/** The page's script, joined from its two modules. */\nexport const STUDIO_APP_JS: StudioAsset = {\n  type: ${
+      JSON.stringify(TYPES[".js"])
+    },\n  text: ${
+      JSON.stringify(script.slice(0, at))
+    } + STUDIO_APP_JS_TAIL,\n};\n`,
   );
   const fonts: string[] = [];
   const rest: string[] = [];
@@ -346,9 +375,9 @@ ${rest.join("\n")}
   const kb = (n: number) => `${(n / 1024).toFixed(0)} KB`;
   console.log(
     `${served.length} files: studio_assets.ts ${kb(mainSize)}, ` +
-      `studio_asset_app.ts ${kb(appSize)}, studio_asset_fonts.ts ${
-        kb(fontSize)
-      }`,
+      `studio_asset_app.ts ${kb(appSize)}, studio_asset_app_2.ts ${
+        kb(appTailSize)
+      }, studio_asset_fonts.ts ${kb(fontSize)}`,
   );
 }
 

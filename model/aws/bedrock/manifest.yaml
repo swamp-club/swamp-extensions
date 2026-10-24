@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/bedrock"
-version: "2026.10.20.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: "AWS BEDROCK infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: retrieval_instruction
+  - Updated: agent, agent_alias, application_inference_profile, automated_reasoning_policy, automated_reasoning_policy_version, blueprint, data_automation_library, data_automation_project, data_source, enforced_guardrail_configuration, flow, flow_alias, flow_version, guardrail, guardrail_version, intelligent_prompt_router, knowledge_base, knowledge_base_policy, prompt, prompt_version, resource_policy, retrieval_instruction, session
 models:
   - agent.ts
   - agent_alias.ts

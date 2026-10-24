@@ -19,7 +19,7 @@
 // Source lives in codegen/cloudflare/standalone/ and is copied into
 // model/cloudflare/analytics/ during generation.
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { AuthOverrides } from "./_lib/graphql.ts";
 import { query } from "./_lib/graphql.ts";
 

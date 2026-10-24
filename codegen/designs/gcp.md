@@ -131,7 +131,16 @@ in a service fails (a schema file, a whole document, or a single resource), that
 service's existing models that did not generate this run are kept, file and
 manifest entry, at their last good version instead of being pruned as orphans,
 so a codegen failure never silently unpublishes a model. A model removed
-upstream in the same run is removed by the next clean run. The nightly
+upstream in the same run is removed by the next clean run.
+
+A whole service is never pruned just because its schema is missing, since a
+discovery fetch can fail for a moment. Retiring a dead API is deliberate: list
+it in `SKIP_APIS` in `gcp/pipeline.ts` with the reason, and an unfiltered
+`generate:gcp` removes its generated service directory
+(`pruneRetiredGcpServices`, only directories whose manifest carries the
+generated header) and ignores any schema for it left on disk. Any other
+generated service that produced nothing in a run is named in a warning, so a
+dead API is noticed rather than left pinned to old dependencies. The nightly
 `regenerate-models` workflow continues past a failed provider step and fails the
 run at the end. A provider that exits 2 keeps its complete output in the PR; one
 that crashed or failed to fetch has its partial `model/` output discarded first.

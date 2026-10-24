@@ -283,7 +283,7 @@ const NEW = "stagecraft";
 const SELF = /\/scripts\/rename_to_stagecraft(_test)?\.ts$/;
 /** Made by deno task build:studio, not edited: a bundle and base64 fonts. */
 export const GENERATED =
-  /\/extensions\/models\/_lib\/engine\/studio_asset(s|_app|_fonts)\.ts$/;
+  /\/extensions\/models\/_lib\/engine\/studio_asset(s|_app|_app_2|_fonts)\.ts$/;
 /** The lifecycle -> factory codemod (#2785), whose work is done. */
 const RETIRED = /\/scripts\/rename_lifecycle_to_factory(_test)?\.ts$/;
 const EXTRA = [

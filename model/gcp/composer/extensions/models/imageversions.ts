@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   type ExplicitGcpCredentials,
   getProjectId,
@@ -93,7 +93,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   creationDisabled: z.boolean().optional(),
-  devModeSupported: z.boolean().optional(),
   imageVersionId: z.string().optional(),
   isDefault: z.boolean().optional(),
   releaseDate: z.object({
@@ -146,7 +145,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Composer ImageVersions. Registered at `@swamp/gcp/composer/imageversions`. */
 export const model = {
   type: "@swamp/gcp/composer/imageversions",
-  version: "2026.10.23.1",
+  version: "2026.10.23.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +264,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

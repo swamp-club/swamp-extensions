@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
         .optional(),
     }),
   ).describe(
-    'Optional. Note: not implemented yet. Use enabled_actions instead. The enabled tools on this assistant. The keys are connector name, for example "projects/{projectId}/locations/{locationId}/collections/{collectionId}/dataconnector The values consist of admin enabled tools towards the connector instance. Admin can selectively enable multiple tools on any of the connector instances that they created in the project. For example {"jira1ConnectorName": [(toolId1, "createTicket"), (toolId2, "transferTicket")], "gmail1ConnectorName": [(toolId3, "sendEmail"),..] }',
+    'Optional. The enabled tools on this assistant. The keys are data connector resource names, in the format `projects/{project}/locations/{location}/collections/{collection}/dataConnector`. The values are the tools that the admin enabled on that connector. Admins can selectively enable tools on any of the connectors that they created in the project. For example: ` { "projects/my-project/locations/global/collections/jira1/dataConnector": { "toolInfo": [ { "toolName": "create_jira_issue", "toolDisplayName": "Create Jira issue" }, { "toolName": "update_jira_issue", "toolDisplayName": "Update Jira issue" } ] } } `',
   ).optional(),
   generationConfig: z.object({
     allowedModelIds: z.array(z.string()).describe(
@@ -375,7 +375,7 @@ const InputsSchema = z.object({
         .optional(),
     }),
   ).describe(
-    'Optional. Note: not implemented yet. Use enabled_actions instead. The enabled tools on this assistant. The keys are connector name, for example "projects/{projectId}/locations/{locationId}/collections/{collectionId}/dataconnector The values consist of admin enabled tools towards the connector instance. Admin can selectively enable multiple tools on any of the connector instances that they created in the project. For example {"jira1ConnectorName": [(toolId1, "createTicket"), (toolId2, "transferTicket")], "gmail1ConnectorName": [(toolId3, "sendEmail"),..] }',
+    'Optional. The enabled tools on this assistant. The keys are data connector resource names, in the format `projects/{project}/locations/{location}/collections/{collection}/dataConnector`. The values are the tools that the admin enabled on that connector. Admins can selectively enable tools on any of the connectors that they created in the project. For example: ` { "projects/my-project/locations/global/collections/jira1/dataConnector": { "toolInfo": [ { "toolName": "create_jira_issue", "toolDisplayName": "Create Jira issue" }, { "toolName": "update_jira_issue", "toolDisplayName": "Update Jira issue" } ] } } `',
   ).optional(),
   generationConfig: z.object({
     allowedModelIds: z.array(z.string()).describe(
@@ -443,7 +443,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Assistants. Registered at `@swamp/gcp/discoveryengine/collections-engines-assistants`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-assistants",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -617,6 +617,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

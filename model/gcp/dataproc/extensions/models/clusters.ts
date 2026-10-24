@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -936,7 +936,6 @@ const GlobalArgsSchema = z.object({
       optionalComponents: z.array(
         z.enum([
           "COMPONENT_UNSPECIFIED",
-          "ALLOYDB_CONNECTOR",
           "ANACONDA",
           "DELTA",
           "DOCKER",
@@ -2361,7 +2360,6 @@ const InputsSchema = z.object({
       optionalComponents: z.array(
         z.enum([
           "COMPONENT_UNSPECIFIED",
-          "ALLOYDB_CONNECTOR",
           "ANACONDA",
           "DELTA",
           "DOCKER",
@@ -2689,7 +2687,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.10.23.1",
+  version: "2026.10.23.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2698,11 +2696,6 @@ export const model = {
     },
     {
       toVersion: "2026.04.02.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3001,6 +2994,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

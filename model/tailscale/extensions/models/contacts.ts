@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { apiRequest, expandPath, readRequired } from "./_lib/tailscale.ts";
 
 const GlobalArgsSchema = z.object({
@@ -86,10 +86,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale contacts. Registered at `@swamp/tailscale/contacts`. */
 export const model = {
   type: "@swamp/tailscale/contacts",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

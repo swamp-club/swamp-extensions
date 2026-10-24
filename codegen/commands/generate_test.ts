@@ -1,5 +1,9 @@
 import { assertEquals } from "@std/assert";
-import { pruneOrphanModels, pruneOrphanServices } from "./generate.ts";
+import {
+  pruneOrphanModels,
+  pruneOrphanServices,
+  pruneRetiredGcpServices,
+} from "./generate.ts";
 import { GENERATED_MANIFEST_HEADER } from "../shared/manifestGenerator.ts";
 
 Deno.test("pruneOrphanModels - removes only top-level non-test .ts files generation no longer produces", async () => {
@@ -88,6 +92,51 @@ Deno.test("pruneOrphanServices - a missing provider directory is not an error", 
     assertEquals(
       await pruneOrphanServices(`${dir}/absent`, new Set(), "test"),
       [],
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("pruneRetiredGcpServices - removes retired generated services, flags stale ones", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const generated = `${GENERATED_MANIFEST_HEADER}\nmanifestVersion: 1\n`;
+    for (
+      const name of ["live", "retired", "fetchfailed", "handmade-retired"]
+    ) {
+      await Deno.mkdir(`${dir}/${name}`, { recursive: true });
+    }
+    await Deno.writeTextFile(`${dir}/live/manifest.yaml`, generated);
+    await Deno.writeTextFile(`${dir}/retired/manifest.yaml`, generated);
+    await Deno.writeTextFile(`${dir}/fetchfailed/manifest.yaml`, generated);
+    await Deno.writeTextFile(
+      `${dir}/handmade-retired/manifest.yaml`,
+      "manifestVersion: 1\n",
+    );
+
+    const result = await pruneRetiredGcpServices(
+      dir,
+      new Set(["live"]),
+      new Set(["retired", "handmade-retired"]),
+    );
+
+    // A missing schema alone never removes a service; it is only flagged.
+    assertEquals(result, { removed: ["retired"], stale: ["fetchfailed"] });
+    const remaining: string[] = [];
+    for await (const entry of Deno.readDir(dir)) remaining.push(entry.name);
+    assertEquals(remaining.sort(), ["fetchfailed", "handmade-retired", "live"]);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("pruneRetiredGcpServices - a missing provider directory is not an error", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    assertEquals(
+      await pruneRetiredGcpServices(`${dir}/absent`, new Set(), new Set()),
+      { removed: [], stale: [] },
     );
   } finally {
     await Deno.remove(dir, { recursive: true });

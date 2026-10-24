@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { STUDIO_ASSETS } from "../_lib/engine/studio_assets.ts";
 import { parsePublicOrigin } from "../_lib/engine/studio_server.ts";
 import {

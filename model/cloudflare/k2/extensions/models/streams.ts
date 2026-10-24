@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   create,
   listAll,
@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/k2/streams`. */
 export const model = {
   type: "@swamp/cloudflare/k2/streams",
-  version: "2026.10.20.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.10.07.1",
@@ -125,6 +125,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

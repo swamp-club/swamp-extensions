@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-import-prefix
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 // Identity, type, location and state metadata only. Requested server-side via
 // readMask and re-applied client-side, so resource payloads

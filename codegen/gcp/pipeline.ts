@@ -36,11 +36,21 @@ import {
 const GCP_DISCOVERY_URL = "https://www.googleapis.com/discovery/v1/apis";
 
 // APIs to skip during schema fetching — deprecated, shutdown, or internal-only
-// services whose discovery endpoints are dead or return errors.
-const SKIP_APIS = new Set([
+// services whose discovery endpoints are dead or return errors. An unfiltered
+// generate:gcp removes any generated service directory left for one of these
+// (see pruneRetiredGcpServices in commands/generate.ts), so listing an API
+// here is how a dead service is retired.
+export const SKIP_APIS = new Set([
+  "analytics", // Removed from the discovery list
+  "apigeeregistry", // Removed from the discovery list
   "area120tables", // Shutdown — returns 404
+  "content", // Removed from the discovery list
+  "contentwarehouse", // Discovery document returns 502
+  "datalabeling", // Discovery document returns 404
   "developerknowledge", // Internal API — returns 400
+  "mybusinessqanda", // Discovery document returns 404
   "poly", // Shutdown — returns 502
+  "rapidmigrationassessment", // Discovery document times out
 ]);
 
 // --- Public types ---
@@ -541,6 +551,9 @@ export async function generateGcpModels(options: {
     const { baseService, isAdditionalVersion } = classifyGcpSchemaFile(
       entry.name,
     );
+    // A retired API's schema left on disk from an older fetch is not
+    // generated; the unfiltered run removes its service instead.
+    if (SKIP_APIS.has(baseService)) continue;
     // Apply service filter on the base API name so additional-version files
     // are loaded exactly when their preferred file is.
     if (options.services && !options.services.includes(baseService)) {

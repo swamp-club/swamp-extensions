@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   type ExplicitGcpCredentials,
   getProjectId,
@@ -176,7 +176,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 FirstPartyAndPartnerAudiences. Registered at `@swamp/gcp/displayvideo/firstpartyandpartneraudiences`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/firstpartyandpartneraudiences",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -352,6 +352,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

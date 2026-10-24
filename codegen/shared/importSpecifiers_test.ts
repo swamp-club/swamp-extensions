@@ -36,7 +36,7 @@ Deno.test("findBareSpecifiers - reads multi-line import clauses", () => {
 
 Deno.test("findBareSpecifiers - accepts explicit and relative specifiers", () => {
   const source = [
-    `import { z } from "npm:zod@4.3.6";`,
+    `import { z } from "npm:zod@4.6.7";`,
     `import { join } from "jsr:@std/path@1";`,
     `import { create } from "./_lib/aws.ts";`,
     `import { other } from "../shared/other.ts";`,

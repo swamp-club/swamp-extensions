@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   create,
   discover,
@@ -453,7 +453,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.10.16.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -563,6 +563,11 @@ export const model = {
     {
       toVersion: "2026.10.16.1",
       description: "Added: gpu_operator_ready",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

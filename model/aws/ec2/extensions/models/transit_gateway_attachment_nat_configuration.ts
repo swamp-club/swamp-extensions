@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -128,7 +128,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayAttachmentNatConfiguration. Registered at `@swamp/aws/ec2/transit-gateway-attachment-nat-configuration`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-attachment-nat-configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.23.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

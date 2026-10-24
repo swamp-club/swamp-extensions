@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/gcs-datastore-bootstrap"
-version: "2026.10.13.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: |
   One-shot bootstrap for @swamp/gcs-datastore. Ships a single provisioner

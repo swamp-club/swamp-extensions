@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/cloudfront"
-version: "2026.10.15.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: "AWS CLOUDFRONT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: field_level_encryption_config
+  - Updated: anycast_ip_list, cache_policy, cloud_front_origin_access_identity, connection_function, connection_group, continuous_deployment_policy, distribution, distribution_tenant, field_level_encryption_config, field_level_encryption_profile, function, key_group, key_value_store, monitoring_subscription, origin_access_control, origin_request_policy, public_key, realtime_log_config, response_headers_policy, trust_store, vpc_origin
 models:
   - anycast_ip_list.ts
   - cache_policy.ts

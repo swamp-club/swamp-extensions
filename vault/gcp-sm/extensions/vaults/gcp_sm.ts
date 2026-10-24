@@ -15,7 +15,7 @@
 
 /** @module Swamp vault provider backed by GCP Secret Manager. */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { wrapGcpSmError } from "./gcp_sm_errors.ts";
 import { Attr, getTracer } from "./_lib/tracing.ts";

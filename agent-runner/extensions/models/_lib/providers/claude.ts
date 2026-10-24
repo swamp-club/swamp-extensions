@@ -1,4 +1,4 @@
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { AgentProvider, AgentRunRequest, Platform } from "../types.ts";
 import { binaryFileName, isWindows } from "../platform.ts";
 

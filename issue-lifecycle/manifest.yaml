@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/issue-lifecycle"
-version: "2026.10.13.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: |
   Interactive triage and implementation planning for swamp-club lab issues.

@@ -26,7 +26,7 @@ import { DEFINITION_SCHEMA_VERSION } from "../_lib/engine/definition_schema.ts";
 import { parse as parseYaml } from "@std/yaml";
 import { FactoryArgumentsSchema, model as factory } from "./factory.ts";
 import { fakeSwamp } from "../_lib/engine/fake_swamp.ts";
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   FACTORY_TYPE,
   nthKey,

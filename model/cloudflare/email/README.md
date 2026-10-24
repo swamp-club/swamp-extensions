@@ -17,8 +17,8 @@ that reflect the live state in Cloudflare. Available methods:
 - **delete** — remove the resource from Cloudflare
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/cloudflare/email/addresses` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/cloudflare/email/domains` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -63,17 +63,17 @@ environment variables for the legacy path, while `apiToken` remains available.
 ## Usage
 
 ```bash
-# Create a new addresses model
-swamp model create @swamp/cloudflare/email/addresses my-addresses
+# Create a new domains model
+swamp model create @swamp/cloudflare/email/domains my-domains
 
 # Edit the model to configure its properties
-swamp model edit my-addresses
+swamp model edit my-domains
 
 # Create the resource in Cloudflare
-swamp model method run my-addresses create
+swamp model method run my-domains create
 
 # Sync current state from Cloudflare
-swamp model method run my-addresses sync
+swamp model method run my-domains sync
 ```
 
 ## License

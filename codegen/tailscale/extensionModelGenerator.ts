@@ -78,7 +78,7 @@ export function generateTailscaleExtensionModel(
   lines.push(` * @module`);
   lines.push(` */`, "");
 
-  lines.push(`import { z } from "npm:zod@4.3.6";`);
+  lines.push(`import { z } from "npm:zod@4.6.7";`);
   const used = LIB_IMPORTS.filter((name) =>
     methods.some((m) => new RegExp(`\\b${name}\\(`).test(m.code))
   );

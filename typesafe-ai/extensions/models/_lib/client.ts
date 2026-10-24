@@ -24,7 +24,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 /** Default API root for TypeSafe. */
 export const DEFAULT_BASE_URL = "https://api.typesafe.ai";

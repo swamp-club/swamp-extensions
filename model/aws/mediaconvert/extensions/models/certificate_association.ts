@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -95,7 +95,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConvert CertificateAssociation. Registered at `@swamp/aws/mediaconvert/certificate-association`. */
 export const model = {
   type: "@swamp/aws/mediaconvert/certificate-association",
-  version: "2026.10.16.1",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

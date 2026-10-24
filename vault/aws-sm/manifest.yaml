@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.10.13.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: |
   Read, write, and delete secrets stored in AWS Secrets Manager, with support

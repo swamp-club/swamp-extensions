@@ -12,7 +12,7 @@
     }
   },
   "imports": {
-    "zod": "npm:zod@4.3.6",
+    "zod": "npm:zod@4.6.7",
     "@std/assert": "jsr:@std/assert@1.0.19",
     "@std/yaml": "jsr:@std/yaml@1.0.10",
     "cel-js": "npm:@marcbachmann/cel-js@7.6.1"

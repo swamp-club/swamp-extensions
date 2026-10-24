@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   create,
   listAll,
@@ -163,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.10.20.2",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -207,6 +207,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

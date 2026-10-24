@@ -20,6 +20,6 @@
 
 // The engine's own specifier, not the import map's name, so this is the
 // zod instance the engine's schemas use.
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 z.config({ jitless: true });

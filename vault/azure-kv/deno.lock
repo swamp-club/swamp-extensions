@@ -9,8 +9,8 @@
     "npm:@azure/keyvault-secrets@4.11.2": "4.11.2",
     "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
     "npm:@opentelemetry/api@1.9.0": "1.9.0",
-    "npm:zod@4.3.6": "4.3.6",
-    "npm:zod@^4.3.6": "4.3.6"
+    "npm:zod@4.6.7": "4.6.7",
+    "npm:zod@^4.3.6": "4.6.7"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -351,8 +351,8 @@
         "is-wsl"
       ]
     },
-    "zod@4.3.6": {
-      "integrity": "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
   },
   "workspace": {
@@ -362,7 +362,7 @@
       "npm:@azure/identity@4.13.1",
       "npm:@azure/keyvault-secrets@4.11.2",
       "npm:@opentelemetry/api@1.9.0",
-      "npm:zod@4.3.6"
+      "npm:zod@4.6.7"
     ]
   }
 }

@@ -30,7 +30,7 @@ snapshot[`generateAwsExtensionModel - all handlers, natural name 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -218,7 +218,7 @@ snapshot[`generateAwsExtensionModel - synthetic name 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -413,7 +413,7 @@ snapshot[`generateAwsExtensionModel - composite primary identifier 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -610,7 +610,7 @@ snapshot[`generateAwsExtensionModel - createOnly properties filtered in update 1
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -805,7 +805,7 @@ snapshot[`generateAwsExtensionModel - read-only resource (no update, no delete) 
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -955,7 +955,7 @@ snapshot[`generateAwsExtensionModel - extracted schemas and StateSchema collisio
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -1125,7 +1125,7 @@ snapshot[`generateAwsExtensionModel - with upgrades block 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
@@ -1324,7 +1324,7 @@ snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1147.0";
@@ -1523,7 +1523,7 @@ snapshot[`generateAwsExtensionModel - with modelMethods 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from \\"./_lib/aws.ts\\";
 import type { AwsCredentials } from \\"./_lib/aws.ts\\";
 import { CloudFormationClient, ListStackInstancesCommand } from \\"npm:@aws-sdk/client-cloudformation@3.1147.0\\";

@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   create,
   listAll,
@@ -126,7 +126,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Domains. Registered at `@swamp/vercel/domains/domains`. */
 export const model = {
   type: "@swamp/vercel/domains/domains",
-  version: "2026.10.20.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -185,6 +185,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

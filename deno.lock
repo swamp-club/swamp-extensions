@@ -12,7 +12,7 @@
     "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
     "npm:@aws-sdk/client-secrets-manager@3.1053.0": "3.1053.0",
     "npm:fast-check@3.23.2": "3.23.2",
-    "npm:zod@4.3.6": "4.3.6"
+    "npm:zod@4.6.7": "4.6.7"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -395,8 +395,8 @@
     "xml-naming@0.1.0": {
       "integrity": "sha512-k8KO9hrMyNk6tUWqUfkTEZbezRRpONVOzUTnc97VnCvyj6Tf9lyUR9EDAIeiVLv56jsMcoXEwjW8Kv5yPY52lw=="
     },
-    "zod@4.3.6": {
-      "integrity": "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
   },
   "workspace": {
@@ -408,7 +408,7 @@
       "jsr:@std/yaml@1.0.10",
       "jsr:@systeminit/swamp-testing@0.20260331.5",
       "npm:fast-check@3.23.2",
-      "npm:zod@4.3.6"
+      "npm:zod@4.6.7"
     ]
   }
 }

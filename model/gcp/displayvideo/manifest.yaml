@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/displayvideo"
-version: "2026.10.22.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud displayvideo infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,8 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: advertisers_inventorysources, lookalikeaudiences, partners_inventorysources
-  - Updated: advertisers, advertisers_adassets, advertisers_adgroupads, advertisers_adgroups, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_adgroups_youtubeassettypes_youtubeassetassociations, advertisers_campaigns, advertisers_channels, advertisers_channels_sites, advertisers_creatives, advertisers_insertionorders, advertisers_invoices, advertisers_lineitems, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_lineitems_youtubeassettypes_youtubeassetassociations, advertisers_locationlists, advertisers_locationlists_assignedlocations, advertisers_negativekeywordlists, advertisers_negativekeywordlists_negativekeywords, advertisers_targetingtypes_assignedtargetingoptions, combinedaudiences, custombiddingalgorithms, custombiddingalgorithms_rules, custombiddingalgorithms_scripts, customlists, firstpartyandpartneraudiences, floodlightgroups, floodlightgroups_floodlightactivities, googleaudiences, guaranteedorders, inventorysourcegroups, inventorysourcegroups_assignedinventorysources, partners, partners_channels, partners_channels_sites, partners_targetingtypes_assignedtargetingoptions, targetingtypes_targetingoptions, users, advertisers_youtubeadgroupads
+  - Updated: advertisers, advertisers_adassets, advertisers_adgroupads, advertisers_adgroups, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_adgroups_youtubeassettypes_youtubeassetassociations, advertisers_campaigns, advertisers_channels, advertisers_channels_sites, advertisers_creatives, advertisers_insertionorders, advertisers_inventorysources, advertisers_invoices, advertisers_lineitems, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_lineitems_youtubeassettypes_youtubeassetassociations, advertisers_locationlists, advertisers_locationlists_assignedlocations, advertisers_negativekeywordlists, advertisers_negativekeywordlists_negativekeywords, advertisers_targetingtypes_assignedtargetingoptions, combinedaudiences, custombiddingalgorithms, custombiddingalgorithms_rules, custombiddingalgorithms_scripts, customlists, firstpartyandpartneraudiences, floodlightgroups, floodlightgroups_floodlightactivities, googleaudiences, guaranteedorders, inventorysourcegroups, inventorysourcegroups_assignedinventorysources, lookalikeaudiences, partners, partners_channels, partners_channels_sites, partners_inventorysources, partners_targetingtypes_assignedtargetingoptions, targetingtypes_targetingoptions, users, advertisers_manualtriggers, advertisers_youtubeadgroupads, advertisers_youtubeadgroups, advertisers_youtubeadgroups_targetingtypes_assignedtargetingoptions, inventorysources
 models:
   - advertisers.ts
   - advertisers_adassets.ts

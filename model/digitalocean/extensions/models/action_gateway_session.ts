@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createEnveloped,
   remove,
@@ -137,7 +137,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway session. Registered at `@swamp/digitalocean/action-gateway-session`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-session",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -159,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -24,7 +24,7 @@
 // claim a new one. claim never writes to the tracker.
 // ---------------------------------------------------------------------------
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { TrackerIssue } from "./adapter.ts";
 import { duplicateRefusal, primaryOf } from "./duplicates.ts";
 import {

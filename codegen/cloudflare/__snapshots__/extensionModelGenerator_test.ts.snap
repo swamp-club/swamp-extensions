@@ -30,7 +30,7 @@ snapshot[`generateCloudflareExtensionModel - account-scoped, all handlers 1`] = 
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead, remove } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
@@ -244,7 +244,7 @@ snapshot[`generateCloudflareExtensionModel - zone-scoped, PATCH update 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
@@ -493,7 +493,7 @@ snapshot[`generateCloudflareExtensionModel - dual-scoped resource 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
@@ -753,7 +753,7 @@ snapshot[`generateCloudflareExtensionModel - synthetic name 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
@@ -980,7 +980,7 @@ snapshot[`generateCloudflareExtensionModel - with upgrades block 1`] = `
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead, remove } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({

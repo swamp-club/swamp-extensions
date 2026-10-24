@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { Metrics } from "../../extensions/models/_lib/engine/metrics.ts";
 import { model as swampClubModel } from "../../extensions/models/tracker/swamp_club.ts";
 import { EXTENSION_ROOT, splitWords, withRepo } from "../harness.ts";

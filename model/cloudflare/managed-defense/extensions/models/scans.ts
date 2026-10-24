@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, listAll, read, tryRead } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
@@ -112,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scans. Registered at `@swamp/cloudflare/managed-defense/scans`. */
 export const model = {
   type: "@swamp/cloudflare/managed-defense/scans",
-  version: "2026.10.21.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -136,6 +136,11 @@ export const model = {
         const { repo_hosts: _repo_hosts, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

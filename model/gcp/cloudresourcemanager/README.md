@@ -13,7 +13,7 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/cloudresourcemanager/capabilities` to
+Use `swamp model type describe @swamp/gcp/cloudresourcemanager/boundaries` to
 see the full list of configurable properties and available methods for this
 model.
 
@@ -66,17 +66,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new capabilities model
-swamp model create @swamp/gcp/cloudresourcemanager/capabilities my-capabilities
+# Create a new boundaries model
+swamp model create @swamp/gcp/cloudresourcemanager/boundaries my-boundaries
 
 # Edit the model to configure its properties
-swamp model edit my-capabilities
+swamp model edit my-boundaries
 
 # Create the resource in GCP
-swamp model method run my-capabilities create
+swamp model method run my-boundaries create
 
 # Sync current state from GCP
-swamp model method run my-capabilities sync
+swamp model method run my-boundaries sync
 ```
 
 ## License

@@ -4,7 +4,7 @@
     "jsr:@std/assert@1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
-    "npm:zod@4.3.6": "4.3.6"
+    "npm:zod@4.6.7": "4.6.7"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -24,15 +24,15 @@
     }
   },
   "npm": {
-    "zod@4.3.6": {
-      "integrity": "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
   },
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@1.0.19",
       "jsr:@systeminit/swamp-testing@0.20260331.5",
-      "npm:zod@4.3.6"
+      "npm:zod@4.6.7"
     ]
   }
 }

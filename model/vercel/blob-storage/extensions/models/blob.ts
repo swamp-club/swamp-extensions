@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, read, remove, tryRead } from "./_lib/vercel.ts";
 
 const GlobalArgsSchema = z.object({
@@ -91,6 +91,7 @@ const ResourceSchema = z.object({
       makeEnvVarsSensitive: z.boolean().optional(),
       name: z.string().optional(),
       projectId: z.string().optional(),
+      secretsOutdated: z.boolean().optional(),
     })).optional(),
     status: z.string().optional(),
     totalConnectedProjects: z.number().optional(),
@@ -145,7 +146,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Blob. Registered at `@swamp/vercel/blob-storage/blob`. */
 export const model = {
   type: "@swamp/vercel/blob-storage/blob",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -184,6 +185,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

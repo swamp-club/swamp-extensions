@@ -31,7 +31,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   apiRequest,
   expandPath,
@@ -76,10 +76,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale DNS search paths. Registered at `@swamp/tailscale/dns-search-paths`. */
 export const model = {
   type: "@swamp/tailscale/dns-search-paths",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

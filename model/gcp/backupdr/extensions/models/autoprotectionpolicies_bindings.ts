@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   type ExplicitGcpCredentials,
@@ -213,7 +213,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service AutoProtectionPolicies.Bindings. Registered at `@swamp/gcp/backupdr/autoprotectionpolicies-bindings`. */
 export const model = {
   type: "@swamp/gcp/backupdr/autoprotectionpolicies-bindings",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

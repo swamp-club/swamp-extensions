@@ -345,7 +345,7 @@ Deno.test("boundary: production code importing a package by its import-map name 
   const files = withFile(
     `${LIB}/tracker/backends/linear.ts`,
     `import { join } from "@std/path";\n` +
-      `import { z } from "npm:zod@4.3.6";\n` +
+      `import { z } from "npm:zod@4.6.7";\n` +
       `import { parse } from "jsr:@std/yaml@1.0.10";\n`,
   );
   assertEquals(violations(files), [

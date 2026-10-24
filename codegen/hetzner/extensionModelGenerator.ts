@@ -191,7 +191,7 @@ export function generateHetznerExtensionModel(
 
   // Imports. The `npm:` prefix is required so `deno doc --lint` can resolve
   // zod standalone — it doesn't read the package's deno.json import map.
-  lines.push(`import { z } from "npm:zod@4.3.6";`);
+  lines.push(`import { z } from "npm:zod@4.6.7";`);
 
   const helperImports: string[] = [];
   if (resource.handlers.create) helperImports.push("create");

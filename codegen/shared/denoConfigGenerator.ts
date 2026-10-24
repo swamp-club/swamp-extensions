@@ -21,7 +21,7 @@ export function generateAwsDenoConfig(
   additionalImports: Record<string, string> = {},
 ): string {
   const imports: Record<string, string> = {
-    "zod": "npm:zod@4.3.6",
+    "zod": "npm:zod@4.6.7",
     "@aws-sdk/client-cloudcontrol": "npm:@aws-sdk/client-cloudcontrol@3.1147.0",
     "fast-json-patch": "npm:fast-json-patch@3.1.1",
     ...additionalImports,
@@ -45,7 +45,7 @@ export function generateGcpDenoConfig(
   additionalImports: Record<string, string> = {},
 ): string {
   const imports: Record<string, string> = {
-    "zod": "npm:zod@4.3.6",
+    "zod": "npm:zod@4.6.7",
     ...additionalImports,
   };
   return JSON.stringify(
@@ -66,7 +66,7 @@ export function generateHetznerDenoConfig(): string {
     {
       lint: LINT_CONFIG,
       imports: {
-        "zod": "npm:zod@4.3.6",
+        "zod": "npm:zod@4.6.7",
       },
     },
     null,
@@ -82,7 +82,7 @@ export function generateDigitalOceanDenoConfig(): string {
     {
       lint: LINT_CONFIG,
       imports: {
-        "zod": "npm:zod@4.3.6",
+        "zod": "npm:zod@4.6.7",
       },
     },
     null,
@@ -98,7 +98,7 @@ export function generateCloudflareDenoConfig(): string {
     {
       lint: LINT_CONFIG,
       imports: {
-        "zod": "npm:zod@4.3.6",
+        "zod": "npm:zod@4.6.7",
       },
     },
     null,
@@ -114,7 +114,7 @@ export function generateVercelDenoConfig(): string {
     {
       lint: LINT_CONFIG,
       imports: {
-        "zod": "npm:zod@4.3.6",
+        "zod": "npm:zod@4.6.7",
       },
     },
     null,
@@ -130,7 +130,7 @@ export function generateTailscaleDenoConfig(): string {
     {
       lint: LINT_CONFIG,
       imports: {
-        "zod": "npm:zod@4.3.6",
+        "zod": "npm:zod@4.6.7",
       },
     },
     null,

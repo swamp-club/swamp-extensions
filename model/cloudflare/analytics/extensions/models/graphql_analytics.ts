@@ -19,7 +19,7 @@
 // Source lives in codegen/cloudflare/standalone/ and is copied into
 // model/cloudflare/analytics/ during generation.
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { AuthOverrides } from "./_lib/graphql.ts";
 import { query } from "./_lib/graphql.ts";
 
@@ -212,13 +212,13 @@ function buildAuth(g: ModelContext["globalArgs"]): AuthOverrides {
 
 export const model = {
   type: "@swamp/cloudflare/analytics/graphql-analytics",
-  version: "2026.10.13.2",
+  version: "2026.10.23.1",
   // The pipeline fills in the computed version here too, so this no-op entry
   // always steps an older instance to the current version. A schema change
   // needs a real upgrade entry instead.
   upgrades: [
     {
-      toVersion: "2026.10.13.2",
+      toVersion: "2026.10.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

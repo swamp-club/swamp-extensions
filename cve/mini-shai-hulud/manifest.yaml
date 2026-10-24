@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/mini-shai-hulud"
-version: "2026.10.13.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: |
   Scans deno.lock and package-lock.json files for npm packages compromised

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import type { MethodOutput } from "../../engine/tracker.ts";
 import { describedOf } from "./publish_rounds.ts";
 import { roundArguments, roundResource, runRound } from "./round_method.ts";

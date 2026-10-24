@@ -9,7 +9,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { IAMClient } from "npm:@aws-sdk/client-iam@3.1147.0";
 import { S3Client } from "npm:@aws-sdk/client-s3@3.1147.0";
 import { STSClient } from "npm:@aws-sdk/client-sts@3.1147.0";

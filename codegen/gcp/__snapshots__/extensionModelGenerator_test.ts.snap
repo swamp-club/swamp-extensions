@@ -32,7 +32,7 @@ snapshot[`generateGcpExtensionModel - all handlers, natural naming 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, deleteResource, getProjectId, isResourceNotFoundError, readResource, updateResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -359,7 +359,7 @@ snapshot[`generateGcpExtensionModel - readiness polling 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, deleteResource, getProjectId, isResourceNotFoundError, readResource, updateResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -679,7 +679,7 @@ snapshot[`generateGcpExtensionModel - listOnly resource 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, getProjectId, isResourceNotFoundError, readViaList } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -871,7 +871,7 @@ snapshot[`generateGcpExtensionModel - full resource name pattern 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, deleteResource, getProjectId, isResourceNotFoundError, readResource } from \\"./_lib/gcp.ts\\";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -1113,7 +1113,7 @@ snapshot[`generateGcpExtensionModel - action methods 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, deleteResource, getProjectId, isResourceNotFoundError, readResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -1416,7 +1416,7 @@ snapshot[`generateGcpExtensionModel - GET action method uses undefined body 1`] 
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, getProjectId, isResourceNotFoundError, readResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -1653,7 +1653,7 @@ snapshot[`generateGcpExtensionModel - no update or delete handlers 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, getProjectId, isResourceNotFoundError, readResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";
@@ -1857,7 +1857,7 @@ snapshot[`generateGcpExtensionModel - with upgrades block 1`] = `
  * @module
  */
 
-import { z } from \\"npm:zod@4.3.6\\";
+import { z } from \\"npm:zod@4.6.7\\";
 import { type ExplicitGcpCredentials, createResource, deleteResource, getProjectId, isResourceNotFoundError, readResource, updateResource } from \\"./_lib/gcp.ts\\";
 
 const BASE_URL = \\"https://compute.googleapis.com/compute/v1\\";

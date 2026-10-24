@@ -13,15 +13,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/content/accounts-labels
+// Auto-generated extension model for @swamp/gcp/cloudresourcemanager/boundaries
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Content for Shopping Accounts.Labels.
+ * Swamp extension model for Google Cloud Resource Manager Boundaries.
  *
- * Label assigned by CSS domain or CSS group to one of its sub-accounts.
+ * A Boundary is a collection of projects defined by a filtering criteria on an organization or a folder.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -37,21 +37,44 @@ import {
   getProjectId,
   isResourceNotFoundError,
   listResources,
-  readViaList,
+  readResource,
   updateResource,
 } from "./_lib/gcp.ts";
 
-const BASE_URL = "https://shoppingcontent.googleapis.com/content/v2.1/";
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/boundaries/${shortName}`;
+}
 
-const INSERT_CONFIG = {
-  "id": "content.accounts.labels.create",
-  "path": "accounts/{accountId}/labels",
-  "httpMethod": "POST",
+const BASE_URL = "https://cloudresourcemanager.googleapis.com/";
+
+const GET_CONFIG = {
+  "id": "cloudresourcemanager.folders.boundaries.get",
+  "path": "v3/{+name}",
+  "httpMethod": "GET",
   "parameterOrder": [
-    "accountId",
+    "name",
   ],
   "parameters": {
-    "accountId": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const INSERT_CONFIG = {
+  "id": "cloudresourcemanager.folders.boundaries.create",
+  "path": "v3/{+parent}/boundaries",
+  "httpMethod": "POST",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "boundaryId": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -59,39 +82,32 @@ const INSERT_CONFIG = {
 } as const;
 
 const PATCH_CONFIG = {
-  "id": "content.accounts.labels.patch",
-  "path": "accounts/{accountId}/labels/{labelId}",
+  "id": "cloudresourcemanager.folders.boundaries.patch",
+  "path": "v3/{+name}",
   "httpMethod": "PATCH",
   "parameterOrder": [
-    "accountId",
-    "labelId",
+    "name",
   ],
   "parameters": {
-    "accountId": {
+    "name": {
       "location": "path",
       "required": true,
     },
-    "labelId": {
-      "location": "path",
-      "required": true,
+    "updateMask": {
+      "location": "query",
     },
   },
 } as const;
 
 const DELETE_CONFIG = {
-  "id": "content.accounts.labels.delete",
-  "path": "accounts/{accountId}/labels/{labelId}",
+  "id": "cloudresourcemanager.folders.boundaries.delete",
+  "path": "v3/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
-    "accountId",
-    "labelId",
+    "name",
   ],
   "parameters": {
-    "accountId": {
-      "location": "path",
-      "required": true,
-    },
-    "labelId": {
+    "name": {
       "location": "path",
       "required": true,
     },
@@ -99,29 +115,25 @@ const DELETE_CONFIG = {
 } as const;
 
 const LIST_CONFIG = {
-  "id": "content.accounts.labels.list",
-  "path": "accounts/{accountId}/labels",
+  "id": "cloudresourcemanager.folders.boundaries.list",
+  "path": "v3/{+parent}/boundaries",
   "httpMethod": "GET",
   "parameterOrder": [
-    "accountId",
+    "parent",
   ],
   "parameters": {
-    "accountId": {
-      "location": "path",
-      "required": true,
-    },
     "pageSize": {
       "location": "query",
     },
     "pageToken": {
       "location": "query",
     },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
   },
 } as const;
-
-const _defaultOAuthScopes: string[] = [
-  "https://www.googleapis.com/auth/content",
-];
 
 const GlobalArgsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).describe(
@@ -142,19 +154,47 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  accountId: z.string().describe(
-    "Immutable. The ID of account this label belongs to.",
+  displayName: z.string().describe(
+    "Optional. Human-readable display name of the Boundary. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My Production Boundary`",
   ).optional(),
-  description: z.string().describe("The description of this label.").optional(),
-  name: z.string().describe("The display name of this label.").optional(),
+  name: z.string().describe(
+    "Identifier. The unique resource name of the Boundary. Format: - `organizations/{organization_id}/boundaries/{boundary_id}` - `folders/{folder_id}/boundaries/{boundary_id}` Example: `folders/123456789/boundaries/my-boundary`",
+  ).optional(),
+  resourceFilter: z.object({
+    tagFilter: z.object({
+      tagKey: z.string().describe(
+        "Required. Immutable. The namespaced name of the tag key. Format: `{parent_id}/{tag_key_short_name}` Example: `123456789012/env` (where 123456789012 is the organization ID).",
+      ).optional(),
+      tagValue: z.string().describe(
+        "Required. The allowed value for the tag key. A project matches this tag filter if its effective tag value for the given `tag_key` matches this value. Format: short name of the tag value. Example: `production` or `staging`.",
+      ).optional(),
+    }).describe("A tag based filter. A project must match it to be included.")
+      .optional(),
+  }).describe(
+    "Optional. The filter defining the criteria for descendant projects to be included in the Boundary. Descendant projects are dynamically included in the Boundary based on this filter.",
+  ).optional(),
+  boundaryId: z.string().describe(
+    "Required. The user-assigned ID for the Boundary, which will become the final component of the Boundary's resource name. Must be unique within the parent resource. It must be 6 to 30 lowercase ASCII letters, digits, or hyphens. It must start with a letter. Trailing hyphens are prohibited. Example: `my-boundary-123`",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  accountId: z.string().optional(),
-  description: z.string().optional(),
-  labelId: z.string().optional(),
-  labelType: z.string().optional(),
+  createTime: z.string().optional(),
+  displayName: z.string().optional(),
+  etag: z.string().optional(),
+  managementProject: z.string().optional(),
   name: z.string(),
+  resourceFilter: z.object({
+    tagFilter: z.object({
+      tagKey: z.string(),
+      tagValue: z.string(),
+    }),
+  }).optional(),
+  state: z.string().optional(),
+  updateTime: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -166,11 +206,31 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  accountId: z.string().describe(
-    "Immutable. The ID of account this label belongs to.",
+  displayName: z.string().describe(
+    "Optional. Human-readable display name of the Boundary. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My Production Boundary`",
   ).optional(),
-  description: z.string().describe("The description of this label.").optional(),
-  name: z.string().describe("The display name of this label.").optional(),
+  name: z.string().describe(
+    "Identifier. The unique resource name of the Boundary. Format: - `organizations/{organization_id}/boundaries/{boundary_id}` - `folders/{folder_id}/boundaries/{boundary_id}` Example: `folders/123456789/boundaries/my-boundary`",
+  ).optional(),
+  resourceFilter: z.object({
+    tagFilter: z.object({
+      tagKey: z.string().describe(
+        "Required. Immutable. The namespaced name of the tag key. Format: `{parent_id}/{tag_key_short_name}` Example: `123456789012/env` (where 123456789012 is the organization ID).",
+      ).optional(),
+      tagValue: z.string().describe(
+        "Required. The allowed value for the tag key. A project matches this tag filter if its effective tag value for the given `tag_key` matches this value. Format: short name of the tag value. Example: `production` or `staging`.",
+      ).optional(),
+    }).describe("A tag based filter. A project must match it to be included.")
+      .optional(),
+  }).describe(
+    "Optional. The filter defining the criteria for descendant projects to be included in the Boundary. Descendant projects are dynamically included in the Boundary based on this filter.",
+  ).optional(),
+  boundaryId: z.string().describe(
+    "Required. The user-assigned ID for the Boundary, which will become the final component of the Boundary's resource name. Must be unique within the parent resource. It must be 6 to 30 lowercase ASCII letters, digits, or hyphens. It must start with a letter. Trailing hyphens are prohibited. Example: `my-boundary-123`",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -191,139 +251,28 @@ function _buildGcpCredentials(
     project: g.project as string | undefined,
     scopes: typeof g.scopes === "string"
       ? g.scopes.split(",").map((s: string) => s.trim())
-      : _defaultOAuthScopes,
+      : undefined,
     quotaProject: g.quotaProject as string | undefined,
   };
 }
 
-/** Swamp extension model for Google Cloud Content for Shopping Accounts.Labels. Registered at `@swamp/gcp/content/accounts-labels`. */
+/** Swamp extension model for Google Cloud Resource Manager Boundaries. Registered at `@swamp/gcp/cloudresourcemanager/boundaries`. */
 export const model = {
-  type: "@swamp/gcp/content/accounts-labels",
-  version: "2026.10.13.1",
+  type: "@swamp/gcp/cloudresourcemanager/boundaries",
+  version: "2026.10.23.2",
   upgrades: [
     {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.17.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.18.1",
-      description: "Added: scopes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.20.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.29.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.12.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.10.13.1",
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
-
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Label assigned by CSS domain or CSS group to one of its sub-accounts.",
+        "A Boundary is a collection of projects defined by a filtering criteria on an ...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -331,35 +280,57 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a labels",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      description: "Create a boundaries",
+      arguments: z.object({
+        waitForReady: z.boolean().describe(
+          "Wait for the resource to reach a ready state after creation (default: true)",
+        ).optional(),
+      }),
+      execute: async (args: { waitForReady?: boolean }, context: any) => {
         const g = context.globalArgs;
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["accountId"] !== undefined) {
-          params["accountId"] = String(g["accountId"]);
-        }
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
+        if (g["displayName"] !== undefined) {
+          body["displayName"] = g["displayName"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["resourceFilter"] !== undefined) {
+          body["resourceFilter"] = g["resourceFilter"];
+        }
+        if (g["boundaryId"] !== undefined) {
+          params["boundaryId"] = String(g["boundaryId"]);
+        }
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
         const result = await createResource(
           baseUrl,
           INSERT_CONFIG,
           params,
           body,
-          undefined,
-          undefined,
+          GET_CONFIG,
+          (args.waitForReady ?? true)
+            ? {
+              "statusField": "state",
+              "readyValues": ["ACTIVE"],
+              "failedValues": [],
+            }
+            : undefined,
           {
             listConfig: LIST_CONFIG,
-            listParams: { "accountId": String(g["accountId"] ?? "") },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
           },
           credentials,
         ) as StateData;
@@ -374,9 +345,9 @@ export const model = {
       },
     },
     get: {
-      description: "Get a labels",
+      description: "Get a boundaries",
       arguments: z.object({
-        identifier: z.string().describe("The name of the labels"),
+        identifier: z.string().describe("The name of the boundaries"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -385,15 +356,14 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["accountId"] !== undefined) {
-          params["accountId"] = String(g["accountId"]);
-        }
-        const result = await readViaList(
-          baseUrl,
-          LIST_CONFIG,
-          params,
-          "name",
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
           args.identifier,
+        );
+        const result = await readResource(
+          baseUrl,
+          GET_CONFIG,
+          params,
           credentials,
         ) as StateData;
         const instanceName =
@@ -410,13 +380,19 @@ export const model = {
       },
     },
     update: {
-      description: "Update labels attributes",
+      description: "Update boundaries attributes",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific labels by name (e.g. one discovered by list)",
+          "Target a specific boundaries by name (e.g. one discovered by list)",
+        ).optional(),
+        waitForReady: z.boolean().describe(
+          "Wait for the resource to reach a ready state after update (default: true)",
         ).optional(),
       }),
-      execute: async (args: { identifier?: string }, context: any) => {
+      execute: async (
+        args: { identifier?: string; waitForReady?: boolean },
+        context: any,
+      ) => {
         const g = context.globalArgs;
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
@@ -439,17 +415,26 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
-        if (g["accountId"] !== undefined) {
-          params["accountId"] = String(g["accountId"]);
-        } else if (existing["accountId"]) {
-          params["accountId"] = String(existing["accountId"]);
+        const existingName = existing["name"]?.toString();
+        if (existingName && existingName.includes("/")) {
+          params["name"] = existingName;
+        } else {
+          params["name"] = buildResourceName(
+            String(g["parent"] ?? ""),
+            existingName ?? g["name"]?.toString() ?? "",
+          );
         }
-        params["labelId"] = existing["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
+        if (g["displayName"] !== undefined) {
+          body["displayName"] = g["displayName"];
         }
-        if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["resourceFilter"] !== undefined) {
+          body["resourceFilter"] = g["resourceFilter"];
+        }
+        const updateMaskKeys = Object.keys(body);
+        if (updateMaskKeys.length > 0) {
+          params["updateMask"] = updateMaskKeys.join(",");
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -463,8 +448,14 @@ export const model = {
           PATCH_CONFIG,
           params,
           body,
-          undefined,
-          undefined,
+          GET_CONFIG,
+          (args.waitForReady ?? true)
+            ? {
+              "statusField": "state",
+              "readyValues": ["ACTIVE"],
+              "failedValues": [],
+            }
+            : undefined,
           credentials,
         ) as StateData;
         const handle = await context.writeResource(
@@ -476,9 +467,9 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the labels",
+      description: "Delete the boundaries",
       arguments: z.object({
-        identifier: z.string().describe("The name of the labels"),
+        identifier: z.string().describe("The name of the boundaries"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -487,10 +478,10 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["accountId"] !== undefined) {
-          params["accountId"] = String(g["accountId"]);
-        }
-        params["labelId"] = args.identifier;
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
+          args.identifier,
+        );
         const { existed } = await deleteResource(
           baseUrl,
           DELETE_CONFIG,
@@ -511,10 +502,10 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync labels state from GCP",
+      description: "Sync boundaries state from GCP",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific labels by name (e.g. one discovered by list)",
+          "Target a specific boundaries by name (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
@@ -541,23 +532,21 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          if (g["accountId"] !== undefined) {
-            params["accountId"] = String(g["accountId"]);
-          } else if (existing["accountId"]) {
-            params["accountId"] = String(existing["accountId"]);
-          }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
-          if (!identifier) {
-            throw new Error(
-              "No identifier found in existing state or globalArgs",
+          const existingName = existing.name?.toString();
+          if (existingName && existingName.includes("/")) {
+            params["name"] = existingName;
+          } else {
+            const shortName = existingName ?? g["name"]?.toString();
+            if (!shortName) throw new Error("No identifier found");
+            params["name"] = buildResourceName(
+              String(g["parent"] ?? ""),
+              shortName,
             );
           }
-          const result = await readViaList(
+          const result = await readResource(
             baseUrl,
-            LIST_CONFIG,
+            GET_CONFIG,
             params,
-            "name",
-            identifier,
             credentials,
           ) as StateData;
           const handle = await context.writeResource(
@@ -579,10 +568,10 @@ export const model = {
       },
     },
     list: {
-      description: "List labels resources",
+      description: "List boundaries resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "The maximum number of labels to return. The service may return fewer than this value. If unspecified, at most 50 labels will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+          "Optional. The maximum number of Boundaries to return in the response. The service may return fewer Boundaries than requested. If unspecified, at most 100 Boundaries will be returned. The maximum value is 100; values above 100 will be coerced to 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -595,9 +584,7 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["accountId"] !== undefined) {
-          params["accountId"] = String(g["accountId"]);
-        }
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
@@ -605,7 +592,7 @@ export const model = {
           baseUrl,
           LIST_CONFIG,
           params,
-          "accountLabels",
+          "boundaries",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );

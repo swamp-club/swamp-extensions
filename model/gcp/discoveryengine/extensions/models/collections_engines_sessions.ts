@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   createResource,
   deleteResource,
@@ -310,7 +310,7 @@ const GlobalArgsSchema = z.object({
           "Customer policy enforcement results. Populated only if the assist call was skipped due to a policy violation. It contains results from those filters that blocked the processing of the query.",
         ).optional(),
         verdict: z.enum(["UNSPECIFIED", "ALLOW", "BLOCK"]).describe(
-          "Final verdict of the customer policy enforcement. If only one policy blocked the processing, the verdict is BLOCK.",
+          "Final verdict of the customer policy enforcement. If at least one policy blocked the processing, the verdict is BLOCK. If no policy blocked the processing but at least one flagged it, the verdict is FLAG.",
         ).optional(),
         violationSource: z.enum([
           "VIOLATION_SOURCE_UNSPECIFIED",
@@ -603,7 +603,7 @@ const InputsSchema = z.object({
           "Customer policy enforcement results. Populated only if the assist call was skipped due to a policy violation. It contains results from those filters that blocked the processing of the query.",
         ).optional(),
         verdict: z.enum(["UNSPECIFIED", "ALLOW", "BLOCK"]).describe(
-          "Final verdict of the customer policy enforcement. If only one policy blocked the processing, the verdict is BLOCK.",
+          "Final verdict of the customer policy enforcement. If at least one policy blocked the processing, the verdict is BLOCK. If no policy blocked the processing but at least one flagged it, the verdict is FLAG.",
         ).optional(),
         violationSource: z.enum([
           "VIOLATION_SOURCE_UNSPECIFIED",
@@ -688,7 +688,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -857,6 +857,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

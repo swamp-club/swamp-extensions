@@ -29,7 +29,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import {
   type ExplicitGcpCredentials,
   getProjectId,
@@ -204,6 +204,11 @@ const GlobalArgsSchema = z.object({
           queryTextSentiment: z.object({
             magnitude: z.unknown().optional(),
             score: z.unknown().optional(),
+          }).optional(),
+          status: z.object({
+            code: z.unknown().optional(),
+            details: z.unknown().optional(),
+            message: z.unknown().optional(),
           }).optional(),
         }).optional(),
         speechRecognitionConfidence: z.number().optional(),
@@ -453,6 +458,11 @@ const StateSchema = z.object({
             magnitude: z.unknown(),
             score: z.unknown(),
           }),
+          status: z.object({
+            code: z.unknown(),
+            details: z.unknown(),
+            message: z.unknown(),
+          }),
         }),
         speechRecognitionConfidence: z.number(),
         webhookPayload: z.record(z.string(), z.unknown()),
@@ -693,6 +703,11 @@ const InputsSchema = z.object({
             magnitude: z.unknown().optional(),
             score: z.unknown().optional(),
           }).optional(),
+          status: z.object({
+            code: z.unknown().optional(),
+            details: z.unknown().optional(),
+            message: z.unknown().optional(),
+          }).optional(),
         }).optional(),
         speechRecognitionConfidence: z.number().optional(),
         webhookPayload: z.record(z.string(), z.string()).optional(),
@@ -867,7 +882,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow AnswerRecords. Registered at `@swamp/gcp/dialogflow/answerrecords`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/answerrecords",
-  version: "2026.10.13.1",
+  version: "2026.10.23.2",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -896,6 +911,16 @@ export const model = {
     },
     {
       toVersion: "2026.10.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

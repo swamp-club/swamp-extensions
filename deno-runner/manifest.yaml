@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/deno-runner"
-version: "2026.10.17.1"
+version: "2026.10.23.1"
 license: "AGPL-3.0-or-later"
 description: |
   Install and run Deno commands. Manages Deno binary downloads with

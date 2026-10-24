@@ -27,7 +27,7 @@
  * @module
  */
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 import { create, read, tryRead } from "./_lib/vercel.ts";
 
 const GlobalArgsSchema = z.object({
@@ -66,7 +66,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Task Analyses. Registered at `@swamp/vercel/vercel-ci/task-analyses`. */
 export const model = {
   type: "@swamp/vercel/vercel-ci/task-analyses",
-  version: "2026.10.13.1",
+  version: "2026.10.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

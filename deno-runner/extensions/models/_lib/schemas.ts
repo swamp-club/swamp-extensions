@@ -1,4 +1,4 @@
-import { z } from "npm:zod@4.3.6";
+import { z } from "npm:zod@4.6.7";
 
 export const GlobalArgsSchema = z.object({
   version: z.string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/).refine(
