@@ -631,6 +631,114 @@ Deno.test("multi-platform-build - container rejects cacheFrom before exec", asyn
   assertEquals(h.execRequests.length, 0);
 });
 
+Deno.test("multi-platform-build - container rejects annotations before exec", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  installMockExecutor(h);
+
+  try {
+    await assertRejects(
+      () =>
+        runBuildxBuild(
+          {
+            context: ".",
+            platforms: ["linux/amd64"],
+            tags: ["app:latest"],
+            push: false,
+            annotations: { "org.example.plain": "yes" },
+          },
+          h.ctx,
+        ),
+      Error,
+      "--annotation",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 0);
+});
+
+for (
+  const key of [
+    "index:org.opencontainers.image.base.name",
+    "manifest[linux/arm64]:fingerprint",
+    "manifest-descriptor:org.example.x",
+  ]
+) {
+  Deno.test(`multi-platform-build - podman rejects prefixed annotation '${key}' before exec`, async () => {
+    const h = makeHarness({ name: "myapp", binary: "podman" });
+    installMockExecutor(h);
+
+    try {
+      await assertRejects(
+        () =>
+          runBuildxBuild(
+            {
+              context: ".",
+              platforms: ["linux/amd64"],
+              tags: ["app:latest"],
+              push: false,
+              annotations: { "org.example.plain": "yes", [key]: "v" },
+            },
+            h.ctx,
+          ),
+        Error,
+        `'${key}'`,
+      );
+    } finally {
+      resetCommandExecutor();
+    }
+
+    assertEquals(h.execRequests.length, 0);
+  });
+}
+
+Deno.test("multi-platform-build - container treats empty annotations as unset", async () => {
+  const h = makeHarness({ name: "myapp", binary: "container" });
+  installMockExecutor(h);
+
+  try {
+    await runBuildxBuild(
+      {
+        context: ".",
+        platforms: ["linux/amd64"],
+        tags: ["app:latest"],
+        push: false,
+        annotations: {},
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 1);
+});
+
+Deno.test("multi-platform-build - podman passes unprefixed annotations", async () => {
+  const h = makeHarness({ name: "myapp", binary: "podman" });
+  installMockExecutor(h);
+
+  try {
+    await runBuildxBuild(
+      {
+        context: ".",
+        platforms: ["linux/amd64"],
+        tags: ["app:latest"],
+        push: false,
+        annotations: { "org.example.plain": "yes" },
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  const build = h.execRequests.find((r) => r.args[0] === "build");
+  assert(build);
+  assert(build.args.includes("org.example.plain=yes"));
+});
+
 Deno.test("multi-platform-build - throws on non-zero exit", async () => {
   const h = makeHarness({ name: "myapp", binary: "docker" });
   installMockExecutor(h, { exitCode: 1, stdout: "", stderr: "buildx error" });

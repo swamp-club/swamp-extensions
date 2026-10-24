@@ -114,7 +114,7 @@ groups:
         vars:
           check: extensions/models/container_image.ts
           paths: extensions/models/
-          testFlags: --allow-env --allow-read --allow-run --allow-sys
+          testFlags: --allow-env --allow-read --allow-write --allow-run --allow-sys
       - dir: git
         vars:
           check: extensions/models/git.ts

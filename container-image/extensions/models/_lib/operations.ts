@@ -349,6 +349,14 @@ export async function runLogin(
 // Buildx build
 // ---------------------------------------------------------------------------
 
+/**
+ * Buildx annotation level prefix, optionally platform-qualified:
+ * 'index:', 'manifest:', 'manifest[linux/arm64]:', 'manifest-descriptor:',
+ * 'index-descriptor:'.
+ */
+const BUILDX_ANNOTATION_PREFIX_RE =
+  /^(index|manifest|manifest-descriptor|index-descriptor)(\[[^\]]*\])?:/;
+
 export async function runBuildxBuild(
   args: BuildxBuildArgs,
   ctx: ContainerContext,
@@ -362,6 +370,29 @@ export async function runBuildxBuild(
         "--cache-to support. Remove cacheFrom/cacheTo, or set " +
         "globalArguments.binary to 'docker' or 'podman'.",
     );
+  }
+
+  const annotationKeys = Object.keys(args.annotations ?? {});
+
+  if (g.binary === "container" && annotationKeys.length > 0) {
+    throw new Error(
+      "Apple Containers ('container build') has no --annotation support. " +
+        "Remove annotations, or set globalArguments.binary to 'docker' or " +
+        "'podman'.",
+    );
+  }
+
+  if (g.binary === "podman") {
+    const prefixed = annotationKeys.find((k) =>
+      BUILDX_ANNOTATION_PREFIX_RE.test(k)
+    );
+    if (prefixed) {
+      throw new Error(
+        `Annotation '${prefixed}' uses a buildx level prefix, which podman ` +
+          "build does not support. Use an unprefixed key, or set " +
+          "globalArguments.binary to 'docker'.",
+      );
+    }
   }
 
   if (g.binary === "podman" && args.tags.length > 1) {

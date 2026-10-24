@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals } from "jsr:@std/assert@1.0.19";
+import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import {
   buildBuildArgv,
   buildBuildxArgv,
@@ -22,7 +22,12 @@ import {
   buildPodmanManifestPushArgv,
   buildPushArgv,
   buildRunArgv,
+  type ExecRequest,
   parseDigest,
+  readMetadataDigest,
+  resetCommandExecutor,
+  runBuildxCommand,
+  setCommandExecutor,
 } from "./runner.ts";
 
 // ---------------------------------------------------------------------------
@@ -434,6 +439,72 @@ Deno.test("buildBuildxArgv - container repeats --platform and -t", () => {
   ]);
 });
 
+Deno.test("buildBuildxArgv - docker passes --annotation for every key", () => {
+  const argv = buildBuildxArgv("docker", {
+    context: ".",
+    platforms: ["linux/amd64", "linux/arm64"],
+    tags: ["app:latest"],
+    push: true,
+    annotations: {
+      "index:org.opencontainers.image.base.name": "alpine:3.20",
+      "manifest[linux/arm64]:fingerprint": "abc",
+      "org.example.plain": "yes",
+    },
+  });
+  assertEquals(argv, [
+    "docker",
+    "buildx",
+    "build",
+    "--platform",
+    "linux/amd64,linux/arm64",
+    "-t",
+    "app:latest",
+    "--push",
+    "--annotation",
+    "index:org.opencontainers.image.base.name=alpine:3.20",
+    "--annotation",
+    "manifest[linux/arm64]:fingerprint=abc",
+    "--annotation",
+    "org.example.plain=yes",
+    ".",
+  ]);
+});
+
+Deno.test("buildBuildxArgv - docker passes --metadata-file before context", () => {
+  const argv = buildBuildxArgv(
+    "docker",
+    {
+      context: "./app",
+      platforms: ["linux/amd64"],
+      tags: ["app:latest"],
+      push: false,
+    },
+    "/tmp/meta.json",
+  );
+  assertEquals(argv.slice(-3), ["--metadata-file", "/tmp/meta.json", "./app"]);
+});
+
+Deno.test("buildBuildxArgv - podman passes --annotation", () => {
+  const argv = buildBuildxArgv("podman", {
+    context: ".",
+    platforms: ["linux/amd64"],
+    tags: ["app:latest"],
+    push: false,
+    annotations: { "org.example.plain": "yes" },
+  });
+  assertEquals(argv, [
+    "podman",
+    "build",
+    "--platform",
+    "linux/amd64",
+    "--manifest",
+    "app:latest",
+    "--annotation",
+    "org.example.plain=yes",
+    ".",
+  ]);
+});
+
 Deno.test("buildPodmanManifestPushArgv - correct shape", () => {
   const argv = buildPodmanManifestPushArgv("registry.example.com/app:latest");
   assertEquals(argv, [
@@ -567,4 +638,143 @@ Deno.test("buildExportArgv - Apple Containers uses image save", () => {
     "/tmp/out.tar",
     "app:latest",
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Buildx metadata-file digest
+// ---------------------------------------------------------------------------
+
+const INDEX_DIGEST =
+  "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const OUTPUT_DIGEST =
+  "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+
+const dockerBuildxArgs = {
+  context: ".",
+  platforms: ["linux/amd64", "linux/arm64"],
+  tags: ["registry.example.com/app:latest"],
+  push: true,
+};
+
+/**
+ * Mock buildx: optionally writes `metadata` to the --metadata-file path,
+ * and records that path so the test can check it was removed.
+ */
+function installMetadataExecutor(
+  opts: { exitCode: number; metadata?: string; throws?: boolean },
+): { paths: string[] } {
+  const paths: string[] = [];
+  setCommandExecutor(async (req: ExecRequest) => {
+    const i = req.args.indexOf("--metadata-file");
+    const path = req.args[i + 1];
+    paths.push(path);
+    if (opts.metadata !== undefined) {
+      await Deno.writeTextFile(path, opts.metadata);
+    }
+    if (opts.throws) throw new Error("spawn failed");
+    return {
+      exitCode: opts.exitCode,
+      stdout: `pushed ${OUTPUT_DIGEST}`,
+      stderr: "",
+    };
+  });
+  return { paths };
+}
+
+async function assertRemoved(path: string): Promise<void> {
+  await assertRejects(() => Deno.stat(path), Deno.errors.NotFound);
+}
+
+Deno.test("runBuildxCommand - docker digest comes from --metadata-file", async () => {
+  const { paths } = installMetadataExecutor({
+    exitCode: 0,
+    metadata: JSON.stringify({ "containerimage.digest": INDEX_DIGEST }),
+  });
+  try {
+    const result = await runBuildxCommand("docker", dockerBuildxArgs);
+    assertEquals(result.digest, INDEX_DIGEST);
+  } finally {
+    resetCommandExecutor();
+  }
+  assertEquals(paths.length, 1);
+  await assertRemoved(paths[0]);
+});
+
+for (
+  const [label, metadata] of [
+    ["empty", ""],
+    ["not JSON", "{not json"],
+    ["no digest key", JSON.stringify({ "image.name": "app" })],
+  ] as const
+) {
+  Deno.test(`runBuildxCommand - docker falls back to output when metadata is ${label}`, async () => {
+    const { paths } = installMetadataExecutor({ exitCode: 0, metadata });
+    try {
+      const result = await runBuildxCommand("docker", dockerBuildxArgs);
+      assertEquals(result.digest, OUTPUT_DIGEST);
+    } finally {
+      resetCommandExecutor();
+    }
+    await assertRemoved(paths[0]);
+  });
+}
+
+Deno.test("runBuildxCommand - docker removes metadata file on non-zero exit", async () => {
+  const { paths } = installMetadataExecutor({
+    exitCode: 1,
+    metadata: JSON.stringify({ "containerimage.digest": INDEX_DIGEST }),
+  });
+  try {
+    const result = await runBuildxCommand("docker", dockerBuildxArgs);
+    assertEquals(result.exitCode, 1);
+    assertEquals("digest" in result, false);
+  } finally {
+    resetCommandExecutor();
+  }
+  await assertRemoved(paths[0]);
+});
+
+Deno.test("runBuildxCommand - docker removes metadata file when exec throws", async () => {
+  const { paths } = installMetadataExecutor({ exitCode: 0, throws: true });
+  try {
+    await assertRejects(
+      () => runBuildxCommand("docker", dockerBuildxArgs),
+      Error,
+      "spawn failed",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+  await assertRemoved(paths[0]);
+});
+
+Deno.test("runBuildxCommand - docker falls back to output when no temp file can be made", async () => {
+  const requests: ExecRequest[] = [];
+  setCommandExecutor((req: ExecRequest) => {
+    requests.push(req);
+    return Promise.resolve({
+      exitCode: 0,
+      stdout: `pushed ${OUTPUT_DIGEST}`,
+      stderr: "",
+    });
+  });
+  const saved = Deno.env.get("TMPDIR");
+  Deno.env.set("TMPDIR", "/nonexistent/swamp-container-image-test");
+  try {
+    const result = await runBuildxCommand("docker", dockerBuildxArgs);
+    assertEquals(result.digest, OUTPUT_DIGEST);
+  } finally {
+    if (saved === undefined) Deno.env.delete("TMPDIR");
+    else Deno.env.set("TMPDIR", saved);
+    resetCommandExecutor();
+  }
+  assertEquals(requests.length, 1);
+  assertEquals(requests[0].args.includes("--metadata-file"), false);
+});
+
+Deno.test("readMetadataDigest - missing file returns undefined", async () => {
+  assertEquals(
+    await readMetadataDigest("/nonexistent/buildx-metadata.json"),
+    undefined,
+  );
 });

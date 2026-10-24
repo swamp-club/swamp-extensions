@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/container-image"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: |
   Build, run, and push container images via Docker, Podman, or Apple
@@ -27,7 +27,7 @@ description: |
   | `run`                  | Run a container with `--rm`. Captures stdout and stderr. |
   | `login`                | Log into a registry. Password piped via `--password-stdin`, never in argv. |
   | `push`                 | Push a container image to a registry. Captures the pushed digest. |
-  | `multi-platform-build` | Multi-platform build and optional push. Captures the pushed digest. |
+  | `multi-platform-build` | Multi-platform build and optional push, with optional OCI annotations. Captures the pushed digest. |
 
   ## Security
 

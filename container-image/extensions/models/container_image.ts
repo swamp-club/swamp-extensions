@@ -65,7 +65,7 @@ import {
 
 export const model = {
   type: "@swamp/container-image",
-  version: "2026.10.22.1",
+  version: "2026.10.24.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -83,6 +83,14 @@ export const model = {
       toVersion: "2026.10.22.1",
       description: "Add platform input to build; support Apple Containers in " +
         "multi-platform-build.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description: "Add annotations input to multi-platform-build. On " +
+        "Docker the recorded digest now comes from the buildx metadata file " +
+        "(the manifest or index digest, pushed or not) instead of the first " +
+        "sha256 in the output.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -199,8 +207,9 @@ export const model = {
       description:
         "Multi-platform build and optional push. Docker uses buildx; Podman " +
         "uses native --platform + manifest push; Apple Containers uses " +
-        "repeated --platform + image push per tag. Captures the pushed " +
-        "digest.",
+        "repeated --platform + image push per tag. Optional OCI " +
+        "annotations (buildx index/manifest prefixes on Docker only). " +
+        "Captures the pushed digest.",
       arguments: BuildxBuildArgsSchema,
       execute: (args: BuildxBuildArgs, ctx: ContainerContext) =>
         runBuildxBuild(args, ctx),

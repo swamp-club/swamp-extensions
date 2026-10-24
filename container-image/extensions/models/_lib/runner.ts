@@ -114,6 +114,13 @@ function labelFlags(labels?: Record<string, string>): string[] {
   return Object.entries(labels).flatMap(([k, v]) => ["--label", `${k}=${v}`]);
 }
 
+function annotationFlags(annotations?: Record<string, string>): string[] {
+  if (!annotations) return [];
+  return Object.entries(annotations).flatMap((
+    [k, v],
+  ) => ["--annotation", `${k}=${v}`]);
+}
+
 // ---------------------------------------------------------------------------
 // Build
 // ---------------------------------------------------------------------------
@@ -219,6 +226,7 @@ export function runLoginCommand(
 export function buildBuildxArgv(
   binary: Binary,
   args: BuildxBuildArgs,
+  metadataFile?: string,
 ): string[] {
   const platformStr = args.platforms.join(",");
 
@@ -231,6 +239,7 @@ export function buildBuildxArgv(
     if (args.dockerfile) argv.push("-f", args.dockerfile);
     argv.push(...buildArgFlags(args.buildArgs));
     argv.push(...labelFlags(args.labels));
+    argv.push(...annotationFlags(args.annotations));
     if (args.cacheFrom) {
       for (const cf of args.cacheFrom) argv.push("--cache-from", cf);
     }
@@ -261,14 +270,33 @@ export function buildBuildxArgv(
   if (args.push) argv.push("--push");
   argv.push(...buildArgFlags(args.buildArgs));
   argv.push(...labelFlags(args.labels));
+  argv.push(...annotationFlags(args.annotations));
   if (args.cacheFrom) {
     for (const cf of args.cacheFrom) argv.push("--cache-from", cf);
   }
   if (args.cacheTo) {
     for (const ct of args.cacheTo) argv.push("--cache-to", ct);
   }
+  if (metadataFile) argv.push("--metadata-file", metadataFile);
   argv.push(args.context);
   return argv;
+}
+
+/**
+ * Read `containerimage.digest` from a buildx `--metadata-file`. Returns
+ * undefined when the file is missing, empty, not JSON, or has no digest.
+ */
+export async function readMetadataDigest(
+  path: string,
+): Promise<string | undefined> {
+  try {
+    const parsed: unknown = JSON.parse(await Deno.readTextFile(path));
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    const digest = (parsed as Record<string, unknown>)["containerimage.digest"];
+    return typeof digest === "string" ? parseDigest(digest) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function buildPodmanManifestPushArgv(tag: string): string[] {
@@ -293,6 +321,26 @@ export async function runBuildxCommand(
       args: ["manifest", "rm", args.tags[0]],
       signal,
     }).catch(() => {});
+  }
+
+  // buildx writes the pushed index digest to --metadata-file, which is
+  // more reliable than the first sha256 in the build output. Without a
+  // writable temp dir, fall through to the output parse below.
+  const metadataFile = binary === "docker"
+    ? await Deno.makeTempFile({ prefix: "buildx-metadata-", suffix: ".json" })
+      .catch(() => undefined)
+    : undefined;
+  if (metadataFile) {
+    try {
+      const [bin, ...rest] = buildBuildxArgv(binary, args, metadataFile);
+      const result = await exec({ bin, args: rest, signal });
+      if (result.exitCode !== 0) return result;
+      const digest = await readMetadataDigest(metadataFile) ??
+        parseDigest(result.stdout + result.stderr);
+      return { ...result, digest };
+    } finally {
+      await Deno.remove(metadataFile).catch(() => {});
+    }
   }
 
   const argv = buildBuildxArgv(binary, args);

@@ -201,6 +201,15 @@ export const BuildxBuildArgsSchema = z.object({
   labels: safeRecord("labels").optional().describe(
     "Image labels (--label KEY=VALUE).",
   ),
+  annotations: safeRecord("annotations").optional().describe(
+    "OCI annotations (--annotation KEY=VALUE). On Docker, keys may carry " +
+      "a buildx level prefix ('index:', 'manifest:', 'manifest-descriptor:', " +
+      "'index-descriptor:', optionally platform-qualified as " +
+      "'manifest[linux/arm64]:'), e.g. " +
+      "'index:org.opencontainers.image.base.name'. " +
+      "Podman accepts only unprefixed keys; Apple Containers does not " +
+      "support annotations.",
+  ),
   cacheFrom: z.array(safeOptionValue("cacheFrom")).optional().describe(
     "Cache sources (--cache-from).",
   ),

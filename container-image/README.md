@@ -248,6 +248,7 @@ All three runtimes are supported.
 | `push`       | boolean               | No       | Push after build (default: `true`) |
 | `buildArgs`  | Record<string,string> | No       | Build arguments |
 | `labels`     | Record<string,string> | No       | Image labels |
+| `annotations` | Record<string,string> | No      | OCI annotations (`--annotation`); see below |
 | `cacheFrom`  | string[]              | No       | Cache sources (`--cache-from`) |
 | `cacheTo`    | string[]              | No       | Cache destinations (`--cache-to`) |
 
@@ -261,6 +262,26 @@ The implementation differs by runtime:
   `cacheFrom` and `cacheTo` are rejected — `container build` has no cache
   import/export flags. Requires `container` 1.5.0 or later.
 
+`annotations` are passed as `--annotation KEY=VALUE`:
+
+- **Docker**: keys may carry a buildx level prefix to target part of the
+  index — `index:`, `manifest:`, `manifest-descriptor:`,
+  `index-descriptor:`, optionally platform-qualified
+  (`manifest[linux/arm64]:`). An unprefixed key applies to each platform's
+  manifest. Labels are not a substitute: they live in each platform's image
+  config, not on the index that `docker buildx imagetools inspect` reads.
+- **Podman**: unprefixed keys only. A prefixed key is rejected before the
+  build runs.
+- **Apple Containers**: not supported. Any `annotations` input is rejected.
+
+On Docker the recorded `digest` comes from the buildx `--metadata-file`
+(`containerimage.digest`). It is the manifest digest, or the index digest for
+a multi-platform build, whether or not the image is pushed. It is not the local
+image ID: a `push: false` build records the manifest or index digest, which
+differs from the `sha256:` ID that `docker images` shows. If buildx writes no
+metadata, the digest falls back to the first `sha256:` digest in the build
+output, as on Podman and Apple Containers.
+
 **Examples:**
 
 ```bash
@@ -268,6 +289,13 @@ The implementation differs by runtime:
 swamp model method run myapp multi-platform-build \
   --input platforms='["linux/amd64","linux/arm64"]' \
   --input tags='["ghcr.io/myorg/myapp:latest"]' \
+  --input push=true --json
+
+# Push with index-level provenance annotations (Docker)
+swamp model method run myapp multi-platform-build \
+  --input platforms='["linux/amd64","linux/arm64"]' \
+  --input tags='["ghcr.io/myorg/myapp:latest"]' \
+  --input annotations='{"index:org.opencontainers.image.base.name":"docker.io/library/alpine:3.20"}' \
   --input push=true --json
 
 # Build without pushing (local verification)
@@ -380,7 +408,7 @@ Each method writes a named resource for workflow chaining via CEL:
 | `run-<name>`                     | `runResult`                | image, command, exitCode, stdout, stderr |
 | `login-<name>`                   | `loginResult`              | server, username, exitCode |
 | `push-<name>`                    | `pushResult`               | image, digest, exitCode, stdout, stderr |
-| `multi-platform-build-<name>`    | `multiPlatformBuildResult` | platforms, tags, digest, exitCode, push |
+| `multi-platform-build-<name>`    | `multiPlatformBuildResult` | platforms, tags, digest (Docker: buildx metadata file), exitCode, push |
 
 ## Security
 
