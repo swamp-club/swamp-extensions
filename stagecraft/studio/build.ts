@@ -203,6 +203,7 @@ const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".svg": "image/svg+xml",
   ".woff2": "font/woff2",
 };
 
@@ -295,6 +296,10 @@ async function build() {
   ]);
   await Deno.copyFile(new URL("index.html", SRC), new URL("index.html", DIST));
   await Deno.copyFile(new URL("studio.css", SRC), new URL("studio.css", DIST));
+  await Deno.copyFile(
+    new URL("favicon.svg", SRC),
+    new URL("favicon.svg", DIST),
+  );
   for (const font of await filesUnder(FONTS)) {
     const name = font.pathname.split("/").pop()!;
     if (name.endsWith(".woff2")) {

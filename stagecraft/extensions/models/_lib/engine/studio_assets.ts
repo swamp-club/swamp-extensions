@@ -8,14 +8,19 @@ import { STUDIO_FONTS } from "./studio_asset_fonts.ts";
 
 /** A digest of the build's inputs; studio_assets_test checks it is current. */
 export const STUDIO_SOURCE_DIGEST =
-  "sha256:2ae2862b1f1a675767e38e10b530e6bdd1d02f208066fd5d84d2c01fa0c2114d";
+  "sha256:14edab8f0d9c47bb1056da77ff56936770898feb1eb4ab8a9714e86d7b91d5ea";
 
 /** The studio page's files by served name. */
 export const STUDIO_ASSETS: Readonly<Record<string, StudioAsset>> = {
+  "favicon.svg": {
+    type: "image/svg+xml",
+    text:
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">\n  <rect width="32" height="32" rx="6" fill="#050b08" />\n  <path d="M7 22 16 10 25 22" fill="none" stroke="#39ff14" stroke-width="2.5"\n    stroke-linejoin="round" />\n  <circle cx="7" cy="22" r="4" fill="#39ff14" />\n  <circle cx="16" cy="10" r="4" fill="#39ff14" />\n  <circle cx="25" cy="22" r="4" fill="#39ff14" />\n</svg>\n',
+  },
   "index.html": {
     type: "text/html; charset=utf-8",
     text:
-      '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width,initial-scale=1">\n    <meta name="color-scheme" content="dark">\n    <title>Stagecraft Studio</title>\n    <link rel="stylesheet" href="/assets/studio.css">\n    <script type="module" src="/assets/app.js"></script>\n  </head>\n  <body>\n    <div id="root"></div>\n  </body>\n</html>\n',
+      '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width,initial-scale=1">\n    <meta name="color-scheme" content="dark">\n    <title>Stagecraft Studio</title>\n    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">\n    <link rel="stylesheet" href="/assets/studio.css">\n    <script type="module" src="/assets/app.js"></script>\n  </head>\n  <body>\n    <div id="root"></div>\n  </body>\n</html>\n',
   },
   "studio.css": {
     type: "text/css; charset=utf-8",

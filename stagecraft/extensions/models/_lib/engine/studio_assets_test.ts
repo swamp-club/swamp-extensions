@@ -35,13 +35,22 @@ Deno.test("studio assets: the embedded page is built from the current source", a
   );
 });
 
-Deno.test("studio assets: the page, its script, its styles and its fonts are all served", () => {
-  for (const name of ["index.html", "app.js", "studio.css"]) {
+Deno.test("studio assets: the page, its script, its styles, its icon and its fonts are all served", () => {
+  for (const name of ["index.html", "app.js", "studio.css", "favicon.svg"]) {
     assert(Object.hasOwn(STUDIO_ASSETS, name), name);
   }
   assert(
     Object.keys(STUDIO_ASSETS).some((n) => n.startsWith("fonts/")),
     "no fonts",
+  );
+});
+
+Deno.test("studio assets: the page declares its icon", () => {
+  assertEquals(STUDIO_ASSETS["favicon.svg"].type, "image/svg+xml");
+  assert(
+    STUDIO_ASSETS["index.html"].text?.includes(
+      '<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">',
+    ),
   );
 });
 

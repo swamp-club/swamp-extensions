@@ -610,6 +610,10 @@ export async function handleStudioRequest(
   if (parts[0] === "assets" && parts.length >= 2) {
     return asset(deps, parts.slice(1).join("/"));
   }
+  // Some clients ask for /favicon.ico whatever the page declares.
+  if (parts.length === 1 && parts[0] === "favicon.ico") {
+    return asset(deps, "favicon.svg");
+  }
   if (parts[0] !== "api") return error(404, "not found");
   if (parts.length === 2 && parts[1] === "events") {
     return eventStream(deps);

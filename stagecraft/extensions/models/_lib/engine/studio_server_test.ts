@@ -103,6 +103,7 @@ function setup() {
         text: "<!doctype html>",
       },
       "fonts/a.woff2": { type: "font/woff2", base64: btoa("\u0000\u0001") },
+      "favicon.svg": { type: "image/svg+xml", text: "<svg/>" },
     },
     events: {
       subscribe(listener) {
@@ -165,12 +166,24 @@ Deno.test("studio: / and /assets serve the page, text and binary", async () => {
       "/assets/",
       "/assets/..%2Findex.html",
       "/elsewhere",
+      "/favicon.svg",
     ]
   ) {
     const res = await handleStudioRequest(get(path), deps);
     assertEquals(res.status, 404, path);
     assertSecurityHeaders(res);
     await res.body?.cancel();
+  }
+});
+
+Deno.test("studio: the icon is served at /assets/favicon.svg and /favicon.ico", async () => {
+  const { deps } = setup();
+  for (const path of ["/assets/favicon.svg", "/favicon.ico"]) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 200, path);
+    assertEquals(res.headers.get("content-type"), "image/svg+xml", path);
+    assertEquals(await res.text(), "<svg/>", path);
+    assertSecurityHeaders(res);
   }
 });
 

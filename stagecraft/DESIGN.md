@@ -1553,7 +1553,7 @@ read commands against it (below).
 
 | Route                                                  | Returns                                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `GET /`, `/assets/<file>`                              | the page                                                                                                                 |
+| `GET /`, `/assets/<file>`, `/favicon.ico`              | the page; `/favicon.ico` answers with its icon                                                                           |
 | `GET /api/factories`                                   | every factory, with its model definition file                                                                            |
 | `GET /api/factories/<factory>`                         | that file: path, text, digest                                                                                            |
 | `GET /api/events`                                      | server-sent events when a watched file changes, or a watched set of work items                                           |
