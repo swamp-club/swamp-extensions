@@ -51,6 +51,118 @@ export function extractExistingUpgrades(content: string): string[] {
 }
 
 /**
+ * A run of JavaScript source: code, or the text of a literal or comment
+ * (string, template, regular expression, comment) that is not code.
+ */
+interface SourceSpan {
+  code: boolean;
+  start: number;
+  end: number;
+}
+
+/**
+ * Where a `/` that is not a comment starts a regular expression rather than
+ * a division: after nothing, or after a character that cannot end an operand.
+ */
+const REGEX_PRECEDERS = new Set([..."(,=:[!&|?{};+-*%<>~^"]);
+
+/**
+ * Splits JavaScript source into code and literal spans, so a scan for
+ * brackets or whitespace can skip what is inside strings, comments, regular
+ * expression and template literals. A template interpolation (`${ ... }`) is
+ * code; its delimiters are literal text. Telling a regular expression from a
+ * division is a heuristic on the code character before the `/`.
+ */
+function sourceSpans(src: string): SourceSpan[] {
+  const spans: SourceSpan[] = [];
+  const push = (code: boolean, start: number, end: number) => {
+    end = Math.min(end, src.length);
+    if (end <= start) return;
+    const last = spans.at(-1);
+    if (last && last.code === code && last.end === start) last.end = end;
+    else spans.push({ code, start, end });
+  };
+  // Brace depth inside each open template interpolation, innermost last.
+  const interpolations: number[] = [];
+  let prev = "";
+  let i = 0;
+  // Scans a template's text from just after its backtick, or just after an
+  // interpolation's closing brace, to its end or its next interpolation.
+  const templateText = (from: number) => {
+    let j = from;
+    while (j < src.length) {
+      if (src[j] === "\\") j += 2;
+      else if (src[j] === "`") {
+        j++;
+        break;
+      } else if (src[j] === "$" && src[j + 1] === "{") {
+        j += 2;
+        interpolations.push(0);
+        prev = "{";
+        break;
+      } else j++;
+    }
+    push(false, from, j);
+    i = j;
+  };
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch === '"' || ch === "'") {
+      let j = i + 1;
+      while (j < src.length && src[j] !== ch && src[j] !== "\n") {
+        j += src[j] === "\\" ? 2 : 1;
+      }
+      push(false, i, j + 1);
+      i = j + 1;
+      prev = ch;
+    } else if (ch === "`") {
+      push(false, i, i + 1);
+      prev = ch;
+      templateText(i + 1);
+    } else if (ch === "/" && src[i + 1] === "/") {
+      const eol = src.indexOf("\n", i);
+      push(false, i, eol === -1 ? src.length : eol);
+      i = eol === -1 ? src.length : eol;
+    } else if (ch === "/" && src[i + 1] === "*") {
+      const close = src.indexOf("*/", i + 2);
+      const end = close === -1 ? src.length : close + 2;
+      push(false, i, end);
+      i = end;
+    } else if (ch === "/" && (prev === "" || REGEX_PRECEDERS.has(prev))) {
+      let j = i + 1;
+      let inClass = false;
+      while (j < src.length && src[j] !== "\n") {
+        if (src[j] === "\\") j++;
+        else if (src[j] === "[") inClass = true;
+        else if (src[j] === "]") inClass = false;
+        else if (src[j] === "/" && !inClass) break;
+        j++;
+      }
+      push(false, i, j + 1);
+      i = j + 1;
+      prev = "/";
+    } else if (
+      interpolations.length > 0 && ch === "}" &&
+      interpolations.at(-1) === 0
+    ) {
+      interpolations.pop();
+      push(false, i, i + 1);
+      prev = "`";
+      templateText(i + 1);
+    } else {
+      if (interpolations.length > 0) {
+        if (ch === "{") interpolations[interpolations.length - 1]++;
+        else if (ch === "}") interpolations[interpolations.length - 1]--;
+      }
+      push(true, i, i + 1);
+      if (!/\s/.test(ch)) prev = ch;
+      i++;
+    }
+  }
+  return spans;
+}
+
+/**
  * Extract top-level field names from the GlobalArgsSchema in a generated file.
  * Looks for `const GlobalArgsSchema = z.object({` and extracts field names
  * at the first indentation level.
@@ -62,32 +174,24 @@ export function extractGlobalArgsFieldNames(content: string): string[] {
 
   const bodyStart = startIdx + marker.length;
 
-  // Find the closing `});` by counting braces, skipping string literals and
-  // comments: a regex pattern or description may hold an unbalanced brace
-  // (`\\$\\{`), and a comment an apostrophe, either of which would otherwise
-  // run the scan into the model object and read its keys as removed fields.
+  // Find the closing `});` by counting braces in code only, skipping string,
+  // template and regex literals and comments: a regex pattern or description
+  // may hold an unbalanced brace (`\\$\\{`), and a comment an apostrophe,
+  // either of which would otherwise run the scan into the model object and
+  // read its keys as removed fields.
+  const rest = content.slice(bodyStart);
   let depth = 1;
-  let i = bodyStart;
-  let quote: string | null = null;
-  while (i < content.length && depth > 0) {
-    const ch = content[i];
-    if (quote !== null) {
-      if (ch === "\\") i++;
-      else if (ch === quote) quote = null;
-    } else if (ch === "/" && content[i + 1] === "/") {
-      const eol = content.indexOf("\n", i);
-      i = eol === -1 ? content.length : eol;
-      continue;
-    } else if (ch === "/" && content[i + 1] === "*") {
-      const close = content.indexOf("*/", i + 2);
-      i = close === -1 ? content.length : close + 2;
-      continue;
-    } else if (ch === '"' || ch === "'" || ch === "`") quote = ch;
-    else if (ch === "{") depth++;
-    else if (ch === "}") depth--;
-    i++;
+  let bodyEnd = content.length;
+  scan: for (const span of sourceSpans(rest)) {
+    if (!span.code) continue;
+    for (let i = span.start; i < span.end; i++) {
+      if (rest[i] === "{") depth++;
+      else if (rest[i] === "}" && --depth === 0) {
+        bodyEnd = bodyStart + i;
+        break scan;
+      }
+    }
   }
-  const bodyEnd = i - 1;
 
   const body = content.slice(bodyStart, bodyEnd);
 
@@ -225,9 +329,13 @@ export function dedupeUpgradeEntries(entries: string[]): string[] {
       kept.push(entry);
       continue;
     }
-    // Compared without whitespace, so a copy that deno fmt wrapped
-    // differently still counts as the same entry.
-    const normalized = entry.replace(/\s+/g, "");
+    // Compared without whitespace outside literals, so a copy that deno fmt
+    // wrapped differently still counts as the same entry, while any change
+    // inside a string does not.
+    const normalized = sourceSpans(entry).map(({ code, start, end }) => {
+      const text = entry.slice(start, end);
+      return code ? text.replace(/\s+/g, "") : text;
+    }).join("");
     const earlier = seen.get(toVersion);
     if (earlier === undefined) {
       seen.set(toVersion, normalized);

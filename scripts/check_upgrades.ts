@@ -43,6 +43,10 @@
  * published version must still pull, and a fresh install from the local
  * source must be at the new version.
  *
+ * When an extension bumps more than one model, the others are each created
+ * fresh from the local source too, so a sibling that does not load fails the
+ * test rather than going unnoticed.
+ *
  * Extensions are path-tested `--concurrency` at a time (default 8), each in
  * its own lane: a scratch repo, with a swamp home and config directory of its
  * own, so concurrent tests share no swamp user-level state with each other or
@@ -130,7 +134,9 @@ export function noOpVersions(source: string): string[] {
 
 /**
  * Whether a bump adds only no-op upgrade entries: every entry past the base
- * version is one {@link noOpVersions} lists. A new model is not a bump.
+ * version is one {@link noOpVersions} lists. Entries are matched one to one,
+ * so a version with a no-op entry and another entry is not a no-op bump. A
+ * new model is not a bump.
  */
 export function isNoOpBump(change: ModelChange): boolean {
   const { base, head, headNoOps = [] } = change;
@@ -138,7 +144,13 @@ export function isNoOpBump(change: ModelChange): boolean {
   const added = head.toVersions.filter((v) =>
     compareVersions(v, base.version) > 0
   );
-  return added.length > 0 && added.every((v) => headNoOps.includes(v));
+  const unmatched = [...headNoOps];
+  return added.length > 0 && added.every((v) => {
+    const i = unmatched.indexOf(v);
+    if (i < 0) return false;
+    unmatched.splice(i, 1);
+    return true;
+  });
 }
 
 /** The default and largest number of extensions path-tested at once. */
@@ -408,18 +420,24 @@ export function hostSwampDirs(
 }
 
 /**
- * The environment that gives an isolated swamp process the host's swamp-club
- * credential, so it never reads or writes the host's config directory. A key
- * the environment already supplies (SWAMP_API_KEY_FILE or SWAMP_API_KEY) is
- * inherited as is; otherwise the key, and its server when swamp would not
- * pick it by default, come from the host's auth.json. The key is only ever
- * passed to swamp's own processes; nothing here prints or stores it.
+ * How isolated swamp processes get the host's swamp-club credential, so they
+ * never read or write the host's config directory. A key file the
+ * environment names (SWAMP_API_KEY_FILE) is passed on as an absolute path, as
+ * lanes run in their own scratch repos; a SWAMP_API_KEY the environment
+ * supplies is inherited as is. Otherwise the key, and its server when swamp
+ * would not pick it by default, come from the host's auth.json, and
+ * {@link withLane} writes the key to a file of the lane's own rather than
+ * putting it in the environment, which extension code run by a lane can read.
+ * Nothing here prints the key.
  */
 export function laneCredential(
   env: (name: string) => string | undefined,
   authJson: string | null,
-): Record<string, string> {
-  if (env("SWAMP_API_KEY_FILE") || env("SWAMP_API_KEY")) return {};
+  cwd: string = Deno.cwd(),
+): LaneCredential {
+  const keyFile = env("SWAMP_API_KEY_FILE");
+  if (keyFile) return { env: { SWAMP_API_KEY_FILE: resolve(cwd, keyFile) } };
+  if (env("SWAMP_API_KEY")) return { env: {} };
   let stored: { apiKey?: unknown; serverUrl?: unknown } = {};
   try {
     stored = authJson === null ? {} : JSON.parse(authJson);
@@ -432,9 +450,9 @@ export function laneCredential(
         "or set SWAMP_API_KEY",
     );
   }
-  const credential: Record<string, string> = { SWAMP_API_KEY: stored.apiKey };
+  const credential: LaneCredential = { apiKey: stored.apiKey, env: {} };
   if (typeof stored.serverUrl === "string" && !env("SWAMP_CLUB_URL")) {
-    credential.SWAMP_CLUB_URL = stored.serverUrl;
+    credential.env.SWAMP_CLUB_URL = stored.serverUrl;
   }
   return credential;
 }
@@ -452,12 +470,19 @@ export async function laneSharedFromHost(
   return { dataDir: dirs.dataDir, credential: laneCredential(env, authJson) };
 }
 
+/** The swamp-club credential every lane gets, from {@link laneCredential}. */
+export interface LaneCredential {
+  /** A key each lane gets in a key file of its own, not in its environment. */
+  apiKey?: string;
+  /** Environment each lane's processes get. */
+  env: Record<string, string>;
+}
+
 /** What every lane shares with the host. */
 export interface LaneShared {
   /** The host's swamp data directory. */
   dataDir: string;
-  /** From {@link laneCredential}. */
-  credential: Record<string, string>;
+  credential: LaneCredential;
 }
 
 /**
@@ -465,6 +490,8 @@ export interface LaneShared {
  * embedded deno runtime (extracted atomically, by temp file and rename) and
  * deno's module cache, both safe for many processes at once. Sharing them
  * saves every lane extracting the runtime and fetching every dependency again.
+ * They are the only directories a lane creates under the host's data
+ * directory, when they are not there yet.
  */
 export const SHARED_DATA_SUBDIRS = ["deno", "deno-cache"];
 
@@ -472,12 +499,17 @@ export const SHARED_DATA_SUBDIRS = ["deno", "deno-cache"];
  * One path test's own swamp: a scratch repo, and a swamp data and config
  * directory of its own, so concurrent lanes cannot race on swamp's user-level
  * state (auth verification and refresh, identity and scope caches, telemetry,
- * the update check, logs) and never touch the host's.
+ * the update check, logs) and never write the host's. A key from the host's
+ * auth.json is in a key file in the config directory, readable by its owner
+ * only.
  */
 export interface Lane {
   repo: string;
   env: Record<string, string>;
 }
+
+/** The name of a lane's key file, in its config directory. */
+export const LANE_KEY_FILE = "api-key";
 
 /** Makes a lane under a new temp directory, which `fn` gets to use. */
 export async function withLane<T>(
@@ -495,14 +527,22 @@ export async function withLane<T>(
       await Deno.mkdir(join(shared.dataDir, sub), { recursive: true });
       await Deno.symlink(join(shared.dataDir, sub), join(home, sub));
     }
-    return await fn({
-      repo,
-      env: {
-        ...shared.credential,
-        SWAMP_HOME: home,
-        SWAMP_CONFIG_DIR: config,
-      },
-    });
+    const env: Record<string, string> = {
+      ...shared.credential.env,
+      SWAMP_HOME: home,
+      SWAMP_CONFIG_DIR: config,
+    };
+    if (shared.credential.apiKey !== undefined) {
+      env.SWAMP_API_KEY_FILE = join(config, LANE_KEY_FILE);
+      await Deno.writeTextFile(
+        env.SWAMP_API_KEY_FILE,
+        shared.credential.apiKey,
+        {
+          mode: 0o600,
+        },
+      );
+    }
+    return await fn({ repo, env });
   } finally {
     await Deno.remove(root, { recursive: true }).catch(() => {});
   }
@@ -623,11 +663,18 @@ async function showAt(rev: string, path: string): Promise<string | null> {
 /** Where an extension's path-test output is collected. */
 type Log = (line: string) => void;
 
+/**
+ * The bumped models of an extension that the path test does not exercise
+ * (it takes the first), so each is created fresh from the local source.
+ */
+export function siblingsToFreshInstall(bumped: ModelChange[]): ModelChange[] {
+  return bumped.slice(1);
+}
+
 async function pathTest(
   extDir: string,
-  change: ModelChange,
+  bumped: ModelChange[],
   mergeBase: string,
-  noOp: boolean,
   shared: LaneShared,
   log: Log,
 ): Promise<string | null> {
@@ -643,12 +690,19 @@ async function pathTest(
     return null;
   }
   const { name } = target;
-  if (noOp) return await noOpTest(extDir, change, name, shared, log);
-  return await withLane(
-    "upgrade-path-",
-    shared,
-    (lane) => fullPathTest(extDir, change, name, lane, shared, log),
-  );
+  const [change] = bumped;
+  const failure = bumped.every(isNoOpBump)
+    ? await noOpTest(extDir, change, name, shared, log)
+    : await withLane(
+      "upgrade-path-",
+      shared,
+      (lane) => fullPathTest(extDir, change, name, lane, shared, log),
+    );
+  if (failure !== null) return failure;
+  const siblings = siblingsToFreshInstall(bumped);
+  return siblings.length === 0
+    ? null
+    : await freshInstallTest(extDir, siblings, shared, log);
 }
 
 /**
@@ -718,7 +772,7 @@ async function fullPathTest(
           `${name}, so no instance can be on it; the upgrade path from it ` +
           `is not tested, checking a fresh install instead:\n${out}`,
       );
-      return await freshInstallTest(extDir, change, shared, log);
+      return await freshInstallTest(extDir, [change], shared, log);
     }
     if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
   }
@@ -750,7 +804,7 @@ async function fullPathTest(
     run,
     lane.env,
   );
-  const typeVersion = await readTypeVersion(lane);
+  const typeVersion = await readTypeVersion(lane, "upgrade-test");
   if (typeVersion !== change.head.version) {
     return `${extDir}: published instance upgraded to ${
       typeVersion ?? "nothing"
@@ -795,19 +849,20 @@ async function noOpTest(
     return null;
   });
   if (pulled !== null) return pulled === "skip" ? null : pulled;
-  return await freshInstallTest(extDir, change, shared, log);
+  return await freshInstallTest(extDir, [change], shared, log);
 }
 
 /**
  * Stands in for the path test when the bumped model does not load from the
- * published version: an instance created from the local source alone must be
- * at the new version.
+ * published version, and checks the bumped models the path test does not
+ * exercise: an instance of each model created from the local source alone must
+ * be at its new version.
  * When the local source cannot load the type, swamp falls back to the registry
  * copy, so the version check is what proves the local code loaded.
  */
 async function freshInstallTest(
   extDir: string,
-  change: ModelChange,
+  changes: ModelChange[],
   shared: LaneShared,
   log: Log,
 ): Promise<string | null> {
@@ -818,27 +873,44 @@ async function freshInstallTest(
         "source",
         ["extension", "source", "add", resolve(extDir), "--only", "models"],
       ],
-      ["create", ["model", "create", change.head.type, "upgrade-test"]],
     ];
     for (const [label, args] of steps) {
       const { code, out } = await laneSwamp(lane, args, label !== "init");
       if (code !== 0) return `${extDir}: swamp ${label} failed:\n${out}`;
     }
-    const typeVersion = await readTypeVersion(lane);
-    if (typeVersion !== change.head.version) {
-      return `${extDir}: fresh instance is at ${typeVersion ?? "nothing"}, ` +
-        `expected ${change.head.version}`;
+    for (const [i, change] of changes.entries()) {
+      const instance = `upgrade-test-${i + 1}`;
+      const { code, out } = await laneSwamp(lane, [
+        "model",
+        "create",
+        change.head.type,
+        instance,
+      ]);
+      if (code !== 0) {
+        return `${extDir}: swamp create ${change.head.type} failed:\n${out}`;
+      }
+      const typeVersion = await readTypeVersion(lane, instance);
+      if (typeVersion !== change.head.version) {
+        return `${extDir}: fresh ${change.head.type} instance is at ${
+          typeVersion ?? "nothing"
+        }, expected ${change.head.version}`;
+      }
+      log(
+        `  ${extDir}: fresh ${change.head.type} instance created at ${typeVersion}`,
+      );
     }
-    log(`  ${extDir}: fresh instance created at ${typeVersion}`);
     return null;
   });
 }
 
-async function readTypeVersion(lane: Lane): Promise<string | undefined> {
+async function readTypeVersion(
+  lane: Lane,
+  instance: string,
+): Promise<string | undefined> {
   const { out } = await laneSwamp(lane, [
     "model",
     "get",
-    "upgrade-test",
+    instance,
     "--json",
   ]);
   return out.match(/"typeVersion"\s*:\s*"([^"]+)"/)?.[1];
@@ -944,15 +1016,15 @@ async function main(): Promise<number> {
         concurrency,
         async ([extDir, bumped]) => {
           const lines: string[] = [];
-          // The path test exercises the extension's first bumped model, as it
-          // always has; the others only decide whether the bump is a no-op.
+          // The path test exercises the extension's first bumped model; the
+          // others decide whether the bump is a no-op, and are each created
+          // fresh so that one that does not load is caught.
           let failure: string | null;
           try {
             failure = await pathTest(
               extDir,
-              bumped[0],
+              bumped,
               mergeBase,
-              bumped.every(isNoOpBump),
               shared,
               (line) => lines.push(line),
             );

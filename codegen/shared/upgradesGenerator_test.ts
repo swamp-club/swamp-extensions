@@ -317,3 +317,44 @@ export const model = { type: "@x/y", version: "2026.10.23.1" };
 `;
   assertEquals(extractGlobalArgsFieldNames(content), ["name", "note"]);
 });
+
+Deno.test("dedupeUpgradeEntries - entries that differ only in whitespace inside a string are different", () => {
+  assertThrows(
+    () =>
+      dedupeUpgradeEntries([
+        `{ toVersion: "2026.04.02.2", description: "Removed: a, b", upgradeAttributes: (old) => old }`,
+        `{ toVersion: "2026.04.02.2", description: "Removed: a,  b", upgradeAttributes: (old) => old }`,
+      ]),
+    Error,
+    "2026.04.02.2",
+  );
+});
+
+Deno.test("extractGlobalArgsFieldNames - braces in regex literals do not end or extend the schema", () => {
+  const content = `const GlobalArgsSchema = z.object({
+  name: z.string().regex(/^[}{]+\\/[/}]$/u),
+  ratio: z.number().transform((n) => n / 2 / 1),
+  note: z.string(),
+});
+
+export const model = { type: "@x/y", version: "2026.10.23.1" };
+`;
+  assertEquals(extractGlobalArgsFieldNames(content), ["name", "ratio", "note"]);
+});
+
+Deno.test("extractGlobalArgsFieldNames - braces in template literals and their interpolations are matched", () => {
+  const content = `const GlobalArgsSchema = z.object({
+  name: z.string().describe(\`a } in text, \${ { a: 1 }.a } and \${\`nested \${"}"}\`}\`),
+  note: z.string().describe(\`\${/}/.source}\`),
+  // A template nested in an interpolation, with an unbalanced brace in its
+  // text: the inner backtick does not end the outer template.
+  tag: z.string().describe(\`x \${\`{\`}\`),
+});
+
+export const model = {
+  type: "@x/y",
+  version: "2026.10.23.1",
+};
+`;
+  assertEquals(extractGlobalArgsFieldNames(content), ["name", "note", "tag"]);
+});

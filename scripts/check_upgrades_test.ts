@@ -30,6 +30,7 @@ import {
   hostSwampDirs,
   isModelFile,
   isNoOpBump,
+  LANE_KEY_FILE,
   laneCredential,
   laneSharedFromHost,
   type ModelChange,
@@ -42,6 +43,7 @@ import {
   runPooled,
   runUpgradeMethod,
   SHARED_DATA_SUBDIRS,
+  siblingsToFreshInstall,
   unimportablePublish,
   unloadableModel,
   withLane,
@@ -537,6 +539,35 @@ Deno.test("isNoOpBump: a new model, or one without parsed no-ops, is not", () =>
   );
 });
 
+Deno.test("isNoOpBump: entries are matched one to one, not by version", () => {
+  // Two entries for one version, only one of them a no-op: the other may
+  // transform attributes, so the method run must not be skipped.
+  assertEquals(
+    isNoOpBump(
+      bump("2026.10.01.1", ["2026.10.23.1", "2026.10.23.1"], ["2026.10.23.1"]),
+    ),
+    false,
+  );
+  assertEquals(
+    isNoOpBump(
+      bump("2026.10.01.1", ["2026.10.23.1", "2026.10.23.1"], [
+        "2026.10.23.1",
+        "2026.10.23.1",
+      ]),
+    ),
+    true,
+  );
+});
+
+Deno.test("siblingsToFreshInstall: every bumped model but the path-tested first", () => {
+  const [a, b, c] = ["a", "b", "c"].map((v) => ({
+    ...bump("2026.10.01.1", ["2026.10.23.1"], []),
+    path: `model/x/${v}.ts`,
+  }));
+  assertEquals(siblingsToFreshInstall([a]), []);
+  assertEquals(siblingsToFreshInstall([a, b, c]), [b, c]);
+});
+
 Deno.test("parseConcurrency: a whole number from 1 to 16, default 8", () => {
   assertEquals(parseConcurrency(undefined), DEFAULT_CONCURRENCY);
   assertEquals(parseConcurrency("1"), 1);
@@ -651,20 +682,32 @@ Deno.test("hostSwampDirs: an empty variable is unset, and a relative one is made
 });
 
 Deno.test("laneCredential: a key the environment supplies is inherited, not copied", () => {
-  assertEquals(laneCredential(envOf({ SWAMP_API_KEY: "k" }), null), {});
-  assertEquals(laneCredential(envOf({ SWAMP_API_KEY_FILE: "/f" }), null), {});
+  assertEquals(laneCredential(envOf({ SWAMP_API_KEY: "k" }), null), {
+    env: {},
+  });
+  assertEquals(
+    laneCredential(envOf({ SWAMP_API_KEY_FILE: "/f" }), null, "/cwd"),
+    { env: { SWAMP_API_KEY_FILE: "/f" } },
+  );
 });
 
-Deno.test("laneCredential: otherwise the key and its server come from auth.json", () => {
+Deno.test("laneCredential: a relative key file is made absolute, as lanes run elsewhere", () => {
+  assertEquals(
+    laneCredential(envOf({ SWAMP_API_KEY_FILE: "keys/club" }), null, "/cwd"),
+    { env: { SWAMP_API_KEY_FILE: "/cwd/keys/club" } },
+  );
+});
+
+Deno.test("laneCredential: otherwise the key and its server come from auth.json, the key outside the environment", () => {
   const auth = JSON.stringify({ apiKey: "k", serverUrl: "https://club.test" });
   assertEquals(laneCredential(envOf({}), auth), {
-    SWAMP_API_KEY: "k",
-    SWAMP_CLUB_URL: "https://club.test",
+    apiKey: "k",
+    env: { SWAMP_CLUB_URL: "https://club.test" },
   });
   // An explicit SWAMP_CLUB_URL is left to win.
   assertEquals(
     laneCredential(envOf({ SWAMP_CLUB_URL: "https://other.test" }), auth),
-    { SWAMP_API_KEY: "k" },
+    { apiKey: "k", env: {} },
   );
 });
 
@@ -682,10 +725,13 @@ Deno.test("withLane: a repo, home and config of its own, sharing only the runtim
   const host = await Deno.makeTempDir();
   let root = "";
   try {
-    const shared = { dataDir: host, credential: { SWAMP_API_KEY: "k" } };
+    const shared = {
+      dataDir: host,
+      credential: { env: { SWAMP_CLUB_URL: "https://club.test" } },
+    };
     await withLane("lane-test-", shared, async (lane) => {
       root = join(lane.repo, "..");
-      assertEquals(lane.env.SWAMP_API_KEY, "k");
+      assertEquals(lane.env.SWAMP_CLUB_URL, "https://club.test");
       assertEquals(lane.env.SWAMP_HOME, join(root, "home"));
       assertEquals(lane.env.SWAMP_CONFIG_DIR, join(root, "config"));
       assertEquals((await Deno.stat(lane.repo)).isDirectory, true);
@@ -712,16 +758,38 @@ Deno.test("withLane: a repo, home and config of its own, sharing only the runtim
   }
 });
 
+Deno.test("withLane: a key from auth.json is in a key file of the lane's own, not in its environment", async () => {
+  const host = await Deno.makeTempDir();
+  let keyFile = "";
+  try {
+    const shared = { dataDir: host, credential: { apiKey: "k", env: {} } };
+    await withLane("lane-test-", shared, async (lane) => {
+      keyFile = lane.env.SWAMP_API_KEY_FILE;
+      assertEquals(keyFile, join(lane.env.SWAMP_CONFIG_DIR, LANE_KEY_FILE));
+      assertEquals(lane.env.SWAMP_API_KEY, undefined);
+      assertEquals(await Deno.readTextFile(keyFile), "k");
+      assertEquals((await Deno.stat(keyFile)).mode! & 0o777, 0o600);
+    });
+    await assertRejects(() => Deno.stat(keyFile), Deno.errors.NotFound);
+  } finally {
+    await Deno.remove(host, { recursive: true });
+  }
+});
+
 Deno.test("withLane: the lane is removed when its work throws", async () => {
   const host = await Deno.makeTempDir();
   let root = "";
   try {
     await assertRejects(
       () =>
-        withLane("lane-test-", { dataDir: host, credential: {} }, (lane) => {
-          root = join(lane.repo, "..");
-          throw new Error("boom");
-        }),
+        withLane(
+          "lane-test-",
+          { dataDir: host, credential: { env: {} } },
+          (lane) => {
+            root = join(lane.repo, "..");
+            throw new Error("boom");
+          },
+        ),
       Error,
       "boom",
     );
@@ -742,7 +810,7 @@ Deno.test("laneSharedFromHost: the host's data dir and the key from its auth.jso
       await laneSharedFromHost(
         envOf({ HOME: "/h", SWAMP_CONFIG_DIR: config }),
       ),
-      { dataDir: "/h/.swamp", credential: { SWAMP_API_KEY: "k" } },
+      { dataDir: "/h/.swamp", credential: { apiKey: "k", env: {} } },
     );
     await assertRejects(
       () => laneSharedFromHost(envOf({ HOME: "/h", SWAMP_CONFIG_DIR: "/no" })),

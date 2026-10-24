@@ -67,18 +67,28 @@ or failed.
      changes", attributes returned as they came in), the method run is
      skipped. The published version must still pull (a partial import is
      tolerated as above), and a fresh install from the local source must be at
-     the new version. Any other entry gets the full dynamic check.
+     the new version. Any other entry gets the full dynamic check. Entries
+     are matched one to one, so a version with a no-op entry and another
+     entry is not a no-op bump.
+   - Sibling models: the path test exercises an extension's first bumped
+     model. Every other bumped model in the extension is created fresh from
+     the local source, and must be at its new version, so a sibling that does
+     not load fails the gate.
    - Extensions are path-tested 8 at a time (`--concurrency`, 1 to 16). Each
      test runs its swamp processes with a `SWAMP_HOME` and `SWAMP_CONFIG_DIR`
      of its own inside its scratch directory, so concurrent tests cannot race
      on swamp's user-level state (auth verification, identity and scope
      caches, telemetry, the update check, logs) and never write the host's.
      Only the embedded deno runtime and deno's module cache are shared, by
-     symlink, as both are safe for concurrent use. The swamp-club key is
-     resolved once (`SWAMP_API_KEY` or `SWAMP_API_KEY_FILE` if set, otherwise
-     the host's `auth.json`) and passed to each test's processes. Each
-     extension's output prints as one group in the order a one-at-a-time run
-     would print it.
+     symlink, as both are safe for concurrent use; these two directories are
+     created under the host's swamp data directory when missing, and nothing
+     else there is written. The swamp-club key is resolved once: a
+     `SWAMP_API_KEY_FILE` that is set is passed on as an absolute path, a
+     `SWAMP_API_KEY` that is set is inherited, and otherwise the key from the
+     host's `auth.json` is written to a key file (mode 0600) in each test's own
+     config directory, which `SWAMP_API_KEY_FILE` names, so it is never in the
+     environment of the extension code a test runs. Each extension's output
+     prints as one group in the order a one-at-a-time run would print it.
 
    Both steps list every model they examined, so a run that found nothing to
    check says so. Run it locally with
