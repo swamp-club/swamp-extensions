@@ -105,6 +105,8 @@ Deno.test("Windows probe: placeholders filled, hostile search path stays a liter
       "CERT_LIST",
       "CROSS_B64",
       "NO_TRUST",
+      "OK_STATUS",
+      "ELECTRON_MAX_BYTES",
       "SEARCH_PATHS",
       "LIVE_CHECK",
     ]
@@ -138,6 +140,85 @@ Deno.test("launcher: encoded command decodes, and a script holding the end marke
   assertThrows(() => launcherInput(`x\n  ${POWERSHELL_END}\ny`));
   // The real probe never contains it.
   launcherInput(buildWindowsProbe({ searchPaths: [], liveCheck: true }));
+});
+
+Deno.test("launcher: stdin and stdout are UTF-8, so a non-ASCII search path survives", () => {
+  const encoded = POWERSHELL_ARGV[POWERSHELL_ARGV.length - 1];
+  const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  const launcher = new TextDecoder("utf-16le").decode(bytes);
+  assertStringIncludes(
+    launcher,
+    "New-Object IO.StreamReader([Console]::OpenStandardInput(), (New-Object Text.UTF8Encoding $false))",
+  );
+  assert(!launcher.includes("[Console]::In"));
+  assert(!launcher.includes("InputEncoding"));
+  const path = "C:\\Users\\Jos\u00e9\\proyectos\\\u65e5\u672c";
+  const script = buildWindowsProbe({ searchPaths: [path], liveCheck: false });
+  assertStringIncludes(script, psQuote(path));
+  assertStringIncludes(
+    script,
+    "New-Object IO.StreamWriter([Console]::OpenStandardOutput(), (New-Object Text.UTF8Encoding $false))",
+  );
+  assert(!script.includes("[Console]::Out"));
+  // What the launcher reads back is the script, byte for byte.
+  const sent = new TextDecoder().decode(
+    new TextEncoder().encode(launcherInput(script)),
+  );
+  assertEquals(sent.split(`\n${POWERSHELL_END}\n`)[0], script);
+});
+
+Deno.test("Windows probe: each copy is checked for its own purpose, and only listed statuses read OK", () => {
+  const script = buildWindowsProbe({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(script, "ChainPolicy.ApplicationPolicy.Add(");
+  for (const c of COMPROMISED_CERTS) {
+    const oid = c.usage === "tls" ? "1.3.6.1.5.5.7.3.1" : "1.3.6.1.5.5.7.3.3";
+    assertStringIncludes(script, `@('${c.sha256.slice(0, 16)}', '`);
+    assert(
+      new RegExp(`@\\('${c.sha256.slice(0, 16)}', '[^']+', '${oid}'\\)`)
+        .test(script),
+      c.name,
+    );
+  }
+  assertStringIncludes(script, "'NotValidForUsage'");
+  assertStringIncludes(script, "@('NotTimeValid', 'NotTimeNested')");
+  assertStringIncludes(script, "' error unexpected '");
+});
+
+Deno.test("Windows: a copy refused for its purpose is a rejection", () => {
+  const s = assessHost(
+    parseProbe(winProbe({ verify: () => "rejected NotValidForUsage" })),
+    "w",
+    NOW,
+  );
+  assertEquals(s.osStore.verdict, "not-trusted");
+  assertEquals(s.osStore.codeSigningTrusted, "not-trusted");
+});
+
+Deno.test("Windows: an unlisted chain status is unknown, not trusted or clean", () => {
+  const s = assessHost(
+    parseProbe(
+      winProbe({ verify: () => "error unexpected CtlNotTimeValid" }),
+    ),
+    "w",
+    NOW,
+  );
+  assertEquals(s.osStore.verdict, "unknown");
+  assert(
+    s.osStore.certificates.every((c) =>
+      c.result === "not-checked" &&
+      c.detail === "error unexpected CtlNotTimeValid"
+    ),
+  );
+});
+
+Deno.test("Windows probe: Electron reads stop at a per-app byte budget", () => {
+  const script = buildWindowsProbe({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(script, `$left = ${512 * 1024 * 1024}`);
+  assertStringIncludes(script, "if ($left -le 0) { break }");
+  assertStringIncludes(
+    script,
+    "$fs.Read($buf, 0, [int][Math]::Min($buf.Length, $left))",
+  );
 });
 
 Deno.test("Windows: Microsoft's block reads as not-trusted via CryptoAPI", async () => {

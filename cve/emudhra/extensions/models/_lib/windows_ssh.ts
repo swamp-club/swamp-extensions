@@ -118,7 +118,11 @@ export async function runOverWindowsSsh(
 ): Promise<SshResult> {
   const up = await session(
     // A failed upload removes its own directory: its name never reaches us.
-    "umask 077; d=$(mktemp -d ${TMPDIR:-/tmp}/emudhra.XXXXXX) && { cat > $d/probe.sh || { rm -rf $d; exit 1; }; } && echo $d",
+    // cmd.exe would read double quotes, so no expansion here is quoted:
+    // set -f and an empty IFS stop TMPDIR and $d from being split or globbed.
+    // A directory whose name remotePath would refuse is removed here, since
+    // nothing after this command would know to remove it.
+    "umask 077; set -f; IFS=; d=$(mktemp -d ${TMPDIR:-/tmp}/emudhra.XXXXXX) && case $d in ''|[!/]*|*[!A-Za-z0-9._/-]*) echo mktemp made a directory with an unusable name: $d >&2; rm -rf $d; exit 1;; esac && { cat > $d/probe.sh || { rm -rf $d; exit 1; }; } && echo $d",
     script,
   );
   if (up.exitCode !== 0) {

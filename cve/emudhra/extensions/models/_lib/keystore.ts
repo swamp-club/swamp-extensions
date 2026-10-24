@@ -18,7 +18,9 @@
  * keytool and no password. Java stores trusted certificates unencrypted in
  * JKS, and in PKCS#12 trust stores written without a password (the JDK's own
  * cacerts); a PKCS#12 store whose certificates are encrypted is reported as
- * such, never as clean.
+ * such, never as clean. What counts is what the JDK trusts: trusted entries,
+ * and each key entry's own certificate (chain[0]), but not the rest of a key
+ * entry's chain.
  *
  * @module
  */
@@ -80,8 +82,9 @@ function readJks(
     if (version === 2) utf(); // certificate type, "X.509"
     const n = u32();
     need(n);
-    certs.push(bytes.slice(off, off + n));
+    const c = bytes.slice(off, off + n);
     off += n;
+    return c;
   };
   try {
     const version = u32();
@@ -95,13 +98,18 @@ function readJks(
       need(8);
       off += 8; // creation date
       if (tag === 2) {
-        cert(version);
+        certs.push(cert(version));
       } else if (tag === 1) {
         const keyLen = u32();
         need(keyLen);
         off += keyLen;
+        // A private key's chain. The JDK trusts the key's own certificate,
+        // chain[0]; the rest is read past, as it is not a trust anchor.
         const chain = u32();
-        for (let j = 0; j < chain; j++) cert(version);
+        for (let j = 0; j < chain; j++) {
+          const c = cert(version);
+          if (j === 0) certs.push(c);
+        }
       } else {
         // JCEKS secret keys are serialized Java objects; stop here.
         return { format, certs, incomplete: true, error: `entry tag ${tag}` };
@@ -124,6 +132,10 @@ const OID = {
   encryptedData: "2a864886f70d010706",
   certBag: "2a864886f70d010c0a0103",
   x509Certificate: "2a864886f70d01091601",
+  /** Oracle's trusted key usage, which keytool sets on trusted entries. */
+  trustedKeyUsage: "6086480186f966adca7b0101",
+  /** Links a key entry's own certificate to its key. */
+  localKeyId: "2a864886f70d010915",
 };
 
 function hex(b: Uint8Array): string {
@@ -170,8 +182,23 @@ function octets(
   throw new Error(`OCTET STRING expected, tag ${e.tag.toString(16)}`);
 }
 
+/**
+ * A PKCS#12 store's certificates. When keytool wrote it, trusted entries
+ * carry Oracle's trusted-key-usage attribute and a key entry's own
+ * certificate carries a localKeyId, while the rest of a key entry's chain
+ * carries neither, so only those two kinds count. A store with no marked bag
+ * (openssl's, or keytool's with key entries only) can't tell a chain from an
+ * anchor, so every certificate counts: that over-reports, never under. So
+ * does a keytool store with anchors another tool added unmarked: those are
+ * dropped, but keytool marks every trusted entry it writes.
+ */
 function readPkcs12(bytes: Uint8Array<ArrayBuffer>): KeystoreRead {
-  const certs: Uint8Array<ArrayBuffer>[] = [];
+  const all: { c: Uint8Array<ArrayBuffer>; marked: boolean; own: boolean }[] =
+    [];
+  const certs = () =>
+    all.some((b) => b.marked)
+      ? all.filter((b) => b.marked || b.own).map((b) => b.c)
+      : all.map((b) => b.c);
   let incomplete = false;
   try {
     // PFX ::= SEQUENCE { version, authSafe ContentInfo, macData OPTIONAL }
@@ -200,14 +227,28 @@ function readPkcs12(bytes: Uint8Array<ArrayBuffer>): KeystoreRead {
         const id = oidAt(safe, certBag.body);
         if (id.oid !== OID.x509Certificate) continue;
         const wrapped = derElement(safe, id.end, 0xa0);
-        certs.push(octets(safe, derElement(safe, wrapped.body)));
+        const c = octets(safe, derElement(safe, wrapped.body));
+        // SafeBag ::= SEQUENCE { bagId, [0] bagValue, bagAttributes SET OPTIONAL }
+        const attrs = value.end < bag.end
+          ? (() => {
+            const set = derElement(safe, value.end, 0x31);
+            return children(safe, set.body, set.end).map((a) =>
+              oidAt(safe, a.body).oid
+            );
+          })()
+          : [];
+        all.push({
+          c,
+          marked: attrs.includes(OID.trustedKeyUsage),
+          own: attrs.includes(OID.localKeyId),
+        });
       }
     }
-    return { format: "pkcs12", certs, incomplete };
+    return { format: "pkcs12", certs: certs(), incomplete };
   } catch (e) {
     return {
       format: "pkcs12",
-      certs,
+      certs: certs(),
       incomplete: true,
       error: e instanceof Error ? e.message : String(e),
     };

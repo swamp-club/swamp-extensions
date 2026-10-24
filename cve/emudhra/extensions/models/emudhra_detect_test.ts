@@ -2071,6 +2071,52 @@ Deno.test("macOS probe: only security's not-trusted and revoked results reject",
   assertEquals(s.osStore.verdict, "unknown");
 });
 
+Deno.test("macOS probe: the classifier rejects only on not-trusted and revoked, and the traps are cleared", async () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: false });
+  assertStringIncludes(
+    script,
+    'rm -rf "$emudhra_d"\ntrap - EXIT HUP INT TERM\nfi',
+  );
+  // Run the real classifier against a stub security that prints `out` and
+  // exits with `code`, and check the arguments it got. The stub reports
+  // them on fd 3: the classifier captures its stderr.
+  const mv = script.split("\n").find((l) => l.startsWith("emudhra_mv() {"));
+  assert(mv);
+  const classify = async (out: string, code: number) => {
+    const r = await new Deno.Command("sh", {
+      args: [
+        "-c",
+        `exec 3>&2\nsecurity() { echo "$*" >&3; printf '%s\\n' "$OUT"; return ${code}; }\n${mv}\nemudhra_mv -c /tmp/x.pem`,
+      ],
+      env: { OUT: out },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assertStringIncludes(
+      new TextDecoder().decode(r.stderr),
+      "verify-cert -c /tmp/x.pem -l -L -p basic -v",
+    );
+    return new TextDecoder().decode(r.stdout).trim();
+  };
+  assertEquals(
+    await classify("...certificate verification successful.", 0),
+    "OK",
+  );
+  assertEquals(
+    await classify("Cert Verify Result: CSSMERR_TP_CERT_REVOKED", 1),
+    "rejected revoked",
+  );
+  assertEquals(
+    await classify("Cert Verify Result: CSSMERR_TP_NOT_TRUSTED", 1),
+    "rejected untrusted",
+  );
+  // Anything else leaves the copy unjudged, never rejected.
+  assertEquals(
+    await classify("Cert Verify Result: Invalid Key Usage for policy", 1),
+    "error Cert Verify Result: Invalid Key Usage for policy",
+  );
+});
+
 Deno.test("compareDottedVersions: a tag after an equal prefix is a pre-release", () => {
   assert(compareDottedVersions("2026.10.2rc1", "2026.10.2") < 0);
   assert(compareDottedVersions("2026.10.2", "2026.10.2rc1") > 0);

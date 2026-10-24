@@ -393,9 +393,13 @@ const MACOS_BUNDLES = [
 /**
  * macOS: ask the Security framework about each of the 16 intermediates,
  * which applies Apple's block list and the admin trust settings. The basic
- * policy, because a CA certificate can't be checked against the TLS or
- * code-signing policy without a leaf; -L keeps it offline. The certificates
- * go through a private temporary directory, removed when the section ends.
+ * policy, because the purpose policies check a certificate as if it were the
+ * leaf: ssl fails every CA certificate, and codeSign fails the eMudhra
+ * code-signing CAs on their Key Usage (certificate and CRL signing only)
+ * even when their chain is trusted. So a root restricted away from a purpose
+ * still reads trusted here, which over-reports. -L keeps it offline. The
+ * certificates go through a private temporary directory, removed when the
+ * section ends, and the traps that remove it are cleared then.
  * Lines use the same vocabulary as the Windows probe: OK, rejected <why>, or
  * error <why>. Only security's own not-trusted and revoked results count as
  * rejections; any other failure (trustd, the session) is an error, so a host
@@ -424,7 +428,7 @@ function macosVerify(): string[] {
       })"`,
     );
   }
-  out.push('rm -rf "$emudhra_d"', "fi");
+  out.push('rm -rf "$emudhra_d"', "trap - EXIT HUP INT TERM", "fi");
   return out;
 }
 

@@ -24,11 +24,13 @@ import {
   ENCRYPTED,
   explicit0,
   jks,
+  LOCAL_KEY_ID,
   octet,
   oid,
   pfx,
   seq,
   tlv,
+  TRUSTED_KEY_USAGE,
 } from "./testing_keystores.ts";
 
 const aaa = pemCertificates(AAA_ROOT.pem)[0];
@@ -81,6 +83,40 @@ Deno.test("readKeystore: PKCS#12 constructed OCTET STRING (BER) is read", () => 
   const r = readKeystore(pfx([dataSafe(certBag(aaa, ber))]));
   assertEquals(r.incomplete, false);
   assertEquals(r.certs[0], aaa);
+});
+
+Deno.test("readKeystore: of a JKS key entry's chain, only its own certificate counts", async () => {
+  // The JDK trusts chain[0], the key's own certificate, and not the rest.
+  const r = readKeystore(jks([], 0xfeedfeed, [ecc, aaa]));
+  assertEquals(r.incomplete, false);
+  assertEquals(r.certs, [ecc]);
+  assertEquals((await matchStore(r.certs)).roots, ["emSign ECC Root CA - G3"]);
+  assertEquals(readKeystore(jks([aaa], 0xfeedfeed, [ecc, aaa])).certs, [
+    aaa,
+    ecc,
+  ]);
+});
+
+Deno.test("readKeystore: keytool's PKCS#12 counts trusted entries and a key's own certificate", () => {
+  const r = readKeystore(
+    pfx([
+      dataSafe(
+        certBag(ecc, octet, [TRUSTED_KEY_USAGE]),
+        certBag(ecc, octet, [LOCAL_KEY_ID]),
+        // The rest of the key entry's chain: neither mark.
+        certBag(aaa),
+      ),
+    ]),
+  );
+  assertEquals(r.incomplete, false);
+  assertEquals(r.certs, [ecc, ecc]);
+});
+
+Deno.test("readKeystore: a PKCS#12 with no trusted-entry marks counts every certificate", () => {
+  const r = readKeystore(
+    pfx([dataSafe(certBag(aaa, octet, [LOCAL_KEY_ID]), certBag(ecc))]),
+  );
+  assertEquals(r.certs, [aaa, ecc]);
 });
 
 Deno.test("readKeystore: junk is unknown", () => {

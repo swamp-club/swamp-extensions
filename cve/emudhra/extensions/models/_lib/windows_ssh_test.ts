@@ -90,7 +90,7 @@ Deno.test("runOverWindowsSsh: upload, run, read back in chunks, clean up", async
   assertEquals(r.exitCode, 0);
   assertEquals(t.calls[0].input, "echo hi\n");
   // Upload into a private directory; run inside it with a private umask.
-  assertMatch(t.calls[0].remote, /^umask 077; d=\$\(mktemp -d /);
+  assertMatch(t.calls[0].remote, /^umask 077; set -f; IFS=; d=\$\(mktemp -d /);
   assertEquals(
     t.calls[1].remote,
     "cd '/tmp/emudhra.Ab12Cd' && umask 077 && { sh probe.sh < /dev/null > out 2> err; echo rc=$?; wc -c < out; wc -c < err; }",
@@ -129,6 +129,68 @@ Deno.test("runOverWindowsSsh: a refused upload reports ssh's error and runs noth
     exitCode: 255,
   });
   assertEquals(calls.length, 1);
+});
+
+/** Run the upload command runOverWindowsSsh sends, under a real sh. */
+async function upload(tmpdir: string, script: string) {
+  let remote = "";
+  await runOverWindowsSsh((r) => {
+    remote = r;
+    return Promise.resolve({
+      stdout: new Uint8Array(),
+      stderr: "stop",
+      exitCode: 1,
+    });
+  }, script);
+  const child = new Deno.Command("sh", {
+    args: ["-c", remote],
+    env: { TMPDIR: tmpdir },
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+  const w = child.stdin.getWriter();
+  await w.write(enc(script));
+  await w.close();
+  const r = await child.output();
+  return {
+    code: r.code,
+    stdout: new TextDecoder().decode(r.stdout).trim(),
+    stderr: new TextDecoder().decode(r.stderr),
+  };
+}
+
+Deno.test("runOverWindowsSsh: the upload lands in TMPDIR and nowhere else", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const r = await upload(root, "echo hi\n");
+    assertEquals(r.code, 0);
+    assert(r.stdout.startsWith(`${root}/emudhra.`), r.stdout);
+    assertEquals(await Deno.readTextFile(`${r.stdout}/probe.sh`), "echo hi\n");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("runOverWindowsSsh: a TMPDIR with a space and a glob is neither split nor globbed, and leaves nothing", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    // Unquoted, "a b*" would split at the space, and "b*" would glob onto
+    // the sibling "bX".
+    const odd = `${root}/a b*`;
+    await Deno.mkdir(odd);
+    await Deno.mkdir(`${root}/a`);
+    await Deno.mkdir(`${root}/bX`);
+    const r = await upload(odd, "echo hi\n");
+    assertEquals(r.code, 1);
+    assertEquals(r.stdout, "");
+    assert(r.stderr.includes("unusable name"), r.stderr);
+    for (const d of [odd, `${root}/a`, `${root}/bX`]) {
+      assertEquals([...Deno.readDirSync(d)], [], d);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 Deno.test("runOverWindowsSsh: an odd mktemp answer is refused before use", async () => {

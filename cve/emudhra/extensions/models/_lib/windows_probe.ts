@@ -18,7 +18,9 @@
  * `@@ section` lines as the sh probe, so parseProbe and assessHost serve both.
  * The OS verdict comes from CryptoAPI (.NET's X509Chain): the Root, AuthRoot
  * and Disallowed stores, and Microsoft's automatic root and disallowed-list
- * updates. It is read-only and needs no administrator rights.
+ * updates. Each copy is checked for its own purpose (server authentication
+ * or code signing), so a root Windows does not allow for that purpose
+ * rejects it. It is read-only and needs no administrator rights.
  *
  * The script is a String.raw template with no backticks or dollar-brace
  * sequences, so its backslashes and dollar signs reach PowerShell as written.
@@ -31,6 +33,11 @@ import {
   EMSIGN_TLS_G3_CROSS,
   TEST_HOSTS,
 } from "./emudhra_certs.ts";
+import {
+  STORE_MAX_BLOBS,
+  STORE_MAX_BYTES,
+  STORE_MAX_TOTAL,
+} from "./emudhra_logic.ts";
 
 /** Ends a script sent on stdin; the launcher stops reading at this line. */
 export const POWERSHELL_END = "# emudhra-probe-end";
@@ -44,8 +51,12 @@ export const POWERSHELL_END = "# emudhra-probe-end";
 const LAUNCHER = [
   // Progress records would reach stderr as CLIXML.
   "$ProgressPreference = 'SilentlyContinue'",
+  // stdin is UTF-8 bytes. Console.In would decode them with the console code
+  // page and mangle a non-ASCII searchPaths entry, and setting
+  // Console.InputEncoding fails when ssh gives PowerShell no console.
+  "$stdin = New-Object IO.StreamReader([Console]::OpenStandardInput(), (New-Object Text.UTF8Encoding $false))",
   "$b = New-Object Text.StringBuilder",
-  `while ($true) { $l = [Console]::In.ReadLine(); if ($null -eq $l -or $l -eq '${POWERSHELL_END}') { break }; [void]$b.AppendLine($l) }`,
+  `while ($true) { $l = $stdin.ReadLine(); if ($null -eq $l -or $l -eq '${POWERSHELL_END}') { break }; [void]$b.AppendLine($l) }`,
   // An uncaught error goes to stderr as plain text, not CLIXML.
   "try { Invoke-Expression $b.ToString() } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }",
 ].join("\n");
@@ -105,13 +116,17 @@ export function assertSafeWindowsPaths(paths: string[]): void {
   }
 }
 
-/** Store limits, as in the sh probe. */
-const STORE_MAX_BYTES = 4 * 1024 * 1024;
-const STORE_MAX_BLOBS = 64;
-const STORE_MAX_TOTAL = 16 * 1024 * 1024;
-
-/** Chain status values that mean Windows refuses the certificate. */
-const NO_TRUST = ["ExplicitDistrust", "Revoked", "NotSignatureValid"];
+/**
+ * Chain status values that mean Windows refuses the certificate.
+ * NotValidForUsage: a certificate in the chain is not allowed for the
+ * purpose asked for, so it is refused for that purpose.
+ */
+const NO_TRUST = [
+  "ExplicitDistrust",
+  "Revoked",
+  "NotSignatureValid",
+  "NotValidForUsage",
+];
 
 /**
  * Chain status values that mean no root was found. All four roots are in
@@ -121,10 +136,29 @@ const NO_TRUST = ["ExplicitDistrust", "Revoked", "NotSignatureValid"];
  */
 const NO_ROOT = ["UntrustedRoot", "PartialChain", "Cyclic"];
 
+/**
+ * The only chain status values a trusted chain may carry. Time errors come
+ * after the chain reached a trusted root, as with openssl's 9 and 10. Any
+ * other status is an error, so the copy reads unknown, never trusted or clean.
+ */
+const OK_STATUS = ["NotTimeValid", "NotTimeNested"];
+
+/** The purpose each copy is checked for: server authentication or code signing. */
+const USAGE_OID = {
+  "tls": "1.3.6.1.5.5.7.3.1",
+  "code-signing": "1.3.6.1.5.5.7.3.3",
+} as const;
+
+/** Bytes read per Electron app looking for its version, over both executables. */
+const ELECTRON_MAX_BYTES = 512 * 1024 * 1024;
+
 const BODY = String.raw`
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
-function Say([string]$s) { [Console]::Out.WriteLine($s) }
+# UTF-8, like stdin, so a non-ASCII path is reported as it is.
+$SayOut = New-Object IO.StreamWriter([Console]::OpenStandardOutput(), (New-Object Text.UTF8Encoding $false))
+$SayOut.AutoFlush = $true
+function Say([string]$s) { $SayOut.WriteLine($s) }
 function Section([string]$n) { Say ('@@ ' + $n) }
 $X509 = 'System.Security.Cryptography.X509Certificates.X509Certificate2'
 $sha = [Security.Cryptography.SHA256]::Create()
@@ -219,15 +253,18 @@ try {
       $ch.ChainPolicy.RevocationMode = 'NoCheck'
       $ch.ChainPolicy.UrlRetrievalTimeout = New-TimeSpan -Seconds 15
       [void]$ch.ChainPolicy.ExtraStore.Add($cross)
+      [void]$ch.ChainPolicy.ApplicationPolicy.Add((New-Object Security.Cryptography.Oid $e[2]))
       $ok = $ch.Build($cert)
       $status = @($ch.ChainStatus | ForEach-Object { $_.Status.ToString() })
       $bad = @($status | Where-Object { @(@@NO_TRUST@@) -contains $_ })
       $noroot = @($status | Where-Object { @(@@NO_ROOT@@) -contains $_ })
+      $other = @($status | Where-Object { @(@@OK_STATUS@@) -notcontains $_ })
       $top = ''
       if ($ch.ChainElements.Count -gt 0) { $top = $ch.ChainElements[$ch.ChainElements.Count - 1].Certificate.GetNameInfo('SimpleName', $false) }
       if ($status -contains 'ExplicitDistrust') { Say ($e[0] + ' rejected distrusted') }
       elseif ($bad.Count -gt 0) { Say ($e[0] + ' rejected ' + ($bad -join ',')) }
       elseif ($noroot.Count -gt 0) { Say ($e[0] + ' error root not available (' + ($noroot -join ',') + '); Windows Update may be unreachable') }
+      elseif ($other.Count -gt 0) { Say ($e[0] + ' error unexpected ' + ($other -join ',')) }
       else { Say ($e[0] + ' OK ' + $top) }
       $ch.Reset()
     } catch { Say ($e[0] + ' error ' + ($_.Exception.Message -replace '\s+', ' ')) }
@@ -341,14 +378,17 @@ foreach ($r in $eroots) {
 $re = New-Object Text.RegularExpressions.Regex('Electron/([0-9]+\.[0-9]+\.[0-9]+)')
 foreach ($a in @($apps | Select-Object -First 30)) {
   $v = ''
+  $left = @@ELECTRON_MAX_BYTES@@
   $exes = @(Get-ChildItem -LiteralPath $a -File -Filter '*.exe' | Sort-Object Length -Descending | Select-Object -First 2)
   foreach ($x in $exes) {
+    if ($left -le 0) { break }
     try {
       $fs = [IO.File]::OpenRead($x.FullName)
       try {
         $buf = New-Object byte[] 4194304
         $tail = ''
-        while (($n = $fs.Read($buf, 0, $buf.Length)) -gt 0) {
+        while ($left -gt 0 -and ($n = $fs.Read($buf, 0, [int][Math]::Min($buf.Length, $left))) -gt 0) {
+          $left -= $n
           $text = $tail + [Text.Encoding]::ASCII.GetString($buf, 0, $n)
           $m = $re.Match($text)
           if ($m.Success) { $v = $m.Groups[1].Value; break }
@@ -382,7 +422,9 @@ export function buildWindowsProbe(opts: {
   const b64 = (pem: string) =>
     pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   const certList = COMPROMISED_CERTS.map((c) =>
-    `@(${psQuote(c.sha256.slice(0, 16))}, ${psQuote(b64(c.pem))})`
+    `@(${psQuote(c.sha256.slice(0, 16))}, ${psQuote(b64(c.pem))}, ${
+      psQuote(USAGE_OID[c.usage])
+    })`
   ).join(", ");
   const live = opts.liveCheck
     ? Object.entries(TEST_HOSTS).map(([path, host]) =>
@@ -402,6 +444,8 @@ export function buildWindowsProbe(opts: {
     CERT_LIST: certList,
     NO_TRUST: NO_TRUST.map(psQuote).join(", "),
     NO_ROOT: NO_ROOT.map(psQuote).join(", "),
+    OK_STATUS: OK_STATUS.map(psQuote).join(", "),
+    ELECTRON_MAX_BYTES: String(ELECTRON_MAX_BYTES),
     SEARCH_PATHS: opts.searchPaths.map(psQuote).join(", "),
     LIVE_CHECK: live,
   };

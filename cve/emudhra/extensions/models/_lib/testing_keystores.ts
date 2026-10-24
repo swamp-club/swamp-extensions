@@ -41,25 +41,37 @@ export function utf(s: string): Uint8Array {
   return concat(new Uint8Array([e.length >> 8, e.length & 0xff]), e);
 }
 
-/** A JKS (version 2) with one trusted-certificate entry per certificate. */
+/**
+ * A JKS (version 2) with one trusted-certificate entry per certificate, then
+ * one private-key entry whose chain is `keyChain`, if given.
+ */
 export function jks(
   certs: Uint8Array[],
   magic = 0xfeedfeed,
+  keyChain?: Uint8Array[],
 ): Uint8Array<ArrayBuffer> {
+  const x509 = (c: Uint8Array) => concat(utf("X.509"), u32(c.length), c);
   const entries = certs.map((c, i) =>
-    concat(
-      u32(2),
-      utf(`ca${i}`),
-      new Uint8Array(8),
-      utf("X.509"),
-      u32(c.length),
-      c,
-    )
+    concat(u32(2), utf(`ca${i}`), new Uint8Array(8), x509(c))
   );
+  if (keyChain) {
+    const key = new Uint8Array(16);
+    entries.push(
+      concat(
+        u32(1),
+        utf("key"),
+        new Uint8Array(8),
+        u32(key.length),
+        key,
+        u32(keyChain.length),
+        ...keyChain.map(x509),
+      ),
+    );
+  }
   return concat(
     u32(magic),
     u32(2),
-    u32(certs.length),
+    u32(entries.length),
     ...entries,
     new Uint8Array(20),
   );
@@ -89,8 +101,31 @@ export const ENCRYPTED = "2a864886f70d010706";
 export const CERT_BAG = "2a864886f70d010c0a0103";
 export const X509 = "2a864886f70d01091601";
 
-export function certBag(cert: Uint8Array, wrap = octet): Uint8Array {
-  return seq(oid(CERT_BAG), explicit0(seq(oid(X509), explicit0(wrap(cert)))));
+export const TRUSTED_KEY_USAGE = "6086480186f966adca7b0101";
+export const LOCAL_KEY_ID = "2a864886f70d010915";
+
+/** A certificate bag, with attributes (each an OID with one empty value) if given. */
+export function certBag(
+  cert: Uint8Array,
+  wrap = octet,
+  attrs: string[] = [],
+): Uint8Array {
+  return seq(
+    oid(CERT_BAG),
+    explicit0(seq(oid(X509), explicit0(wrap(cert)))),
+    ...(attrs.length > 0
+      ? [
+        tlv(
+          0x31,
+          concat(
+            ...attrs.map((a) =>
+              seq(oid(a), tlv(0x31, octet(new Uint8Array(0))))
+            ),
+          ),
+        ),
+      ]
+      : []),
+  );
 }
 
 export function pfx(safes: Uint8Array[]): Uint8Array<ArrayBuffer> {
