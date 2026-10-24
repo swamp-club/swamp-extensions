@@ -42,6 +42,40 @@ knows the distro builds that a security tracker marked fixed as of
 | Ubuntu 24.04 | php8.3 | 8.3.6-0ubuntu0.24.04.13 | USN-8948-1 |
 | Ubuntu 26.04 | php8.5 | 8.5.4-0ubuntu1.5 | USN-8948-1 |
 | Ubuntu 26.10 | php8.5 | 8.5.9-0ubuntu2.1 | USN-8948-1 |
+| RHEL 10 | php | 8.3.36-1.el10_2 | RHSA-2026:87070 |
+| RHEL 10 | php8.4 | 8.4.27-1.el10_2 | RHSA-2026:87071 |
+| RHEL 9 | php:8.2 | 8.2.35-1.module+el9.8.0+25111+a1450321 | RHSA-2026:87072 |
+| RHEL 9 | php:8.3 | 8.3.36-1.module+el9.8.0+25109+6886e21a | RHSA-2026:87079 |
+| RHEL 9 | php (8.0) | 8.0.30-8.el9_8.1 | RHSA-2026:87151 |
+| RHEL 8 | php:8.2 | 8.2.35-1.module+el8.10.0+25110+f67151d2 | RHSA-2026:87073 |
+| RHEL 8 | php:7.4 | 7.4.33-8.module+el8.10.0+25117+30337cca | RHSA-2026:87080 |
+| RHEL 10.0 EUS | php | 8.3.19-1.el10_0.2 | RHSA-2026:88561 |
+| RHEL 9.6 EUS | php (8.0) | 8.0.30-3.el9_6.2 | RHSA-2026:88720 |
+| RHEL 9.6 EUS | php:8.2 | 8.2.28-1.module+el9.6.0+25176+d8415d54.4 | RHSA-2026:88834 |
+| RHEL 9.4 SAP | php (8.0) | 8.0.30-1.el9_4.2 | RHSA-2026:88725 |
+| RHEL 9.4 SAP | php:8.2 | 8.2.13-1.module+el9.4.0+25177+88c847cf.4 | RHSA-2026:88835 |
+| RHEL 9.2 SAP | php (8.0) | 8.0.30-1.el9_2.2 | RHSA-2026:88659 |
+| RHEL 8.8 TUS/SAP | php:7.4 | 7.4.33-1.module+el8.8.0+25148+55cf9df9.2 | RHSA-2026:88532 |
+| RHEL 8.6 AUS/EUS | php:7.4 | 7.4.19-4.module+el8.6.0+25157+c2ff122e.3 | RHSA-2026:88533 |
+| RHEL 8.4 AUS/EUS | php:7.4 | 7.4.6-5.module+el8.4.0+25156+e0c98721.3 | RHSA-2026:88565 |
+| RHEL 7 ELS | php (5.4) | 5.4.16-48.el7_9.1 | RHSA-2026:88693 |
+
+The RHEL rows were read from Red Hat's advisories on 2026-10-24. RHEL builds
+are compared with rpm's version ordering and matched on the major release and
+the PHP branch, so a RHEL 9.6 host uses the RHEL 9 rows. A build whose release
+tag names a minor with its own advisory (`el9_6`, `module+el9.6.0`: the EUS,
+AUS, TUS and SAP streams) is `patched` at that minor's fix; any other build is
+judged by the main stream's row. RHEL 8 php:7.4, RHEL 9 php 8.0 and RHEL 7 php 5.4 are
+backports: they are `patched` at the builds above even though those branches
+get no upstream fix (RHEL 7 is not affected by CVE-2026-109618). An older build
+in a listed stream is `update-available`; on a host below the main stream's
+minor, the note says which advisory a host pinned to that minor gets, or that
+Red Hat had none. Only releases Red Hat builds for the host's major (`.el9`,
+`.el9_8`, `module+el9.8.0+…` on RHEL 9) are matched. Remi builds
+(`8.2.30-1.el9.remi`) follow upstream releases on branches with an upstream
+fix, so like Sury builds they are judged by their upstream version; Remi's
+7.4, 8.0 and 8.1 builds carry backports, so they stay `check-vendor`, as does
+any other rebuild.
 
 Debian fixed bookworm and trixie with new upstream releases (8.2.35, 8.4.27),
 so an older Debian build such as `8.2.34-1~deb12u1` is reported as
@@ -446,8 +480,14 @@ The report's commands name the behavior that ran, so they work as printed.
 
 ## Limits
 
-- RHEL-family and Alpine distro builds have no tracker table yet, so they are
-  `check-vendor` unless the package manager has a newer PHP package pending.
+- RHEL clones (AlmaLinux, Rocky Linux, CentOS Stream) and Alpine have no
+  tracker rows, so their distro builds are `check-vendor` unless the package
+  manager has a newer PHP package pending. Clones publish their own errata, so
+  Red Hat's rows are not applied to them.
+- RHEL 9 php:8.4 had no Red Hat fix when the rows were read, and retired module
+  streams (RHEL 8 php:7.3 and php:8.0, RHEL 9 php:8.1) get none, so builds from
+  them are `check-vendor`. The RHEL 7 fix ships only to Extended Life Cycle
+  Support subscribers.
 - The tracker table is a snapshot. Package lists older than the advisory can
   hide a pending fix, so the report says when to run `apt-get update`. Mitigate
   runs it itself.

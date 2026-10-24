@@ -135,6 +135,130 @@ export const DISTRO_FIXES: TrackerEntry[] = [
     fixedVersion: "8.5.9-0ubuntu2.1",
     reference: "USN-8948-1",
   },
+  // Red Hat rows are keyed on the release and the PHP branch: each release
+  // ships one stream per branch. A major ("9") is the main stream; a minor
+  // ("9.6") is the EUS, AUS, TUS or SAP stream pinned to it. sourcePackage
+  // names the stream. RHEL 9 php:8.4 is still Affected, so it has no row.
+  {
+    distro: "rhel",
+    release: "10",
+    sourcePackage: "php",
+    fixedVersion: "8.3.36-1.el10_2",
+    reference: "RHSA-2026:87070",
+  },
+  {
+    distro: "rhel",
+    release: "10",
+    sourcePackage: "php8.4",
+    fixedVersion: "8.4.27-1.el10_2",
+    reference: "RHSA-2026:87071",
+  },
+  {
+    distro: "rhel",
+    release: "9",
+    sourcePackage: "php:8.2",
+    fixedVersion: "8.2.35-1.module+el9.8.0+25111+a1450321",
+    reference: "RHSA-2026:87072",
+  },
+  {
+    distro: "rhel",
+    release: "9",
+    sourcePackage: "php:8.3",
+    fixedVersion: "8.3.36-1.module+el9.8.0+25109+6886e21a",
+    reference: "RHSA-2026:87079",
+  },
+  {
+    distro: "rhel",
+    release: "9",
+    sourcePackage: "php",
+    fixedVersion: "8.0.30-8.el9_8.1",
+    reference: "RHSA-2026:87151",
+  },
+  {
+    distro: "rhel",
+    release: "8",
+    sourcePackage: "php:8.2",
+    fixedVersion: "8.2.35-1.module+el8.10.0+25110+f67151d2",
+    reference: "RHSA-2026:87073",
+  },
+  {
+    distro: "rhel",
+    release: "8",
+    sourcePackage: "php:7.4",
+    fixedVersion: "7.4.33-8.module+el8.10.0+25117+30337cca",
+    reference: "RHSA-2026:87080",
+  },
+  {
+    distro: "rhel",
+    release: "10.0",
+    sourcePackage: "php",
+    fixedVersion: "8.3.19-1.el10_0.2",
+    reference: "RHSA-2026:88561",
+  },
+  {
+    distro: "rhel",
+    release: "9.6",
+    sourcePackage: "php",
+    fixedVersion: "8.0.30-3.el9_6.2",
+    reference: "RHSA-2026:88720",
+  },
+  {
+    distro: "rhel",
+    release: "9.6",
+    sourcePackage: "php:8.2",
+    fixedVersion: "8.2.28-1.module+el9.6.0+25176+d8415d54.4",
+    reference: "RHSA-2026:88834",
+  },
+  {
+    distro: "rhel",
+    release: "9.4",
+    sourcePackage: "php",
+    fixedVersion: "8.0.30-1.el9_4.2",
+    reference: "RHSA-2026:88725",
+  },
+  {
+    distro: "rhel",
+    release: "9.4",
+    sourcePackage: "php:8.2",
+    fixedVersion: "8.2.13-1.module+el9.4.0+25177+88c847cf.4",
+    reference: "RHSA-2026:88835",
+  },
+  {
+    distro: "rhel",
+    release: "9.2",
+    sourcePackage: "php",
+    fixedVersion: "8.0.30-1.el9_2.2",
+    reference: "RHSA-2026:88659",
+  },
+  {
+    distro: "rhel",
+    release: "8.8",
+    sourcePackage: "php:7.4",
+    fixedVersion: "7.4.33-1.module+el8.8.0+25148+55cf9df9.2",
+    reference: "RHSA-2026:88532",
+  },
+  {
+    distro: "rhel",
+    release: "8.6",
+    sourcePackage: "php:7.4",
+    fixedVersion: "7.4.19-4.module+el8.6.0+25157+c2ff122e.3",
+    reference: "RHSA-2026:88533",
+  },
+  {
+    distro: "rhel",
+    release: "8.4",
+    sourcePackage: "php:7.4",
+    fixedVersion: "7.4.6-5.module+el8.4.0+25156+e0c98721.3",
+    reference: "RHSA-2026:88565",
+  },
+  // RHEL 7 is not affected by CVE-2026-109618; ELS fixes CVE-2026-109619.
+  {
+    distro: "rhel",
+    release: "7",
+    sourcePackage: "php",
+    fixedVersion: "5.4.16-48.el7_9.1",
+    reference: "RHSA-2026:88693",
+  },
 ];
 
 /** Name of the ini drop-in that mitigate writes with applyConfigMitigations. */
@@ -440,6 +564,81 @@ export function compareDebVersions(a: string, b: string): number {
   const u = debCompareFragment(va.upstream, vb.upstream);
   if (u !== 0) return u;
   return debCompareFragment(va.revision, vb.revision);
+}
+
+/** One version or release string compared the way rpm's rpmvercmp does. */
+function rpmCompareFragment(a: string, b: string): number {
+  if (a === b) return 0;
+  const isDigit = (c: string) => c >= "0" && c <= "9";
+  const isAlpha = (c: string) => /[A-Za-z]/.test(c);
+  const isSep = (c: string) =>
+    !isDigit(c) && !isAlpha(c) && c !== "~" && c !== "^";
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    while (i < a.length && isSep(a[i])) i++;
+    while (j < b.length && isSep(b[j])) j++;
+    // "~" sorts before anything, even the end of the string.
+    if (a[i] === "~" || b[j] === "~") {
+      if (a[i] !== "~") return 1;
+      if (b[j] !== "~") return -1;
+      i++;
+      j++;
+      continue;
+    }
+    // "^" sorts after the end of the string, before any other segment.
+    if (a[i] === "^" || b[j] === "^") {
+      if (i >= a.length) return -1;
+      if (j >= b.length) return 1;
+      if (a[i] !== "^") return 1;
+      if (b[j] !== "^") return -1;
+      i++;
+      j++;
+      continue;
+    }
+    if (i >= a.length || j >= b.length) break;
+    const numeric = isDigit(a[i]);
+    const take = numeric ? isDigit : isAlpha;
+    const si = i;
+    const sj = j;
+    while (i < a.length && take(a[i])) i++;
+    while (j < b.length && take(b[j])) j++;
+    let sa = a.slice(si, i);
+    let sb = b.slice(sj, j);
+    // A numeric segment is newer than an alphabetic one.
+    if (sb === "") return numeric ? 1 : -1;
+    if (numeric) {
+      sa = sa.replace(/^0+/, "");
+      sb = sb.replace(/^0+/, "");
+      if (sa.length !== sb.length) return sa.length - sb.length;
+    }
+    if (sa !== sb) return sa < sb ? -1 : 1;
+  }
+  if (i >= a.length && j >= b.length) return 0;
+  return i < a.length ? 1 : -1;
+}
+
+/** rpm package version comparison ([epoch:]version-release, rpmvercmp semantics). */
+export function compareRpmVersions(a: string, b: string): number {
+  const split = (v: string) => {
+    const colon = v.indexOf(":");
+    const e = colon >= 0 ? v.slice(0, colon) : "";
+    // rpm epochs are numeric; anything else is treated as no epoch.
+    const epoch = /^\d+$/.test(e) ? Number(e) : 0;
+    const rest = colon >= 0 ? v.slice(colon + 1) : v;
+    const dash = rest.lastIndexOf("-");
+    return {
+      epoch,
+      version: dash >= 0 ? rest.slice(0, dash) : rest,
+      release: dash >= 0 ? rest.slice(dash + 1) : "",
+    };
+  };
+  const va = split(a);
+  const vb = split(b);
+  if (va.epoch !== vb.epoch) return va.epoch - vb.epoch;
+  const v = rpmCompareFragment(va.version, vb.version);
+  if (v !== 0) return v;
+  return rpmCompareFragment(va.release, vb.release);
 }
 
 // --- Probe -------------------------------------------------------------------
@@ -1320,6 +1519,80 @@ function debUpstream(v: string): string {
   return v.replace(/^\d+:/, "").replace(/-[^-]*$/, "");
 }
 
+/**
+ * A release Red Hat builds: 8.el9_8.1, 1.el9, or a module build such as
+ * 1.module+el9.8.0+25111+a1450321 (with an optional z-stream suffix). Remi
+ * (1.el9.remi) and other rebuilds (9.el8.vendor) do not match, so a Red Hat
+ * row never vouches for them.
+ */
+const RED_HAT_RELEASE =
+  /^\d+(\.\d+)*\.(el\d+(_\d+)?(\.\d+)*|module[+_]el\d+\.\d+\.\d+\+\d+\+[0-9a-f]+(\.\d+)*)$/;
+
+/**
+ * The minor release a Red Hat build belongs to, from its release tag:
+ * el9_8.1 and el10_2 (z-stream suffix ignored), module+el8.10.0. Null for a
+ * build without one (1.el9).
+ */
+function rhelMinor(version: string): number | null {
+  const m = version.match(/el\d+_(\d+)|module[+_]el\d+\.(\d+)/);
+  return m ? Number(m[1] ?? m[2]) : null;
+}
+
+/** RHEL rows for a major release and PHP branch: main stream, then pinned minors. */
+function rhelRows(major: string, branch: string | null): TrackerEntry[] {
+  return DISTRO_FIXES.filter((e) =>
+    e.distro === "rhel" && e.release.split(".")[0] === major &&
+    classifyVersion(e.fixedVersion).branch === branch
+  );
+}
+
+/**
+ * The RHEL row for an installed rpm. Rows are keyed on the major release
+ * (VERSION_ID 9.6 is RHEL 9) and the PHP branch, and only builds tagged for
+ * that major are matched. A build at or above the fix for the minor its tag
+ * names (el9_6, module+el9.6.0: the EUS, AUS, TUS and SAP streams) is patched
+ * by that minor's row; any other build is judged by, and pointed at, the main
+ * stream's row.
+ */
+function rhelFix(
+  packageVersion: string | null,
+  osVersionId: string,
+): TrackerEntry | undefined {
+  if (!packageVersion) return undefined;
+  const release = packageVersion.slice(packageVersion.lastIndexOf("-") + 1);
+  if (!RED_HAT_RELEASE.test(release)) return undefined;
+  const major = osVersionId.split(".")[0];
+  if (release.match(/el(\d+)/)?.[1] !== major) return undefined;
+  const rows = rhelRows(major, classifyVersion(packageVersion).branch);
+  const minor = rhelMinor(release);
+  const pinned = minor === null
+    ? undefined
+    : rows.find((e) => e.release === `${major}.${minor}`);
+  const main = rows.find((e) => e.release === major);
+  if (pinned && compareRpmVersions(packageVersion, pinned.fixedVersion) >= 0) {
+    return pinned;
+  }
+  return main ?? pinned;
+}
+
+/**
+ * For a host whose minor is below the main stream's fix: which advisory a
+ * host pinned to that minor gets, or that Red Hat had none for it.
+ */
+function pinnedMinorNote(entry: TrackerEntry, osVersionId: string): string {
+  const [major, minor] = osVersionId.split(".");
+  const fixedMinor = rhelMinor(entry.fixedVersion);
+  if (entry.release !== major || minor === undefined || fixedMinor === null) {
+    return "";
+  }
+  if (Number(minor) >= fixedMinor) return "";
+  const pinned = rhelRows(major, classifyVersion(entry.fixedVersion).branch)
+    .find((e) => e.release === `${major}.${minor}`);
+  return pinned
+    ? `; a host pinned to RHEL ${major}.${minor} gets it from ${pinned.reference} in ${pinned.fixedVersion}`
+    : `; it ships for RHEL ${major}.${fixedMinor}, and Red Hat had no fix for a host pinned to ${major}.${minor} when the rows were read`;
+}
+
 /** Decides an install's verdict from its version, source and the distro data. */
 export function verdictFor(
   d: {
@@ -1356,16 +1629,21 @@ export function verdictFor(
     // A distro build below the fixed one (8.2.34-1~deb12u1 when the fix is
     // the 8.2.35 rebase) still gets the fix from the same suite.
     const sury = /deb\.sury\.org/.test(d.packageVersion ?? "");
-    const entry = DISTRO_FIXES.find((e) =>
-      e.distro === ctx.osId && e.release === ctx.osVersionId &&
-      e.sourcePackage === src &&
-      (!d.packageVersion ||
-        debUpstream(d.packageVersion) === debUpstream(e.fixedVersion) ||
-        (!sury && compareDebVersions(d.packageVersion, e.fixedVersion) < 0))
-    );
+    const remi = /\.remi\b/.test(d.packageVersion ?? "");
+    const rhel = ctx.osId === "rhel";
+    const compare = rhel ? compareRpmVersions : compareDebVersions;
+    const entry = rhel
+      ? rhelFix(d.packageVersion, ctx.osVersionId)
+      : DISTRO_FIXES.find((e) =>
+        e.distro === ctx.osId && e.release === ctx.osVersionId &&
+        e.sourcePackage === src &&
+        (!d.packageVersion ||
+          debUpstream(d.packageVersion) === debUpstream(e.fixedVersion) ||
+          (!sury && compareDebVersions(d.packageVersion, e.fixedVersion) < 0))
+      );
     if (
       entry && d.packageVersion &&
-      compareDebVersions(d.packageVersion, entry.fixedVersion) >= 0
+      compare(d.packageVersion, entry.fixedVersion) >= 0
     ) {
       return {
         verdict: "patched",
@@ -1388,11 +1666,15 @@ export function verdictFor(
         branch: c.branch,
         fixedVersion: entry.fixedVersion,
         note:
-          `${entry.reference} fixes this in ${entry.fixedVersion}; refresh package lists to see it`,
+          `${entry.reference} fixes this in ${entry.fixedVersion}; refresh package lists to see it${
+            rhel ? pinnedMinorNote(entry, ctx.osVersionId) : ""
+          }`,
       };
     }
-    // Sury's packages follow upstream releases and backport nothing.
-    if (!sury) {
+    // Sury's packages follow upstream releases and backport nothing. Remi's do
+    // the same on branches with an upstream fix, but carry backports for
+    // end-of-life branches, so those stay the vendor's to confirm.
+    if (!sury && !(remi && c.fixedVersion !== null)) {
       return {
         verdict: "check-vendor",
         branch: c.branch,
@@ -2883,7 +3165,7 @@ export async function mitigateTarget(
 
 export const model = {
   type: "@swamp/cve/php-rce-2026-10",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   upgrades: [
     {
       toVersion: "2026.10.22.1",
@@ -2895,6 +3177,12 @@ export const model = {
       toVersion: "2026.10.24.1",
       description:
         "hosts entries may be user@host to log in to that host as user; plain entries still use sshUser. status records the optional sshUser for such hosts. Existing arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description: "RHEL tracker rows (main and pinned-minor streams) from " +
+        "the Red Hat advisories, compared with rpm version ordering.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

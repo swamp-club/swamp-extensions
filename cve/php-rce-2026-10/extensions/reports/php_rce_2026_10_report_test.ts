@@ -33,14 +33,15 @@ const UPGRADABLE = [
   "PENDING|apt|php8.2-fpm/bookworm-security 8.2.35-1~deb12u1 amd64 [upgradable from: 8.2.34-1~deb12u1]",
 ];
 
-// A distro build with no tracker entry: the vendor's to confirm.
+// A distro build with no tracker entry (RHEL 9 php:8.4 has no RHSA yet): the
+// vendor's to confirm.
 const RHEL = [
   "HOSTNAME|app-02",
   "UID|0",
   "OS|ID=rhel",
   "OS|VERSION_ID=9.6",
-  "BIN|/usr/sbin/php-fpm|php-fpm|PHP 8.2.30 (fpm-fcgi)",
-  "PKG|rpm|php-fpm|8.2.30-1.el9|installed",
+  "BIN|/usr/sbin/php-fpm|php-fpm|PHP 8.4.20 (fpm-fcgi)",
+  "PKG|rpm|php-fpm|8.4.20-1.module+el9.6.0+24444+c1c2c3c4|installed",
   "LISTEN|LISTEN 0 511 0.0.0.0:80 0.0.0.0:*",
   "PROC|nginx",
   "HANDOFF|/etc/nginx/conf.d/default.conf",
@@ -116,7 +117,7 @@ Deno.test("scan report: counts and fleet table", async () => {
   );
   assertStringIncludes(
     r.markdown,
-    "| 10.0.1.51 | 8.2.30 | fpm | check-vendor | yes | HIGH | check-vendor |",
+    "| 10.0.1.51 | 8.4.20 | fpm | check-vendor | yes | HIGH | check-vendor |",
   );
   assertStringIncludes(
     r.markdown,

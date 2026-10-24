@@ -9,7 +9,9 @@ import {
   analyze,
   classifyVersion,
   compareDebVersions,
+  compareRpmVersions,
   containerExitMessage,
+  DISTRO_FIXES,
   DROP_IN_NAME,
   dropInContent,
   failedMitigation,
@@ -263,6 +265,64 @@ Deno.test("compareDebVersions follows dpkg ordering", () => {
   );
 });
 
+Deno.test("compareRpmVersions follows rpmvercmp ordering", () => {
+  // Vectors from rpm's own rpmvercmp test suite: [a, b, expected sign].
+  const cases: [string, string, number][] = [
+    ["1.0", "1.0", 0],
+    ["1.0", "2.0", -1],
+    ["2.0.1", "2.0", 1],
+    ["2.0.1a", "2.0.1", 1],
+    ["5.5p1", "5.5p2", -1],
+    ["5.5p10", "5.5p1", 1],
+    ["10xyz", "10.1xyz", -1],
+    ["xyz10", "xyz10.1", -1],
+    ["xyz.4", "8", -1],
+    ["2_0", "2.0", 0],
+    ["2.0", "2_0", 0],
+    ["a", "1", -1],
+    ["1", "a", 1],
+    ["010", "10", 0],
+    ["1.0~rc1", "1.0", -1],
+    ["1.0~rc1", "1.0~rc2", -1],
+    ["1.0~rc1~git123", "1.0~rc1", -1],
+    ["1.0^", "1.0", 1],
+    ["1.0^git1", "1.0", 1],
+    ["1.0^git1", "1.01", -1],
+    ["1.0^20160101", "1.0.1", -1],
+    ["1.0^git1~pre", "1.0^git1", -1],
+  ];
+  for (const [a, b, want] of cases) {
+    // Wrap as version-release so the fragment comparison is exercised on both.
+    assertEquals(
+      Math.sign(compareRpmVersions(`${a}-1`, `${b}-1`)),
+      want,
+      `${a} vs ${b}`,
+    );
+    assertEquals(
+      Math.sign(compareRpmVersions(`1-${a}`, `1-${b}`)),
+      want,
+      `release ${a} vs ${b}`,
+    );
+  }
+  assert(compareRpmVersions("1:1.0-1", "2.0-1") > 0);
+  // rpm epochs are numeric; a malformed one counts as no epoch, never NaN.
+  assertEquals(compareRpmVersions("x:8.2.35-1.el9", "8.2.35-1.el9"), 0);
+  assert(compareRpmVersions("8.0.30-8.el9_8", "8.0.30-8.el9_8.1") < 0);
+  assert(compareRpmVersions("8.0.30-7.el9", "8.0.30-8.el9_8.1") < 0);
+  assert(
+    compareRpmVersions(
+      "8.2.30-1.module+el9.6.0+22222+b1b2c3d4",
+      "8.2.35-1.module+el9.8.0+25111+a1450321",
+    ) < 0,
+  );
+  assert(
+    compareRpmVersions(
+      "7.4.33-8.module+el8.10.0+25117+30337cca",
+      "7.4.33-7.module+el8.10.0+22416+e8a0bd3b",
+    ) > 0,
+  );
+});
+
 Deno.test("verdictFor: upstream builds compare against the fixed release", () => {
   const base = {
     source: "upstream" as const,
@@ -405,6 +465,183 @@ Deno.test("verdictFor: a pending package update is update-available", () => {
     pendingPackages: new Set(["php-fpm"]),
   });
   assertEquals(v.verdict, "update-available");
+});
+
+const rhel = (osVersionId: string, pending: string[] = []) => ({
+  osId: "rhel",
+  osVersionId,
+  pendingPackages: new Set(pending),
+});
+const rpmBuild = (packageVersion: string) => ({
+  version: packageVersion.replace(/-.*$/, ""),
+  source: "distro" as const,
+  packageName: "php-fpm",
+  packageVersion,
+});
+
+Deno.test("verdictFor: RHEL backports at the RHSA build are patched", () => {
+  const php80 = verdictFor(rpmBuild("8.0.30-8.el9_8.1"), rhel("9.8"));
+  assertEquals(php80.verdict, "patched");
+  assertStringIncludes(php80.note, "RHSA-2026:87151");
+  // PHP 7.4 has no upstream fix, but Red Hat backported one to php:7.4.
+  const php74 = verdictFor(
+    rpmBuild("7.4.33-8.module+el8.10.0+25117+30337cca"),
+    rhel("8.10"),
+  );
+  assertEquals(php74.verdict, "patched");
+  assertStringIncludes(php74.note, "RHSA-2026:87080");
+});
+
+Deno.test("verdictFor: RHEL builds below the RHSA build are update-available", () => {
+  const php80 = verdictFor(rpmBuild("8.0.30-7.el9"), rhel("9.8"));
+  assertEquals(php80.verdict, "update-available");
+  assertEquals(php80.fixedVersion, "8.0.30-8.el9_8.1");
+  assertEquals(php80.note.includes("pinned"), false);
+  const php74 = verdictFor(
+    rpmBuild("7.4.33-7.module+el8.10.0+22416+e8a0bd3b"),
+    rhel("8.10"),
+  );
+  assertEquals(php74.verdict, "update-available");
+  assertStringIncludes(php74.note, "RHSA-2026:87080");
+  // 9.7 has no php:8.2 advisory of its own, so the main stream's row applies.
+  const php82 = verdictFor(
+    rpmBuild("8.2.30-1.module+el9.7.0+22222+b1b2c3d4"),
+    rhel("9.8"),
+  );
+  assertEquals(php82.verdict, "update-available");
+  assertStringIncludes(php82.note, "RHSA-2026:87072");
+  // A 9.6 module build below the 9.6 EUS fix names RHSA-2026:88834 for a
+  // host pinned to 9.6.
+  const eus82 = verdictFor(
+    rpmBuild("8.2.28-1.module+el9.6.0+22222+b1b2c3d4"),
+    rhel("9.6"),
+  );
+  assertEquals(eus82.verdict, "update-available");
+  assertStringIncludes(
+    eus82.note,
+    "RHSA-2026:88834 in 8.2.28-1.module+el9.6.0+25176+d8415d54.4",
+  );
+});
+
+Deno.test("verdictFor: a build tagged for a pinned minor is judged by that minor's RHSA", () => {
+  // el9_6.2 is the 9.6 EUS build (RHSA-2026:88720), below the 9.8 one.
+  const eus = verdictFor(rpmBuild("8.0.30-3.el9_6.2"), rhel("9.6"));
+  assertEquals(eus.verdict, "patched");
+  assertStringIncludes(eus.note, "RHSA-2026:88720");
+  // Below its minor's fix, a build is pointed at the main stream's fix, with
+  // the pinned minor's advisory in the note.
+  const eusOld = verdictFor(rpmBuild("8.0.30-3.el9_6.1"), rhel("9.6"));
+  assertEquals(eusOld.verdict, "update-available");
+  assertEquals(eusOld.fixedVersion, "8.0.30-8.el9_8.1");
+  assertStringIncludes(eusOld.note, "RHSA-2026:88720 in 8.0.30-3.el9_6.2");
+  // On a 9.8 host the same build gets the 9.8 fix from dnf: no pinned note.
+  const moved = verdictFor(rpmBuild("8.0.30-3.el9_6.1"), rhel("9.8"));
+  assertEquals(moved.fixedVersion, "8.0.30-8.el9_8.1");
+  assertEquals(moved.note.includes("pinned"), false);
+  // The fixed 9.6 EUS build stays patched after the host moves to 9.8.
+  assertEquals(
+    verdictFor(rpmBuild("8.0.30-3.el9_6.2"), rhel("9.8")).verdict,
+    "patched",
+  );
+  // Module builds carry the minor as module+el8.6.0; the trailing .3 is a
+  // z-stream suffix, not the minor.
+  const aus = verdictFor(
+    rpmBuild("7.4.19-4.module+el8.6.0+25157+c2ff122e.3"),
+    rhel("8.6"),
+  );
+  assertEquals(aus.verdict, "patched");
+  assertStringIncludes(aus.note, "RHSA-2026:88533");
+  const e10 = verdictFor(rpmBuild("8.3.19-1.el10_0.2"), rhel("10.0"));
+  assertEquals(e10.verdict, "patched");
+  assertStringIncludes(e10.note, "RHSA-2026:88561");
+  // A minor without its own advisory falls back to the main stream's row.
+  const main = verdictFor(rpmBuild("8.0.30-8.el9_8"), rhel("9.8"));
+  assertEquals(main.verdict, "update-available");
+  assertEquals(main.fixedVersion, "8.0.30-8.el9_8.1");
+});
+
+Deno.test("verdictFor: a host below the main stream's minor is told what a pinned host gets", () => {
+  // el9_8.1 is 9.8: the trailing .1 is a z-stream rebuild, not the minor.
+  const pinned = verdictFor(rpmBuild("8.0.30-1.el9"), rhel("9.6"));
+  assertEquals(pinned.verdict, "update-available");
+  assertEquals(pinned.fixedVersion, "8.0.30-8.el9_8.1");
+  assertStringIncludes(
+    pinned.note,
+    "a host pinned to RHEL 9.6 gets it from RHSA-2026:88720 in 8.0.30-3.el9_6.2",
+  );
+  // RHEL 9.6 has no php:8.3 EUS advisory.
+  const none = verdictFor(
+    rpmBuild("8.3.30-1.module+el9.4.0+22222+b1b2c3d4"),
+    rhel("9.6"),
+  );
+  assertEquals(none.verdict, "update-available");
+  assertStringIncludes(none.note, "it ships for RHEL 9.8");
+  assertStringIncludes(none.note, "no fix for a host pinned to 9.6");
+  // At the main stream's minor there is no note.
+  const at = verdictFor(rpmBuild("8.0.30-7.el9"), rhel("9.8"));
+  assertEquals(at.note.includes("pinned"), false);
+});
+
+Deno.test("verdictFor: RHEL 7 ELS fixes the one CVE that affects it", () => {
+  const v = verdictFor(rpmBuild("5.4.16-48.el7_9.1"), rhel("7.9"));
+  assertEquals(v.verdict, "patched");
+  assertStringIncludes(v.note, "RHSA-2026:88693");
+  assertEquals(
+    verdictFor(rpmBuild("5.4.16-48.el7_9"), rhel("7.9")).verdict,
+    "update-available",
+  );
+});
+
+Deno.test("DISTRO_FIXES: at most one RHEL row per release and PHP branch", () => {
+  // rhelFix picks the first match, so a second row would be shadowed.
+  const keys = DISTRO_FIXES.filter((e) => e.distro === "rhel").map((e) =>
+    `${e.release}/${classifyVersion(e.fixedVersion).branch}`
+  );
+  assertEquals(new Set(keys).size, keys.length);
+});
+
+Deno.test("verdictFor: RHEL 9 php:8.4 has no RHSA yet and stays check-vendor", () => {
+  const v = verdictFor(
+    rpmBuild("8.4.20-1.module+el9.8.0+24444+c1c2c3c4"),
+    rhel("9.8"),
+  );
+  assertEquals(v.verdict, "check-vendor");
+});
+
+Deno.test("verdictFor: Remi builds are judged by their upstream version", () => {
+  // Remi follows upstream releases and backports nothing, like Sury.
+  const below = verdictFor(rpmBuild("8.2.30-1.el9.remi"), rhel("9.8"));
+  assertEquals(below.verdict, "vulnerable");
+  assertEquals(
+    verdictFor(rpmBuild("8.2.35-1.el9.remi"), rhel("9.8")).verdict,
+    "patched",
+  );
+});
+
+Deno.test("verdictFor: Remi builds of end-of-life branches stay check-vendor", () => {
+  // Remi carries backports for 7.4, 8.0 and 8.1, which have no upstream fix.
+  const v = verdictFor(rpmBuild("7.4.33-30.el9.remi"), rhel("9.8"));
+  assertEquals(v.verdict, "check-vendor");
+});
+
+Deno.test("verdictFor: a build tagged for another RHEL major is not matched", () => {
+  // An el8 build on a RHEL 9 host sorts above the RHEL 9 php 8.0 fix.
+  const v = verdictFor(rpmBuild("8.0.30-9.el8"), rhel("9.8"));
+  assertEquals(v.verdict, "check-vendor");
+});
+
+Deno.test("verdictFor: a non-Red Hat rpm is not vouched for by a Red Hat RHSA", () => {
+  // Sorts above RHSA-2026:87080's build, but Red Hat never built it.
+  const v = verdictFor(rpmBuild("7.4.33-9.el8.vendor"), rhel("8.10"));
+  assertEquals(v.verdict, "check-vendor");
+});
+
+Deno.test("verdictFor: RHEL clones do not borrow Red Hat's rows", () => {
+  const v = verdictFor(rpmBuild("8.0.30-8.el9_8.1"), {
+    ...rhel("9.8"),
+    osId: "almalinux",
+  });
+  assertEquals(v.verdict, "check-vendor");
 });
 
 Deno.test("fpmListenKind", () => {
