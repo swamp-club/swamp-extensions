@@ -1,0 +1,74 @@
+manifestVersion: 1
+name: "@swamp/cve/http2shell"
+version: "2026.10.24.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Finds and fixes Brotli decoders exposed to **CVE-2026-111497**
+  ("Node2Shell" / "HTTP2Shell", CVSS 4.0 9.2, GHSA-9v8h-qqgm-4m35), the
+  out-of-bounds write in Google's C Brotli decoder 1.0.3 through 1.2.0,
+  disclosed 2026-10-21. A crafted Brotli request body, or a Brotli response
+  from a server you do not control, can crash the process, leak memory or
+  run code. Node's fetch(), Express 5, body-parser 2, Envoy, and Python's
+  urllib3/requests, aiohttp and httpx (whenever Brotli is installed) all
+  decode it.
+
+  Fixed in Brotli 1.0.10, 1.1.1 and 1.2.1; Node.js 22.23.4, 24.22.1 and
+  26.12.1; Bun 1.4.4; Python Brotli 1.2.1 and brotlicffi 1.2.1.0; Envoy
+  1.37.8, 1.38.6, 1.39.3 and 1.40.0; Istio 1.29.9, 1.30.6 and 1.31.2. .NET
+  has no fixed runtime yet.
+
+  ## Methods
+
+  - `scan` scans one host (local or SSH), Docker container or image,
+    including distroless images without sh.
+  - `scanFleet` scans many hosts in parallel over SSH, Linux, macOS and
+    Windows.
+  - `mitigate` scans first, then upgrades the brotli library and distro
+    Node.js through the package manager and restarts the systemd units still
+    running the old library. `dryRun` defaults to true. `upgradePython=true`
+    also pip-upgrades Brotli and brotlicffi in affected virtualenvs.
+    Containers are reported for an image rebuild; macOS and Windows hosts get
+    a saved script with the exact commands.
+
+  ## What it reports
+
+  Every Brotli decoder it finds: the system library, Node.js (and whether it
+  links the system library), Bun, Python Brotli/brotlicffi, .NET, Envoy,
+  Istio, curl, the Ruby gem, Electron apps, lockfile pins, and processes
+  still running old code. Each gets a verdict (`patched`, `vulnerable`,
+  `update-available`, `unsupported`, `no-fix-released`, `restart-required`,
+  `check-vendor`, `not-affected`, `unknown`), an action, and how untrusted
+  Brotli reaches it. Distro builds are judged against a security tracker
+  snapshot; anything it does not cover is `check-vendor`, never `patched`.
+
+  Scanning needs no root. mitigate needs root, or passwordless sudo for the
+  exact commands it runs (`sudo -n`, checked per command before anything
+  changes).
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - http2shell.ts
+
+reports:
+  - http2shell_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+  - windows-x86_64
+
+labels:
+  - security
+  - vulnerability
+  - cve
+  - brotli
+  - nodejs
+  - python
+  - rce
