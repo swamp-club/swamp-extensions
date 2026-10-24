@@ -122,6 +122,9 @@ const VulnStatusSchema = z.object({
     details: z.array(z.string()),
   }),
   recommendations: z.array(z.string()),
+  sshUser: z.string().optional().describe(
+    "SSH user given with this host as user@host; absent when the model's sshUser was used",
+  ),
 });
 
 type Transport =
@@ -133,6 +136,8 @@ function present(val: string | undefined): string | undefined {
   return val && val.length > 0 ? val : undefined;
 }
 
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1"];
+
 function buildTransport(g: {
   targetHost: string;
   sshUser: string;
@@ -143,16 +148,61 @@ function buildTransport(g: {
   if (container) {
     return { kind: "docker", container };
   }
-  if (
-    g.targetHost === "localhost" || g.targetHost === "127.0.0.1" ||
-    g.targetHost === "::1"
-  ) {
+  if (LOCAL_HOSTS.includes(g.targetHost)) {
     return { kind: "local" };
   }
   const args = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"];
   if (present(g.sshKey)) args.push("-i", g.sshKey!);
   args.push(`${g.sshUser}@${g.targetHost}`);
   return { kind: "ssh", args };
+}
+
+/** A hosts entry: the host, and the SSH user given with it as user@host. */
+export type HostEntry = { host: string; sshUser?: string };
+
+/**
+ * Split a comma-separated hosts list. An entry may be user@host to log in to
+ * that host as user instead of the model's sshUser; a local host is scanned
+ * locally, so its user is dropped. Plain entries are kept as listed, repeats
+ * included. One remote host listed with two different users is refused, since
+ * both would write the same status.
+ */
+export function parseHosts(hosts: string, sshUser: string): HostEntry[] {
+  const entries: HostEntry[] = [];
+  const users = new Map<string, string>();
+  for (const raw of hosts.split(",")) {
+    const entry = raw.trim();
+    if (entry.length === 0) continue;
+    const at = entry.indexOf("@");
+    const host = at < 0 ? entry : entry.slice(at + 1);
+    const user = at < 0 ? undefined : entry.slice(0, at);
+    if (user !== undefined) {
+      if (!/^[A-Za-z0-9._][A-Za-z0-9._-]*$/.test(user)) {
+        throw new Error(
+          `hosts entry ${JSON.stringify(entry)} has an invalid SSH user`,
+        );
+      }
+      if (host.length === 0 || host.includes("@")) {
+        throw new Error(
+          `hosts entry ${JSON.stringify(entry)} has an invalid host`,
+        );
+      }
+    }
+    if (LOCAL_HOSTS.includes(host)) {
+      entries.push({ host });
+      continue;
+    }
+    const effective = user ?? sshUser;
+    const other = users.get(host);
+    if (other !== undefined && other !== effective) {
+      throw new Error(
+        `hosts lists ${host} as both ${other}@${host} and ${effective}@${host}; list each host once`,
+      );
+    }
+    users.set(host, effective);
+    entries.push(user !== undefined ? { host, sshUser: user } : { host });
+  }
+  return entries;
 }
 
 function targetLabel(g: {
@@ -690,7 +740,7 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   upgrades: [
     {
       toVersion: "2026.05.08.4",
@@ -752,6 +802,12 @@ export const model = {
       description: "scan matches only dirtyfrag SPIs in ip xfrm state and " +
         "records optional indicators.xfrmSAsChecked, false when SAs cannot " +
         "be read without root.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "hosts entries may be user@host to log in to that host as user; plain entries still use sshUser. status records the optional sshUser for such hosts. Existing arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -828,11 +884,13 @@ export const model = {
 
     scanFleet: {
       description:
-        "Scan multiple hosts for Dirty Frag vulnerability. Pass a comma-separated list of IPs with a shared SSH user and key.",
+        "Scan multiple hosts for Dirty Frag vulnerability. Pass a comma-separated list of IPs; each connects as the model's SSH user and key, or as user for a user@host entry.",
       arguments: z.object({
         hosts: z
           .string()
-          .describe("Comma-separated list of host IPs or hostnames to scan"),
+          .describe(
+            "Comma-separated list of host IPs or hostnames to scan; user@host logs in to that host as user instead of sshUser",
+          ),
       }),
       execute: async (
         args: { hosts: string },
@@ -840,8 +898,8 @@ export const model = {
       ) => {
         const g = context.globalArgs;
         const logger = context.logger;
-        const hosts = args.hosts.split(",").map((h: string) => h.trim())
-          .filter((h: string) => h.length > 0);
+        const entries = parseHosts(args.hosts, g.sshUser);
+        const hosts = entries.map((e) => e.host);
         const summaryLog = context.createFileWriter("log", "fleet-log");
         const logHandles: unknown[] = [];
 
@@ -854,10 +912,10 @@ export const model = {
         await summaryLog.writeLine(`Scanning all hosts in parallel...\n\n`);
 
         const settled = await Promise.allSettled(
-          hosts.map(async (host: string) => {
+          entries.map(async ({ host, sshUser }) => {
             const transport = buildTransport({
               targetHost: host,
-              sshUser: g.sshUser,
+              sshUser: sshUser ?? g.sshUser,
               sshKey: present(g.sshKey),
             });
             const hostLog = context.createFileWriter("log", `${host}-log`);
@@ -872,7 +930,10 @@ export const model = {
                 hostLog,
                 logger,
               );
-              return { host, result };
+              return {
+                host,
+                result: sshUser !== undefined ? { ...result, sshUser } : result,
+              };
             } finally {
               logHandles.push(...await finalizeLog(hostLog, logger));
             }
@@ -931,7 +992,7 @@ export const model = {
           .string()
           .optional()
           .describe(
-            "Comma-separated list of hosts to mitigate (overrides targetHost)",
+            "Comma-separated list of hosts to mitigate (overrides targetHost); user@host logs in to that host as user instead of sshUser",
           ),
       }),
       execute: async (
@@ -941,18 +1002,17 @@ export const model = {
         const g = context.globalArgs;
         const logger = context.logger;
 
-        const hostList = present(args.hosts)
-          ? args.hosts!.split(",").map((h: string) => h.trim()).filter(
-            (h: string) => h.length > 0,
-          )
-          : [g.targetHost];
+        const entries: HostEntry[] = present(args.hosts)
+          ? parseHosts(args.hosts!, g.sshUser)
+          : [{ host: g.targetHost }];
+        const hostList = entries.map((e) => e.host);
 
         const logHandles: unknown[] = [];
 
-        const mitigateHost = async (host: string) => {
+        const mitigateHost = async ({ host, sshUser }: HostEntry) => {
           const transport = buildTransport({
             targetHost: host,
-            sshUser: g.sshUser,
+            sshUser: sshUser ?? g.sshUser,
             sshKey: present(g.sshKey),
           });
           const log = context.createFileWriter("log", `${host}-log`);
@@ -1079,13 +1139,13 @@ export const model = {
         };
 
         const settled = await Promise.allSettled(
-          hostList.map(async (host: string) => {
+          entries.map(async (entry) => {
             try {
-              return await mitigateHost(host);
+              return await mitigateHost(entry);
             } catch (err) {
               throw Object.assign(
                 err instanceof Error ? err : new Error(String(err)),
-                { host },
+                { host: entry.host },
               );
             }
           }),
@@ -1200,6 +1260,9 @@ export const model = {
               details: results,
             },
             recommendations,
+            ...(entries[i].sshUser !== undefined
+              ? { sshUser: entries[i].sshUser }
+              : {}),
           });
           handles.push(handle);
         }

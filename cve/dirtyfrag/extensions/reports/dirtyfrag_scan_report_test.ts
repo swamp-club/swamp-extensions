@@ -624,3 +624,34 @@ Deno.test("scan report: checked and older status print no XFRM note", async () =
   const result = await report.execute(ctx);
   assert(!result.markdown.includes("XFRM SAs not checked"));
 });
+
+Deno.test("scan report: hosts scanned as user@host are suggested as user@host", async () => {
+  const ctx = makeContext("scanFleet", [
+    makeScanResult({ hostname: "10.0.0.5", sshUser: "admin" }),
+    makeScanResult({ hostname: "10.0.0.6" }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "mitigate --input hosts=admin@10.0.0.5,10.0.0.6",
+  );
+});
+
+Deno.test("mitigate dry run: apply command keeps each host's own user", async () => {
+  const ctx = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "10.0.0.5",
+      sshUser: "admin",
+      summary: "Dry run complete. Review commands",
+    }),
+    makeScanResult({
+      hostname: "10.0.0.6",
+      summary: "Dry run complete. Review commands",
+    }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "mitigate --input hosts=admin@10.0.0.5,10.0.0.6 --input dryRun=false",
+  );
+});

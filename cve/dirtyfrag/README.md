@@ -43,7 +43,7 @@ except the XFRM SA check, which uses `ip` from iproute2.
 | Method | Description |
 |---|---|
 | `scan` | Scan a single host (local, SSH, or Docker container) |
-| `scanFleet` | Scan multiple hosts in parallel with a shared SSH user/key |
+| `scanFleet` | Scan multiple hosts in parallel over SSH (shared key; `user@host` sets a host's user) |
 | `mitigate` | Scan-then-fix: checks vulnerability first, only mitigates affected hosts. Accepts a single host or comma-separated list. |
 
 ## Usage
@@ -103,6 +103,18 @@ a `fleet-log` summary. The report renders a table:
 ```
 
 You can mix local and remote hosts: `--input hosts=localhost,10.0.1.50`.
+
+A host that needs a different login takes it as `user@host`:
+
+```bash
+swamp behavior run dirtyfrag-fleet scanFleet \
+  --input hosts=ubuntu@10.0.1.50,admin@10.0.1.51,10.0.1.52
+```
+
+`ubuntu@10.0.1.50` logs in as `ubuntu`; a plain entry like `10.0.1.52` uses the model's
+`sshUser`. Every host uses the model's `sshKey`. Data and logs are still named
+by the host alone, and the report's suggested commands keep each host's user.
+Listing one host with two different users is an error.
 
 ### Scan a Docker container
 
@@ -211,7 +223,7 @@ Set when the model is created, with `--global-arg key=value`:
 | Argument | Default | Description |
 |---|---|---|
 | `targetHost` | `localhost` | SSH host to scan or mitigate |
-| `sshUser` | `root` | SSH user (also used for every host in `hosts`) |
+| `sshUser` | `root` | SSH user (also used for every host in `hosts` not given as `user@host`) |
 | `sshKey` | | Path to SSH private key (also used for every host in `hosts`) |
 | `dockerContainer` | | Container name/ID (overrides SSH) |
 | `dockerImage` | | Image to auto-start and scan |
@@ -223,7 +235,7 @@ Passed at run time with `--input key=value`:
 
 | Input | Default | Description |
 |---|---|---|
-| `hosts` | | Comma-separated hosts (scanFleet and mitigate; overrides `targetHost`) |
+| `hosts` | | Comma-separated hosts (scanFleet and mitigate; overrides `targetHost`). `user@host` logs in to that host as `user` |
 | `dryRun` | `true` | Preview mitigation commands without executing (mitigate only) |
 
 ## Data

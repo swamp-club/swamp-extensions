@@ -326,6 +326,9 @@ const StatusSchema = z.object({
   recommendations: z.array(z.string()),
   trackerSnapshot: z.string(),
   mitigation: MitigationSchema.nullable(),
+  sshUser: z.string().optional().describe(
+    "SSH user given with this host as user@host; absent when the model's sshUser was used",
+  ),
 });
 
 export type Status = z.infer<typeof StatusSchema>;
@@ -2200,17 +2203,57 @@ function instanceName(label: string): string {
   return label.replace(/[\/\\]/g, "_").replace(/\.\./g, "_");
 }
 
-/** Comma-separated hosts, deduplicated; local aliases count as one host. */
-export function hostList(hosts: string): string[] {
+/** A hosts entry: the host, and the SSH user given with it as user@host. */
+export type HostEntry = { host: string; sshUser?: string };
+
+/**
+ * Comma-separated hosts, deduplicated; local aliases count as one host. An
+ * entry may be user@host to log in to that host as user instead of the
+ * model's sshUser; a local host is scanned locally, so its user is dropped.
+ * One remote host listed with two different users is refused, since both
+ * would write the same status.
+ */
+export function hostList(hosts: string, sshUser: string): HostEntry[] {
   const seen = new Set<string>();
-  const result: string[] = [];
+  const users = new Map<string, string>();
+  const result: HostEntry[] = [];
   for (const raw of hosts.split(",")) {
-    const h = raw.trim();
-    if (!h) continue;
-    const key = isLocalHost(h) ? "localhost" : h;
+    const entry = raw.trim();
+    if (!entry) continue;
+    const at = entry.indexOf("@");
+    const h = at < 0 ? entry : entry.slice(at + 1);
+    const user = at < 0 ? undefined : entry.slice(0, at);
+    if (user !== undefined) {
+      if (!/^[A-Za-z0-9._][A-Za-z0-9._-]*$/.test(user)) {
+        throw new Error(
+          `hosts entry ${JSON.stringify(entry)} has an invalid SSH user`,
+        );
+      }
+      if (h.length === 0 || h.includes("@")) {
+        throw new Error(
+          `hosts entry ${JSON.stringify(entry)} has an invalid host`,
+        );
+      }
+    }
+    const local = isLocalHost(h);
+    const key = local ? "localhost" : entry;
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(h);
+    if (local) {
+      result.push({ host: h });
+      continue;
+    }
+    const effective = user ?? sshUser;
+    const other = users.get(h);
+    if (other !== undefined && other !== effective) {
+      throw new Error(
+        `hosts lists ${h} as both ${other}@${h} and ${effective}@${h}; list each host once`,
+      );
+    }
+    // The same login listed twice (h and sshUser@h) is one host.
+    if (other !== undefined) continue;
+    users.set(h, effective);
+    result.push(user !== undefined ? { host: h, sshUser: user } : { host: h });
   }
   return result;
 }
@@ -2840,12 +2883,18 @@ export async function mitigateTarget(
 
 export const model = {
   type: "@swamp/cve/php-rce-2026-10",
-  version: "2026.10.22.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.10.22.1",
       description: "Debian 12 tracker fix; a failed mitigate target keeps " +
         "its options (outcome error); the report names the running behavior.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description:
+        "hosts entries may be user@host to log in to that host as user; plain entries still use sshUser. status records the optional sshUser for such hosts. Existing arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2923,16 +2972,19 @@ export const model = {
 
     scanFleet: {
       description:
-        "Scan multiple hosts in parallel over SSH. Pass a comma-separated list of hosts with a shared SSH user and key.",
+        "Scan multiple hosts in parallel over SSH. Pass a comma-separated list of hosts; each connects as the model's SSH user and key, or as user for a user@host entry.",
       arguments: z.object({
         hosts: z
           .string()
-          .describe("Comma-separated list of host IPs or hostnames to scan"),
+          .describe(
+            "Comma-separated list of host IPs or hostnames to scan; user@host logs in to that host as user instead of sshUser",
+          ),
       }),
       execute: async (args: { hosts: string }, context: MethodContext) => {
         const g = context.globalArgs;
         const logger = context.logger;
-        const hosts = hostList(args.hosts);
+        const entries = hostList(args.hosts, g.sshUser);
+        const hosts = entries.map((e) => e.host);
         const summaryLog = context.createFileWriter("log", "fleet");
         await summaryLog.writeLine(
           `[${
@@ -2940,7 +2992,8 @@ export const model = {
           }] PHP RCE fleet scan: ${hosts.length} host(s)\n\n`,
         );
 
-        const settled = await Promise.allSettled(hosts.map(async (host) => {
+        const settled = await Promise.allSettled(entries.map(async (entry) => {
+          const host = entry.host;
           const hostLog = context.createFileWriter("log", instanceName(host));
           try {
             // Written first so finalize() cannot mask a scan error.
@@ -2949,7 +3002,7 @@ export const model = {
             );
             const transport = buildTransport({
               targetHost: host,
-              sshUser: g.sshUser,
+              sshUser: entry.sshUser ?? g.sshUser,
               sshKey: present(g.sshKey),
             });
             const { status } = await scanTarget(
@@ -2969,9 +3022,13 @@ export const model = {
         let errors = 0;
         for (let i = 0; i < settled.length; i++) {
           const outcome = settled[i];
-          const status = outcome.status === "fulfilled"
+          const scanned = outcome.status === "fulfilled"
             ? outcome.value
             : errorStatus(hosts[i], outcome.reason);
+          const sshUser = entries[i].sshUser;
+          const status = sshUser !== undefined
+            ? { ...scanned, sshUser }
+            : scanned;
           if (status.error) errors++;
           else if (status.vulnerable) affected++;
           handles.push(
@@ -3007,7 +3064,7 @@ export const model = {
           .string()
           .optional()
           .describe(
-            "Comma-separated list of hosts to mitigate (overrides targetHost)",
+            "Comma-separated list of hosts to mitigate (overrides targetHost); user@host logs in to that host as user instead of sshUser",
           ),
         applyConfigMitigations: z
           .boolean()
@@ -3036,13 +3093,18 @@ export const model = {
         const g = context.globalArgs;
         const logger = context.logger;
         let autoContainer: string | undefined;
-        let targets: { label: string; transport: Transport }[];
+        let targets: {
+          label: string;
+          sshUser?: string;
+          transport: Transport;
+        }[];
         if (present(args.hosts)) {
-          targets = hostList(args.hosts!).map((h) => ({
-            label: h,
+          targets = hostList(args.hosts!, g.sshUser).map((e) => ({
+            label: e.host,
+            sshUser: e.sshUser,
             transport: buildTransport({
-              targetHost: h,
-              sshUser: g.sshUser,
+              targetHost: e.host,
+              sshUser: e.sshUser ?? g.sshUser,
               sshKey: present(g.sshKey),
             }),
           }));
@@ -3090,7 +3152,7 @@ export const model = {
         const handles = [];
         for (let i = 0; i < settled.length; i++) {
           const outcome = settled[i];
-          const status = outcome.status === "fulfilled"
+          const result = outcome.status === "fulfilled"
             ? outcome.value.status
             : failedMitigation(
               errorStatus(
@@ -3100,6 +3162,10 @@ export const model = {
               ),
               args,
             );
+          const sshUser = targets[i].sshUser;
+          const status = sshUser !== undefined
+            ? { ...result, sshUser }
+            : result;
           handles.push(
             await context.writeResource(
               "status",

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/php-rce-2026-10"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: |
   Finds and patches PHP installs exposed to the critical PHP remote code

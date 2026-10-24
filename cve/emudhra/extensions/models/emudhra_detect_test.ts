@@ -54,6 +54,7 @@ import {
   fixedCaCertificates,
   isFixedOnBranches,
   p11kitBlocklistFile,
+  parseHosts,
   parseProbe,
   parseSudoList,
   parseTrustSettings,
@@ -2120,4 +2121,34 @@ Deno.test("probe lists a shared Java store once per JDK blocklist", () => {
     script,
     'case "$jseen" in *"|$r:$bh|"*) continue;; esac',
   );
+});
+
+Deno.test("parseHosts: user@host carries its user; plain hosts carry none", () => {
+  assertEquals(
+    parseHosts(
+      " ops@10.0.0.5, 10.0.0.6,ops@10.0.0.5,root@fe80::1%eth0",
+      "root",
+    ),
+    [
+      { host: "10.0.0.5", sshUser: "ops" },
+      { host: "10.0.0.6" },
+      { host: "fe80::1%eth0", sshUser: "root" },
+    ],
+  );
+  assertEquals(parseHosts(undefined, "root"), []);
+});
+
+Deno.test("parseHosts: refuses an unsafe user or host, and one host with two users", () => {
+  assertThrows(() => parseHosts("@h", "root"), Error, "unsafe sshUser");
+  assertThrows(
+    () => parseHosts("-oProxyCommand=id@h", "root"),
+    Error,
+    "unsafe sshUser",
+  );
+  assertThrows(() => parseHosts("a@", "root"), Error, "unsafe host");
+  assertThrows(() => parseHosts("a@b@h", "root"), Error, "unsafe host");
+  assertThrows(() => parseHosts("a@h,b@h", "root"), Error, "both a@h and b@h");
+  assertThrows(() => parseHosts("h,a@h", "root"), Error, "both root@h and a@h");
+  // The model's own user given explicitly is the same login: one host.
+  assertEquals(parseHosts("h,root@h", "root"), [{ host: "h" }]);
 });

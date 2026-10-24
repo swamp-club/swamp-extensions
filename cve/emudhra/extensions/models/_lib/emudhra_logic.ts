@@ -143,6 +143,43 @@ export function splitList(value: string | undefined): string[] {
   ];
 }
 
+/** A hosts entry: the host, and the SSH user given with it as user@host. */
+export type HostEntry = { host: string; sshUser?: string };
+
+/**
+ * Split a comma-separated hosts list as splitList does. An entry may be
+ * user@host to log in to that host as user instead of the model's sshUser.
+ * A host listed again with the same login is dropped; one host listed with
+ * two different users is refused, since both would write the same status.
+ * A user@host entry is checked here, so an unsafe one stops the run before
+ * any host is scanned.
+ */
+export function parseHosts(
+  value: string | undefined,
+  sshUser: string,
+): HostEntry[] {
+  const users = new Map<string, string>();
+  const entries: HostEntry[] = [];
+  for (const entry of splitList(value)) {
+    const at = entry.indexOf("@");
+    const host = at < 0 ? entry : entry.slice(at + 1);
+    const user = at < 0 ? undefined : entry.slice(0, at);
+    if (user !== undefined) assertSafeSshTarget(user, host);
+    const effective = user ?? sshUser;
+    const other = users.get(host);
+    if (other !== undefined && other !== effective) {
+      throw new Error(
+        `hosts lists ${host} as both ${other}@${host} and ${effective}@${host}; list each host once`,
+      );
+    }
+    // The same login listed twice (h and sshUser@h) is one host.
+    if (other !== undefined) continue;
+    users.set(host, effective);
+    entries.push(user !== undefined ? { host, sshUser: user } : { host });
+  }
+  return entries;
+}
+
 // ---------------------------------------------------------------------------
 // Version comparison
 // ---------------------------------------------------------------------------

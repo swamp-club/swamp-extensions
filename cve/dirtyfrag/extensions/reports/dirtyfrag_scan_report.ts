@@ -64,10 +64,13 @@ function scannedDocker(context: ReportContext): boolean {
     );
 }
 
-/** The address a host was scanned at; status written before 2026.10.22.2
- * carries only the hostname. */
-function addressOf(r: { targetHost?: string; hostname: string }): string {
-  return r.targetHost ?? r.hostname;
+/** The address a host was scanned at, as user@host when the hosts entry gave
+ * its own user; status written before 2026.10.22.2 carries only the hostname. */
+function addressOf(
+  r: { targetHost?: string; hostname: string; sshUser?: string },
+): string {
+  const address = r.targetHost ?? r.hostname;
+  return r.sshUser ? `${r.sshUser}@${address}` : address;
 }
 
 /**

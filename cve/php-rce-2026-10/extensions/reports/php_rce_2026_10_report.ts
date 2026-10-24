@@ -68,6 +68,8 @@ type Step = {
 
 type Status = {
   target: string;
+  /** Set when the hosts entry gave its own user as user@host. */
+  sshUser?: string;
   hostname: string;
   os?: { id: string };
   inContainer?: boolean;
@@ -118,6 +120,11 @@ function worstVerdict(s: Status): string {
 function uniq(values: (string | null)[]): string {
   const u = [...new Set(values.filter((v): v is string => !!v))];
   return u.length > 0 ? u.join(", ") : "—";
+}
+
+/** A target as a hosts entry: user@host when the scan used its own user. */
+function hostsEntry(r: Status): string {
+  return r.sshUser ? `${r.sshUser}@${r.target}` : r.target;
 }
 
 function command(
@@ -236,7 +243,7 @@ function scanReport(results: Status[], name: string) {
     for (const rec of recs) md += `- ${rec}\n`;
   }
 
-  const actionable = results.filter(needsHostAction).map((r) => r.target);
+  const actionable = results.filter(needsHostAction).map(hostsEntry);
   if (actionable.length > 0) {
     md += `\n## Next Step\n\n`;
     md += "Run mitigate as a dry run first on the hosts that need it:\n\n";
@@ -319,12 +326,12 @@ function mitigateReport(results: Status[], name: string) {
       md += command(
         name,
         "mitigate",
-        applyHosts.map((r) => r.target),
+        applyHosts.map(hostsEntry),
         extra,
       );
     }
   } else if (reached.length > 0) {
-    const targets = reached.map((r) => r.target);
+    const targets = reached.map(hostsEntry);
     md += "\nVerify with:\n\n";
     // A container or image target is the model's own; it has no SSH host.
     md += targets.every(isLocal) || reached.every((r) => r.inContainer)

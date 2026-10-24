@@ -304,3 +304,14 @@ Deno.test("mitigate report: Windows needs-privilege points at the .ps1 and fence
     !out.markdown.includes("passwordless sudo for exactly these binaries"),
   );
 });
+
+Deno.test("scanFleet report: hosts scanned as user@host are suggested as user@host", async () => {
+  const out = await report.execute(context("scanFleet", [
+    host({ target: "10.0.0.5", sshUser: "admin" }),
+    host({ target: "10.0.0.6" }),
+  ]));
+  assertStringIncludes(
+    out.markdown,
+    "mitigate --input hosts=admin@10.0.0.5,10.0.0.6\n",
+  );
+});

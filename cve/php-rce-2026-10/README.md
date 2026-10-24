@@ -188,6 +188,18 @@ swamp behavior run php-rce-scanner scanFleet \
   --input hosts=192.0.2.10,192.0.2.11
 ```
 
+A host that needs a different login takes it as `user@host`:
+
+```bash
+swamp behavior run php-rce-scanner scanFleet \
+  --input hosts=ubuntu@192.0.2.10,admin@192.0.2.11,192.0.2.12
+```
+
+`ubuntu@192.0.2.10` logs in as `ubuntu`; a plain entry like `192.0.2.12` uses the model's
+`sshUser`. Every host uses the model's `sshKey`. Data and logs are still named
+by the host alone, and the report's suggested commands keep each host's user.
+Listing one host with two different users is an error.
+
 SSH runs non-interactively (`BatchMode=yes`) and accepts new host keys on first
 connection. Each command has a time limit (3 minutes for the scan, 30 minutes
 for package upgrades), and a scan that stops early is reported as an error,
@@ -404,7 +416,7 @@ Hosts without sudo (for example Alpine with doas) are reported as
 | Argument | Default | Description |
 | --- | --- | --- |
 | `targetHost` | `localhost` | Host to scan or mitigate (`localhost`, `127.0.0.1` and `::1` run locally) |
-| `sshUser` | `root` | SSH user for remote hosts |
+| `sshUser` | `root` | SSH user for remote hosts (and every host in `hosts` not given as `user@host`) |
 | `sshKey` | — | Path to the SSH private key |
 | `dockerContainer` | — | Container name or ID to scan (overrides `targetHost`) |
 | `dockerImage` | — | Image to start, scan and stop |
@@ -413,8 +425,8 @@ Hosts without sudo (for example Alpine with doas) are reported as
 
 | Method | Input | Default | Description |
 | --- | --- | --- | --- |
-| `scanFleet` | `hosts` | required | Comma-separated hosts |
-| `mitigate` | `hosts` | `targetHost` | Comma-separated hosts |
+| `scanFleet` | `hosts` | required | Comma-separated hosts; `user@host` logs in as `user` |
+| `mitigate` | `hosts` | `targetHost` | Comma-separated hosts; `user@host` logs in as `user` |
 | `mitigate` | `dryRun` | `true` | Print the plan without running it |
 | `mitigate` | `applyConfigMitigations` | `false` | Also write the partial ini mitigations where no fixed package is installed |
 | `mitigate` | `postMaxSize` | `32M` | `post_max_size` for that drop-in |

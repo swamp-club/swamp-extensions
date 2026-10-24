@@ -7,6 +7,7 @@ import {
 import {
   buildMitigationCommands,
   model,
+  parseHosts,
   PRIVILEGE_CHECK,
   XFRM_SA_CHECK,
   XFRM_UNREADABLE,
@@ -224,9 +225,10 @@ function vulnerableHost(cmd: string, user: string): Reply | undefined {
 // grant --allow-run) and records the command text each call would have run.
 async function withCommands<T>(
   reply: (cmd: string) => Reply | undefined,
-  run: (ran: string[]) => Promise<T>,
+  run: (ran: string[], argvs: string[][]) => Promise<T>,
 ): Promise<T> {
   const ran: string[] = [];
+  const argvs: string[][] = [];
   const encoder = new TextEncoder();
   class FakeCommand {
     #args: string[];
@@ -236,6 +238,7 @@ async function withCommands<T>(
     output() {
       const cmd = this.#args[this.#args.length - 1];
       ran.push(cmd);
+      argvs.push(this.#args);
       const r = reply(cmd) ?? {};
       return Promise.resolve({
         code: r.code ?? 0,
@@ -248,7 +251,7 @@ async function withCommands<T>(
   const original = deno.Command;
   deno.Command = FakeCommand;
   try {
-    return await run(ran);
+    return await run(ran, argvs);
   } finally {
     deno.Command = original;
   }
@@ -619,4 +622,182 @@ Deno.test("XFRM_SA_CHECK matches only SPIs and never reads xfrm_stat", () => {
   assertStringIncludes(XFRM_SA_CHECK, "spi 0xdeadbe1[0-9a-f]");
   assert(!XFRM_SA_CHECK.includes("xfrm_stat"));
   assert(!/error/i.test(XFRM_SA_CHECK));
+});
+
+// --- hosts entries: plain hosts behave as they always have ---
+
+// Commands run over SSH, as opposed to the local reachability probe.
+const sshArgvs = (argvs: string[][]) => argvs.filter((a) => a[0] === "-o");
+
+// The distinct ssh targets (user@host) commands ran against.
+const sshTargets = (
+  argvs: string[][],
+) => [...new Set(sshArgvs(argvs).map((a) => a[a.length - 2]))];
+
+Deno.test("scanFleet: plain hosts connect as sshUser with the exact ssh options", async () => {
+  const { context } = fakeContext();
+  context.globalArgs = model.globalArguments.parse({
+    sshUser: "ubuntu",
+    sshKey: "/keys/id",
+  });
+  const argvs = await withCommands(
+    (cmd) => vulnerableHost(cmd, "ubuntu"),
+    async (_ran, argvs) => {
+      await model.methods.scanFleet.execute({ hosts: "10.0.0.5" }, context);
+      return argvs;
+    },
+  );
+  assertStringIncludes(argvs[0][1], "nc -z -w 5 10.0.0.5 22");
+  assertEquals(sshArgvs(argvs)[0].slice(0, -1), [
+    "-o",
+    "StrictHostKeyChecking=no",
+    "-o",
+    "ConnectTimeout=10",
+    "-i",
+    "/keys/id",
+    "ubuntu@10.0.0.5",
+  ]);
+  assertEquals(sshTargets(argvs), ["ubuntu@10.0.0.5"]);
+});
+
+Deno.test("scanFleet: a repeated plain host is scanned each time it is listed", async () => {
+  const { context } = fakeContext();
+  const ran = await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    async (ran) => {
+      await model.methods.scanFleet.execute(
+        { hosts: "10.0.0.5, 10.0.0.5" },
+        context,
+      );
+      return ran;
+    },
+  );
+  assertEquals(ran.filter((c) => c === "uname -r").length, 2);
+});
+
+Deno.test("scanFleet and mitigate: plain hosts write data named by the host, with no sshUser", async () => {
+  const fleet = fakeContext();
+  const fleetResult = await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    () => model.methods.scanFleet.execute({ hosts: "10.0.0.5" }, fleet.context),
+  );
+  assertEquals(
+    (fleetResult.dataHandles as Handle[]).map((h) => h.name).sort(),
+    ["10.0.0.5", "10.0.0.5-log", "fleet-log"],
+  );
+  assertEquals("sshUser" in fleet.statuses.get("10.0.0.5")!, false);
+
+  const mit = fakeContext();
+  const mitResult = await withCommands(
+    (cmd) => vulnerableHost(cmd, "root"),
+    () =>
+      model.methods.mitigate.execute(
+        { dryRun: true, hosts: "10.0.0.5" },
+        mit.context,
+      ),
+  );
+  assertEquals(
+    (mitResult.dataHandles as Handle[]).map((h) => h.name).sort(),
+    ["10.0.0.5", "10.0.0.5-log"],
+  );
+  assertEquals("sshUser" in mit.statuses.get("10.0.0.5")!, false);
+});
+
+// --- hosts entries: user@host logs in to that host as user ---
+
+Deno.test("parseHosts: user@host carries its user; plain and local hosts carry none", () => {
+  assertEquals(
+    parseHosts(
+      " ubuntu@10.0.0.5, 10.0.0.6,admin@fe80::1 ,kim@localhost,",
+      "root",
+    ),
+    [
+      { host: "10.0.0.5", sshUser: "ubuntu" },
+      { host: "10.0.0.6" },
+      { host: "fe80::1", sshUser: "admin" },
+      { host: "localhost" },
+    ],
+  );
+  // A repeated entry is kept, as plain hosts always were.
+  assertEquals(parseHosts("a@h,a@h", "root"), [
+    { host: "h", sshUser: "a" },
+    { host: "h", sshUser: "a" },
+  ]);
+});
+
+Deno.test("parseHosts: refuses a bad user, an empty host, and one host with two users", () => {
+  assertThrows(() => parseHosts("@h", "root"), Error, "invalid SSH user");
+  assertThrows(
+    () => parseHosts("-oProxyCommand=id@h", "root"),
+    Error,
+    "invalid SSH user",
+  );
+  assertThrows(() => parseHosts("a@", "root"), Error, "invalid host");
+  assertThrows(() => parseHosts("a@b@h", "root"), Error, "invalid host");
+  assertThrows(
+    () => parseHosts("a@h,b@h", "root"),
+    Error,
+    "both a@h and b@h",
+  );
+  assertThrows(() => parseHosts("h,a@h", "root"), Error, "both root@h and a@h");
+  // The model's own user given explicitly is the same login, and a local
+  // host ignores its user.
+  parseHosts("h,root@h", "root");
+  parseHosts("localhost,a@localhost", "root");
+});
+
+Deno.test("scanFleet: a user@host entry logs in as its user; others keep sshUser", async () => {
+  const { context, statuses } = fakeContext();
+  context.globalArgs = model.globalArguments.parse({ sshUser: "ubuntu" });
+  const { argvs, result } = await withCommands(
+    (cmd) => vulnerableHost(cmd, "x"),
+    async (_ran, argvs) => ({
+      argvs,
+      result: await model.methods.scanFleet.execute(
+        { hosts: "admin@10.0.0.5,10.0.0.6" },
+        context,
+      ),
+    }),
+  );
+  assertEquals(sshTargets(argvs).sort(), [
+    "admin@10.0.0.5",
+    "ubuntu@10.0.0.6",
+  ]);
+  // The reachability probe and every data name use the bare host.
+  assert(argvs.some((a) => a[1]?.includes("nc -z -w 5 10.0.0.5 22")));
+  assertEquals(
+    (result.dataHandles as Handle[]).map((h) => h.name).sort(),
+    ["10.0.0.5", "10.0.0.5-log", "10.0.0.6", "10.0.0.6-log", "fleet-log"],
+  );
+  const s5 = statuses.get("10.0.0.5") as unknown as {
+    sshUser?: string;
+    targetHost: string;
+  };
+  assertEquals(s5.sshUser, "admin");
+  assertEquals(s5.targetHost, "10.0.0.5");
+  assertEquals("sshUser" in statuses.get("10.0.0.6")!, false);
+  assert(model.resources.status.schema.safeParse(s5).success);
+});
+
+Deno.test("mitigate: a user@host entry's status carries its user, failed or not", async () => {
+  const { context, statuses } = fakeContext();
+  const argvs = await withCommands(
+    (cmd) =>
+      cmd === "whoami" ? { code: 1, stderr: "boom" } : vulnerableHost(cmd, "x"),
+    async (_ran, argvs) => {
+      await model.methods.mitigate.execute(
+        { dryRun: true, hosts: "admin@10.0.0.5,10.0.0.6" },
+        context,
+      );
+      return argvs;
+    },
+  );
+  assertEquals(sshTargets(argvs).sort(), ["admin@10.0.0.5", "root@10.0.0.6"]);
+  const s5 = statuses.get("10.0.0.5") as unknown as {
+    sshUser?: string;
+    summary: string;
+  };
+  assertStringIncludes(s5.summary, "Mitigation failed on 10.0.0.5");
+  assertEquals(s5.sshUser, "admin");
+  assertEquals("sshUser" in statuses.get("10.0.0.6")!, false);
 });

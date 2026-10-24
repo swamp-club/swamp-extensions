@@ -75,6 +75,8 @@ type Mitigation = {
 
 type HostStatus = {
   target: string;
+  /** Set when the hosts entry gave its own user as user@host. */
+  sshUser?: string;
   hostname: string;
   dataAsOf: string;
   os: {
@@ -149,7 +151,10 @@ function hostsArg(results: HostStatus[]): string {
     !r.target.startsWith("docker-") && !r.target.startsWith("image-")
   );
   return remote.length > 0
-    ? ` --input hosts=${remote.map((r) => r.target).join(",")}`
+    ? ` --input hosts=${
+      remote.map((r) => r.sshUser ? `${r.sshUser}@${r.target}` : r.target)
+        .join(",")
+    }`
     : "";
 }
 

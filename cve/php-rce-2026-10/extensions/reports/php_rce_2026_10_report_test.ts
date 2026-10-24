@@ -441,3 +441,16 @@ Deno.test("report commands use the running behavior's name", async () => {
   );
   assert(!r.markdown.includes("php-rce-scanner"));
 });
+
+Deno.test("scan report: hosts scanned as user@host are suggested as user@host", async () => {
+  const r = await report.execute(makeContext("scanFleet", [
+    { ...status("10.0.1.50", UPGRADABLE), sshUser: "admin" },
+    status("10.0.1.51", BOOKWORM),
+  ]));
+  assertStringIncludes(
+    r.markdown,
+    "swamp behavior run php-rce-scanner mitigate --input hosts=admin@10.0.1.50,10.0.1.51\n",
+  );
+  // Tables show the bare host.
+  assert(!r.markdown.includes("| admin@10.0.1.50 |"));
+});

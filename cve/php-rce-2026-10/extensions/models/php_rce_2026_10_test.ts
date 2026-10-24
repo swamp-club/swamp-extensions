@@ -3,6 +3,7 @@ import {
   assertEquals,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import {
   analyze,
@@ -1008,7 +1009,10 @@ Deno.test("postMaxSize must be a positive size", () => {
 
 Deno.test("hostList drops duplicates and treats local aliases as one host", () => {
   assertEquals(
-    hostList(" 192.0.2.10,192.0.2.10 , localhost,127.0.0.1,::1,,192.0.2.11"),
+    hostList(
+      " 192.0.2.10,192.0.2.10 , localhost,127.0.0.1,::1,,192.0.2.11",
+      "root",
+    ).map((e) => e.host),
     ["192.0.2.10", "localhost", "192.0.2.11"],
   );
 });
@@ -1519,3 +1523,160 @@ Deno.test("failedMitigation keeps the options the run was asked for", () => {
   assertEquals(f.mitigation!.outcome, "error");
   assertEquals(f.mitigation!.steps, []);
 });
+
+// --- hosts entries: plain hosts behave as they always have ---
+
+type FleetStatus = { target: string; error?: string; sshUser?: string };
+
+/**
+ * Run scanFleet or mitigate with Deno.Command replaced by a process that
+ * fails as ssh does when it cannot connect, recording each argv. Every host
+ * then gets an error status, which still shows which target it was reached at.
+ */
+async function runHosts(
+  method: "scanFleet" | "mitigate",
+  hosts: string,
+  globals: Record<string, unknown> = {},
+) {
+  const argvs: string[][] = [];
+  const resources: Record<string, FleetStatus> = {};
+  const empty = () =>
+    new ReadableStream<Uint8Array>({ start: (c) => c.close() });
+  class FakeCommand {
+    #args: string[];
+    constructor(_bin: string, options: { args: string[] }) {
+      this.#args = options.args;
+    }
+    spawn() {
+      argvs.push(this.#args);
+      return {
+        stdout: empty(),
+        stderr: empty(),
+        stdin: new WritableStream<Uint8Array>(),
+        status: Promise.resolve({ code: 255, success: false }),
+      };
+    }
+  }
+  const deno = Deno as unknown as { Command: unknown };
+  const original = deno.Command;
+  deno.Command = FakeCommand;
+  try {
+    const context = {
+      globalArgs: model.globalArguments.parse(globals),
+      logger: { info: () => {}, debug: () => {} },
+      createFileWriter: () => ({
+        writeLine: () => Promise.resolve(),
+        writeText: () => Promise.resolve({}),
+        finalize: () => Promise.resolve({}),
+      }),
+      writeResource: (_spec: string, name: string, data: unknown) => {
+        resources[name] = data as FleetStatus;
+        return Promise.resolve({ name });
+      },
+    } as unknown as Parameters<typeof model.methods.scanFleet.execute>[1];
+    if (method === "scanFleet") {
+      await model.methods.scanFleet.execute({ hosts }, context);
+    } else {
+      await model.methods.mitigate.execute(
+        {
+          dryRun: true,
+          hosts,
+          applyConfigMitigations: false,
+          postMaxSize: "8M",
+        },
+        context,
+      );
+    }
+  } finally {
+    deno.Command = original;
+  }
+  return { argvs, resources };
+}
+
+/** The ssh target each command ran against: the argument after "--". */
+const sshTargets = (argvs: string[][]) => [
+  ...new Set(argvs.map((a) => a[a.indexOf("--") + 1])),
+];
+
+for (const method of ["scanFleet", "mitigate"] as const) {
+  Deno.test(`${method}: plain hosts connect as sshUser and write data named by the host`, async () => {
+    const { argvs, resources } = await runHosts(
+      method,
+      "192.0.2.10, 192.0.2.10,192.0.2.11",
+      { sshUser: "ops", sshKey: "/keys/id" },
+    );
+    assertEquals(argvs[0].slice(0, argvs[0].indexOf("--") + 2), [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "ConnectTimeout=10",
+      "-i",
+      "/keys/id",
+      "--",
+      "ops@192.0.2.10",
+    ]);
+    assertEquals(sshTargets(argvs).sort(), [
+      "ops@192.0.2.10",
+      "ops@192.0.2.11",
+    ]);
+    assertEquals(Object.keys(resources).sort(), ["192.0.2.10", "192.0.2.11"]);
+    assertEquals(resources["192.0.2.10"].target, "192.0.2.10");
+    assertEquals("sshUser" in resources["192.0.2.10"], false);
+  });
+}
+
+// --- hosts entries: user@host logs in to that host as user ---
+
+Deno.test("hostList: user@host carries its user; plain and local hosts carry none", () => {
+  assertEquals(
+    hostList(
+      " ops@192.0.2.10,ops@192.0.2.10, 192.0.2.11,admin@fe80::1,kim@localhost,::1",
+      "root",
+    ),
+    [
+      { host: "192.0.2.10", sshUser: "ops" },
+      { host: "192.0.2.11" },
+      { host: "fe80::1", sshUser: "admin" },
+      { host: "localhost" },
+    ],
+  );
+});
+
+Deno.test("hostList: refuses a bad user, an empty host, and one host with two users", () => {
+  assertThrows(() => hostList("@h", "root"), Error, "invalid SSH user");
+  assertThrows(
+    () => hostList("-oProxyCommand=id@h", "root"),
+    Error,
+    "invalid SSH user",
+  );
+  assertThrows(() => hostList("a@", "root"), Error, "invalid host");
+  assertThrows(() => hostList("a@b@h", "root"), Error, "invalid host");
+  assertThrows(() => hostList("a@h,b@h", "root"), Error, "both a@h and b@h");
+  assertThrows(() => hostList("h,a@h", "root"), Error, "both root@h and a@h");
+  // The model's own user given explicitly is the same login: one host.
+  assertEquals(hostList("h,root@h", "root"), [{ host: "h" }]);
+});
+
+for (const method of ["scanFleet", "mitigate"] as const) {
+  Deno.test(`${method}: a user@host entry logs in as its user, and its status says so`, async () => {
+    const { argvs, resources } = await runHosts(
+      method,
+      "admin@192.0.2.10,192.0.2.11",
+      { sshUser: "ops" },
+    );
+    assertEquals(sshTargets(argvs).sort(), [
+      "admin@192.0.2.10",
+      "ops@192.0.2.11",
+    ]);
+    assertEquals(Object.keys(resources).sort(), ["192.0.2.10", "192.0.2.11"]);
+    // Both hosts failed to connect: an error status still carries the user.
+    assertEquals(resources["192.0.2.10"].target, "192.0.2.10");
+    assertEquals(resources["192.0.2.10"].sshUser, "admin");
+    assertEquals("sshUser" in resources["192.0.2.11"], false);
+    assert(
+      model.resources.status.schema.safeParse(resources["192.0.2.10"]).success,
+    );
+  });
+}

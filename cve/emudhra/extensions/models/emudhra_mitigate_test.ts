@@ -28,6 +28,7 @@ import {
   model,
   type Script,
   testHooks,
+  type Transport,
 } from "./emudhra_detect.ts";
 import { COMPROMISED_CERTS, DISTRUST_ANCHOR } from "./_lib/emudhra_certs.ts";
 
@@ -123,13 +124,17 @@ async function mitigate(opts: {
   dryRun: boolean;
   probes: string[];
   answer?: (s: Script) => CommandResult | undefined;
+  hosts?: string;
+  method?: "mitigate" | "scanFleet";
 }) {
   const ran: Script[] = [];
+  const transports: Transport[] = [];
   const files: Record<string, string> = {};
   const resources: Record<string, Record<string, unknown>> = {};
   let probe = 0;
-  testHooks.runScript = (_t, s) => {
+  testHooks.runScript = (t, s) => {
     ran.push(s);
+    transports.push(t);
     if (/@@ os-release|Section 'os-release'/.test(s.text)) {
       const out = opts.probes[Math.min(probe++, opts.probes.length - 1)];
       return Promise.resolve({ stdout: out, stderr: "", exitCode: 0 });
@@ -159,7 +164,17 @@ async function mitigate(opts: {
         return Promise.resolve({ resource: name });
       },
     };
-    await model.methods.mitigate.execute({ dryRun: opts.dryRun }, context);
+    if (opts.method === "scanFleet") {
+      await model.methods.scanFleet.execute({ hosts: opts.hosts! }, context);
+    } else {
+      await model.methods.mitigate.execute(
+        {
+          dryRun: opts.dryRun,
+          ...(opts.hosts !== undefined ? { hosts: opts.hosts } : {}),
+        },
+        context,
+      );
+    }
   } finally {
     testHooks.runScript = undefined;
   }
@@ -167,8 +182,10 @@ async function mitigate(opts: {
   return {
     ran,
     files,
-    mitigation: status.mitigation as Record<string, unknown>,
+    mitigation: status?.mitigation as Record<string, unknown>,
     status,
+    resources,
+    transports,
   };
 }
 
@@ -363,3 +380,59 @@ Deno.test("mitigate, Windows administrator: trusted code-signing copies alone ar
     "code signing trusted -> not-trusted",
   );
 });
+
+// --- hosts entries: plain hosts behave as they always have ---
+
+/** The distinct ssh argv each target was reached with. */
+const sshArgs = (transports: Transport[]) => [
+  ...new Set(
+    transports.map((t) => t.kind === "ssh" ? t.args.join(" ") : t.kind),
+  ),
+];
+
+for (const method of ["scanFleet", "mitigate"] as const) {
+  Deno.test(`${method}: plain hosts connect as sshUser and write data named by the host`, async () => {
+    const r = await mitigate({
+      globals: { sshUser: "ops", sshKey: "/keys/id", targetOs: "linux" },
+      dryRun: true,
+      probes: [linuxProbe(allRejected)],
+      answer: sudoAllowed,
+      hosts: "10.0.0.5, fe80::1",
+      method,
+    });
+    const strict = method === "mitigate" ? "yes" : "accept-new";
+    const opts =
+      `-o BatchMode=yes -o StrictHostKeyChecking=${strict} -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -i /keys/id --`;
+    assertEquals(sshArgs(r.transports).sort(), [
+      `${opts} ops@10.0.0.5`,
+      `${opts} ops@fe80::1`,
+    ]);
+    assertEquals(Object.keys(r.resources).sort(), ["10.0.0.5", "fe80-1"]);
+    assertEquals(r.resources["10.0.0.5"].target, "10.0.0.5");
+    assertEquals("sshUser" in r.resources["10.0.0.5"], false);
+  });
+}
+
+// --- hosts entries: user@host logs in to that host as user ---
+
+for (const method of ["scanFleet", "mitigate"] as const) {
+  Deno.test(`${method}: a user@host entry logs in as its user, and its status says so`, async () => {
+    const r = await mitigate({
+      globals: { sshUser: "ops", targetOs: "linux" },
+      dryRun: true,
+      probes: [linuxProbe(allRejected)],
+      answer: sudoAllowed,
+      hosts: "admin@10.0.0.5,10.0.0.6",
+      method,
+    });
+    const targets = sshArgs(r.transports).map((a) => a.split(" ").pop());
+    assertEquals(targets.sort(), ["admin@10.0.0.5", "ops@10.0.0.6"]);
+    assertEquals(Object.keys(r.resources).sort(), ["10.0.0.5", "10.0.0.6"]);
+    assertEquals(r.resources["10.0.0.5"].target, "10.0.0.5");
+    assertEquals(r.resources["10.0.0.5"].sshUser, "admin");
+    assertEquals("sshUser" in r.resources["10.0.0.6"], false);
+    assert(
+      model.resources.status.schema.safeParse(r.resources["10.0.0.5"]).success,
+    );
+  });
+}

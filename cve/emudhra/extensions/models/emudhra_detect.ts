@@ -30,8 +30,10 @@ import {
   assertSafeSshTarget,
   assessHost,
   buildProbeScript,
+  type HostEntry,
   type HostStatus,
   type MitigationPlan,
+  parseHosts,
   parseProbe,
   planMitigation,
   type PlannedStep,
@@ -275,6 +277,9 @@ const HostStatusSchema = z.object({
     notes: z.array(z.string()),
     summary: z.string(),
   }).optional(),
+  sshUser: z.string().optional().describe(
+    "SSH user given with this host as user@host; absent when the model's sshUser was used",
+  ),
 });
 
 /** The OS a probe is written for. Anything that is not macOS or Windows gets the POSIX probe. */
@@ -1267,12 +1272,18 @@ async function mitigateTargetWithLog(
 
 export const model = {
   type: "@swamp/cve/emudhra",
-  version: "2026.10.22.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.10.22.1",
       description:
         "Adds macOS and Windows targets and the targetOs global argument (default auto). Existing arguments are unchanged. The scanFleet and mitigate summary logs are renamed fleet-summary and mitigate-summary, and hosts with characters outside A-Z, a-z, 0-9, '.', '_' and '-' (IPv6 addresses) get data names with those replaced by '-'.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description:
+        "hosts entries may be user@host to log in to that host as user; plain entries still use sshUser. status records the optional sshUser for such hosts. Existing arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1349,16 +1360,19 @@ export const model = {
 
     scanFleet: {
       description:
-        "Scan multiple hosts in parallel over SSH with a shared user and key. Pass a comma-separated list.",
+        "Scan multiple hosts in parallel over SSH with a shared key. Pass a comma-separated list; each host connects as sshUser, or as user for a user@host entry.",
       arguments: z.object({
         hosts: z
           .string()
-          .describe("Comma-separated list of host IPs or hostnames to scan"),
+          .describe(
+            "Comma-separated list of host IPs or hostnames to scan; user@host logs in to that host as user instead of sshUser",
+          ),
       }),
       execute: async (args: { hosts: string }, context: MethodContext) => {
         const g = context.globalArgs;
         const logger = context.logger;
-        const hosts = splitList(args.hosts);
+        const entries = parseHosts(args.hosts, g.sshUser);
+        const hosts = entries.map((e) => e.host);
         assertDistinctDataNames(hosts);
         // No per-host log ends in -summary, so no host name collides.
         const summaryLog = context.createFileWriter("log", "fleet-summary");
@@ -1369,12 +1383,12 @@ export const model = {
         );
 
         const settled = await settledPool(
-          hosts,
+          entries,
           FLEET_CONCURRENCY,
-          async (host: string) => {
+          async ({ host, sshUser }: HostEntry) => {
             const transport = buildTransport({
               targetHost: host,
-              sshUser: g.sshUser,
+              sshUser: sshUser ?? g.sshUser,
               sshKey: present(g.sshKey),
               targetOs: g.targetOs,
               listed: true,
@@ -1388,7 +1402,11 @@ export const model = {
               () => scanTarget(transport, host, g, hostLog, logger),
             );
             const logHandle = await hostLog.finalize();
-            return { host, status, logHandle };
+            return {
+              host,
+              status: sshUser !== undefined ? { ...status, sshUser } : status,
+              logHandle,
+            };
           },
         );
 
@@ -1444,7 +1462,7 @@ export const model = {
           .string()
           .optional()
           .describe(
-            "Comma-separated list of SSH hosts to mitigate (overrides targetHost)",
+            "Comma-separated list of SSH hosts to mitigate (overrides targetHost); user@host logs in to that host as user instead of sshUser",
           ),
       }),
       execute: async (
@@ -1462,36 +1480,45 @@ export const model = {
           autoContainer = await startDockerImage(g.dockerImage!, logger);
         }
 
-        if (present(args.hosts) && splitList(args.hosts).length === 0) {
+        const entries = present(args.hosts)
+          ? parseHosts(args.hosts, g.sshUser)
+          : [];
+        if (present(args.hosts) && entries.length === 0) {
           throw new Error("hosts lists no targets");
         }
-        if (present(args.hosts)) assertDistinctDataNames(splitList(args.hosts));
+        if (present(args.hosts)) {
+          assertDistinctDataNames(entries.map((e) => e.host));
+        }
         // Transports are built per target inside allSettled, so one invalid
         // host fails alone, as in scanFleet.
-        const targets: { host: string; transport: () => Transport }[] =
-          present(args.hosts)
-            ? splitList(args.hosts).map((host) => ({
-              host,
-              transport: () =>
-                buildTransport({
-                  targetHost: host,
-                  sshUser: g.sshUser,
-                  sshKey: present(g.sshKey),
-                  targetOs: g.targetOs,
-                  listed: true,
-                  strictHostKeys: true,
-                }),
-            }))
-            : [{
-              host: autoContainer ? imageLabel(g.dockerImage!) : targetLabel(g),
-              // The auto-started container is a copy, as in scan.
-              transport: () =>
-                buildTransport({
-                  ...g,
-                  ...(autoContainer ? { dockerContainer: autoContainer } : {}),
-                  strictHostKeys: true,
-                }),
-            }];
+        const targets: {
+          host: string;
+          sshUser?: string;
+          transport: () => Transport;
+        }[] = present(args.hosts)
+          ? entries.map(({ host, sshUser }) => ({
+            host,
+            sshUser,
+            transport: () =>
+              buildTransport({
+                targetHost: host,
+                sshUser: sshUser ?? g.sshUser,
+                sshKey: present(g.sshKey),
+                targetOs: g.targetOs,
+                listed: true,
+                strictHostKeys: true,
+              }),
+          }))
+          : [{
+            host: autoContainer ? imageLabel(g.dockerImage!) : targetLabel(g),
+            // The auto-started container is a copy, as in scan.
+            transport: () =>
+              buildTransport({
+                ...g,
+                ...(autoContainer ? { dockerContainer: autoContainer } : {}),
+                strictHostKeys: true,
+              }),
+          }];
 
         try {
           const settled = await settledPool(
@@ -1523,6 +1550,9 @@ export const model = {
                   {
                     ...status,
                     mitigation,
+                    ...(targets[i].sshUser !== undefined
+                      ? { sshUser: targets[i].sshUser }
+                      : {}),
                   },
                 ),
                 ...files,

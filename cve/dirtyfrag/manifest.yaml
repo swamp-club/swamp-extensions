@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/dirtyfrag"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 license: "AGPL-3.0-or-later"
 description: |
   Detects and mitigates the Dirty Frag Linux local privilege escalation
@@ -11,7 +11,8 @@ description: |
   ## Methods
 
   - `scan` — scan a single host (local, SSH, or Docker container)
-  - `scanFleet` — scan multiple hosts in parallel with shared SSH credentials
+  - `scanFleet` — scan multiple hosts in parallel over SSH; `user@host`
+    entries log in as their own user
   - `mitigate` — scan-then-fix: checks vulnerability first, blocklists
     modules, unloads them, and flushes page cache on affected hosts only
 

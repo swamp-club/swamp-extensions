@@ -143,7 +143,7 @@ protection.
 | Method | Description |
 |---|---|
 | `scan` | Scan one target: local, SSH, a Docker container, or a Docker image (started, scanned and removed) |
-| `scanFleet` | Scan several SSH hosts in parallel with a shared user and key |
+| `scanFleet` | Scan several SSH hosts in parallel with a shared key (`user@host` sets a host's user) |
 | `mitigate` | Scan, then fix the OS store and upgrade affected agents on exposed hosts. `dryRun` defaults to `true`. |
 
 ## Inputs
@@ -151,7 +151,7 @@ protection.
 | Global argument | Default | Description |
 |---|---|---|
 | `targetHost` | `localhost` | SSH host, or `localhost` for the local machine |
-| `sshUser` | `root` | SSH user |
+| `sshUser` | `root` | SSH user (also used for every host in `hosts` not given as `user@host`) |
 | `sshKey` | | SSH private key |
 | `dockerContainer` | | Container to scan (overrides SSH) |
 | `dockerImage` | | Image to start, scan and remove |
@@ -165,7 +165,8 @@ On a Windows target, `searchPaths` takes absolute Windows paths (`C:\srv` or
 `unreadable`.
 
 `scanFleet` takes `hosts` (comma-separated). `mitigate` takes `dryRun` and an
-optional `hosts`.
+optional `hosts`. A `hosts` entry may be `user@host` to log in to that host as
+`user` instead of `sshUser`.
 
 ## Usage
 
@@ -190,6 +191,10 @@ swamp behavior run emudhra-remote scan
 # A fleet (each host uses the model's sshUser and sshKey)
 swamp behavior run emudhra-remote scanFleet \
   --input hosts=10.0.1.50,10.0.1.51,10.0.1.52
+
+# A fleet with a different login on some hosts (plain entries use sshUser)
+swamp behavior run emudhra-remote scanFleet \
+  --input hosts=ubuntu@10.0.1.50,admin@10.0.1.51,10.0.1.52
 
 # A container image
 swamp behavior create @swamp/cve/emudhra image-scan \
