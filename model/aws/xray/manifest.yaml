@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/xray"
-version: "2026.10.23.2"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS XRAY infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - xray
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: group, resource_policy, sampling_rule, transaction_search_config
 models:
   - group.ts
   - resource_policy.ts

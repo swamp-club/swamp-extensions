@@ -4,7 +4,7 @@ import { z } from "npm:zod@4.6.7";
 import {
   ACMClient,
   DescribeCertificateCommand,
-} from "npm:@aws-sdk/client-acm@3.1147.0";
+} from "npm:@aws-sdk/client-acm@3.1156.0";
 import type { AwsCredentials } from "../../../../model/aws/certificatemanager/extensions/models/_lib/aws.ts";
 
 export const AcmDomainValidationSchema = z.object({

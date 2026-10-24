@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/iam"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS IAM infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - iam
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: group, group_policy, instance_profile, managed_policy, oidcprovider, role, role_policy, samlprovider, server_certificate, service_linked_role, user, user_policy, virtual_mfadevice
 models:
   - group.ts
   - group_policy.ts

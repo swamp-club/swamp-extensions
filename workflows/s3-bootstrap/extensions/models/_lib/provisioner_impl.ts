@@ -31,16 +31,16 @@ import {
   PutBucketVersioningCommand,
   PutPublicAccessBlockCommand,
   S3Client,
-} from "npm:@aws-sdk/client-s3@3.1147.0";
+} from "npm:@aws-sdk/client-s3@3.1156.0";
 import {
   CreatePolicyCommand,
   GetPolicyCommand,
   IAMClient,
-} from "npm:@aws-sdk/client-iam@3.1147.0";
+} from "npm:@aws-sdk/client-iam@3.1156.0";
 import {
   GetCallerIdentityCommand,
   STSClient,
-} from "npm:@aws-sdk/client-sts@3.1147.0";
+} from "npm:@aws-sdk/client-sts@3.1156.0";
 
 // All character classes are intentionally strict: these values are interpolated
 // into a shell command + JSON blob in the workflow's `run-setup` step (see

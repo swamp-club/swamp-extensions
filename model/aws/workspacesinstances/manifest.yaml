@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/workspacesinstances"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS WORKSPACESINSTANCES infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - workspacesinstances
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: volume, volume_association, workspace_instance
 models:
   - volume.ts
   - volume_association.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/iot"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS IOT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: account_audit_configuration, authorizer, billing_group, cacertificate, certificate, certificate_provider, command, custom_metric, dimension, domain_configuration, encryption_configuration, fleet_metric, job, job_template, logging, mitigation_action, policy, policy_principal_attachment, provisioning_template, resource_specific_logging, role_alias, scheduled_audit, security_profile, software_package, software_package_version, stream, thing, thing_group, thing_principal_attachment, thing_type, topic_rule, topic_rule_destination
+  - Added: otaupdate
 models:
   - account_audit_configuration.ts
   - authorizer.ts
@@ -29,6 +29,7 @@ models:
   - job_template.ts
   - logging.ts
   - mitigation_action.ts
+  - otaupdate.ts
   - policy.ts
   - policy_principal_attachment.ts
   - provisioning_template.ts

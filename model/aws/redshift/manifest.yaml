@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/redshift"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS REDSHIFT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - redshift
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: cluster, cluster_parameter_group, cluster_subnet_group, endpoint_access, endpoint_authorization, event_subscription, integration, qev2idc_application, redshift_idc_application, scheduled_action, snapshot, snapshot_copy_grant, snapshot_schedule, usage_limit
 models:
   - cluster.ts
   - cluster_parameter_group.ts

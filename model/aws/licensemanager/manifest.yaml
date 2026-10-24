@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/licensemanager"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 license: "AGPL-3.0-or-later"
 description: "AWS LICENSEMANAGER infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,6 @@ labels:
   - licensemanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: grant, license, license_asset_group, license_asset_rule_set, license_configuration, report_generator
 models:
   - grant.ts
   - license.ts

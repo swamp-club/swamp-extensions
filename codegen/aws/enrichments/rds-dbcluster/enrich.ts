@@ -5,7 +5,7 @@ import {
   DescribeDBClustersCommand,
   DescribeDBInstancesCommand,
   RDSClient,
-} from "npm:@aws-sdk/client-rds@3.1147.0";
+} from "npm:@aws-sdk/client-rds@3.1156.0";
 import type { AwsCredentials } from "../../../../model/aws/rds/extensions/models/_lib/aws.ts";
 
 export const DBClusterMemberSchema = z.object({
