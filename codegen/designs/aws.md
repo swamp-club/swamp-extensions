@@ -607,7 +607,29 @@ The config file (`config.ts`) exports an `AwsEnrichment` object with:
 At generation time, `parseEnrichmentSource()` reads the `.enrich.ts` file,
 extracts SDK imports and the body (with `export` keywords stripped), and the
 generator inlines everything into the model file. The output is self-contained —
-no extra directories or imports beyond the standard `_lib/aws.ts`.
+no extra directories or imports beyond the standard `_lib/aws.ts`. Imports of a
+model's `_lib/aws.ts` (for example the `AwsCredentials` type, needed for the
+source to type-check on its own) are stripped, since the model emits its own.
+
+### Signature and credentials
+
+The generator calls `enrichState(state, credentials)` in `get` and `sync`, where
+`credentials` is the same `AwsCredentials` built from the model's global
+arguments for the CloudControl read. An enrichment uses the access key fields
+when both are set, and the default credential chain otherwise. For the region,
+it takes the one named in the resource's own ARN from the state (for example
+`CertificateArn` or `DBClusterArn`), because that is where the CloudControl read
+found the resource. Only when no ARN is available does it fall back to
+`credentials.region`, `AWS_REGION`, `AWS_DEFAULT_REGION` and `us-east-1`. This
+fallback chain does not read the profile's region from `~/.aws/config`, unlike
+`resolveRegion()` in `_lib/aws.ts`, so the ARN is the reliable source. A wrong
+region surfaces as a not-found error that graceful degradation swallows, so the
+enriched fields silently disappear.
+
+`enrichState` runs on `get` and `sync` only. State written by `create`,
+`update`, or the CloudControl `list` method carries no enriched fields until the
+instance is next fetched with `get` or `sync`. For discovery, use the `list` +
+`get` import workflow.
 
 ### Graceful degradation
 
@@ -673,12 +695,13 @@ result payload, never in the instance name.
 
 ### Current enrichments
 
-| Resource                        | Strategy | Data added                                                                    | Output resources                                     |
-| ------------------------------- | -------- | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `AWS::RDS::DBCluster`           | SDK      | `DBClusterMembers` with instance class, AZ, writer status                     | —                                                    |
-| `AWS::Bedrock::KnowledgeBase`   | SDK      | `retrieve` method                                                             | `retrieval` (7d)                                     |
-| `AWS::Events::EventBus`         | SDK      | `put_events` method                                                           | `putEventsResult` (7d)                               |
-| `AWS::CloudFormation::StackSet` | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods | `stackInstance`, `operation`, `driftDetection` (30d) |
+| Resource                               | Strategy | Data added                                                                                                                                               | Output resources                                     |
+| -------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `AWS::RDS::DBCluster`                  | SDK      | `DBClusterMembers` with instance class, AZ, writer status                                                                                                | —                                                    |
+| `AWS::CertificateManager::Certificate` | SDK      | `NotAfter`, `NotBefore`, `Type`, `Status`, `RenewalEligibility`, `InUseBy`, `RenewalSummary` via `DescribeCertificate` (needs `acm:DescribeCertificate`) | —                                                    |
+| `AWS::Bedrock::KnowledgeBase`          | SDK      | `retrieve` method                                                                                                                                        | `retrieval` (7d)                                     |
+| `AWS::Events::EventBus`                | SDK      | `put_events` method                                                                                                                                      | `putEventsResult` (7d)                               |
+| `AWS::CloudFormation::StackSet`        | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods                                                                            | `stackInstance`, `operation`, `driftDetection` (30d) |
 
 ### List method enrichment
 
@@ -766,12 +789,12 @@ codegen/aws/enrichments/
 
 ### How custom methods differ from enrichState
 
-| Aspect             | enrichState                          | customMethods                            |
-| ------------------ | ------------------------------------ | ---------------------------------------- |
-| Purpose            | Augment state on `get`/`sync`        | Add standalone methods                   |
-| Credential access  | Env vars / default chain             | Explicit `(args, credentials)` signature |
-| Source files       | One per function                     | Single file, multiple exports            |
-| Generator location | Wraps `readResource` in `get`/`sync` | New method blocks after `list`           |
+| Aspect             | enrichState                               | customMethods                            |
+| ------------------ | ----------------------------------------- | ---------------------------------------- |
+| Purpose            | Augment state on `get`/`sync`             | Add standalone methods                   |
+| Credential access  | Explicit `(state, credentials)` signature | Explicit `(args, credentials)` signature |
+| Source files       | One per function                          | Single file, multiple exports            |
+| Generator location | Wraps `readResource` in `get`/`sync`      | New method blocks after `list`           |
 
 ### Function signature convention
 

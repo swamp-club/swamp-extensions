@@ -37,6 +37,10 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+import {
+  ACMClient,
+  DescribeCertificateCommand,
+} from "npm:@aws-sdk/client-acm@3.1147.0";
 
 const DomainValidationOptionSchema = z.object({
   DomainName: z.string().optional(),
@@ -95,6 +99,105 @@ const GlobalArgsSchema = z.object({
   ).optional(),
 });
 
+const AcmDomainValidationSchema = z.object({
+  DomainName: z.string().optional(),
+  ValidationDomain: z.string().optional(),
+  ValidationStatus: z.string().optional(),
+  ValidationMethod: z.string().optional(),
+  ResourceRecord: z.object({
+    Name: z.string().optional(),
+    Type: z.string().optional(),
+    Value: z.string().optional(),
+  }).optional(),
+});
+
+const AcmRenewalSummarySchema = z.object({
+  RenewalStatus: z.string().optional(),
+  RenewalStatusReason: z.string().optional(),
+  UpdatedAt: z.string().optional(),
+  DomainValidationOptions: z.array(AcmDomainValidationSchema).optional(),
+});
+
+/**
+ * Adds the attributes ACM reports for a certificate but CloudFormation does
+ * not model: validity window, type, status, renewal eligibility, the
+ * resources using it, and the renewal summary.
+ */
+async function enrichState(
+  state: { CertificateArn?: string } & Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>> {
+  const arn = state.CertificateArn;
+  if (!arn) return state;
+  try {
+    // disableImdsIfOffEc2 inlined — enrichments run at codegen time, not extension runtime
+    if (
+      !Deno.env.get("AWS_EC2_METADATA_DISABLED") &&
+      !Deno.env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") &&
+      !Deno.env.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+    ) {
+      Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
+    }
+    // The certificate lives in the region its ARN names, which is where the
+    // CloudControl read found it, whatever the profile or env would resolve.
+    const config: Record<string, unknown> = {
+      region: arn.split(":")[3] ||
+        credentials.region ||
+        Deno.env.get("AWS_REGION") ||
+        Deno.env.get("AWS_DEFAULT_REGION") ||
+        "us-east-1",
+    };
+    if (credentials.accessKeyId && credentials.secretAccessKey) {
+      config.credentials = {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        ...(credentials.sessionToken
+          ? { sessionToken: credentials.sessionToken }
+          : {}),
+      };
+    }
+    const acmClient = new ACMClient(config);
+    let resp;
+    try {
+      resp = await acmClient.send(
+        new DescribeCertificateCommand({ CertificateArn: arn }),
+      );
+    } finally {
+      acmClient.destroy();
+    }
+    const cert = resp.Certificate;
+    if (!cert) return state;
+    const renewal = cert.RenewalSummary;
+    return {
+      ...state,
+      NotAfter: cert.NotAfter?.toISOString(),
+      NotBefore: cert.NotBefore?.toISOString(),
+      Type: cert.Type,
+      Status: cert.Status,
+      RenewalEligibility: cert.RenewalEligibility,
+      InUseBy: cert.InUseBy,
+      RenewalSummary: renewal
+        ? {
+          RenewalStatus: renewal.RenewalStatus,
+          RenewalStatusReason: renewal.RenewalStatusReason,
+          UpdatedAt: renewal.UpdatedAt?.toISOString(),
+          DomainValidationOptions: renewal.DomainValidationOptions?.map((
+            d,
+          ) => ({
+            DomainName: d.DomainName,
+            ValidationDomain: d.ValidationDomain,
+            ValidationStatus: d.ValidationStatus,
+            ValidationMethod: d.ValidationMethod,
+            ResourceRecord: d.ResourceRecord,
+          })),
+        }
+        : undefined,
+    };
+  } catch {
+    return state;
+  }
+}
+
 const StateSchema = z.object({
   CertificateArn: z.string(),
   CertificateAuthorityArn: z.string().optional(),
@@ -106,6 +209,13 @@ const StateSchema = z.object({
   SubjectAlternativeNames: z.array(z.string()).optional(),
   ValidationMethod: z.string().optional(),
   CertificateExport: z.string().optional(),
+  NotAfter: z.string().optional(),
+  NotBefore: z.string().optional(),
+  Type: z.string().optional(),
+  Status: z.string().optional(),
+  RenewalEligibility: z.string().optional(),
+  InUseBy: z.array(z.string()).optional(),
+  RenewalSummary: AcmRenewalSummarySchema.optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -165,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CertificateManager Certificate. Registered at `@swamp/aws/certificatemanager/certificate`. */
 export const model = {
   type: "@swamp/aws/certificatemanager/certificate",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.08.14.1",
@@ -189,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -242,11 +357,14 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
-        const result = await readResource(
-          "AWS::CertificateManager::Certificate",
-          args.identifier,
+        const result = await enrichState(
+          await readResource(
+            "AWS::CertificateManager::Certificate",
+            args.identifier,
+            credentials,
+          ) as StateData,
           credentials,
-        ) as StateData;
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.identifier).replace(
             /[\/\\]/g,
@@ -369,11 +487,14 @@ export const model = {
           throw new Error("No identifier found in existing state");
         }
         try {
-          const result = await readResource(
-            "AWS::CertificateManager::Certificate",
-            identifier,
+          const result = await enrichState(
+            await readResource(
+              "AWS::CertificateManager::Certificate",
+              identifier,
+              credentials,
+            ) as StateData,
             credentials,
-          ) as StateData;
+          );
           const handle = await context.writeResource(
             "state",
             instanceName,

@@ -302,7 +302,10 @@ const DBClusterMemberSchema = z.object({
 });
 
 async function enrichState(
-  state: { DBClusterIdentifier?: string } & Record<string, unknown>,
+  state:
+    & { DBClusterIdentifier?: string; DBClusterArn?: string }
+    & Record<string, unknown>,
+  credentials: AwsCredentials,
 ): Promise<Record<string, unknown>> {
   const id = state.DBClusterIdentifier;
   if (!id) return state;
@@ -315,9 +318,25 @@ async function enrichState(
     ) {
       Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
     }
-    const rdsClient = new RDSClient({
-      region: Deno.env.get("AWS_REGION") || "us-east-1",
-    });
+    // The cluster lives in the region its ARN names, which is where the
+    // CloudControl read found it, whatever the profile or env would resolve.
+    const config: Record<string, unknown> = {
+      region: state.DBClusterArn?.split(":")[3] ||
+        credentials.region ||
+        Deno.env.get("AWS_REGION") ||
+        Deno.env.get("AWS_DEFAULT_REGION") ||
+        "us-east-1",
+    };
+    if (credentials.accessKeyId && credentials.secretAccessKey) {
+      config.credentials = {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        ...(credentials.sessionToken
+          ? { sessionToken: credentials.sessionToken }
+          : {}),
+      };
+    }
+    const rdsClient = new RDSClient(config);
     const descResp = await rdsClient.send(
       new DescribeDBClustersCommand({ DBClusterIdentifier: id }),
     );
@@ -774,7 +793,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -891,6 +910,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -948,6 +972,7 @@ export const model = {
             args.identifier,
             credentials,
           ) as StateData,
+          credentials,
         );
         const instanceName = ((result.DBClusterIdentifier ??
           context.globalArgs.DBClusterIdentifier)?.toString() ??
@@ -1080,6 +1105,7 @@ export const model = {
               identifier,
               credentials,
             ) as StateData,
+            credentials,
           );
           const handle = await context.writeResource(
             "state",

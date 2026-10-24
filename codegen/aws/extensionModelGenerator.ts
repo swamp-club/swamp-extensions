@@ -476,7 +476,7 @@ export function generateAwsExtensionModel(
     );
     if (input.enrichment) {
       lines.push(
-        `        const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", args.identifier, credentials) as StateData);`,
+        `        const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", args.identifier, credentials) as StateData, credentials);`,
       );
     } else {
       lines.push(
@@ -718,7 +718,7 @@ export function generateAwsExtensionModel(
     lines.push(`        try {`);
     if (input.enrichment) {
       lines.push(
-        `          const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", identifier, credentials) as StateData);`,
+        `          const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", identifier, credentials) as StateData, credentials);`,
       );
     } else {
       lines.push(

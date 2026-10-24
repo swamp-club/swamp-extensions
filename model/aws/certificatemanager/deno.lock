@@ -1,11 +1,25 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@aws-sdk/client-acm@3.1147.0": "3.1147.0",
     "npm:@aws-sdk/client-cloudcontrol@3.1147.0": "3.1147.0",
     "npm:fast-json-patch@3.1.1": "3.1.1",
     "npm:zod@4.6.7": "4.6.7"
   },
   "npm": {
+    "@aws-sdk/client-acm@3.1147.0": {
+      "integrity": "sha512-mn8bAd4//9N6Wyih5n0bwmR6F90GAjZUU4pVRbgj+OIa31BFxPLtQqz5yHLYkTqrOU7OndCoqFEpPuW0DMK5yw==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/fetch-http-handler",
+        "@smithy/node-http-handler",
+        "@smithy/types",
+        "tslib"
+      ]
+    },
     "@aws-sdk/client-cloudcontrol@3.1147.0": {
       "integrity": "sha512-uQebi8b2TBAcB9N9VuWwenvVIv8vB0kGxtGVDdWPJzTcvZUDkFfGPsiAkxHNsBs65ei0s4vQ0Zw1xyecQmJq0A==",
       "dependencies": [
@@ -242,6 +256,7 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@aws-sdk/client-acm@3.1147.0",
       "npm:@aws-sdk/client-cloudcontrol@3.1147.0",
       "npm:fast-json-patch@3.1.1",
       "npm:zod@4.6.7"

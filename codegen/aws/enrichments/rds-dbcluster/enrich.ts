@@ -6,6 +6,7 @@ import {
   DescribeDBInstancesCommand,
   RDSClient,
 } from "npm:@aws-sdk/client-rds@3.1147.0";
+import type { AwsCredentials } from "../../../../model/aws/rds/extensions/models/_lib/aws.ts";
 
 export const DBClusterMemberSchema = z.object({
   DBInstanceIdentifier: z.string().optional(),
@@ -17,7 +18,10 @@ export const DBClusterMemberSchema = z.object({
 });
 
 export async function enrichState(
-  state: { DBClusterIdentifier?: string } & Record<string, unknown>,
+  state:
+    & { DBClusterIdentifier?: string; DBClusterArn?: string }
+    & Record<string, unknown>,
+  credentials: AwsCredentials,
 ): Promise<Record<string, unknown>> {
   const id = state.DBClusterIdentifier;
   if (!id) return state;
@@ -30,9 +34,25 @@ export async function enrichState(
     ) {
       Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
     }
-    const rdsClient = new RDSClient({
-      region: Deno.env.get("AWS_REGION") || "us-east-1",
-    });
+    // The cluster lives in the region its ARN names, which is where the
+    // CloudControl read found it, whatever the profile or env would resolve.
+    const config: Record<string, unknown> = {
+      region: state.DBClusterArn?.split(":")[3] ||
+        credentials.region ||
+        Deno.env.get("AWS_REGION") ||
+        Deno.env.get("AWS_DEFAULT_REGION") ||
+        "us-east-1",
+    };
+    if (credentials.accessKeyId && credentials.secretAccessKey) {
+      config.credentials = {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        ...(credentials.sessionToken
+          ? { sessionToken: credentials.sessionToken }
+          : {}),
+      };
+    }
+    const rdsClient = new RDSClient(config);
     const descResp = await rdsClient.send(
       new DescribeDBClustersCommand({ DBClusterIdentifier: id }),
     );

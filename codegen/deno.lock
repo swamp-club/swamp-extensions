@@ -21,6 +21,7 @@
     "jsr:@std/text@^1.0.17": "1.0.17",
     "jsr:@zip-js/zip-js@2.8.22": "2.8.22",
     "npm:@apidevtools/json-schema-ref-parser@11.9.3": "11.9.3",
+    "npm:@aws-sdk/client-acm@3.1147.0": "3.1147.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1090.0": "3.1090.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1147.0": "3.1147.0",
@@ -166,6 +167,19 @@
       "dependencies": [
         "@aws-sdk/types",
         "@smithy/util-utf8@2.3.0",
+        "tslib"
+      ]
+    },
+    "@aws-sdk/client-acm@3.1147.0": {
+      "integrity": "sha512-mn8bAd4//9N6Wyih5n0bwmR6F90GAjZUU4pVRbgj+OIa31BFxPLtQqz5yHLYkTqrOU7OndCoqFEpPuW0DMK5yw==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/fetch-http-handler",
+        "@smithy/node-http-handler@4.12.1",
+        "@smithy/types",
         "tslib"
       ]
     },

@@ -85,3 +85,30 @@ Deno.test("parseListMethodSource - body maps SDK fields to CF property names", a
   assertStringIncludes(result.body, "EngineVersion");
   assertStringIncludes(result.body, "Status");
 });
+
+Deno.test("parseEnrichmentSource - strips _lib/aws imports", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const path = `${dir}/enrich.ts`;
+    await Deno.writeTextFile(
+      path,
+      [
+        "// deno-lint-ignore-file no-import-prefix",
+        'import { z } from "npm:zod@4.6.7";',
+        'import { ACMClient } from "npm:@aws-sdk/client-acm@3.1147.0";',
+        'import type { AwsCredentials } from "../../../../model/aws/certificatemanager/extensions/models/_lib/aws.ts";',
+        "",
+        "export async function enrichState(state: Record<string, unknown>, _c: AwsCredentials) {",
+        "  return state;",
+        "}",
+      ].join("\n"),
+    );
+    const result = await parseEnrichmentSource(path);
+    assertEquals(result.imports, [
+      'import { ACMClient } from "npm:@aws-sdk/client-acm@3.1147.0";',
+    ]);
+    assertStringIncludes(result.body, "async function enrichState");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
